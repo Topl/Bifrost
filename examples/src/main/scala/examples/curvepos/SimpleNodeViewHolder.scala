@@ -51,7 +51,7 @@ class SimpleNodeViewHolder(settings: Settings)
     }
     require(blockchain.height() == 1, s"${blockchain.height()} == 1")
 
-    val state = emptyState.applyModifier(genesisBlock) match {
+    val state = emptyState.applyChanges(emptyState.changes(genesisBlock).get, genesisBlock.id) match {
       case Failure(f) => throw f
       case Success(newState) => newState
     }
