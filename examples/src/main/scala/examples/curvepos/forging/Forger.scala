@@ -33,7 +33,7 @@ class Forger(viewHolderRef: ActorRef, forgerSettings: ForgerSettings) extends Ac
 
 
   val InterBlocksDelay = 15 //in seconds
-  val blockGenerationDelay = 500.millisecond
+  val blockGenerationDelay = 5000.millisecond
 
   override def preStart(): Unit = {
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! Forge)

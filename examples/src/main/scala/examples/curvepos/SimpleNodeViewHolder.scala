@@ -32,8 +32,8 @@ class SimpleNodeViewHolder(settings: Settings)
     val emptyBlockchain = new SimpleBlockchain
     val emptyState = new SimpleState
 
-    val genesisAcc1 = SimpleWallet(Base58.decode("genesis").get).publicKeys.head
-    val genesisAcc2 = SimpleWallet(Base58.decode("genesis2").get).publicKeys.head
+    val genesisAcc1 = SimpleWallet(Base58.decode("genesisoo").get).publicKeys.head
+    val genesisAcc2 = SimpleWallet(Base58.decode("genesiso1").get).publicKeys.head
 
     val IntitialBaseTarget = 15372286700L
     val generator = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
