@@ -42,7 +42,7 @@ Examples
 --------
 
 There are two examples of blockchain systems built with Scorex. Details are available in 
-the [dedicated readme](examples/README.md).
+the [dedicated readme](examples/README.md)..
 
 
 
