@@ -29,9 +29,12 @@ case class ContractCreation(sender: PublicKey25519Proposition,
     "timestamp" -> timestamp.asJson
   ).asJson
 
-  override lazy val messageToSign: Array[Byte] = id
-
   override lazy val serializer = ContractCreationCompanion
+
+  override lazy val messageToSign: Array[Byte] = serializer.toBytes(this)
+
+  override def toString: String = s"ContractCreation(${json.noSpaces})"
+
 }
 
 object ContractCreationCompanion extends Serializer[ContractCreation] {
@@ -60,8 +63,8 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
   }
 }
 
-case class Agreement(senders: (PublicKey25519Proposition,PublicKey25519Proposition,PublicKey25519Proposition),
-                     terms: Map[String, String],
+case class Agreement(senders: (PublicKey25519Proposition, PublicKey25519Proposition, PublicKey25519Proposition),
+                     terms: AgreementTerms,
                      nonce: Long,
                      fee: Long = 0,
                      timestamp: Long)
@@ -74,15 +77,18 @@ case class Agreement(senders: (PublicKey25519Proposition,PublicKey25519Propositi
       Base58.encode(senders._1.pubKeyBytes),
       Base58.encode(senders._2.pubKeyBytes),
       Base58.encode(senders._3.pubKeyBytes)).asJson,
-    "terms" -> terms.asJson,
+    "terms" -> terms.json,
     "fee" -> fee.asJson,
     "nonce" -> nonce.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
-  override lazy val messageToSign: Array[Byte] = id
-
   override lazy val serializer = AgreementCompanion
+
+  override lazy val messageToSign: Array[Byte] = serializer.toBytes(this)
+
+  override def toString: String = s"Agreement(${json.noSpaces})"
+
 }
 
 object AgreementCompanion extends Serializer[Agreement] {
@@ -92,7 +98,7 @@ object AgreementCompanion extends Serializer[Agreement] {
     m.senders._1.pubKeyBytes ++
       m.senders._2.pubKeyBytes ++
       m.senders._3.pubKeyBytes ++
-      Longs.toByteArray(m.terms.toString.getBytes.length) ++
+      Longs.toByteArray(m.terms.asJson.toString.getBytes.length) ++
       m.terms.asJson.toString.getBytes  ++
       Longs.toByteArray(m.fee) ++
       Longs.toByteArray(m.nonce) ++
@@ -107,7 +113,7 @@ object AgreementCompanion extends Serializer[Agreement] {
     val mapLength = Longs.fromByteArray(bytes.slice(3*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength + 8))
     val terms = new String(
       bytes.slice(3*Constants25519.PubKeyLength + 1, 3*Constants25519.PubKeyLength + 1 + mapLength.toInt)
-    ).asInstanceOf[Map[String, String]]
+    ).asInstanceOf[AgreementTerms]
     val s = Constants25519.PubKeyLength + 8
     val fee = Longs.fromByteArray(bytes.slice(s, s + 8))
     val nonce = Longs.fromByteArray(bytes.slice(s + 8, s + 16))
