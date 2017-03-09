@@ -1,12 +1,17 @@
 package examples.bifrost.transaction.contract
 
+import java.io.{ByteArrayInputStream, ObjectInputStream}
+
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._
+import io.circe.parser._
+import io.circe.generic.auto._
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
+import cats.syntax.either._
 
 import scala.util.Try
 
@@ -23,7 +28,7 @@ case class ContractCreation(sender: PublicKey25519Proposition,
 
   override lazy val json: Json = Map(
     "sender" -> Base58.encode(sender.pubKeyBytes).asJson,
-    "agreement" -> agreement.asJson,
+    "agreement" -> agreement.json,
     "fee" -> fee.asJson,
     "nonce" -> nonce.asJson,
     "timestamp" -> timestamp.asJson
@@ -98,22 +103,37 @@ object AgreementCompanion extends Serializer[Agreement] {
     m.senders._1.pubKeyBytes ++
       m.senders._2.pubKeyBytes ++
       m.senders._3.pubKeyBytes ++
-      Longs.toByteArray(m.terms.asJson.toString.getBytes.length) ++
-      m.terms.asJson.toString.getBytes  ++
+      Longs.toByteArray(m.terms.json.toString.getBytes.length) ++
+      m.terms.json.toString.getBytes  ++
       Longs.toByteArray(m.fee) ++
       Longs.toByteArray(m.nonce) ++
       Longs.toByteArray(m.timestamp)
   }.ensuring(_.length < MaxTransactionLength)
+
+  private def deserialise(bytes: Array[Byte]): Any = {
+    new ObjectInputStream(new ByteArrayInputStream(bytes)).readObject()
+  }
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
     val senders = (PublicKey25519Proposition(bytes.slice(0, Constants25519.PubKeyLength)),
       PublicKey25519Proposition(bytes.slice(Constants25519.PubKeyLength, 2*Constants25519.PubKeyLength)),
       PublicKey25519Proposition(bytes.slice(2*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength)))
 
-    val mapLength = Longs.fromByteArray(bytes.slice(3*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength + 8))
-    val terms = new String(
-      bytes.slice(3*Constants25519.PubKeyLength + 1, 3*Constants25519.PubKeyLength + 1 + mapLength.toInt)
-    ).asInstanceOf[AgreementTerms]
+    val jsonLength = Longs.fromByteArray(bytes.slice(3*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength + 8))
+
+    val termsMap: Map[String, Json] = parse(new String(
+      bytes.slice(3*Constants25519.PubKeyLength + 1, 3*Constants25519.PubKeyLength + 1 + jsonLength.toInt)
+    )).getOrElse(Json.Null).as[Map[String, Json]].right.get
+
+    val terms = new AgreementTerms(
+      termsMap("pledge").as[BigDecimal].right.get,
+      termsMap("xrate").as[BigDecimal].right.get,
+      this.deserialise(Base58.decode(termsMap("share").asString.get).get)
+        .asInstanceOf[Function[Long, (BigDecimal, BigDecimal, BigDecimal)]],
+      this.deserialise(Base58.decode(termsMap("fulfilment").asString.get).get)
+        .asInstanceOf[Function[Long, BigDecimal]]
+    )
+
     val s = Constants25519.PubKeyLength + 8
     val fee = Longs.fromByteArray(bytes.slice(s, s + 8))
     val nonce = Longs.fromByteArray(bytes.slice(s + 8, s + 16))
