@@ -20,14 +20,14 @@ case class BifrostBlock(override val parentId: BlockId,
                        generationSignature: GenerationSignature,
                        baseTarget: BaseTarget,
                        generator: PublicKey25519Proposition,
-                       txs: Seq[Transaction[PublicKey25519Proposition]])
+                       txs: Seq[BifrostTransaction])
   extends Block[PublicKey25519Proposition, Transaction[PublicKey25519Proposition]] {
 
   override type M = BifrostBlock
 
   override lazy val modifierTypeId: Byte = BifrostBlock.ModifierTypeId
 
-  override lazy val transactions: Option[Seq[Transaction[PublicKey25519Proposition]]] = Some(txs)
+  override lazy val transactions: Option[Seq[BifrostTransaction]] = Some(txs)
 
   override lazy val serializer = BifrostBlockCompanion
 
@@ -64,10 +64,10 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       Array(block.version) ++
       Longs.toByteArray(block.baseTarget) ++
       block.generator.pubKeyBytes ++ {
-      val cntBytes = Ints.toByteArray(block.txs.size)
+      val cntBytes = Ints.toByteArray(block.txs.length)
 
-      // writes number of transactions, then adds <number of bytes for tx as bytes> | <tx as bytes> for each tx
-      block.txs.foldLeft(cntBytes) { case (bytes, tx) => bytes ++ Ints.toByteArray(tx.bytes.length) ++ tx.bytes }
+      // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
+      block.txs.foldLeft(cntBytes) { case (bytes, tx) => bytes ++ tx.bytes ++ Ints.toByteArray(tx.bytes.length) }
     }
   }
 
@@ -86,10 +86,26 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val generator = PublicKey25519Proposition(bytes.slice(s1, s1 + 32))
     val cnt = Ints.fromByteArray(bytes.slice(s1 + 32, s1 + 36))
     val s2 = s1 + 36
-    val txs = (0 until cnt) map { i =>
-      val bt = bytes.slice(s2 + 2 * i, s2 + 2 * (i + 1))
-      SimplePaymentCompanion.parseBytes(bt).get
+
+    def unfoldRight[A,B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
+      f(seed) match {
+        case Some((a, b)) => unfoldRight(b)(f) :+ a
+        case None => Nil
+      }
     }
-    BifrostBlock(parentId, timestamp, generationSignature, baseTarget, generator, txs)
+    val txBytes = bytes.slice(s2, bytes.length)
+
+    val tx: Seq[BifrostTransaction] = unfoldRight(txBytes)(bytes => {
+      val bytesToGrab = Ints.fromByteArray(bytes.slice(bytes.length-4, bytes.length))
+
+      if(bytes.length < bytesToGrab + 4)
+        None
+      else {
+        val thisTx = bytes.slice(bytes.length - bytesToGrab - 4, bytes.length - 4)
+        Some((thisTx, bytes.slice(0, bytes.length - bytesToGrab - 4)))
+      }
+    }).ensuring(_.length == cnt).map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+
+    BifrostBlock(parentId, timestamp, generationSignature, baseTarget, generator, tx)
   }
 }
