@@ -1,28 +1,32 @@
 package examples.bifrost.transaction.contract
 
-import java.io.{ByteArrayOutputStream, ObjectOutputStream}
-
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
 
 class AgreementTerms(pledge: BigDecimal,
                      xrate: BigDecimal,
-                     share: Long => (BigDecimal, BigDecimal, BigDecimal),
-                     fulfilment: Long => BigDecimal){
+                     share: ShareFunction,
+                     fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
     "pledge" -> Json.fromBigDecimal(pledge),
     "xrate" -> Json.fromBigDecimal(xrate),
-    "share" -> Json.fromString(Base58.encode(serialise(share))),
-    "fulfilment" -> Json.fromString(Base58.encode(serialise(fulfilment)))
+    "share" -> Map(
+      "functionType" -> Json.fromString(share.functionType),
+      "points" -> Json.arr(share.points.map(p => Json.arr(
+          Json.fromDouble(p._1).get,
+          Json.arr(Json.fromDouble(p._2._1).get, Json.fromDouble(p._2._2).get, Json.fromDouble(p._2._3).get)
+        )
+      ):_*)
+    ).asJson,
+    "fulfilment" -> Map(
+      "functionType" -> Json.fromString(share.functionType),
+      "points" -> Json.arr(
+        fulfilment.points.map(p => Json.arr(Json.fromLong(p._1), Json.fromDouble(p._2).get)):_*
+      )
+    ).asJson
   ).asJson
 
   override def toString: String = s"AgreementTerms(${json.noSpaces})"
 
-  private def serialise[A](f: A) : Array[Byte] = {
-    val bo = new ByteArrayOutputStream()
-    new ObjectOutputStream(bo).writeObject(f)
-    bo.toByteArray
-  }
 }

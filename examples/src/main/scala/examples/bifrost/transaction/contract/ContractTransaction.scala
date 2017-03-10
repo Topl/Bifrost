@@ -13,7 +13,7 @@ import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Pr
 import scorex.crypto.encode.Base58
 import cats.syntax.either._
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 sealed trait ContractTransaction extends Transaction[PublicKey25519Proposition]
 
@@ -97,7 +97,7 @@ case class Agreement(senders: (PublicKey25519Proposition, PublicKey25519Proposit
 }
 
 object AgreementCompanion extends Serializer[Agreement] {
-  val MaxTransactionLength: Int = Constants25519.PubKeyLength*3 + 8 + 1024*100 + 24
+  val MaxTransactionLength: Int = Constants25519.PubKeyLength*3 + 8 + 1024*10 + 24
 
   override def toBytes(m: Agreement): Array[Byte] = {
     m.senders._1.pubKeyBytes ++
@@ -125,13 +125,21 @@ object AgreementCompanion extends Serializer[Agreement] {
       bytes.slice(3*Constants25519.PubKeyLength + 1, 3*Constants25519.PubKeyLength + 1 + jsonLength.toInt)
     )).getOrElse(Json.Null).as[Map[String, Json]].right.get
 
+    val fulfilmentMap = termsMap("fulfilment").as[Map[String, Json]].right
+    val shareMap = termsMap("share").as[Map[String, Json]].right
+
     val terms = new AgreementTerms(
       termsMap("pledge").as[BigDecimal].right.get,
       termsMap("xrate").as[BigDecimal].right.get,
-      this.deserialise(Base58.decode(termsMap("share").asString.get).get)
-        .asInstanceOf[Function[Long, (BigDecimal, BigDecimal, BigDecimal)]],
-      this.deserialise(Base58.decode(termsMap("fulfilment").asString.get).get)
-        .asInstanceOf[Function[Long, BigDecimal]]
+      shareMap.get("functionType").asString.get match {
+        case "PiecewiseLinear" => new PiecewiseLinearMultiple(
+          shareMap.get("points").as[Seq[(Double,(Double, Double, Double))]].right.get
+        )
+      },
+      fulfilmentMap.get("functionType").asString.get match {
+        case "PiecewiseLinear" => new PiecewiseLinearSingle(
+          fulfilmentMap.get("points").as[Seq[(Long, Double)]].right.get)
+      }
     )
 
     val s = Constants25519.PubKeyLength + 8
