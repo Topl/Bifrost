@@ -9,7 +9,6 @@ import scorex.core.block.Block
 import scorex.core.block.Block._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
-import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -21,7 +20,7 @@ case class BifrostBlock(override val parentId: BlockId,
                        baseTarget: BaseTarget,
                        generator: PublicKey25519Proposition,
                        txs: Seq[BifrostTransaction])
-  extends Block[PublicKey25519Proposition, Transaction[PublicKey25519Proposition]] {
+  extends Block[PublicKey25519Proposition, BifrostTransaction] {
 
   override type M = BifrostBlock
 
