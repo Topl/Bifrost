@@ -17,18 +17,14 @@ import scorex.crypto.encode.Base58
 
 sealed trait BifrostTransaction extends BoxTransaction[PublicKey25519Proposition, PublicKey25519NoncedBox]
 
-
-/** CONTRACT TRANSACTIONS **/
-
 sealed abstract class ContractTransaction extends BifrostTransaction
 
-
-// 3 signatures FOR A SPECIFIC MESSAGE <agreement: Array[Byte]>
+// 3 signatures FOR A SPECIFIC MESSAGE <agreement: Agreement>
 // ContractCreation(agreement ++ nonce, IndexSeq(pk1, pk2, pk3), IndexSeq(sign1(agreement ++ nonce), sign2(agreement ++ nonce), sign3(agreement ++ nonce)) )
 // validity check: decrypt[pk1] sign1(agreement) === agreement
 // agreement specifies "executeBy" date
 case class ContractCreation(agreement: Agreement,
-                            parties: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                            parties: IndexedSeq[PublicKey25519Proposition],
                             signatures: IndexedSeq[Signature25519],
                             fee: Long,
                             timestamp: Long)
@@ -36,6 +32,7 @@ case class ContractCreation(agreement: Agreement,
 
   override type M = ContractCreation
 
+  // no boxes required for now -- will require reputation
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]()
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
@@ -53,17 +50,13 @@ case class ContractCreation(agreement: Agreement,
   )
 
 
-  // TODO generate 3 contract boxes, one for each participant
+  // TODO generate 3 contract boxes, one for each participant as "authorization"
   override lazy val newBoxes: Traversable[PublicKey25519NoncedBox] = ???
 
   override lazy val json: Json = Map(
-    "agreements" -> parties.map { a =>
-      Map(
-        "proposition" -> Base58.encode(a._1.pubKeyBytes).asJson,
-        "nonce" -> a._2.asJson
-      ).asJson
-    }.asJson,
-    "signature" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "agreement" -> agreement.json,
+    "parties" -> parties.map( p => Base58.encode(p.pubKeyBytes).asJson ).asJson,
+    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
@@ -77,20 +70,18 @@ case class ContractCreation(agreement: Agreement,
 }
 
 
-case class Agreement(sender: PublicKey25519Proposition,
-                     parties: IndexedSeq[PublicKey25519Proposition],
+case class Agreement(parties: IndexedSeq[PublicKey25519Proposition],
                      terms: AgreementTerms,
                      nonce: Long,
-                     fee: Long = 0,
-                     timestamp: Long) {
+                     timestamp: Long,
+                     expirationTimestamp: Long) {
 
   lazy val json: Json = Map(
-    "sender" -> Base58.encode(sender.pubKeyBytes).asJson,
     "parties" -> Array( parties.map(p => Base58.encode(p.pubKeyBytes)) ).asJson,
     "terms" -> terms.json,
-    "fee" -> fee.asJson,
     "nonce" -> nonce.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "expirationTimestamp" -> expirationTimestamp.asJson
   ).asJson
 
   override def toString: String = s"Agreement(${json.noSpaces})"
