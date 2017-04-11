@@ -21,6 +21,7 @@ trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends Box[PKP] {
 }
 
 object PublicKeyNoncedBox {
+
   def idFromBox[PKP <: PublicKey25519Proposition](prop: PKP, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
 }

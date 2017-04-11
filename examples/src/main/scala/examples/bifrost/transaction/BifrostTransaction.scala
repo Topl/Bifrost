@@ -12,6 +12,7 @@ import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.{Proof, Signature25519}
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.transaction.{BoxTransaction, Transaction}
 import scorex.crypto.encode.Base58
 
@@ -51,7 +52,10 @@ case class ContractCreation(agreement: Agreement,
 
 
   // TODO generate 3 contract boxes, one for each participant as "authorization"
-  override lazy val newBoxes: Traversable[PublicKey25519NoncedBox] = ???
+  override lazy val newBoxes: Traversable[PublicKey25519NoncedBox] = parties.zipWithIndex.map { case (prop, idx) =>
+    val nonce = nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+    PublicKey25519NoncedBox(prop, nonce, value)
+  }
 
   override lazy val json: Json = Map(
     "agreement" -> agreement.json,
@@ -67,6 +71,28 @@ case class ContractCreation(agreement: Agreement,
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
 
+}
+
+object ContractCreation {
+  type Value = Long
+  type Nonce = Long
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
+
+  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
+            to: IndexedSeq[(PublicKey25519Proposition, Value)],
+            fee: Long,
+            timestamp: Long): SimpleBoxTransaction = {
+    val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
+    val fakeSigs = from.map(_ => Signature25519(Array()))
+
+    val undersigned = ContractCreation(, fee, timestamp)
+
+    val msg = undersigned.messageToSign
+    val sigs = from.map { case (priv, _) => PrivateKey25519Companion.sign(priv, msg) }
+
+    new SimpleBoxTransaction(fromPub, to, sigs, fee, timestamp)
+  }
 }
 
 
