@@ -23,8 +23,8 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
-    val typeLength = Ints.fromByteArray(bytes.slice(0, 4))
-    val typeStr = new String(bytes.slice(4,4 + typeLength))
+    val typeLength = Ints.fromByteArray(bytes.slice(0, Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
 
     typeStr match {
       case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
@@ -43,7 +43,6 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       typeBytes ++
       (m match {
         case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
-        case a: Agreement => AgreementCompanion.toBytes(a)
       })
   }
 
@@ -91,35 +90,54 @@ object PaymentTransactionCompanion extends Serializer[PaymentTransaction] {
 }
 
 object ContractCreationCompanion extends Serializer[ContractCreation] {
-  val MaxTransactionLength: Int = Constants25519.PubKeyLength + AgreementCompanion.MaxTransactionLength + 24
 
   override def toBytes(m: ContractCreation): Array[Byte] = {
     val typeBytes = "ContractCreation".getBytes
 
+    val agreementBytes = AgreementCompanion.toBytes(m.agreement)
+
+    // TODO this might need a nonce
       Bytes.concat(
         Longs.toByteArray(m.fee),
         Longs.toByteArray(m.timestamp),
+        Longs.toByteArray(agreementBytes.length),
         Ints.toByteArray(typeBytes.length),
         Ints.toByteArray(m.signatures.length),
-        Ints.toByteArray(m.agreements.length),
+        Ints.toByteArray(m.parties.length),
+        agreementBytes,
         typeBytes,
         m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-        m.agreements.foldLeft(Array[Byte]())((a, b) => a ++ b._1.bytes ++ Longs.toByteArray(b._2))
+        m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
       )
   }
 
+  // TODO fix this
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
-    val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
-    val timestamp = Longs.fromByteArray(bytes.slice(Longs.BYTES, 2*Longs.BYTES))
+    val (fee: Long, timestamp: Long, agreementLength: Long) = (0 until 3) map { i =>
+      Longs.fromByteArray(bytes.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+    }
 
-    val numUsedBytes = 2*Longs.BYTES
-    val typeLength = Ints.fromByteArray(bytes.slice(numUsedBytes, numUsedBytes + Ints.BYTES))
-    val sigLength = Ints.fromByteArray(bytes.slice(numUsedBytes + Ints.BYTES, numUsedBytes + 2*Ints.BYTES))
-    val agreementsLength = Ints.fromByteArray(bytes.slice(numUsedBytes + 2*Ints.BYTES, numUsedBytes + 3*Ints.BYTES))
+    val numUsedBytes = 3*Longs.BYTES
+
+    val (typeLength: Int, sigLength: Int, partiesLength: Int) = (0 until 3) map { i =>
+      Ints.fromByteArray(bytes.slice(numUsedBytes, numUsedBytes + Ints.BYTES))
+    }
 
     val postLengthUsedBytes = numUsedBytes + 3*Ints.BYTES
 
-    val transType = new String(bytes.slice(postLengthUsedBytes, postLengthUsedBytes + typeLength))
+    val agreement = AgreementCompanion.parseBytes(
+      bytes.slice(
+        postLengthUsedBytes,
+        postLengthUsedBytes + agreementLength.toInt
+      )
+    ).get
+
+    val transType = new String(
+      bytes.slice(
+        postLengthUsedBytes + agreementLength.toInt,
+        postLengthUsedBytes + typeLength + agreementLength.toInt
+      )
+    )
 
     val sigStart = postLengthUsedBytes + typeLength
 
@@ -129,46 +147,52 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     val s = sigStart + sigLength * Curve25519.SignatureLength
 
-    val elementLength = Longs.BYTES + Curve25519.KeyLength
-
-    val agreements = (0 until agreementsLength) map { i =>
-      val pk = bytes.slice(s + i * elementLength, s + (i + 1) * elementLength - 8)
-      val v = Longs.fromByteArray(bytes.slice(s + (i + 1) * elementLength - 8, s + (i + 1) * elementLength))
-      (PublicKey25519Proposition(pk), v)
+    val parties = (0 until partiesLength) map { i =>
+      val pk = bytes.slice(s + i * Curve25519.KeyLength, s + (i + 1) * Curve25519.KeyLength )
+      PublicKey25519Proposition(pk)
     }
 
-    ContractCreation(agreements, signatures, fee, timestamp)
+    ContractCreation(agreement, parties, signatures, fee, timestamp)
   }
 
 }
 
 object AgreementCompanion extends Serializer[Agreement] {
-  val MaxTransactionLength: Int = Constants25519.PubKeyLength*3 + 8 + 1024*10 + 24
 
-  override def toBytes(m: Agreement): Array[Byte] = {
-    m.senders._1.pubKeyBytes ++
-      m.senders._2.pubKeyBytes ++
-      m.senders._3.pubKeyBytes ++
-      Longs.toByteArray(m.terms.json.toString.getBytes.length) ++
-      m.terms.json.toString.getBytes  ++
-      Longs.toByteArray(m.fee) ++
-      Longs.toByteArray(m.nonce) ++
-      Longs.toByteArray(m.timestamp)
-  }.ensuring(_.length < MaxTransactionLength)
-
+  override def toBytes(a: Agreement): Array[Byte] = {
+    Bytes.concat(
+      Longs.toByteArray(a.nonce),
+      Longs.toByteArray(a.timestamp),
+      Longs.toByteArray(a.expirationTimestamp),
+      Longs.toByteArray(a.terms.json.toString.getBytes.length),
+      Ints.toByteArray(a.parties.length),
+      a.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
+      a.terms.json.toString.getBytes
+    )
+  }
   private def deserialise(bytes: Array[Byte]): Any = {
     new ObjectInputStream(new ByteArrayInputStream(bytes)).readObject()
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
-    val senders = (PublicKey25519Proposition(bytes.slice(0, Constants25519.PubKeyLength)),
-      PublicKey25519Proposition(bytes.slice(Constants25519.PubKeyLength, 2*Constants25519.PubKeyLength)),
-      PublicKey25519Proposition(bytes.slice(2*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength)))
 
-    val jsonLength = Longs.fromByteArray(bytes.slice(3*Constants25519.PubKeyLength, 3*Constants25519.PubKeyLength + 8))
+    val (nonce: Long, timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 4) map { i =>
+      Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
+    }
+
+    val numBytesRead = 4*Longs.BYTES
+
+    val partiesLength = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
+
+    val parties = (0 until partiesLength) map { i =>
+      val pk = bytes.slice(numBytesRead + Ints.BYTES + i * Curve25519.KeyLength, numBytesRead + Ints.BYTES + (i + 1) * Curve25519.KeyLength )
+      PublicKey25519Proposition(pk)
+    }
+
+    val curBytesRead = Ints.BYTES + partiesLength * Constants25519.PubKeyLength
 
     val termsMap: Map[String, Json] = parse(new String(
-      bytes.slice(3*Constants25519.PubKeyLength + 1, 3*Constants25519.PubKeyLength + 1 + jsonLength.toInt)
+      bytes.slice(curBytesRead, curBytesRead + termsLength.toInt)
     )).getOrElse(Json.Null).as[Map[String, Json]].right.get
 
     val fulfilmentMap = termsMap("fulfilment").as[Map[String, Json]].right
@@ -188,11 +212,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     )
 
-    val s = Constants25519.PubKeyLength + 8
-    val fee = Longs.fromByteArray(bytes.slice(s, s + 8))
-    val nonce = Longs.fromByteArray(bytes.slice(s + 8, s + 16))
-    val timestamp = Longs.fromByteArray(bytes.slice(s + 16, s + 24))
-    Agreement(senders, terms, fee, nonce, timestamp)
+    Agreement(parties, terms, nonce, timestamp, expirationTimestamp)
   }
 }
 

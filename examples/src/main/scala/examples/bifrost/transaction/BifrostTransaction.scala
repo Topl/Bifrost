@@ -52,9 +52,10 @@ case class ContractCreation(agreement: Agreement,
 
 
   // TODO generate 3 contract boxes, one for each participant as "authorization"
-  override lazy val newBoxes: Traversable[PublicKey25519NoncedBox] = parties.zipWithIndex.map { case (prop, idx) =>
-    val nonce = nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-    PublicKey25519NoncedBox(prop, nonce, value)
+  override lazy val newBoxes: Traversable[BifrostBox[String]] = parties.zipWithIndex.map { case (prop, idx) =>
+    val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+    val newContractId = new String(FastCryptographicHash(ContractCreationCompanion.toBytes(this)))
+    BifrostBox(prop, nonce, newContractId)
   }
 
   override lazy val json: Json = Map(
@@ -79,20 +80,6 @@ object ContractCreation {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
-            to: IndexedSeq[(PublicKey25519Proposition, Value)],
-            fee: Long,
-            timestamp: Long): SimpleBoxTransaction = {
-    val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
-    val fakeSigs = from.map(_ => Signature25519(Array()))
-
-    val undersigned = ContractCreation(, fee, timestamp)
-
-    val msg = undersigned.messageToSign
-    val sigs = from.map { case (priv, _) => PrivateKey25519Companion.sign(priv, msg) }
-
-    new SimpleBoxTransaction(fromPub, to, sigs, fee, timestamp)
-  }
 }
 
 
