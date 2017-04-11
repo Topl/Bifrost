@@ -127,7 +127,8 @@ object SimpleBoxTransaction {
 object SimpleBoxTransactionCompanion extends Serializer[SimpleBoxTransaction] {
 
   override def toBytes(m: SimpleBoxTransaction): Array[Byte] = {
-    Bytes.concat(Longs.toByteArray(m.fee),
+    Bytes.concat(
+      Longs.toByteArray(m.fee),
       Longs.toByteArray(m.timestamp),
       Ints.toByteArray(m.signatures.length),
       Ints.toByteArray(m.from.length),

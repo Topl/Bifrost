@@ -2,13 +2,16 @@ package examples.bifrost.transaction
 
 import java.io.{ByteArrayInputStream, ObjectInputStream}
 
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import examples.bifrost.transaction.contract.{AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import io.circe.Json
 import io.circe.parser.parse
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import cats.syntax.either._
+import examples.hybrid.state.SimpleBoxTransactionCompanion
+import scorex.core.transaction.proof.Signature25519
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -82,7 +85,7 @@ object PaymentTransactionCompanion extends Serializer[PaymentTransaction] {
     val newTypeStr = new String(newBytes.slice(4,4 + typeLength))
 
     newTypeStr match {
-      case "SimplePayment" => BifrostPaymentCompanion.parseBytes(newBytes).asInstanceOf[PaymentTransaction]
+      case "PaymentTransaction" => BifrostPaymentCompanion.parseBytes(newBytes).asInstanceOf[PaymentTransaction]
     }
   }
 }
@@ -93,28 +96,50 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
   override def toBytes(m: ContractCreation): Array[Byte] = {
     val typeBytes = "ContractCreation".getBytes
 
-    Ints.toByteArray(typeBytes.length) ++
-      typeBytes ++
-      m.sender.bytes ++
-      AgreementCompanion.toBytes(m.agreement) ++
-      Longs.toByteArray(m.fee) ++
-      Longs.toByteArray(m.nonce) ++
-      Longs.toByteArray(m.timestamp)
-  }.ensuring(_.length < MaxTransactionLength)
+      Bytes.concat(
+        Longs.toByteArray(m.fee),
+        Longs.toByteArray(m.timestamp),
+        Ints.toByteArray(typeBytes.length),
+        Ints.toByteArray(m.signatures.length),
+        Ints.toByteArray(m.agreements.length),
+        typeBytes,
+        m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+        m.agreements.foldLeft(Array[Byte]())((a, b) => a ++ b._1.bytes ++ Longs.toByteArray(b._2))
+      )
+  }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
-    val sender = PublicKey25519Proposition(bytes.slice(0, Constants25519.PubKeyLength))
+    val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
+    val timestamp = Longs.fromByteArray(bytes.slice(Longs.BYTES, 2*Longs.BYTES))
 
-    val agreement = AgreementCompanion.parseBytes(
-      bytes.slice(Constants25519.PubKeyLength + 1, Constants25519.PubKeyLength + 1 + bytes(Constants25519.PubKeyLength).toInt)
-    ).get
+    val numUsedBytes = 2*Longs.BYTES
+    val typeLength = Ints.fromByteArray(bytes.slice(numUsedBytes, numUsedBytes + Ints.BYTES))
+    val sigLength = Ints.fromByteArray(bytes.slice(numUsedBytes + Ints.BYTES, numUsedBytes + 2*Ints.BYTES))
+    val agreementsLength = Ints.fromByteArray(bytes.slice(numUsedBytes + 2*Ints.BYTES, numUsedBytes + 3*Ints.BYTES))
 
-    val s = Constants25519.PubKeyLength + bytes(Constants25519.PubKeyLength).toInt
-    val fee = Longs.fromByteArray(bytes.slice(s, s + 8))
-    val nonce = Longs.fromByteArray(bytes.slice(s + 8, s + 16))
-    val timestamp = Longs.fromByteArray(bytes.slice(s + 16, s + 24))
-    ContractCreation(sender, agreement, fee, nonce, timestamp)
+    val postLengthUsedBytes = numUsedBytes + 3*Ints.BYTES
+
+    val transType = new String(bytes.slice(postLengthUsedBytes, postLengthUsedBytes + typeLength))
+
+    val sigStart = postLengthUsedBytes + typeLength
+
+    val signatures = (0 until sigLength) map { i =>
+      Signature25519(bytes.slice(sigStart + i * Curve25519.SignatureLength, sigStart + (i + 1) * Curve25519.SignatureLength))
+    }
+
+    val s = sigStart + sigLength * Curve25519.SignatureLength
+
+    val elementLength = Longs.BYTES + Curve25519.KeyLength
+
+    val agreements = (0 until agreementsLength) map { i =>
+      val pk = bytes.slice(s + i * elementLength, s + (i + 1) * elementLength - 8)
+      val v = Longs.fromByteArray(bytes.slice(s + (i + 1) * elementLength - 8, s + (i + 1) * elementLength))
+      (PublicKey25519Proposition(pk), v)
+    }
+
+    ContractCreation(agreements, signatures, fee, timestamp)
   }
+
 }
 
 object AgreementCompanion extends Serializer[Agreement] {
@@ -173,25 +198,31 @@ object AgreementCompanion extends Serializer[Agreement] {
 
 
 object BifrostPaymentCompanion extends Serializer[BifrostPayment] {
-  val TransactionLength: Int = 2 * Constants25519.PubKeyLength + 32
 
-  override def toBytes(m: BifrostPayment): Array[Byte] = {
-    m.sender.bytes ++
-      m.recipient.bytes ++
-      Longs.toByteArray(m.amount) ++
-      Longs.toByteArray(m.fee) ++
-      Longs.toByteArray(m.nonce) ++
-      Longs.toByteArray(m.timestamp)
-  }.ensuring(_.length == TransactionLength)
+  override def toBytes(m: BifrostPayment): Array[Byte] = SimpleBoxTransactionCompanion.toBytes(m)
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostPayment] = Try {
-    val sender = PublicKey25519Proposition(bytes.slice(0, Constants25519.PubKeyLength))
-    val recipient = PublicKey25519Proposition(bytes.slice(Constants25519.PubKeyLength, 2 * Constants25519.PubKeyLength))
-    val s = 2 * Constants25519.PubKeyLength
-    val amount = Longs.fromByteArray(bytes.slice(s, s + 8))
-    val fee = Longs.fromByteArray(bytes.slice(s + 8, s + 16))
-    val nonce = Longs.fromByteArray(bytes.slice(s + 16, s + 24))
-    val timestamp = Longs.fromByteArray(bytes.slice(s + 24, s + 32))
-    BifrostPayment(sender, recipient, amount, fee, nonce, timestamp)
+    val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
+    val timestamp = Longs.fromByteArray(bytes.slice(Longs.BYTES, 2*Longs.BYTES))
+    val sigLength = Ints.fromByteArray(bytes.slice(16, 20))
+    val fromLength = Ints.fromByteArray(bytes.slice(20, 24))
+    val toLength = Ints.fromByteArray(bytes.slice(24, 28))
+    val signatures = (0 until sigLength) map { i =>
+      Signature25519(bytes.slice(28 + i * Curve25519.SignatureLength, 28 + (i + 1) * Curve25519.SignatureLength))
+    }
+    val s = 28 + sigLength * Curve25519.SignatureLength
+    val elementLength = 8 + Curve25519.KeyLength
+    val from = (0 until fromLength) map { i =>
+      val pk = bytes.slice(s + i * elementLength, s + (i + 1) * elementLength - 8)
+      val v = Longs.fromByteArray(bytes.slice(s + (i + 1) * elementLength - 8, s + (i + 1) * elementLength))
+      (PublicKey25519Proposition(pk), v)
+    }
+    val s2 = s + fromLength * elementLength
+    val to = (0 until toLength) map { i =>
+      val pk = bytes.slice(s2 + i * elementLength, s2 + (i + 1) * elementLength - 8)
+      val v = Longs.fromByteArray(bytes.slice(s2 + (i + 1) * elementLength - 8, s2 + (i + 1) * elementLength))
+      (PublicKey25519Proposition(pk), v)
+    }
+    BifrostPayment(from, to, signatures, fee, timestamp)
   }
 }
