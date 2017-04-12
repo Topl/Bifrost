@@ -24,6 +24,9 @@ case class HBoxStoredState(store: LSMStore, override val version: VersionTag) ex
     HybridBlock,
     HBoxStoredState] with ScorexLogging {
 
+  assert(store.lastVersionID.map(_.data).getOrElse(version) sameElements version,
+  s"${Base58.encode(store.lastVersionID.map(_.data).getOrElse(version))} != ${Base58.encode(version)}")
+
   override type NVCT = HBoxStoredState
   type HPMOD = HybridBlock
 
@@ -69,10 +72,11 @@ case class HBoxStoredState(store: LSMStore, override val version: VersionTag) ex
     log.debug(s"Update HBoxStoredState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
-    if (store.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
+    assert(store.lastVersionID.isEmpty || boxIdsToRemove.forall(i => closedBox(i.data).isDefined))
     store.update(ByteArrayWrapper(newVersion), boxIdsToRemove, boxesToAdd)
     val newSt = HBoxStoredState(store, newVersion)
-    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
+    assert(boxIdsToRemove.forall(box => newSt.closedBox(box.data).isEmpty), s"Removed box is still in state")
+    assert(newSt.version sameElements newVersion, s"New version don't match")
     newSt
   }
 
@@ -142,8 +146,9 @@ object HBoxStoredState {
         stateStorage.close()
       }
     })
+    val version = stateStorage.lastVersionID.map(_.data).getOrElse(Array.emptyByteArray)
 
-    HBoxStoredState(stateStorage, Array.emptyByteArray)
+    HBoxStoredState(stateStorage, version)
   }
 
   def genesisState(settings: Settings, initialBlocks: Seq[HybridBlock]): HBoxStoredState = {

@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Route
 import io.circe._
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.crypto.hash.{FastCryptographicHash, DoubleCryptographicHash}
+import scorex.core.crypto.hash.{FastCryptographicHash}
 import scorex.crypto.encode.Base58
 import scorex.core.settings.Settings
 
@@ -18,14 +18,14 @@ import scorex.core.settings.Settings
 case class UtilsApiRoute(override val settings: Settings)(implicit val context: ActorRefFactory) extends ApiRoute {
   val SeedSize = 32
 
-  private def seed(length: Int): Json = {
+  private def seed(length: Int): SuccessApiResponse = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
-    Map("seed" -> Base58.encode(seed)).asJson
+    SuccessApiResponse(Map("seed" -> Base58.encode(seed)).asJson)
   }
 
   override val route = pathPrefix("utils") {
-    seedRoute ~ length ~ hashFast ~ hashSecure
+    seedRoute ~ length ~ hashBlake2b
   }
 
   @Path("/seed")
@@ -51,40 +51,20 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
     }
   }
 
-  @Path("/hash/secure")
-  @ApiOperation(value = "Hash", notes = "Return FastCryptographicHash of specified message", httpMethod = "POST")
+  @Path("/hash/blake2b")
+  @ApiOperation(value = "Hash", notes = "Return Blake2b hash of specified message", httpMethod = "POST")
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "message", value = "Message to hash", required = true, paramType = "body", dataType = "String")
   ))
   @ApiResponses(Array(
     new ApiResponse(code = 200, message = "Json with error or json like {\"message\": \"your message\",\"hash\": \"your message hash\"}")
   ))
-  def hashFast: Route = {
-    path("hash" / "secure") {
+  def hashBlake2b: Route = {
+    path("hash" / "blake2b") {
       entity(as[String]) { message =>
         withAuth {
           postJsonRoute {
-            Map("message" -> message, "hash" -> Base58.encode(DoubleCryptographicHash(message))).asJson
-          }
-        }
-      }
-    }
-  }
-
-  @Path("/hash/fast")
-  @ApiOperation(value = "Hash", notes = "Return  SecureCryptographicHash of specified message", httpMethod = "POST")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "message", value = "Message to hash", required = true, paramType = "body", dataType = "String")
-  ))
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with error or json like {\"message\": \"your message\",\"hash\": \"your message hash\"}")
-  ))
-  def hashSecure: Route = {
-    path("hash" / "fast") {
-      entity(as[String]) { message =>
-        withAuth {
-          postJsonRoute {
-            Map("message" -> message, "hash" -> Base58.encode(FastCryptographicHash(message))).asJson
+            SuccessApiResponse(Map("message" -> message, "hash" -> Base58.encode(FastCryptographicHash(message))).asJson)
           }
         }
       }
