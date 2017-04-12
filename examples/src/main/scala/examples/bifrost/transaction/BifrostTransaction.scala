@@ -45,6 +45,8 @@ case class ContractCreation(agreement: Agreement,
   }
 
   lazy val hashNoNonces = FastCryptographicHash(
+    AgreementCompanion.toBytes(agreement) ++
+      parties.foldLeft(Array[Byte]())((a,b) => a ++ b.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
