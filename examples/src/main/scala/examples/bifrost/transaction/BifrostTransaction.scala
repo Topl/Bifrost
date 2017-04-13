@@ -2,8 +2,8 @@ package examples.bifrost.transaction
 
 import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.transaction.BifrostPayment.Nonce
-import examples.bifrost.transaction.contract._
-import examples.bifrost.transaction.PublicKey25519NoncedBox
+import examples.bifrost.contract._
+import examples.bifrost.transaction.box.{BifrostBox, BifrostPaymentBox, ContractBox, PublicKey25519NoncedBox}
 import examples.hybrid.wallet.HWallet
 import io.circe.Json
 import io.circe.syntax._
@@ -13,12 +13,11 @@ import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.transaction.{BoxTransaction, Transaction}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-sealed trait BifrostTransaction extends BoxTransaction[PublicKey25519Proposition, PublicKey25519NoncedBox]
+sealed trait BifrostTransaction extends GenericBoxTransaction[PublicKey25519Proposition, Any, BifrostBox]
 
 sealed abstract class ContractTransaction extends BifrostTransaction
 
@@ -60,7 +59,7 @@ case class ContractCreation(agreement: Agreement,
     case (prop, idx) =>
       val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
       val newContractId = new String(FastCryptographicHash(ContractCreationCompanion.toBytes(this)))
-      BifrostBox(prop, nonce, newContractId)(new BifrostBoxSerializer)
+      ContractBox(prop, nonce, newContractId)
   }
 
   override lazy val json: Json = Map(
@@ -141,10 +140,10 @@ case class BifrostPayment(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
       Longs.toByteArray(fee)
   )
 
-  override lazy val newBoxes: Traversable[PublicKey25519NoncedBox] = to.zipWithIndex.map {
+  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
       val nonce = BifrostPayment.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-      PublicKey25519NoncedBox(prop, nonce, value)
+      BifrostPaymentBox(prop, nonce, value)
   }
 
   override lazy val json: Json = Map(

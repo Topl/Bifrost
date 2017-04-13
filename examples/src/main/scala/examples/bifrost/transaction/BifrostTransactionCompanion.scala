@@ -3,7 +3,7 @@ package examples.bifrost.transaction
 import java.io.{ByteArrayInputStream, ObjectInputStream}
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import examples.bifrost.transaction.contract.{AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
+import examples.bifrost.contract.{AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import io.circe.Json
 import io.circe.parser.parse
 import scorex.core.serialization.Serializer

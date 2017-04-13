@@ -1,3 +1,4 @@
+/*
 package examples.bifrost.transaction
 
 import scorex.core.NodeViewModifier.ModifierId
@@ -59,3 +60,4 @@ class SimpleMemPool extends MemoryPool[SimpleTransaction, SimpleMemPool] {
 
   override type NVCT = SimpleMemPool
 }
+*/

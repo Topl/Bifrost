@@ -1,3 +1,4 @@
+/*
 package examples.bifrost.transaction
 
 import akka.actor.ActorRef
@@ -41,3 +42,4 @@ class SimplePaymentGenerator(viewHolderRef: ActorRef, localInterfaceRef: ActorRe
         localInterfaceRef ! LocallyGeneratedTransaction[PublicKey25519Proposition, SimplePayment](payment)
       )
 }
+*/

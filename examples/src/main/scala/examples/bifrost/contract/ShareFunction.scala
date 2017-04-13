@@ -1,4 +1,4 @@
-package examples.bifrost.transaction.contract
+package examples.bifrost.contract
 
 import breeze.interpolation.LinearInterpolator
 import breeze.linalg.{*, DenseMatrix, DenseVector}

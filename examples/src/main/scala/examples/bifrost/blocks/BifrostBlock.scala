@@ -1,6 +1,7 @@
-package examples.bifrost.transaction
+package examples.bifrost.blocks
 
 import com.google.common.primitives.{Ints, Longs}
+import examples.bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
 import examples.curvepos.transaction.SimpleBlock._
 import io.circe.Json
 import io.circe.syntax._

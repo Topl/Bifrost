@@ -1,7 +1,7 @@
 package bifrost.serialization
 
 import bifrost.BifrostGenerators
-import examples.bifrost.transaction.{BifrostBox, BifrostBoxSerializer}
+import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 
@@ -14,12 +14,11 @@ class SerializationTests extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-  property("BifrostBox[String] Serialization") {
-    val bifrostBoxSerializer = new BifrostBoxSerializer[String]()
+  property("BifrostBox Serialization") {
     forAll(bifrostBoxGen) {
-      b: BifrostBox[String] =>
-        val parsed = bifrostBoxSerializer.parseBytes(bifrostBoxSerializer.toBytes(b)).get
-        bifrostBoxSerializer.toBytes(parsed) shouldEqual bifrostBoxSerializer.toBytes(b)
+      b: ContractBox =>
+        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
+        BifrostBoxSerializer.toBytes(parsed) shouldEqual BifrostBoxSerializer.toBytes(b)
     }
   }
 }

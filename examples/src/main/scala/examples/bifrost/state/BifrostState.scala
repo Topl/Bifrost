@@ -1,33 +1,34 @@
-package examples.bifrost.transaction
+package examples.bifrost.state
 
 import java.io.File
-import java.nio.ByteBuffer
 
-import com.google.common.primitives.Longs
-import examples.bifrost.transaction.{PublicKey25519NoncedBox, PublicKey25519NoncedBoxSerializer}
-import examples.bifrost.transaction.SimpleState.EmptyVersion
+import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.transaction._
+import examples.bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, BifrostPaymentBox, PublicKey25519NoncedBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.box.proposition.{Proposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.authenticated.BoxMinimalState
-import scorex.core.transaction.state.{MinimalState, StateChanges}
+import scorex.core.transaction.state.StateChanges
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
-/**
-  * Maintains current state
-  * @param version    the identifier for this state
-  * @param storage    the underlying datastore of state
-  */
-case class BifrostState(override val version: VersionTag = EmptyVersion,
-                        storage: LSMStore)
-  extends BoxMinimalState[PublicKey25519Proposition, BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+object SimpleState {
+  val EmptyVersion: Array[Byte] = Array.fill(32)(0: Byte)
+}
 
-  def isEmpty: Boolean = version sameElements EmptyVersion
+case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[BifrostBox], minerReward: Long)
+
+case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
+                               override val toAppend: Set[BifrostBox])
+  extends GenericStateChanges[Any, PublicKey25519Proposition, BifrostBox](boxIdsToRemove, toAppend)
+
+case class BifrostState(override val version: VersionTag = SimpleState.EmptyVersion, storage: LSMStore)
+  extends GenericBoxMinimalState[Any, PublicKey25519Proposition, BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+
+  def isEmpty: Boolean = version sameElements SimpleState.EmptyVersion
 
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
@@ -35,10 +36,10 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
 
   override def boxesOf(p: PublicKey25519Proposition): Seq[BifrostBox] = ???
 
-  override def closedBox(boxId: Array[Byte]): Option[PublicKey25519NoncedBox] =
+  override def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
-      .map(PublicKey25519NoncedBoxSerializer.parseBytes)
+      .map(BifrostBoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[BifrostState] = {
@@ -46,7 +47,7 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
     Try(this)
   }
 
-  override def applyChanges(change: StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox],
+  override def applyChanges(change: GenericStateChanges[Any, PublicKey25519Proposition, BifrostBox],
                             newVersion: VersionTag): Try[BifrostState] = Try {
 
     val boxIdsToRemove = change.boxIdsToRemove.map(ByteArrayWrapper.apply)
@@ -69,8 +70,8 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
 
   override def validate(transaction: BifrostTransaction): Try[Unit] = transaction match {
     case bp: BifrostPayment => Try {
-      val b = boxesOf(bp.from.head._1).head
-      (b.value >= Math.addExact(bp.to.foldLeft(0)((a, b) => a + b._2.toInt), bp.fee))// && (b.nonce + 1 == bp.nonce)
+      val b = boxesOf(bp.from.head._1).head.asInstanceOf[BifrostPaymentBox]
+      b.value >= Math.addExact(bp.to.foldLeft(0)((a, b) => a + b._2.toInt), bp.fee)// && (b.nonce + 1 == bp.nonce)
     }
     case cc: ContractCreation => Try {
       // TODO check coin is possessed by investor
@@ -87,7 +88,7 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
   /**
     * A Transaction opens existing boxes and creates new ones
     */
-  def changes(transaction: BifrostTransaction): Try[TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox]] = {
+  def changes(transaction: BifrostTransaction): Try[BifrostTransactionChanges] = {
     transaction match {
       /*case bp: BifrostPayment if !isEmpty => Try {
         val oldSenderBox = boxesOf(bp.sender).head
@@ -106,31 +107,31 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
         TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](Set(), toAppend, 0)
       }*/
       case cc: ContractCreation => Try {
-        TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](Set(), Set(), 0)
+        BifrostTransactionChanges(Set(), Set(), 0)
       }
       case _ => Failure(new Exception("implementation is needed"))
     }
   }
 
-  override def changes(block: BifrostBlock): Try[StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox]] = Try {
+  override def changes(block: BifrostBlock): Try[BifrostStateChanges] = Try {
     // TODO eliminate reward?
-    val generatorReward = block.txs.map(_.fee).sum
+    /*val generatorReward = block.txs.map(_.fee).sum
     val gen = block.generator
 
     val txChanges = block.txs.map(tx => changes(tx)).map(_.get)
     val toRemove = txChanges.flatMap(_.toRemove).map(_.id).toSet
     val toAppendFrom = txChanges.flatMap(_.toAppend).toSet
     val (generator, withoutGenerator) = toAppendFrom.partition(_.proposition.address == gen.address)
-    val generatorBox: PublicKey25519NoncedBox = (generator ++ boxesOf(gen)).headOption match {
+    val generatorBox: BifrostPaymentBox = (generator ++ boxesOf(gen)).headOption match {
 //      case Some(oldBox) =>
 //        oldBox.copy(nonce = oldBox.nonce + 1, value = oldBox.value + generatorReward)
       case None =>
-        PublicKey25519NoncedBox(gen, 1, generatorReward)
+        BifrostPaymentBox(gen, 1, generatorReward)
     }
     val toAppend = withoutGenerator + generatorBox
     require(toAppend.forall(_.value >= 0))
-
-    StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](toRemove, toAppend)
+*/
+    BifrostStateChanges(Set(), Set())
   }
 }
 

@@ -1,3 +1,4 @@
+/*
 package examples.bifrost
 
 import akka.actor.{ActorRef, Props}
@@ -50,4 +51,4 @@ class SimpleApp(val settingsFilename: String) extends Application {
 object SimpleApp extends App {
   val settingsFilename = args.headOption.getOrElse("settings2.json")
   new SimpleApp(settingsFilename).run()
-}
+}*/

@@ -1,4 +1,4 @@
-package examples.bifrost.transaction.contract
+package examples.bifrost.contract
 
 import io.circe.Json
 import io.circe.syntax._

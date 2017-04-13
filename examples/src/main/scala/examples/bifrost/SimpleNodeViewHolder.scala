@@ -1,3 +1,4 @@
+/*
 package examples.bifrost
 
 import examples.bifrost.transaction.{SimplePayment, _}
@@ -61,4 +62,4 @@ class SimpleNodeViewHolder(settings: Settings)
 
     (blockchain, state, SimpleWallet(settings.walletSeed), new SimpleMemPool)
   }
-}
+}*/
