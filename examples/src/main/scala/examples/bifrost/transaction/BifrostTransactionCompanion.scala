@@ -113,15 +113,15 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
   // TODO fix this
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
-    val (fee: Long, timestamp: Long, agreementLength: Long) = (0 until 3) map { i =>
+    val Array(fee: Long, timestamp: Long, agreementLength: Long) = (0 until 3).map { i =>
       Longs.fromByteArray(bytes.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
-    }
+    }.toArray
 
     val numUsedBytes = 3*Longs.BYTES
 
-    val (typeLength: Int, sigLength: Int, partiesLength: Int) = (0 until 3) map { i =>
+    val Array(typeLength: Int, sigLength: Int, partiesLength: Int) = (0 until 3).map { i =>
       Ints.fromByteArray(bytes.slice(numUsedBytes, numUsedBytes + Ints.BYTES))
-    }
+    }.toArray
 
     val postLengthUsedBytes = numUsedBytes + 3*Ints.BYTES
 
@@ -176,9 +176,9 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
 
-    val (nonce: Long, timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 4) map { i =>
+    val Array(nonce: Long, timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 4).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
-    }
+    }.toArray
 
     val numBytesRead = 4*Longs.BYTES
 
@@ -219,7 +219,7 @@ object AgreementCompanion extends Serializer[Agreement] {
 
 object BifrostPaymentCompanion extends Serializer[BifrostPayment] {
 
-  override def toBytes(m: BifrostPayment): Array[Byte] = SimpleBoxTransactionCompanion.toBytes(m)
+  override def toBytes(m: BifrostPayment): Array[Byte] = BifrostTransactionCompanion.toBytes(m)
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostPayment] = Try {
     val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))

@@ -1,6 +1,6 @@
 package examples.bifrost
 
-import examples.curvepos.transaction.{SimplePayment, _}
+import examples.bifrost.transaction.{SimplePayment, _}
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
 import scorex.core.settings.Settings

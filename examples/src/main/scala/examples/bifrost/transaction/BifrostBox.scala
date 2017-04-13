@@ -17,20 +17,20 @@ import scala.util.Try
 /**
   * Created by Matthew on 4/11/2017.
   */
-case class BifrostBox[T](proposition: PublicKey25519Proposition,
-                         nonce: Long,
-                         value: T)(subclassDeser: Serializer[BifrostBox[T]]) extends GenericBox[PublicKey25519Proposition, T] {
+case class BifrostBox(proposition: PublicKey25519Proposition,
+                      nonce: Long,
+                      value: Any)(subclassDeser: Serializer[BifrostBox]) extends GenericBox[PublicKey25519Proposition, Any] {
 
-  override type M = BifrostBox[T]
+  override type M = BifrostBox
 
-  override def serializer: Serializer[BifrostBox[T]] = subclassDeser
+  override def serializer: Serializer[BifrostBox] = subclassDeser
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   lazy val publicKey = proposition
 
   override def equals(obj: Any): Boolean = obj match {
-    case acc: BifrostBox[proposition] => (acc.id sameElements this.id) && acc.value == this.value
+    case acc: BifrostBox => (acc.id sameElements this.id) && acc.value == this.value
     case _ => false
   }
 
@@ -44,7 +44,7 @@ object BifrostBox {
 }
 
 
-class BifrostBoxSerializer[T] extends Serializer[BifrostBox[T]] {
+class BifrostBoxSerializer extends Serializer[BifrostBox] {
 
   def serialise(value: Any): Array[Byte] = {
     val stream: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -61,20 +61,20 @@ class BifrostBoxSerializer[T] extends Serializer[BifrostBox[T]] {
     value
   }
 
-  override def toBytes(obj: BifrostBox[T]): Array[Byte] = {
+  override def toBytes(obj: BifrostBox): Array[Byte] = {
     val serialised = serialise(obj.value)
 
     obj.proposition.pubKeyBytes ++ Longs.toByteArray(obj.nonce) ++ Ints.toByteArray(serialised.length) ++ serialised
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[BifrostBox[T]] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[BifrostBox] = Try {
     val pk = PublicKey25519Proposition(bytes.take(Constants25519.PubKeyLength))
     val nonce = Longs.fromByteArray(bytes.slice(Constants25519.PubKeyLength, Constants25519.PubKeyLength + Longs.BYTES))
 
     val numReadBytes = Constants25519.PubKeyLength + Longs.BYTES
 
     val valueLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
-    val value: T = deserialise(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLength)).asInstanceOf[T]
+    val value = deserialise(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLength))
     BifrostBox(pk, nonce, value)(this)
   }
 }

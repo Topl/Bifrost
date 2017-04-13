@@ -25,7 +25,7 @@ import scala.util.{Failure, Success, Try}
   */
 case class BifrostState(override val version: VersionTag = EmptyVersion,
                         storage: LSMStore)
-  extends BoxMinimalState[PublicKey25519Proposition, PublicKey25519NoncedBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+  extends BoxMinimalState[PublicKey25519Proposition, BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
   def isEmpty: Boolean = version sameElements EmptyVersion
 
@@ -33,7 +33,7 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  override def boxesOf(p: PublicKey25519Proposition): Seq[PublicKey25519NoncedBox] = ???
+  override def boxesOf(p: PublicKey25519Proposition): Seq[BifrostBox] = ???
 
   override def closedBox(boxId: Array[Byte]): Option[PublicKey25519NoncedBox] =
     storage.get(ByteArrayWrapper(boxId))
@@ -57,7 +57,7 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
-      storage.update(ByteArrayWrapper(newVersion), boxIdsToRemove, boxesToAdd)
+    storage.update(ByteArrayWrapper(newVersion), boxIdsToRemove, boxesToAdd)
 
     val newSt = BifrostState(newVersion, storage)
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
@@ -69,8 +69,8 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
 
   override def validate(transaction: BifrostTransaction): Try[Unit] = transaction match {
     case bp: BifrostPayment => Try {
-      val b = boxesOf(bp.sender).head
-      (b.value >= Math.addExact(bp.amount, bp.fee)) && (b.nonce + 1 == bp.nonce)
+      val b = boxesOf(bp.from.head._1).head
+      (b.value >= Math.addExact(bp.to.foldLeft(0)((a, b) => a + b._2.toInt), bp.fee))// && (b.nonce + 1 == bp.nonce)
     }
     case cc: ContractCreation => Try {
       // TODO check coin is possessed by investor
@@ -89,27 +89,22 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
     */
   def changes(transaction: BifrostTransaction): Try[TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox]] = {
     transaction match {
-      case bp: BifrostPayment if !isEmpty => Try {
-
+      /*case bp: BifrostPayment if !isEmpty => Try {
         val oldSenderBox = boxesOf(bp.sender).head
         val oldRecipientBox = boxesOf(bp.recipient).headOption
-
         val newRecipientBox = oldRecipientBox.map { oldB =>
           oldB.copy(nonce = oldB.nonce + 1, value = Math.addExact(oldB.value, bp.amount))
         }.getOrElse(PublicKey25519NoncedBox(bp.recipient, 0L, bp.amount))
-
         val newSenderBox = oldSenderBox.copy(nonce = oldSenderBox.nonce + 1,
           value = Math.addExact(Math.addExact(oldSenderBox.value, -bp.amount), -bp.fee))
-
         val toRemove = Set(oldSenderBox) ++ oldRecipientBox
         val toAppend = Set(newRecipientBox, newSenderBox).ensuring(_.forall(_.value >= 0))
-
         TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](toRemove, toAppend, bp.fee)
       }
       case genesisBP: BifrostPayment if isEmpty => Try {
         val toAppend: Set[PublicKey25519NoncedBox] = Set(PublicKey25519NoncedBox(genesisBP.recipient, 0L, genesisBP.amount))
         TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](Set(), toAppend, 0)
-      }
+      }*/
       case cc: ContractCreation => Try {
         TransactionChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](Set(), Set(), 0)
       }
@@ -127,8 +122,8 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
     val toAppendFrom = txChanges.flatMap(_.toAppend).toSet
     val (generator, withoutGenerator) = toAppendFrom.partition(_.proposition.address == gen.address)
     val generatorBox: PublicKey25519NoncedBox = (generator ++ boxesOf(gen)).headOption match {
-      case Some(oldBox) =>
-        oldBox.copy(nonce = oldBox.nonce + 1, value = oldBox.value + generatorReward)
+//      case Some(oldBox) =>
+//        oldBox.copy(nonce = oldBox.nonce + 1, value = oldBox.value + generatorReward)
       case None =>
         PublicKey25519NoncedBox(gen, 1, generatorReward)
     }
@@ -144,27 +139,29 @@ case class BifrostState(override val version: VersionTag = EmptyVersion,
 object BifrostState {
 
   def semanticValidity(tx: BifrostTransaction): Try[Unit] = Try {
-   /* require(tx.from.size == tx.signatures.size)
-    require(tx.to.forall(_._2 >= 0))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
-    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
-      proof.isValid(prop, tx.messageToSign)
-    })*/
+    /* require(tx.from.size == tx.signatures.size)
+     require(tx.to.forall(_._2 >= 0))
+     require(tx.fee >= 0)
+     require(tx.timestamp >= 0)
+     require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
+       proof.isValid(prop, tx.messageToSign)
+     })*/
   }
 
 
   def changes(mod: BifrostBlock): Try[StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox]] = {
-      Try {
-        val initial = (Set(): Set[Array[Byte]], Set(): Set[PublicKey25519NoncedBox], 0L)
+    Try {
+      val initial = (Set(): Set[Array[Byte]], Set(): Set[PublicKey25519NoncedBox], 0L)
 
-        val (toRemove: Set[Array[Byte]], toAdd: Set[PublicKey25519NoncedBox], reward) =
-          mod.transactions.map(_.foldLeft(initial) { case ((sr, sa, f), tx) =>
-            (sr ++ tx.boxIdsToOpen.toSet, sa ++ tx.newBoxes.toSet, f + tx.fee)
-          }).getOrElse((Set(), Set(), 0L)) //no reward additional to tx fees
+      val (toRemove: Set[Array[Byte]], toAdd: Set[PublicKey25519NoncedBox], reward) =
+        mod.transactions.map(_.foldLeft(initial) {
+          //case ((sr, sa, f), tx) =>
+          //  (sr ++ tx.boxIdsToOpen.toSet, sa ++ tx.newBoxes.toSet, f + tx.fee)
+          case _ => (Set(), Set(), 0)
+        }).getOrElse((Set(), Set(), 0L)) //no reward additional to tx fees
 
-        StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](toRemove, toAdd)
-      }
+      StateChanges[PublicKey25519Proposition, PublicKey25519NoncedBox](toRemove, toAdd)
+    }
   }
 
   def readOrGenerate(settings: Settings): BifrostState = {
