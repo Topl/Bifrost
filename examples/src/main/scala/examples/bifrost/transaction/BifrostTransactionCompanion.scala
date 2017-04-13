@@ -3,7 +3,7 @@ package examples.bifrost.transaction
 import java.io.{ByteArrayInputStream, ObjectInputStream}
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import examples.bifrost.contract.{AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
+import examples.bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import io.circe.Json
 import io.circe.parser.parse
 import scorex.core.serialization.Serializer
@@ -164,14 +164,11 @@ object AgreementCompanion extends Serializer[Agreement] {
       Longs.toByteArray(a.nonce),
       Longs.toByteArray(a.timestamp),
       Longs.toByteArray(a.expirationTimestamp),
-      Longs.toByteArray(a.terms.json.toString.getBytes.length),
+      Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
       Ints.toByteArray(a.parties.length),
       a.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
-      a.terms.json.toString.getBytes
+      a.terms.json.noSpaces.getBytes
     )
-  }
-  private def deserialise(bytes: Array[Byte]): Any = {
-    new ObjectInputStream(new ByteArrayInputStream(bytes)).readObject()
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {

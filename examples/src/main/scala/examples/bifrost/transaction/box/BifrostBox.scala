@@ -109,10 +109,8 @@ class BifrostPaymentBoxSerializer extends Serializer[BifrostPaymentBox] {
 
 case class ContractBox(proposition: PublicKey25519Proposition,
                              nonce: Long,
-                             value: String) extends BifrostBox(proposition, nonce, value) {
-
-
-
+                             value: String,
+                   contractContent: String) extends BifrostBox(proposition, nonce, value) {
 }
 
 class ContractBoxSerializer extends Serializer[ContractBox] {
@@ -126,7 +124,9 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
       obj.proposition.pubKeyBytes ++
       Longs.toByteArray(obj.nonce) ++
       Ints.toByteArray(obj.value.getBytes.length) ++
-      obj.value.getBytes
+      obj.value.getBytes ++
+      Ints.toByteArray(obj.contractContent.getBytes.length) ++
+      obj.contractContent.getBytes
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractBox] = Try {
@@ -135,17 +135,22 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
 
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
-    val numReadBytes = Ints.BYTES + typeLen
+    var numReadBytes = Ints.BYTES + typeLen
 
     val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
     val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + Constants25519.PubKeyLength, numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
 
-    val curReadBytes = numReadBytes + Constants25519.PubKeyLength + Longs.BYTES
+    numReadBytes += Constants25519.PubKeyLength + Longs.BYTES
 
-    val valueLen = Ints.fromByteArray(bytes.slice(curReadBytes, curReadBytes + Ints.BYTES))
+    val valueLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
-    val value = new String(bytes.slice(curReadBytes + Ints.BYTES, curReadBytes + Ints.BYTES + valueLen))
-    ContractBox(pk, nonce, value)
+    val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
+    numReadBytes += Ints.BYTES + valueLen
+
+    val contractContentLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    val contractContent = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + contractContentLen))
+    ContractBox(pk, nonce, value, contractContent)
   }
 
 }

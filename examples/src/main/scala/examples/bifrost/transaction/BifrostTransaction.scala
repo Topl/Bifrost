@@ -59,7 +59,8 @@ case class ContractCreation(agreement: Agreement,
     case (prop, idx) =>
       val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
       val newContractId = new String(FastCryptographicHash(ContractCreationCompanion.toBytes(this)))
-      ContractBox(prop, nonce, newContractId)
+      val agreementString = new String(AgreementCompanion.toBytes(agreement))
+      ContractBox(prop, nonce, newContractId, agreementString)
   }
 
   override lazy val json: Json = Map(
@@ -83,25 +84,6 @@ object ContractCreation {
   type Nonce = Long
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
-
-}
-
-
-case class Agreement(parties: IndexedSeq[PublicKey25519Proposition],
-                     terms: AgreementTerms,
-                     nonce: Long,
-                     timestamp: Long,
-                     expirationTimestamp: Long) {
-
-  lazy val json: Json = Map(
-    "parties" -> Array( parties.map(p => Base58.encode(p.pubKeyBytes)) ).asJson,
-    "terms" -> terms.json,
-    "nonce" -> nonce.asJson,
-    "timestamp" -> timestamp.asJson,
-    "expirationTimestamp" -> expirationTimestamp.asJson
-  ).asJson
-
-  override def toString: String = s"Agreement(${json.noSpaces})"
 
 }
 

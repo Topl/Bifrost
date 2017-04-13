@@ -18,7 +18,9 @@ class SerializationTests extends PropSpec
     forAll(bifrostBoxGen) {
       b: ContractBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
-        BifrostBoxSerializer.toBytes(parsed) shouldEqual BifrostBoxSerializer.toBytes(b)
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        print(new String(serialized))
+        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
     }
   }
 }

@@ -14,5 +14,5 @@ trait BifrostGenerators extends CoreGenerators {
     proposition <- propositionGen
     nonce <- positiveLongGen
     value <- stringGen
-  } yield ContractBox(proposition, nonce, value)
+  } yield ContractBox(proposition, nonce, value, "This is an Agreement")
 }

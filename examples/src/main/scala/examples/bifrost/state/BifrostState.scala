@@ -78,11 +78,6 @@ case class BifrostState(override val version: VersionTag = SimpleState.EmptyVers
       // TODO check agreement is valid
       // TODO check reputation of parties
     }
-    case a: Agreement => Try {
-      // TODO check reputations of parties
-      // TODO check terms, pledge, etc.
-    }
-
   }
 
   /**
