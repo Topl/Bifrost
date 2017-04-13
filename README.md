@@ -1,4 +1,4 @@
-Scorex 2 - The modular blockchain framework [![Build Status](https://travis-ci.org/ScorexFoundation/Scorex.svg?branch=master)](https://travis-ci.org/ScorexFoundation/Scorex)
+Scorex 2 - The modular blockchain framework [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/input-output-hk/Scorex](https://badges.gitter.im/input-output-hk/Scorex.svg)](https://gitter.im/input-output-hk/Scorex?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
