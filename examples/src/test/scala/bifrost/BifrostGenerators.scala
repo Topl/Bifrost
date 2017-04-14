@@ -1,9 +1,11 @@
 package bifrost
 
 import examples.bifrost.contract._
+import examples.bifrost.transaction.ContractCreation
 import examples.bifrost.transaction.box.ContractBox
 import org.scalacheck.Gen
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
 import scorex.testkit.CoreGenerators
 
 /**
@@ -61,4 +63,14 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     expirationTimestamp <- positiveLongGen
   } yield Agreement(parties, terms, nonce, timestamp, expirationTimestamp)
+
+  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
+
+  lazy val contractCreationGen: Gen[ContractCreation] = for {
+    agreement <- agreementGen
+    parties <- partiesGen
+    signature <- signatureGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield ContractCreation(agreement, parties, IndexedSeq(signature, signature, signature), fee, timestamp)
 }
