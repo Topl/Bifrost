@@ -49,17 +49,18 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractTransaction] = Try {
 
-    val typeLength = Ints.fromByteArray(bytes.slice(0, 4))
-    val typeStr = new String(bytes.slice(4,4 + typeLength))
-    val newBytes = bytes.slice(4 + typeLength, bytes.length)
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
 
-    val newTypeLength = Ints.fromByteArray(newBytes.slice(0, 4))
-    val newTypeStr = new String(newBytes.slice(4,4 + typeLength))
+    /* Grab the rest of the bytes, which should begin similarly (with sub-type) */
+    val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
 
-    newTypeStr match {
-      case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).asInstanceOf[ContractTransaction]
-      case "Agreement" => AgreementCompanion.parseBytes(newBytes).asInstanceOf[ContractTransaction]
-    }
+    val newTypeLength = Ints.fromByteArray(newBytes.take(Ints.BYTES))
+    val newTypeStr = new String(newBytes.slice(Ints.BYTES,  Ints.BYTES + newTypeLength))
+
+      newTypeStr match {
+        case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
+      }
   }
 }
 
@@ -99,57 +100,56 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     // TODO this might need a nonce
       Bytes.concat(
+        /* First two arguments MUST STAY */
+        Ints.toByteArray(typeBytes.length),
+        typeBytes,
         Longs.toByteArray(m.fee),
         Longs.toByteArray(m.timestamp),
         Longs.toByteArray(agreementBytes.length),
-        Ints.toByteArray(typeBytes.length),
         Ints.toByteArray(m.signatures.length),
         Ints.toByteArray(m.parties.length),
         agreementBytes,
-        typeBytes,
         m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
         m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
       )
   }
 
-  // TODO fix this
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
+
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    var numReadBytes = Ints.BYTES + typeLength
+    val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
+
     val Array(fee: Long, timestamp: Long, agreementLength: Long) = (0 until 3).map { i =>
-      Longs.fromByteArray(bytes.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
     }.toArray
 
-    val numUsedBytes = 3*Longs.BYTES
+    numReadBytes = 3*Longs.BYTES
 
-    val Array(typeLength: Int, sigLength: Int, partiesLength: Int) = (0 until 3).map { i =>
-      Ints.fromByteArray(bytes.slice(numUsedBytes, numUsedBytes + Ints.BYTES))
+    val Array(sigLength: Int, partiesLength: Int) = (0 until 2).map { i =>
+      Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    val postLengthUsedBytes = numUsedBytes + 3*Ints.BYTES
+    numReadBytes += 2*Ints.BYTES
 
     val agreement = AgreementCompanion.parseBytes(
-      bytes.slice(
-        postLengthUsedBytes,
-        postLengthUsedBytes + agreementLength.toInt
+      bytesWithoutType.slice(
+        numReadBytes,
+        numReadBytes + agreementLength.toInt
       )
     ).get
 
-    val transType = new String(
-      bytes.slice(
-        postLengthUsedBytes + agreementLength.toInt,
-        postLengthUsedBytes + typeLength + agreementLength.toInt
-      )
-    )
-
-    val sigStart = postLengthUsedBytes + typeLength
+    numReadBytes += agreementLength.toInt
 
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(sigStart + i * Curve25519.SignatureLength, sigStart + (i + 1) * Curve25519.SignatureLength))
+      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
     }
 
-    val s = sigStart + sigLength * Curve25519.SignatureLength
+    numReadBytes += sigLength * Curve25519.SignatureLength
 
     val parties = (0 until partiesLength) map { i =>
-      val pk = bytes.slice(s + i * Curve25519.KeyLength, s + (i + 1) * Curve25519.KeyLength )
+      val pk = bytesWithoutType.slice(numReadBytes + i * Curve25519.KeyLength, numReadBytes + (i + 1) * Curve25519.KeyLength )
       PublicKey25519Proposition(pk)
     }
 
