@@ -47,8 +47,6 @@ class SerializationTests extends PropSpec
     forAll(agreementGen) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
-        println(parsed)
-        println(a)
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
     }
   }
@@ -58,7 +56,6 @@ class SerializationTests extends PropSpec
       b: ContractBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        // print(new String(serialized))
         serialized shouldEqual BifrostBoxSerializer.toBytes(b)
     }
   }

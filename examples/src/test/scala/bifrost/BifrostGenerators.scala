@@ -13,13 +13,20 @@ import scorex.testkit.CoreGenerators
   * Created by cykoz on 4/12/17.
   */
 trait BifrostGenerators extends CoreGenerators {
-  lazy val stringGen = nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = nonEmptyBytesGen.map(new String(_))
+
+  lazy val base10gen: Gen[Int] = Gen.choose(0, 10)
+  lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
 
   lazy val numStringGen = for {
     numDigits <- Gen.choose(0, 100)
-  } yield (0 until numDigits).map { i => Gen.choose(0, 10).sample.get }.foldLeft("")((a,b) => a + b)
+  } yield (0 until numDigits).map {
+    i => base10gen.sample.get
+  }.foldLeft("")((a,b) => a + b)
 
-  lazy val doubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
+  lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
+
+  def samplePositiveDouble: Double = positiveDoubleGen.sample.get
 
   lazy val bigDecimalGen: Gen[BigDecimal] = for {
     wholeNumber <- numStringGen
@@ -28,16 +35,16 @@ trait BifrostGenerators extends CoreGenerators {
 
   //generate a num from smallInt for len of seq, map that many tuples, concatenate together into seq
   lazy val seqDoubleGen: Gen[Seq[(Double, (Double, Double, Double))]] = for {
-    seqLen <- Gen.choose(1, 10)
+    seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map {
-    i => (doubleGen.sample.get, (doubleGen.sample.get, doubleGen.sample.get, doubleGen.sample.get))
+    i => (samplePositiveDouble, (samplePositiveDouble, samplePositiveDouble, samplePositiveDouble))
   }
 
   lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen.map(new PiecewiseLinearMultiple(_))
 
   lazy val seqLongDoubleGen: Gen[Seq[(Long, Double)]] = for {
-    seqLen <- Gen.choose(1, 10)
-  } yield (0 until seqLen) map { i => (positiveLongGen.sample.get, doubleGen.sample.get) }
+    seqLen <- positiveTinyIntGen
+  } yield (0 until seqLen) map { i => (positiveLongGen.sample.get, samplePositiveDouble) }
 
   lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen.map(new PiecewiseLinearSingle(_))
 
@@ -86,7 +93,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield (proposition, nonce)
 
   lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Nonce)]] = for {
-    seqLen <- Gen.choose(1,10)
+    seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { i => fromGen.sample.get }
 
   lazy val toGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Value)] = for {
@@ -95,11 +102,11 @@ trait BifrostGenerators extends CoreGenerators {
   } yield (proposition, value)
 
   lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Value)]] = for {
-    seqLen <- Gen.choose(1,10)
+    seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { i => toGen.sample.get }
 
   lazy val sigSeqGen: Gen[IndexedSeq[Signature25519]] = for {
-    seqLen <- Gen.choose(1,10)
+    seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { i => signatureGen.sample.get }
 
   lazy val stableCoinTransferGen: Gen[StableCoinTransfer] = for {
