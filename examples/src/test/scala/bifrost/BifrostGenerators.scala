@@ -50,7 +50,9 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val partiesGen: Gen[IndexedSeq[PublicKey25519Proposition]] = for {
     a <- propositionGen
-  } yield IndexedSeq(a)
+    b <- propositionGen
+    c <- propositionGen
+  } yield IndexedSeq(a, b, c)
 
   lazy val agreementGen: Gen[Agreement] = for {
     parties <- partiesGen
