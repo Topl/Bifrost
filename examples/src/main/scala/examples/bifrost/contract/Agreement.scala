@@ -5,6 +5,8 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
+import scala.util.Try
+
 /**
   * Created by cykoz on 4/13/17.
   */
@@ -24,5 +26,19 @@ case class Agreement(parties: IndexedSeq[PublicKey25519Proposition],
 
   override def toString: String = s"Agreement(${json.toString})"
 
+}
+
+object Agreement {
+  def validate(a: Agreement): Try[Unit] = Try {
+
+    AgreementTerms.validate(a.terms)
+
+    require(a.parties.length == 3)
+    require(a.expirationTimestamp < System.currentTimeMillis) // TODO check this
+    require(a.timestamp > 0)
+    // require(a.timestamp > CONSTANTS.GENESIS_TIME)
+    require(a.nonce > 0)
+    require(a.expirationTimestamp > a.timestamp)
+  }
 }
 

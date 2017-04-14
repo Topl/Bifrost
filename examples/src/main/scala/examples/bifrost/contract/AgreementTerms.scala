@@ -3,10 +3,12 @@ package examples.bifrost.contract
 import io.circe.Json
 import io.circe.syntax._
 
-class AgreementTerms(pledge: BigDecimal,
-                     xrate: BigDecimal,
-                     share: ShareFunction,
-                     fulfilment: FulfilmentFunction){
+import scala.util.Try
+
+class AgreementTerms(val pledge: BigDecimal,
+                     val xrate: BigDecimal,
+                     val share: ShareFunction,
+                     val fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
     "pledge" -> Json.fromString(pledge.toString),
@@ -29,4 +31,14 @@ class AgreementTerms(pledge: BigDecimal,
 
   override def toString: String = s"AgreementTerms(${json.toString})"
 
+}
+
+object AgreementTerms {
+
+  def validate(terms: AgreementTerms): Try[Unit] = Try {
+    require(terms.pledge > 0)
+    require(terms.xrate > 0)
+
+    //TODO maybe validate functions here?
+  }
 }

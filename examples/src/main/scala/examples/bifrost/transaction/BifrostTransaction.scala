@@ -85,6 +85,18 @@ object ContractCreation {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
+  def validate(tx: ContractCreation): Try[Unit] = Try {
+
+    Agreement.validate(tx.agreement)
+
+    require(tx.parties.size == tx.signatures.size)
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.zip(tx.parties) forall { case (signature, proposition) =>
+      signature.isValid(proposition, tx.agreement.toString.getBytes)
+    })
+  }
+
 }
 
 
@@ -186,6 +198,16 @@ object StableCoinTransfer {
 
     val timestamp = System.currentTimeMillis()
     StableCoinTransfer(from.map(t => t._1 -> t._2), to, fee, timestamp)
+  }
+
+  def validate(tx: StableCoinTransfer): Try[Unit] = Try {
+      require(tx.from.size == tx.signatures.size)
+      require(tx.to.forall(_._2 >= 0))
+      require(tx.fee >= 0)
+      require(tx.timestamp >= 0)
+      require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
+        proof.isValid(prop, tx.messageToSign)
+      })
   }
 
 }
