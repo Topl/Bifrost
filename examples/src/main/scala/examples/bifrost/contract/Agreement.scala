@@ -22,7 +22,7 @@ case class Agreement(parties: IndexedSeq[PublicKey25519Proposition],
     "expirationTimestamp" -> expirationTimestamp.asJson
   ).asJson
 
-  override def toString: String = s"Agreement(${json.noSpaces})"
+  override def toString: String = s"Agreement(${json.toString})"
 
 }
 

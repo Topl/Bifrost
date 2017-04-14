@@ -101,7 +101,7 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
 
   override lazy val serializer = StableCoinTransferCompanion
 
-  override def toString: String = s"BifrostPayment(${json.noSpaces})"
+  override def toString: String = s"TransferTransaction(${json.noSpaces})"
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = from.map { case (prop, nonce) =>
     PublicKeyNoncedBox.idFromBox(prop, nonce)

@@ -72,21 +72,22 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
     Ints.toByteArray(typeBytes.length) ++
       typeBytes ++
       (m match {
-        case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
+        case sc: StableCoinTransfer => StableCoinTransferCompanion.toBytes(sc)
       })
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[TransferTransaction] = Try {
 
-    val typeLength = Ints.fromByteArray(bytes.slice(0, 4))
-    val typeStr = new String(bytes.slice(4,4 + typeLength))
-    val newBytes = bytes.slice(4 + typeLength, bytes.length)
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
-    val newTypeLength = Ints.fromByteArray(newBytes.slice(0, 4))
-    val newTypeStr = new String(newBytes.slice(4,4 + typeLength))
+    val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
+
+    val newTypeLength = Ints.fromByteArray(newBytes.slice(0, Ints.BYTES))
+    val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 
     newTypeStr match {
-      case "TransferTransaction" => StableCoinTransferCompanion.parseBytes(newBytes).asInstanceOf[TransferTransaction]
+      case "StableCoinTransfer" => StableCoinTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
     }
   }
 }
@@ -200,8 +201,8 @@ object AgreementCompanion extends Serializer[Agreement] {
     val shareMap = termsMap("share").asObject.get.toMap
 
     val terms = new AgreementTerms(
-      termsMap("pledge").as[BigDecimal].right.get,
-      termsMap("xrate").as[BigDecimal].right.get,
+      BigDecimal(termsMap("pledge").asString.get),
+      BigDecimal(termsMap("xrate").asString.get),
       shareMap("functionType").asString.get match {
         case "PiecewiseLinearMultiple" => new PiecewiseLinearMultiple(
           shareMap("points").as[Seq[(Double,(Double, Double, Double))]].right.get
@@ -219,28 +220,63 @@ object AgreementCompanion extends Serializer[Agreement] {
 
 object StableCoinTransferCompanion extends Serializer[StableCoinTransfer] {
 
-  override def toBytes(m: StableCoinTransfer): Array[Byte] = BifrostTransactionCompanion.toBytes(m)
+  override def toBytes(sc: StableCoinTransfer): Array[Byte] = {
+    val typeBytes = "StableCoinTransfer".getBytes
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(sc.fee),
+      Longs.toByteArray(sc.timestamp),
+      Ints.toByteArray(sc.signatures.length),
+      Ints.toByteArray(sc.from.length),
+      Ints.toByteArray(sc.to.length),
+      sc.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
+      sc.from.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
+      sc.to.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+    )
+  }
 
   override def parseBytes(bytes: Array[Byte]): Try[StableCoinTransfer] = Try {
-    val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
-    val timestamp = Longs.fromByteArray(bytes.slice(Longs.BYTES, 2*Longs.BYTES))
-    val sigLength = Ints.fromByteArray(bytes.slice(16, 20))
-    val fromLength = Ints.fromByteArray(bytes.slice(20, 24))
-    val toLength = Ints.fromByteArray(bytes.slice(24, 28))
+
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+
+    var numBytesRead = Ints.BYTES + typeLength
+
+    val fee = Longs.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Longs.BYTES))
+    val timestamp = Longs.fromByteArray(bytes.slice(numBytesRead + Longs.BYTES, numBytesRead + 2*Longs.BYTES))
+    val sigLength = Ints.fromByteArray(bytes.slice( numBytesRead + 2*Longs.BYTES, numBytesRead + 2*Longs.BYTES + Ints.BYTES))
+
+    numBytesRead += 2*Longs.BYTES + Ints.BYTES
+
+    val fromLength = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
+    val toLength = Ints.fromByteArray(bytes.slice(numBytesRead + Ints.BYTES, numBytesRead + 2*Ints.BYTES))
+
+    numBytesRead += 2*Ints.BYTES
+
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(28 + i * Curve25519.SignatureLength, 28 + (i + 1) * Curve25519.SignatureLength))
+      Signature25519(bytes.slice(numBytesRead + i * Curve25519.SignatureLength, numBytesRead + (i + 1) * Curve25519.SignatureLength))
     }
-    val s = 28 + sigLength * Curve25519.SignatureLength
-    val elementLength = 8 + Curve25519.KeyLength
+
+    numBytesRead += sigLength*Curve25519.SignatureLength
+
+    val elementLength = Longs.BYTES + Curve25519.KeyLength
+
     val from = (0 until fromLength) map { i =>
-      val pk = bytes.slice(s + i * elementLength, s + (i + 1) * elementLength - 8)
-      val v = Longs.fromByteArray(bytes.slice(s + (i + 1) * elementLength - 8, s + (i + 1) * elementLength))
-      (PublicKey25519Proposition(pk), v)
+      val pk = bytes.slice(numBytesRead + i*elementLength, numBytesRead + (i + 1)*elementLength - Longs.BYTES)
+      val nonce = Longs.fromByteArray(
+        bytes.slice(numBytesRead + (i + 1)*elementLength - Longs.BYTES, numBytesRead + (i + 1)*elementLength)
+      )
+      (PublicKey25519Proposition(pk), nonce)
     }
-    val s2 = s + fromLength * elementLength
+
+    numBytesRead += fromLength * elementLength
     val to = (0 until toLength) map { i =>
-      val pk = bytes.slice(s2 + i * elementLength, s2 + (i + 1) * elementLength - 8)
-      val v = Longs.fromByteArray(bytes.slice(s2 + (i + 1) * elementLength - 8, s2 + (i + 1) * elementLength))
+      val pk = bytes.slice(numBytesRead + i*elementLength, numBytesRead + (i + 1)*elementLength - Longs.BYTES)
+      val v = Longs.fromByteArray(
+        bytes.slice(numBytesRead + (i + 1)*elementLength - Longs.BYTES, numBytesRead + (i + 1) * elementLength)
+      )
       (PublicKey25519Proposition(pk), v)
     }
     StableCoinTransfer(from, to, signatures, fee, timestamp)

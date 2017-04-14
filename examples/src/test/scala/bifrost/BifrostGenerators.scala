@@ -1,7 +1,8 @@
 package bifrost
 
 import examples.bifrost.contract._
-import examples.bifrost.transaction.ContractCreation
+import examples.bifrost.transaction.ContractCreation.Nonce
+import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
 import examples.bifrost.transaction.box.ContractBox
 import org.scalacheck.Gen
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
@@ -14,26 +15,29 @@ import scorex.testkit.CoreGenerators
 trait BifrostGenerators extends CoreGenerators {
   lazy val stringGen = nonEmptyBytesGen.map(new String(_))
 
+  lazy val numStringGen = for {
+    numDigits <- Gen.choose(0, 100)
+  } yield (0 until numDigits).map { i => Gen.choose(0, 10).sample.get }.foldLeft("")((a,b) => a + b)
+
   lazy val doubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
 
   lazy val bigDecimalGen: Gen[BigDecimal] = for {
-    a <- doubleGen
-  } yield BigDecimal.double2bigDecimal(a)
+    wholeNumber <- numStringGen
+    decimalPortion <- numStringGen
+  } yield BigDecimal(wholeNumber + "." + decimalPortion)
 
   //generate a num from smallInt for len of seq, map that many tuples, concatenate together into seq
   lazy val seqDoubleGen: Gen[Seq[(Double, (Double, Double, Double))]] = for {
-      a <- doubleGen
-      b <- doubleGen
-      c <- doubleGen
-      d <- doubleGen
-    } yield Seq((a, (b,c,d)))
+    seqLen <- Gen.choose(1, 10)
+  } yield (0 until seqLen) map {
+    i => (doubleGen.sample.get, (doubleGen.sample.get, doubleGen.sample.get, doubleGen.sample.get))
+  }
 
   lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen.map(new PiecewiseLinearMultiple(_))
 
   lazy val seqLongDoubleGen: Gen[Seq[(Long, Double)]] = for {
-    a <- positiveLongGen
-    b <- doubleGen
-  } yield Seq((a, b))
+    seqLen <- Gen.choose(1, 10)
+  } yield (0 until seqLen) map { i => (positiveLongGen.sample.get, doubleGen.sample.get) }
 
   lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen.map(new PiecewiseLinearSingle(_))
 
@@ -69,8 +73,40 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen
     parties <- partiesGen
+    numSigs <- smallInt
     signature <- signatureGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-  } yield ContractCreation(agreement, parties, IndexedSeq(signature, signature, signature), fee, timestamp)
+  } yield ContractCreation(agreement, parties, (0 until numSigs) map { i => signature }, fee, timestamp)
+
+
+  lazy val fromGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Nonce)] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+  } yield (proposition, nonce)
+
+  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Nonce)]] = for {
+    seqLen <- Gen.choose(1,10)
+  } yield (0 until seqLen) map { i => fromGen.sample.get }
+
+  lazy val toGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Value)] = for {
+    proposition <- propositionGen
+    value <- positiveLongGen
+  } yield (proposition, value)
+
+  lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Value)]] = for {
+    seqLen <- Gen.choose(1,10)
+  } yield (0 until seqLen) map { i => toGen.sample.get }
+
+  lazy val sigSeqGen: Gen[IndexedSeq[Signature25519]] = for {
+    seqLen <- Gen.choose(1,10)
+  } yield (0 until seqLen) map { i => signatureGen.sample.get }
+
+  lazy val stableCoinTransferGen: Gen[StableCoinTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    signatures <- sigSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield StableCoinTransfer(from, to, signatures, fee, timestamp)
 }

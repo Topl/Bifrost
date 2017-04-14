@@ -2,7 +2,7 @@ package bifrost.serialization
 
 import bifrost.BifrostGenerators
 import examples.bifrost.contract.Agreement
-import examples.bifrost.transaction.{AgreementCompanion, ContractCreation, ContractTransactionCompanion}
+import examples.bifrost.transaction._
 import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -15,6 +15,23 @@ class SerializationTests extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators {
+
+/*
+  property("Testing BigDecimal Gen") {
+    println(bigDecimalGen.sample.get)
+    println(seqDoubleGen.sample.get)
+    println(seqLongDoubleGen.sample.get)
+  }*/
+
+  property("StableCoinTransfer Serialization") {
+    forAll(stableCoinTransferGen) {
+      sc : StableCoinTransfer =>
+        val parsed = TransferTransactionCompanion.parseBytes(
+          TransferTransactionCompanion.toBytes(sc)
+        ).get
+        TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(sc)
+    }
+  }
 
   property("ContractCreation Serialization") {
     forAll(contractCreationGen) {
@@ -30,6 +47,8 @@ class SerializationTests extends PropSpec
     forAll(agreementGen) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
+        println(parsed)
+        println(a)
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
     }
   }

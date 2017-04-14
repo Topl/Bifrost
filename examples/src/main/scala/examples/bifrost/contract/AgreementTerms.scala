@@ -9,8 +9,8 @@ class AgreementTerms(pledge: BigDecimal,
                      fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
-    "pledge" -> Json.fromBigDecimal(pledge),
-    "xrate" -> Json.fromBigDecimal(xrate),
+    "pledge" -> Json.fromString(pledge.toString),
+    "xrate" -> Json.fromString(xrate.toString),
     "share" -> Map(
       "functionType" -> Json.fromString(share.functionType),
       "points" -> Json.arr(share.points.map(p => Json.arr(
@@ -27,6 +27,6 @@ class AgreementTerms(pledge: BigDecimal,
     ).asJson
   ).asJson
 
-  override def toString: String = s"AgreementTerms(${json.noSpaces})"
+  override def toString: String = s"AgreementTerms(${json.toString})"
 
 }
