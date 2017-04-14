@@ -20,7 +20,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
   override def toBytes(m: BifrostTransaction): Array[Byte] = m match {
     case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
-    case p: PaymentTransaction => PaymentTransactionCompanion.toBytes(p)
+    case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -29,7 +29,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
     typeStr match {
       case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
-      case "PaymentTransaction" => PaymentTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
+      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
     }
   }
 
@@ -63,10 +63,10 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   }
 }
 
-object PaymentTransactionCompanion extends Serializer[PaymentTransaction] {
+object TransferTransactionCompanion extends Serializer[TransferTransaction] {
 
-  override def toBytes(m: PaymentTransaction): Array[Byte] = {
-    val typeBytes = "PaymentTransaction".getBytes
+  override def toBytes(m: TransferTransaction): Array[Byte] = {
+    val typeBytes = "TransferTransaction".getBytes
 
     Ints.toByteArray(typeBytes.length) ++
       typeBytes ++
@@ -75,7 +75,7 @@ object PaymentTransactionCompanion extends Serializer[PaymentTransaction] {
       })
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[PaymentTransaction] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[TransferTransaction] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.slice(0, 4))
     val typeStr = new String(bytes.slice(4,4 + typeLength))
@@ -85,7 +85,7 @@ object PaymentTransactionCompanion extends Serializer[PaymentTransaction] {
     val newTypeStr = new String(newBytes.slice(4,4 + typeLength))
 
     newTypeStr match {
-      case "PaymentTransaction" => BifrostPaymentCompanion.parseBytes(newBytes).asInstanceOf[PaymentTransaction]
+      case "TransferTransaction" => StableCoinTransferCompanion.parseBytes(newBytes).asInstanceOf[TransferTransaction]
     }
   }
 }
@@ -217,12 +217,11 @@ object AgreementCompanion extends Serializer[Agreement] {
   }
 }
 
+object StableCoinTransferCompanion extends Serializer[StableCoinTransfer] {
 
-object BifrostPaymentCompanion extends Serializer[BifrostPayment] {
+  override def toBytes(m: StableCoinTransfer): Array[Byte] = BifrostTransactionCompanion.toBytes(m)
 
-  override def toBytes(m: BifrostPayment): Array[Byte] = BifrostTransactionCompanion.toBytes(m)
-
-  override def parseBytes(bytes: Array[Byte]): Try[BifrostPayment] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[StableCoinTransfer] = Try {
     val fee = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
     val timestamp = Longs.fromByteArray(bytes.slice(Longs.BYTES, 2*Longs.BYTES))
     val sigLength = Ints.fromByteArray(bytes.slice(16, 20))
@@ -244,6 +243,6 @@ object BifrostPaymentCompanion extends Serializer[BifrostPayment] {
       val v = Longs.fromByteArray(bytes.slice(s2 + (i + 1) * elementLength - 8, s2 + (i + 1) * elementLength))
       (PublicKey25519Proposition(pk), v)
     }
-    BifrostPayment(from, to, signatures, fee, timestamp)
+    StableCoinTransfer(from, to, signatures, fee, timestamp)
   }
 }

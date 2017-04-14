@@ -1,7 +1,7 @@
 package examples.bifrost.transaction
 
 import com.google.common.primitives.{Ints, Longs}
-import examples.bifrost.transaction.BifrostPayment.Nonce
+import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
 import examples.bifrost.transaction.box.{BifrostBox, BifrostPaymentBox, ContractBox, PublicKey25519NoncedBox}
 import examples.hybrid.wallet.HWallet
@@ -88,18 +88,18 @@ object ContractCreation {
 }
 
 
-trait PaymentTransaction extends BifrostTransaction
+trait TransferTransaction extends BifrostTransaction
 
-case class BifrostPayment(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                          to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                          signatures: IndexedSeq[Signature25519],
-                          override val fee: Long,
-                          override val timestamp: Long)
-  extends PaymentTransaction {
+case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                              to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                              signatures: IndexedSeq[Signature25519],
+                              override val fee: Long,
+                              override val timestamp: Long)
+  extends TransferTransaction {
 
-  override type M = BifrostPayment
+  override type M = StableCoinTransfer
 
-  override lazy val serializer = BifrostPaymentCompanion
+  override lazy val serializer = StableCoinTransferCompanion
 
   override def toString: String = s"BifrostPayment(${json.noSpaces})"
 
@@ -124,7 +124,7 @@ case class BifrostPayment(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
 
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
-      val nonce = BifrostPayment.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      val nonce = StableCoinTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
       BifrostPaymentBox(prop, nonce, value)
   }
 
@@ -150,7 +150,7 @@ case class BifrostPayment(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
   ).asJson
 }
 
-object BifrostPayment {
+object StableCoinTransfer {
   type Value = Long
   type Nonce = Long
 
@@ -159,20 +159,20 @@ object BifrostPayment {
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
             to: IndexedSeq[(PublicKey25519Proposition, Value)],
             fee: Long,
-            timestamp: Long): BifrostPayment = {
+            timestamp: Long): StableCoinTransfer = {
     val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
     val fakeSigs = from.map(_ => Signature25519(Array()))
 
-    val undersigned = BifrostPayment(fromPub, to, fakeSigs, fee, timestamp)
+    val undersigned = StableCoinTransfer(fromPub, to, fakeSigs, fee, timestamp)
 
     val msg = undersigned.messageToSign
     val sigs = from.map { case (priv, _) => PrivateKey25519Companion.sign(priv, msg) }
 
-    new BifrostPayment(fromPub, to, sigs, fee, timestamp)
+    new StableCoinTransfer(fromPub, to, sigs, fee, timestamp)
   }
 
   //TODO seq of recipients and amounts
-  def create(w: HWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[BifrostPayment] = Try {
+  def create(w: HWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[StableCoinTransfer] = Try {
 
     val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b =>
       w.secretByPublicImage(b.box.proposition).map(s => (s, b.box.nonce, b.box.value))
@@ -185,7 +185,7 @@ object BifrostPayment {
     require(from.map(_._3).sum - to.map(_._2).sum == fee)
 
     val timestamp = System.currentTimeMillis()
-    BifrostPayment(from.map(t => t._1 -> t._2), to, fee, timestamp)
+    StableCoinTransfer(from.map(t => t._1 -> t._2), to, fee, timestamp)
   }
 
 }

@@ -69,7 +69,7 @@ case class BifrostState(override val version: VersionTag = SimpleState.EmptyVers
   override type NVCT = BifrostState
 
   override def validate(transaction: BifrostTransaction): Try[Unit] = transaction match {
-    case bp: BifrostPayment => Try {
+    case bp: StableCoinTransfer => Try {
       val b = boxesOf(bp.from.head._1).head.asInstanceOf[BifrostPaymentBox]
       b.value >= Math.addExact(bp.to.foldLeft(0)((a, b) => a + b._2.toInt), bp.fee)// && (b.nonce + 1 == bp.nonce)
     }

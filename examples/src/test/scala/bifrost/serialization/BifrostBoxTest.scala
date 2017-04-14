@@ -20,7 +20,6 @@ class SerializationTests extends PropSpec
     forAll(agreementGen) {
       b: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(b)).get
-
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(b)
     }
   }
