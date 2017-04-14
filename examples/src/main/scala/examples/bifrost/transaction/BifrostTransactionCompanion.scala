@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, ObjectInputStream}
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import examples.bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
-import io.circe.Json
+import io.circe.{Json, ParsingFailure}
 import io.circe.parser.parse
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
@@ -13,6 +13,7 @@ import examples.hybrid.state.SimpleBoxTransactionCompanion
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
+import scala.collection.immutable.HashMap
 import scala.util.Try
 
 object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
@@ -177,7 +178,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    val numBytesRead = 4*Longs.BYTES
+    var numBytesRead = 4*Longs.BYTES
 
     val partiesLength = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
 
@@ -186,26 +187,29 @@ object AgreementCompanion extends Serializer[Agreement] {
       PublicKey25519Proposition(pk)
     }
 
-    val curBytesRead = Ints.BYTES + partiesLength * Constants25519.PubKeyLength
+    numBytesRead += Ints.BYTES + partiesLength * Constants25519.PubKeyLength
 
     val termsMap: Map[String, Json] = parse(new String(
-      bytes.slice(curBytesRead, curBytesRead + termsLength.toInt)
-    )).getOrElse(Json.Null).as[Map[String, Json]].right.get
+      bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
+    )) match {
+      case Left(x) => new HashMap[String, Json]()
+      case Right(x) => x.asObject.get.toMap
+    }
 
-    val fulfilmentMap = termsMap("fulfilment").as[Map[String, Json]].right
-    val shareMap = termsMap("share").as[Map[String, Json]].right
+    val fulfilmentMap = termsMap("fulfilment").asObject.get.toMap
+    val shareMap = termsMap("share").asObject.get.toMap
 
     val terms = new AgreementTerms(
       termsMap("pledge").as[BigDecimal].right.get,
       termsMap("xrate").as[BigDecimal].right.get,
-      shareMap.get("functionType").asString.get match {
-        case "PiecewiseLinear" => new PiecewiseLinearMultiple(
-          shareMap.get("points").as[Seq[(Double,(Double, Double, Double))]].right.get
+      shareMap("functionType").asString.get match {
+        case "PiecewiseLinearMultiple" => new PiecewiseLinearMultiple(
+          shareMap("points").as[Seq[(Double,(Double, Double, Double))]].right.get
         )
       },
-      fulfilmentMap.get("functionType").asString.get match {
-        case "PiecewiseLinear" => new PiecewiseLinearSingle(
-          fulfilmentMap.get("points").as[Seq[(Long, Double)]].right.get)
+      fulfilmentMap("functionType").asString.get match {
+        case "PiecewiseLinearSingle" => new PiecewiseLinearSingle(
+          fulfilmentMap("points").as[Seq[(Long, Double)]].right.get)
       }
     )
 

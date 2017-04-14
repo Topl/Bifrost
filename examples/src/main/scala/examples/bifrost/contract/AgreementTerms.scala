@@ -20,7 +20,7 @@ class AgreementTerms(pledge: BigDecimal,
       ):_*)
     ).asJson,
     "fulfilment" -> Map(
-      "functionType" -> Json.fromString(share.functionType),
+      "functionType" -> Json.fromString(fulfilment.functionType),
       "points" -> Json.arr(
         fulfilment.points.map(p => Json.arr(Json.fromLong(p._1), Json.fromDouble(p._2).get)):_*
       )
