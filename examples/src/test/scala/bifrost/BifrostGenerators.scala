@@ -15,10 +15,14 @@ import scorex.testkit.CoreGenerators
 trait BifrostGenerators extends CoreGenerators {
   lazy val stringGen: Gen[String] = nonEmptyBytesGen.map(new String(_))
 
-  lazy val base10gen: Gen[Int] = Gen.choose(0, 10)
+  //noinspection ScalaStyle
+  lazy val base10gen: Gen[Int] = Gen.choose(0,10)
+
+  //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
 
-  lazy val numStringGen = for {
+  //noinspection ScalaStyle
+  lazy val numStringGen: Gen[String] = for {
     numDigits <- Gen.choose(0, 100)
   } yield (0 until numDigits).map {
     i => base10gen.sample.get

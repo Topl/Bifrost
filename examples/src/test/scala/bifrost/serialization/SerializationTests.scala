@@ -16,13 +16,6 @@ class SerializationTests extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-/*
-  property("Testing BigDecimal Gen") {
-    println(bigDecimalGen.sample.get)
-    println(seqDoubleGen.sample.get)
-    println(seqLongDoubleGen.sample.get)
-  }*/
-
   property("StableCoinTransfer Serialization") {
     forAll(stableCoinTransferGen) {
       sc : StableCoinTransfer =>
