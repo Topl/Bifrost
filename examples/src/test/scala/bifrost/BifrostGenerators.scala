@@ -59,7 +59,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield ContractBox(proposition, nonce, value, "This is an Agreement")
 
   lazy val agreementTermsGen: Gen[AgreementTerms] = for {
-    pledge <- bigDecimalGen
+    pledge <- positiveLongGen
     xrate <- bigDecimalGen
     share <- shareFuncGen
     fulfilment <- fulfilFuncGen

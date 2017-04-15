@@ -32,7 +32,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
   type BX = BifrostState.BX
   type BPMOD = BifrostState.BPMOD
   type GSC = BifrostState.GSC
-  type SC = BifrostState.SC
+  type BSC = BifrostState.BSC
 
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
@@ -90,8 +90,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
 
 }
 
-
-
 object BifrostState {
 
   type T = Any
@@ -100,7 +98,7 @@ object BifrostState {
   type BX = BifrostBox
   type BPMOD = BifrostBlock
   type GSC = GenericStateChanges[T, P, BX]
-  type SC = BifrostStateChanges
+  type BSC = BifrostStateChanges
 
   def semanticValidity(tx: TX): Try[Unit] = Try {
     tx match {

@@ -201,7 +201,7 @@ object AgreementCompanion extends Serializer[Agreement] {
     val shareMap = termsMap("share").asObject.get.toMap
 
     val terms = new AgreementTerms(
-      BigDecimal(termsMap("pledge").asString.get),
+      termsMap("pledge").asNumber.get.toLong.get,
       BigDecimal(termsMap("xrate").asString.get),
       shareMap("functionType").asString.get match {
         case "PiecewiseLinearMultiple" => new PiecewiseLinearMultiple(

@@ -6,6 +6,8 @@ import examples.bifrost.transaction._
 import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import io.circe.Json, io.circe.parser._
+import io.circe.syntax._
 
 /**
   * Created by cykoz on 4/12/17.
@@ -43,6 +45,17 @@ class SerializationTests extends PropSpec
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
     }
   }
+
+  /* TODO Need a generator that generates erroneous JSON
+  property("Agreement with no Nonce") {
+    forAll(agreementGen) {
+      a: Agreement =>
+        val newTerms = parse("""{}""").getOrElse(Json.Null)
+        a.terms.json = newTerms
+        val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
+        AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
+    }
+  }*/
 
   property("ContractBox Serialization") {
     forAll(bifrostBoxGen) {

@@ -5,13 +5,13 @@ import io.circe.syntax._
 
 import scala.util.Try
 
-class AgreementTerms(val pledge: BigDecimal,
+class AgreementTerms(val pledge: Long,
                      val xrate: BigDecimal,
                      val share: ShareFunction,
                      val fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
-    "pledge" -> Json.fromString(pledge.toString),
+    "pledge" -> Json.fromLong(pledge),
     "xrate" -> Json.fromString(xrate.toString),
     "share" -> Map(
       "functionType" -> Json.fromString(share.functionType),
