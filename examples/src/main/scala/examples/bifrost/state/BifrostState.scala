@@ -14,7 +14,7 @@ import scorex.core.transaction.state.StateChanges
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[BifrostBox], minerReward: Long)
 
@@ -37,8 +37,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
-
-  override def boxesOf(p: P): Seq[BX] = ???
 
   override def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
@@ -77,9 +75,40 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
   }
 
   override def validate(transaction: TX): Try[Unit] = transaction match {
+
     case bp: StableCoinTransfer => Try {
-      val b = boxesOf(bp.from.head._1).head.asInstanceOf[BifrostPaymentBox]
-      b.value >= Math.addExact(bp.to.foldLeft(0)((a, b) => a + b._2.toInt), bp.fee)// && (b.nonce + 1 == bp.nonce)
+      val statefulValid: Try[Unit] = {
+
+        val boxesSumTry: Try[Long] = {
+          bp.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+
+            partialRes.flatMap(partialSum =>
+              /* Checks if unlocker is valid and if so adds to current running total */
+              closedBox(unlocker.closedBoxId) match {
+                case Some(box) =>
+                  if (unlocker.boxKey.isValid(box.proposition, bp.messageToSign)) {
+                    Success(partialSum + box.asInstanceOf[BifrostPaymentBox].value)
+                  } else {
+                    Failure(new Exception("Incorrect unlocker"))
+                  }
+                case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              }
+            )
+
+          )
+        }
+
+        boxesSumTry flatMap { openSum =>
+          if (bp.newBoxes.map(_.asInstanceOf[BifrostPaymentBox].value).sum == openSum - bp.fee) {
+            Success[Unit](Unit)
+          } else {
+            Failure(new Exception("Negative fee"))
+          }
+        }
+
+      }
+
+      statefulValid.flatMap(_ => semanticValidity(bp))
     }
     case cc: ContractCreation => Try {
       // TODO check coin is possessed by investor

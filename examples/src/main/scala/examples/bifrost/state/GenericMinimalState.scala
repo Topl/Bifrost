@@ -36,7 +36,7 @@ MS <: GenericMinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
 
   def closedBox(boxId: Array[Byte]): Option[BX]
 
-  def boxesOf(proposition: P): Seq[BX]
+  //def boxesOf(proposition: P): Seq[BX]
 
   def changes(mod: M): Try[GenericStateChanges[T, P, BX]]
 
