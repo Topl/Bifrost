@@ -5,7 +5,7 @@ import java.io.File
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.transaction._
-import examples.bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, BifrostPaymentBox, PublicKey25519NoncedBox}
+import examples.bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, StableCoinBox, PublicKey25519NoncedBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
@@ -87,7 +87,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
               closedBox(unlocker.closedBoxId) match {
                 case Some(box) =>
                   if (unlocker.boxKey.isValid(box.proposition, bp.messageToSign)) {
-                    Success(partialSum + box.asInstanceOf[BifrostPaymentBox].value)
+                    Success(partialSum + box.asInstanceOf[StableCoinBox].value)
                   } else {
                     Failure(new Exception("Incorrect unlocker"))
                   }
@@ -99,7 +99,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
         }
 
         boxesSumTry flatMap { openSum =>
-          if (bp.newBoxes.map(_.asInstanceOf[BifrostPaymentBox].value).sum == openSum - bp.fee) {
+          if (bp.newBoxes.map(_.asInstanceOf[StableCoinBox].value).sum == openSum - bp.fee) {
             Success[Unit](Unit)
           } else {
             Failure(new Exception("Negative fee"))
@@ -154,7 +154,7 @@ object BifrostState {
         })
 
       val forgerNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
-      val forgerBox = BifrostPaymentBox(mod.generator, forgerNonce, reward)
+      val forgerBox = StableCoinBox(mod.generator, forgerNonce, reward)
 
       //no reward additional to tx fees
       BifrostStateChanges(toRemove, toAdd)

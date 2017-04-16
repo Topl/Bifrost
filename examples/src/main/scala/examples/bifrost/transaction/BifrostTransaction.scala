@@ -3,7 +3,7 @@ package examples.bifrost.transaction
 import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
-import examples.bifrost.transaction.box.{BifrostBox, BifrostPaymentBox, ContractBox, PublicKey25519NoncedBox}
+import examples.bifrost.transaction.box.{BifrostBox, StableCoinBox, ContractBox, PublicKey25519NoncedBox}
 import examples.hybrid.wallet.HWallet
 import io.circe.Json
 import io.circe.syntax._
@@ -137,7 +137,7 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
       val nonce = StableCoinTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-      BifrostPaymentBox(prop, nonce, value)
+      StableCoinBox(prop, nonce, value)
   }
 
   override lazy val json: Json = Map(
