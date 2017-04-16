@@ -3,10 +3,11 @@ package bifrost.serialization
 import bifrost.BifrostGenerators
 import examples.bifrost.contract.Agreement
 import examples.bifrost.transaction._
-import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox}
+import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox, StableCoinBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import io.circe.Json, io.circe.parser._
+import io.circe.Json
+import io.circe.parser._
 import io.circe.syntax._
 
 /**
@@ -17,6 +18,32 @@ class SerializationTests extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators {
+
+  property("ContractBox Serialization") {
+    forAll(bifrostBoxGen) {
+      b: ContractBox =>
+        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+    }
+  }
+
+  property("StableCoinBox Serialization") {
+    forAll(stableCoinBoxGen) {
+      b: StableCoinBox =>
+        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+    }
+  }
+
+  property("Agreement Serialization") {
+    forAll(agreementGen) {
+      a: Agreement =>
+        val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
+        AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
+    }
+  }
 
   property("StableCoinTransfer Serialization") {
     forAll(stableCoinTransferGen) {
@@ -38,14 +65,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("Agreement Serialization") {
-    forAll(agreementGen) {
-      a: Agreement =>
-        val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
-        AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
-    }
-  }
-
   /* TODO Need a generator that generates erroneous JSON
   property("Agreement with no Nonce") {
     forAll(agreementGen) {
@@ -56,13 +75,4 @@ class SerializationTests extends PropSpec
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
     }
   }*/
-
-  property("ContractBox Serialization") {
-    forAll(bifrostBoxGen) {
-      b: ContractBox =>
-        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
-    }
-  }
 }

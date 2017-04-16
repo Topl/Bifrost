@@ -3,7 +3,7 @@ package bifrost
 import examples.bifrost.contract._
 import examples.bifrost.transaction.ContractCreation.Nonce
 import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
-import examples.bifrost.transaction.box.ContractBox
+import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
 import org.scalacheck.Gen
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
@@ -57,6 +57,12 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
     value <- stringGen
   } yield ContractBox(proposition, nonce, value, "This is an Agreement")
+
+  lazy val stableCoinBoxGen: Gen[StableCoinBox] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+    value <- positiveLongGen
+  } yield StableCoinBox(proposition, nonce, value)
 
   lazy val agreementTermsGen: Gen[AgreementTerms] = for {
     pledge <- positiveLongGen

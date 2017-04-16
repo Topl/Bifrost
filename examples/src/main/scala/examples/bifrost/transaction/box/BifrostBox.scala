@@ -73,9 +73,6 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 case class StableCoinBox(proposition: PublicKey25519Proposition,
                          nonce: Long,
                          value: Long) extends BifrostBox(proposition, nonce, value) {
-
-
-
 }
 
 class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
