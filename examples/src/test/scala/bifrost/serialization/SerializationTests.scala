@@ -3,12 +3,14 @@ package bifrost.serialization
 import bifrost.BifrostGenerators
 import examples.bifrost.contract.Agreement
 import examples.bifrost.transaction._
+import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox, StableCoinBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import io.circe.Json
 import io.circe.parser._
 import io.circe.syntax._
+import scorex.core.transaction.state.PrivateKey25519
 
 /**
   * Created by cykoz on 4/12/17.
@@ -18,6 +20,15 @@ class SerializationTests extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators {
+
+  property("oneOfNProposition Serialization") {
+    forAll(oneOfNPropositionGen) {
+      case (keySet: Set[PrivateKey25519], mn: MofNProposition) =>
+        val parsed = MofNPropositionSerializer.parseBytes(MofNPropositionSerializer.toBytes(mn)).get
+        val serialized = MofNPropositionSerializer.toBytes(parsed)
+        serialized sameElements MofNPropositionSerializer.toBytes(mn)
+    }
+  }
 
   property("ContractBox Serialization") {
     forAll(bifrostBoxGen) {

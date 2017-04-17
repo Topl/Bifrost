@@ -2,11 +2,13 @@ package bifrost
 
 import examples.bifrost.contract._
 import examples.bifrost.transaction.ContractCreation.Nonce
+import examples.bifrost.transaction.box.proposition.MofNProposition
 import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
 import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
 import org.scalacheck.Gen
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
+import scorex.core.transaction.state.PrivateKey25519
 import scorex.testkit.CoreGenerators
 
 /**
@@ -126,4 +128,20 @@ trait BifrostGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield StableCoinTransfer(from, to, signatures, fee, timestamp)
+
+  lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
+    n <- positiveTinyIntGen
+  } yield {
+    var keySet = Set[PrivateKey25519]()
+    val prop = MofNProposition(
+      1, (0 until n).map(i =>{
+        val key = key25519Gen.sample.get
+        keySet += key._1
+        key._2.pubKeyBytes
+      }).foldLeft(Set[Array[Byte]]())((set, cur) => set + cur)
+    )
+
+    (keySet, prop)
+  }
+
 }
