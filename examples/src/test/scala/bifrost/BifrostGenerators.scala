@@ -54,11 +54,11 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen.map(new PiecewiseLinearSingle(_))
 
-  lazy val bifrostBoxGen: Gen[ContractBox] = for {
-    proposition <- propositionGen
+  lazy val contractBoxGen: Gen[ContractBox] = for {
+    proposition <- oneOfNPropositionGen
     nonce <- positiveLongGen
     value <- stringGen
-  } yield ContractBox(proposition, nonce, value, "This is an Agreement")
+  } yield ContractBox(proposition._2, nonce, value)
 
   lazy val stableCoinBoxGen: Gen[StableCoinBox] = for {
     proposition <- propositionGen

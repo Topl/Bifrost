@@ -10,7 +10,8 @@ import scorex.core.block.Block
 import scorex.core.block.Block._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -21,7 +22,7 @@ case class BifrostBlock(override val parentId: BlockId,
                        baseTarget: BaseTarget,
                        generator: PublicKey25519Proposition,
                        txs: Seq[BifrostTransaction])
-  extends Block[PublicKey25519Proposition, BifrostTransaction] {
+  extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
   override type M = BifrostBlock
 

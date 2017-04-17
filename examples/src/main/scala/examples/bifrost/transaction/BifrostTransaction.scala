@@ -3,21 +3,22 @@ package examples.bifrost.transaction
 import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
-import examples.bifrost.transaction.box.{BifrostBox, StableCoinBox, ContractBox, PublicKey25519NoncedBox}
+import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PublicKey25519NoncedBox, StableCoinBox}
 import examples.hybrid.wallet.HWallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-sealed trait BifrostTransaction extends GenericBoxTransaction[PublicKey25519Proposition, Any, BifrostBox]
+sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox]
 
 sealed abstract class ContractTransaction extends BifrostTransaction
 
@@ -34,14 +35,16 @@ case class ContractCreation(agreement: Agreement,
 
   override type M = ContractCreation
 
+  lazy val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+
   // no boxes required for now -- will require reputation
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]()
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
+  override lazy val unlockers: Traversable[BoxUnlocker[MofNProposition]] = boxIdsToOpen.zip(signatures).map {
     case (boxId, signature) =>
-      new BoxUnlocker[PublicKey25519Proposition] {
+      new BoxUnlocker[MofNProposition] {
         override val closedBoxId: Array[Byte] = boxId
-        override val boxKey: Proof[PublicKey25519Proposition] = signature
+        override val boxKey = signature
       }
   }
 
@@ -54,13 +57,10 @@ case class ContractCreation(agreement: Agreement,
   )
 
 
-  // TODO generate 3 contract boxes, one for each participant as "authorization"
-  override lazy val newBoxes: Traversable[BifrostBox] = parties.zipWithIndex.map {
-    case (prop, idx) =>
-      val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-      val newContractId = new String(FastCryptographicHash(ContractCreationCompanion.toBytes(this)))
-      val agreementString = new String(AgreementCompanion.toBytes(agreement))
-      ContractBox(prop, nonce, newContractId, agreementString)
+  override lazy val newBoxes: Traversable[BifrostBox] = {
+    val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces))
+    val agreementString = new String(AgreementCompanion.toBytes(agreement))
+    IndexedSeq(ContractBox(proposition, nonce, agreementString))
   }
 
   override lazy val json: Json = Map(
@@ -119,11 +119,11 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = boxIdsToOpen.zip(signatures).map {
     case (boxId, signature) =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = boxId
-        override val boxKey: Proof[PublicKey25519Proposition] = signature
+        override val boxKey = signature
       }
   }
 

@@ -3,24 +3,27 @@ package examples.bifrost.transaction.box
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 import com.google.common.primitives.{Ints, Longs}
+import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.transaction.state.PrivateKey25519
 
 import scala.util.Try
 
 /**
   * Created by Matthew on 4/11/2017.
   */
-abstract class BifrostBox(proposition: PublicKey25519Proposition,
+abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
                       nonce: Long,
-                      value: Any) extends GenericBox[PublicKey25519Proposition, Any] {
+                      value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
 
   override type M = BifrostBox
 
   override def serializer: Serializer[BifrostBox] = BifrostBoxSerializer
 
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  // lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   lazy val publicKey = proposition
 
@@ -73,6 +76,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 case class StableCoinBox(proposition: PublicKey25519Proposition,
                          nonce: Long,
                          value: Long) extends BifrostBox(proposition, nonce, value) {
+  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 }
 
 class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
@@ -104,10 +108,10 @@ class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
 }
 
 
-case class ContractBox(proposition: PublicKey25519Proposition,
-                             nonce: Long,
-                             value: String,
-                   contractContent: String) extends BifrostBox(proposition, nonce, value) {
+case class ContractBox(proposition: MofNProposition,
+                       nonce: Long,
+                       value: String ) extends BifrostBox(proposition, nonce, value) {
+  lazy val id: Array[Byte] = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ Longs.toByteArray((nonce)))
 }
 
 class ContractBoxSerializer extends Serializer[ContractBox] {
@@ -118,12 +122,10 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
 
     Ints.toByteArray(boxType.getBytes.length) ++
       boxType.getBytes ++
-      obj.proposition.pubKeyBytes ++
+      MofNPropositionSerializer.toBytes(obj.proposition) ++
       Longs.toByteArray(obj.nonce) ++
       Ints.toByteArray(obj.value.getBytes.length) ++
-      obj.value.getBytes ++
-      Ints.toByteArray(obj.contractContent.getBytes.length) ++
-      obj.contractContent.getBytes
+      obj.value.getBytes
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractBox] = Try {
@@ -134,20 +136,20 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
 
     var numReadBytes = Ints.BYTES + typeLen
 
-    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-    val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + Constants25519.PubKeyLength, numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
+    val numOfPk = Ints.fromByteArray(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
+    val endIndex = numReadBytes + 2*Ints.BYTES + numOfPk*Constants25519.PubKeyLength
+    val proposition = MofNPropositionSerializer.parseBytes(bytes.slice(numReadBytes, endIndex)).get
+    numReadBytes = endIndex
 
-    numReadBytes += Constants25519.PubKeyLength + Longs.BYTES
+    val nonce = Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES))
+
+    numReadBytes += Longs.BYTES
 
     val valueLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
     val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
-    numReadBytes += Ints.BYTES + valueLen
 
-    val contractContentLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
-
-    val contractContent = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + contractContentLen))
-    ContractBox(pk, nonce, value, contractContent)
+    ContractBox(proposition, nonce, value)
   }
 
 }

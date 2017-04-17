@@ -4,9 +4,9 @@ import scorex.core.transaction.box.proposition.Proposition
 import scorex.core.transaction.proof.Proof
 import scorex.crypto.encode.Base58
 
-trait BoxUnlocker[P <: Proposition] {
+trait BoxUnlocker[+P <: Proposition] {
   val closedBoxId: Array[Byte]
-  val boxKey: Proof[P]
+  val boxKey: Proof[Proposition]
 
   override def toString: String = s"BoxUnlocker(id: ${Base58.encode(closedBoxId)}, boxKey: $boxKey)"
 }

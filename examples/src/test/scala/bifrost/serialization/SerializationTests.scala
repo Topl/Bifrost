@@ -31,11 +31,11 @@ class SerializationTests extends PropSpec
   }
 
   property("ContractBox Serialization") {
-    forAll(bifrostBoxGen) {
+    forAll(contractBoxGen) {
       b: ContractBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b)
     }
   }
 

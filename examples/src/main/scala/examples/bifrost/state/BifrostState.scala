@@ -5,12 +5,12 @@ import java.io.File
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.transaction._
-import examples.bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, StableCoinBox, PublicKey25519NoncedBox}
+import examples.bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, PublicKey25519NoncedBox, StableCoinBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.StateChanges
+import scorex.core.transaction.state.{PrivateKey25519, StateChanges}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
@@ -20,10 +20,11 @@ case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[Bi
 
 case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
                                override val toAppend: Set[BifrostBox])
-  extends GenericStateChanges[Any, PublicKey25519Proposition, BifrostBox](boxIdsToRemove, toAppend)
+  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
 
 case class BifrostState(storage: LSMStore, override val version: VersionTag)
-  extends GenericBoxMinimalState[Any, PublicKey25519Proposition, BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+  extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
+    BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
   override type NVCT = BifrostState
   type P = BifrostState.P
@@ -76,17 +77,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
 
   override def validate(transaction: TX): Try[Unit] = transaction match {
 
-    case bp: StableCoinTransfer => Try {
+    case sct: StableCoinTransfer => Try {
       val statefulValid: Try[Unit] = {
 
         val boxesSumTry: Try[Long] = {
-          bp.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+          sct.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
             partialRes.flatMap(partialSum =>
               /* Checks if unlocker is valid and if so adds to current running total */
               closedBox(unlocker.closedBoxId) match {
                 case Some(box) =>
-                  if (unlocker.boxKey.isValid(box.proposition, bp.messageToSign)) {
+                  if (unlocker.boxKey.isValid(box.proposition, sct.messageToSign)) {
                     Success(partialSum + box.asInstanceOf[StableCoinBox].value)
                   } else {
                     Failure(new Exception("Incorrect unlocker"))
@@ -99,7 +100,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
         }
 
         boxesSumTry flatMap { openSum =>
-          if (bp.newBoxes.map(_.asInstanceOf[StableCoinBox].value).sum == openSum - bp.fee) {
+          if (sct.newBoxes.map(_.asInstanceOf[StableCoinBox].value).sum == openSum - sct.fee) {
             Success[Unit](Unit)
           } else {
             Failure(new Exception("Negative fee"))
@@ -108,7 +109,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag)
 
       }
 
-      statefulValid.flatMap(_ => semanticValidity(bp))
+      statefulValid.flatMap(_ => semanticValidity(sct))
     }
     case cc: ContractCreation => Try {
       // TODO check coin is possessed by investor
@@ -123,7 +124,7 @@ object BifrostState {
 
   type T = Any
   type TX = BifrostTransaction
-  type P = PublicKey25519Proposition
+  type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = BifrostBox
   type BPMOD = BifrostBlock
   type GSC = GenericStateChanges[T, P, BX]
