@@ -28,8 +28,8 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
 
     typeStr match {
-      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
-      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).asInstanceOf[BifrostTransaction]
+      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
+      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
     }
   }
 

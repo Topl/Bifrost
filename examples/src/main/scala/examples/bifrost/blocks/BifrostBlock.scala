@@ -1,6 +1,6 @@
 package examples.bifrost.blocks
 
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import examples.bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
 import examples.curvepos.transaction.SimpleBlock._
 import io.circe.Json
@@ -10,9 +10,10 @@ import scorex.core.block.Block
 import scorex.core.block.Block._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -60,16 +61,19 @@ object BifrostBlock {
 object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
   def messageToSign(block: BifrostBlock): Array[Byte] = {
-    block.parentId ++
-      Longs.toByteArray(block.timestamp) ++
-      Array(block.version) ++
-      Longs.toByteArray(block.baseTarget) ++
-      block.generator.pubKeyBytes ++ {
-      val cntBytes = Ints.toByteArray(block.txs.length)
 
-      // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
-      block.txs.foldLeft(cntBytes) { case (bytes, tx) => bytes ++ tx.bytes ++ Ints.toByteArray(tx.bytes.length) }
-    }
+    val numTx = Ints.toByteArray(block.txs.length)
+
+    Bytes.concat(
+        block.parentId,
+        Longs.toByteArray(block.timestamp),
+        Array(block.version),
+        block.generationSignature,
+        Longs.toByteArray(block.baseTarget),
+        block.generator.pubKeyBytes,
+        numTx,  // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
+        block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+    )
   }
 
   override def toBytes(block: BifrostBlock): Array[Byte] = {
@@ -77,35 +81,47 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
-    val parentId = bytes.slice(0, Block.BlockIdLength)
-    val timestamp = Longs.fromByteArray(bytes.slice(Block.BlockIdLength, Block.BlockIdLength + 8))
-    val version = bytes.slice(Block.BlockIdLength + 8, Block.BlockIdLength + 9).head
-    val s0 = Block.BlockIdLength + 9
-    val generationSignature = bytes.slice(s0, s0 + BifrostBlock.SignatureLength)
-    val baseTarget = Longs.fromByteArray(bytes.slice(s0 + BifrostBlock.SignatureLength, s0 + BifrostBlock.SignatureLength + 8))
-    val s1 = s0 + BifrostBlock.SignatureLength + 8
-    val generator = PublicKey25519Proposition(bytes.slice(s1, s1 + 32))
-    val cnt = Ints.fromByteArray(bytes.slice(s1 + 32, s1 + 36))
-    val s2 = s1 + 36
 
-    def unfoldRight[A,B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
+    val parentId = bytes.slice(0, Block.BlockIdLength)
+
+    val timestamp = Longs.fromByteArray(bytes.slice(Block.BlockIdLength, Block.BlockIdLength + Longs.BYTES))
+
+    val version = bytes.slice(Block.BlockIdLength + Longs.BYTES, Block.BlockIdLength + Longs.BYTES + 1).head
+
+    var numBytesRead = Block.BlockIdLength + Longs.BYTES + 1
+
+    val generationSignature = bytes.slice(numBytesRead, numBytesRead + BifrostBlock.SignatureLength)
+    val baseTarget = Longs.fromByteArray(bytes.slice(numBytesRead + BifrostBlock.SignatureLength, numBytesRead + BifrostBlock.SignatureLength + Longs.BYTES))
+
+    numBytesRead += BifrostBlock.SignatureLength + Longs.BYTES
+
+    val generator = PublicKey25519Proposition(bytes.slice(numBytesRead, numBytesRead + Constants25519.PubKeyLength))
+    val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead + Constants25519.PubKeyLength, numBytesRead + Constants25519.PubKeyLength + Ints.BYTES))
+    numBytesRead += Constants25519.PubKeyLength + Ints.BYTES
+
+    def unfoldLeft[A,B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
       f(seed) match {
-        case Some((a, b)) => unfoldRight(b)(f) :+ a
+        case Some((a, b)) => a +: unfoldLeft(b)(f)
         case None => Nil
       }
     }
-    val txBytes = bytes.slice(s2, bytes.length)
 
-    val tx: Seq[BifrostTransaction] = unfoldRight(txBytes)(bytes => {
-      val bytesToGrab = Ints.fromByteArray(bytes.slice(bytes.length-4, bytes.length))
+    val txBytes: Array[Byte] = bytes.slice(numBytesRead, bytes.length)
 
-      if(bytes.length < bytesToGrab + 4)
-        None
-      else {
-        val thisTx = bytes.slice(bytes.length - bytesToGrab - 4, bytes.length - 4)
-        Some((thisTx, bytes.slice(0, bytes.length - bytesToGrab - 4)))
-      }
-    }).ensuring(_.length == cnt).map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+    val txByteSeq: Seq[Array[Byte]] = unfoldLeft(txBytes)(bytes => bytes match {
+      case b if b.length < Ints.BYTES => None
+      case _ =>
+        val bytesToGrab = Ints.fromByteArray(bytes.take(Ints.BYTES))
+
+        if(bytes.length - Ints.BYTES < bytesToGrab) {
+          None // we're done because we can't grab the number of bytes required
+        } else {
+          val thisTx: Array[Byte] = bytes.slice(Ints.BYTES, Ints.BYTES + bytesToGrab)
+          Some((thisTx, bytes.slice(Ints.BYTES + bytesToGrab, bytes.length)))
+        }
+    }).ensuring(_.length == numTxExpected)
+
+    val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
     BifrostBlock(parentId, timestamp, generationSignature, baseTarget, generator, tx)
   }

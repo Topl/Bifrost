@@ -1,6 +1,7 @@
 package bifrost.serialization
 
 import bifrost.BifrostGenerators
+import examples.bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import examples.bifrost.contract.Agreement
 import examples.bifrost.transaction._
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -73,6 +74,14 @@ class SerializationTests extends PropSpec
           ContractTransactionCompanion.toBytes(c)
         ).get
         ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
+    }
+  }
+
+  property("BifrostBlock Serialization") {
+    forAll(bifrostBlockGen) {
+      bb: BifrostBlock =>
+        val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
+        BifrostBlockCompanion.toBytes(parsed) shouldEqual BifrostBlockCompanion.toBytes(bb)
     }
   }
 

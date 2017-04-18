@@ -1,11 +1,13 @@
 package bifrost
 
+import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.contract._
 import examples.bifrost.transaction.ContractCreation.Nonce
 import examples.bifrost.transaction.box.proposition.MofNProposition
-import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
+import examples.bifrost.transaction.{BifrostTransaction, ContractCreation, StableCoinTransfer}
 import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
+import scorex.core.block.Block
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519
@@ -22,12 +24,13 @@ trait BifrostGenerators extends CoreGenerators {
 
   //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
+  lazy val positiveMediumIntGen: Gen[Int] = Gen.choose(1,100)
 
   //noinspection ScalaStyle
   lazy val numStringGen: Gen[String] = for {
     numDigits <- Gen.choose(0, 100)
   } yield (0 until numDigits).map {
-    i => base10gen.sample.get
+    _ => base10gen.sample.get
   }.foldLeft("")((a,b) => a + b)
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
@@ -43,7 +46,7 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val seqDoubleGen: Gen[Seq[(Double, (Double, Double, Double))]] = for {
     seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map {
-    i => (samplePositiveDouble, (samplePositiveDouble, samplePositiveDouble, samplePositiveDouble))
+    _ => (samplePositiveDouble, (samplePositiveDouble, samplePositiveDouble, samplePositiveDouble))
   }
 
   lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen.map(new PiecewiseLinearMultiple(_))
@@ -96,7 +99,7 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-  } yield ContractCreation(agreement, parties, (0 until numSigs) map { i => signature }, fee, timestamp)
+  } yield ContractCreation(agreement, parties, (0 until numSigs) map { _ => signature }, fee, timestamp)
 
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Nonce)] = for {
@@ -106,7 +109,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Nonce)]] = for {
     seqLen <- positiveTinyIntGen
-  } yield (0 until seqLen) map { i => fromGen.sample.get }
+  } yield (0 until seqLen) map { _ => fromGen.sample.get }
 
   lazy val toGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Value)] = for {
     proposition <- propositionGen
@@ -115,11 +118,11 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, StableCoinTransfer.Value)]] = for {
     seqLen <- positiveTinyIntGen
-  } yield (0 until seqLen) map { i => toGen.sample.get }
+  } yield (0 until seqLen) map { _ => toGen.sample.get }
 
   lazy val sigSeqGen: Gen[IndexedSeq[Signature25519]] = for {
     seqLen <- positiveTinyIntGen
-  } yield (0 until seqLen) map { i => signatureGen.sample.get }
+  } yield (0 until seqLen) map { _ => signatureGen.sample.get }
 
   lazy val stableCoinTransferGen: Gen[StableCoinTransfer] = for {
     from <- fromSeqGen
@@ -146,6 +149,28 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val keyPairSetGen: Gen[Set[(PrivateKey25519, PublicKey25519Proposition)]] = for {
     seqLen <- positiveTinyIntGen
-  } yield ((0 until seqLen) map { i => key25519Gen.sample.get }).toSet
+  } yield ((0 until seqLen) map { _ => key25519Gen.sample.get }).toSet
+
+  val transactionTypes: Seq[String] = Seq() :+ "ContractCreation" :+ "StableCoinTransfer"
+
+  lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
+    seqLen <- positiveMediumIntGen
+  } yield 0 until seqLen map {
+    _ => Gen.oneOf(transactionTypes).sample.get match {
+      case "ContractCreation" => contractCreationGen.sample.get
+      case "StableCoinTransfer" => stableCoinTransferGen.sample.get
+    }
+  }
+
+  def specificLengthBytesGen(length: Int): Gen[Array[Byte]] = Gen.listOfN(length, Arbitrary.arbitrary[Byte]).map(_.toArray)
+
+  lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
+    parentId <- specificLengthBytesGen(Block.BlockIdLength)
+    timestamp <- positiveLongGen
+    generationSignature <- specificLengthBytesGen(BifrostBlock.SignatureLength)
+    baseTarget <- positiveLongGen
+    generator <- propositionGen
+    txs <- bifrostTransactionSeqGen
+  } yield BifrostBlock(parentId, timestamp, generationSignature, baseTarget, generator, txs)
 
 }
