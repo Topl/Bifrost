@@ -5,6 +5,7 @@ import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PublicKey25519NoncedBox, StableCoinBox}
+import examples.bifrost.transaction.proof.MultiSignature25519
 import examples.hybrid.wallet.HWallet
 import io.circe.Json
 import io.circe.syntax._
@@ -44,7 +45,7 @@ case class ContractCreation(agreement: Agreement,
     case (boxId, signature) =>
       new BoxUnlocker[MofNProposition] {
         override val closedBoxId: Array[Byte] = boxId
-        override val boxKey = signature
+        override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signature))
       }
   }
 
@@ -119,11 +120,11 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = boxIdsToOpen.zip(signatures).map {
+  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
     case (boxId, signature) =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = boxId
-        override val boxKey = signature
+        override val boxKey: Signature25519 = signature
       }
   }
 
