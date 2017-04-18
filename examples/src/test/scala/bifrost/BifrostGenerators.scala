@@ -144,4 +144,8 @@ trait BifrostGenerators extends CoreGenerators {
     (keySet, prop)
   }
 
+  lazy val keyPairSetGen: Gen[Set[(PrivateKey25519, PublicKey25519Proposition)]] = for {
+    seqLen <- positiveTinyIntGen
+  } yield ((0 until seqLen) map { i => key25519Gen.sample.get }).toSet
+
 }
