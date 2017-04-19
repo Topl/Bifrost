@@ -163,32 +163,20 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def toBytes(a: Agreement): Array[Byte] = {
     Bytes.concat(
-      Longs.toByteArray(a.nonce),
       Longs.toByteArray(a.timestamp),
       Longs.toByteArray(a.expirationTimestamp),
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
-      Ints.toByteArray(a.parties.length),
-      a.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
       a.terms.json.noSpaces.getBytes
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
 
-    val Array(nonce: Long, timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 4).map { i =>
+    val Array(timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 3).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    var numBytesRead = 4*Longs.BYTES
-
-    val partiesLength = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
-
-    val parties = (0 until partiesLength) map { i =>
-      val pk = bytes.slice(numBytesRead + Ints.BYTES + i * Curve25519.KeyLength, numBytesRead + Ints.BYTES + (i + 1) * Curve25519.KeyLength )
-      PublicKey25519Proposition(pk)
-    }
-
-    numBytesRead += Ints.BYTES + partiesLength * Constants25519.PubKeyLength
+    var numBytesRead = 3*Longs.BYTES
 
     val termsMap: Map[String, Json] = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
@@ -214,7 +202,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     )
 
-    Agreement(parties, terms, nonce, timestamp, expirationTimestamp)
+    Agreement(terms, timestamp, expirationTimestamp)
   }
 }
 

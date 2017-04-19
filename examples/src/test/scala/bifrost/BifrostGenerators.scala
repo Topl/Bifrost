@@ -83,12 +83,10 @@ trait BifrostGenerators extends CoreGenerators {
   } yield IndexedSeq(a, b, c)
 
   lazy val agreementGen: Gen[Agreement] = for {
-    parties <- partiesGen
     terms <- agreementTermsGen
-    nonce <- positiveLongGen
     timestamp <- positiveLongGen
     expirationTimestamp <- positiveLongGen
-  } yield Agreement(parties, terms, nonce, timestamp, expirationTimestamp)
+  } yield Agreement(terms, timestamp, expirationTimestamp)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 

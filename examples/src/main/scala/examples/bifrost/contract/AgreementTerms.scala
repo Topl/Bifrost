@@ -5,10 +5,7 @@ import io.circe.syntax._
 
 import scala.util.Try
 
-class AgreementTerms(val pledge: Long,
-                     val xrate: BigDecimal,
-                     val share: ShareFunction,
-                     val fulfilment: FulfilmentFunction){
+class AgreementTerms(val pledge: Long, val xrate: BigDecimal, val share: ShareFunction, val fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
     "pledge" -> Json.fromLong(pledge),

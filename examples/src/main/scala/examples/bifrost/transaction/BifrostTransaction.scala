@@ -1,6 +1,6 @@
 package examples.bifrost.transaction
 
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -51,16 +51,18 @@ case class ContractCreation(agreement: Agreement,
 
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
-      parties.foldLeft(Array[Byte]())((a,b) => a ++ b.pubKeyBytes) ++
-      unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
   )
 
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces))
-    val agreementString = new String(AgreementCompanion.toBytes(agreement))
+    // TODO check if this nonce is secure
+    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    val nonce = ContractCreation.nonceFromDigest(digest)
+    val agreementString = new String(messageToSign)
     IndexedSeq(ContractBox(proposition, nonce, agreementString))
   }
 
@@ -74,7 +76,11 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val serializer = ContractCreationCompanion
 
-  override lazy val messageToSign: Array[Byte] = serializer.toBytes(this)
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(
+    Longs.toByteArray(timestamp),
+    AgreementCompanion.toBytes(agreement),
+    parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+  )
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
 

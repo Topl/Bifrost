@@ -108,10 +108,14 @@ class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
 }
 
 
-case class ContractBox(proposition: MofNProposition,
-                       nonce: Long,
-                       value: String ) extends BifrostBox(proposition, nonce, value) {
-  lazy val id: Array[Byte] = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ Longs.toByteArray((nonce)))
+case class ContractBox(proposition: MofNProposition, nonce: Long, value: String ) extends BifrostBox(proposition, nonce, value) {
+
+  lazy val id: Array[Byte] = FastCryptographicHash(
+    MofNPropositionSerializer.toBytes(proposition) ++
+    Longs.toByteArray(nonce) ++
+    value.getBytes
+  )
+
 }
 
 class ContractBoxSerializer extends Serializer[ContractBox] {

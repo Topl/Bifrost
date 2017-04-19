@@ -8,18 +8,16 @@ import scorex.crypto.encode.Base58
 import scala.util.Try
 
 /**
-  * Created by cykoz on 4/13/17.
+  *
+  * @param terms
+  * @param timestamp            the time at which the agreement was agreed upon
+  * @param expirationTimestamp  timestamp to prevent parties from holding signatures until an advantageous date
+  *                             for a previously agreed upon agreement
   */
-case class Agreement(parties: IndexedSeq[PublicKey25519Proposition],
-                     terms: AgreementTerms,
-                     nonce: Long,
-                     timestamp: Long,
-                     expirationTimestamp: Long) {
+case class Agreement(terms: AgreementTerms, timestamp: Long, expirationTimestamp: Long) {
 
   lazy val json: Json = Map(
-    "parties" -> Array( parties.map(p => Base58.encode(p.pubKeyBytes)) ).asJson,
     "terms" -> terms.json,
-    "nonce" -> nonce.asJson,
     "timestamp" -> timestamp.asJson,
     "expirationTimestamp" -> expirationTimestamp.asJson
   ).asJson
@@ -33,11 +31,9 @@ object Agreement {
 
     AgreementTerms.validate(a.terms)
 
-    require(a.parties.length == 3)
     require(a.expirationTimestamp < System.currentTimeMillis) // TODO check this
     require(a.timestamp > 0)
     // require(a.timestamp > CONSTANTS.GENESIS_TIME)
-    require(a.nonce > 0)
     require(a.expirationTimestamp > a.timestamp)
   }
 }
