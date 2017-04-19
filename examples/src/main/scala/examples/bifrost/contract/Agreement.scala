@@ -10,16 +10,14 @@ import scala.util.Try
 /**
   *
   * @param terms
-  * @param timestamp            the time at which the agreement was agreed upon
-  * @param expirationTimestamp  timestamp to prevent parties from holding signatures until an advantageous date
+  * @param contractEndTime  timestamp to prevent parties from holding signatures until an advantageous date
   *                             for a previously agreed upon agreement
   */
-case class Agreement(terms: AgreementTerms, timestamp: Long, expirationTimestamp: Long) {
+case class Agreement(terms: AgreementTerms, contractEndTime: Long) {
 
   lazy val json: Json = Map(
     "terms" -> terms.json,
-    "timestamp" -> timestamp.asJson,
-    "expirationTimestamp" -> expirationTimestamp.asJson
+    "expirationTimestamp" -> contractEndTime.asJson
   ).asJson
 
   override def toString: String = s"Agreement(${json.toString})"
@@ -29,12 +27,12 @@ case class Agreement(terms: AgreementTerms, timestamp: Long, expirationTimestamp
 object Agreement {
   def validate(a: Agreement): Try[Unit] = Try {
 
-    AgreementTerms.validate(a.terms)
+    require(a.terms.pledge > 0)
+    require(a.terms.xrate > 0)
+    //TODO maybe validate functions here?
 
-    require(a.expirationTimestamp < System.currentTimeMillis) // TODO check this
-    require(a.timestamp > 0)
+    // require(a.expirationTimestamp < System.currentTimeMillis) // TODO check this
     // require(a.timestamp > CONSTANTS.GENESIS_TIME)
-    require(a.expirationTimestamp > a.timestamp)
   }
 }
 

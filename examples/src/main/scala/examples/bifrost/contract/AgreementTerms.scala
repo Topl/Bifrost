@@ -31,11 +31,8 @@ class AgreementTerms(val pledge: Long, val xrate: BigDecimal, val share: ShareFu
 }
 
 object AgreementTerms {
-
-  def validate(terms: AgreementTerms): Try[Unit] = Try {
-    require(terms.pledge > 0)
-    require(terms.xrate > 0)
-
-    //TODO maybe validate functions here?
-  }
+  // def validate(terms: AgreementTerms): Try[Unit] = Try {
+  //   require(terms.pledge > 0)
+  //   require(terms.xrate > 0)
+  // }
 }

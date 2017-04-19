@@ -163,8 +163,7 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def toBytes(a: Agreement): Array[Byte] = {
     Bytes.concat(
-      Longs.toByteArray(a.timestamp),
-      Longs.toByteArray(a.expirationTimestamp),
+      Longs.toByteArray(a.contractEndTime),
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
       a.terms.json.noSpaces.getBytes
     )
@@ -172,11 +171,11 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
 
-    val Array(timestamp: Long, expirationTimestamp: Long, termsLength: Long) = (0 until 3).map { i =>
+    val Array(contractEndTime: Long, termsLength: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    var numBytesRead = 3*Longs.BYTES
+    var numBytesRead = 2*Longs.BYTES
 
     val termsMap: Map[String, Json] = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
@@ -202,7 +201,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     )
 
-    Agreement(terms, timestamp, expirationTimestamp)
+    Agreement(terms, contractEndTime)
   }
 }
 

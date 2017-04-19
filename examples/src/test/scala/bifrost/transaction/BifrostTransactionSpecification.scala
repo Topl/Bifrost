@@ -1,7 +1,9 @@
 package bifrost.transaction
 
 import bifrost.BifrostGenerators
-import examples.hybrid.state.{HBoxStoredState, SimpleBoxTransaction}
+import examples.bifrost.state.BifrostState
+import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
+import examples.hybrid.state.SimpleBoxTransaction
 import hybrid.HybridGenerators
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
@@ -30,18 +32,28 @@ class BifrostTransactionSpecification extends PropSpec
     */
   }
 
-  property("Generated transaction is valid") {
-    /*forAll(simpleBoxTransactionGen) { tx =>
-      HBoxStoredState.semanticValidity(tx).isSuccess shouldBe true
-    }*/
+  property("Generated ContractCreation Tx should be valid") {
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+        val semanticValid = BifrostState.semanticValidity(cc)
+        semanticValid.isSuccess shouldBe true
+    }
   }
 
-  property("Transaction with modified signature is invalid") {
-    /*forAll(simpleBoxTransactionGen) { tx =>
-      val wrongSig: Array[Byte] = (tx.signatures.head.bytes.head + 1).toByte +: tx.signatures.head.bytes.tail
-      val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
-      HBoxStoredState.semanticValidity(tx.copy(signatures = wrongSigs)).isSuccess shouldBe false
-    }*/
+  property("Generated StableCoinTransfer Tx should be valid") {
+    forAll(validStableCoinTransferGen) {
+      sct: StableCoinTransfer =>
+        BifrostState.semanticValidity(sct).isSuccess shouldBe true
+    }
+  }
+
+  property("Transaction with modified signature should be invalid") {
+    forAll(contractCreationGen) {
+      tx: ContractCreation =>
+        val wrongSig: Array[Byte] = (tx.signatures.head.bytes.head + 1).toByte +: tx.signatures.head.bytes.tail
+        val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
+        BifrostState.semanticValidity(tx.copy(signatures = wrongSigs)).isSuccess shouldBe false
+    }
   }
 
   property("Transaction with modified from is invalid") {

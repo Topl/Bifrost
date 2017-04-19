@@ -94,13 +94,13 @@ object ContractCreation {
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
-    Agreement.validate(tx.agreement)
+    require(Agreement.validate(tx.agreement).isSuccess)
 
-    require(tx.parties.size == tx.signatures.size)
+    require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures.zip(tx.parties) forall { case (signature, proposition) =>
-      signature.isValid(proposition, tx.agreement.toString.getBytes)
+      signature.isValid(proposition, tx.messageToSign)
     })
   }
 

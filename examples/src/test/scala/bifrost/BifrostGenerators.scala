@@ -1,16 +1,18 @@
 package bifrost
 
+import com.google.common.primitives.{Bytes, Longs}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.contract._
 import examples.bifrost.transaction.ContractCreation.Nonce
 import examples.bifrost.transaction.box.proposition.MofNProposition
-import examples.bifrost.transaction.{BifrostTransaction, ContractCreation, StableCoinTransfer}
+import examples.bifrost.transaction.{AgreementCompanion, BifrostTransaction, ContractCreation, StableCoinTransfer}
 import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.core.block.Block
+import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.testkit.CoreGenerators
 
 /**
@@ -84,21 +86,43 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val agreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
+    contractEndTime <- positiveLongGen
+  } yield Agreement(terms, contractEndTime)
+
+  lazy val validAgreementGen: Gen[Agreement] = for {
+    terms <- agreementTermsGen
     timestamp <- positiveLongGen
-    expirationTimestamp <- positiveLongGen
-  } yield Agreement(terms, timestamp, expirationTimestamp)
+  } yield Agreement(terms, timestamp)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen
     parties <- partiesGen
-    numSigs <- smallInt
     signature <- signatureGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-  } yield ContractCreation(agreement, parties, (0 until numSigs) map { _ => signature }, fee, timestamp)
+  } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
 
+
+  lazy val validContractCreationGen: Gen[ContractCreation] = for {
+    agreement <- validAgreementGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+    val parties = allKeyPairs.map(_._2)
+    val messageToSign = Bytes.concat(
+      Longs.toByteArray(timestamp),
+      AgreementCompanion.toBytes(agreement),
+      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+    )
+    val signatures = allKeyPairs.map(
+      keypair =>
+        PrivateKey25519Companion.sign(keypair._1, messageToSign)
+    )
+    ContractCreation(agreement, parties, signatures, fee, timestamp)
+  }
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, StableCoinTransfer.Nonce)] = for {
     proposition <- propositionGen
@@ -129,6 +153,20 @@ trait BifrostGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield StableCoinTransfer(from, to, signatures, fee, timestamp)
+
+  lazy val validStableCoinTransferGen: Gen[StableCoinTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
+    val toKeyPairs = keyPairSetGen.sample.get.head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+
+    StableCoinTransfer(from, to, fee, timestamp)
+  }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen

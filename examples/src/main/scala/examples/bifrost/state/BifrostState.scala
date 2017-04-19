@@ -178,11 +178,11 @@ object BifrostState {
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 
-  def semanticValidity(tx: TX): Try[Unit] = Try {
+  def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
       case sc: StableCoinTransfer => StableCoinTransfer.validate(sc)
       case cc: ContractCreation => ContractCreation.validate(cc)
-      case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
+      case _ => Failure( new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
     }
   }
 
