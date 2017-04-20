@@ -1,7 +1,9 @@
 /*
 package examples.bifrost
 
-import examples.bifrost.transaction.{SimplePayment, _}
+import examples.bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import examples.bifrost.state.BifrostState
+import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
 import scorex.core.settings.Settings
@@ -13,44 +15,43 @@ import scorex.crypto.signatures.Curve25519
 import scala.util.{Failure, Success}
 
 class SimpleNodeViewHolder(settings: Settings)
-  extends NodeViewHolder[PublicKey25519Proposition, SimpleTransaction, SimpleBlock] {
+  extends NodeViewHolder[PublicKey25519Proposition, BifrostTransaction, BifrostBlock] {
 
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = SimpleSyncInfo
 
-  override type HIS = SimpleBlockchain
-  override type MS = SimpleState
-  override type VL = SimpleWallet
-  override type MP = SimpleMemPool
+  override type HIS = BifrostBlockchain
+  override type MS = BifrostState
+  override type VL = BifrostUI
+  override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(SimpleBlock.ModifierTypeId -> SimpleBlockCompanion)
+    Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion)
 
   override def restoreState(): Option[(HIS, MS, VL, MP)] = None
 
   override protected def genesisState: (HIS, MS, VL, MP) = {
-    val emptyBlockchain = new SimpleBlockchain
-    val emptyState = new SimpleState
+    val emptyState = new BifrostState()
 
-    val genesisAcc1 = SimpleWallet(Base58.decode("genesisoo").get).publicKeys.head
-    val genesisAcc2 = SimpleWallet(Base58.decode("genesiso1").get).publicKeys.head
+    val genesisAcc1 = BifrostUI(Base58.decode("genesisoo").get).publicKeys.head
+    val genesisAcc2 = BifrostUI(Base58.decode("genesiso1").get).publicKeys.head
 
     val IntitialBaseTarget = 15372286700L
     val generator = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
-    val toInclude: Seq[SimpleTransaction] = Seq(
-      SimplePayment(genesisAcc1, genesisAcc1, 50000000, 0, 1, 0),
-      SimplePayment(genesisAcc2, genesisAcc2, 50000000, 0, 1, 0)
+    val toInclude: Seq[BifrostTransaction] = Seq(
+      StableCoinTransfer(genesisAcc1, genesisAcc1, 50000000, 0),
+      StableCoinTransfer(genesisAcc2, genesisAcc2, 50000000, 0)
     )
 
-    val genesisBlock: SimpleBlock = SimpleBlock(Array.fill(SimpleBlock.SignatureLength)(-1: Byte),
-      0L, Array.fill(SimpleBlock.SignatureLength)(0: Byte), IntitialBaseTarget, generator, toInclude)
+    val genesisBlock: BifrostBlock = BifrostBlock(Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      0L, Array.fill(BifrostBlock.SignatureLength)(0: Byte), IntitialBaseTarget, generator, toInclude)
 
-    val blockchain = emptyBlockchain.append(genesisBlock) match {
+    val history = BifrostHistory.append(genesisBlock) match {
       case Failure(f) => throw f
       case Success(newBlockchain) => newBlockchain._1
     }
-    require(blockchain.height() == 1, s"${blockchain.height()} == 1")
+    require(history.height() == 1, s"${history.height()} == 1")
 
     val state = emptyState.applyChanges(emptyState.changes(genesisBlock).get, genesisBlock.id) match {
       case Failure(f) => throw f
@@ -60,6 +61,7 @@ class SimpleNodeViewHolder(settings: Settings)
 
     log.info(s"Genesis state with block (id: ${genesisBlock.id}) ${genesisBlock.json.noSpaces} created")
 
-    (blockchain, state, SimpleWallet(settings.walletSeed), new SimpleMemPool)
+    (history, state, SimpleWallet(settings.walletSeed), new SimpleMemPool)
   }
-}*/
+}
+*/

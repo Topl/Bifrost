@@ -204,9 +204,6 @@ object BifrostState {
           (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3 )
         })
 
-      val forgerNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
-      val forgerBox = StableCoinBox(mod.generator, forgerNonce, reward)
-
       //no reward additional to tx fees
       BifrostStateChanges(toRemove, toAdd, mod.timestamp)
     }

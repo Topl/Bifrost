@@ -1,6 +1,9 @@
 package examples.bifrost.forging
 
 import akka.actor.{Actor, ActorRef}
+import com.google.common.primitives.Longs
+import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.transaction.box.StableCoinBox
 import examples.curvepos.SimpleBlockchain
 import examples.curvepos.transaction._
 import scorex.core.LocalInterface.LocallyGeneratedModifier
@@ -9,7 +12,7 @@ import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.{ScorexLogging, NetworkTime}
+import scorex.core.utils.{NetworkTime, ScorexLogging}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -108,10 +111,17 @@ class Forger(viewHolderRef: ActorRef, forgerSettings: ForgerSettings) extends Ac
 
 object Forger {
 
+  val InitialDifficuly = 15000000000L
+  val MaxTarget = Long.MaxValue
+
   case object StartMining
 
   case object StopMining
 
   case object Forge
 
+  def hit(lastBlock: BifrostBlock)(box: StableCoinBox): Long = {
+    val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
+    Longs.fromByteArray((0: Byte) +: h.take(7))
+  }
 }

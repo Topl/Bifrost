@@ -203,10 +203,9 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
     parentId <- specificLengthBytesGen(Block.BlockIdLength)
     timestamp <- positiveLongGen
-    generationSignature <- specificLengthBytesGen(BifrostBlock.SignatureLength)
-    baseTarget <- positiveLongGen
-    generator <- propositionGen
+    generatorBox <- stableCoinBoxGen
+    signature <- signatureGen
     txs <- bifrostTransactionSeqGen
-  } yield BifrostBlock(parentId, timestamp, generationSignature, baseTarget, generator, txs)
+  } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
 
 }
