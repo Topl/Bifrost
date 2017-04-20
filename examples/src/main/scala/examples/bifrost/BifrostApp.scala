@@ -5,6 +5,7 @@ import examples.bifrost.api.http.{DebugApiRoute, WalletApiRoute}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.forging.{Forger, ForgingSettings}
 import examples.bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
+import examples.bifrost.scorexMod.GenericApplication
 import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.transaction.box.BifrostBox
 import examples.bifrost.wallet.StableCoinTransferGenerator
@@ -38,8 +39,8 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(classOf[NVHT], settings))
 
   override val apiRoutes: Seq[ApiRoute] = Seq(
-    //DebugApiRoute(settings, nodeViewHolderRef),
-    //WalletApiRoute(settings, nodeViewHolderRef),
+    DebugApiRoute(settings, nodeViewHolderRef),
+    WalletApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)

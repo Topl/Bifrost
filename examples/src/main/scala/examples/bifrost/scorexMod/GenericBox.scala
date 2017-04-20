@@ -1,4 +1,4 @@
-package examples.bifrost.transaction.box
+package examples.bifrost.scorexMod
 
 import scorex.core.serialization.BytesSerializable
 import scorex.core.transaction.box.proposition.Proposition

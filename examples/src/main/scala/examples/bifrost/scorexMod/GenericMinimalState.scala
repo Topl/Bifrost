@@ -1,14 +1,12 @@
-package examples.bifrost.state
+package examples.bifrost.scorexMod
 
 /**
   * Created by cykoz on 4/13/17.
   */
 
-import examples.bifrost.transaction.box.GenericBox
 import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.Proposition
 import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.StateChanges
 import scorex.core.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 
 import scala.util.Try

@@ -3,6 +3,7 @@ package examples.bifrost.transaction.box
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 import com.google.common.primitives.{Ints, Longs}
+import examples.bifrost.scorexMod.GenericBox
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import io.circe.Json
 import io.circe.syntax._

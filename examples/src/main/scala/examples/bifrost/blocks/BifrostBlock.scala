@@ -110,8 +110,8 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize
 
-    val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead + Constants25519.PubKeyLength, numBytesRead + Constants25519.PubKeyLength + Ints.BYTES))
-    numBytesRead += Constants25519.PubKeyLength + Ints.BYTES
+    val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
+    numBytesRead += Ints.BYTES
 
     def unfoldLeft[A,B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
       f(seed) match {

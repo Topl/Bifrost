@@ -1,20 +1,16 @@
-package examples.bifrost
+package examples.bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
-import examples.bifrost.GenericNodeViewHolder._
-import examples.bifrost.state.GenericBoxMinimalState
-import examples.bifrost.transaction.GenericBoxTransaction
-import examples.bifrost.transaction.box.GenericBox
 import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.consensus.{History, SyncInfo}
+import scorex.core.network.NodeViewSynchronizer._
 import scorex.core.network.{ConnectedPeer, NodeViewSynchronizer}
-import scorex.core.network.NodeViewSynchronizer.{CompareViews, GetLocalObjects, ModifiersFromRemote, OtherNodeSyncingInfo}
 import scorex.core.serialization.Serializer
-import scorex.core.transaction.{MemoryPool, Transaction}
 import scorex.core.transaction.box.proposition.Proposition
 import scorex.core.transaction.wallet.Vault
+import scorex.core.transaction.{MemoryPool, Transaction}
 import scorex.core.utils.ScorexLogging
 import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
@@ -24,6 +20,8 @@ import scala.util.{Failure, Success}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
   extends Actor with ScorexLogging{
+
+  import GenericNodeViewHolder._
 
   type SI <: SyncInfo
   type HIS <: History[P, TX, PMOD, SI, HIS]

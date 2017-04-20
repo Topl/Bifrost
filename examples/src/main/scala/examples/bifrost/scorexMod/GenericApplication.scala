@@ -1,17 +1,14 @@
-package examples.bifrost
+package examples.bifrost.scorexMod
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import examples.bifrost.transaction.GenericBoxTransaction
-import examples.bifrost.transaction.box.GenericBox
-import scorex.core.{NodeViewHolder, PersistentNodeViewModifier}
+import scorex.core.PersistentNodeViewModifier
 import scorex.core.api.http.{ApiRoute, CompositeHttpService}
-import scorex.core.network.{NetworkController, UPnP}
 import scorex.core.network.message._
 import scorex.core.network.peer.PeerManager
+import scorex.core.network.{NetworkController, UPnP}
 import scorex.core.settings.Settings
-import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.Proposition
 import scorex.core.utils.ScorexLogging
 

@@ -4,6 +4,7 @@ import examples.bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import examples.bifrost.forging.ForgingSettings
 import examples.bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import examples.bifrost.mempool.BifrostMemPool
+import examples.bifrost.scorexMod.GenericNodeViewHolder
 import examples.bifrost.state.BifrostState
 import examples.bifrost.transaction.box.{BifrostBox, StableCoinBox}
 import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
@@ -96,7 +97,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
       0L))
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
     assert(icoMembers.length == GenesisAccountsNum)
-    assert(Base58.encode(genesisTxs.head.id) == "EKuWxCuUAg9XgVWKxsnehP9FLsF3zPSyn9yczqeBHD8S", Base58.encode(genesisTxs.head.id))
+    assert(Base58.encode(genesisTxs.head.id) == "6wzeHrqzkCYmm6End32NoBJ4HgmvA9WGPtz6hPNRwj2A", Base58.encode(genesisTxs.head.id))
 
     val genesisBox = StableCoinBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
     val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0, genesisTxs, genesisBox, genesisAccountPriv)

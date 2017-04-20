@@ -1,4 +1,4 @@
-package examples.bifrost.state
+package examples.bifrost.scorexMod
 
 /**
   * Created by cykoz on 4/13/17.
@@ -6,11 +6,8 @@ package examples.bifrost.state
 
 import scorex.core.PersistentNodeViewModifier
 import scorex.core.transaction.box.proposition.Proposition
-import examples.bifrost.transaction.GenericBoxTransaction
-import examples.bifrost.transaction.box.GenericBox
-import scorex.utils._
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 
 trait GenericBoxMinimalState[T, P <: Proposition,

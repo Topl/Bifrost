@@ -4,6 +4,7 @@ import java.io.File
 
 import com.google.common.primitives.Ints
 import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import examples.bifrost.state.BifrostState
 import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
 import examples.bifrost.transaction.box._

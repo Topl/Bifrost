@@ -1,9 +1,8 @@
-package examples.bifrost.transaction.box
+package examples.bifrost.scorexMod
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.core.serialization.{BytesSerializable, Serializer}
 import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.Box
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import scorex.core.transaction.state.Secret
 import scorex.core.transaction.wallet.Vault

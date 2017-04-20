@@ -94,6 +94,7 @@ class HybridHistory(storage: HistoryStorage,
     * @param block - block to append
     * @return
     */
+  //noinspection ScalaStyle
   override def append(block: HybridBlock):
   Try[(HybridHistory, ProgressInfo[HybridBlock])] = Try {
     log.debug(s"Trying to append block ${Base58.encode(block.id)} to history")

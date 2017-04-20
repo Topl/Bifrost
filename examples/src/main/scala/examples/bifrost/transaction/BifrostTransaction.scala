@@ -3,6 +3,7 @@ package examples.bifrost.transaction
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
+import examples.bifrost.scorexMod.GenericBoxTransaction
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PublicKey25519NoncedBox, StableCoinBox}
 import examples.bifrost.transaction.proof.MultiSignature25519

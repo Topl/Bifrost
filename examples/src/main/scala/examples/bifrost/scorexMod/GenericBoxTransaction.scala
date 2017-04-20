@@ -1,7 +1,6 @@
-package examples.bifrost.transaction
+package examples.bifrost.scorexMod
 
 import com.google.common.primitives.Longs
-import examples.bifrost.transaction.box.GenericBox
 import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.Proposition

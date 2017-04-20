@@ -5,6 +5,7 @@ import java.time.Instant
 
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import examples.bifrost.transaction._
 import examples.bifrost.transaction.box._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -209,7 +210,7 @@ object BifrostState {
     }
   }
 
-  def readOrGenerate(settings: Settings): BifrostState = {
+  def readOrGenerate(settings: Settings, callFromGenesis: Boolean = false): BifrostState = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
@@ -226,13 +227,18 @@ object BifrostState {
     })
     val version = stateStorage.lastVersionID.map(_.data).getOrElse(Array.emptyByteArray)
 
-    val timestamp: Long = Longs.fromByteArray(stateStorage.get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))).get.data)
+    var timestamp: Long = 0L
+    if (callFromGenesis) {
+      timestamp = System.currentTimeMillis()
+    } else {
+      timestamp = Longs.fromByteArray(stateStorage.get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))).get.data)
+    }
 
     BifrostState(stateStorage, version, timestamp)
   }
 
   def genesisState(settings: Settings, initialBlocks: Seq[BPMOD]): BifrostState = {
-    initialBlocks.foldLeft(readOrGenerate(settings)) { (state, mod) =>
+    initialBlocks.foldLeft(readOrGenerate(settings, callFromGenesis = true)) { (state, mod) =>
       state.changes(mod).flatMap(cs => state.applyChanges(cs, mod.id)).get
     }
   }

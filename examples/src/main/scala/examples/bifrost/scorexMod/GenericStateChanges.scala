@@ -1,6 +1,5 @@
-package examples.bifrost.state
+package examples.bifrost.scorexMod
 
-import examples.bifrost.transaction.box.GenericBox
 import scorex.core.transaction.box.proposition.Proposition
 
 class GenericStateChanges[T, P <: Proposition, BX <: GenericBox[P, T]] (val boxIdsToRemove: Set[Array[Byte]], val toAppend: Set[BX])
