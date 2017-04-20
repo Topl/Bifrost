@@ -6,7 +6,7 @@ import examples.bifrost.contract._
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PublicKey25519NoncedBox, StableCoinBox}
 import examples.bifrost.transaction.proof.MultiSignature25519
-import examples.hybrid.wallet.HWallet
+import examples.bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -191,15 +191,21 @@ object StableCoinTransfer {
   }
 
   //TODO seq of recipients and amounts
-  def create(w: HWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[StableCoinTransfer] = Try {
+  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[StableCoinTransfer] = Try {
 
-    val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b =>
-      w.secretByPublicImage(b.box.proposition).map(s => (s, b.box.nonce, b.box.value))
+    val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b => b.box match {
+        case scb: StableCoinBox => w.secretByPublicImage(scb.proposition).map (s => (s, scb.nonce, scb.value) )
+        case _ => None
+      }
     }.toIndexedSeq
-    val canSend = from.map(_._3).sum
-    val charge: (PublicKey25519Proposition, Long) = (w.publicKeys.head, canSend - amount - fee)
 
-    val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(charge, (recipient, amount))
+    val canSend = from.map(_._3).sum
+    val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys.find {
+      case _: PublicKey25519Proposition => true
+      case _ => false
+    }.get.asInstanceOf[PublicKey25519Proposition], canSend - amount - fee)
+
+    val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
 
     require(from.map(_._3).sum - to.map(_._2).sum == fee)
 

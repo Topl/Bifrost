@@ -19,10 +19,9 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 trait ForgerSettings extends Settings {
-  lazy val offlineGeneration = settingsJSON.get("offlineGeneration").flatMap(_.asBoolean).getOrElse(false)
 }
 
-class Forger(viewHolderRef: ActorRef, forgerSettings: ForgerSettings) extends Actor with ScorexLogging {
+class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with ScorexLogging {
 
   import Forger._
 

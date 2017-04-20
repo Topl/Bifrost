@@ -56,9 +56,22 @@ object BifrostBlock {
   type GenerationSignature = Array[Byte]
 
   type BaseTarget = Long
+
+  def create(parentId: BlockId,
+             timestamp: Block.Timestamp,
+             txs: Seq[BifrostTransaction],
+             box: StableCoinBox,
+             //attachment: Array[Byte],
+             privateKey: PrivateKey25519): BifrostBlock = {
+    assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
+    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs)
+    val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
+    unsigned.copy(signature = Signature25519(signature))
+  }
 }
 
 object BifrostBlockCompanion extends Serializer[BifrostBlock] {
+
 
   def messageToSign(block: BifrostBlock): Array[Byte] = {
 

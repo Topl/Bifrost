@@ -4,11 +4,14 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 
 import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import io.circe.Json
+import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
+import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -16,7 +19,7 @@ import scala.util.Try
   * Created by Matthew on 4/11/2017.
   */
 abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
-                      nonce: Long,
+                      val nonce: Long,
                       value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
 
   override type M = BifrostBox
@@ -27,10 +30,13 @@ abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey255
 
   lazy val publicKey = proposition
 
+  val json: Json
+
   override def equals(obj: Any): Boolean = obj match {
     case acc: BifrostBox => (acc.id sameElements this.id) && acc.value == this.value
     case _ => false
   }
+
 
   override def hashCode(): Int = proposition.hashCode()
 }
@@ -74,9 +80,16 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 }
 
 case class StableCoinBox(proposition: PublicKey25519Proposition,
-                         nonce: Long,
+                         override val nonce: Long,
                          value: Long) extends BifrostBox(proposition, nonce, value) {
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "nonce" -> nonce.asJson
+  ).asJson
 }
 
 class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
@@ -108,13 +121,22 @@ class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
 }
 
 
-case class ContractBox(proposition: MofNProposition, nonce: Long, value: String ) extends BifrostBox(proposition, nonce, value) {
+case class ContractBox(proposition: MofNProposition,
+                       override val nonce: Long,
+                       value: String ) extends BifrostBox(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = FastCryptographicHash(
     MofNPropositionSerializer.toBytes(proposition) ++
     Longs.toByteArray(nonce) ++
     value.getBytes
   )
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "proposition" -> proposition.setOfPubKeyBytes.map(Base58.encode(_).asJson).asJson,
+    "value" -> value.asJson,
+    "nonce" -> nonce.asJson
+  ).asJson
 
 }
 

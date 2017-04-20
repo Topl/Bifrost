@@ -34,6 +34,9 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
   require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
 
   val height: Long = storage.height
+  val score: Long = storage.bestChainScore
+  val bestBlockId: Array[Byte] = storage.bestBlockId
+  val bestBlock: BifrostBlock = storage.bestBlock
 
 
   /**
@@ -73,7 +76,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
       val oldDifficulty = storage.difficultyOf(block.parentId).get
       val difficulty = oldDifficulty * settings.targetBlockDelay / (block.timestamp - parent.timestamp)
 
-      val builtOnBestChain = storage.bestChainScore == storage.parentChainScore(block)
+      val builtOnBestChain = score == storage.parentChainScore(block)
 
       // Check that the new block's parent is the last best block
       val mod: ProgressInfo[BifrostBlock] = if(!builtOnBestChain) {
@@ -91,8 +94,8 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
       (new BifrostHistory(storage, settings, validators), mod)
     }
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
-      s"Best score is ${storage.bestChainScore}. " +
-      s"Pair: ${Base58.encode(storage.bestBlockId)}")
+      s"Best score is ${score}. " +
+      s"Pair: ${Base58.encode(bestBlockId)}")
     res
   }
 
@@ -121,7 +124,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
 
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) Seq(settings.GenesisParentId)
-    else Seq(storage.bestBlockId) // TODO return sequence of exposed endpoints?
+    else Seq(bestBlockId) // TODO return sequence of exposed endpoints?
 
   override def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
                                size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
@@ -130,7 +133,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 sameElements id)
 
     // Extend chain back until end of from is found, then return <size> blocks continuing from that point
-    chainBack(storage.bestBlock, inList) match {
+    chainBack(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
       case Some(chain) =>
         log.warn("Found chain without ids from remote")
@@ -140,7 +143,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
   }
 
   override def syncInfo(answer: Boolean): BifrostSyncInfo =
-    BifrostSyncInfo(answer, storage.bestBlockId, storage.bestChainScore)
+    BifrostSyncInfo(answer, bestBlockId, score)
 
   @tailrec
   private def divergentSuffix(otherLastBlocks: Seq[ModifierId], suffixFound: Seq[ModifierId] = Seq()): Seq[ModifierId] = {
@@ -160,7 +163,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
     */
   override def compare(other: BifrostSyncInfo): HistoryComparisonResult.Value = {
 
-    val local = storage.bestChainScore
+    val local = score
     val remote = other.score
 
     if (local < remote) HistoryComparisonResult.Older
@@ -184,7 +187,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
         case None =>
       }
     }
-    loop(storage.bestBlock)
+    loop(bestBlock)
     map.toMap
   }
 
@@ -196,7 +199,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
       case Some(parent) => if (f(m)) loop(parent, m.id +: acc) else loop(parent, acc)
       case None => if (f(m)) m.id +: acc else acc
     }
-    loop(storage.bestBlock, Seq())
+    loop(bestBlock, Seq())
   }
 
   def parentBlock(m: BifrostBlock): Option[BifrostBlock] = modifierById(m.parentId)
@@ -231,7 +234,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
   final def commonBlockThenSuffixes(forkBlock: BifrostBlock,
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
-    val loserChain = chainBack(storage.bestBlock, isGenesis, limit).get.map(_._2)
+    val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
 
     def in(m: BifrostBlock): Boolean = loserChain.exists(s => s sameElements m.id)
 
@@ -253,7 +256,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
 
   //chain without brothers
   override def toString: String = {
-    chainBack(storage.bestBlock, isGenesis).get.map(_._2).map(Base58.encode).mkString(",")
+    chainBack(bestBlock, isGenesis).get.map(_._2).map(Base58.encode).mkString(",")
   }
 
 }
