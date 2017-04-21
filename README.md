@@ -3,7 +3,7 @@ Project-Bifrost: A Commodity-backed Cryptocurrency [![Build Status](https://trav
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Join our slack at https://teamtopl.slack.com](https://slackin-inviter.herokuapp.com/badge.svg)](https://slackin-inviter.herokuapp.com)
-[![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost/redirect)
+[![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost)
 
 Project Bifrost is a cryptocurrency developed to achieve three specific goals:
 - Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
