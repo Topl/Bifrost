@@ -72,7 +72,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
       if (isGenesis(block)) {
-        storage.update(block, Some(50L), isBest = true)
+        storage.update(block, 50L, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
         (new BifrostHistory(storage, settings, validators), progInfo)
       } else {
@@ -94,7 +94,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
           bestForkChanges(block)
         }
 
-        storage.update(block, Some(difficulty), builtOnBestChain)
+        storage.update(block, difficulty, builtOnBestChain)
         (new BifrostHistory(storage, settings, validators), mod)
       }
     }

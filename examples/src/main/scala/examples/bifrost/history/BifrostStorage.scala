@@ -40,23 +40,37 @@ class BifrostStorage(storage: LSMStore,
     }
   }
 
-  def update(b: BifrostBlock, diff: Option[Long], isBest: Boolean) {
+  def update(b: BifrostBlock, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.encodedId}")
     val typeByte = BifrostBlock.ModifierTypeId
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
 
-    val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = diff.map { d =>
-      Seq(blockDiffKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(d)))
-    }.getOrElse(Seq())
+    val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(blockDiffKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(diff)))
+
+    val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff)))
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
+    /* << EXAMPLE >>
+      For version "b00123123":
+      ADD
+      {
+        "diffb00123123": diff,
+        "heightb00123123": parentHeight(b00123123) + 1,
+        "scoreb00123123": parentChainScore(b00123123) + diff,
+        "bestBlock": b00123123,
+        "b00123123": "BifrostBlock" | b
+      }
+    */
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
-      blockDiff ++ blockH ++ bestBlock ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes)))
+      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+    )
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
