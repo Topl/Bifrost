@@ -1,4 +1,4 @@
-Project-Bifrost - A Commodity-backed Cryptocurrency [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
+Project-Bifrost: A Commodity-backed Cryptocurrency [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -33,11 +33,11 @@ If you'd like to contribute to Project Bifrost, please fork, fix, commit and sen
 
 Please take a look into open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-[Go to Gitter](https://gitter.im/topl/main)
+- [Go to Gitter](https://gitter.im/topl/main)
 
-[Join Slack](https://slackin-inviter.herokuapp.com)
+- [Join Slack](https://slackin-inviter.herokuapp.com)
 
-Watch active development on [our Floobit](https://floobits.com/mpk2/Project-Bifrost)
+- Watch active development on [our Floobit](https://floobits.com/mpk2/Project-Bifrost)
 
 
 License
