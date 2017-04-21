@@ -3,13 +3,31 @@ package examples.bifrost
 import akka.actor.ActorRef
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.forging.{Forger, ForgingSettings}
+import examples.bifrost.scorexMod.GenericNodeViewHolder
 import examples.bifrost.transaction.BifrostTransaction
-import scorex.core.LocalInterface
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
+import scorex.core.{LocalInterface, PersistentNodeViewModifier}
+import scorex.core.transaction.Transaction
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
   extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock] {
+
+  type P = ProofOfKnowledgeProposition[PrivateKey25519]
+  type TX = BifrostTransaction
+  type PMOD = BifrostBlock
+
+  override def preStart(): Unit = {
+    val events = Seq(
+      GenericNodeViewHolder.EventType.StartingPersistentModifierApplication,
+
+      GenericNodeViewHolder.EventType.FailedTransaction,
+      GenericNodeViewHolder.EventType.FailedPersistentModifier,
+      GenericNodeViewHolder.EventType.SuccessfulTransaction,
+      GenericNodeViewHolder.EventType.SuccessfulPersistentModifier
+    )
+    viewHolderRef ! GenericNodeViewHolder.Subscribe(events)
+  }
 
   override protected def onStartingPersistentModifierApplication(pmod: BifrostBlock): Unit = {}
 
@@ -24,4 +42,6 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
   override protected def onNoBetterNeighbour(): Unit = forgerRef ! Forger.StartMining
 
   override protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopMining
+
 }
+

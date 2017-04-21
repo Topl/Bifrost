@@ -5,15 +5,13 @@ import examples.bifrost.api.http.{DebugApiRoute, WalletApiRoute}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.forging.{Forger, ForgingSettings}
 import examples.bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
-import examples.bifrost.scorexMod.GenericApplication
+import examples.bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
 import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.transaction.box.BifrostBox
 import examples.bifrost.wallet.StableCoinTransferGenerator
 import examples.bifrost.wallet.StableCoinTransferGenerator.StartGeneration
 import io.circe
 import scorex.core.api.http.{ApiRoute, NodeViewApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.app.Application
-import scorex.core.network.NodeViewSynchronizer
 import scorex.core.network.message.MessageSpec
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
@@ -54,7 +52,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
   override val localInterface: ActorRef = actorSystem.actorOf(Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings))
 
   override val nodeViewSynchronizer: ActorRef =
-    actorSystem.actorOf(Props(classOf[NodeViewSynchronizer[P, TX, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type]],
+    actorSystem.actorOf(Props(classOf[GenericNodeViewSynchronizer[P, TX, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type]],
       networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec))
 
   //touching lazy vals

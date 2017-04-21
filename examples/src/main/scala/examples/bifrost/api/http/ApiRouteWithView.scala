@@ -6,7 +6,7 @@ import examples.bifrost.history.BifrostHistory
 import examples.bifrost.mempool.BifrostMemPool
 import examples.bifrost.state.BifrostState
 import examples.bifrost.wallet.BWallet
-import scorex.core.NodeViewHolder.{CurrentView, GetCurrentView}
+import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.api.http.ApiRoute
 
 import scala.concurrent.Future

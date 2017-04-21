@@ -5,8 +5,8 @@ import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTra
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.consensus.{History, SyncInfo}
-import scorex.core.network.NodeViewSynchronizer._
-import scorex.core.network.{ConnectedPeer, NodeViewSynchronizer}
+import examples.bifrost.scorexMod.GenericNodeViewSynchronizer._
+import scorex.core.network.ConnectedPeer
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.Proposition
 import scorex.core.transaction.wallet.Vault
@@ -161,7 +161,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
           modifierIds.filterNot(mid => history().contains(mid) || modifiersCache.contains(mid))
       }
 
-      sender() ! NodeViewSynchronizer.RequestFromLocal(sid, modifierTypeId, ids)
+      sender() ! RequestFromLocal(sid, modifierTypeId, ids)
   }
 
   private def readLocalObjects: Receive = {
@@ -174,7 +174,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       }
 
       log.debug(s"Requested modifiers ${modifierIds.map(Base58.encode)}, sending: " + objs.map(_.id).map(Base58.encode))
-      sender() ! NodeViewSynchronizer.ResponseFromLocal(sid, modifierTypeId, objs)
+      sender() ! ResponseFromLocal(sid, modifierTypeId, objs)
   }
 
   private def processRemoteModifiers: Receive = {
@@ -251,14 +251,14 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   override def receive: Receive =
     handleSubscribe orElse
-      compareViews orElse
-      readLocalObjects orElse
-      processRemoteModifiers orElse
-      processLocallyGeneratedModifiers orElse
-      getCurrentInfo orElse
-      getSyncInfo orElse
-      compareSyncInfo orElse {
-      case a: Any => log.error("Strange input: " + a)
+    compareViews orElse
+    readLocalObjects orElse
+    processRemoteModifiers orElse
+    processLocallyGeneratedModifiers orElse
+    getCurrentInfo orElse
+    getSyncInfo orElse
+    compareSyncInfo orElse {
+      case a: Any => log.error(s">>>>>>>Strange input: $a :: ${a.getClass}")
     }
 }
 
@@ -294,9 +294,7 @@ object GenericNodeViewHolder {
                                                     extension: Option[Seq[(ModifierTypeId, ModifierId)]])
 
   //node view holder starting persistent modifier application
-  case class StartingPersistentModifierApplication[
-  P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]
-  ](modifier: PMOD) extends NodeViewHolderEvent
+  case class StartingPersistentModifierApplication[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]](modifier: PMOD) extends NodeViewHolderEvent
 
   //hierarchy of events regarding modifiers application outcome
   trait ModificationOutcome extends NodeViewHolderEvent {

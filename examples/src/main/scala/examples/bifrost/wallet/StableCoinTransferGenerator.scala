@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import examples.bifrost.transaction.StableCoinTransfer
 import examples.hybrid.state.{HBoxStoredState, SimpleBoxTransaction}
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.NodeViewHolder.{CurrentView, GetCurrentView}
+import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 

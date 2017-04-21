@@ -4,10 +4,11 @@ import akka.actor.{Actor, ActorRef}
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.transaction.box.StableCoinBox
+//TODO fix this to BifrostHistory
 import examples.curvepos.SimpleBlockchain
 import examples.curvepos.transaction._
 import scorex.core.LocalInterface.LocallyGeneratedModifier
-import scorex.core.NodeViewHolder.{CurrentView, GetCurrentView}
+import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
