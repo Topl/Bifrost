@@ -2,6 +2,8 @@ Project-Bifrost - A Commodity-backed Cryptocurrency [![Build Status](https://tra
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join our slack at https://teamtopl.slack.com](https://slackin-inviter.herokuapp.com/badge.svg)](https://slackin-inviter.herokuapp.com)
+[![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost/redirect)
 
 Project Bifrost is a cryptocurrency developed to achieve three specific goals:
 - Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
@@ -22,11 +24,20 @@ Documentation
 [Installation & use guide](https://github.com/ScorexFoundation/ScorexTutorial)
 
 
-
 Contributions
 -------------
 
-Contributions are welcome! Please take a look into [issues](https://github.com/Topl/Project-Bifrost/issues). Limit direct feedback to our gitter regarding troubleshooting or design critiques.
+We appreciate your interest in this project! We welcome contributions.
+
+If you'd like to contribute to Project Bifrost, please fork, fix, commit and send a pull request so that we can review your code and merge it when it is complete. For more complex changes, please contact us on our gitter or slack to ensure those changes are reasonable and/or get some early feedback to expedite the review and merge process.
+
+Please take a look into open [issues](https://github.com/Topl/Project-Bifrost/issues)!
+
+[Go to Gitter](https://gitter.im/topl/main)
+
+[Join Slack](https://slackin-inviter.herokuapp.com)
+
+Watch active development on [our Floobit](https://floobits.com/mpk2/Project-Bifrost)
 
 
 License
