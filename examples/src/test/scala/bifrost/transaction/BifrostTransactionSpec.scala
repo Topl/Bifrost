@@ -12,7 +12,7 @@ import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
 import scorex.crypto.hash.Sha256
 
-class BifrostTransactionSpecification extends PropSpec
+class BifrostTransactionSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
