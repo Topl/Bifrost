@@ -15,17 +15,20 @@ class BifrostHistorySpec extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-  var history: BifrostHistory = ???
+  var history: BifrostHistory = generateHistory
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
-    forAll(bifrostBlockGen) { block =>
-        history = history.append(block).get._1
+    forAll(bifrostBlockGen) { blockTemp =>
 
-        history.modifierById(block.id).isDefined shouldBe true
-        ids = ids :+ block.id
+      val block = blockTemp.copy(parentId = history.bestBlockId)
+
+      history = history.append(block).get._1
+
+      history.modifierById(block.id).isDefined shouldBe true
+      ids = ids :+ block.id
     }
 
     val startFrom = ids.head

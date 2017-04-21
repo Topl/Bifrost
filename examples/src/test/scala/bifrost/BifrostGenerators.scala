@@ -1,12 +1,18 @@
 package bifrost
 
+import java.io.File
+
 import com.google.common.primitives.{Bytes, Longs}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.contract._
+import examples.bifrost.forging.ForgingSettings
+import examples.bifrost.history.{BifrostHistory, BifrostStorage}
 import examples.bifrost.transaction.ContractCreation.Nonce
 import examples.bifrost.transaction.box.proposition.MofNProposition
 import examples.bifrost.transaction.{AgreementCompanion, BifrostTransaction, ContractCreation, StableCoinTransfer}
 import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
+import io.circe
+import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.core.block.Block
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -14,11 +20,24 @@ import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.testkit.CoreGenerators
+import scala.concurrent.duration._
+
+import scala.util.Random
 
 /**
   * Created by cykoz on 4/12/17.
   */
 trait BifrostGenerators extends CoreGenerators {
+
+  val settings = new ForgingSettings {
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("settings.json")
+
+    override lazy val targetBlockDelay: Long = 1.minute.toMillis
+
+    override lazy val Difficulty: BigInt = 1
+  }
+
+
   lazy val stringGen: Gen[String] = nonEmptyBytesGen.map(new String(_))
 
   //noinspection ScalaStyle
@@ -207,5 +226,26 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
+
+  def generateHistory: BifrostHistory = {
+    val dataDir = s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}"
+
+    val iFile = new File(s"$dataDir/blocks")
+    iFile.mkdirs()
+    val blockStorage = new LSMStore(iFile)
+
+    val storage = new BifrostStorage(blockStorage, settings)
+    //we don't care about validation here
+    val validators = Seq()
+
+    var history = new BifrostHistory(storage, settings, validators)
+
+    val keyPair = key25519Gen.sample.get
+    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 1478164225796L, Seq(), StableCoinBox(keyPair._2, 0L, 0L), keyPair._1)
+
+    history = history.append(genesisBlock).get._1
+    assert(history.modifierById(genesisBlock.id).isDefined)
+    history
+  }
 
 }
