@@ -1,7 +1,7 @@
 Scorex 2 - The modular blockchain framework [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
 ====================================================================================================================================================================================
 
-[![Join the chat at https://gitter.im/topl/Internal](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Scorex and Scorex 2
 -------------------
