@@ -1,12 +1,17 @@
 package examples.bifrost.forging
 
+import java.time.Instant
+
 import akka.actor.{Actor, ActorRef}
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.history.BifrostHistory
+import examples.bifrost.mempool.BifrostMemPool
+import examples.bifrost.state.BifrostState
+import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.transaction.box.StableCoinBox
-//TODO fix this to BifrostHistory
-import examples.curvepos.SimpleBlockchain
-import examples.curvepos.transaction._
+import examples.bifrost.wallet.BWallet
+import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.LocalInterface.LocallyGeneratedModifier
 import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -17,7 +22,6 @@ import scorex.core.utils.{NetworkTime, ScorexLogging}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.util.Try
 
 trait ForgerSettings extends Settings {
 }
@@ -38,90 +42,80 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   val InterBlocksDelay = 15 //in seconds
   val blockGenerationDelay = 5000.millisecond
 
-  override def preStart(): Unit = {
+  /*override def preStart(): Unit = {
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! Forge)
-  }
+  }*/
+
+  def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] =
+    memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      if (state.validate(tx).isSuccess && txNotIncluded) txSoFar :+ tx
+      else txSoFar
+    }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
     if (value < min) min else if (value > max) max else value
 
-  private def calcBaseTarget(lastBlock: SimpleBlock,
-                             currentTime: Long): Long = {
-    val eta = currentTime - lastBlock.timestamp
-    val prevBt = BigInt(lastBlock.baseTarget)
-    val t0 = bounded(prevBt * eta / InterBlocksDelay, prevBt / 2, prevBt * 2)
-    bounded(t0, 1, Long.MaxValue).toLong
-  }
-
-  protected def calcTarget(lastBlock: SimpleBlock,
-                           state: SimpleState,
-                           generator: PublicKey25519Proposition): BigInt = {
-    val eta = (NetworkTime.time() - lastBlock.timestamp) / 1000 //in seconds
-    val balance = state.boxesOf(generator).headOption.map(_.value).getOrElse(0L)
-    BigInt(lastBlock.baseTarget) * eta * balance
-  }
-
-  private def calcGeneratorSignature(lastBlock: SimpleBlock, generator: PublicKey25519Proposition) =
-    hash(lastBlock.generationSignature ++ generator.pubKeyBytes)
-
-  private def calcHit(lastBlock: SimpleBlock, generator: PublicKey25519Proposition): BigInt =
-    BigInt(1, calcGeneratorSignature(lastBlock, generator).take(8))
-
   override def receive: Receive = {
-    case StartMining =>
+    case StartForging =>
       forging = true
-      context.system.scheduler.scheduleOnce(blockGenerationDelay)(self ! Forge)
+      context.system.scheduler.scheduleOnce(blockGenerationDelay)(viewHolderRef ! GetCurrentView)
 
-    case StopMining =>
+    case StopForging =>
       forging = false
 
-    case CurrentView(history: SimpleBlockchain, state: SimpleState, wallet: SimpleWallet, memPool: SimpleMemPool) =>
-      log.info("Trying to generate a new block, chain length: " + history.height())
+    case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+      log.info("Trying to generate a new block, chain length: " + h.height)
+      val target = MaxTarget / h.difficulty
 
-      val lastBlock = history.lastBlock
-      val generators: Set[PublicKey25519Proposition] = wallet.publicKeys
-      lazy val toInclude = state.filterValid(memPool.take(TransactionsInBlock).toSeq)
+      val boxes = w.boxes().filter(_.box.isInstanceOf[StableCoinBox]).map(_.box.asInstanceOf[StableCoinBox]).filter(box => s.closedBox(box.id).isDefined)
+      val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
 
-      val generatedBlocks = generators.flatMap { generator =>
-        val hit = calcHit(lastBlock, generator)
-        val target = calcTarget(lastBlock, state, generator)
-        if (hit < target) {
-          Try {
-            val timestamp = NetworkTime.time()
-            val bt = calcBaseTarget(lastBlock, timestamp)
-            val secret: PrivateKey25519 = wallet.secretByPublicImage(generator).get
+      val parent = h.bestBlock
+      log.debug(s"Trying to generate block on top of ${parent.encodedId} with balance " +
+        s"${boxKeys.map(_._1.value).sum}")
 
-            val unsigned: SimpleBlock = SimpleBlock(lastBlock.id, timestamp, Array(), bt, generator, toInclude)
-            val signature = PrivateKey25519Companion.sign(secret, unsigned.serializer.messageToSign(unsigned))
-            val signedBlock = unsigned.copy(generationSignature = signature.signature)
-            log.info(s"Generated new block: ${signedBlock.json.noSpaces}")
-            LocallyGeneratedModifier[PublicKey25519Proposition, SimpleTransaction, SimpleBlock](signedBlock)
-          }.toOption
-        } else {
-          None
-        }
+      iteration(parent, boxKeys, pickTransactions(m, s), target) match {
+        case Some(block) =>
+          log.debug(s"Locally generated block: $block")
+          forging = false
+          viewHolderRef !
+            LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock](block)
+        case None =>
+          log.debug(s"Failed to generate block")
       }
-      generatedBlocks.foreach(localModifier => viewHolderRef ! localModifier)
-      context.system.scheduler.scheduleOnce(blockGenerationDelay)(self ! Forge)
 
-    case Forge =>
-      viewHolderRef ! GetCurrentView
   }
 }
 
-object Forger {
+object Forger extends ScorexLogging {
 
   val InitialDifficuly = 15000000000L
   val MaxTarget = Long.MaxValue
 
-  case object StartMining
+  case object StartForging
 
-  case object StopMining
-
-  case object Forge
+  case object StopForging
 
   def hit(lastBlock: BifrostBlock)(box: StableCoinBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
     Longs.fromByteArray((0: Byte) +: h.take(7))
+  }
+
+  def iteration(parent: BifrostBlock,
+                boxKeys: Seq[(StableCoinBox, PrivateKey25519)],
+                txsToInclude: Seq[BifrostTransaction],
+                target: Long): Option[BifrostBlock] = {
+
+    val successfulHits = boxKeys.map { boxKey =>
+      val h = hit(parent)(boxKey._1)
+      (boxKey, h)
+    }.filter(t => t._2 < t._1._1.value * target)
+
+    log.info(s"Successful hits: ${successfulHits.size}")
+
+    successfulHits.headOption.map { case (boxKey, _) =>
+      BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2)
+    }
   }
 }

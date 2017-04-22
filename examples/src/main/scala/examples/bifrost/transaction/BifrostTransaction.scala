@@ -5,7 +5,7 @@ import examples.bifrost.transaction.StableCoinTransfer.Nonce
 import examples.bifrost.contract._
 import examples.bifrost.scorexMod.GenericBoxTransaction
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PublicKey25519NoncedBox, StableCoinBox}
+import examples.bifrost.transaction.box.{BifrostBox, ContractBox, StableCoinBox}
 import examples.bifrost.transaction.proof.MultiSignature25519
 import examples.bifrost.wallet.BWallet
 import io.circe.Json
@@ -20,7 +20,9 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox]
+sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
+  val boxIdsToOpen: IndexedSeq[Array[Byte]]
+}
 
 sealed abstract class ContractTransaction extends BifrostTransaction
 

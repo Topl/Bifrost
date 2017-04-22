@@ -37,6 +37,7 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
   val height: Long = storage.height
   val score: Long = storage.bestChainScore
   val bestBlockId: Array[Byte] = storage.bestBlockId
+  val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: BifrostBlock = storage.bestBlock
 
 

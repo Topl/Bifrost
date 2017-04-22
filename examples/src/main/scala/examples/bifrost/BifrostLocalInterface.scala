@@ -39,9 +39,9 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
 
   override protected def onSuccessfulModification(mod: BifrostBlock): Unit = {}
 
-  override protected def onNoBetterNeighbour(): Unit = forgerRef ! Forger.StartMining
+  override protected def onNoBetterNeighbour(): Unit = forgerRef ! Forger.StartForging
 
-  override protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopMining
+  override protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopForging
 
 }
 
