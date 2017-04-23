@@ -3,11 +3,12 @@ package examples.bifrost.history
 import java.io.File
 import java.time.Instant
 
+import com.google.common.primitives.Longs
 import examples.bifrost.blocks.BifrostBlock
-import examples.bifrost.forging.{ForgingConstants, ForgingSettings}
+import examples.bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
 import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.validation.DifficultyBlockValidator
-import io.iohk.iodb.LSMStore
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.block.{Block, BlockValidator}
@@ -26,18 +27,17 @@ import scala.util.{Failure, Try}
   * History storage
   * we store all the blocks, even if they are not in a main chain
   */
-class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, validators: Seq[BlockValidator[BifrostBlock]])
+class BifrostHistory(storage: BifrostStorage, settings: ForgingSettings, validators: Seq[BlockValidator[BifrostBlock]])
   extends History[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BifrostSyncInfo, BifrostHistory] with ScorexLogging {
 
-  import BifrostHistory._
   override type NVCT = BifrostHistory
 
   require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
 
-  val height: Long = storage.height
-  val score: Long = storage.bestChainScore
-  val bestBlockId: Array[Byte] = storage.bestBlockId
-  val difficulty: Long = storage.difficultyOf(bestBlockId).get
+  lazy val height: Long = storage.height
+  lazy val score: Long = storage.bestChainScore
+  lazy val bestBlockId: Array[Byte] = storage.bestBlockId
+  lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: BifrostBlock = storage.bestBlock
 
 
@@ -73,14 +73,16 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
       if (isGenesis(block)) {
-        storage.update(block, 50L, isBest = true)
+        storage.update(block, settings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
         (new BifrostHistory(storage, settings, validators), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
 
         val oldDifficulty = storage.difficultyOf(block.parentId).get
-        val difficulty = oldDifficulty * settings.targetBlockDelay / (block.timestamp - parent.timestamp)
+        var difficulty = (oldDifficulty * settings.targetBlockDelay) / (block.timestamp - parent.timestamp)
+
+        if(difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
 
         val builtOnBestChain = score == storage.parentChainScore(block)
 
@@ -105,8 +107,15 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingConstants, valida
     res
   }
 
-  //todo: implement
-  override def drop(modifierId: ModifierId): BifrostHistory = ???
+  override def drop(modifierId: ModifierId): BifrostHistory = {
+
+    val block = storage.modifierById(modifierId).get
+    val parentBlock = storage.modifierById(block.parentId).get
+
+    log.debug(s"Failed to apply block. Rollback BifrostState to ${Base58.encode(parentBlock.id)} from version ${Base58.encode(block.id)}")
+    storage.rollback(parentBlock.id)
+    new BifrostHistory(storage, settings, validators)
+  }
 
   def bestForkChanges(block: BifrostBlock): ProgressInfo[BifrostBlock] = {
     val (newSuffix, oldSuffix) = commonBlockThenSuffixes(modifierById(block.parentId).get)
@@ -277,7 +286,7 @@ object BifrostHistory extends ScorexLogging {
     readOrGenerate(dataDir, logDirOpt, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingConstants): BifrostHistory = {
+  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): BifrostHistory = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)

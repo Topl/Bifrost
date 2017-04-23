@@ -2,25 +2,24 @@ package examples.bifrost.history
 
 import com.google.common.primitives.Longs
 import examples.bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
-import examples.bifrost.forging.{Forger, ForgingConstants}
+import examples.bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
 import examples.hybrid.blocks._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier._
+import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.hash.Sha256
 
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
-class BifrostStorage(storage: LSMStore,
-                     settings: ForgingConstants) extends ScorexLogging {
-
+class BifrostStorage(storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
   private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
 
   def height: Long = heightOf(bestBlockId).getOrElse(0L)
 
-  def bestChainScore: Long = height
-
   def bestBlockId: Array[Byte] = storage.get(bestBlockIdKey).map(_.data).getOrElse(settings.GenesisParentId)
+
+  def bestChainScore: Long = scoreOf(bestBlockId).get
 
   def bestBlock: BifrostBlock = {
     require(height > 0, "History is empty")
@@ -73,6 +72,10 @@ class BifrostStorage(storage: LSMStore,
     )
   }
 
+  def rollback(modifierId: ModifierId): Try[Unit] = Try {
+    storage.rollback(ByteArrayWrapper(modifierId))
+  }
+
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("score".getBytes ++ blockId))
 
@@ -82,10 +85,13 @@ class BifrostStorage(storage: LSMStore,
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
+  def blockTimestampKey: ByteArrayWrapper =
+    ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
+
   def scoreOf(blockId: ModifierId): Option[Long] = storage.get(blockScoreKey(blockId)).map(b => Longs.fromByteArray(b.data))
   def heightOf(blockId: ModifierId): Option[Long] = storage.get(blockHeightKey(blockId)).map(b => Longs.fromByteArray(b.data))
   def difficultyOf(blockId: ModifierId): Option[Long] = if (blockId sameElements settings.GenesisParentId) {
-    Some(Forger.InitialDifficuly)
+    Some(settings.InitialDifficulty)
   } else {
     storage.get(blockDiffKey(blockId)).map(b => Longs.fromByteArray(b.data))
   }

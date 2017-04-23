@@ -100,7 +100,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     assert(Base58.encode(genesisTxs.head.id) == "6wzeHrqzkCYmm6End32NoBJ4HgmvA9WGPtz6hPNRwj2A", Base58.encode(genesisTxs.head.id))
 
     val genesisBox = StableCoinBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
-    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0, genesisTxs, genesisBox, genesisAccountPriv)
+    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
 
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1

@@ -26,6 +26,14 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
                                override val toAppend: Set[BifrostBox], timestamp: Long)
   extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
 
+/**
+  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
+  * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
+  * to a previous version.
+  * @param storage: singleton Iodb storage instance
+  * @param version: blockId used to identify each block. Also used for rollback
+  * @param timestamp: timestamp of the block that results in this state
+  */
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
@@ -129,6 +137,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     statefulValid.flatMap(_ => semanticValidity(sct))
   }
+
+  /**
+    * validates ContractCreation instance on its unlockers && timestamp of the contract
+    * @param cc: ContractCreation object
+    * @return
+    */
   def validateContractCreation(cc: ContractCreation): Try[Unit] = Try {
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>

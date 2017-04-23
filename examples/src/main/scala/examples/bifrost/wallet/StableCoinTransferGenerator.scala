@@ -2,9 +2,9 @@ package examples.bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
 import examples.bifrost.transaction.StableCoinTransfer
-import examples.hybrid.state.{HBoxStoredState, SimpleBoxTransaction}
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import examples.bifrost.state.BifrostState
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 
@@ -23,7 +23,7 @@ class StableCoinTransferGenerator(viewHolderRef: ActorRef) extends Actor {
     case StartGeneration(duration) =>
       context.system.scheduler.schedule(duration, duration, viewHolderRef, GetCurrentView)
 
-    case CurrentView(_, state: HBoxStoredState, wallet: BWallet, _) =>
+    case CurrentView(_, state: BifrostState, wallet: BWallet, _) =>
       generate(wallet) match {
         case Success(tx) =>
           println(s"Local tx with with ${tx.from.size} inputs, ${tx.to.size} outputs")

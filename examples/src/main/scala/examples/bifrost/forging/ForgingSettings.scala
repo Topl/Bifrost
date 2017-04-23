@@ -7,7 +7,10 @@ import scala.concurrent.duration._
 
 trait ForgingSettings extends Settings with ForgingConstants {
 
-  lazy val targetBlockDelay: Long = if (isTestnet) 10.minutes.toMillis else 1.minute.toMillis
+  lazy val targetBlockDelay: Long = if (isTestnet) 10.seconds.toMillis else 5.seconds.toMillis
+
+  val InitialDifficulty = 15000000L
+  val MinimumDifficulty = 10000L
 
   lazy val offlineGeneration = settingsJSON.get("offlineGeneration").flatMap(_.asBoolean).getOrElse(false)
 

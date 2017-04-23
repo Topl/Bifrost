@@ -80,6 +80,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
     }
   }
 
+  //noinspection ScalaStyle
   private def pmodModify(pmod: PMOD, source: Option[ConnectedPeer]): Unit = if (!history().contains(pmod.id)) {
     notifySubscribers(
       EventType.StartingPersistentModifierApplication,
@@ -92,51 +93,45 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       case Success((newHistory, progressInfo)) =>
         log.debug(s"Going to apply modifications: $progressInfo")
 
-        progressInfo.toApply.isEmpty match {
-          case true => //nothing to apply, e.g. a modifier is not in a best chain
+        // Modifier is in a best chain so apply
+        if (progressInfo.toApply.nonEmpty) {
 
-          case false => //applying modifiers
+          val newStateTry = if (progressInfo.rollbackNeeded) {
+            minimalState().rollbackTo(progressInfo.branchPoint.get).flatMap(_.applyModifiers(progressInfo.toApply))
+          } else {
+            minimalState().applyModifiers(progressInfo.toApply)
+          }
 
-            val newStateTry = progressInfo.rollbackNeeded match {
-              case false => minimalState().applyModifiers(progressInfo.toApply)
+          newStateTry match {
+            case Success(newMinState) =>
+              val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions).flatten
 
-              //todo: in case if better chain (.toApply) has an invalid block in the end,
-              // and mutable database is used under the hood, the system would be in the broken state until a valid
-              // fork of a better score will appear
-              case true => minimalState()
-                .rollbackTo(progressInfo.branchPoint.get)
-                .flatMap(_.applyModifiers(progressInfo.toApply))
-            }
+              val appliedMods = progressInfo.toApply
 
-            newStateTry match {
-              case Success(newMinState) =>
-                val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions).flatten
+              val appliedTxs = appliedMods.flatMap(_.transactions).flatten
 
-                val appliedMods = progressInfo.toApply
+              val newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
+                !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
+              }
 
-                val appliedTxs = appliedMods.flatMap(_.transactions).flatten
+              //we consider that vault always able to perform a rollback needed
+              val newVault = if (progressInfo.rollbackNeeded) {
+                vault().rollback(progressInfo.branchPoint.get).get.scanPersistent(appliedMods)
+              } else {
+                vault().scanPersistent(appliedMods)
+              }
 
-                val newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
-                  !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
-                }
+              log.info(s"Persistent modifier ${Base58.encode(pmod.id)} applied successfully")
+              nodeView = (newHistory, newMinState, newVault, newMemPool)
+              notifySubscribers(EventType.SuccessfulPersistentModifier, SuccessfulModification[P, TX, PMOD](pmod, source))
 
-                //we consider that vault always able to perform a rollback needed
-                val newVault = progressInfo.rollbackNeeded match {
-                  case true => vault().rollback(progressInfo.branchPoint.get).get.scanPersistent(appliedMods)
-                  case false => vault().scanPersistent(appliedMods)
-                }
+            case Failure(e) =>
+              val newHistoryCancelled = newHistory.drop(progressInfo.appendedId)
+              nodeView = (newHistoryCancelled, minimalState(), vault(), memoryPool())
 
-                log.info(s"Persistent modifier ${Base58.encode(pmod.id)} applied successfully")
-                nodeView = (newHistory, newMinState, newVault, newMemPool)
-                notifySubscribers(EventType.SuccessfulPersistentModifier, SuccessfulModification[P, TX, PMOD](pmod, source))
-
-              case Failure(e) =>
-                val newHistoryCancelled = newHistory.drop(progressInfo.appendedId)
-                nodeView = (newHistoryCancelled, minimalState(), vault(), memoryPool())
-
-                log.warn(s"Can`t apply persistent modifier (id: ${Base58.encode(pmod.id)}, contents: $pmod) to minimal state", e)
-                notifySubscribers(EventType.FailedPersistentModifier, FailedModification[P, TX, PMOD](pmod, e, source))
-            }
+              log.warn(s"Can`t apply persistent modifier (id: ${Base58.encode(pmod.id)}, contents: $pmod) to minimal state", e)
+              notifySubscribers(EventType.FailedPersistentModifier, FailedModification[P, TX, PMOD](pmod, e, source))
+          }
         }
     }
   } else {
