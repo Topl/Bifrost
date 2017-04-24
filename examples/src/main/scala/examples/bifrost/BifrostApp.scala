@@ -63,7 +63,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
   if (settings.nodeName == "node1") {
     log.info("Starting transactions generation")
     val generator: ActorRef = actorSystem.actorOf(Props(classOf[StableCoinTransferGenerator], nodeViewHolderRef))
-    generator ! StartGeneration(FiniteDuration(10, SECONDS))
+    generator ! StartGeneration(FiniteDuration(5, SECONDS))
   }
 }
 

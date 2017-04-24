@@ -80,7 +80,9 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingSettings, validat
         val parent = modifierById(block.parentId).get
 
         val oldDifficulty = storage.difficultyOf(block.parentId).get
-        var difficulty = (oldDifficulty * settings.targetBlockDelay) / (block.timestamp - parent.timestamp)
+        var difficulty = (oldDifficulty * settings.blockGenerationDelay.length) / (block.timestamp - parent.timestamp)
+
+        println(s"${Console.BLUE}THE BLOCK TIME WAS ${block.timestamp - parent.timestamp}${Console.RESET}")
 
         if(difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
 

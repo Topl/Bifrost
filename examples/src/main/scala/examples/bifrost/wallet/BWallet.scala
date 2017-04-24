@@ -41,6 +41,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
+    println(s"${Console.GREEN}Accessing boxes: ${boxIds.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
@@ -102,6 +103,8 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
     val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(newBoxes.toArray.flatMap(_._1.data) ++
       boxIds.filter(bi => !boxIdsToRemove.exists(_.data sameElements bi)).flatten)
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
+
+    boxIds.foreach(box => println(s"Box id ${Base58.encode(box)}"))
 
     BWallet(seed, store)
   }

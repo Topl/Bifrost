@@ -39,6 +39,7 @@ class PowMiner(viewHolderRef: ActorRef, settings: MiningSettings) extends Actor 
     }
   }
 
+  //noinspection ScalaStyle
   override def receive: Receive = {
     case StartMining =>
       if (settings.blockGenerationDelay >= 1.minute) {

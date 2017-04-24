@@ -32,8 +32,6 @@ trait BifrostGenerators extends CoreGenerators {
   val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("settings.json")
 
-    override lazy val targetBlockDelay: Long = 1.minute.toMillis
-
     override lazy val Difficulty: BigInt = 1
   }
 

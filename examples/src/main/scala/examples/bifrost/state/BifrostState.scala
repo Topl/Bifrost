@@ -72,6 +72,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
+    println(s"${changes.boxIdsToRemove.map(Base58.encode)}")
     val boxIdsToRemove = changes.boxIdsToRemove.map(ByteArrayWrapper.apply)
 
     // TODO check if b.bytes screws up compared to BifrostBoxCompanion.toBytes
@@ -83,6 +84,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
 
+    boxIdsToRemove.foreach(tr => println(s"${Console.RED}Trying to remove ${Base58.encode(tr.data)}${Console.RESET}"))
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
     storage.update(

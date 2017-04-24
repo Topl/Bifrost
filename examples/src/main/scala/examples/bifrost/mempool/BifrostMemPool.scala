@@ -1,13 +1,14 @@
 package examples.bifrost.mempool
 
-import examples.bifrost.transaction.BifrostTransaction
+import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.NodeViewModifier.ModifierId
 import scorex.core.transaction.MemoryPool
 import scorex.core.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 
 import scala.collection.concurrent.TrieMap
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 
 case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
@@ -15,6 +16,7 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override type NVCT = BifrostMemPool
 
   private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
+  private val boxesInMempool = new TrieMap[ByteArrayWrapper, ByteArrayWrapper]()
 
   //getters
   override def getById(id: ModifierId): Option[BifrostTransaction] =
@@ -25,8 +27,17 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def getAll(ids: Seq[ModifierId]): Seq[BifrostTransaction] = ids.flatMap(getById)
 
   //modifiers
-  override def put(tx: BifrostTransaction): Try[BifrostMemPool] = Success {
+  override def put(tx: BifrostTransaction): Try[BifrostMemPool] = Try {
     unconfirmed.put(key(tx.id), tx)
+    tx.boxIdsToOpen.foreach(boxId => {
+      println(s"${Console.RED} Found Duplicate key ${Base58.encode(boxId)} ${Console.RESET}")
+      val exists = boxesInMempool.get(key(boxId)).isDefined
+      require(!exists)
+    })
+    tx.boxIdsToOpen.foreach(boxId => {
+      boxesInMempool.put(key(boxId), key(boxId))
+    })
+    println(s"${Console.CYAN}boxesInMempool ${boxesInMempool.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
     this
   }
 
@@ -35,6 +46,9 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
 
   override def putWithoutCheck(txs: Iterable[BifrostTransaction]): BifrostMemPool = {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
+    txs.foreach(tx => {
+      tx.boxIdsToOpen.map(boxId => { boxesInMempool.put(key(boxId), key(boxId)) })
+    })
     this
   }
 

@@ -19,6 +19,7 @@ import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.{NetworkTime, ScorexLogging}
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -40,7 +41,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
 
   val InterBlocksDelay = 15 //in seconds
-  val blockGenerationDelay = 5000.millisecond
 
   override def preStart(): Unit = {
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
@@ -59,7 +59,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   override def receive: Receive = {
     case StartForging =>
       forging = true
-      context.system.scheduler.scheduleOnce(blockGenerationDelay)(viewHolderRef ! GetCurrentView)
+      viewHolderRef ! GetCurrentView
 
     case StopForging =>
       forging = false
@@ -74,9 +74,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
       log.debug(s"Trying to generate block on top of ${parent.encodedId} with balance " +
         s"${boxKeys.map(_._1.value).sum}")
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockDelay)
+      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.blockGenerationDelay.length)
       println(s"${Console.BLUE}Adjusted Target: $adjustedTarget")
       println(s"${Console.RESET} ")
+
+      s.changes(parent).get.boxIdsToRemove.foreach(tr => println(s"${Console.RED}Trying to remove boxes ${Base58.encode(tr)}${Console.RESET}"))
 
       iteration(parent, boxKeys, pickTransactions(m, s), adjustedTarget) match {
         case Some(block) =>
@@ -87,7 +89,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
         case None =>
           log.debug(s"Failed to generate block")
       }
-      context.system.scheduler.scheduleOnce(blockGenerationDelay)(self ! StartForging)
+      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay/3)(self ! StartForging)
   }
 }
 
@@ -118,7 +120,6 @@ object Forger extends ScorexLogging {
     }.filter(t => BigInt(t._2) < BigInt(t._1._1.value) * target)
 
     log.info(s"Successful hits: ${successfulHits.size}")
-
     successfulHits.headOption.map { case (boxKey, _) =>
       BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2)
     }
@@ -127,8 +128,9 @@ object Forger extends ScorexLogging {
   def calcAdjustedTarget(difficulty: Long,
                          parent: BifrostBlock,
                          targetBlockDelay: Long): BigInt = {
-    val target = MaxTarget / difficulty
+    val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
-    BigInt(target)*BigInt(timedelta/targetBlockDelay*2)
+    println(BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble))
+    BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
   }
 }

@@ -7,10 +7,8 @@ import scala.concurrent.duration._
 
 trait ForgingSettings extends Settings with ForgingConstants {
 
-  lazy val targetBlockDelay: Long = if (isTestnet) 10.seconds.toMillis else 5.seconds.toMillis
-
   val InitialDifficulty = 15000000L
-  val MinimumDifficulty = 10000L
+  val MinimumDifficulty = 100L
 
   lazy val offlineGeneration = settingsJSON.get("offlineGeneration").flatMap(_.asBoolean).getOrElse(false)
 
@@ -19,6 +17,6 @@ trait ForgingSettings extends Settings with ForgingConstants {
 
   val DefaulPtosAttachmentSize = 1024
 
-  override def toString: String = (Map("BlockDelay" -> targetBlockDelay.asJson) ++
+  override def toString: String = (Map("BlockDelay" -> blockGenerationDelay.length.asJson) ++
     settingsJSON.map(s => s._1 -> s._2)).asJson.spaces2
 }
