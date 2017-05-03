@@ -30,14 +30,14 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def put(tx: BifrostTransaction): Try[BifrostMemPool] = Try {
     unconfirmed.put(key(tx.id), tx)
     tx.boxIdsToOpen.foreach(boxId => {
-      println(s"${Console.RED} Found Duplicate key ${Base58.encode(boxId)} ${Console.RESET}")
       val exists = boxesInMempool.get(key(boxId)).isDefined
       require(!exists)
     })
     tx.boxIdsToOpen.foreach(boxId => {
       boxesInMempool.put(key(boxId), key(boxId))
     })
-    println(s"${Console.CYAN}boxesInMempool ${boxesInMempool.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
+    println(s"${Console.CYAN}boxesInMempool: ${boxesInMempool.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
+    println(s"${Console.CYAN}Unconfirmed TXs: ${unconfirmed.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
     this
   }
 
@@ -62,7 +62,14 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
 
   override def filter(condition: (BifrostTransaction) => Boolean): BifrostMemPool = {
     unconfirmed.retain { (k, v) =>
-      condition(v)
+      if (condition(v)) {
+        true
+      } else {
+        v.boxIdsToOpen.foreach(boxId => {
+          boxesInMempool -= (key(boxId): ByteArrayWrapper)
+        })
+        false
+      }
     }
     this
   }

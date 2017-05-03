@@ -110,10 +110,12 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
               val appliedMods = progressInfo.toApply
 
               val appliedTxs = appliedMods.flatMap(_.transactions).flatten
-
-              val newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
+              var newMemPool = memoryPool()
+              log.info(s"${Console.GREEN}before newMemPool Size: ${newMemPool.size}${Console.RESET}")
+              newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
                 !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
               }
+              log.info(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
               //we consider that vault always able to perform a rollback needed
               val newVault = if (progressInfo.rollbackNeeded) {
