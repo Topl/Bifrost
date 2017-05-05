@@ -4,8 +4,8 @@ import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import examples.bifrost.transaction.StableCoinTransfer
-import examples.bifrost.transaction.box.StableCoinBox
+import examples.bifrost.transaction.{PolyTransfer, PolyTransfer$}
+import examples.bifrost.transaction.box.PolyBox
 import io.circe.parser._
 import io.circe.syntax._
 import io.swagger.annotations._
@@ -15,6 +15,7 @@ import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
+
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
@@ -59,8 +60,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 val amount: Long = (json \\ "amount").head.asNumber.get.toLong.get
                 val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((json \\ "recipient").head.asString.get).get)
                 val fee: Long = (json \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(DefaultFee)
-                val tx = StableCoinTransfer.create(wallet, recipient, amount, fee).get
-                nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], StableCoinTransfer](tx)
+                val tx = PolyTransfer.create(wallet, recipient, amount, fee).get
+                nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
                 tx.json
               } match {
                 case Success(resp) => SuccessApiResponse(resp)
@@ -87,7 +88,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
 
         SuccessApiResponse(Map(
           "totalBalance" -> boxes.flatMap(_.box match {
-            case scb: StableCoinBox => Some(scb.value)
+            case scb: PolyBox => Some(scb.value)
             case _ => None
           }).sum.toString.asJson,
           "publicKeys" -> wallet.publicKeys.flatMap(_ match {

@@ -5,7 +5,7 @@ import examples.bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import examples.bifrost.contract.Agreement
 import examples.bifrost.transaction._
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox, StableCoinBox}
+import examples.bifrost.transaction.box.{BifrostBoxSerializer, ContractBox, PolyBox}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import io.circe.Json
@@ -40,9 +40,9 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("StableCoinBox Serialization") {
-    forAll(stableCoinBoxGen) {
-      b: StableCoinBox =>
+  property("PolyBox Serialization") {
+    forAll(polyBoxGen) {
+      b: PolyBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         serialized shouldEqual BifrostBoxSerializer.toBytes(b)
@@ -57,9 +57,9 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("StableCoinTransfer Serialization") {
-    forAll(stableCoinTransferGen) {
-      sc : StableCoinTransfer =>
+  property("PolyTransfer Serialization") {
+    forAll(polyTransferGen) {
+      sc : PolyTransfer =>
         val parsed = TransferTransactionCompanion.parseBytes(
           TransferTransactionCompanion.toBytes(sc)
         ).get

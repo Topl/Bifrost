@@ -1,11 +1,11 @@
 package examples.bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import examples.bifrost.transaction.StableCoinTransfer.Nonce
+import examples.bifrost.transaction.PolyTransfer.Nonce
 import examples.bifrost.contract._
 import examples.bifrost.scorexMod.GenericBoxTransaction
 import examples.bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import examples.bifrost.transaction.box.{BifrostBox, ContractBox, StableCoinBox}
+import examples.bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox}
 import examples.bifrost.transaction.proof.MultiSignature25519
 import examples.bifrost.wallet.BWallet
 import io.circe.Json
@@ -112,16 +112,16 @@ object ContractCreation {
 
 trait TransferTransaction extends BifrostTransaction
 
-case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                              to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                              signatures: IndexedSeq[Signature25519],
-                              override val fee: Long,
-                              override val timestamp: Long)
+case class PolyTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                        to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                        signatures: IndexedSeq[Signature25519],
+                        override val fee: Long,
+                        override val timestamp: Long)
   extends TransferTransaction {
 
-  override type M = StableCoinTransfer
+  override type M = PolyTransfer
 
-  override lazy val serializer = StableCoinTransferCompanion
+  override lazy val serializer = PolyTransferCompanion
 
   override def toString: String = s"TransferTransaction(${json.noSpaces})"
 
@@ -146,8 +146,8 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
 
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
-      val nonce = StableCoinTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-      StableCoinBox(prop, nonce, value)
+      val nonce = PolyTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      PolyBox(prop, nonce, value)
   }
 
   override lazy val json: Json = Map(
@@ -172,7 +172,7 @@ case class StableCoinTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce
   ).asJson
 }
 
-object StableCoinTransfer {
+object PolyTransfer {
   type Value = Long
   type Nonce = Long
 
@@ -181,23 +181,23 @@ object StableCoinTransfer {
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
             to: IndexedSeq[(PublicKey25519Proposition, Value)],
             fee: Long,
-            timestamp: Long): StableCoinTransfer = {
+            timestamp: Long): PolyTransfer = {
     val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
     val fakeSigs = from.map(_ => Signature25519(Array()))
 
-    val undersigned = StableCoinTransfer(fromPub, to, fakeSigs, fee, timestamp)
+    val undersigned = PolyTransfer(fromPub, to, fakeSigs, fee, timestamp)
 
     val msg = undersigned.messageToSign
     val sigs = from.map { case (priv, _) => PrivateKey25519Companion.sign(priv, msg) }
 
-    new StableCoinTransfer(fromPub, to, sigs, fee, timestamp)
+    new PolyTransfer(fromPub, to, sigs, fee, timestamp)
   }
 
   //TODO seq of recipients and amounts
-  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[StableCoinTransfer] = Try {
+  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[PolyTransfer] = Try {
 
     val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b => b.box match {
-        case scb: StableCoinBox => w.secretByPublicImage(scb.proposition).map (s => (s, scb.nonce, scb.value) )
+        case scb: PolyBox => w.secretByPublicImage(scb.proposition).map (s => (s, scb.nonce, scb.value) )
         case _ => None
       }
     }.toIndexedSeq
@@ -213,10 +213,10 @@ object StableCoinTransfer {
     require(from.map(_._3).sum - to.map(_._2).sum == fee)
 
     val timestamp = System.currentTimeMillis()
-    StableCoinTransfer(from.map(t => t._1 -> t._2), to, fee, timestamp)
+    PolyTransfer(from.map(t => t._1 -> t._2), to, fee, timestamp)
   }
 
-  def validate(tx: StableCoinTransfer): Try[Unit] = Try {
+  def validate(tx: PolyTransfer): Try[Unit] = Try {
       require(tx.from.size == tx.signatures.size)
       require(tx.to.forall(_._2 >= 0))
       require(tx.fee >= 0)

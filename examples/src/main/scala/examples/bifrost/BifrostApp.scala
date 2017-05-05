@@ -8,8 +8,8 @@ import examples.bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import examples.bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
 import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.transaction.box.BifrostBox
-import examples.bifrost.wallet.StableCoinTransferGenerator
-import examples.bifrost.wallet.StableCoinTransferGenerator.StartGeneration
+import examples.bifrost.wallet.{PolyTransferGenerator, PolyTransferGenerator$}
+import examples.bifrost.wallet.PolyTransferGenerator.StartGeneration
 import io.circe
 import scorex.core.api.http.{ApiRoute, NodeViewApiRoute, PeersApiRoute, UtilsApiRoute}
 import scorex.core.network.message.MessageSpec
@@ -62,7 +62,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
 
   if (settings.nodeName == "node1") {
     log.info("Starting transactions generation")
-    val generator: ActorRef = actorSystem.actorOf(Props(classOf[StableCoinTransferGenerator], nodeViewHolderRef))
+    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
     generator ! StartGeneration(FiniteDuration(5, SECONDS))
   }
 }

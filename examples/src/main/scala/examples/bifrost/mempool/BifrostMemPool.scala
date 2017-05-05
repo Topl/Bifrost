@@ -1,6 +1,6 @@
 package examples.bifrost.mempool
 
-import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
+import examples.bifrost.transaction.BifrostTransaction
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.NodeViewModifier.ModifierId
 import scorex.core.transaction.MemoryPool

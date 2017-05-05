@@ -2,7 +2,7 @@ package bifrost.transaction
 
 import bifrost.BifrostGenerators
 import examples.bifrost.state.BifrostState
-import examples.bifrost.transaction.{ContractCreation, StableCoinTransfer}
+import examples.bifrost.transaction.{ContractCreation, PolyTransfer, PolyTransfer$}
 import examples.hybrid.state.SimpleBoxTransaction
 import hybrid.HybridGenerators
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -40,9 +40,9 @@ class BifrostTransactionSpec extends PropSpec
     }
   }
 
-  property("Generated StableCoinTransfer Tx should be valid") {
-    forAll(validStableCoinTransferGen) {
-      sct: StableCoinTransfer =>
+  property("Generated PolyTransfer Tx should be valid") {
+    forAll(validPolyTransferGen) {
+      sct: PolyTransfer =>
         BifrostState.semanticValidity(sct).isSuccess shouldBe true
     }
   }

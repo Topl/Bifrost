@@ -100,11 +100,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   override def validate(transaction: TX): Try[Unit] = transaction match {
-    case sct: StableCoinTransfer => validateStableCoinTransfer(sct)
+    case sct: PolyTransfer => validatePolyTransfer(sct)
     case cc: ContractCreation => validateContractCreation(cc)
   }
 
-  def validateStableCoinTransfer(sct: StableCoinTransfer): Try[Unit] = Try {
+  def validatePolyTransfer(sct: PolyTransfer): Try[Unit] = Try {
 
     val statefulValid: Try[Unit] = {
 
@@ -116,7 +116,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             closedBox(unlocker.closedBoxId) match {
               case Some(box) =>
                 if (unlocker.boxKey.isValid(box.proposition, sct.messageToSign)) {
-                  Success(partialSum + box.asInstanceOf[StableCoinBox].value)
+                  Success(partialSum + box.asInstanceOf[PolyBox].value)
                 } else {
                   Failure(new Exception("Incorrect unlocker"))
                 }
@@ -128,7 +128,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
 
       boxesSumTry flatMap { openSum =>
-        if (sct.newBoxes.map(_.asInstanceOf[StableCoinBox].value).sum == openSum - sct.fee) {
+        if (sct.newBoxes.map(_.asInstanceOf[PolyBox].value).sum == openSum - sct.fee) {
           Success[Unit](Unit)
         } else {
           Failure(new Exception("Negative fee"))
@@ -197,7 +197,7 @@ object BifrostState {
 
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
-      case sc: StableCoinTransfer => StableCoinTransfer.validate(sc)
+      case sc: PolyTransfer => PolyTransfer.validate(sc)
       case cc: ContractCreation => ContractCreation.validate(cc)
       case _ => Failure( new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
     }
@@ -211,7 +211,7 @@ object BifrostState {
       val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
         case Some(txSeq) => txSeq.map {
           // (rm, add, fee)
-          case sc: StableCoinTransfer => (sc.boxIdsToOpen.toSet, sc.newBoxes.toSet, sc.fee)
+          case sc: PolyTransfer => (sc.boxIdsToOpen.toSet, sc.newBoxes.toSet, sc.fee)
           case cc: ContractCreation => (cc.boxIdsToOpen.toSet, cc.newBoxes.toSet, cc.fee)
         }
       }

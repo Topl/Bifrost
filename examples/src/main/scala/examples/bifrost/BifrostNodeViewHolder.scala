@@ -6,8 +6,8 @@ import examples.bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import examples.bifrost.mempool.BifrostMemPool
 import examples.bifrost.scorexMod.GenericNodeViewHolder
 import examples.bifrost.state.BifrostState
-import examples.bifrost.transaction.box.{BifrostBox, StableCoinBox}
-import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
+import examples.bifrost.transaction.box.{BifrostBox, PolyBox}
+import examples.bifrost.transaction.{BifrostTransaction, PolyTransfer, PolyTransfer$}
 import examples.bifrost.wallet.BWallet
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
@@ -90,7 +90,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     val genesisAccount = PrivateKey25519Companion.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
 
-    val genesisTxs = Seq(StableCoinTransfer(
+    val genesisTxs = Seq(PolyTransfer(
       IndexedSeq(genesisAccountPriv -> 0),
       icoMembers.map(_ -> GenesisBalance),
       0L,
@@ -99,7 +99,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     assert(icoMembers.length == GenesisAccountsNum)
     assert(Base58.encode(genesisTxs.head.id) == "6wzeHrqzkCYmm6End32NoBJ4HgmvA9WGPtz6hPNRwj2A", Base58.encode(genesisTxs.head.id))
 
-    val genesisBox = StableCoinBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
+    val genesisBox = PolyBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
     val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
 
     var history = BifrostHistory.readOrGenerate(settings)
@@ -108,7 +108,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     val gs = BifrostState.genesisState(settings, Seq(genesisBlock))
     val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
-      case scb: StableCoinBox => Some(scb.value)
+      case scb: PolyBox => Some(scb.value)
       case _ => None
     }).sum >= GenesisBalance)
 

@@ -8,7 +8,7 @@ import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.state.BifrostState
 import examples.bifrost.transaction.ContractCreation
-import examples.bifrost.transaction.box.{ContractBox, StableCoinBox}
+import examples.bifrost.transaction.box.{ContractBox, PolyBox}
 import examples.bifrost.transaction.box.proposition.MofNPropositionSerializer
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.{Matchers, PropSpec}
@@ -52,7 +52,7 @@ class BifrostStateSpec extends PropSpec
         val block = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
           Instant.now().toEpochMilli,
-          StableCoinBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          PolyBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
           Seq(cc)
         )
@@ -85,9 +85,9 @@ class BifrostStateSpec extends PropSpec
     Try(path.deleteRecursively())
   }
 
-  property("A block with valid stablecoin transfer should result in more funds for receiver, less for transferrer") {
+  property("A block with valid PolyCoin transfer should result in more funds for receiver, less for transferrer") {
     // Create genesis block, add to state
-    // Create new block with stablecoin transfer
+    // Create new block with PolyChain transfer
     // send new block to state
     // check updated state
   }
@@ -115,13 +115,13 @@ class BifrostStateSpec extends PropSpec
     // send tx to state
   }
 
-  property("Attempting to validate a stablecointransfer for amount you do not have should error") {
-    // Create invalid stablecointransfer
+  property("Attempting to validate a PolyTransfer for amount you do not have should error") {
+    // Create invalid PolyTransfer
     // send tx to state
   }
 
-  property("Attempting to validate a stablecointransfer without valid signature should error") {
-    // Create invalid stablecointransfer
+  property("Attempting to validate a PolyTransfer without valid signature should error") {
+    // Create invalid PolyTransfer
     // send tx to state
   }
 

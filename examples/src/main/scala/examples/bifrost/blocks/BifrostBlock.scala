@@ -1,7 +1,7 @@
 package examples.bifrost.blocks
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import examples.bifrost.transaction.box.{BifrostBoxSerializer, StableCoinBox}
+import examples.bifrost.transaction.box.{BifrostBoxSerializer, PolyBox}
 import examples.bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
 import examples.curvepos.transaction.SimpleBlock._
 import io.circe.Json
@@ -21,7 +21,7 @@ import scala.util.Try
 
 case class BifrostBlock(override val parentId: BlockId,
                         override val timestamp: Block.Timestamp,
-                        generatorBox: StableCoinBox,
+                        generatorBox: PolyBox,
                         signature: Signature25519,
                         txs: Seq[BifrostTransaction])
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
@@ -60,7 +60,7 @@ object BifrostBlock {
   def create(parentId: BlockId,
              timestamp: Block.Timestamp,
              txs: Seq[BifrostTransaction],
-             box: StableCoinBox,
+             box: PolyBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
@@ -105,7 +105,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     var numBytesRead = Block.BlockIdLength + Longs.BYTES*2 + 1
 
-    val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[StableCoinBox]
+    val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[PolyBox]
     val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Signature25519.SignatureSize))
 
     numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize

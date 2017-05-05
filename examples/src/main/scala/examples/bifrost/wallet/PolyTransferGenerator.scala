@@ -1,7 +1,7 @@
 package examples.bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
-import examples.bifrost.transaction.StableCoinTransfer
+import examples.bifrost.transaction.{PolyTransfer, PolyTransfer$}
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import examples.bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import examples.bifrost.state.BifrostState
@@ -13,11 +13,11 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Random, Success, Try}
 
 /**
-  * Generator of StableCoinTransfer inside a wallet
+  * Generator of PolyTransfer inside a wallet
   */
-class StableCoinTransferGenerator(viewHolderRef: ActorRef) extends Actor {
+class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
 
-  import StableCoinTransferGenerator._
+  import PolyTransferGenerator._
 
   override def receive: Receive = {
     case StartGeneration(duration) =>
@@ -27,24 +27,24 @@ class StableCoinTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       generate(wallet) match {
         case Success(tx) =>
           println(s"Local tx with with ${tx.from.size} inputs, ${tx.to.size} outputs")
-          viewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], StableCoinTransfer](tx)
+          viewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
         case Failure(e) =>
           e.printStackTrace()
       }
   }
 
-  def generate(wallet: BWallet): Try[StableCoinTransfer] = {
+  def generate(wallet: BWallet): Try[PolyTransfer] = {
     val pubkeys: Seq[PublicKey25519Proposition] = wallet.publicKeys.flatMap {
       case pkp: PublicKey25519Proposition => Some(pkp)
       case _ => None
     }.toSeq
     //todo multiple recipients
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
-    StableCoinTransfer.create(wallet, recipient, Random.nextInt(100), Random.nextInt(100))
+    PolyTransfer.create(wallet, recipient, Random.nextInt(100), Random.nextInt(100))
   }
 }
 
-object StableCoinTransferGenerator {
+object PolyTransferGenerator {
 
   case class StartGeneration(delay: FiniteDuration)
 

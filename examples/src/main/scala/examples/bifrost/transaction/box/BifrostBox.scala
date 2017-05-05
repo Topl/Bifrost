@@ -61,7 +61,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
   }
 
   override def toBytes(obj: BifrostBox): Array[Byte] = obj match {
-    case bp: StableCoinBox => (new StableCoinBoxSerializer).toBytes(obj.asInstanceOf[StableCoinBox])
+    case bp: PolyBox => (new PolyBoxSerializer).toBytes(obj.asInstanceOf[PolyBox])
     case c: ContractBox => (new ContractBoxSerializer).toBytes(obj.asInstanceOf[ContractBox])
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
@@ -73,16 +73,16 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
     typeStr match {
-      case "StableCoinBox" => (new StableCoinBoxSerializer).parseBytes(bytes)
+      case "PolyBox" => (new PolyBoxSerializer).parseBytes(bytes)
       case "ContractBox" => (new ContractBoxSerializer).parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
 }
 
-case class StableCoinBox(proposition: PublicKey25519Proposition,
-                         override val nonce: Long,
-                         value: Long) extends BifrostBox(proposition, nonce, value) {
+case class PolyBox(proposition: PublicKey25519Proposition,
+                   override val nonce: Long,
+                   value: Long) extends BifrostBox(proposition, nonce, value) {
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   override lazy val json: Json = Map(
@@ -93,16 +93,16 @@ case class StableCoinBox(proposition: PublicKey25519Proposition,
   ).asJson
 }
 
-class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
+class PolyBoxSerializer extends Serializer[PolyBox] {
 
-  def toBytes(obj: StableCoinBox): Array[Byte] = {
+  def toBytes(obj: PolyBox): Array[Byte] = {
 
-    val boxType = "StableCoinBox"
+    val boxType = "PolyBox"
 
     Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++ obj.proposition.pubKeyBytes ++ Longs.toByteArray(obj.nonce) ++ Longs.toByteArray(obj.value)
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[StableCoinBox] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[PolyBox] = Try {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
 
@@ -116,7 +116,7 @@ class StableCoinBoxSerializer extends Serializer[StableCoinBox] {
     val curReadBytes = numReadBytes + Constants25519.PubKeyLength + Longs.BYTES
 
     val value = Longs.fromByteArray(bytes.slice(curReadBytes, curReadBytes + Longs.BYTES))
-    StableCoinBox(pk, nonce, value)
+    PolyBox(pk, nonce, value)
   }
 
 }

@@ -6,7 +6,7 @@ import com.google.common.primitives.Ints
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import examples.bifrost.state.BifrostState
-import examples.bifrost.transaction.{BifrostTransaction, StableCoinTransfer}
+import examples.bifrost.transaction.BifrostTransaction
 import examples.bifrost.transaction.box._
 import examples.bifrost.transaction.box.proposition.MofNProposition
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -48,7 +48,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
         case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
-          case scb: StableCoinBox => scb.value > 0
+          case scb: PolyBox => scb.value > 0
           case cb: ContractBox => true
         }
         case _ => false

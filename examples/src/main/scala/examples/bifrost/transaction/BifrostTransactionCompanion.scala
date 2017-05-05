@@ -72,7 +72,7 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
     Ints.toByteArray(typeBytes.length) ++
       typeBytes ++
       (m match {
-        case sc: StableCoinTransfer => StableCoinTransferCompanion.toBytes(sc)
+        case sc: PolyTransfer => PolyTransferCompanion.toBytes(sc)
       })
   }
 
@@ -87,7 +87,7 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
     val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 
     newTypeStr match {
-      case "StableCoinTransfer" => StableCoinTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
+      case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
     }
   }
 }
@@ -205,10 +205,10 @@ object AgreementCompanion extends Serializer[Agreement] {
   }
 }
 
-object StableCoinTransferCompanion extends Serializer[StableCoinTransfer] {
+object PolyTransferCompanion extends Serializer[PolyTransfer] {
 
-  override def toBytes(sc: StableCoinTransfer): Array[Byte] = {
-    val typeBytes = "StableCoinTransfer".getBytes
+  override def toBytes(sc: PolyTransfer): Array[Byte] = {
+    val typeBytes = "PolyTransfer".getBytes
 
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
@@ -224,7 +224,7 @@ object StableCoinTransferCompanion extends Serializer[StableCoinTransfer] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[StableCoinTransfer] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[PolyTransfer] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
@@ -266,6 +266,6 @@ object StableCoinTransferCompanion extends Serializer[StableCoinTransfer] {
       )
       (PublicKey25519Proposition(pk), v)
     }
-    StableCoinTransfer(from, to, signatures, fee, timestamp)
+    PolyTransfer(from, to, signatures, fee, timestamp)
   }
 }
