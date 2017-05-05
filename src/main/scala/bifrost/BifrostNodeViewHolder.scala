@@ -97,7 +97,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
       0L))
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
     assert(icoMembers.length == GenesisAccountsNum)
-    assert(Base58.encode(genesisTxs.head.id) == "6wzeHrqzkCYmm6End32NoBJ4HgmvA9WGPtz6hPNRwj2A", Base58.encode(genesisTxs.head.id))
+    assert(Base58.encode(genesisTxs.head.id) == "FivMUGSTxS9Q62oM7PXUfpAnz2Wo8vANNETjqzAK7aEs", Base58.encode(genesisTxs.head.id))
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
     val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
