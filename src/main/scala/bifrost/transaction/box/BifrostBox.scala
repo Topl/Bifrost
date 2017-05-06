@@ -77,6 +77,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ArbitBox" => (new ArbitBoxSerializer).parseBytes(bytes)
       case "PolyBox" => (new PolyBoxSerializer).parseBytes(bytes)
       case "ContractBox" => (new ContractBoxSerializer).parseBytes(bytes)
+      case "ProfileBox" => (new ProfileBoxSerializer).parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
@@ -226,6 +227,62 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
     val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
 
     ContractBox(proposition, nonce, value)
+  }
+
+}
+
+/**
+  *
+  * @param proposition
+  * @param nonce: place holder for now. Make it always zero
+  * @param value
+  * @param field: Name of the profile attribute you wish to use for the box
+  */
+case class ProfileBox(proposition: PublicKey25519Proposition,
+                   override val nonce: Long,
+                   value: String,
+                   field: String) extends BifrostBox(proposition, nonce, value) {
+  lazy val id: Array[Byte] = FastCryptographicHash( proposition.pubKeyBytes ++ value.getBytes ++ field.getBytes )
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "field" -> field.asJson
+  ).asJson
+}
+
+class ProfileBoxSerializer extends Serializer[ProfileBox] {
+
+  def toBytes(obj: ProfileBox): Array[Byte] = {
+
+    val boxType = "ProfileBox"
+
+    Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++
+      obj.proposition.pubKeyBytes ++
+      Ints.toByteArray(obj.value.getBytes.length) ++ obj.value.getBytes ++
+      Ints.toByteArray(obj.field.getBytes.length) ++ obj.field.getBytes
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[ProfileBox] = Try {
+
+    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
+
+    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
+
+    var numReadBytes = Ints.BYTES + typeLen
+
+    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+
+    numReadBytes += Constants25519.PubKeyLength
+
+    val valueLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
+
+    numReadBytes += Ints.BYTES + valueLen
+    val fieldLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    val field = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + fieldLen))
+    ProfileBox(pk, 0L, value, field)
   }
 
 }
