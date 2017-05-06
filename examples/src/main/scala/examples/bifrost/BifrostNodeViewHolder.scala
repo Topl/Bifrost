@@ -6,8 +6,8 @@ import examples.bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import examples.bifrost.mempool.BifrostMemPool
 import examples.bifrost.scorexMod.GenericNodeViewHolder
 import examples.bifrost.state.BifrostState
-import examples.bifrost.transaction.box.{BifrostBox, PolyBox}
-import examples.bifrost.transaction.{BifrostTransaction, PolyTransfer, PolyTransfer$}
+import examples.bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
+import examples.bifrost.transaction.{BifrostTransaction, PolyTransfer}
 import examples.bifrost.wallet.BWallet
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
@@ -99,7 +99,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     assert(icoMembers.length == GenesisAccountsNum)
     assert(Base58.encode(genesisTxs.head.id) == "6wzeHrqzkCYmm6End32NoBJ4HgmvA9WGPtz6hPNRwj2A", Base58.encode(genesisTxs.head.id))
 
-    val genesisBox = PolyBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
+    val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
     val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
 
     var history = BifrostHistory.readOrGenerate(settings)
@@ -108,7 +108,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     val gs = BifrostState.genesisState(settings, Seq(genesisBlock))
     val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
-      case scb: PolyBox => Some(scb.value)
+      case scb: ArbitBox => Some(scb.value)
       case _ => None
     }).sum >= GenesisBalance)
 

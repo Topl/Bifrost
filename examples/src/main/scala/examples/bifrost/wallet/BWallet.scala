@@ -48,8 +48,9 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
         case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
-          case scb: PolyBox => scb.value > 0
+          case pb: PolyBox => pb.value > 0
           case cb: ContractBox => true
+          case ab: ArbitBox => ab.value > 0
         }
         case _ => false
       }

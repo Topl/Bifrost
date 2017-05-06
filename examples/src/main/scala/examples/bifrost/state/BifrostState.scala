@@ -114,9 +114,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           partialRes.flatMap(partialSum =>
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
-              case Some(box) =>
+              case Some(box: PolyBox) =>
                 if (unlocker.boxKey.isValid(box.proposition, sct.messageToSign)) {
-                  Success(partialSum + box.asInstanceOf[PolyBox].value)
+                  Success(partialSum + box.value)
                 } else {
                   Failure(new Exception("Incorrect unlocker"))
                 }
@@ -128,7 +128,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
 
       boxesSumTry flatMap { openSum =>
-        if (sct.newBoxes.map(_.asInstanceOf[PolyBox].value).sum == openSum - sct.fee) {
+        if (sct.newBoxes.map {
+          case p: PolyBox => p.value
+          case _ => 0L
+        }.sum == openSum - sct.fee) {
           Success[Unit](Unit)
         } else {
           Failure(new Exception("Negative fee"))

@@ -8,7 +8,7 @@ import com.google.common.primitives.{Ints, Longs}
 import examples.bifrost.blocks.BifrostBlock
 import examples.bifrost.state.BifrostState
 import examples.bifrost.transaction.ContractCreation
-import examples.bifrost.transaction.box.{ContractBox, PolyBox}
+import examples.bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
 import examples.bifrost.transaction.box.proposition.MofNPropositionSerializer
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.{Matchers, PropSpec}
@@ -52,7 +52,7 @@ class BifrostStateSpec extends PropSpec
         val block = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
           Instant.now().toEpochMilli,
-          PolyBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
           Seq(cc)
         )

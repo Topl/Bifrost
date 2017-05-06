@@ -9,7 +9,7 @@ import examples.bifrost.forging.ForgingSettings
 import examples.bifrost.history.{BifrostHistory, BifrostStorage}
 import examples.bifrost.transaction.box.proposition.MofNProposition
 import examples.bifrost.transaction._
-import examples.bifrost.transaction.box.{ContractBox, PolyBox}
+import examples.bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
 import io.circe
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
@@ -86,6 +86,12 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield PolyBox(proposition, nonce, value)
+
+  lazy val arbitBoxGen: Gen[ArbitBox] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+    value <- positiveLongGen
+  } yield ArbitBox(proposition, nonce, value)
 
   lazy val agreementTermsGen: Gen[AgreementTerms] = for {
     pledge <- positiveLongGen
@@ -219,7 +225,7 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
     parentId <- specificLengthBytesGen(Block.BlockIdLength)
     timestamp <- positiveLongGen
-    generatorBox <- polyBoxGen
+    generatorBox <- arbitBoxGen
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
@@ -238,7 +244,7 @@ trait BifrostGenerators extends CoreGenerators {
     var history = new BifrostHistory(storage, settings, validators)
 
     val keyPair = key25519Gen.sample.get
-    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 1478164225796L, Seq(), PolyBox(keyPair._2, 0L, 0L), keyPair._1)
+    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 1478164225796L, Seq(), ArbitBox(keyPair._2, 0L, 0L), keyPair._1)
 
     history = history.append(genesisBlock).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)

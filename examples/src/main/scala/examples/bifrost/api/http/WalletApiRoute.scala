@@ -4,8 +4,8 @@ import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import examples.bifrost.transaction.{PolyTransfer, PolyTransfer$}
-import examples.bifrost.transaction.box.PolyBox
+import examples.bifrost.transaction.PolyTransfer
+import examples.bifrost.transaction.box.{ArbitBox, PolyBox}
 import io.circe.parser._
 import io.circe.syntax._
 import io.swagger.annotations._
@@ -87,8 +87,12 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         val boxes = wallet.boxes()
 
         SuccessApiResponse(Map(
-          "totalBalance" -> boxes.flatMap(_.box match {
-            case scb: PolyBox => Some(scb.value)
+          "polyBalance" -> boxes.flatMap(_.box match {
+            case pb: PolyBox => Some(pb.value)
+            case _ => None
+          }).sum.toString.asJson,
+          "arbitBalance" -> boxes.flatMap(_.box match {
+            case ab: ArbitBox => Some(ab.value)
             case _ => None
           }).sum.toString.asJson,
           "publicKeys" -> wallet.publicKeys.flatMap(_ match {

@@ -9,7 +9,7 @@ import examples.bifrost.history.BifrostHistory
 import examples.bifrost.mempool.BifrostMemPool
 import examples.bifrost.state.BifrostState
 import examples.bifrost.transaction.BifrostTransaction
-import examples.bifrost.transaction.box.PolyBox
+import examples.bifrost.transaction.box.{ArbitBox, PolyBox}
 import examples.bifrost.wallet.BWallet
 import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.LocalInterface.LocallyGeneratedModifier
@@ -67,7 +67,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
       log.info("Trying to generate a new block, chain length: " + h.height)
 
-      val boxes = w.boxes().filter(_.box.isInstanceOf[PolyBox]).map(_.box.asInstanceOf[PolyBox]).filter(box => s.closedBox(box.id).isDefined)
+      val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
+        case a: ArbitBox => s.closedBox(a.id).isDefined
+        case _ => false
+      }).map(_.box.asInstanceOf[ArbitBox])
+
       val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
 
       val parent = h.bestBlock
@@ -102,13 +106,13 @@ object Forger extends ScorexLogging {
 
   case object StopForging
 
-  def hit(lastBlock: BifrostBlock)(box: PolyBox): Long = {
+  def hit(lastBlock: BifrostBlock)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
   def iteration(parent: BifrostBlock,
-                boxKeys: Seq[(PolyBox, PrivateKey25519)],
+                boxKeys: Seq[(ArbitBox, PrivateKey25519)],
                 txsToInclude: Seq[BifrostTransaction],
                 target: BigInt): Option[BifrostBlock] = {
 
