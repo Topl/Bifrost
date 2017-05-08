@@ -128,13 +128,13 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val profileTxGen: Gen[ProfileTransaction] = for {
     from <- propositionGen
-    numSignatures <- positiveMediumIntGen
+    numKeys <- positiveMediumIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
-    val signatures = (0 until numSignatures).map { _ => signatureGen.sample.get}
-    val keyValues = (0 until numSignatures).map { _ => (stringGen.sample.get, stringGen.sample.get)}.foldLeft[Map[String, String]](Map())((a, b) => a + b )
-    ProfileTransaction(from, signatures, keyValues, fee, timestamp)
+    val signature = signatureGen.sample.get
+    val keyValues = (0 until numKeys).map { _ => (stringGen.sample.get, stringGen.sample.get)}.foldLeft[Map[String, String]](Map())((a, b) => a + b )
+    ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 
 

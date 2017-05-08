@@ -121,12 +121,10 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val from = PublicKey25519Proposition(Base58.decode(root.from.string.getOption(json).get).get)
     val fee = root.fee.long.getOption(json).get
     val timestamp = root.timestamp.long.getOption(json).get
-    val signatures = root.signatures.each.quantity.string.getAll(json).map(
-      signature => Signature25519(signature.getBytes())
-    ).toIndexedSeq
+    val signature = Signature25519(Base58.decode(root.signature.string.getOption(json).get).get)
     val keyValues: Map[String, String] = cursor.downField("keyValues").as[Map[String, String]].getOrElse(Map())
 
-    ProfileTransaction(from, signatures, keyValues, fee, timestamp)
+    ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 }
 

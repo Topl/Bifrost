@@ -217,20 +217,25 @@ object PolyTransfer {
   }
 
   def validate(tx: PolyTransfer): Try[Unit] = Try {
-      require(tx.from.size == tx.signatures.size)
-      require(tx.to.forall(_._2 >= 0))
-      require(tx.fee >= 0)
-      require(tx.timestamp >= 0)
-      require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
-        proof.isValid(prop, tx.messageToSign)
-      })
+    require(tx.from.size == tx.signatures.size)
+    require(tx.to.forall(_._2 >= 0))
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
+      proof.isValid(prop, tx.messageToSign)
+    })
   }
 
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,
+<<<<<<< HEAD:src/main/scala/bifrost/transaction/BifrostTransaction.scala
                        signatures: IndexedSeq[Signature25519],
                        keyValues: Map[String, String],
+=======
+                       signature: Signature25519,
+                       val keyValues: Map[String, String],
+>>>>>>> changed ProfileTransaction to take only one signature. Added validation for ProfileTransaction:examples/src/main/scala/examples/bifrost/transaction/BifrostTransaction.scala
                        override val fee: Long,
                        override val timestamp: Long)
   extends BifrostTransaction{
@@ -243,8 +248,8 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
     key => ProfileBox.idFromBox(from, key)
   )
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
-    case (boxId, signature) =>
+  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
+    boxId =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = boxId
         override val boxKey: Signature25519 = signature
@@ -257,6 +262,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     Longs.toByteArray(timestamp),
+    from.pubKeyBytes,
     keyValues.asJson.toString().getBytes()
   )
 
@@ -265,9 +271,20 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> Base58.encode(from.pubKeyBytes).asJson,
-    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "signature" -> Base58.encode(signature.signature).asJson,
     "keyValues" -> keyValues.asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
+}
+
+object ProfileTransaction {
+
+  def validate(tx: ProfileTransaction): Try[Unit] = Try {
+    // ensure no duplicates
+    require(tx.keyValues.keys.toSet.size == tx.keyValues.keys.size)
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signature.isValid(tx.from, tx.messageToSign))
+  }
 }
