@@ -59,39 +59,35 @@ class SerializationTests extends PropSpec
   }
 
   property("Agreement Serialization") {
-    forAll(agreementGen) {
+    forAll(agreementGen)
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
-    }
   }
 
   property("PolyTransfer Serialization") {
-    forAll(polyTransferGen) {
-      sc : PolyTransfer =>
+    forAll(polyTransferGen)
+      sc: PolyTransfer =>
         val parsed = TransferTransactionCompanion.parseBytes(
           TransferTransactionCompanion.toBytes(sc)
         ).get
         TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(sc)
-    }
   }
 
   property("ContractCreation Serialization") {
-    forAll(contractCreationGen) {
+    forAll(contractCreationGen)
       c: ContractCreation =>
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
         ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
-    }
   }
 
   property("BifrostBlock Serialization") {
-    forAll(bifrostBlockGen) {
+    forAll(bifrostBlockGen)
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
         BifrostBlockCompanion.toBytes(parsed) shouldEqual BifrostBlockCompanion.toBytes(bb)
-    }
   }
 
   /* TODO Need a generator that generates erroneous JSON

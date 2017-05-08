@@ -5,7 +5,7 @@ import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.contract._
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox}
+import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox, ProfileBox}
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import io.circe.Json
@@ -226,4 +226,43 @@ object PolyTransfer {
       })
   }
 
+}
+
+case class ProfileTransaction(from: PublicKey25519Proposition,
+                       signatures: IndexedSeq[Signature25519],
+                       keyValues: Map[String, String],
+                       override val fee: Long,
+                       override val timestamp: Long)
+  extends BifrostTransaction{
+
+  override type M = ProfileTransaction
+
+  override lazy val serializer = ProfileTransactionCompanion
+
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = keyValues.keys.toIndexedSeq.map(
+    key => ProfileBox.idFromBox(from, key)
+  )
+
+  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
+    case (boxId, signature) =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = boxId
+        override val boxKey: Signature25519 = signature
+      }
+  }
+
+  override lazy val newBoxes: Traversable[BifrostBox] = keyValues.map {
+    case (key, value) => ProfileBox(from, 0L, value, key)
+  }
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+    "from" -> Base58.encode(from.pubKeyBytes).asJson,
+    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "keyValues" -> keyValues.asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
 }

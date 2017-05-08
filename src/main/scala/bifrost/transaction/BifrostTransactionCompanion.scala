@@ -5,10 +5,13 @@ import java.io.{ByteArrayInputStream, ObjectInputStream}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import io.circe.{Json, ParsingFailure}
-import io.circe.parser.parse
+import io.circe.optics.JsonPath._
+import io.circe._
+import io.circe.syntax._
+import io.circe.parser._
+import cats.syntax.either._
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
-import cats.syntax.either._
 import examples.hybrid.state.SimpleBoxTransactionCompanion
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
@@ -21,6 +24,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
   override def toBytes(m: BifrostTransaction): Array[Byte] = m match {
     case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
+    case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -30,6 +34,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     typeStr match {
       case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
+      case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
     }
   }
 
@@ -92,6 +97,37 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
   }
 }
 
+object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
+  override def toBytes(m: ProfileTransaction): Array[Byte] = {
+    val typeBytes = "ProfileTransaction".getBytes
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length), typeBytes,
+      m.json.toString().getBytes()
+    )
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[ProfileTransaction] = Try {
+
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    var numReadBytes = Ints.BYTES + typeLength
+    val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
+
+    val json: Json = parse(new String(bytesWithoutType)).getOrElse(Json.Null)
+
+    val from = PublicKey25519Proposition(root.from.string.getOption(json).get.getBytes())
+    val fee = root.fee.long.getOption(json).get
+    val timestamp = root.timestamp.long.getOption(json).get
+    val signatures = root.signatures.each.quantity.string.getAll(json).map(
+      signature => Signature25519(signature.getBytes())
+    ).toIndexedSeq
+    val keyValues = decode[Map[String, String]](root.keyValues.string.getOption(json).get).getOrElse(Map())
+
+    ProfileTransaction(from, signatures, keyValues, fee, timestamp)
+  }
+}
+
 object ContractCreationCompanion extends Serializer[ContractCreation] {
 
   override def toBytes(m: ContractCreation): Array[Byte] = {
@@ -100,19 +136,19 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     val agreementBytes = AgreementCompanion.toBytes(m.agreement)
 
     // TODO this might need a nonce
-      Bytes.concat(
-        /* First two arguments MUST STAY */
-        Ints.toByteArray(typeBytes.length),
-        typeBytes,
-        Longs.toByteArray(m.fee),
-        Longs.toByteArray(m.timestamp),
-        Longs.toByteArray(agreementBytes.length),
-        Ints.toByteArray(m.signatures.length),
-        Ints.toByteArray(m.parties.length),
-        agreementBytes,
-        m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-        m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
-      )
+    Bytes.concat(
+      /* First two arguments MUST STAY */
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(m.fee),
+      Longs.toByteArray(m.timestamp),
+      Longs.toByteArray(agreementBytes.length),
+      Ints.toByteArray(m.signatures.length),
+      Ints.toByteArray(m.parties.length),
+      agreementBytes,
+      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+    )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {

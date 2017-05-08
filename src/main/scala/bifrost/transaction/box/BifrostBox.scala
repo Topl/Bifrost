@@ -242,7 +242,7 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
                    override val nonce: Long,
                    value: String,
                    field: String) extends BifrostBox(proposition, nonce, value) {
-  lazy val id: Array[Byte] = FastCryptographicHash( proposition.pubKeyBytes ++ value.getBytes ++ field.getBytes )
+  lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, field)
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
@@ -250,6 +250,11 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
     "value" -> value.asJson,
     "field" -> field.asJson
   ).asJson
+}
+
+object ProfileBox {
+  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, field: String): Array[Byte] =
+    FastCryptographicHash(prop.pubKeyBytes ++ field.getBytes)
 }
 
 class ProfileBoxSerializer extends Serializer[ProfileBox] {
