@@ -126,6 +126,17 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
 
+  lazy val profileTxGen: Gen[ProfileTransaction] = for {
+    from <- propositionGen
+    numSignatures <- positiveMediumIntGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val signatures = (0 until numSignatures).map { _ => signatureGen.sample.get}
+    val keyValues = (0 until numSignatures).map { _ => (stringGen.sample.get, stringGen.sample.get)}.foldLeft[Map[String, String]](Map())((a, b) => a + b )
+    ProfileTransaction(from, signatures, keyValues, fee, timestamp)
+  }
+
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen

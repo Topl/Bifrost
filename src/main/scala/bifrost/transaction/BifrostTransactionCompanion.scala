@@ -14,6 +14,7 @@ import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import examples.hybrid.state.SimpleBoxTransactionCompanion
 import scorex.core.transaction.proof.Signature25519
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.collection.immutable.HashMap
@@ -115,14 +116,15 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
     val json: Json = parse(new String(bytesWithoutType)).getOrElse(Json.Null)
+    val cursor: HCursor = json.hcursor
 
-    val from = PublicKey25519Proposition(root.from.string.getOption(json).get.getBytes())
+    val from = PublicKey25519Proposition(Base58.decode(root.from.string.getOption(json).get).get)
     val fee = root.fee.long.getOption(json).get
     val timestamp = root.timestamp.long.getOption(json).get
     val signatures = root.signatures.each.quantity.string.getAll(json).map(
       signature => Signature25519(signature.getBytes())
     ).toIndexedSeq
-    val keyValues = decode[Map[String, String]](root.keyValues.string.getOption(json).get).getOrElse(Map())
+    val keyValues: Map[String, String] = cursor.downField("keyValues").as[Map[String, String]].getOrElse(Map())
 
     ProfileTransaction(from, signatures, keyValues, fee, timestamp)
   }

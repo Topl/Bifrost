@@ -80,7 +80,23 @@ class SerializationTests extends PropSpec
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
-        ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
+        val parsedBytes = ContractTransactionCompanion.toBytes(parsed)
+        val directParsedBytes = ContractTransactionCompanion.toBytes(c)
+        parsedBytes.length shouldEqual directParsedBytes.length
+        val res = parsedBytes.zip(directParsedBytes).map{
+          case (parsed, directParsed) =>
+            parsed shouldEqual directParsed
+        }
+  }
+
+  property("ProfileTransaction Serialization") {
+    forAll(profileTxGen) {
+      p: ProfileTransaction =>
+        val parsed = ProfileTransactionCompanion.parseBytes(
+          ProfileTransactionCompanion.toBytes(p)
+        ).get
+        ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p)
+    }
   }
 
   property("BifrostBlock Serialization") {

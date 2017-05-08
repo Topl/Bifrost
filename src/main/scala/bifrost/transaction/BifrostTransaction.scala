@@ -255,6 +255,11 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
     case (key, value) => ProfileBox(from, 0L, value, key)
   }
 
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(
+    Longs.toByteArray(timestamp),
+    keyValues.asJson.toString().getBytes()
+  )
+
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
