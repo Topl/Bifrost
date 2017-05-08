@@ -124,7 +124,6 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val keyValues: Map[String, String] = cursor.downField("keyValues").as[Map[String, String]].getOrElse(Map())
 
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
-
   }
 }
 
