@@ -6,6 +6,7 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import io.circe.Json
+import io.circe.parser._
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
@@ -174,18 +175,18 @@ class ArbitBoxSerializer extends Serializer[ArbitBox] {
 
 case class ContractBox(proposition: MofNProposition,
                        override val nonce: Long,
-                       value: String ) extends BifrostBox(proposition, nonce, value) {
+                       value: Json) extends BifrostBox(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = FastCryptographicHash(
     MofNPropositionSerializer.toBytes(proposition) ++
     Longs.toByteArray(nonce) ++
-    value.getBytes
+    value.noSpaces.getBytes
   )
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
     "proposition" -> proposition.setOfPubKeyBytes.map(Base58.encode(_).asJson).asJson,
-    "value" -> value.asJson,
+    "value" -> value,
     "nonce" -> nonce.asJson
   ).asJson
 
@@ -201,8 +202,8 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
       boxType.getBytes ++
       MofNPropositionSerializer.toBytes(obj.proposition) ++
       Longs.toByteArray(obj.nonce) ++
-      Ints.toByteArray(obj.value.getBytes.length) ++
-      obj.value.getBytes
+      Ints.toByteArray(obj.value.noSpaces.getBytes.length) ++
+      obj.value.noSpaces.getBytes
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractBox] = Try {
@@ -224,7 +225,10 @@ class ContractBoxSerializer extends Serializer[ContractBox] {
 
     val valueLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
-    val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
+    val value = parse(new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))) match {
+      case Left(f) => throw f
+      case Right(j: Json) => j
+    }
 
     ContractBox(proposition, nonce, value)
   }

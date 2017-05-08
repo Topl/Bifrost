@@ -14,7 +14,17 @@ import scala.util.{Failure, Success, Try}
 class Contract(val Producer: PublicKey25519Proposition,
                val Hub: PublicKey25519Proposition,
                val Investor: PublicKey25519Proposition,
-               val storage: JsonObject) {
+               val storage: JsonObject,
+               val agreement: JsonObject,
+               val id: Array[Byte]) {
+
+  lazy val json: Json = Map(
+    "producer" -> Base58.encode(Producer.pubKeyBytes).asJson,
+    "hub" -> Base58.encode(Hub.pubKeyBytes).asJson,
+    "investor" -> Base58.encode(Investor.pubKeyBytes).asJson,
+    "agreement" -> agreement.asJson,
+    "storage" -> storage.asJson
+  ).asJson
 
   val complete: (PublicKey25519Proposition) => Try[Contract] = (actor: PublicKey25519Proposition) => {
     if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
@@ -61,19 +71,20 @@ object Contract {
 
   val contractMethods: Map[String, Method] = classOf[Contract].getMethods.map(m => m.getName -> m)(collection.breakOut)
 
-  def apply(cs: Json): Contract = {
+  def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
 
     new Contract(
       new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       new PublicKey25519Proposition(Base58.decode(jsonMap("hub").asString.get).get),
       new PublicKey25519Proposition(Base58.decode(jsonMap("investor").asString.get).get),
-      jsonMap("storage").asObject.get
+      jsonMap("storage").asObject.get,
+      jsonMap("agreement").asObject.get,
+      id
     )
   }
 
-  def execute(cs: Json, methodName: String)(args: Seq[AnyRef]) : Try[Either[Contract, Json]] = Try {
-    val c: Contract = Contract(cs)
+  def execute(c: Contract, methodName: String)(args: Seq[AnyRef]) : Try[Either[Contract, Json]] = Try {
 
     (contractMethods.get(methodName) match {
       case Some(m: Method) => m.invoke(c, args:_*)

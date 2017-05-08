@@ -8,6 +8,8 @@ import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSeri
 import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox, ProfileBox}
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
+import examples.bifrost.contract.Contract
+import examples.bifrost.transaction.ContractMethodExecutionCompanion
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -18,7 +20,8 @@ import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
+import scala.util.parsing.json.JSONArray
 
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
@@ -65,8 +68,17 @@ case class ContractCreation(agreement: Agreement,
     // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractCreation.nonceFromDigest(digest)
-    val agreementString = new String(messageToSign)
-    IndexedSeq(ContractBox(proposition, nonce, agreementString))
+
+    val boxValue: Json = Map(
+      "agreement" -> Base58.encode(AgreementCompanion.toBytes(agreement)).asJson,
+      "parties" -> parties.map(_.pubKeyBytes).asJson,
+      "storage" -> Map(
+        "status" -> "initialized"
+      ).asJson,
+      "lastUpdated" -> timestamp.asJson
+    ).asJson
+
+    IndexedSeq(ContractBox(proposition, nonce, boxValue))
   }
 
   override lazy val json: Json = Map(
@@ -96,6 +108,97 @@ object ContractCreation {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
+
+    require(Agreement.validate(tx.agreement).isSuccess)
+
+    require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.zip(tx.parties) forall { case (signature, proposition) =>
+      signature.isValid(proposition, tx.messageToSign)
+  })
+}
+
+}
+
+case class ContractMethodExecution(contract: Contract,
+                                   methodName: String,
+                                   parameters: Json,
+                                   signatures: IndexedSeq[Signature25519],
+                                   fee: Long,
+                                   timestamp: Long)
+  extends ContractTransaction {
+
+  override type M = ContractMethodExecution
+
+  lazy val proposition = MofNProposition(1,
+    Set(
+      contract.Producer.pubKeyBytes,
+      contract.Hub.pubKeyBytes,
+      contract.Investor.pubKeyBytes
+    )
+  )
+
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contract.id)
+
+  override lazy val unlockers: Traversable[BoxUnlocker[MofNProposition]] = boxIdsToOpen.zip(signatures).map {
+    case (boxId, signature) =>
+      new BoxUnlocker[MofNProposition] {
+        override val closedBoxId: Array[Byte] = boxId
+        override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signature))
+      }
+  }
+
+  lazy val hashNoNonces = FastCryptographicHash(
+      contract.id ++
+      methodName.getBytes ++
+      parameters.noSpaces ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee)
+  )
+
+
+  override lazy val newBoxes: Traversable[BifrostBox] = {
+    // TODO check if this nonce is secure
+    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    val nonce = ContractMethodExecution.nonceFromDigest(digest)
+
+    Contract.execute(contract, methodName)(parameters.as[List[AnyRef]].toSeq) match {
+      case Success(res) => res match {
+        case Left(updatedContract) => IndexedSeq(ContractBox(proposition, nonce, updatedContract.json))
+        case Right(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))
+      }
+      case Failure(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))
+    }
+  }
+
+  override lazy val json: Json = Map(
+    "contract" -> contract.json,
+    "methodName" -> methodName.asJson,
+    "parameters" -> parameters,
+    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
+
+  override lazy val serializer = ContractMethodExecutionCompanion
+
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(
+    Longs.toByteArray(timestamp)
+  )
+
+  override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
+
+}
+
+object ContractMethodExecution {
+  type Value = Long
+  type Nonce = Long
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  def validate(tx: ContractMethodExecution): Try[Unit] = Try {
 
     require(Agreement.validate(tx.agreement).isSuccess)
 
@@ -229,13 +332,8 @@ object PolyTransfer {
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,
-<<<<<<< HEAD:src/main/scala/bifrost/transaction/BifrostTransaction.scala
-                       signatures: IndexedSeq[Signature25519],
-                       keyValues: Map[String, String],
-=======
                        signature: Signature25519,
-                       val keyValues: Map[String, String],
->>>>>>> changed ProfileTransaction to take only one signature. Added validation for ProfileTransaction:examples/src/main/scala/examples/bifrost/transaction/BifrostTransaction.scala
+                       keyValues: Map[String, String],
                        override val fee: Long,
                        override val timestamp: Long)
   extends BifrostTransaction{
