@@ -9,7 +9,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
-import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
+import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox, ProfileBox}
 import io.circe
 import io.circe.Json
 import io.circe.syntax._
@@ -117,6 +117,12 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield ArbitBox(proposition, nonce, value)
+
+  lazy val profileBoxGen: Gen[ProfileBox] = for {
+    proposition <- propositionGen
+    value <- stringGen
+    field <- stringGen
+  } yield ProfileBox(proposition, 0L, value, field)
 
   lazy val agreementTermsGen: Gen[AgreementTerms] = for {
     pledge <- positiveLongGen

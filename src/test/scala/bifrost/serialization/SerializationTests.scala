@@ -4,7 +4,7 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.box.{ArbitBox, BifrostBoxSerializer, ContractBox, PolyBox}
+import bifrost.transaction.box._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -51,6 +51,15 @@ class SerializationTests extends PropSpec
   property("ArbitBox Serialization") {
     forAll(arbitBoxGen) {
       b: ArbitBox =>
+        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+    }
+  }
+
+  property("ProfileBox Serialization") {
+    forAll(profileBoxGen) {
+      b: ProfileBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         serialized shouldEqual BifrostBoxSerializer.toBytes(b)
