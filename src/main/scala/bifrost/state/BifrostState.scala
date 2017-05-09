@@ -212,6 +212,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* Make sure there are no existing boxes of the all fields in tx
     *  If there is one box that exists then the tx is invalid
     * */
+    val keysSet = pt.keyValues.keys.toSet
+    require(keysSet.subsetOf(BifrostState.acceptableProfileFields))
     require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].field) match {
       case Success(box) => false
       case Failure(box) => true
@@ -229,6 +231,9 @@ object BifrostState {
   type BPMOD = BifrostBlock
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
+
+  val acceptableProfileFields = Set("Role")
+  val acceptableRoleValues = Set("Investor", "Hub", "Producer")
 
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
