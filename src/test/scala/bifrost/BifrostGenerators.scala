@@ -10,6 +10,7 @@ import bifrost.history.{BifrostHistory, BifrostStorage}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
 import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
+import examples.bifrost.contract.Contract
 import io.circe
 import io.circe.Json
 import io.circe.syntax._
@@ -20,6 +21,7 @@ import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
 import scala.concurrent.duration._
@@ -42,13 +44,13 @@ trait BifrostGenerators extends CoreGenerators {
   //noinspection ScalaStyle
   lazy val base10gen: Gen[Int] = Gen.choose(0,10)
 
-  val jsonTypes: Seq[String] = Seq() :+ "Object" :+ "Array" :+ "Boolean" :+ "String" :+ "Number"
+  val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
   lazy val jsonTypeGen: Gen[String] = Gen.oneOf(jsonTypes)
 
   def jsonGen(depth: Int = 0): Gen[Json] = for {
     numFields <- positiveTinyIntGen
-  } yield (0 until numFields) map { _ => stringGen.sample.get -> (
+  } yield ((0 until numFields) map { _ => stringGen.sample.get -> (
     jsonTypeGen.sample.get match {
       case "Object" if depth < 2 => jsonGen(depth + 1).sample.get
       case "Array" if depth < 3 => jsonArrayGen(depth + 1).sample.get
@@ -57,7 +59,7 @@ trait BifrostGenerators extends CoreGenerators {
       case "Number" => positiveDoubleGen.sample.get.asJson
       case _ => stringGen.sample.get.asJson
     })
-  } asJson
+  } toMap).asJson
 
   def jsonArrayGen(depth: Int = 0): Gen[Json] = for {
     numFields <- positiveTinyIntGen
@@ -146,6 +148,22 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield Agreement(terms, timestamp)
 
+  lazy val contractGen: Gen[Contract] = for {
+    producer <- propositionGen
+    investor <- propositionGen
+    hub <- propositionGen
+    storage <- jsonGen()
+    status <- jsonGen()
+    agreement <- validAgreementGen.map(_.json)
+    id <- genBytesList(FastCryptographicHash.DigestSize)
+  } yield Contract(Map(
+    "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+    "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "storage" -> Map("status" -> status, "other" -> storage).asJson,
+    "agreement" -> agreement
+  ).asJson, id)
+
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
@@ -167,6 +185,8 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 
+
+  lazy val validContractMethods: List[String] = List("complete", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen
