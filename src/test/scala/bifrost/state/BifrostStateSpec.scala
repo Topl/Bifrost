@@ -119,10 +119,4 @@ class BifrostStateSpec extends PropSpec
     // Create invalid PolyTransfer
     // send tx to state
   }
-
-  property("Attempting to validate a PolyTransfer without valid signature should error") {
-    // Create invalid PolyTransfer
-    // send tx to state
-  }
-
 }

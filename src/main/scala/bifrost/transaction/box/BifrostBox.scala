@@ -65,6 +65,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case p: PolyBox => (new PolyBoxSerializer).toBytes(p)
     case a: ArbitBox => (new ArbitBoxSerializer).toBytes(a)
     case c: ContractBox => (new ContractBoxSerializer).toBytes(c)
+    case profileb: ProfileBox => ProfileBoxSerializer.toBytes(obj.asInstanceOf[ProfileBox])
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -78,7 +79,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ArbitBox" => (new ArbitBoxSerializer).parseBytes(bytes)
       case "PolyBox" => (new PolyBoxSerializer).parseBytes(bytes)
       case "ContractBox" => (new ContractBoxSerializer).parseBytes(bytes)
-      case "ProfileBox" => (new ProfileBoxSerializer).parseBytes(bytes)
+      case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
@@ -261,7 +262,7 @@ object ProfileBox {
     FastCryptographicHash(prop.pubKeyBytes ++ field.getBytes)
 }
 
-class ProfileBoxSerializer extends Serializer[ProfileBox] {
+object ProfileBoxSerializer extends Serializer[ProfileBox] {
 
   def toBytes(obj: ProfileBox): Array[Byte] = {
 

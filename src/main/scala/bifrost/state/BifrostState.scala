@@ -51,9 +51,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  private def getProfileBox(prop: PublicKey25519Proposition, field: String): ProfileBox = {
+  private def getProfileBox(prop: PublicKey25519Proposition, field: String): Try[ProfileBox] = {
     val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field)))
-    (new ProfileBoxSerializer).parseBytes(boxBytes.get.data).get
+    ProfileBoxSerializer.parseBytes(boxBytes.get.data)
   }
 
   override def closedBox(boxId: Array[Byte]): Option[BX] =
@@ -107,6 +107,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   override def validate(transaction: TX): Try[Unit] = transaction match {
     case sct: PolyTransfer => validatePolyTransfer(sct)
     case cc: ContractCreation => validateContractCreation(cc)
+    case pt: ProfileTransaction => validateProfileTransaction(pt)
   }
 
   def validatePolyTransfer(sct: PolyTransfer): Try[Unit] = Try {
@@ -157,9 +158,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateContractCreation(cc: ContractCreation): Try[Unit] = Try {
 
-    // First check to see all roles are present
-    val roleBoxes: IndexedSeq[ProfileBox] = cc.parties.map(getProfileBox(_, "role"))
-    val allRolesPresent = Set("Investor", "Producer", "Hub").subsetOf(roleBoxes.map(_.value).toSet)
+    /* First check to see all roles are present */
+    val roleBoxes: IndexedSeq[ProfileBox] = cc.parties.map(getProfileBox(_, "Role").get)
+    val allRolesPresent = BifrostState.acceptableRoleValues.subsetOf(roleBoxes.map(_.value).toSet)
     require(allRolesPresent)
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
@@ -199,6 +200,23 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     // TODO check reputation of parties
   }
 
+  /**
+    *
+    * @param pt: ProfileTransaction
+    * @return success or failure
+    */
+  def validateProfileTransaction(pt: ProfileTransaction): Try[Unit] = Try {
+    /* Make sure there are no existing boxes of the all fields in tx
+    *  If there is one box that exists then the tx is invalid
+    * */
+    val keysSet = pt.keyValues.keys.toSet
+    require(keysSet.subsetOf(BifrostState.acceptableProfileFields))
+    require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].field) match {
+      case Success(box) => false
+      case Failure(box) => true
+    }))
+    semanticValidity(pt)
+  }
 }
 
 object BifrostState {
@@ -210,6 +228,9 @@ object BifrostState {
   type BPMOD = BifrostBlock
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
+
+  val acceptableProfileFields = Set("Role")
+  val acceptableRoleValues = Set("Investor", "Hub", "Producer")
 
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {

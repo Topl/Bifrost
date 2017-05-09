@@ -67,10 +67,4 @@ class BifrostTransactionSpec extends PropSpec
     }*/
   }
 
-  property("Transaction with modified fee is invalid") {
-    /*forAll(simpleBoxTransactionGen) { tx =>
-      HBoxStoredState.semanticValidity(tx.copy(fee = tx.fee + 1)).isSuccess shouldBe false
-    }*/
-  }
-
 }
