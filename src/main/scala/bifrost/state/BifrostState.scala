@@ -51,6 +51,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
+  private def getProfileBox(prop: PublicKey25519Proposition, field: String): ProfileBox = {
+    val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field)))
+    (new ProfileBoxSerializer).parseBytes(boxBytes.get.data).get
+  }
+
   override def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
@@ -145,10 +150,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     * validates ContractCreation instance on its unlockers && timestamp of the contract
+    *
     * @param cc: ContractCreation object
     * @return
     */
+  //noinspection ScalaStyle
   def validateContractCreation(cc: ContractCreation): Try[Unit] = Try {
+
+    // First check to see all roles are present
+    val roleBoxes: IndexedSeq[ProfileBox] = cc.parties.map(getProfileBox(_, "role"))
+    val allRolesPresent = Set("Investor", "Producer", "Hub").subsetOf(roleBoxes.map(_.value).toSet)
+    require(allRolesPresent)
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
@@ -173,6 +185,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       })
 
       val txTimestampIsAcceptable = cc.timestamp > timestamp && timestamp < Instant.now().toEpochMilli
+
 
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
@@ -217,6 +230,7 @@ object BifrostState {
           // (rm, add, fee)
           case sc: PolyTransfer => (sc.boxIdsToOpen.toSet, sc.newBoxes.toSet, sc.fee)
           case cc: ContractCreation => (cc.boxIdsToOpen.toSet, cc.newBoxes.toSet, cc.fee)
+          case pt: ProfileTransaction => (pt.boxIdsToOpen.toSet, pt.newBoxes.toSet, pt.fee)
         }
       }
 

@@ -220,7 +220,7 @@ trait BifrostGenerators extends CoreGenerators {
     seqLen <- positiveTinyIntGen
   } yield ((0 until seqLen) map { _ => key25519Gen.sample.get }).toSet
 
-  val transactionTypes: Seq[String] = Seq() :+ "ContractCreation" :+ "PolyTransfer"
+  val transactionTypes: Seq[String] = Seq() :+ "ContractCreation" :+ "PolyTransfer" :+ "ProfileTransaction"
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
@@ -228,6 +228,7 @@ trait BifrostGenerators extends CoreGenerators {
     _ => Gen.oneOf(transactionTypes).sample.get match {
       case "ContractCreation" => contractCreationGen.sample.get
       case "PolyTransfer" => polyTransferGen.sample.get
+      case "ProfileTransaction" => profileTxGen.sample.get
     }
   }
 
