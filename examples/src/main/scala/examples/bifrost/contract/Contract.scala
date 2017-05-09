@@ -28,16 +28,15 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   def complete(actor: PublicKey25519Proposition): Try[Contract] = {
     if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
-
+      Success(this)
     } else if (Hub.pubKeyBytes sameElements actor.pubKeyBytes) {
-
+      Success(this)
     } else if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
-
+      Success(this)
     } else {
-
+      Failure(new IllegalAccessException("Actor doesn't correspond to any"))
     }
 
-    Success(this)
   }
 
   def currentStatus(): Try[Json] = Try {
@@ -46,23 +45,25 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   def deliver(producer: PublicKey25519Proposition): Try[Contract] = {
     if (producer.pubKeyBytes sameElements Producer.pubKeyBytes) {
-
+      Success(this)
+    } else {
+      Failure(new IllegalAccessException("Wrong actor"))
     }
 
-    Success(this)
   }
 
   def confirmDelivery(hub: PublicKey25519Proposition): Try[Contract] = {
     if (hub.pubKeyBytes sameElements Hub.pubKeyBytes) {
-
+      Success(this)
+    } else {
+      Failure(new IllegalAccessException("Wrong actor"))
     }
 
-    Success(this)
   }
 
-  def checkExpiration(): Try[Json] = {
-    val expiration: Long = storage("agreement").get.asObject.get.apply("expirationTimestamp").get.asNumber.get.toLong.get
-    Success((Instant.now().toEpochMilli > expiration).asJson)
+  def checkExpiration(): Try[Json] = Try {
+    val expiration: Long = this.agreement("expirationTimestamp").get.as[Long].right.get
+    (Instant.now().toEpochMilli > expiration).asJson
   }
 
 }
@@ -72,7 +73,10 @@ object Contract {
   // get runtime mirror
   val rm = ru.runtimeMirror(getClass.getClassLoader)
 
-  val contractMethods: Map[String, ru.MethodSymbol] = ru.typeOf[Contract].decls.map(d => d.asMethod.name.toString -> d.asMethod).toMap
+  // TODO this currently also shows public accessors and the like. Want to restrict. May have to build registry after all
+  val contractMethods: Map[String, ru.MethodSymbol] = ru.typeOf[Contract].decls collect {
+    case m: ru.Symbol if m.isMethod => m.asMethod.name.toString -> m.asMethod
+  } toMap
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
@@ -89,20 +93,25 @@ object Contract {
 
   def execute(c: Contract, methodName: String)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
-    (contractMethods.get(methodName) match {
-      case Some(m: ru.MethodSymbol) => rm.reflect(c).reflectMethod(m)(
-        m.paramLists.head.map(p => {
-          p.typeSignature.typeSymbol.asClass.name match {
-            case "PublicKey25519Proposition" => args(p.name.toString).get.as[PublicKey25519Proposition].right.get
-            case _ => decode(args(p.name.toString).get.noSpaces)
+    val methodAttempt: Option[ru.MethodSymbol] = contractMethods.get(methodName)
+
+    methodAttempt match {
+      case Some(m: ru.MethodSymbol) =>
+        val params = m.paramLists.head.map(p => {
+          val typename = p.typeSignature.typeSymbol.asClass.name.toString
+          typename match {
+            case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.name.toString).get.asString.get).get)
+            case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
           }
-        }):_*
-      )
+        })
+
+        rm.reflect(c).reflectMethod(m)(params :_*) match {
+          case c: Success[Contract] => Left(c.value)
+          case j: Success[Json] => Right(j.value)
+          case f: Failure[Any] => throw f.exception
+        }
+
       case _ => throw new MatchError(s"Could not find method <$methodName>")
-    }) match {
-      case c: Success[Contract] => Left(c.value)
-      case j: Success[Json] => Right(j.value)
-      case f: Failure[Any] => throw f.exception
     }
   }
 

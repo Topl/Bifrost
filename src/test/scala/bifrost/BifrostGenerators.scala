@@ -212,7 +212,7 @@ trait BifrostGenerators extends CoreGenerators {
     seqLen <- positiveTinyIntGen
   } yield ((0 until seqLen) map { _ => key25519Gen.sample.get }).toSet
 
-  val transactionTypes: Seq[String] = Seq() :+ "ContractCreation" :+ "PolyTransfer" :+ "ProfileTransaction"
+  val transactionTypes: Seq[String] = Seq("ContractCreation", "PolyTransfer", "ProfileTransaction")
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
