@@ -121,7 +121,7 @@ object ContractCreation {
 
 }
 
-case class ContractMethodExecution(contract: Contract,
+case class ContractMethodExecution(contractBox: ContractBox,
                                    methodName: String,
                                    parameters: Json,
                                    signatures: IndexedSeq[Signature25519],
@@ -130,6 +130,9 @@ case class ContractMethodExecution(contract: Contract,
   extends ContractTransaction {
 
   override type M = ContractMethodExecution
+
+
+  val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
   lazy val proposition = MofNProposition(1,
     Set(
@@ -152,7 +155,7 @@ case class ContractMethodExecution(contract: Contract,
   lazy val hashNoNonces = FastCryptographicHash(
       contract.id ++
       methodName.getBytes ++
-      parameters.noSpaces ++
+      parameters.noSpaces.getBytes ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
@@ -164,7 +167,7 @@ case class ContractMethodExecution(contract: Contract,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractMethodExecution.nonceFromDigest(digest)
 
-    Contract.execute(contract, methodName)(parameters.as[List[AnyRef]].toSeq) match {
+    Contract.execute(contract, methodName)(parameters.asObject.get) match {
       case Success(res) => res match {
         case Left(updatedContract) => IndexedSeq(ContractBox(proposition, nonce, updatedContract.json))
         case Right(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))
@@ -199,13 +202,11 @@ object ContractMethodExecution {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: ContractMethodExecution): Try[Unit] = Try {
-
-    require(Agreement.validate(tx.agreement).isSuccess)
-
-    require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
+    require(tx.signatures.size == 2)
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures.zip(tx.parties) forall { case (signature, proposition) =>
+    // TODO add actor/profile box
+    require(tx.signatures.zip(Seq(tx.contractBox.proposition)) forall { case (signature, proposition) =>
       signature.isValid(proposition, tx.messageToSign)
     })
   }

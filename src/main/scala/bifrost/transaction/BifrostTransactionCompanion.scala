@@ -8,6 +8,11 @@ import io.circe.optics.JsonPath._
 import io.circe.parser._
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
+import cats.syntax.either._
+import examples.bifrost.history.BifrostHistory
+import examples.bifrost.state.BifrostState
+import examples.bifrost.transaction.box.{ContractBox, ContractBoxSerializer}
+import examples.hybrid.state.SimpleBoxTransactionCompanion
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
@@ -46,6 +51,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       typeBytes ++
       (m match {
         case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
+        case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toBytes(cme)
       })
   }
 
@@ -204,16 +210,14 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         typeBytes,
         Longs.toByteArray(cme.fee),
         Longs.toByteArray(cme.timestamp),
-        Ints.toByteArray(cme.contract.json.noSpaces.getBytes.length),
         Ints.toByteArray(cme.methodName.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
         Ints.toByteArray(cme.signatures.length),
-        cme.contract.id,
-        cme.contract.json.noSpaces.getBytes,
         cme.methodName.getBytes,
         cme.parameters.noSpaces.getBytes,
-        cme.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes)
-      )
+        cme.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+        cme.contractBox.bytes
+    )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractMethodExecution] = Try {
@@ -230,24 +234,11 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes = 2*Longs.BYTES
 
-    val Array(contractJsonLength: Int, methodNameLength: Int, parameterJsonLength: Int, sigLength: Int) = (0 until 3).map { i =>
+    val Array(methodNameLength: Int, parameterJsonLength: Int, sigLength: Int) = (0 until 3).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 4*Ints.BYTES
-
-    val contractId: Array[Byte] = bytesWithoutType.slice(numReadBytes, numReadBytes + FastCryptographicHash.DigestSize)
-
-    numReadBytes += FastCryptographicHash.DigestSize
-
-    val contractJson: Json = parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + contractJsonLength))) match {
-      case Left(f) => throw f
-      case Right(j: Json) => j
-    }
-
-    numReadBytes += contractJsonLength
-
-    val contract: Contract = Contract(contractJson, contractId)
+    numReadBytes += 3*Ints.BYTES
 
     val methodName = new String(bytesWithoutType.slice(numReadBytes, numReadBytes + methodNameLength))
 
@@ -262,7 +253,11 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
       Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
     }
 
-    ContractMethodExecution(contract, methodName, parameters, signatures, fee, timestamp)
+    numReadBytes += sigLength * Signature25519.SignatureSize
+
+    val contractBox: ContractBox = new ContractBoxSerializer().parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
+
+    ContractMethodExecution(contractBox, methodName, parameters, signatures, fee, timestamp)
   }
 
 }

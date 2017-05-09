@@ -1,10 +1,10 @@
 package examples.bifrost.contract
 
-import java.lang.reflect.Method
 import java.time.Instant
 
-import io.circe.syntax._
-import io.circe.{Json, JsonObject}
+import scala.reflect.runtime.{universe => ru}
+import scala.reflect.runtime.universe._
+import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -26,7 +26,7 @@ class Contract(val Producer: PublicKey25519Proposition,
     "storage" -> storage.asJson
   ).asJson
 
-  val complete: (PublicKey25519Proposition) => Try[Contract] = (actor: PublicKey25519Proposition) => {
+  def complete(actor: PublicKey25519Proposition): Try[Contract] = {
     if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
 
     } else if (Hub.pubKeyBytes sameElements actor.pubKeyBytes) {
@@ -40,11 +40,11 @@ class Contract(val Producer: PublicKey25519Proposition,
     Success(this)
   }
 
-  val currentStatus: () => Try[Json] = () => Try {
+  def currentStatus(): Try[Json] = Try {
     this.storage("status").get
   }
 
-  val deliver: (PublicKey25519Proposition) => Try[Contract] = (producer: PublicKey25519Proposition) => {
+  def deliver(producer: PublicKey25519Proposition): Try[Contract] = {
     if (producer.pubKeyBytes sameElements Producer.pubKeyBytes) {
 
     }
@@ -52,7 +52,7 @@ class Contract(val Producer: PublicKey25519Proposition,
     Success(this)
   }
 
-  val confirmDelivery: (PublicKey25519Proposition) => Try[Contract] = (hub: PublicKey25519Proposition) => {
+  def confirmDelivery(hub: PublicKey25519Proposition): Try[Contract] = {
     if (hub.pubKeyBytes sameElements Hub.pubKeyBytes) {
 
     }
@@ -60,7 +60,7 @@ class Contract(val Producer: PublicKey25519Proposition,
     Success(this)
   }
 
-  val checkExpiration: () => Try[Json] = () => {
+  def checkExpiration(): Try[Json] = {
     val expiration: Long = storage("agreement").get.asObject.get.apply("expirationTimestamp").get.asNumber.get.toLong.get
     Success((Instant.now().toEpochMilli > expiration).asJson)
   }
@@ -69,7 +69,10 @@ class Contract(val Producer: PublicKey25519Proposition,
 
 object Contract {
 
-  val contractMethods: Map[String, Method] = classOf[Contract].getMethods.map(m => m.getName -> m)(collection.breakOut)
+  // get runtime mirror
+  val rm = ru.runtimeMirror(getClass.getClassLoader)
+
+  val contractMethods: Map[String, ru.MethodSymbol] = ru.typeOf[Contract].decls.map(d => d.asMethod.name.toString -> d.asMethod).toMap
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
@@ -84,10 +87,17 @@ object Contract {
     )
   }
 
-  def execute(c: Contract, methodName: String)(args: Seq[AnyRef]) : Try[Either[Contract, Json]] = Try {
+  def execute(c: Contract, methodName: String)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
     (contractMethods.get(methodName) match {
-      case Some(m: Method) => m.invoke(c, args:_*)
+      case Some(m: ru.MethodSymbol) => rm.reflect(c).reflectMethod(m)(
+        m.paramLists.head.map(p => {
+          p.typeSignature.typeSymbol.asClass.name match {
+            case "PublicKey25519Proposition" => args(p.name.toString).get.as[PublicKey25519Proposition].right.get
+            case _ => decode(args(p.name.toString).get.noSpaces)
+          }
+        }):_*
+      )
       case _ => throw new MatchError(s"Could not find method <$methodName>")
     }) match {
       case c: Success[Contract] => Left(c.value)

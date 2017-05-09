@@ -34,6 +34,7 @@ class SerializationTests extends PropSpec
   property("ContractBox Serialization") {
     forAll(contractBoxGen) {
       b: ContractBox =>
+        print(b.value.spaces2)
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         serialized sameElements BifrostBoxSerializer.toBytes(b)
@@ -96,6 +97,16 @@ class SerializationTests extends PropSpec
           ProfileTransactionCompanion.toBytes(p)
         ).get
         ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p)
+    }
+  }
+
+  property("ContractMethodExecution Serialization") {
+    forAll(contractMethodExecutionGen) {
+      c: ContractMethodExecution =>
+        val parsed = ContractTransactionCompanion.parseBytes(
+          ContractTransactionCompanion.toBytes(c)
+        ).get
+        ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
     }
   }
 

@@ -11,6 +11,8 @@ import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
 import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
 import io.circe
+import io.circe.Json
+import io.circe.syntax._
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.core.block.Block
@@ -39,6 +41,34 @@ trait BifrostGenerators extends CoreGenerators {
 
   //noinspection ScalaStyle
   lazy val base10gen: Gen[Int] = Gen.choose(0,10)
+
+  val jsonTypes: Seq[String] = Seq() :+ "Object" :+ "Array" :+ "Boolean" :+ "String" :+ "Number"
+
+  lazy val jsonTypeGen: Gen[String] = Gen.oneOf(jsonTypes)
+
+  def jsonGen(depth: Int = 0): Gen[Json] = for {
+    numFields <- positiveTinyIntGen
+  } yield (0 until numFields) map { _ => stringGen.sample.get -> (
+    jsonTypeGen.sample.get match {
+      case "Object" if depth < 2 => jsonGen(depth + 1).sample.get
+      case "Array" if depth < 3 => jsonArrayGen(depth + 1).sample.get
+      case "Boolean" => Gen.oneOf(Seq(true, false)).sample.get.asJson
+      case "String" => stringGen.sample.get.asJson
+      case "Number" => positiveDoubleGen.sample.get.asJson
+      case _ => stringGen.sample.get.asJson
+    })
+  } asJson
+
+  def jsonArrayGen(depth: Int = 0): Gen[Json] = for {
+    numFields <- positiveTinyIntGen
+  } yield (0 until numFields) map { _ => jsonTypeGen.sample.get match {
+    case "Object" if depth < 2 => jsonGen(depth + 1).sample.get
+    case "Array" if depth < 3 => jsonArrayGen(depth + 1).sample.get
+    case "Boolean" => Gen.oneOf(Seq(true, false)).sample.get.asJson
+    case "String" => stringGen.sample.get.asJson
+    case "Number" => positiveDoubleGen.sample.get.asJson
+    case _ => stringGen.sample.get.asJson
+  }} asJson
 
   //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
@@ -78,7 +108,7 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val contractBoxGen: Gen[ContractBox] = for {
     proposition <- oneOfNPropositionGen
     nonce <- positiveLongGen
-    value <- stringGen
+    value <- jsonGen()
   } yield ContractBox(proposition._2, nonce, value)
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
@@ -156,6 +186,15 @@ trait BifrostGenerators extends CoreGenerators {
     )
     ContractCreation(agreement, parties, signatures, fee, timestamp)
   }
+
+  lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
+    contract <- contractBoxGen
+    methodName <- stringGen
+    parameters <- jsonArrayGen()
+    sigSeq <- sigSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield ContractMethodExecution(contract, methodName, parameters, sigSeq, fee, timestamp)
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
     proposition <- propositionGen

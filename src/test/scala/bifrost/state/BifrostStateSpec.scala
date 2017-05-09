@@ -65,8 +65,8 @@ class BifrostStateSpec extends PropSpec
           boxType.getBytes ++
           MofNPropositionSerializer.toBytes(box.proposition) ++
           Longs.toByteArray(box.nonce) ++
-          Ints.toByteArray(box.value.getBytes.length) ++
-          box.value.getBytes
+          Ints.toByteArray(box.value.noSpaces.getBytes.length) ++
+          box.value.noSpaces.getBytes
 
 
         val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(1)).get
