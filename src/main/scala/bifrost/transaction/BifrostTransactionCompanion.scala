@@ -256,6 +256,10 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     val contractBox: ContractBox = new ContractBoxSerializer().parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
 
     ContractMethodExecution(contractBox, methodName, parameters, signatures, fee, timestamp)
+<<<<<<< HEAD:src/main/scala/bifrost/transaction/BifrostTransactionCompanion.scala
+=======
+
+>>>>>>> Fixed companion. Adding json generators for testing. Using reflection to map methods out and pull specific arguments from json:examples/src/main/scala/examples/bifrost/transaction/BifrostTransactionCompanion.scala
   }
 
 }

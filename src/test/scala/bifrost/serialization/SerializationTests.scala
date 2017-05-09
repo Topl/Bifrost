@@ -120,6 +120,16 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("ContractMethodExecution Serialization") {
+    forAll(contractMethodExecutionGen) {
+      c: ContractMethodExecution =>
+        val parsed = ContractTransactionCompanion.parseBytes(
+          ContractTransactionCompanion.toBytes(c)
+        ).get
+        ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
+    }
+  }
+
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
