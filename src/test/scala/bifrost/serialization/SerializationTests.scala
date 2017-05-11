@@ -96,7 +96,7 @@ class SerializationTests extends PropSpec
         val parsed = ProfileTransactionCompanion.parseBytes(
           ProfileTransactionCompanion.toBytes(p)
         ).get
-        ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p)
+        ProfileTransactionCompanion.toBytes(parsed) shouldEqual ProfileTransactionCompanion.toBytes(p)
     }
   }
 

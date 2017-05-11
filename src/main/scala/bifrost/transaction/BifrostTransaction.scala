@@ -132,7 +132,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override type M = ContractMethodExecution
 
 
-  val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+  lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
   lazy val proposition = MofNProposition(1,
     Set(

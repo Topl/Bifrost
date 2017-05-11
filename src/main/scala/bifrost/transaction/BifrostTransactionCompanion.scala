@@ -244,6 +244,9 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += methodNameLength
 
+    println(">>>>>>>>>>>>>>>")
+    println(s"MethodNameLength: ${methodNameLength}. MethodName: ${methodName}")
+    println(parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + parameterJsonLength))))
     val parameters: Json = parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + parameterJsonLength))) match {
       case Left(f) => throw f
       case Right(j: Json) => j
