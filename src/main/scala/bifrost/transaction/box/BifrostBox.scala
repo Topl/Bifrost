@@ -62,10 +62,10 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
   }
 
   override def toBytes(obj: BifrostBox): Array[Byte] = obj match {
-    case p: PolyBox => (new PolyBoxSerializer).toBytes(p)
-    case a: ArbitBox => (new ArbitBoxSerializer).toBytes(a)
-    case c: ContractBox => (new ContractBoxSerializer).toBytes(c)
-    case profileb: ProfileBox => ProfileBoxSerializer.toBytes(obj.asInstanceOf[ProfileBox])
+    case p: PolyBox => PolyBoxSerializer.toBytes(p)
+    case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
+    case c: ContractBox => ContractBoxSerializer.toBytes(c)
+    case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -76,9 +76,9 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
     typeStr match {
-      case "ArbitBox" => (new ArbitBoxSerializer).parseBytes(bytes)
-      case "PolyBox" => (new PolyBoxSerializer).parseBytes(bytes)
-      case "ContractBox" => (new ContractBoxSerializer).parseBytes(bytes)
+      case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
+      case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
+      case "ContractBox" => ContractBoxSerializer.parseBytes(bytes)
       case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
@@ -98,7 +98,7 @@ case class PolyBox(proposition: PublicKey25519Proposition,
   ).asJson
 }
 
-class PolyBoxSerializer extends Serializer[PolyBox] {
+object PolyBoxSerializer extends Serializer[PolyBox] {
 
   def toBytes(obj: PolyBox): Array[Byte] = {
 
@@ -139,7 +139,7 @@ case class ArbitBox(proposition: PublicKey25519Proposition,
   ).asJson
 }
 
-class ArbitBoxSerializer extends Serializer[ArbitBox] {
+object ArbitBoxSerializer extends Serializer[ArbitBox] {
 
   def toBytes(obj: ArbitBox): Array[Byte] = {
 
@@ -193,7 +193,7 @@ case class ContractBox(proposition: MofNProposition,
 
 }
 
-class ContractBoxSerializer extends Serializer[ContractBox] {
+object ContractBoxSerializer extends Serializer[ContractBox] {
 
   def toBytes(obj: ContractBox): Array[Byte] = {
 

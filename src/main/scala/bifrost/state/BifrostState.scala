@@ -105,23 +105,29 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   override def validate(transaction: TX): Try[Unit] = transaction match {
-    case sct: PolyTransfer => validatePolyTransfer(sct)
+    case poT: PolyTransfer => validatePolyTransfer(poT)
     case cc: ContractCreation => validateContractCreation(cc)
-    case pt: ProfileTransaction => validateProfileTransaction(pt)
+    case prT: ProfileTransaction => validateProfileTransaction(prT)
+    case cme: ContractMethodExecution => validateContractMethodExecution(cme)
   }
 
-  def validatePolyTransfer(sct: PolyTransfer): Try[Unit] = Try {
+  /**
+    *
+    * @param poT: the PolyTransfer to validate
+    * @return
+    */
+  def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = Try {
 
     val statefulValid: Try[Unit] = {
 
       val boxesSumTry: Try[Long] = {
-        sct.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+        poT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
           partialRes.flatMap(partialSum =>
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
               case Some(box: PolyBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, sct.messageToSign)) {
+                if (unlocker.boxKey.isValid(box.proposition, poT.messageToSign)) {
                   Success(partialSum + box.value)
                 } else {
                   Failure(new Exception("Incorrect unlocker"))
@@ -134,10 +140,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
 
       boxesSumTry flatMap { openSum =>
-        if (sct.newBoxes.map {
+        if (poT.newBoxes.map {
           case p: PolyBox => p.value
           case _ => 0L
-        }.sum == openSum - sct.fee) {
+        }.sum == openSum - poT.fee) {
           Success[Unit](Unit)
         } else {
           Failure(new Exception("Negative fee"))
@@ -146,7 +152,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     }
 
-    statefulValid.flatMap(_ => semanticValidity(sct))
+    statefulValid.flatMap(_ => semanticValidity(poT))
   }
 
   /**
@@ -218,7 +224,25 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case Success(box) => false
       case Failure(box) => true
     }))
+
     semanticValidity(pt)
+  }
+
+  /**
+    *
+    * @param cme: the ContractMethodExecution to validate
+    * @return
+    */
+  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
+
+    // TODO check fee
+    if(storage.get(ByteArrayWrapper(cme.contractBox.id)).isEmpty) {
+      Failure(new NoSuchElementException(s"Contract ${cme.contractBox.id} does not exist"))
+    } else if(cme.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli){
+      Failure(new Exception("Unacceptable timestamp"))
+    } else {
+      semanticValidity(cme)
+    }
   }
 }
 
@@ -237,10 +261,11 @@ object BifrostState {
 
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
-      case sc: PolyTransfer => PolyTransfer.validate(sc)
+      case poT: PolyTransfer => PolyTransfer.validate(poT)
       case cc: ContractCreation => ContractCreation.validate(cc)
-      case pt: ProfileTransaction => ProfileTransaction.validate(pt)
-      case _ => Failure( new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
+      case prT: ProfileTransaction => ProfileTransaction.validate(prT)
+      case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
+      case _ => Failure(new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
     }
   }
 

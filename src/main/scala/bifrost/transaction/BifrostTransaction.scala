@@ -68,6 +68,8 @@ case class ContractCreation(agreement: Agreement,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractCreation.nonceFromDigest(digest)
 
+    //  TODO key parties by their profile types
+    //  TODO make this like contract json
     val boxValue: Json = Map(
       "agreement" -> Base58.encode(AgreementCompanion.toBytes(agreement)).asJson,
       "parties" -> parties.map(_.pubKeyBytes).asJson,
@@ -168,9 +170,9 @@ case class ContractMethodExecution(contractBox: ContractBox,
     Contract.execute(contract, methodName)(actor)(parameters.asObject.get) match {
       case Success(res) => res match {
         case Left(updatedContract) => IndexedSeq(ContractBox(proposition, nonce, updatedContract.json))
-        case Right(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))
+        case Right(_) => IndexedSeq(contractBox)
       }
-      case Failure(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))
+      case Failure(_) => IndexedSeq(contractBox)
     }
   }
 
@@ -203,10 +205,8 @@ object ContractMethodExecution {
     require(tx.signatures.size == 2)
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    // TODO add actor/profile box
-    require(tx.signatures.zip(Seq(tx.contractBox.proposition)) forall { case (signature, proposition) =>
-      signature.isValid(proposition, tx.messageToSign)
-    })
+    require(tx.signatures(0).isValid(tx.contractBox.proposition, tx.messageToSign))
+    require(tx.signatures(1).isValid(tx.actor, tx.messageToSign))
   }
 
 }
