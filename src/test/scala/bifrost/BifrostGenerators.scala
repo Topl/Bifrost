@@ -4,13 +4,12 @@ import java.io.File
 
 import com.google.common.primitives.{Bytes, Longs}
 import bifrost.blocks.BifrostBlock
-import bifrost.contract._
+import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
 import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
-import examples.bifrost.contract.Contract
 import io.circe
 import io.circe.Json
 import io.circe.syntax._
@@ -107,12 +106,6 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen.map(new PiecewiseLinearSingle(_))
 
-  lazy val contractBoxGen: Gen[ContractBox] = for {
-    proposition <- oneOfNPropositionGen
-    nonce <- positiveLongGen
-    value <- contractGen.map(_.json)
-  } yield ContractBox(proposition._2, nonce, value)
-
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
@@ -143,27 +136,6 @@ trait BifrostGenerators extends CoreGenerators {
     contractEndTime <- positiveLongGen
   } yield Agreement(terms, contractEndTime)
 
-  lazy val validAgreementGen: Gen[Agreement] = for {
-    terms <- agreementTermsGen
-    timestamp <- positiveLongGen
-  } yield Agreement(terms, timestamp)
-
-  lazy val contractGen: Gen[Contract] = for {
-    producer <- propositionGen
-    investor <- propositionGen
-    hub <- propositionGen
-    storage <- jsonGen()
-    status <- jsonGen()
-    agreement <- validAgreementGen.map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
-  } yield Contract(Map(
-    "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
-    "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "storage" -> Map("status" -> status, "other" -> storage).asJson,
-    "agreement" -> agreement
-  ).asJson, id)
-
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
@@ -184,37 +156,6 @@ trait BifrostGenerators extends CoreGenerators {
     val keyValues = (0 until numKeys).map { _ => (stringGen.sample.get, stringGen.sample.get)}.foldLeft[Map[String, String]](Map())((a, b) => a + b )
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
-
-
-  lazy val validContractMethods: List[String] = List("complete", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
-
-  lazy val validContractCreationGen: Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield {
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
-    val messageToSign = Bytes.concat(
-      Longs.toByteArray(timestamp),
-      AgreementCompanion.toBytes(agreement),
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
-    )
-    val signatures = allKeyPairs.map(
-      keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
-    ContractCreation(agreement, parties, signatures, fee, timestamp)
-  }
-
-  lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
-    contract <- contractBoxGen
-    methodName <- stringGen
-    parameters <- jsonArrayGen()
-    sigSeq <- sigSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield ContractMethodExecution(contract, methodName, parameters, sigSeq, fee, timestamp)
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
     proposition <- propositionGen
@@ -245,20 +186,6 @@ trait BifrostGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield PolyTransfer(from, to, signatures, fee, timestamp)
-
-  lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield {
-    val fromKeyPairs = keyPairSetGen.sample.get.head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
-    val toKeyPairs = keyPairSetGen.sample.get.head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
-
-    PolyTransfer(from, to, fee, timestamp)
-  }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen

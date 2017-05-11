@@ -1,13 +1,13 @@
-package examples.bifrost.contract
+package bifrost.contract
 
 import java.time.Instant
 
-import scala.reflect.runtime.{universe => ru}
-import scala.reflect.runtime.universe._
-import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
+import io.circe._
+import io.circe.syntax._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
+import scala.reflect.runtime.{universe => ru}
 import scala.util.{Failure, Success, Try}
 
 

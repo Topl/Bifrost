@@ -1,16 +1,13 @@
 package bifrost.serialization
 
-import bifrost.BifrostGenerators
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box.{ArbitBox, BifrostBoxSerializer, ContractBox, PolyBox}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import io.circe.Json
-import io.circe.parser._
-import io.circe.syntax._
 import scorex.core.transaction.state.PrivateKey25519
 
 /**
@@ -20,7 +17,8 @@ class SerializationTests extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with ValidGenerators {
 
   property("oneOfNProposition Serialization") {
     forAll(oneOfNPropositionGen) {
@@ -60,23 +58,25 @@ class SerializationTests extends PropSpec
   }
 
   property("Agreement Serialization") {
-    forAll(agreementGen)
+    forAll(agreementGen) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
         AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
+    }
   }
 
   property("PolyTransfer Serialization") {
-    forAll(polyTransferGen)
+    forAll(polyTransferGen) {
       sc: PolyTransfer =>
         val parsed = TransferTransactionCompanion.parseBytes(
           TransferTransactionCompanion.toBytes(sc)
         ).get
         TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(sc)
+    }
   }
 
   property("ContractCreation Serialization") {
-    forAll(contractCreationGen)
+    forAll(contractCreationGen) {
       c: ContractCreation =>
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
@@ -84,10 +84,11 @@ class SerializationTests extends PropSpec
         val parsedBytes = ContractTransactionCompanion.toBytes(parsed)
         val directParsedBytes = ContractTransactionCompanion.toBytes(c)
         parsedBytes.length shouldEqual directParsedBytes.length
-        val res = parsedBytes.zip(directParsedBytes).map{
+        val res = parsedBytes.zip(directParsedBytes).map {
           case (parsed, directParsed) =>
             parsed shouldEqual directParsed
         }
+    }
   }
 
   property("ProfileTransaction Serialization") {
@@ -111,10 +112,11 @@ class SerializationTests extends PropSpec
   }
 
   property("BifrostBlock Serialization") {
-    forAll(bifrostBlockGen)
+    forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
         BifrostBlockCompanion.toBytes(parsed) shouldEqual BifrostBlockCompanion.toBytes(bb)
+    }
   }
 
   /* TODO Need a generator that generates erroneous JSON

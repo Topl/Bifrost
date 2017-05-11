@@ -1,6 +1,6 @@
 package bifrost
 
-import examples.curvepos.transaction.SimpleBlock
+import bifrost.blocks.BifrostBlock
 import scorex.core.NodeViewModifier
 import scorex.core.consensus.{BlockChain, SyncInfo}
 import scorex.core.serialization.Serializer
@@ -10,7 +10,7 @@ import scala.util.Try
 
 case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BlockChain.Score) extends SyncInfo {
   override def startingPoints: Seq[(NodeViewModifier.ModifierTypeId, NodeViewModifier.ModifierId)] = {
-    Seq(SimpleBlock.ModifierTypeId -> lastBlockID)
+    Seq(BifrostBlock.ModifierTypeId -> lastBlockID)
   }
 
   override type M = SimpleSyncInfo

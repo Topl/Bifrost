@@ -1,8 +1,7 @@
 package bifrost.contract
 
 
-import bifrost.BifrostGenerators
-import examples.bifrost.contract.Contract
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.encode.Base58
@@ -14,7 +13,8 @@ class ContractSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with ValidGenerators{
 
   property("Calling a method in the contract will with proper params not throw an error") {
     forAll(contractGen) {

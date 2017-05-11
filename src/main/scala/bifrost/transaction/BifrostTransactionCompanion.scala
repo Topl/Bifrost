@@ -1,18 +1,14 @@
 package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
-import examples.bifrost.contract.Contract
+import bifrost.contract._
+import bifrost.transaction.box.{ContractBox, ContractBoxSerializer}
 import io.circe.{HCursor, Json, ParsingFailure}
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import cats.syntax.either._
-import examples.bifrost.history.BifrostHistory
-import examples.bifrost.state.BifrostState
-import examples.bifrost.transaction.box.{ContractBox, ContractBoxSerializer}
-import examples.hybrid.state.SimpleBoxTransactionCompanion
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58

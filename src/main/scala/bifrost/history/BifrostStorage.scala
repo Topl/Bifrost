@@ -3,7 +3,6 @@ package bifrost.history
 import com.google.common.primitives.Longs
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
-import examples.hybrid.blocks._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier._
 import scorex.core.crypto.hash.FastCryptographicHash

@@ -3,7 +3,6 @@ package bifrost.blocks
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.transaction.box.{ArbitBox, BifrostBoxSerializer, PolyBox}
 import bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
-import examples.curvepos.transaction.SimpleBlock._
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.NodeViewModifier.ModifierTypeId

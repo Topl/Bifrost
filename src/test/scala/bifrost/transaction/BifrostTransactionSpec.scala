@@ -1,20 +1,17 @@
 package bifrost.transaction
 
-import bifrost.BifrostGenerators
 import bifrost.state.BifrostState
-import bifrost.transaction.{ContractCreation, PolyTransfer}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
-import scorex.crypto.hash.Sha256
 
 class BifrostTransactionSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with ValidGenerators {
 
 
   property("Transaction boxes are deterministic") {
@@ -52,19 +49,6 @@ class BifrostTransactionSpec extends PropSpec
         val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
         BifrostState.semanticValidity(tx.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
-  }
-
-  property("Transaction with modified from is invalid") {
-    /*forAll(simpleBoxTransactionGen) { tx =>
-      val wrongFromPub = tx.from.map(p => (p._1, p._2 + 1))
-      HBoxStoredState.semanticValidity(tx.copy(from = wrongFromPub)).isSuccess shouldBe false
-    }*/
-  }
-
-  property("Transaction with modified timestamp is invalid") {
-    /*forAll(simpleBoxTransactionGen) { tx =>
-      HBoxStoredState.semanticValidity(tx.copy(timestamp = tx.timestamp + 1)).isSuccess shouldBe false
-    }*/
   }
 
 }

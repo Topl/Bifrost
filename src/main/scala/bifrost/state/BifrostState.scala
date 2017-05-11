@@ -159,9 +159,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   def validateContractCreation(cc: ContractCreation): Try[Unit] = Try {
 
     /* First check to see all roles are present */
-    val roleBoxes: IndexedSeq[ProfileBox] = cc.parties.map(getProfileBox(_, "Role").get)
-    val allRolesPresent = BifrostState.acceptableRoleValues.subsetOf(roleBoxes.map(_.value).toSet)
-    require(allRolesPresent)
+    val roleBoxes: IndexedSeq[ProfileBox] = cc.signatures.zipWithIndex.map {
+      case (sig, index) =>
+        require(sig.isValid(cc.parties(index), cc.messageToSign))
+        getProfileBox(cc.parties(index), "role").get
+    }
+    require(ProfileTransaction.acceptableRoleValues.subsetOf(roleBoxes.map(_.value).toSet))
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
@@ -209,8 +212,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* Make sure there are no existing boxes of the all fields in tx
     *  If there is one box that exists then the tx is invalid
     * */
-    val keysSet = pt.keyValues.keys.toSet
-    require(keysSet.subsetOf(BifrostState.acceptableProfileFields))
     require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].field) match {
       case Success(box) => false
       case Failure(box) => true
@@ -228,9 +229,6 @@ object BifrostState {
   type BPMOD = BifrostBlock
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
-
-  val acceptableProfileFields = Set("Role")
-  val acceptableRoleValues = Set("Investor", "Hub", "Producer")
 
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {

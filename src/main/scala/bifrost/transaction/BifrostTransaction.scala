@@ -2,14 +2,13 @@ package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.transaction.PolyTransfer.Nonce
-import bifrost.contract._
+import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox, ProfileBox}
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
-import examples.bifrost.contract.Contract
-import examples.bifrost.transaction.ContractMethodExecutionCompanion
+import bifrost.transaction.ContractMethodExecutionCompanion
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -359,11 +358,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
     case (key, value) => ProfileBox(from, 0L, value, key)
   }
 
-  override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    Longs.toByteArray(timestamp),
-    from.pubKeyBytes,
-    keyValues.asJson.toString().getBytes()
-  )
+  override lazy val messageToSign: Array[Byte] = ProfileTransaction.messageToSign(timestamp, from, keyValues)
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
@@ -379,11 +374,23 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
 
 object ProfileTransaction {
 
+  val acceptableProfileFields = Set("role")
+  val acceptableRoleValues = Set("investor", "hub", "producer")
+
+  def messageToSign(timestamp: Long, from: PublicKey25519Proposition, keyValues: Map[String, String]): Array[Byte] = Bytes.concat(
+    Longs.toByteArray(timestamp),
+    from.pubKeyBytes,
+    keyValues.asJson.toString().getBytes()
+  )
+
   def validate(tx: ProfileTransaction): Try[Unit] = Try {
     // ensure no duplicates
+    val keysSet = tx.keyValues.keys.toSet
+    require(keysSet.subsetOf(acceptableProfileFields))
+    require(Set(tx.keyValues("role")).subsetOf(acceptableRoleValues))
     require(tx.keyValues.keys.toSet.size == tx.keyValues.keys.size)
+    require(tx.signature.isValid(tx.from, tx.messageToSign))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signature.isValid(tx.from, tx.messageToSign))
   }
 }
