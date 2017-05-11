@@ -110,7 +110,7 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val contractBoxGen: Gen[ContractBox] = for {
     proposition <- oneOfNPropositionGen
     nonce <- positiveLongGen
-    value <- jsonGen()
+    value <- contractGen.map(_.json)
   } yield ContractBox(proposition._2, nonce, value)
 
   lazy val polyBoxGen: Gen[PolyBox] = for {

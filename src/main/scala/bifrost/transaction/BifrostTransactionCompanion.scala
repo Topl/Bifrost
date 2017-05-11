@@ -210,7 +210,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         typeBytes,
         Longs.toByteArray(cme.fee),
         Longs.toByteArray(cme.timestamp),
-        Ints.toByteArray(cme.methodName.length),
+        Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
         Ints.toByteArray(cme.signatures.length),
         cme.methodName.getBytes,
@@ -244,9 +244,6 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += methodNameLength
 
-    println(">>>>>>>>>>>>>>>")
-    println(s"MethodNameLength: ${methodNameLength}. MethodName: ${methodName}")
-    println(parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + parameterJsonLength))))
     val parameters: Json = parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + parameterJsonLength))) match {
       case Left(f) => throw f
       case Right(j: Json) => j
