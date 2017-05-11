@@ -26,12 +26,12 @@ class Contract(val Producer: PublicKey25519Proposition,
     "storage" -> storage.asJson
   ).asJson
 
-  def complete(actor: PublicKey25519Proposition): Try[Contract] = {
+  def complete(actor: PublicKey25519Proposition)(): Try[Contract] = {
     if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
       Success(this)
     } else if (Hub.pubKeyBytes sameElements actor.pubKeyBytes) {
       Success(this)
-    } else if (Producer.pubKeyBytes sameElements actor.pubKeyBytes) {
+    } else if (Investor.pubKeyBytes sameElements actor.pubKeyBytes) {
       Success(this)
     } else {
       Failure(new IllegalAccessException("Actor doesn't correspond to any"))
@@ -39,12 +39,12 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   }
 
-  def currentStatus(): Try[Json] = Try {
+  def currentStatus(actor: PublicKey25519Proposition)(): Try[Json] = Try {
     this.storage("status").get
   }
 
-  def deliver(producer: PublicKey25519Proposition): Try[Contract] = {
-    if (producer.pubKeyBytes sameElements Producer.pubKeyBytes) {
+  def deliver(actor: PublicKey25519Proposition)(): Try[Contract] = {
+    if (actor.pubKeyBytes sameElements Producer.pubKeyBytes) {
       Success(this)
     } else {
       Failure(new IllegalAccessException("Wrong actor"))
@@ -52,8 +52,8 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   }
 
-  def confirmDelivery(hub: PublicKey25519Proposition): Try[Contract] = {
-    if (hub.pubKeyBytes sameElements Hub.pubKeyBytes) {
+  def confirmDelivery(actor: PublicKey25519Proposition)(): Try[Contract] = {
+    if (actor.pubKeyBytes sameElements Hub.pubKeyBytes) {
       Success(this)
     } else {
       Failure(new IllegalAccessException("Wrong actor"))
@@ -61,7 +61,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   }
 
-  def checkExpiration(): Try[Json] = Try {
+  def checkExpiration(actor: PublicKey25519Proposition)(): Try[Json] = Try {
     val expiration: Long = this.agreement("expirationTimestamp").get.as[Long].right.get
     (Instant.now().toEpochMilli > expiration).asJson
   }
@@ -91,21 +91,25 @@ object Contract {
     )
   }
 
-  def execute(c: Contract, methodName: String)(args: JsonObject): Try[Either[Contract, Json]] = Try {
+  def execute(c: Contract, methodName: String)(actor: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
     val methodAttempt: Option[ru.MethodSymbol] = contractMethods.get(methodName)
 
     methodAttempt match {
       case Some(m: ru.MethodSymbol) =>
-        val params = m.paramLists.head.map(p => {
+        val params: List[Any] = m.paramLists.head.map(p => {
           val typename = p.typeSignature.typeSymbol.asClass.name.toString
-          typename match {
-            case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.name.toString).get.asString.get).get)
-            case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
+          print(p.name.toString)
+          p.name.toString match {
+            case "actor" => actor
+            case _ => typename match {
+              case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.name.toString).get.asString.get).get)
+              case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
+            }
           }
         })
 
-        rm.reflect(c).reflectMethod(m)(params :_*) match {
+        rm.reflect(c).reflectMethod(m)(actor +: params:_*) match {
           case c: Success[Contract] => Left(c.value)
           case j: Success[Json] => Right(j.value)
           case f: Failure[Any] => throw f.exception

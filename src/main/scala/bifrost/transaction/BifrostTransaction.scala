@@ -121,6 +121,7 @@ object ContractCreation {
 }
 
 case class ContractMethodExecution(contractBox: ContractBox,
+                                   actor: PublicKey25519Proposition,
                                    methodName: String,
                                    parameters: Json,
                                    signatures: IndexedSeq[Signature25519],
@@ -140,18 +141,17 @@ case class ContractMethodExecution(contractBox: ContractBox,
     )
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contract.id)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id)
 
-  override lazy val unlockers: Traversable[BoxUnlocker[MofNProposition]] = boxIdsToOpen.zip(signatures).map {
-    case (boxId, signature) =>
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
       new BoxUnlocker[MofNProposition] {
-        override val closedBoxId: Array[Byte] = boxId
-        override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signature))
+        override val closedBoxId: Array[Byte] = contractBox.id
+        override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(0)))
       }
-  }
+  )
 
   lazy val hashNoNonces = FastCryptographicHash(
-      contract.id ++
+      contractBox.id ++
       methodName.getBytes ++
       parameters.noSpaces.getBytes ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
@@ -165,7 +165,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractMethodExecution.nonceFromDigest(digest)
 
-    Contract.execute(contract, methodName)(parameters.asObject.get) match {
+    Contract.execute(contract, methodName)(actor)(parameters.asObject.get) match {
       case Success(res) => res match {
         case Left(updatedContract) => IndexedSeq(ContractBox(proposition, nonce, updatedContract.json))
         case Right(_) => IndexedSeq(ContractBox(proposition, nonce, contract.json))

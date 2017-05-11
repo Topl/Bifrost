@@ -3,6 +3,7 @@ package bifrost.contract
 
 import bifrost.BifrostGenerators
 import examples.bifrost.contract.Contract
+import io.circe.{Json, JsonObject}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.encode.Base58
@@ -20,14 +21,18 @@ class ContractSpec extends PropSpec
     forAll(contractGen) {
       c: Contract => {
         validContractMethods.foreach(m => {
-          val possibleArgs = Map(
-            "actor" -> Base58.encode(c.Producer.pubKeyBytes).asJson,
-            "producer" -> Base58.encode(c.Producer.pubKeyBytes).asJson,
-            "hub" -> Base58.encode(c.Hub.pubKeyBytes).asJson
-          ).asJson
+          val possibleArgs = JsonObject.empty
 
-          val result = Contract.execute(c, m)(possibleArgs.asObject.get)
-          println(s"Calling $m resulted in $result")
+          val actor = m match {
+            case "complete" => c.Producer
+            case "currentStatus" => propositionGen.sample.get
+            case "deliver" => c.Producer
+            case "confirmDelivery" => c.Hub
+            case "checkExpiration" => propositionGen.sample.get
+          }
+
+          val result = Contract.execute(c, m)(actor)(possibleArgs)
+          print(m, result)
           assert(result.isSuccess)
         })
       }
@@ -35,7 +40,20 @@ class ContractSpec extends PropSpec
   }
 
   property("Calling a method not in the contract will throw an error") {
+    forAll(contractGen) {
+      c: Contract => {
+        forAll(stringGen.suchThat(!validContractMethods.contains(_))) {
+          m: String => {
+            val possibleArgs = JsonObject.empty
 
+            val actor = propositionGen.sample.get
+
+            val result = Contract.execute(c, m)(actor)(possibleArgs)
+            assert(result.isFailure && result.failed.get.isInstanceOf[MatchError])
+          }
+        }
+      }
+    }
   }
 
   property("Calling methods with valid Proposition should result in Success") {

@@ -209,6 +209,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
         Ints.toByteArray(cme.signatures.length),
+        cme.actor.pubKeyBytes,
         cme.methodName.getBytes,
         cme.parameters.noSpaces.getBytes,
         cme.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
@@ -236,6 +237,10 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += 3*Ints.BYTES
 
+    val actor: PublicKey25519Proposition = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+
+    numReadBytes += Constants25519.PubKeyLength
+
     val methodName = new String(bytesWithoutType.slice(numReadBytes, numReadBytes + methodNameLength))
 
     numReadBytes += methodNameLength
@@ -255,11 +260,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     val contractBox: ContractBox = new ContractBoxSerializer().parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
 
-    ContractMethodExecution(contractBox, methodName, parameters, signatures, fee, timestamp)
-<<<<<<< HEAD:src/main/scala/bifrost/transaction/BifrostTransactionCompanion.scala
-=======
-
->>>>>>> Fixed companion. Adding json generators for testing. Using reflection to map methods out and pull specific arguments from json:examples/src/main/scala/examples/bifrost/transaction/BifrostTransactionCompanion.scala
+    ContractMethodExecution(contractBox, actor, methodName, parameters, signatures, fee, timestamp)
   }
 
 }
