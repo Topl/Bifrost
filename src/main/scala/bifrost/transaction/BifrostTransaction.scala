@@ -9,6 +9,7 @@ import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox, ProfileBox}
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import bifrost.transaction.ContractMethodExecutionCompanion
+import bifrost.transaction.Role.Role
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -28,12 +29,19 @@ sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgePr
 
 sealed abstract class ContractTransaction extends BifrostTransaction
 
+object Role extends Enumeration {
+  type Role = Value
+  val Producer: Role = Value("producer")
+  val Investor: Role = Value("investor")
+  val Hub: Role = Value("hub")
+}
+
 // 3 signatures FOR A SPECIFIC MESSAGE <agreement: Agreement>
 // ContractCreation(agreement ++ nonce, IndexSeq(pk1, pk2, pk3), IndexSeq(sign1(agreement ++ nonce), sign2(agreement ++ nonce), sign3(agreement ++ nonce)) )
 // validity check: decrypt[pk1] sign1(agreement) === agreement
 // agreement specifies "executeBy" date
 case class ContractCreation(agreement: Agreement,
-                            parties: IndexedSeq[PublicKey25519Proposition],
+                            parties: IndexedSeq[(Role, PublicKey25519Proposition)],
                             signatures: IndexedSeq[Signature25519],
                             fee: Long,
                             timestamp: Long)
@@ -41,7 +49,7 @@ case class ContractCreation(agreement: Agreement,
 
   override type M = ContractCreation
 
-  lazy val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+  lazy val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
 
   // no boxes required for now -- will require reputation
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]()
@@ -56,7 +64,7 @@ case class ContractCreation(agreement: Agreement,
 
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+      parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
@@ -68,15 +76,14 @@ case class ContractCreation(agreement: Agreement,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractCreation.nonceFromDigest(digest)
 
-    //  TODO key parties by their profile types
-    //  TODO make this like contract json
-    val boxValue: Json = Map(
-      "agreement" -> Base58.encode(AgreementCompanion.toBytes(agreement)).asJson,
-      "parties" -> parties.map(_.pubKeyBytes).asJson,
-      "storage" -> Map(
-        "status" -> "initialized"
-      ).asJson,
-      "lastUpdated" -> timestamp.asJson
+    val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson).toMap ++
+      Map(
+        "agreement" -> Base58.encode(AgreementCompanion.toBytes(agreement)).asJson,
+        "storage" -> Map(
+          "status" -> "initialized".asJson
+        ).asJson,
+        "lastUpdated" -> timestamp.asJson
+      )
     ).asJson
 
     IndexedSeq(ContractBox(proposition, nonce, boxValue))
@@ -84,7 +91,7 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val json: Json = Map(
     "agreement" -> agreement.json,
-    "parties" -> parties.map( p => Base58.encode(p.pubKeyBytes).asJson ).asJson,
+    "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
@@ -95,11 +102,10 @@ case class ContractCreation(agreement: Agreement,
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     Longs.toByteArray(timestamp),
     AgreementCompanion.toBytes(agreement),
-    parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+    parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
   )
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
-
 }
 
 object ContractCreation {
@@ -115,7 +121,7 @@ object ContractCreation {
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures.zip(tx.parties) forall { case (signature, proposition) =>
+    require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
       signature.isValid(proposition, tx.messageToSign)
   })
 }
@@ -123,7 +129,7 @@ object ContractCreation {
 }
 
 case class ContractMethodExecution(contractBox: ContractBox,
-                                   actor: PublicKey25519Proposition,
+                                   party: (Role, PublicKey25519Proposition),
                                    methodName: String,
                                    parameters: Json,
                                    signatures: IndexedSeq[Signature25519],
@@ -167,7 +173,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractMethodExecution.nonceFromDigest(digest)
 
-    Contract.execute(contract, methodName)(actor)(parameters.asObject.get) match {
+    Contract.execute(contract, methodName)(party._2)(parameters.asObject.get) match {
       case Success(res) => res match {
         case Left(updatedContract) => IndexedSeq(ContractBox(proposition, nonce, updatedContract.json))
         case Right(_) => IndexedSeq(contractBox)
@@ -206,7 +212,7 @@ object ContractMethodExecution {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures(0).isValid(tx.contractBox.proposition, tx.messageToSign))
-    require(tx.signatures(1).isValid(tx.actor, tx.messageToSign))
+    require(tx.signatures(1).isValid(tx.party._2, tx.messageToSign))
   }
 
 }

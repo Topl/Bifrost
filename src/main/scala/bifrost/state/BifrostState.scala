@@ -167,8 +167,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* First check to see all roles are present */
     val roleBoxes: IndexedSeq[ProfileBox] = cc.signatures.zipWithIndex.map {
       case (sig, index) =>
-        require(sig.isValid(cc.parties(index), cc.messageToSign))
-        getProfileBox(cc.parties(index), "role").get
+        require(sig.isValid(cc.parties(index)._2, cc.messageToSign))
+        getProfileBox(cc.parties(index)._2, "role").get
     }
     require(ProfileTransaction.acceptableRoleValues.subsetOf(roleBoxes.map(_.value).toSet))
 

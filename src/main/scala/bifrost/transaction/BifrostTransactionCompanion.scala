@@ -144,9 +144,14 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       Longs.toByteArray(agreementBytes.length),
       Ints.toByteArray(m.signatures.length),
       Ints.toByteArray(m.parties.length),
+      m.parties.foldLeft(Array[Byte]())((a,b) => a ++ (b._1 match {
+        case Role.Producer => Ints.toByteArray(0)
+        case Role.Investor => Ints.toByteArray(1)
+        case Role.Hub => Ints.toByteArray(2)
+      })),
       agreementBytes,
       m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
     )
   }
 
@@ -163,11 +168,11 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     numReadBytes = 3*Longs.BYTES
 
-    val Array(sigLength: Int, partiesLength: Int) = (0 until 2).map { i =>
+    val Array(sigLength: Int, partiesLength: Int, role1: Int, role2: Int, role3: Int) = (0 until 5).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 2*Ints.BYTES
+    numReadBytes += 5*Ints.BYTES
 
     val agreement = AgreementCompanion.parseBytes(
       bytesWithoutType.slice(
@@ -189,7 +194,13 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       PublicKey25519Proposition(pk)
     }
 
-    ContractCreation(agreement, parties, signatures, fee, timestamp)
+    val roleTypes = IndexedSeq(role1, role2, role3).map {
+      case 0 => Role.Producer
+      case 1 => Role.Investor
+      case 2 => Role.Hub
+    }
+
+    ContractCreation(agreement, roleTypes.zip(parties), signatures, fee, timestamp)
   }
 
 }
@@ -209,7 +220,12 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
         Ints.toByteArray(cme.signatures.length),
-        cme.actor.pubKeyBytes,
+        cme.party._1 match {
+          case Role.Producer => Ints.toByteArray(0)
+          case Role.Investor => Ints.toByteArray(1)
+          case Role.Hub => Ints.toByteArray(2)
+        },
+        cme.party._2.pubKeyBytes,
         cme.methodName.getBytes,
         cme.parameters.noSpaces.getBytes,
         cme.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
@@ -231,13 +247,13 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes = 2*Longs.BYTES
 
-    val Array(methodNameLength: Int, parameterJsonLength: Int, sigLength: Int) = (0 until 3).map { i =>
+    val Array(methodNameLength: Int, parameterJsonLength: Int, sigLength: Int, roleInt: Int) = (0 until 4).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 3*Ints.BYTES
+    numReadBytes += 4*Ints.BYTES
 
-    val actor: PublicKey25519Proposition = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+    val party: PublicKey25519Proposition = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
 
     numReadBytes += Constants25519.PubKeyLength
 
@@ -258,9 +274,15 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += sigLength * Signature25519.SignatureSize
 
-    val contractBox: ContractBox = new ContractBoxSerializer().parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
 
-    ContractMethodExecution(contractBox, actor, methodName, parameters, signatures, fee, timestamp)
+    val role = roleInt match {
+      case 0 => Role.Producer
+      case 1 => Role.Investor
+      case 2 => Role.Hub
+    }
+
+    ContractMethodExecution(contractBox, role -> party, methodName, parameters, signatures, fee, timestamp)
   }
 
 }

@@ -7,6 +7,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
 import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox, ProfileBox}
@@ -131,11 +132,11 @@ trait BifrostGenerators extends CoreGenerators {
     fulfilment <- fulfilFuncGen
   } yield new AgreementTerms(pledge, xrate, share, fulfilment)
 
-  lazy val partiesGen: Gen[IndexedSeq[PublicKey25519Proposition]] = for {
+  lazy val partiesGen: Gen[IndexedSeq[(Role, PublicKey25519Proposition)]] = for {
     a <- propositionGen
     b <- propositionGen
     c <- propositionGen
-  } yield IndexedSeq(a, b, c)
+  } yield IndexedSeq(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
 
   lazy val agreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
@@ -162,6 +163,7 @@ trait BifrostGenerators extends CoreGenerators {
     val keyValues = (0 until numKeys).map { _ => (stringGen.sample.get, stringGen.sample.get)}.foldLeft[Map[String, String]](Map())((a, b) => a + b )
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
+
 
   lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
     proposition <- propositionGen
