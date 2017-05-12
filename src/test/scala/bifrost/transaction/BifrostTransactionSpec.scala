@@ -42,13 +42,9 @@ class BifrostTransactionSpec extends PropSpec
     }
   }
 
-  property("Transaction with modified signature should be invalid") {
-    forAll(contractCreationGen) {
-      tx: ContractCreation =>
-        val wrongSig: Array[Byte] = (tx.signatures.head.bytes.head + 1).toByte +: tx.signatures.head.bytes.tail
-        val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
-        BifrostState.semanticValidity(tx.copy(signatures = wrongSigs)).isSuccess shouldBe false
+  property("Generated ProfileTransaction should be valid") {
+    forAll(validProfileTransactionGen) { tx =>
+        BifrostState.semanticValidity(tx).isSuccess shouldBe true
     }
   }
-
 }
