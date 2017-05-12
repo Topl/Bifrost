@@ -164,7 +164,6 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 
-
   lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen

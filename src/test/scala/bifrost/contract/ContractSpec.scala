@@ -2,6 +2,11 @@ package bifrost.contract
 
 
 import bifrost.{BifrostGenerators, ValidGenerators}
+<<<<<<< HEAD:src/test/scala/bifrost/contract/ContractSpec.scala
+=======
+import examples.bifrost.contract.Contract
+import io.circe.{Json, JsonObject}
+>>>>>>> Merged dev into local:examples/src/test/scala/bifrost/contract/ContractSpec.scala
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.encode.Base58
