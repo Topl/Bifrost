@@ -226,23 +226,27 @@ object ContractBoxSerializer extends Serializer[ContractBox] {
   * @param proposition
   * @param nonce: place holder for now. Make it always zero
   * @param value
-  * @param field: Name of the profile attribute you wish to use for the box
+  * @param key: Name of the profile attribute you wish to use for the box
   */
 case class ProfileBox(proposition: PublicKey25519Proposition,
-                   override val nonce: Long,
-                   value: String,
-                   field: String) extends BifrostBox(proposition, nonce, value) {
-  lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, field)
+                      override val nonce: Long,
+                      value: String,
+                      key: String) extends BifrostBox(proposition, nonce, value) {
+  lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, key)
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
-    "field" -> field.asJson
+    "field" -> key.asJson
   ).asJson
 }
 
 object ProfileBox {
+
+  val acceptableKeys = Set("role")
+  val acceptableRoleValues = Set("investor", "hub", "producer")
+
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, field: String): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ field.getBytes)
 }
@@ -256,7 +260,7 @@ object ProfileBoxSerializer extends Serializer[ProfileBox] {
     Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++
       obj.proposition.pubKeyBytes ++
       Ints.toByteArray(obj.value.getBytes.length) ++ obj.value.getBytes ++
-      Ints.toByteArray(obj.field.getBytes.length) ++ obj.field.getBytes
+      Ints.toByteArray(obj.key.getBytes.length) ++ obj.key.getBytes
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ProfileBox] = Try {

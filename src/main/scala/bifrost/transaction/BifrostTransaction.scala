@@ -119,6 +119,7 @@ object ContractCreation {
     require(Agreement.validate(tx.agreement).isSuccess)
 
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
+    require(tx.parties.map(_._1).toSet.size == 3) // Make sure there are exactly 3 unique roles
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
@@ -184,6 +185,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override lazy val json: Json = Map(
     "contract" -> contract.json,
+    "party" -> ( party._1.toString -> Base58.encode(party._2.pubKeyBytes).asJson ).asJson,
     "methodName" -> methodName.asJson,
     "parameters" -> parameters,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
@@ -379,9 +381,6 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
 
 object ProfileTransaction {
 
-  val acceptableProfileFields = Set("role")
-  val acceptableRoleValues = Set("investor", "hub", "producer")
-
   def messageToSign(timestamp: Long, from: PublicKey25519Proposition, keyValues: Map[String, String]): Array[Byte] = Bytes.concat(
     Longs.toByteArray(timestamp),
     from.pubKeyBytes,
@@ -391,9 +390,9 @@ object ProfileTransaction {
   def validate(tx: ProfileTransaction): Try[Unit] = Try {
     // ensure no duplicates
     val keysSet = tx.keyValues.keys.toSet
-    require(keysSet.subsetOf(acceptableProfileFields))
-    require(Set(tx.keyValues("role")).subsetOf(acceptableRoleValues))
-    require(tx.keyValues.keys.toSet.size == tx.keyValues.keys.size)
+
+    require(keysSet.subsetOf(ProfileBox.acceptableKeys))
+    require(ProfileBox.acceptableRoleValues.contains(tx.keyValues("role")))
     require(tx.signature.isValid(tx.from, tx.messageToSign))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)

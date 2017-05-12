@@ -3,7 +3,7 @@ package bifrost
 import bifrost.BifrostGenerators
 import bifrost.contract.{Agreement, Contract}
 import bifrost.transaction._
-import bifrost.transaction.box.ContractBox
+import bifrost.transaction.box.{ContractBox, ProfileBox}
 import com.google.common.primitives.{Bytes, Longs}
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -95,7 +95,7 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     val rnd = new Random
     val keyValues = Map(
-      "role" -> ProfileTransaction.acceptableRoleValues.toVector(rnd.nextInt(ProfileTransaction.acceptableRoleValues.size))
+      "role" -> ProfileBox.acceptableRoleValues.toVector(rnd.nextInt(ProfileBox.acceptableRoleValues.size))
     )
     val fromKeyPairs = keyPairSetGen.sample.get.head
     val from = fromKeyPairs._2

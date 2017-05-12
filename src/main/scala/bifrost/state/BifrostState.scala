@@ -4,10 +4,18 @@ import java.io.File
 import java.time.Instant
 
 import com.google.common.primitives.Longs
+<<<<<<< HEAD:src/main/scala/bifrost/state/BifrostState.scala
 import bifrost.blocks.BifrostBlock
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction._
 import bifrost.transaction.box._
+=======
+import examples.bifrost.blocks.BifrostBlock
+import examples.bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
+import examples.bifrost.transaction._
+import examples.bifrost.transaction.box._
+import examples.bifrost.transaction.box.proposition.MofNProposition
+>>>>>>> Improved validation for ContractMethodExecution. Moved ProfileTransaction validity sets into ProfileBox. Added more test pieces:examples/src/main/scala/examples/bifrost/state/BifrostState.scala
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
@@ -170,7 +178,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         require(sig.isValid(cc.parties(index)._2, cc.messageToSign))
         getProfileBox(cc.parties(index)._2, "role").get
     }
-    require(ProfileTransaction.acceptableRoleValues.subsetOf(roleBoxes.map(_.value).toSet))
+
+    require(ProfileBox.acceptableRoleValues.equals(roleBoxes.map(_.value).toSet))
+
+    /* Verifies that the role boxes match the roles stated in the contract creation */
+    require(roleBoxes.zip(cc.parties.map(_._1)).forall { case (box, role) => box.value.equals(role.toString) })
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
@@ -218,7 +230,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* Make sure there are no existing boxes of the all fields in tx
     *  If there is one box that exists then the tx is invalid
     * */
-    require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].field) match {
+    require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].key) match {
       case Success(box) => false
       case Failure(box) => true
     }))
@@ -233,13 +245,39 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     */
   def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
 
-    // TODO check fee
-    if(storage.get(ByteArrayWrapper(cme.contractBox.id)).isEmpty) {
+    val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
+
+    //TODO fee verification
+
+    /* Contract exists */
+    if(contractBytes.isEmpty) {
       Failure(new NoSuchElementException(s"Contract ${cme.contractBox.id} does not exist"))
-    } else if(cme.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli){
-      Failure(new Exception("Unacceptable timestamp"))
+
     } else {
-      semanticValidity(cme)
+
+      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.proposition
+      val profileBox = getProfileBox(cme.party._2, "role").get
+
+      /* This person belongs to contract */
+      if (!cme.signatures(0).isValid(contractProposition, cme.messageToSign)) {
+        Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
+
+      /* Signature matches profilebox owner */
+      } else if (!cme.signatures(1).isValid(profileBox.proposition, cme.messageToSign)) {
+        Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.party._2.pubKeyBytes)} profileBox"))
+
+      /* Role provided by CME matches profilebox */
+      } else if (!profileBox.value.equals(cme.party._1.toString)) {
+        Failure(new IllegalAccessException(s"Role ${cme.party._1} for ${Base58.encode(cme.party._2.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
+
+      /* Timestamp is after most recent block, not in future */
+      } else if (cme.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli) {
+        Failure(new Exception("Unacceptable timestamp"))
+
+      } else {
+        semanticValidity(cme)
+      }
+
     }
   }
 }
