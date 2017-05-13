@@ -61,7 +61,7 @@ trait ValidGenerators extends BifrostGenerators {
       keypair =>
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
-    ContractCreation(agreement, parties, signatures, fee, timestamp)
+    ContractCreation(agreement, IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties), signatures, fee, timestamp)
   }
 
   lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
@@ -71,7 +71,8 @@ trait ValidGenerators extends BifrostGenerators {
     sigSeq <- sigSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-  } yield ContractMethodExecution(contract, methodName, parameters, sigSeq, fee, timestamp)
+    party <- propositionGen
+  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sigSeq, fee, timestamp)
 
   lazy val validContractMethods: List[String] = List("complete", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 

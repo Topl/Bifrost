@@ -153,14 +153,14 @@ case class ContractMethodExecution(contractBox: ContractBox,
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
-      new BoxUnlocker[MofNProposition] {
-        override val closedBoxId: Array[Byte] = contractBox.id
-        override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(0)))
-      }
+    new BoxUnlocker[MofNProposition] {
+      override val closedBoxId: Array[Byte] = contractBox.id
+      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(0)))
+    }
   )
 
   lazy val hashNoNonces = FastCryptographicHash(
-      contractBox.id ++
+    contractBox.id ++
       methodName.getBytes ++
       parameters.noSpaces.getBytes ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++

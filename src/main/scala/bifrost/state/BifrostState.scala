@@ -4,18 +4,11 @@ import java.io.File
 import java.time.Instant
 
 import com.google.common.primitives.Longs
-<<<<<<< HEAD:src/main/scala/bifrost/state/BifrostState.scala
 import bifrost.blocks.BifrostBlock
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction._
 import bifrost.transaction.box._
-=======
-import examples.bifrost.blocks.BifrostBlock
-import examples.bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
-import examples.bifrost.transaction._
-import examples.bifrost.transaction.box._
-import examples.bifrost.transaction.box.proposition.MofNProposition
->>>>>>> Improved validation for ContractMethodExecution. Moved ProfileTransaction validity sets into ProfileBox. Added more test pieces:examples/src/main/scala/examples/bifrost/state/BifrostState.scala
+import bifrost.transaction.box.proposition.MofNProposition
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
