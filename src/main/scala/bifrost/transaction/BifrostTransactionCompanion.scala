@@ -245,6 +245,8 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
       case Right(j: Json) => j
     }
 
+    numReadBytes += parameterJsonLength
+
     val signatures = (0 until sigLength) map { i =>
       Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
     }

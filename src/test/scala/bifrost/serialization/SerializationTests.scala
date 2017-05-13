@@ -107,7 +107,7 @@ class SerializationTests extends PropSpec
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
-        ContractTransactionCompanion.toBytes(parsed) shouldEqual ContractTransactionCompanion.toBytes(c)
+        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c)
     }
   }
 
