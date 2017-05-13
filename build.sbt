@@ -1,4 +1,4 @@
-name := "scorex-core"
+name := "project-bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
@@ -12,7 +12,7 @@ version := "2.0.0-M5-SNAPSHOT"
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 
-val circeVersion = "0.+"
+val circeVersion = "0.7+"
 
 val networkDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.4.17",
@@ -48,7 +48,8 @@ val testingDependencies = Seq(
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
-  "org.consensusresearch" %% "scrypto" % "1.2.+"
+  "org.consensusresearch" %% "scrypto" % "1.2.+",
+  "io.circe" %% "circe-optics" % circeVersion
 ) ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 
@@ -56,7 +57,35 @@ libraryDependencies ++= Seq(
 //todo: is it needed?
 libraryDependencies += "org.atnos" %% "eff-cats" % "2.0.+"
 
+libraryDependencies ++= Seq(
+  "org.scalactic" %% "scalactic" % "3.0.1",
+  "org.scalatest" %% "scalatest" % "3.0.1",
+  "org.scalacheck" %% "scalacheck" % "1.13.+"
+)
 
+libraryDependencies ++= Seq(
+  "org.scalactic" %% "scalactic" % "3.0.1" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
+  "org.scorexfoundation" %% "iodb" % "0.3.+",
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
+  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
+)
+
+libraryDependencies  ++= Seq(
+  // Last snapshot
+  "org.scalanlp" %% "breeze" % "latest.integration",
+
+  // Native libraries are not included by default. add this if you want them (as of 0.7)
+  // Native libraries greatly improve performance, but increase jar sizes.
+  // It also packages various blas implementations, which have licenses that may or may not
+  // be compatible with the Apache License. No GPL code, as best I know.
+  "org.scalanlp" %% "breeze-natives" % "0.13",
+
+  // The visualization library is distributed separately as well.
+  // It depends on LGPL code.
+  "org.scalanlp" %% "breeze-viz" % "0.13"
+)
 
 scalacOptions ++= Seq("-feature", "-deprecation")
 
@@ -86,30 +115,7 @@ pomIncludeRepository := { _ => false }
 
 licenses := Seq("CC0" -> url("https://creativecommons.org/publicdomain/zero/1.0/legalcode"))
 
-homepage := Some(url("https://github.com/ScorexFoundation/Scorex"))
-
-pomExtra := (
-  <scm>
-    <url>git@github.com:ScorexFoundation/Scorex.git</url>
-    <connection>scm:git:git@github.com:ScorexFoundation/Scorex.git</connection>
-  </scm>
-    <developers>
-      <developer>
-        <id>kushti</id>
-        <name>Alexander Chepurnoy</name>
-        <url>http://chepurnoy.org/</url>
-      </developer>
-    </developers>)
+homepage := Some(url("https://github.com/Topl/Project-Bifrost"))
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
-lazy val testkit = Project(id = "testkit", base = file(s"testkit"))
-  .dependsOn(basics)
-  .settings(commonSettings: _*)
-
-lazy val examples = Project(id = "examples", base = file(s"examples"))
-  .dependsOn(basics, testkit)
-  .settings(commonSettings: _*)
-
-lazy val basics = Project(id = "scorex", base = file("."))
-  .settings(commonSettings: _*)
