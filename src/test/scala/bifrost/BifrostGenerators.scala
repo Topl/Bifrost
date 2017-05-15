@@ -145,6 +145,22 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
+  lazy val contractGen: Gen[Contract] = for {
+    producer <- propositionGen
+    investor <- propositionGen
+    hub <- propositionGen
+    storage <- jsonGen()
+    status <- jsonGen()
+    agreement <- agreementGen.map(_.json)
+    id <- genBytesList(FastCryptographicHash.DigestSize)
+  } yield Contract(Map(
+    "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+    "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "storage" -> Map("status" -> status, "other" -> storage).asJson,
+    "agreement" -> agreement
+  ).asJson, id)
+
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen
     parties <- partiesGen

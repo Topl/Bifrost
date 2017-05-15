@@ -23,19 +23,22 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
   } yield Agreement(terms, timestamp)
 
-  lazy val contractGen: Gen[Contract] = for {
+  // TODO this should be an enum
+  val validStatuses: List[String] = List("expired", "complete", "initialized")
+
+  lazy val validContractGen: Gen[Contract] = for {
     producer <- propositionGen
     investor <- propositionGen
     hub <- propositionGen
     storage <- jsonGen()
-    status <- jsonGen()
+    status <- Gen.oneOf(validStatuses)
     agreement <- validAgreementGen.map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield Contract(Map(
     "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
     "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "storage" -> Map("status" -> status, "other" -> storage).asJson,
+    "storage" -> Map("status" -> status.asJson, "other" -> storage).asJson,
     "agreement" -> agreement
   ).asJson, id)
 

@@ -8,6 +8,7 @@ import io.circe._
 import io.circe.syntax._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
+import sun.plugin.dom.exception.InvalidStateException
 
 import scala.reflect.runtime.{universe => ru}
 import scala.util.{Failure, Success, Try}
@@ -42,26 +43,26 @@ class Contract(val Producer: PublicKey25519Proposition,
   }
 
   def currentStatus(party: PublicKey25519Proposition)(): Try[Json] = Try {
-    this.storage("status").get
+    storage("status").get
   }
 
   def deliver(party: PublicKey25519Proposition)(quantity: Long): Try[Contract] = {
-    if (party.pubKeyBytes sameElements Producer.pubKeyBytes) {
-      if(quantity >= 0) {
-        val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("deliveredQuantity" -> 0L.asJson).asJson).asObject.get
-        val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
-          "deliveredQuantity",
-          (currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get + quantity).asJson
-        )
-        val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
-        Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
-      } else {
-        Failure(new InvalidParameterException(s"Delivery quantity <$quantity> cannot be negative"))
-      }
-    } else {
-      Failure(new IllegalAccessException("Wrong actor"))
-    }
 
+    require(party.pubKeyBytes sameElements Producer.pubKeyBytes, Failure(new IllegalAccessException("Wrong actor")))
+    require(quantity > 0L, Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive")))
+
+    val status: String = storage("status").get.asString.get
+
+    require(!status.equals("expired") && !status.equals("complete"), Failure(new IllegalStateException(s"Contract state <$status> is invalid")))
+
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("deliveredQuantity" -> 0L.asJson).asJson).asObject.get
+    val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
+      "deliveredQuantity",
+      (currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get + quantity).asJson
+    )
+    val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
   def confirmDelivery(party: PublicKey25519Proposition)(): Try[Contract] = {
