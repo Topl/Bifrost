@@ -10,7 +10,7 @@ import bifrost.history.{BifrostHistory, BifrostStorage}
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
-import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox, ProfileBox}
+import bifrost.transaction.box._
 import io.circe
 import io.circe.Json
 import io.circe.syntax._
@@ -118,6 +118,12 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
     value <- positiveLongGen
   } yield ArbitBox(proposition, nonce, value)
+
+  lazy val reputationBoxGen: Gen[ReputationBox] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+    value <- positiveLongGen
+  } yield ReputationBox(proposition, nonce, value)
 
   lazy val profileBoxGen: Gen[ProfileBox] = for {
     proposition <- propositionGen

@@ -51,6 +51,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
     case c: ContractBox => ContractBoxSerializer.toBytes(c)
     case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
+    case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -65,95 +66,42 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
       case "ContractBox" => ContractBoxSerializer.parseBytes(bytes)
       case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
+      case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
 }
 
-case class PolyBox(proposition: PublicKey25519Proposition,
+case class PolyBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,
-                   value: Long) extends BifrostBox(proposition, nonce, value) {
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+                   override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {}
 
-  override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "value" -> value.asJson,
-    "nonce" -> nonce.asJson
-  ).asJson
-}
-
-object PolyBoxSerializer extends Serializer[PolyBox] {
+object PolyBoxSerializer extends Serializer[PolyBox] with NoncedBoxSerializer {
 
   def toBytes(obj: PolyBox): Array[Byte] = {
-
-    val boxType = "PolyBox"
-
-    Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++ obj.proposition.pubKeyBytes ++ Longs.toByteArray(obj.nonce) ++ Longs.toByteArray(obj.value)
+    noncedBoxToBytes(obj, "PolyBox")
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[PolyBox] = Try {
-
-    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-
-    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-
-    val numReadBytes = Ints.BYTES + typeLen
-
-    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-    val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + Constants25519.PubKeyLength, numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
-
-    val curReadBytes = numReadBytes + Constants25519.PubKeyLength + Longs.BYTES
-
-    val value = Longs.fromByteArray(bytes.slice(curReadBytes, curReadBytes + Longs.BYTES))
-    PolyBox(pk, nonce, value)
+    val params = noncedBoxParseBytes(bytes)
+    PolyBox(params._1, params._2, params._3)
   }
 
 }
 
-case class ArbitBox(proposition: PublicKey25519Proposition,
+case class ArbitBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,
-                   value: Long) extends BifrostBox(proposition, nonce, value) {
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+                   override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {}
 
-  override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "value" -> value.asJson,
-    "nonce" -> nonce.asJson
-  ).asJson
-}
-
-object ArbitBoxSerializer extends Serializer[ArbitBox] {
+object ArbitBoxSerializer extends Serializer[ArbitBox] with NoncedBoxSerializer {
 
   def toBytes(obj: ArbitBox): Array[Byte] = {
-
-    val boxType = "ArbitBox"
-
-    Bytes.concat(
-      Ints.toByteArray(boxType.getBytes.length),
-      boxType.getBytes,
-      obj.proposition.pubKeyBytes,
-      Longs.toByteArray(obj.nonce),
-      Longs.toByteArray(obj.value)
-    )
+    noncedBoxToBytes(obj, "ArbitBox")
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ArbitBox] = Try {
-
-    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-
-    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-
-    val numReadBytes = Ints.BYTES + typeLen
-
-    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-    val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + Constants25519.PubKeyLength, numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
-
-    val curReadBytes = numReadBytes + Constants25519.PubKeyLength + Longs.BYTES
-
-    val value = Longs.fromByteArray(bytes.slice(curReadBytes, curReadBytes + Longs.BYTES))
-    ArbitBox(pk, nonce, value)
+    val params = noncedBoxParseBytes(bytes)
+    ArbitBox(params._1, params._2, params._3)
   }
 
 }
@@ -284,4 +232,20 @@ object ProfileBoxSerializer extends Serializer[ProfileBox] {
     ProfileBox(pk, 0L, value, field)
   }
 
+}
+
+case class ReputationBox(override val proposition: PublicKey25519Proposition,
+                        override val nonce: Long,
+                        override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) { }
+
+object ReputationBoxSerializer extends Serializer[ReputationBox] with NoncedBoxSerializer {
+
+  def toBytes(obj: ReputationBox): Array[Byte] = {
+    noncedBoxToBytes(obj, "ReputationBox")
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[ReputationBox] = Try {
+    val params = noncedBoxParseBytes(bytes)
+    ReputationBox(params._1, params._2, params._3)
+  }
 }
