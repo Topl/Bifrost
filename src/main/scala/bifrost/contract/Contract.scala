@@ -1,7 +1,9 @@
 package bifrost.contract
 
+import java.security.InvalidParameterException
 import java.time.Instant
 
+import com.google.common.primitives.Longs
 import io.circe._
 import io.circe.syntax._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
@@ -43,9 +45,19 @@ class Contract(val Producer: PublicKey25519Proposition,
     this.storage("status").get
   }
 
-  def deliver(party: PublicKey25519Proposition)(): Try[Contract] = {
+  def deliver(party: PublicKey25519Proposition)(quantity: Long): Try[Contract] = {
     if (party.pubKeyBytes sameElements Producer.pubKeyBytes) {
-      Success(this)
+      if(quantity >= 0) {
+        val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("deliveredQuantity" -> 0L.asJson).asJson).asObject.get
+        val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
+          "deliveredQuantity",
+          (currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get + quantity).asJson
+        )
+        val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
+        Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
+      } else {
+        Failure(new InvalidParameterException(s"Delivery quantity <$quantity> cannot be negative"))
+      }
     } else {
       Failure(new IllegalAccessException("Wrong actor"))
     }
@@ -91,25 +103,26 @@ object Contract {
     )
   }
 
+  //noinspection ScalaStyle
   def execute(c: Contract, methodName: String)(party: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
     val methodAttempt: Option[ru.MethodSymbol] = contractMethods.get(methodName)
 
     methodAttempt match {
       case Some(m: ru.MethodSymbol) =>
-        val params: List[Any] = m.paramLists.head.map(p => {
-          val typename = p.typeSignature.typeSymbol.asClass.name.toString
-          print(p.name.toString)
-          p.name.toString match {
+        val params: List[Any] = m.paramLists.map(p => {
+          val typename = p.head.typeSignature.typeSymbol.asClass.name.toString
+          p.head.name.toString match {
             case "party" => party
             case _ => typename match {
-              case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.name.toString).get.asString.get).get)
+              case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.head.name.toString).get.asString.get).get)
+              case "Long" => args(p.head.name.toString).get.asNumber.get.toLong.get
               case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
             }
           }
         })
 
-        rm.reflect(c).reflectMethod(m)(party +: params:_*) match {
+        rm.reflect(c).reflectMethod(m)(params:_*) match {
           case c: Success[Contract] => Left(c.value)
           case j: Success[Json] => Right(j.value)
           case f: Failure[Any] => throw f.exception
