@@ -200,6 +200,14 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield PolyTransfer(from, to, signatures, fee, timestamp)
 
+  lazy val arbitTransferGen: Gen[ArbitTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    signatures <- sigSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield ArbitTransfer(from, to, signatures, fee, timestamp)
+
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen
   } yield {
@@ -219,7 +227,7 @@ trait BifrostGenerators extends CoreGenerators {
     seqLen <- positiveTinyIntGen
   } yield ((0 until seqLen) map { _ => key25519Gen.sample.get }).toSet
 
-  val transactionTypes: Seq[String] = Seq("ContractCreation", "PolyTransfer", "ProfileTransaction")
+  val transactionTypes: Seq[String] = Seq("ContractCreation", "PolyTransfer", "ArbitTransfer","ProfileTransaction")
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
@@ -227,6 +235,7 @@ trait BifrostGenerators extends CoreGenerators {
     _ => Gen.oneOf(transactionTypes).sample.get match {
       case "ContractCreation" => contractCreationGen.sample.get
       case "PolyTransfer" => polyTransferGen.sample.get
+      case "ArbitTransfer" => arbitTransferGen.sample.get
       case "ProfileTransaction" => profileTxGen.sample.get
     }
   }

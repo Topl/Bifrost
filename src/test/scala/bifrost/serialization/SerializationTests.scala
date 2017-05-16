@@ -93,6 +93,15 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("ArbitTransfer Serialization") {
+    forAll(arbitTransferGen) {
+      ac: ArbitTransfer =>
+        val parsed = TransferTransactionCompanion.parseBytes(
+          TransferTransactionCompanion.toBytes(ac)
+        ).get
+        TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(ac)
+    }
+  }
   property("ContractCreation Serialization") {
     forAll(contractCreationGen) {
       c: ContractCreation =>

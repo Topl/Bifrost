@@ -90,6 +90,19 @@ trait ValidGenerators extends BifrostGenerators {
     PolyTransfer(from, to, fee, timestamp)
   }
 
+  lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
+    val toKeyPairs = keyPairSetGen.sample.get.head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+
+    ArbitTransfer(from, to, fee, timestamp)
+  }
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen

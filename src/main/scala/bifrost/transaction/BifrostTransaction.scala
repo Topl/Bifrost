@@ -5,7 +5,7 @@ import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.box.{BifrostBox, ContractBox, PolyBox, ProfileBox}
+import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import bifrost.transaction.ContractMethodExecutionCompanion
@@ -220,20 +220,11 @@ object ContractMethodExecution {
 }
 
 
-trait TransferTransaction extends BifrostTransaction
-
-case class PolyTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                        to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                        signatures: IndexedSeq[Signature25519],
-                        override val fee: Long,
-                        override val timestamp: Long)
-  extends TransferTransaction {
-
-  override type M = PolyTransfer
-
-  override lazy val serializer = PolyTransferCompanion
-
-  override def toString: String = s"TransferTransaction(${json.noSpaces})"
+abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                                   val to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                                   val signatures: IndexedSeq[Signature25519],
+                                   override val fee: Long,
+                                   override val timestamp: Long) extends BifrostTransaction {
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = from.map { case (prop, nonce) =>
     PublicKeyNoncedBox.idFromBox(prop, nonce)
@@ -253,12 +244,6 @@ case class PolyTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
   )
-
-  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
-    case ((prop, value), idx) =>
-      val nonce = PolyTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
-      PolyBox(prop, nonce, value)
-  }
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
@@ -282,35 +267,38 @@ case class PolyTransfer(from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
   ).asJson
 }
 
-object PolyTransfer {
-  type Value = Long
+trait TransferUtil {
   type Nonce = Long
+  type Value = Long
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
-            to: IndexedSeq[(PublicKey25519Proposition, Value)],
-            fee: Long,
-            timestamp: Long): PolyTransfer = {
+  def parametersForApply(from: IndexedSeq[(PrivateKey25519, Nonce)],
+                         to: IndexedSeq[(PublicKey25519Proposition, Value)],
+                         fee: Long,
+                         timestamp: Long,
+                         txType: String): (IndexedSeq[(PublicKey25519Proposition, Nonce)],
+    IndexedSeq[Signature25519]) = {
     val fromPub = from.map { case (pr, n) => pr.publicImage -> n }
     val fakeSigs = from.map(_ => Signature25519(Array()))
 
-    val undersigned = PolyTransfer(fromPub, to, fakeSigs, fee, timestamp)
+    val undersigned = txType match {
+      case "PolyTransfer" => PolyTransfer(fromPub, to, fakeSigs, fee, timestamp)
+      case "ArbitTransfer" => ArbitTransfer(fromPub, to, fakeSigs, fee, timestamp)
+    }
 
     val msg = undersigned.messageToSign
     val sigs = from.map { case (priv, _) => PrivateKey25519Companion.sign(priv, msg) }
-
-    new PolyTransfer(fromPub, to, sigs, fee, timestamp)
+    (fromPub, sigs)
   }
 
-  //TODO seq of recipients and amounts
-  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[PolyTransfer] = Try {
-
+  def parametersForCreate(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long):
+    (IndexedSeq[(PrivateKey25519, Long, Long)], IndexedSeq[(PublicKey25519Proposition, Long)]) = {
     val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b => b.box match {
-        case scb: PolyBox => w.secretByPublicImage(scb.proposition).map (s => (s, scb.nonce, scb.value) )
-        case _ => None
-      }
-    }.toIndexedSeq
+      case poB: PolyBox => w.secretByPublicImage(poB.proposition).map (s => (s, poB.nonce, poB.value) )
+      case arB: ArbitBox => w.secretByPublicImage(arB.proposition).map (s => (s, arB.nonce, arB.value) )
+      case _ => None
+    }}.toIndexedSeq
 
     val canSend = from.map(_._3).sum
     val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys.find {
@@ -321,21 +309,111 @@ object PolyTransfer {
     val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
 
     require(from.map(_._3).sum - to.map(_._2).sum == fee)
-
-    val timestamp = System.currentTimeMillis()
-    PolyTransfer(from.map(t => t._1 -> t._2), to, fee, timestamp)
+    (from, to)
   }
 
-  def validate(tx: PolyTransfer): Try[Unit] = Try {
+  def validateTx(tx: TransferTransaction): Try[Unit] = Try {
     require(tx.from.size == tx.signatures.size)
     require(tx.to.forall(_._2 >= 0))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
+  }
+}
+
+case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                        override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                        override val signatures: IndexedSeq[Signature25519],
+                        override val fee: Long,
+                        override val timestamp: Long)
+  extends TransferTransaction (from, to, signatures, fee, timestamp) {
+
+  override type M = PolyTransfer
+
+  override lazy val serializer = PolyTransferCompanion
+
+  override def toString: String = s"PolyTransfer(${json.noSpaces})"
+
+  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+    case ((prop, value), idx) =>
+      val nonce = PolyTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      PolyBox(prop, nonce, value)
+  }
+}
+
+
+object PolyTransfer extends TransferUtil {
+
+  override type Nonce = Long
+  override type Value = Long
+  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
+            to: IndexedSeq[(PublicKey25519Proposition, Value)],
+            fee: Long,
+            timestamp: Long): PolyTransfer = {
+    val params = parametersForApply(from, to, fee, timestamp, "PolyTransfer")
+    PolyTransfer(params._1, to, params._2, fee, timestamp)
+  }
+
+  //TODO seq of recipients and amounts
+  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[PolyTransfer] = Try {
+
+    val params = parametersForCreate(w, recipient, amount, fee)
+    val timestamp = System.currentTimeMillis()
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
+  }
+
+  def validate(tx: PolyTransfer): Try[Unit] = Try {
     require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
       proof.isValid(prop, tx.messageToSign)
     })
+    validateTx(tx)
+  }
+}
+
+case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                        override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                        override val signatures: IndexedSeq[Signature25519],
+                        override val fee: Long,
+                        override val timestamp: Long) extends TransferTransaction(from, to, signatures, fee, timestamp) {
+
+  override type M = ArbitTransfer
+
+  override lazy val serializer = ArbitTransferCompanion
+
+  override def toString: String = s"ArbitTransfer(${json.noSpaces})"
+
+  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+    case ((prop, value), idx) =>
+      val nonce = ArbitTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      ArbitBox(prop, nonce, value)
+  }
+}
+
+object ArbitTransfer extends TransferUtil {
+
+  override type Nonce = Long
+  override type Value = Long
+  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
+            to: IndexedSeq[(PublicKey25519Proposition, Value)],
+            fee: Long,
+            timestamp: Long): ArbitTransfer = {
+    val params = parametersForApply(from, to, fee, timestamp, "ArbitTransfer")
+    ArbitTransfer(params._1, to, params._2, fee, timestamp)
   }
 
+  //TODO seq of recipients and amounts
+  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[ArbitTransfer] = Try {
+
+    val params = parametersForCreate(w, recipient, amount, fee)
+    val timestamp = System.currentTimeMillis()
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
+  }
+
+  def validate(tx: ArbitTransfer): Try[Unit] = Try {
+    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
+      proof.isValid(prop, tx.messageToSign)
+    })
+    validateTx(tx)
+  }
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,

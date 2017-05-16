@@ -288,6 +288,7 @@ object BifrostState {
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
       case poT: PolyTransfer => PolyTransfer.validate(poT)
+      case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case cc: ContractCreation => ContractCreation.validate(cc)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)

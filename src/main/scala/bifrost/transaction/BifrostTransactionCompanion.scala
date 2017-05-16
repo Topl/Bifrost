@@ -78,6 +78,7 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
       typeBytes ++
       (m match {
         case sc: PolyTransfer => PolyTransferCompanion.toBytes(sc)
+        case ac: ArbitTransfer => ArbitTransferCompanion.toBytes(ac)
       })
   }
 
@@ -93,6 +94,7 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
 
     newTypeStr match {
       case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
+      case "ArbitTransfer" => ArbitTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
     }
   }
 }
@@ -333,26 +335,27 @@ object AgreementCompanion extends Serializer[Agreement] {
   }
 }
 
-object PolyTransferCompanion extends Serializer[PolyTransfer] {
-
-  override def toBytes(sc: PolyTransfer): Array[Byte] = {
-    val typeBytes = "PolyTransfer".getBytes
+trait TransferSerializer {
+  def transferToBytes(tx: TransferTransaction, txType: String): Array[Byte] = {
+    val typeBytes = txType.getBytes
 
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Longs.toByteArray(sc.fee),
-      Longs.toByteArray(sc.timestamp),
-      Ints.toByteArray(sc.signatures.length),
-      Ints.toByteArray(sc.from.length),
-      Ints.toByteArray(sc.to.length),
-      sc.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
-      sc.from.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
-      sc.to.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+      Longs.toByteArray(tx.fee),
+      Longs.toByteArray(tx.timestamp),
+      Ints.toByteArray(tx.signatures.length),
+      Ints.toByteArray(tx.from.length),
+      Ints.toByteArray(tx.to.length),
+      tx.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
+      tx.from.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
+      tx.to.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[PolyTransfer] = Try {
+  def parametersParseBytes(bytes: Array[Byte]): (IndexedSeq[(PublicKey25519Proposition, Long)],
+                                                 IndexedSeq[(PublicKey25519Proposition, Long)],
+                                                 IndexedSeq[Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
@@ -394,6 +397,30 @@ object PolyTransferCompanion extends Serializer[PolyTransfer] {
       )
       (PublicKey25519Proposition(pk), v)
     }
-    PolyTransfer(from, to, signatures, fee, timestamp)
+    (from, to, signatures, fee, timestamp)
+  }
+}
+
+object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSerializer {
+
+  override def toBytes(sc: PolyTransfer): Array[Byte] = {
+    transferToBytes(sc, "PolyTransfer")
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[PolyTransfer] = Try {
+    val params = parametersParseBytes(bytes)
+    PolyTransfer(params._1, params._2, params._3, params._4, params._5)
+  }
+}
+
+object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSerializer {
+
+  override def toBytes(ac: ArbitTransfer): Array[Byte] = {
+    transferToBytes(ac, "ArbitTransfer")
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[ArbitTransfer] = Try {
+    val params = parametersParseBytes(bytes)
+    ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
   }
 }

@@ -42,6 +42,13 @@ class BifrostTransactionSpec extends PropSpec
     }
   }
 
+  property("Generated ArbitTransfer Tx should be valid") {
+    forAll(validArbitTransferGen) {
+      at: ArbitTransfer =>
+        BifrostState.semanticValidity(at).isSuccess shouldBe true
+    }
+  }
+
   property("Generated ProfileTransaction should be valid") {
     forAll(validProfileTransactionGen) { tx =>
         BifrostState.semanticValidity(tx).isSuccess shouldBe true
