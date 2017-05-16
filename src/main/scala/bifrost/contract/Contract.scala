@@ -72,19 +72,19 @@ class Contract(val Producer: PublicKey25519Proposition,
     ).asObject.get
 
     val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
-    val pdId: Long = Longs.fromByteArray(
+    val pdId: String = Base58.encode(
       FastCryptographicHash(
         (pendingDeliveriesJson.asArray.get :+
           Map(
             "quantity" -> quantity.asJson,
-            "timestamp" -> Instant.now.toEpochMilli
+            "timestamp" -> Instant.now.toEpochMilli.asJson
           ).asJson
         ).asJson.noSpaces.getBytes
       )
     )
 
     val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
-      "pendingDelivery",
+      "pendingDeliveries",
       (pendingDeliveriesJson.asArray.get :+
         Map(
           "quantity" -> quantity.asJson,
@@ -103,25 +103,38 @@ class Contract(val Producer: PublicKey25519Proposition,
     * Called by the Hub after the Hub takes delivery of goods produced by the Producer. This endorses an existing entry
     * for a pending delivery and updates the total amount of goods delivered by the Producer for this contract.
     *
-    * @param party    the public key of the executor of the method call (valid: Hub)
-    * @param id       the id of the pending delivery to endorse
+    * @param party        the public key of the executor of the method call (valid: Hub)
+    * @param deliveryId   the id of the pending delivery to endorse
     * @return
     */
-  def confirmDelivery(party: PublicKey25519Proposition)(id: Long): Try[Contract] = {
+  def confirmDelivery(party: PublicKey25519Proposition)(deliveryId: String): Try[Contract] = {
+
     require(party.pubKeyBytes sameElements Hub.pubKeyBytes,
       Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
     )
 
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
       Map(
-        "pendingDelivery" -> List[Json]().asJson
+        "pendingDeliveries" -> List[Json]().asJson
       ).asJson
     ).asObject.get
 
     val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
+    val pendingDeliveries: Vector[Json] = pendingDeliveriesJson.asArray.get
 
+    val partitionedDeliveries: (Vector[Json], Vector[Json]) = pendingDeliveries.partition(_.asObject.get("id").get.asString.get equals deliveryId)
 
-    Success(this)
+    require(partitionedDeliveries._1.nonEmpty, Failure(new NoSuchElementException(s"ID <$deliveryId> was not found as a pending delivery.")))
+
+    val oldDeliveredQuantity: Long = currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get
+
+    val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj
+      .add("pendingDeliveries", partitionedDeliveries._2.asJson)
+      .add("deliveredQuantity", (oldDeliveredQuantity + partitionedDeliveries._1.head.asObject.get("quantity").get.asNumber.get.toLong.get).asJson)
+
+    val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
   def checkExpiration(party: PublicKey25519Proposition)(): Try[Json] = Try {
@@ -168,6 +181,7 @@ object Contract {
             case _ => typename match {
               case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.head.name.toString).get.asString.get).get)
               case "Long" => args(p.head.name.toString).get.asNumber.get.toLong.get
+              case "String" => args(p.head.name.toString).get.asString.get
               case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
             }
           }

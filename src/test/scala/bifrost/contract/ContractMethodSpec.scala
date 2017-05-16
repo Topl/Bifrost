@@ -5,6 +5,7 @@ import java.security.InvalidParameterException
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
+import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
@@ -73,8 +74,59 @@ class ContractMethodSpec extends PropSpec
       !status.equals("expired") && !status.equals("complete")
     })) {
       c: Contract => {
-        forAll(positiveLongGen) {
-          quantity: Long => true shouldBe true
+        forAll(positiveTinyIntGen) {
+          i: Int => {
+            var contract = c
+
+            contract.storage("currentFulfillment").getOrElse(
+              Map(
+                "pendingDeliveries" -> List[Json]().asJson
+              ).asJson
+            ).asObject.get("deliveredQuantity").getOrElse(0L.asJson) shouldBe 0L.asJson
+
+            /* Add a variable number of pending deliveries */
+            (0 until i).foreach(_ => {
+              val quantity = positiveLongGen.sample.get
+              contract = Contract.execute(contract, "deliver")(contract.Producer)(Map("quantity" -> quantity.asJson).asJsonObject).get.left.get
+            })
+
+            var fulfillment = contract.storage("currentFulfillment").get
+            var pendingDeliveries = fulfillment.asObject.get("pendingDeliveries").get.asArray.get
+            
+            pendingDeliveries.size shouldBe i
+
+
+            /* Resolve the pending deliveries */
+            (0 until i).foreach(_ => {
+
+              val fulfillment = contract.storage("currentFulfillment").get
+              val pendingDeliveries = fulfillment.asObject.get("pendingDeliveries").get.asArray.get
+
+              require(pendingDeliveries.nonEmpty, "No pending deliveries when pending deliveries were expected.")
+
+              val deliveryToEndorse: JsonObject = Gen.oneOf(pendingDeliveries).sample.get.asObject.get
+
+              contract = Contract.execute(contract, "confirmDelivery")(contract.Hub)(Map("deliveryId" -> deliveryToEndorse("id").get).asJsonObject).get.left.get
+
+              val newFulfillment = contract.storage("currentFulfillment").get
+              val newPendingDeliveries = newFulfillment.asObject.get("pendingDeliveries").get.asArray.get
+
+              val newDeliveredQuantity = newFulfillment.asObject.get("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get
+              val oldDeliveredQuantity = fulfillment.asObject.get("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get
+
+              val endorsedQuantity = deliveryToEndorse("quantity").get.asNumber.get.toLong.get
+
+              newDeliveredQuantity shouldBe (oldDeliveredQuantity + endorsedQuantity)
+              newPendingDeliveries.size shouldBe pendingDeliveries.size - 1
+              newPendingDeliveries.exists(_.asObject.get("id").get.equals(deliveryToEndorse("id").get)) shouldBe false
+
+            })
+
+            fulfillment = contract.storage("currentFulfillment").get
+            pendingDeliveries = fulfillment.asObject.get("pendingDeliveries").get.asArray.get
+
+            pendingDeliveries shouldBe empty
+          }
         }
       }
     }
