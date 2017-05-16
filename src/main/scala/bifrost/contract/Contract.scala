@@ -55,10 +55,11 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     require(!status.equals("expired") && !status.equals("complete"), Failure(new IllegalStateException(s"Contract state <$status> is invalid")))
 
-    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("deliveredQuantity" -> 0L.asJson).asJson).asObject.get
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("pendingDelivery" -> List[Json]().asJson).asJson).asObject.get
+    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDelivery").getOrElse(List[Json]().asJson)
     val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
-      "deliveredQuantity",
-      (currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get + quantity).asJson
+      "pendingDelivery",
+      (pendingDeliveriesJson.asArray.get :+ Map("quantity" -> quantity.asJson).asJson).asJson
     )
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
