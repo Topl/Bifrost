@@ -1,14 +1,13 @@
 package bifrost.contract
 
-import java.security.InvalidParameterException
 import java.time.Instant
 
 import com.google.common.primitives.Longs
 import io.circe._
 import io.circe.syntax._
+import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
-import sun.plugin.dom.exception.InvalidStateException
 
 import scala.reflect.runtime.{universe => ru}
 import scala.util.{Failure, Success, Try}
@@ -46,33 +45,83 @@ class Contract(val Producer: PublicKey25519Proposition,
     storage("status").get
   }
 
+  /**
+    * Called by the Producer when the Producer makes delivery of produced goods. This creates an entry in storage to be
+    * later endorsed by a Hub.
+    *
+    * @param party      the public key of the executor of the method call (valid: Producer)
+    * @param quantity   the amount of goods supposedly delivered
+    * @return
+    */
   def deliver(party: PublicKey25519Proposition)(quantity: Long): Try[Contract] = {
 
-    require(party.pubKeyBytes sameElements Producer.pubKeyBytes, Failure(new IllegalAccessException("Wrong actor")))
+    require(party.pubKeyBytes sameElements Producer.pubKeyBytes,
+      Failure(new IllegalAccessException(s"[Producer Only]: Account <$party> doesn't have permission to this method."))
+    )
+
     require(quantity > 0L, Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive")))
 
     val status: String = storage("status").get.asString.get
 
-    require(!status.equals("expired") && !status.equals("complete"), Failure(new IllegalStateException(s"Contract state <$status> is invalid")))
+    require(!status.equals("expired") && !status.equals("complete"), Failure(new IllegalStateException(s"Cannot deliver while contract status is <$status>")))
 
-    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(Map("pendingDelivery" -> List[Json]().asJson).asJson).asObject.get
-    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDelivery").getOrElse(List[Json]().asJson)
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
+      Map(
+        "pendingDeliveries" -> List[Json]().asJson
+      ).asJson
+    ).asObject.get
+
+    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
+    val pdId: Long = Longs.fromByteArray(
+      FastCryptographicHash(
+        (pendingDeliveriesJson.asArray.get :+
+          Map(
+            "quantity" -> quantity.asJson,
+            "timestamp" -> Instant.now.toEpochMilli
+          ).asJson
+        ).asJson.noSpaces.getBytes
+      )
+    )
+
     val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
       "pendingDelivery",
-      (pendingDeliveriesJson.asArray.get :+ Map("quantity" -> quantity.asJson).asJson).asJson
+      (pendingDeliveriesJson.asArray.get :+
+        Map(
+          "quantity" -> quantity.asJson,
+          "timestamp" -> Instant.now.toEpochMilli.asJson,
+          "id" -> pdId.asJson
+        ).asJson
+      ).asJson
     )
+
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
     Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
-  def confirmDelivery(party: PublicKey25519Proposition)(): Try[Contract] = {
-    if (party.pubKeyBytes sameElements Hub.pubKeyBytes) {
-      Success(this)
-    } else {
-      Failure(new IllegalAccessException("Wrong actor"))
-    }
+  /**
+    * Called by the Hub after the Hub takes delivery of goods produced by the Producer. This endorses an existing entry
+    * for a pending delivery and updates the total amount of goods delivered by the Producer for this contract.
+    *
+    * @param party    the public key of the executor of the method call (valid: Hub)
+    * @param id       the id of the pending delivery to endorse
+    * @return
+    */
+  def confirmDelivery(party: PublicKey25519Proposition)(id: Long): Try[Contract] = {
+    require(party.pubKeyBytes sameElements Hub.pubKeyBytes,
+      Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
+    )
 
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
+      Map(
+        "pendingDelivery" -> List[Json]().asJson
+      ).asJson
+    ).asObject.get
+
+    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
+
+
+    Success(this)
   }
 
   def checkExpiration(party: PublicKey25519Proposition)(): Try[Json] = Try {
@@ -85,12 +134,12 @@ class Contract(val Producer: PublicKey25519Proposition,
 object Contract {
 
   // get runtime mirror
-  val rm = ru.runtimeMirror(getClass.getClassLoader)
+  val rm: ru.Mirror = ru.runtimeMirror(getClass.getClassLoader)
 
   // TODO this currently also shows public accessors and the like. Want to restrict. May have to build registry after all
-  val contractMethods: Map[String, ru.MethodSymbol] = ru.typeOf[Contract].decls collect {
+  val contractMethods: Map[String, ru.MethodSymbol] = (ru.typeOf[Contract].decls collect {
     case m: ru.Symbol if m.isMethod => m.asMethod.name.toString -> m.asMethod
-  } toMap
+  }).toMap
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
