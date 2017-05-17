@@ -32,7 +32,6 @@ class SerializationTests extends PropSpec
   property("ContractBox Serialization") {
     forAll(contractBoxGen) {
       b: ContractBox =>
-        print(b.value.spaces2)
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         serialized sameElements BifrostBoxSerializer.toBytes(b)

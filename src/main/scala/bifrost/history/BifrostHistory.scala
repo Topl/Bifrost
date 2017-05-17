@@ -82,8 +82,6 @@ class BifrostHistory(storage: BifrostStorage, settings: ForgingSettings, validat
         val oldDifficulty = storage.difficultyOf(block.parentId).get
         var difficulty = (oldDifficulty * settings.blockGenerationDelay.length) / (block.timestamp - parent.timestamp)
 
-        println(s"${Console.BLUE}THE BLOCK TIME WAS ${block.timestamp - parent.timestamp}${Console.RESET}")
-
         if(difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
 
         val builtOnBestChain = score == storage.parentChainScore(block)
