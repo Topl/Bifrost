@@ -6,4 +6,4 @@ scala:
 script:
    - sbt test
 dist: trusty
-sudo: required
+sudo: false
