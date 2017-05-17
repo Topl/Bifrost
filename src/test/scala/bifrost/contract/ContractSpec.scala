@@ -31,7 +31,6 @@ class ContractSpec extends PropSpec
           }
 
           val result = Contract.execute(c, m)(party)(possibleArgs)
-          print(m, result)
           assert(result.isSuccess)
         })
       }

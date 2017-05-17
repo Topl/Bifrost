@@ -11,7 +11,7 @@ import scorex.crypto.hash.Sha256
 
 import scala.util.{Failure, Try}
 
-class BifrostStorage(storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
+class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
   private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
 
   def height: Long = heightOf(bestBlockId).getOrElse(0L)
