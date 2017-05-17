@@ -3,14 +3,14 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
-import bifrost.BifrostGenerators
+import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.state.BifrostState
-import bifrost.transaction.{ArbitTransfer, ContractCreation}
-import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
+import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer}
+import bifrost.transaction.box.{ArbitBox, ContractBox, ContractBoxSerializer, PolyBox}
 import bifrost.transaction.box.proposition.MofNPropositionSerializer
 import bifrost.wallet.BWallet
 import io.circe
@@ -33,6 +33,7 @@ class BifrostStateSpec extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
+  with ValidGenerators
   with BeforeAndAfterAll{
 
   val settingsFilename = "settings.json"
@@ -80,9 +81,13 @@ class BifrostStateSpec extends PropSpec
     IndexedSeq(genesisAccountPriv -> 0),
     icoMembers.map(_ -> GenesisBalance),
     0L,
+    0L)) ++ Seq(PolyTransfer(
+    IndexedSeq(genesisAccountPriv -> 0),
+    icoMembers.map(_ -> GenesisBalance),
+    0L,
     0L))
   assert(icoMembers.length == GenesisAccountsNum)
-  assert(Base58.encode(genesisTxs.head.id) == "A27Wb3skirVeyRRmFQDoqSUNGtGBKtfnERcSAFHtSf7H", Base58.encode(genesisTxs.head.id))
+  assert(Base58.encode(genesisTxs.head.id) == "5dJRukdd7sw7cmc8vwSnwbVggWLPV4VHYsZt7AQcFW3B", Base58.encode(genesisTxs.head.id))
 
   val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
   val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
@@ -90,16 +95,17 @@ class BifrostStateSpec extends PropSpec
   var history = BifrostHistory.readOrGenerate(settings)
   history = history.append(genesisBlock).get._1
 
+
   var genesisState = BifrostState.genesisState(settings, Seq(genesisBlock))
   genesisState = genesisState
   val genesisBlockId = genesisState.version
-  val genesisWallet = BWallet.genesisWallet(settings, Seq(genesisBlock))
-  assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || genesisWallet.boxes().flatMap(_.box match {
+  val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
+  assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
     case ab: ArbitBox => Some(ab.value)
     case _ => None
   }).sum >= GenesisBalance)
 
-  genesisWallet.boxes().foreach(b => assert(genesisState.closedBox(b.box.id).isDefined))
+  gw.boxes().foreach(b => assert(genesisState.closedBox(b.box.id).isDefined))
 
   property("A block with valid contract creation will result in an entry in the LSMStore") {
 
@@ -114,17 +120,9 @@ class BifrostStateSpec extends PropSpec
           Seq(cc)
         )
 
-        val boxType = "ContractBox"
-
         val box = cc.newBoxes.head.asInstanceOf[ContractBox]
 
-        val boxBytes = Ints.toByteArray(boxType.getBytes.length) ++
-          boxType.getBytes ++
-          MofNPropositionSerializer.toBytes(box.proposition) ++
-          Longs.toByteArray(box.nonce) ++
-          Ints.toByteArray(box.value.noSpaces.getBytes.length) ++
-          box.value.noSpaces.getBytes
-
+        val boxBytes = ContractBoxSerializer.toBytes(box)
 
         val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(1)).get
 
@@ -134,14 +132,36 @@ class BifrostStateSpec extends PropSpec
         })
 
         genesisState = newState.rollbackTo(genesisBlockId).get
+
     }
   }
 
-  property("A block with valid PolyCoin transfer should result in more funds for receiver, less for transferrer") {
+  property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {
     // Create genesis block, add to state
-    // Create new block with PolyChain transfer
+    // Create new block with PolyTransfer
     // send new block to state
     // check updated state
+    forAll(validPolyTransferGen) { PoT: PolyTransfer =>
+      val block = BifrostBlock(
+        Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        Instant.now().toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+        Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+        Seq(PoT)
+      )
+
+      val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(2)).get
+
+//      val arbitBoxes = gw.boxes().filter(_.box match {
+//        case a: ArbitBox => newState.closedBox(a.id).isDefined
+//        case _ => false
+//      }).map(_.box.asInstanceOf[ArbitBox])
+//
+//      val boxKeys = arbitBoxes.flatMap(b => gw.secretByPublicImage(b.proposition).map(s => (b, s)))
+//      println(s"Arbit Balance ${boxKeys.map(_._1.value).sum}")
+
+      genesisState = newState.rollbackTo(genesisBlockId).get
+    }
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {
