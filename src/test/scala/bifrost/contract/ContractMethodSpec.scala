@@ -1,6 +1,6 @@
 package bifrost.contract
 
-import java.security.InvalidParameterException
+import java.lang.reflect.InvocationTargetException
 
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
@@ -18,7 +18,7 @@ class ContractMethodSpec extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
-  with ValidGenerators{
+  with ValidGenerators {
 
   property("deliver called by Producer should return a contract with a pending delivery with the delivery amount (if positive), or a Failure (if negative)") {
 
@@ -27,7 +27,7 @@ class ContractMethodSpec extends PropSpec
       !status.equals("expired") && !status.equals("complete")
     })) {
       c: Contract => {
-        forAll(positiveLongGen) {
+        forAll(Gen.choose(0, Long.MaxValue)) {
           quantity: Long =>
 
             val oldFulfillment = c.storage("currentFulfillment").getOrElse(Map("pendingDeliveries" -> List[Json]().asJson).asJson).asObject.get
@@ -35,7 +35,9 @@ class ContractMethodSpec extends PropSpec
             if(quantity != 0L) {
               val result: Try[Either[Contract, Json]] = Contract.execute(c, "deliver")(c.Producer)(Map("quantity" -> quantity.asJson).asJsonObject)
 
-              result shouldBe a[Success[Left[Contract, Json]]]
+              result shouldBe a[Success[_]]
+              result.get shouldBe a[Left[_,_]]
+              result.get.left.get shouldBe a[Contract]
 
               val newCurrentFulfillmentOpt = result.get.left.get.storage("currentFulfillment")
 
@@ -49,7 +51,10 @@ class ContractMethodSpec extends PropSpec
               newPendingDeliveries(newPendingDeliveries.size - 1).asObject.get("quantity").get.asNumber.get.toLong.get shouldBe quantity
             }
 
-            Contract.execute(c, "deliver")(c.Producer)(Map("quantity" -> (-1L * quantity).asJson).asJsonObject) shouldBe a[Failure[InvalidParameterException]]
+            val result = Contract.execute(c, "deliver")(c.Producer)(Map("quantity" -> (-1L * quantity).asJson).asJsonObject)
+
+            result shouldBe a[Failure[_]]
+            result.failed.get shouldBe a[IllegalArgumentException]
         }
       }
     }
@@ -64,7 +69,11 @@ class ContractMethodSpec extends PropSpec
       c: Contract => {
         forAll(positiveLongGen) {
           quantity: Long =>
-            Contract.execute(c, "deliver")(c.Producer)(Map("quantity" -> quantity.asJson).asJsonObject) shouldBe a[Failure[IllegalStateException]]
+
+            val result = Contract.execute(c, "deliver")(c.Producer)(Map("quantity" -> quantity.asJson).asJsonObject)
+
+            result shouldBe a[Failure[_]]
+            result.failed.get shouldBe a[IllegalStateException]
         }
       }
     }
@@ -112,11 +121,17 @@ class ContractMethodSpec extends PropSpec
 
               val deliveryToEndorse: JsonObject = Gen.oneOf(pendingDeliveries).sample.get.asObject.get
 
-              contract = Contract.execute(contract, "confirmDelivery")(contract.Hub)(
+              val result = Contract.execute(contract, "confirmDelivery")(contract.Hub)(
                 Map(
                   "deliveryId" -> deliveryToEndorse("id").get
                 ).asJsonObject
-              ).get.left.get
+              )
+
+              result shouldBe a[Success[_]]
+              result.get shouldBe a[Left[_,_]]
+              result.get.left.get shouldBe a[Contract]
+
+              contract = result.get.left.get
 
               val newFulfillment = contract.storage("currentFulfillment").get
               val newPendingDeliveries = newFulfillment.asObject.get("pendingDeliveries").get.asArray.get
@@ -148,7 +163,7 @@ class ContractMethodSpec extends PropSpec
       !status.equals("expired") && !status.equals("complete")
     })) {
       c: Contract => {
-        forAll(positiveTinyIntGen) {
+        forAll(positiveTinyIntGen.suchThat(_ > 0)) {
           i: Int => {
             var contract = c
 
@@ -172,11 +187,13 @@ class ContractMethodSpec extends PropSpec
             forAll(nonEmptyBytesGen) {
               b: Array[Byte] => {
                 val fakeId: String = Base58.encode(FastCryptographicHash(b))
-                Contract.execute(contract, "confirmDelivery")(contract.Hub)(
+                val result = Contract.execute(contract, "confirmDelivery")(contract.Hub)(
                   Map(
                     "deliveryId" -> fakeId.asJson
                   ).asJsonObject
-                ) shouldBe a[Failure[NoSuchElementException]]
+                )
+                result shouldBe a[Failure[_]]
+                result.failed.get shouldBe a[NoSuchElementException]
               }
             }
 
@@ -235,17 +252,23 @@ class ContractMethodSpec extends PropSpec
 
               val deliveryToEndorse: JsonObject = Gen.oneOf(pendingDeliveries).sample.get.asObject.get
 
-              Contract.execute(expiredContract, "confirmDelivery")(contract.Hub)(
+              val expiredResult = Contract.execute(expiredContract, "confirmDelivery")(contract.Hub)(
                 Map(
                 "deliveryId" -> deliveryToEndorse("id").get
                 ).asJsonObject
-              ) shouldBe a[Failure[IllegalStateException]]
+              )
 
-              Contract.execute(completedContract, "confirmDelivery")(contract.Hub)(
+              expiredResult shouldBe a[Failure[_]]
+              expiredResult.failed.get shouldBe a[IllegalStateException]
+
+              val completedResult = Contract.execute(completedContract, "confirmDelivery")(contract.Hub)(
                 Map(
                   "deliveryId" -> deliveryToEndorse("id").get
                 ).asJsonObject
-              ) shouldBe a[Failure[IllegalStateException]]
+              )
+
+              completedResult shouldBe a[Failure[_]]
+              completedResult.failed.get shouldBe a[IllegalStateException]
 
             })
           }

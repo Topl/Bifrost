@@ -2,7 +2,6 @@ package bifrost.contract
 
 import java.time.Instant
 
-import com.google.common.primitives.Longs
 import io.circe._
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -55,15 +54,16 @@ class Contract(val Producer: PublicKey25519Proposition,
     */
   def deliver(party: PublicKey25519Proposition)(quantity: Long): Try[Contract] = {
 
-    require(party.pubKeyBytes sameElements Producer.pubKeyBytes,
-      Failure(new IllegalAccessException(s"[Producer Only]: Account <$party> doesn't have permission to this method."))
-    )
+    if (!(party.pubKeyBytes sameElements Producer.pubKeyBytes))
+      return Failure(new IllegalAccessException(s"[Producer Only]: Account <$party> doesn't have permission to this method."))
 
-    require(quantity > 0L, Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive")))
+    if(quantity <= 0L)
+      return Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive"))
 
     val status: String = storage("status").get.asString.get
 
-    require(!status.equals("expired") && !status.equals("complete"), Failure(new IllegalStateException(s"Cannot deliver while contract status is <$status>")))
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot deliver while contract status is <$status>"))
 
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
       Map(
@@ -79,7 +79,7 @@ class Contract(val Producer: PublicKey25519Proposition,
             "quantity" -> quantity.asJson,
             "timestamp" -> Instant.now.toEpochMilli.asJson
           ).asJson
-        ).asJson.noSpaces.getBytes
+          ).asJson.noSpaces.getBytes
       )
     )
 
@@ -91,7 +91,7 @@ class Contract(val Producer: PublicKey25519Proposition,
           "timestamp" -> Instant.now.toEpochMilli.asJson,
           "id" -> pdId.asJson
         ).asJson
-      ).asJson
+        ).asJson
     )
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
@@ -109,15 +109,13 @@ class Contract(val Producer: PublicKey25519Proposition,
     */
   def confirmDelivery(party: PublicKey25519Proposition)(deliveryId: String): Try[Contract] = {
 
-    require(party.pubKeyBytes sameElements Hub.pubKeyBytes,
-      Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
-    )
+    if (!(party.pubKeyBytes sameElements Hub.pubKeyBytes))
+      return Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
 
     val status: String = storage("status").get.asString.get
 
-    require(!status.equals("expired") && !status.equals("complete"),
-      Failure(new IllegalStateException(s"Cannot endorse delivery while contract status is <$status>"))
-    )
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot endorse delivery while contract status is <$status>"))
 
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
       Map(
@@ -130,7 +128,8 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     val partitionedDeliveries: (Vector[Json], Vector[Json]) = pendingDeliveries.partition(_.asObject.get("id").get.asString.get equals deliveryId)
 
-    require(partitionedDeliveries._1.nonEmpty, Failure(new NoSuchElementException(s"ID <$deliveryId> was not found as a pending delivery.")))
+    if (partitionedDeliveries._1.isEmpty)
+      return Failure(new NoSuchElementException(s"ID <$deliveryId> was not found as a pending delivery."))
 
     val oldDeliveredQuantity: Long = currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get
 
@@ -193,10 +192,12 @@ object Contract {
           }
         })
 
-        rm.reflect(c).reflectMethod(m)(params:_*) match {
+        val res = rm.reflect(c).reflectMethod(m)(params:_*)
+
+        res match {
           case c: Success[Contract] => Left(c.value)
           case j: Success[Json] => Right(j.value)
-          case f: Failure[Any] => throw f.exception
+          case f: Failure[_] => throw f.exception
         }
 
       case _ => throw new MatchError(s"Could not find method <$methodName>")
