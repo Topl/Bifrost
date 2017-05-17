@@ -113,6 +113,12 @@ class Contract(val Producer: PublicKey25519Proposition,
       Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
     )
 
+    val status: String = storage("status").get.asString.get
+
+    require(!status.equals("expired") && !status.equals("complete"),
+      Failure(new IllegalStateException(s"Cannot endorse delivery while contract status is <$status>"))
+    )
+
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
       Map(
         "pendingDeliveries" -> List[Json]().asJson
