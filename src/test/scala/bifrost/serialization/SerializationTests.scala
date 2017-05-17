@@ -94,8 +94,8 @@ class SerializationTests extends PropSpec
         val directParsedBytes = ContractTransactionCompanion.toBytes(c)
         parsedBytes.length shouldEqual directParsedBytes.length
         val res = parsedBytes.zip(directParsedBytes).map {
-          case (parsed, directParsed) =>
-            parsed shouldEqual directParsed
+          case (p, directParsed) =>
+            p shouldEqual directParsed
         }
     }
   }
