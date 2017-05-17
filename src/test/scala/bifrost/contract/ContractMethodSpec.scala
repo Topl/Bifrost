@@ -276,4 +276,16 @@ class ContractMethodSpec extends PropSpec
       }
     }
   }
+
+  property("currentStatus should successfully return the current status of the contract as Json") {
+    forAll(validContractGen) {
+      c: Contract =>
+        val result = Contract.execute(c, "currentStatus")(Gen.oneOf(Seq(c.Producer, c.Hub, c.Investor)).sample.get)(JsonObject.empty)
+
+        result shouldBe a[Success[_]]
+        result.get shouldBe a[Left[_,_]]
+        result.get.left.get shouldBe a[Json]
+        result.get.left.get shouldBe c.storage("status").get
+    }
+  }
 }

@@ -40,6 +40,11 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   }
 
+  /**
+    * Called by any party that wishes to find in which state the contract currently is
+    * @param party      the public key of the executor of the method call (valid: all)
+    * @return           the status of the contract as a JSON string
+    */
   def currentStatus(party: PublicKey25519Proposition)(): Try[Json] = Try {
     storage("status").get
   }
@@ -154,7 +159,7 @@ object Contract {
   // get runtime mirror
   val rm: ru.Mirror = ru.runtimeMirror(getClass.getClassLoader)
 
-  // TODO this currently also shows public accessors and the like. Want to restrict. May have to build registry after all
+  // TODO this currently also shows public accessors and the like. May need to build registry to restrict only to named methods
   val contractMethods: Map[String, ru.MethodSymbol] = (ru.typeOf[Contract].decls collect {
     case m: ru.Symbol if m.isMethod => m.asMethod.name.toString -> m.asMethod
   }).toMap
@@ -179,18 +184,19 @@ object Contract {
 
     methodAttempt match {
       case Some(m: ru.MethodSymbol) =>
-        val params: List[Any] = m.paramLists.map(p => {
-          val typename = p.head.typeSignature.typeSymbol.asClass.name.toString
-          p.head.name.toString match {
-            case "party" => party
-            case _ => typename match {
-              case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.head.name.toString).get.asString.get).get)
-              case "Long" => args(p.head.name.toString).get.asNumber.get.toLong.get
-              case "String" => args(p.head.name.toString).get.asString.get
-              case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
+        val params: List[Any] = m.paramLists collect {
+          case p: List[ru.Symbol] if p.nonEmpty =>
+            val typename = p.head.typeSignature.typeSymbol.asClass.name.toString
+            p.head.name.toString match {
+              case "party" => party
+              case _ => typename match {
+                case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.head.name.toString).get.asString.get).get)
+                case "Long" => args(p.head.name.toString).get.asNumber.get.toLong.get
+                case "String" => args(p.head.name.toString).get.asString.get
+                case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
+              }
             }
-          }
-        })
+        }
 
         val res = rm.reflect(c).reflectMethod(m)(params:_*)
 
