@@ -1,6 +1,6 @@
 package bifrost.contract
 
-import java.lang.reflect.InvocationTargetException
+import java.time.Instant
 
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
@@ -286,6 +286,59 @@ class ContractMethodSpec extends PropSpec
         result.get shouldBe a[Left[_,_]]
         result.get.left.get shouldBe a[Json]
         result.get.left.get shouldBe c.storage("status").get
+    }
+  }
+
+  property("checkExpiration should update a contract with expirationTimestamp that has passed if not yet expired") {
+
+    val lateAgreementGen = for {
+      terms <- agreementTermsGen
+      diff <- positiveLongGen
+    } yield Agreement(terms, Instant.now.toEpochMilli - diff)
+
+    val expirableContractGen = for {
+      producer <- propositionGen
+      investor <- propositionGen
+      hub <- propositionGen
+      storage <- jsonGen()
+      status <- Gen.oneOf(validStatuses.filterNot(s => s.equals("expired") || s.equals("complete")))
+      agreement <- lateAgreementGen.map(_.json)
+      id <- genBytesList(FastCryptographicHash.DigestSize)
+    } yield Contract(Map(
+      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "storage" -> Map("status" -> status.asJson, "other" -> storage).asJson,
+      "agreement" -> agreement
+    ).asJson, id)
+
+    forAll(expirableContractGen) {
+      c: Contract =>
+        val result = Contract.execute(c, "checkExpiration")(Gen.oneOf(Seq(c.Producer, c.Hub, c.Investor)).sample.get)(JsonObject.empty)
+        result shouldBe a[Success[_]]
+        result.get shouldBe a[Left[_,_]]
+        result.get.left.get shouldBe a[Contract]
+
+        result.get.left.get.storage("status").get shouldBe "expired".asJson
+    }
+  }
+
+  property("checkExpiration should not change a contract that is already expired or which hasn't passed the expirationTimestamp") {
+
+    forAll(validContractGen.suchThat(c => {
+      val status = c.storage("status").get
+      val cannotExpire = status.equals("expired".asJson) || status.equals("complete".asJson)
+      val notPastExpiration = c.agreement("expirationTimestamp").get.asNumber.get.toLong.get > Instant.now.toEpochMilli + 5000L
+
+      notPastExpiration || cannotExpire
+    })) {
+      c: Contract =>
+        val result = Contract.execute(c, "checkExpiration")(Gen.oneOf(Seq(c.Producer, c.Hub, c.Investor)).sample.get)(JsonObject.empty)
+        result shouldBe a[Success[_]]
+        result.get shouldBe a[Left[_,_]]
+        result.get.left.get shouldBe a[Contract]
+
+        result.get.left.get.storage("status").get shouldBe c.storage("status").get
     }
   }
 }

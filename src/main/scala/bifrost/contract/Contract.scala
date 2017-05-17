@@ -42,6 +42,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
   /**
     * Called by any party that wishes to find in which state the contract currently is
+    *
     * @param party      the public key of the executor of the method call (valid: all)
     * @return           the status of the contract as a JSON string
     */
@@ -147,9 +148,26 @@ class Contract(val Producer: PublicKey25519Proposition,
     Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
-  def checkExpiration(party: PublicKey25519Proposition)(): Try[Json] = Try {
+  /**
+    * Called by any party in order to check that contract has not yet expired. If the contract has expired, the contract
+    * will update its state to 'expired'.
+    *
+    * @param party        the public key of the executor of the method call (valid: all)
+    * @return
+    */
+  def checkExpiration(party: PublicKey25519Proposition)(): Try[Contract] = Try {
+
     val expiration: Long = this.agreement("expirationTimestamp").get.as[Long].right.get
-    (Instant.now().toEpochMilli > expiration).asJson
+    val currentStatus = storage("status").get
+
+    if (currentStatus.equals("expired".asJson) || currentStatus.equals("complete".asJson) || Instant.now().toEpochMilli < expiration)
+      this
+
+    else {
+      val newStorage = storage.add("status", "expired".asJson)
+      new Contract(Producer, Hub, Investor, newStorage, agreement, id)
+    }
+
   }
 
 }
@@ -184,6 +202,8 @@ object Contract {
 
     methodAttempt match {
       case Some(m: ru.MethodSymbol) =>
+
+        /* Creates a list of each of the parameters required by the method as their proper classes */
         val params: List[Any] = m.paramLists collect {
           case p: List[ru.Symbol] if p.nonEmpty =>
             val typename = p.head.typeSignature.typeSymbol.asClass.name.toString
