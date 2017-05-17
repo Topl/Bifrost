@@ -21,7 +21,11 @@ Documentation
 -------------
 [Ongoing documentation](https://www.overleaf.com/read/cwggvsyvptjv) (in development)
 
-[Installation & use guide](https://github.com/ScorexFoundation/ScorexTutorial)
+
+
+Install and Testing
+-------------------
+NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
 
 
 Contributions
