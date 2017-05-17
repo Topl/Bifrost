@@ -92,7 +92,7 @@ class ContractMethodSpec extends PropSpec
 
             var fulfillment = contract.storage("currentFulfillment").get
             var pendingDeliveries = fulfillment.asObject.get("pendingDeliveries").get.asArray.get
-            
+
             pendingDeliveries.size shouldBe i
 
 
