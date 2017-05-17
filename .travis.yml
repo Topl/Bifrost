@@ -5,3 +5,5 @@ scala:
 - 2.12.1
 script:
    - sbt test
+dist: trusty
+sudo: required
