@@ -341,4 +341,204 @@ class ContractMethodSpec extends PropSpec
         result.get.left.get.storage("status").get shouldBe c.storage("status").get
     }
   }
+
+  property("endorseCompletion should create an endorsement entry with a hash of the contract state when the contract is not expired or complete") {
+
+    val deliveryGen = for {
+      quantity <- positiveLongGen
+    } yield {
+      Map(
+        "quantity" -> quantity.asJson,
+        "timestamp" -> Instant.now.toEpochMilli.asJson
+      )
+    }
+
+    val pendingDeliveriesJsonGen = for {
+      length <- positiveTinyIntGen
+    } yield {
+      var deliveriesSoFar = List[Json]()
+
+      (0 until length) foreach {
+        _ => {
+          val thisDelivery = deliveryGen.sample.get
+          val pdId: String = Base58.encode(
+            FastCryptographicHash(
+              (deliveriesSoFar :+ thisDelivery.asJson).asJson.noSpaces.getBytes
+            )
+          )
+
+          deliveriesSoFar = deliveriesSoFar :+
+            Map(
+              "quantity" -> thisDelivery.get("quantity").asJson,
+              "timestamp" -> thisDelivery.get("timestamp").asJson,
+              "id" -> pdId.asJson
+            ).asJson
+
+        }
+      }
+
+      deliveriesSoFar.asJson
+    }
+
+    val endorseableContractGen = for {
+      producer <- propositionGen
+      investor <- propositionGen
+      hub <- propositionGen
+      storage <- jsonGen()
+      status <- Gen.oneOf(validStatuses.filterNot(s => s.equals("expired") || s.equals("complete")))
+      agreement <- validAgreementGen.map(_.json)
+      id <- genBytesList(FastCryptographicHash.DigestSize)
+      pendingDeliveriesJson <- pendingDeliveriesJsonGen
+      deliveredQuantity <- positiveLongGen
+    } yield Contract(Map(
+      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "storage" -> Map(
+        "status" -> status.asJson,
+        "currentFulfillment" -> Map(
+          "pendingDeliveries" -> pendingDeliveriesJson,
+          "deliveredQuantity" -> deliveredQuantity.asJson
+        ).asJson,
+        "other" -> storage
+      ).asJson,
+      "agreement" -> agreement
+    ).asJson, id)
+
+    forAll(endorseableContractGen) {
+      c: Contract => {
+
+        forAll(positiveTinyIntGen) {
+          i: Int =>
+
+            var contract = c
+
+            (0 until i) foreach { _ =>
+
+              val endorser = Gen.oneOf(Seq(contract.Producer, contract.Hub, contract.Investor)).sample.get
+
+
+
+              /* Introduce some possible variance in currentFulfillment by creating pending deliveries and/or confirming */
+              if(Gen.oneOf(Seq(false, true)).sample.get) {
+                contract = Contract.execute(contract, "deliver")(contract.Producer)(Map("quantity" -> positiveLongGen.sample.get.asJson).asJsonObject).get.left.get
+              }
+
+              val fulfillment = contract.storage("currentFulfillment").get
+              val pendingDeliveries = fulfillment.asObject.get("pendingDeliveries").get.asArray.get
+
+              if(Gen.oneOf(Seq(false, true)).sample.get && pendingDeliveries.nonEmpty) {
+
+                val deliveryToEndorse: JsonObject = Gen.oneOf(pendingDeliveries).sample.get.asObject.get
+
+                contract = Contract.execute(contract, "confirmDelivery")(contract.Hub)(
+                  Map(
+                    "deliveryId" -> deliveryToEndorse("id").get
+                  ).asJsonObject
+                ).get.left.get
+              }
+
+
+
+              val result = Contract.execute(contract, "endorseCompletion")(endorser)(JsonObject.empty)
+              result shouldBe a[Success[_]]
+              result.get shouldBe a[Left[_, _]]
+              result.get.left.get shouldBe a[Contract]
+
+              val newEndorsements = result.get.left.get.storage("endorsements").get.asObject.get
+              val oldEndorsements = contract.storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
+
+              val oldFulfillment = contract.storage("currentFulfillment").getOrElse(Map[String, Json]().asJson)
+
+              contract = result.get.left.get
+
+              require(newEndorsements.fields.length >= oldEndorsements.fields.length)
+              newEndorsements.fields.exists(_.equals(Base58.encode(endorser.pubKeyBytes))) shouldBe true
+              newEndorsements(Base58.encode(endorser.pubKeyBytes)).get shouldBe Base58.encode(FastCryptographicHash(oldFulfillment.noSpaces.getBytes)).asJson
+            }
+        }
+      }
+    }
+  }
+
+  property("endorseCompletion should not change a contract that is already expired or completed") {
+
+    val deliveryGen = for {
+      quantity <- positiveLongGen
+    } yield {
+      Map(
+        "quantity" -> quantity.asJson,
+        "timestamp" -> Instant.now.toEpochMilli.asJson
+      )
+    }
+
+    val pendingDeliveriesJsonGen = for {
+      length <- positiveTinyIntGen
+    } yield {
+      var deliveriesSoFar = List[Json]()
+
+      (0 until length) foreach {
+        _ => {
+          val thisDelivery = deliveryGen.sample.get
+          val pdId: String = Base58.encode(
+            FastCryptographicHash(
+              (deliveriesSoFar :+ thisDelivery.asJson).asJson.noSpaces.getBytes
+            )
+          )
+
+          deliveriesSoFar = deliveriesSoFar :+
+            Map(
+              "quantity" -> thisDelivery.get("quantity").asJson,
+              "timestamp" -> thisDelivery.get("timestamp").asJson,
+              "id" -> pdId.asJson
+            ).asJson
+
+        }
+      }
+
+      deliveriesSoFar.asJson
+    }
+
+    val nonEndorseableContractGen = for {
+      producer <- propositionGen
+      investor <- propositionGen
+      hub <- propositionGen
+      storage <- jsonGen()
+      status <- Gen.oneOf(validStatuses.filter(s => s.equals("expired") || s.equals("complete")))
+      agreement <- validAgreementGen.map(_.json)
+      id <- genBytesList(FastCryptographicHash.DigestSize)
+      pendingDeliveriesJson <- pendingDeliveriesJsonGen
+      deliveredQuantity <- positiveLongGen
+    } yield Contract(Map(
+      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "storage" -> Map(
+        "status" -> status.asJson,
+        "currentFulfillment" -> Map(
+          "pendingDeliveries" -> pendingDeliveriesJson,
+          "deliveredQuantity" -> deliveredQuantity.asJson
+        ).asJson,
+        "endorsements" -> Map(
+          Base58.encode(Gen.oneOf(Seq(producer, investor, hub)).sample.get.pubKeyBytes) -> Base58.encode(
+            FastCryptographicHash(
+              Map(
+                "pendingDeliveries" -> pendingDeliveriesJson,
+                "deliveredQuantity" -> deliveredQuantity.asJson
+              ).asJson.noSpaces.getBytes
+            )
+          )
+        ).asJson,
+        "other" -> storage
+      ).asJson,
+      "agreement" -> agreement
+    ).asJson, id)
+
+    forAll(nonEndorseableContractGen) {
+      c: Contract =>
+        val result = Contract.execute(c, "endorseCompletion")(Gen.oneOf(Seq(c.Producer, c.Hub, c.Investor)).sample.get)(JsonObject.empty)
+        result shouldBe a[Failure[_]]
+        result.failed.get shouldBe a[IllegalStateException]
+    }
+  }
 }

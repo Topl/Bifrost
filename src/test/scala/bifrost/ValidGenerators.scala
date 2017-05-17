@@ -77,7 +77,7 @@ trait ValidGenerators extends BifrostGenerators {
     party <- propositionGen
   } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sigSeq, fee, timestamp)
 
-  lazy val validContractMethods: List[String] = List("complete", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
+  lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
     from <- fromSeqGen

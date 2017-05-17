@@ -27,17 +27,31 @@ class Contract(val Producer: PublicKey25519Proposition,
     "storage" -> storage.asJson
   ).asJson
 
-  def complete(party: PublicKey25519Proposition)(): Try[Contract] = {
-    if (Producer.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else if (Hub.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else if (Investor.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else {
-      Failure(new IllegalAccessException("Actor doesn't correspond to any"))
-    }
+  /**
+    * Called by any party that wishes to endorse that the current delivery status of the contract is the final state.
+    * This creates an entry recording the endorsement which can be used in a ContractCompletion transaction.
+    *
+    * @param party      the public key of the executor of the method call (valid: all)
+    * @return
+    */
+  def endorseCompletion(party: PublicKey25519Proposition)(): Try[Contract] = {
 
+    val status: String = storage("status").get.asString.get
+
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot endorse completion since contract is already <$status>"))
+
+    val currentState = storage("currentFulfillment").getOrElse(Map[String,Json]().asJson)
+    val currentEndorsements = storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
+    val newStorage = storage.add(
+      "endorsements",
+      currentEndorsements.add(
+        Base58.encode(party.pubKeyBytes),
+        Base58.encode(FastCryptographicHash(currentState.noSpaces.getBytes)).asJson
+      ).asJson
+    )
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
   /**
@@ -85,7 +99,7 @@ class Contract(val Producer: PublicKey25519Proposition,
             "quantity" -> quantity.asJson,
             "timestamp" -> Instant.now.toEpochMilli.asJson
           ).asJson
-          ).asJson.noSpaces.getBytes
+        ).asJson.noSpaces.getBytes
       )
     )
 
@@ -97,7 +111,7 @@ class Contract(val Producer: PublicKey25519Proposition,
           "timestamp" -> Instant.now.toEpochMilli.asJson,
           "id" -> pdId.asJson
         ).asJson
-        ).asJson
+      ).asJson
     )
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
