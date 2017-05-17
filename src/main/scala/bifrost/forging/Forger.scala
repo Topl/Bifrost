@@ -79,10 +79,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
         s"${boxKeys.map(_._1.value).sum}")
 
       val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.blockGenerationDelay.length)
-      println(s"${Console.BLUE}Adjusted Target: $adjustedTarget")
-      println(s"${Console.RESET} ")
-
-      s.changes(parent).get.boxIdsToRemove.foreach(tr => println(s"${Console.RED}Trying to remove boxes ${Base58.encode(tr)}${Console.RESET}"))
 
       iteration(parent, boxKeys, pickTransactions(m, s), adjustedTarget) match {
         case Some(block) =>
@@ -134,7 +130,6 @@ object Forger extends ScorexLogging {
                          targetBlockDelay: Long): BigInt = {
     val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
-    println(BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble))
     BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
   }
 }

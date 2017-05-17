@@ -63,14 +63,16 @@ trait BifrostGenerators extends CoreGenerators {
 
   def jsonArrayGen(depth: Int = 0): Gen[Json] = for {
     numFields <- positiveTinyIntGen
-  } yield (0 until numFields) map { _ => jsonTypeGen.sample.get match {
-    case "Object" if depth < 2 => jsonGen(depth + 1).sample.get
-    case "Array" if depth < 3 => jsonArrayGen(depth + 1).sample.get
-    case "Boolean" => Gen.oneOf(Seq(true, false)).sample.get.asJson
-    case "String" => stringGen.sample.get.asJson
-    case "Number" => positiveDoubleGen.sample.get.asJson
-    case _ => stringGen.sample.get.asJson
-  }} asJson
+  } yield ((0 until numFields) map { _ =>
+    jsonTypeGen.sample.get match {
+      case "Object" if depth < 2 => jsonGen(depth + 1).sample.get
+      case "Array" if depth < 3 => jsonArrayGen(depth + 1).sample.get
+      case "Boolean" => Gen.oneOf(Seq(true, false)).sample.get.asJson
+      case "String" => stringGen.sample.get.asJson
+      case "Number" => positiveDoubleGen.sample.get.asJson
+      case _ => stringGen.sample.get.asJson
+    }
+  }).asJson
 
   //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
@@ -78,7 +80,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   //noinspection ScalaStyle
   lazy val numStringGen: Gen[String] = for {
-    numDigits <- Gen.choose(0, 100)
+    numDigits <- Gen.choose(0, 80)
   } yield (0 until numDigits).map {
     _ => base10gen.sample.get
   }.foldLeft("")((a,b) => a + b)
@@ -150,6 +152,22 @@ trait BifrostGenerators extends CoreGenerators {
   } yield Agreement(terms, contractEndTime)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
+
+  lazy val contractGen: Gen[Contract] = for {
+    producer <- propositionGen
+    investor <- propositionGen
+    hub <- propositionGen
+    storage <- jsonGen()
+    status <- jsonGen()
+    agreement <- agreementGen.map(_.json)
+    id <- genBytesList(FastCryptographicHash.DigestSize)
+  } yield Contract(Map(
+    "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+    "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "storage" -> Map("status" -> status, "other" -> storage).asJson,
+    "agreement" -> agreement
+  ).asJson, id)
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen

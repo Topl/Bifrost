@@ -36,8 +36,6 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
     tx.boxIdsToOpen.foreach(boxId => {
       boxesInMempool.put(key(boxId), key(boxId))
     })
-    println(s"${Console.CYAN}boxesInMempool: ${boxesInMempool.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
-    println(s"${Console.CYAN}Unconfirmed TXs: ${unconfirmed.keys.map(k => Base58.encode(k.data))} ${Console.RESET}")
     this
   }
 

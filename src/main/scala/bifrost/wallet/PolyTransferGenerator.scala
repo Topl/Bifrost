@@ -26,7 +26,6 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
     case CurrentView(_, state: BifrostState, wallet: BWallet, _) =>
       generate(wallet) match {
         case Success(tx) =>
-          println(s"Local tx with with ${tx.from.size} inputs, ${tx.to.size} outputs")
           viewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
         case Failure(e) =>
           e.printStackTrace()

@@ -17,8 +17,6 @@ class DifficultyBlockValidator(storage: BifrostStorage)
   private def checkConsensusRules(block: BifrostBlock): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
       val lastBlock = storage.modifierById(block.parentId).get
-      println(s"LastBlock Id is ${Base58.encode(lastBlock.id)}")
-      println("")
       val hit = Forger.hit(lastBlock)(block.generatorBox)
       val difficulty = storage.difficultyOf(block.parentId).get
       // val target = (Forger.MaxTarget / difficulty) * block.generatorBox.value

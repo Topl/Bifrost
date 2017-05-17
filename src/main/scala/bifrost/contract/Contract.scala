@@ -4,6 +4,7 @@ import java.time.Instant
 
 import io.circe._
 import io.circe.syntax._
+import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -26,44 +27,161 @@ class Contract(val Producer: PublicKey25519Proposition,
     "storage" -> storage.asJson
   ).asJson
 
-  def complete(party: PublicKey25519Proposition)(): Try[Contract] = {
-    if (Producer.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else if (Hub.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else if (Investor.pubKeyBytes sameElements party.pubKeyBytes) {
-      Success(this)
-    } else {
-      Failure(new IllegalAccessException("Actor doesn't correspond to any"))
-    }
+  /**
+    * Called by any party that wishes to endorse that the current delivery status of the contract is the final state.
+    * This creates an entry recording the endorsement which can be used in a ContractCompletion transaction.
+    *
+    * @param party      the public key of the executor of the method call (valid: all)
+    * @return
+    */
+  def endorseCompletion(party: PublicKey25519Proposition)(): Try[Contract] = {
 
+    val status: String = storage("status").get.asString.get
+
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot endorse completion since contract is already <$status>"))
+
+    val currentState = storage("currentFulfillment").getOrElse(Map[String,Json]().asJson)
+    val currentEndorsements = storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
+    val newStorage = storage.add(
+      "endorsements",
+      currentEndorsements.add(
+        Base58.encode(party.pubKeyBytes),
+        Base58.encode(FastCryptographicHash(currentState.noSpaces.getBytes)).asJson
+      ).asJson
+    )
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
+  /**
+    * Called by any party that wishes to find in which state the contract currently is
+    *
+    * @param party      the public key of the executor of the method call (valid: all)
+    * @return           the status of the contract as a JSON string
+    */
   def currentStatus(party: PublicKey25519Proposition)(): Try[Json] = Try {
-    this.storage("status").get
+    storage("status").get
   }
 
-  def deliver(party: PublicKey25519Proposition)(): Try[Contract] = {
-    if (party.pubKeyBytes sameElements Producer.pubKeyBytes) {
-      Success(this)
-    } else {
-      Failure(new IllegalAccessException("Wrong actor"))
-    }
+  /**
+    * Called by the Producer when the Producer makes delivery of produced goods. This creates an entry in storage to be
+    * later endorsed by a Hub.
+    *
+    * @param party      the public key of the executor of the method call (valid: Producer)
+    * @param quantity   the amount of goods supposedly delivered
+    * @return
+    */
+  def deliver(party: PublicKey25519Proposition)(quantity: Long): Try[Contract] = {
 
+    if (!(party.pubKeyBytes sameElements Producer.pubKeyBytes))
+      return Failure(new IllegalAccessException(s"[Producer Only]: Account <$party> doesn't have permission to this method."))
+
+    if(quantity <= 0L)
+      return Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive"))
+
+    val status: String = storage("status").get.asString.get
+
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot deliver while contract status is <$status>"))
+
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
+      Map(
+        "pendingDeliveries" -> List[Json]().asJson
+      ).asJson
+    ).asObject.get
+
+    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
+    val pdId: String = Base58.encode(
+      FastCryptographicHash(
+        (pendingDeliveriesJson.asArray.get :+
+          Map(
+            "quantity" -> quantity.asJson,
+            "timestamp" -> Instant.now.toEpochMilli.asJson
+          ).asJson
+        ).asJson.noSpaces.getBytes
+      )
+    )
+
+    val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj.add(
+      "pendingDeliveries",
+      (pendingDeliveriesJson.asArray.get :+
+        Map(
+          "quantity" -> quantity.asJson,
+          "timestamp" -> Instant.now.toEpochMilli.asJson,
+          "id" -> pdId.asJson
+        ).asJson
+      ).asJson
+    )
+
+    val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
-  def confirmDelivery(party: PublicKey25519Proposition)(): Try[Contract] = {
-    if (party.pubKeyBytes sameElements Hub.pubKeyBytes) {
-      Success(this)
-    } else {
-      Failure(new IllegalAccessException("Wrong actor"))
-    }
+  /**
+    * Called by the Hub after the Hub takes delivery of goods produced by the Producer. This endorses an existing entry
+    * for a pending delivery and updates the total amount of goods delivered by the Producer for this contract.
+    *
+    * @param party        the public key of the executor of the method call (valid: Hub)
+    * @param deliveryId   the id of the pending delivery to endorse
+    * @return
+    */
+  def confirmDelivery(party: PublicKey25519Proposition)(deliveryId: String): Try[Contract] = {
 
+    if (!(party.pubKeyBytes sameElements Hub.pubKeyBytes))
+      return Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
+
+    val status: String = storage("status").get.asString.get
+
+    if (status.equals("expired") || status.equals("complete"))
+      return Failure(new IllegalStateException(s"Cannot endorse delivery while contract status is <$status>"))
+
+    val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
+      Map(
+        "pendingDeliveries" -> List[Json]().asJson
+      ).asJson
+    ).asObject.get
+
+    val pendingDeliveriesJson: Json = currentFulfillmentJsonObj("pendingDeliveries").getOrElse(List[Json]().asJson)
+    val pendingDeliveries: Vector[Json] = pendingDeliveriesJson.asArray.get
+
+    val partitionedDeliveries: (Vector[Json], Vector[Json]) = pendingDeliveries.partition(_.asObject.get("id").get.asString.get equals deliveryId)
+
+    if (partitionedDeliveries._1.isEmpty)
+      return Failure(new NoSuchElementException(s"ID <$deliveryId> was not found as a pending delivery."))
+
+    val oldDeliveredQuantity: Long = currentFulfillmentJsonObj("deliveredQuantity").getOrElse(0L.asJson).asNumber.get.toLong.get
+
+    val newFulfillmentJsonObj: JsonObject = currentFulfillmentJsonObj
+      .add("pendingDeliveries", partitionedDeliveries._2.asJson)
+      .add("deliveredQuantity", (oldDeliveredQuantity + partitionedDeliveries._1.head.asObject.get("quantity").get.asNumber.get.toLong.get).asJson)
+
+    val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
+
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
   }
 
-  def checkExpiration(party: PublicKey25519Proposition)(): Try[Json] = Try {
+  /**
+    * Called by any party in order to check that contract has not yet expired. If the contract has expired, the contract
+    * will update its state to 'expired'.
+    *
+    * @param party        the public key of the executor of the method call (valid: all)
+    * @return
+    */
+  def checkExpiration(party: PublicKey25519Proposition)(): Try[Contract] = Try {
+
     val expiration: Long = this.agreement("expirationTimestamp").get.as[Long].right.get
-    (Instant.now().toEpochMilli > expiration).asJson
+    val currentStatus = storage("status").get
+
+    if (currentStatus.equals("expired".asJson) || currentStatus.equals("complete".asJson) || Instant.now().toEpochMilli < expiration)
+      this
+
+    else {
+      val newStorage = storage.add("status", "expired".asJson)
+      new Contract(Producer, Hub, Investor, newStorage, agreement, id)
+    }
+
   }
 
 }
@@ -71,12 +189,12 @@ class Contract(val Producer: PublicKey25519Proposition,
 object Contract {
 
   // get runtime mirror
-  val rm = ru.runtimeMirror(getClass.getClassLoader)
+  val rm: ru.Mirror = ru.runtimeMirror(getClass.getClassLoader)
 
-  // TODO this currently also shows public accessors and the like. Want to restrict. May have to build registry after all
-  val contractMethods: Map[String, ru.MethodSymbol] = ru.typeOf[Contract].decls collect {
+  // TODO this currently also shows public accessors and the like. May need to build registry to restrict only to named methods
+  val contractMethods: Map[String, ru.MethodSymbol] = (ru.typeOf[Contract].decls collect {
     case m: ru.Symbol if m.isMethod => m.asMethod.name.toString -> m.asMethod
-  } toMap
+  }).toMap
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
@@ -91,28 +209,35 @@ object Contract {
     )
   }
 
+  //noinspection ScalaStyle
   def execute(c: Contract, methodName: String)(party: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
     val methodAttempt: Option[ru.MethodSymbol] = contractMethods.get(methodName)
 
     methodAttempt match {
       case Some(m: ru.MethodSymbol) =>
-        val params: List[Any] = m.paramLists.head.map(p => {
-          val typename = p.typeSignature.typeSymbol.asClass.name.toString
-          print(p.name.toString)
-          p.name.toString match {
-            case "party" => party
-            case _ => typename match {
-              case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.name.toString).get.asString.get).get)
-              case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
-            }
-          }
-        })
 
-        rm.reflect(c).reflectMethod(m)(party +: params:_*) match {
+        /* Creates a list of each of the parameters required by the method as their proper classes */
+        val params: List[Any] = m.paramLists collect {
+          case p: List[ru.Symbol] if p.nonEmpty =>
+            val typename = p.head.typeSignature.typeSymbol.asClass.name.toString
+            p.head.name.toString match {
+              case "party" => party
+              case _ => typename match {
+                case "PublicKey25519Proposition" => PublicKey25519Proposition(Base58.decode(args(p.head.name.toString).get.asString.get).get)
+                case "Long" => args(p.head.name.toString).get.asNumber.get.toLong.get
+                case "String" => args(p.head.name.toString).get.asString.get
+                case i => throw new NotImplementedError(s"Decoder for datatype $i not implemented")
+              }
+            }
+        }
+
+        val res = rm.reflect(c).reflectMethod(m)(params:_*)
+
+        res match {
           case c: Success[Contract] => Left(c.value)
           case j: Success[Json] => Right(j.value)
-          case f: Failure[Any] => throw f.exception
+          case f: Failure[_] => throw f.exception
         }
 
       case _ => throw new MatchError(s"Could not find method <$methodName>")
