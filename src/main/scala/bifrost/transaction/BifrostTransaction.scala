@@ -265,6 +265,11 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
+
+  def messageToSign0: Array[Byte] = (if(newBoxes.nonEmpty) newBoxes.map(_.bytes).reduce(_ ++ _) else Array[Byte]()) ++
+    unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
 }
 
 trait TransferUtil {
@@ -292,13 +297,22 @@ trait TransferUtil {
     (fromPub, sigs)
   }
 
-  def parametersForCreate(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long):
+  //noinspection ScalaStyle
+  def parametersForCreate(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long, txType: String):
     (IndexedSeq[(PrivateKey25519, Long, Long)], IndexedSeq[(PublicKey25519Proposition, Long)]) = {
-    val from: IndexedSeq[(PrivateKey25519, Long, Long)] = w.boxes().flatMap { b => b.box match {
-      case poB: PolyBox => w.secretByPublicImage(poB.proposition).map (s => (s, poB.nonce, poB.value) )
-      case arB: ArbitBox => w.secretByPublicImage(arB.proposition).map (s => (s, arB.nonce, arB.value) )
-      case _ => None
-    }}.toIndexedSeq
+
+    // Match only the type of boxes specified by txType
+    val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+      case "PolyTransfer" => w.boxes().flatMap(
+        a => if (a.box.isInstanceOf[PolyBox]) Some(a.box.asInstanceOf[BifrostPublic25519NoncedBox]) else None)
+      case "ArbitTransfer" => w.boxes().flatMap(
+        a => if (a.box.isInstanceOf[ArbitBox]) Some(a.box.asInstanceOf[BifrostPublic25519NoncedBox]) else None)
+    }
+
+    val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes.flatMap {
+      case b: BifrostPublic25519NoncedBox =>
+        w.secretByPublicImage(b.proposition).map ((_, b.nonce, b.value))
+    }.toIndexedSeq
 
     val canSend = from.map(_._3).sum
     val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys.find {
@@ -335,9 +349,11 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
 
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
-      val nonce = PolyTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      val nonce = PolyTransfer.nonceFromDigest(FastCryptographicHash("PolyTransfer".getBytes ++ prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
       PolyBox(prop, nonce, value)
   }
+
+  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.messageToSign0
 }
 
 
@@ -356,7 +372,7 @@ object PolyTransfer extends TransferUtil {
   //TODO seq of recipients and amounts
   def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[PolyTransfer] = Try {
 
-    val params = parametersForCreate(w, recipient, amount, fee)
+    val params = parametersForCreate(w, recipient, amount, fee, "PolyTransfer")
     val timestamp = System.currentTimeMillis()
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }
@@ -383,9 +399,11 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
-      val nonce = ArbitTransfer.nonceFromDigest(FastCryptographicHash(prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+      val nonce = ArbitTransfer.nonceFromDigest(FastCryptographicHash("ArbitTransfer".getBytes ++ prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
       ArbitBox(prop, nonce, value)
   }
+
+  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.messageToSign0
 }
 
 object ArbitTransfer extends TransferUtil {
@@ -403,7 +421,7 @@ object ArbitTransfer extends TransferUtil {
   //TODO seq of recipients and amounts
   def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[ArbitTransfer] = Try {
 
-    val params = parametersForCreate(w, recipient, amount, fee)
+    val params = parametersForCreate(w, recipient, amount, fee, "ArbitTransfer")
     val timestamp = System.currentTimeMillis()
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }

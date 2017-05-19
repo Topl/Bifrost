@@ -303,6 +303,7 @@ object BifrostState {
         case Some(txSeq) => txSeq.map {
           // (rm, add, fee)
           case sc: PolyTransfer => (sc.boxIdsToOpen.toSet, sc.newBoxes.toSet, sc.fee)
+          case at: ArbitTransfer => (at.boxIdsToOpen.toSet, at.newBoxes.toSet, at.fee)
           case cc: ContractCreation => (cc.boxIdsToOpen.toSet, cc.newBoxes.toSet, cc.fee)
           case pt: ProfileTransaction => (pt.boxIdsToOpen.toSet, pt.newBoxes.toSet, pt.fee)
         }

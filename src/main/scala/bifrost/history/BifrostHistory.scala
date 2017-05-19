@@ -27,7 +27,7 @@ import scala.util.{Failure, Try}
   * History storage
   * we store all the blocks, even if they are not in a main chain
   */
-class BifrostHistory(storage: BifrostStorage, settings: ForgingSettings, validators: Seq[BlockValidator[BifrostBlock]])
+class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, validators: Seq[BlockValidator[BifrostBlock]])
   extends History[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BifrostSyncInfo, BifrostHistory] with ScorexLogging {
 
   override type NVCT = BifrostHistory

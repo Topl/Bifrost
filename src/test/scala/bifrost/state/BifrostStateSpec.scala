@@ -3,20 +3,27 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
-import bifrost.BifrostGenerators
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import bifrost.blocks.BifrostBlock
+import bifrost.forging.ForgingSettings
+import bifrost.history.BifrostHistory
 import bifrost.state.BifrostState
-import bifrost.transaction.ContractCreation
-import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox}
+import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer}
+import bifrost.transaction.box.{ArbitBox, ContractBox, ContractBoxSerializer, PolyBox}
 import bifrost.transaction.box.proposition.MofNPropositionSerializer
+import bifrost.wallet.{BWallet, PolyTransferGenerator}
+import io.circe
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import org.scalatest.{Matchers, PropSpec}
+import org.scalacheck.Gen
+import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
+import scorex.core.transaction.state.PrivateKey25519Companion
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
@@ -26,25 +33,20 @@ class BifrostStateSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with ValidGenerators
+  with BeforeAndAfterAll{
+
+  val settingsFilename = "settings.json"
+  lazy val testSettings = new ForgingSettings {
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
+  }
+
+  val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val history = gs._1; var genesisState = gs._2; val gw = gs._3
+  val genesisBlockId = genesisState.version
 
   property("A block with valid contract creation will result in an entry in the LSMStore") {
-
-    val dir = new File("dataDir")
-
-    dir.mkdirs()
-
-    val store = new LSMStore(dir)
-    store.update(
-      ByteArrayWrapper(Ints.toByteArray(0)),
-      Seq(),
-      Seq(ByteArrayWrapper(
-        FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(Instant.now().toEpochMilli))
-      )
-    )
-    var genesisState = BifrostState(store, Ints.toByteArray(0), Instant.now().toEpochMilli)
-
-    genesisState = genesisState
 
     // Create block with contract creation
     forAll(contractCreationGen) {
@@ -57,17 +59,9 @@ class BifrostStateSpec extends PropSpec
           Seq(cc)
         )
 
-        val boxType = "ContractBox"
-
         val box = cc.newBoxes.head.asInstanceOf[ContractBox]
 
-        val boxBytes = Ints.toByteArray(boxType.getBytes.length) ++
-          boxType.getBytes ++
-          MofNPropositionSerializer.toBytes(box.proposition) ++
-          Longs.toByteArray(box.nonce) ++
-          Ints.toByteArray(box.value.noSpaces.getBytes.length) ++
-          box.value.noSpaces.getBytes
-
+        val boxBytes = ContractBoxSerializer.toBytes(box)
 
         val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(1)).get
 
@@ -76,20 +70,40 @@ class BifrostStateSpec extends PropSpec
           case None => false
         })
 
-        genesisState = newState.rollbackTo(Ints.toByteArray(0)).get
+        genesisState = newState.rollbackTo(genesisBlockId).get
 
     }
-
-    store.close()
-    val path: Path = Path ("dataDir")
-    Try(path.deleteRecursively())
   }
 
-  property("A block with valid PolyCoin transfer should result in more funds for receiver, less for transferrer") {
+  //noinspection ScalaStyle
+  property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {
     // Create genesis block, add to state
-    // Create new block with PolyChain transfer
+    // Create new block with PolyTransfer
     // send new block to state
     // check updated state
+    println(s"StateSpec ${gw.boxes()}")
+    forAll(Gen.choose(0, 500)) { num: Int =>
+      val poT = PolyTransferGenerator.generateStatic(gw).get
+      val block = BifrostBlock(
+        Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        Instant.now().toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+        Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+        Seq(poT)
+      )
+
+      val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(2)).get
+
+      val arbitBoxes = gw.boxes().filter(_.box match {
+        case a: ArbitBox => newState.closedBox(a.id).isDefined
+        case _ => false
+      }).map(_.box.asInstanceOf[ArbitBox])
+
+      val boxKeys = arbitBoxes.flatMap(b => gw.secretByPublicImage(b.proposition).map(s => (b, s)))
+      println(s"Arbit Balance ${boxKeys.map(_._1.value).sum}")
+
+      genesisState = newState.rollbackTo(genesisBlockId).get
+    }
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {
@@ -118,5 +132,11 @@ class BifrostStateSpec extends PropSpec
   property("Attempting to validate a PolyTransfer for amount you do not have should error") {
     // Create invalid PolyTransfer
     // send tx to state
+  }
+
+  override def afterAll() {
+    history.storage.storage.close()
+    val path: Path = Path ("/tmp")
+    Try(path.deleteRecursively())
   }
 }

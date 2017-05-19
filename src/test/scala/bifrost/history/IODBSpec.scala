@@ -30,7 +30,7 @@ class IODBSpec extends PropSpec
       * Apply a transaction by storing its new boxes (ignore old boxes)
       * @param tx   the transaction to write boxes to storage
       */
-    def writeTx(tx: BifrostTransaction) = {
+    def writeTx(tx: BifrostTransaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = tx.newBoxes.map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes))).toList
       blocksStorage.update(ByteArrayWrapper(tx.id), boxIdsToRemove, boxesToAdd)
@@ -65,7 +65,7 @@ class IODBSpec extends PropSpec
       * Apply a block by storing all of its transactions' new boxes (ignore old boxes)
       * @param b    the block to write tx boxes to storage
       */
-    def writeBlock(b: BifrostBlock) = {
+    def writeBlock(b: BifrostBlock): Unit = {
       blocksStorage.update(
         ByteArrayWrapper(b.id),
         Seq(),
