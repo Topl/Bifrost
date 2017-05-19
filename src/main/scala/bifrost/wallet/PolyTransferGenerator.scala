@@ -33,14 +33,15 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       }
   }
 
-  def generate(wallet: BWallet): Try[PolyTransfer] = generate(wallet)
+  def generate(wallet: BWallet): Try[PolyTransfer] = generateStatic(wallet)
 }
 
 object PolyTransferGenerator {
 
   case class StartGeneration(delay: FiniteDuration)
 
-  def generate(wallet: BWallet): Try[PolyTransfer] = {
+  def generateStatic(wallet: BWallet): Try[PolyTransfer] = {
+    println(s"Wallet's public keys: ${wallet.publicKeys}")
     val pubkeys: Seq[PublicKey25519Proposition] = wallet.publicKeys.flatMap {
       case pkp: PublicKey25519Proposition => Some(pkp)
       case _ => None

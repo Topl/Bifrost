@@ -41,7 +41,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
-    println(s"${Console.GREEN}Accessing boxes: ${boxIds.map(Base58.encode)}${Console.RESET}")
+    println(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
