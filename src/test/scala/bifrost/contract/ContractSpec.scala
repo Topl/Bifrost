@@ -16,27 +16,6 @@ class ContractSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators{
 
-  property("Calling a method in the contract will with proper params not throw an error") {
-    forAll(contractGen) {
-      c: Contract => {
-        validContractMethods.foreach(m => {
-          val possibleArgs = JsonObject.empty
-
-          val party = m match {
-            case "complete" => c.Producer
-            case "currentStatus" => propositionGen.sample.get
-            case "deliver" => c.Producer
-            case "confirmDelivery" => c.Hub
-            case "checkExpiration" => propositionGen.sample.get
-          }
-
-          val result = Contract.execute(c, m)(party)(possibleArgs)
-          assert(result.isSuccess)
-        })
-      }
-    }
-  }
-
   property("Calling a method not in the contract will throw an error") {
     forAll(contractGen) {
       c: Contract => {
