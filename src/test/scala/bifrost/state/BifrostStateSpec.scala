@@ -43,7 +43,7 @@ class BifrostStateSpec extends PropSpec
   }
 
   val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
-  val history = gs._1; var genesisState = gs._2; val gw = gs._3
+  val history = gs._1; var genesisState = gs._2; var gw = gs._3
   val genesisBlockId = genesisState.version
 
   property("A block with valid contract creation will result in an entry in the LSMStore") {
@@ -81,7 +81,14 @@ class BifrostStateSpec extends PropSpec
     // Create new block with PolyTransfer
     // send new block to state
     // check updated state
-    println(s"StateSpec ${gw.boxes()}")
+    println(s"StateSpec ${gw.boxes().toList}")
+    val beforePolyBoxes = gw.boxes().filter(_.box match {
+      case a: PolyBox => genesisState.closedBox(a.id).isDefined
+      case _ => false
+    }).map(_.box.asInstanceOf[PolyBox])
+    val beforeBoxKeys = beforePolyBoxes.flatMap(b => gw.secretByPublicImage(b.proposition).map(s => (b, s)))
+    assert(beforeBoxKeys.map(_._1.value).sum == 100000000L)
+
     forAll(Gen.choose(0, 500)) { num: Int =>
       val poT = PolyTransferGenerator.generateStatic(gw).get
       val block = BifrostBlock(
@@ -93,16 +100,27 @@ class BifrostStateSpec extends PropSpec
       )
 
       val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(2)).get
+      val newWallet = gw.scanPersistent(block)
 
-      val arbitBoxes = gw.boxes().filter(_.box match {
+      val arbitBoxes = newWallet.boxes().filter(_.box match {
         case a: ArbitBox => newState.closedBox(a.id).isDefined
         case _ => false
       }).map(_.box.asInstanceOf[ArbitBox])
 
-      val boxKeys = arbitBoxes.flatMap(b => gw.secretByPublicImage(b.proposition).map(s => (b, s)))
-      println(s"Arbit Balance ${boxKeys.map(_._1.value).sum}")
+      val boxKeys = arbitBoxes.flatMap(b => newWallet.secretByPublicImage(b.proposition).map(s => (b, s)))
+      require(boxKeys.map(_._1.value).sum == 100000000L)
+
+      val polyBoxes = newWallet.boxes().filter(_.box match {
+        case a: PolyBox => newState.closedBox(a.id).isDefined
+        case _ => false
+    }).map(_.box.asInstanceOf[PolyBox])
+      val polyBoxKeys = polyBoxes.flatMap(b => newWallet.secretByPublicImage(b.proposition).map(s => (b, s)))
+      // The resulting poly balance = genesis amount - fee, because the transaction is sent to self
+      // TODO: No fee is actually collected due to the reward box is an ArbitBox
+      require(polyBoxKeys.map(_._1.value).sum == poT.to(1)._2 + polyBoxKeys.map(_._1.value).sum)
 
       genesisState = newState.rollbackTo(genesisBlockId).get
+      gw = newWallet.rollback(genesisBlockId).get
     }
   }
 
