@@ -117,7 +117,7 @@ class BifrostStateSpec extends PropSpec
       val polyBoxKeys = polyBoxes.flatMap(b => newWallet.secretByPublicImage(b.proposition).map(s => (b, s)))
       // The resulting poly balance = genesis amount - fee, because the transaction is sent to self
       // TODO: No fee is actually collected due to the reward box is an ArbitBox
-      require(polyBoxKeys.map(_._1.value).sum == poT.to(1)._2 + polyBoxKeys.map(_._1.value).sum)
+      require(polyBoxKeys.map(_._1.value).sum == 100000000L - poT.fee)
 
       genesisState = newState.rollbackTo(genesisBlockId).get
       gw = newWallet.rollback(genesisBlockId).get
