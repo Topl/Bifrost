@@ -20,8 +20,11 @@ abstract class BifrostPublic25519NoncedBox(override val proposition: PublicKey25
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
+  lazy val typeOfBox: String = "BifrostPublic25519NoncedBox"
+
   lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
+    "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.asJson
