@@ -8,7 +8,7 @@ import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
-import bifrost.wallet.{PolyTransferGenerator}
+import bifrost.wallet.PolyTransferGenerator
 import bifrost.wallet.PolyTransferGenerator.StartGeneration
 import io.circe
 import scorex.core.api.http.{ApiRoute, NodeViewApiRoute, PeersApiRoute, UtilsApiRoute}
@@ -17,9 +17,14 @@ import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Pub
 import scorex.core.transaction.state.PrivateKey25519
 
 import scala.concurrent.duration._
+import scala.reflect.io.Path
 import scala.reflect.runtime.universe._
+import scala.util.Try
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication {
+  // use for debug only
+  val path: Path = Path ("/tmp")
+  Try(path.deleteRecursively())
 
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox

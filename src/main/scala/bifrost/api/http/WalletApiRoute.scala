@@ -13,7 +13,7 @@ import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import scorex.core.api.http.{ApiException, SuccessApiResponse}
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent._
@@ -30,7 +30,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
-    balances ~ transfer
+    balances ~ transfer ~ sign
   }
 
   @Path("/transfer")
@@ -44,8 +44,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       name = "body",
       value = "Json with data",
       required = true,
-      paramType = "body",
-      defaultValue = "{\"recipient\":\"3FAskwxrbqiX2KGEnFPuD3z89aubJvvdxZTKHCrMFjxQ\",\"amount\":1,\"fee\":100}"
+      dataType = "String",
+      paramType = "body"
     )
   ))
   def transfer: Route = path("transfer") {
@@ -101,6 +101,36 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           }).asJson,
           "boxes" -> boxes.map(_.box.json).asJson
         ).asJson)
+      }
+    }
+  }
+
+  @Path("/sign/{messageToSign}")
+  @ApiOperation(value = "Sign a message", notes = "Sign a message", httpMethod = "GET")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "messageToSign",
+      value = "messageToSign in String format",
+      required = true,
+      dataType = "string",
+      paramType = "path"
+    )
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Json with peer list or error")
+  ))
+  def sign: Route = path("sign" / Segment) { messageToSign =>
+    withAuth {
+      getJsonRoute {
+        viewAsync().map { view =>
+          val wallet = view.vault
+          val secrets = wallet.secrets
+          val privKey = secrets.toSeq(0)
+
+          SuccessApiResponse(Map(
+            "signature" -> Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.getBytes).signature).asJson
+          ).asJson)
+        }
       }
     }
   }

@@ -1,6 +1,5 @@
 package bifrost.contract
 import bifrost.{BifrostGenerators, ValidGenerators}
-import examples.bifrost.contract.Contract
 import io.circe.{Json, JsonObject}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
