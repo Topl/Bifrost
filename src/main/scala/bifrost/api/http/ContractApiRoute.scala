@@ -66,14 +66,13 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
               require(ProfileBox.acceptableRoleValues.contains(roleValue))
               // Get the PrivateKey
               val privKeySet = wallet.secrets.filter(secret => secret.publicImage.pubKeyBytes sameElements Base58.decode(pubKey).get)
-              println(s"privKeyset is ${privKeySet}")
               require(privKeySet.nonEmpty)
               // create Transaction
               val timestamp = System.currentTimeMillis()
               val signature = PrivateKey25519Companion.sign(privKeySet.toSeq.head,
                   ProfileTransaction.messageToSign(timestamp, pubKeyProp,
                   Map("role" -> roleValue)))
-              val tx = ProfileTransaction(pubKeyProp, signature, Map("role" -> roleValue), 1L, timestamp)
+              val tx = ProfileTransaction(pubKeyProp, signature, Map("role" -> roleValue), 0L, timestamp)
               nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProfileTransaction](tx)
               tx.json
             } match {
@@ -107,6 +106,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
       getJsonRoute {
         viewAsync().map { view =>
           val state = view.state
+          println(s"Get Role Box, ${Base58.decode(pubKey).get}")
           val box = state.closedBox(FastCryptographicHash(Base58.decode(pubKey).get ++ "role".getBytes)).get
 
           SuccessApiResponse(box.json.asJson)

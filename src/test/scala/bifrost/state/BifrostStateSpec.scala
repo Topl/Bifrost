@@ -10,7 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.state.BifrostState
 import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer, ProfileTransaction}
-import bifrost.transaction.box.{ArbitBox, ContractBox, ContractBoxSerializer, PolyBox}
+import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNPropositionSerializer
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
 import io.circe
@@ -128,7 +128,7 @@ class BifrostStateSpec extends PropSpec
     val signature = PrivateKey25519Companion.sign(gw.secrets.head,
       ProfileTransaction.messageToSign(timestamp, gw.secrets.head.publicImage,
         Map("role" -> "investor")))
-    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> "investor"), 1L, timestamp)
+    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> "investor"), 0L, timestamp)
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -138,9 +138,13 @@ class BifrostStateSpec extends PropSpec
       Seq(tx)
     )
 
+    require(genesisState.validate(tx).isSuccess)
+
     val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(4)).get
-    val box = newState.closedBox(FastCryptographicHash(gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get
-    println(box.json)
+    val box = newState.closedBox(FastCryptographicHash(gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get.asInstanceOf[ProfileBox]
+
+    box.key shouldBe "role"
+    box.value shouldBe "investor"
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {

@@ -221,10 +221,15 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* Make sure there are no existing boxes of the all fields in tx
     *  If there is one box that exists then the tx is invalid
     * */
-    require(pt.newBoxes.forall(curBox => getProfileBox(pt.from, curBox.asInstanceOf[ProfileBox].key) match {
-      case Success(box) => false
-      case Failure(box) => true
-    }))
+    val boxesExist: Boolean = pt.newBoxes.forall(curBox => {
+      val pBox = curBox.asInstanceOf[ProfileBox]
+      val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
+      boxBytes match {
+        case None => false
+        case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
+      }
+    })
+    require(!boxesExist)
 
     semanticValidity(pt)
   }

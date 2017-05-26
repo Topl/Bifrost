@@ -1,12 +1,13 @@
 package bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.transaction.{PolyTransfer, PolyTransfer$}
+import bifrost.transaction.{PolyTransfer}
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -40,7 +41,7 @@ object PolyTransferGenerator {
   case class StartGeneration(delay: FiniteDuration)
 
   def generateStatic(wallet: BWallet): Try[PolyTransfer] = {
-    println(s"Wallet's public keys: ${wallet.publicKeys}")
+    println(s"Wallet's public keys: ${wallet.publicKeys}. Encoded form: ${Base58.encode(wallet.publicKeys.toSeq.head.bytes)}")
     val pubkeys: Seq[PublicKey25519Proposition] = wallet.publicKeys.flatMap {
       case pkp: PublicKey25519Proposition => Some(pkp)
       case _ => None

@@ -16,6 +16,14 @@ class ContractCreationSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
+  property("Generated ContractCreation Tx should be valid") {
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+        val semanticValid = BifrostState.semanticValidity(cc)
+        semanticValid.isSuccess shouldBe true
+    }
+  }
+
   property("Transaction with modified signature should be invalid") {
     forAll(contractCreationGen) {
       tx: ContractCreation =>

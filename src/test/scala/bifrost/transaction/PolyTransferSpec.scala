@@ -12,6 +12,12 @@ class PolyTransferSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
+  property("Generated PolyTransfer Tx should be valid") {
+    forAll(validPolyTransferGen) {
+      sct: PolyTransfer =>
+        BifrostState.semanticValidity(sct).isSuccess shouldBe true
+    }
+  }
 
   property("Attempting to validate a PolyTransfer without valid signature should error") {
     // Create invalid PolyTransfer
@@ -20,7 +26,6 @@ class PolyTransferSpec extends PropSpec
       BifrostState.semanticValidity(tx).isSuccess shouldBe false
     }
   }
-
 
   property("Attempting to validate a ArbitTransfer without valid signature should error") {
     // Create invalid PolyTransfer

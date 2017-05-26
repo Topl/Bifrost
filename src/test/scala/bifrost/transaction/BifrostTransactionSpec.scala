@@ -13,7 +13,6 @@ class BifrostTransactionSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-
   property("Transaction boxes are deterministic") {
     /*val GenesisAccountsNum = 10
     val GenesisBalance = 100000L
@@ -25,33 +24,5 @@ class BifrostTransactionSpec extends PropSpec
     val tx = SimpleBoxTransaction(IndexedSeq(genesisAccount -> 0), icoMembers.map(_ -> GenesisBalance), 0L, 0L)
     tx.newBoxes.toString() shouldBe "Vector(PublicKey25519NoncedBox(3m6nhP4AZjFn5pgMd3PvH6PwHx23AG4tvpLCuu7Wt3hhAPssKc,-6219502975712200872,100000), PublicKey25519NoncedBox(4ZJwiEzpTHhvT6BMYZg1FUXysHkuBLRHb7FvXhZGx6HtsWZCeG,2326174055960855030,100000), PublicKey25519NoncedBox(3Y7Ji8wrYZ12EPup6ky2mWEaNo1wTgUKVPJ84xaHwHqTC6LXoh,-2090466149357841238,100000), PublicKey25519NoncedBox(3WqPcQ1w1HEaEDvHpnnqqYxJBzQGcf5gT5G5CrsXFL7UX4SA2N,-4786344880748433993,100000), PublicKey25519NoncedBox(4m5cG82kztD9bZVf1Tc1Ni1uvHobpKYuAUyxNSnDm7WLGCZvZh,2879476891976400353,100000), PublicKey25519NoncedBox(4huPANjYcqcdRm99tsCw29JqFnHMTJZsQjoufRQTEDPPoWmPSt,4610029492489107892,100000), PublicKey25519NoncedBox(3s3CauhVba81UefEuuaNqRqGLEV9jCZJpvLFg5dJdu29TivRZk,416797087985622128,100000), PublicKey25519NoncedBox(3HHuHxBf2eXmbUcGuFCx3dU6Wp7imeRiN5uz4rYDdQwsLwnwW4,-8485818448745401936,100000), PublicKey25519NoncedBox(38uZVfModMnCg5FSECtFiBE7Dbjmh7Tt1SgBD8gFTA1XDHxiqQ,-4750873086163930339,100000), PublicKey25519NoncedBox(3WTH7tB28nkbC9KFJTy8EBn1bWkxryiLKDnngeP9BYyuCik3aP,1904873933279744536,100000))"
     */
-  }
-
-  property("Generated ContractCreation Tx should be valid") {
-    forAll(validContractCreationGen) {
-      cc: ContractCreation =>
-        val semanticValid = BifrostState.semanticValidity(cc)
-        semanticValid.isSuccess shouldBe true
-    }
-  }
-
-  property("Generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen) {
-      sct: PolyTransfer =>
-        BifrostState.semanticValidity(sct).isSuccess shouldBe true
-    }
-  }
-
-  property("Generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen) {
-      at: ArbitTransfer =>
-        BifrostState.semanticValidity(at).isSuccess shouldBe true
-    }
-  }
-
-  property("Generated ProfileTransaction should be valid") {
-    forAll(validProfileTransactionGen) { tx =>
-        BifrostState.semanticValidity(tx).isSuccess shouldBe true
-    }
   }
 }

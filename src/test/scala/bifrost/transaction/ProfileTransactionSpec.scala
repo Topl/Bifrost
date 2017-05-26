@@ -16,6 +16,13 @@ class ProfileTransactionSpec extends PropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
+
+  property("Generated ProfileTransaction should be valid") {
+    forAll(validProfileTransactionGen) { tx =>
+      BifrostState.semanticValidity(tx).isSuccess shouldBe true
+    }
+  }
+
   property("Attempting to validate a ProfileTransaction without a key of 'role' should error") {
     forAll(profileTxGen) { tx =>
       BifrostState.semanticValidity(tx).isSuccess shouldBe false
