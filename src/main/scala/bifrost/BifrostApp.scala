@@ -1,7 +1,7 @@
 package bifrost
 
 import akka.actor.{ActorRef, Props}
-import bifrost.api.http.{DebugApiRoute, WalletApiRoute}
+import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
@@ -44,13 +44,14 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
+    ContractApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
   override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute], typeOf[DebugApiRoute], typeOf[WalletApiRoute],
-    typeOf[NodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
+    typeOf[ContractApiRoute], typeOf[NodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 

@@ -9,7 +9,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.state.BifrostState
-import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer}
+import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer, ProfileTransaction}
 import bifrost.transaction.box.{ArbitBox, ContractBox, ContractBoxSerializer, PolyBox}
 import bifrost.transaction.box.proposition.MofNPropositionSerializer
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
@@ -81,7 +81,6 @@ class BifrostStateSpec extends PropSpec
     // Create new block with PolyTransfer
     // send new block to state
     // check updated state
-    println(s"StateSpec ${gw.boxes().toList}")
     val beforePolyBoxes = gw.boxes().filter(_.box match {
       case a: PolyBox => genesisState.closedBox(a.id).isDefined
       case _ => false
@@ -122,6 +121,26 @@ class BifrostStateSpec extends PropSpec
       genesisState = newState.rollbackTo(genesisBlockId).get
       gw = newWallet.rollback(genesisBlockId).get
     }
+  }
+
+  property("A block with valid ProfileTransaction should result in a ProfileBox") {
+    val timestamp = System.currentTimeMillis()
+    val signature = PrivateKey25519Companion.sign(gw.secrets.head,
+      ProfileTransaction.messageToSign(timestamp, gw.secrets.head.publicImage,
+        Map("role" -> "investor")))
+    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> "investor"), 1L, timestamp)
+
+    val block = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(tx)
+    )
+
+    val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(4)).get
+    val box = newState.closedBox(FastCryptographicHash(gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get
+    println(box.json)
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {

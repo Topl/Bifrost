@@ -188,6 +188,7 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
+    "type" -> "Profile".asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "field" -> key.asJson

@@ -70,7 +70,6 @@ case class ContractCreation(agreement: Agreement,
       Longs.toByteArray(fee)
   )
 
-
   override lazy val newBoxes: Traversable[BifrostBox] = {
     // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
@@ -445,9 +444,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
 
   override lazy val serializer = ProfileTransactionCompanion
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = keyValues.keys.toIndexedSeq.map(
-    key => ProfileBox.idFromBox(from, key)
-  )
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]()
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
     boxId =>
