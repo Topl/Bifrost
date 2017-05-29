@@ -169,6 +169,12 @@ trait BifrostGenerators extends CoreGenerators {
     "agreement" -> agreement
   ).asJson, id)
 
+  lazy val contractBoxGen: Gen[ContractBox] = for {
+    proposition <- oneOfNPropositionGen
+    nonce <- positiveLongGen
+    value <- contractGen.map(_.json)
+  } yield ContractBox(proposition._2, nonce, value)
+
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen
     parties <- partiesGen
@@ -176,6 +182,14 @@ trait BifrostGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+
+  lazy val contractCompletionGen: Gen[ContractCompletion] = for {
+    contract <- contractBoxGen
+    parties <- partiesGen
+    signature <- signatureGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield ContractCompletion(contract, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
 
   lazy val profileTxGen: Gen[ProfileTransaction] = for {
     from <- propositionGen

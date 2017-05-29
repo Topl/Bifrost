@@ -48,6 +48,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       (m match {
         case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
         case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toBytes(cme)
+        case ccomp: ContractCompletion => ContractCompletionCompanion.toBytes(ccomp)
       })
   }
 
@@ -65,6 +66,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       newTypeStr match {
         case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
         case "ContractMethodExecution" => ContractMethodExecutionCompanion.parseBytes(newBytes).get
+        case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
       }
   }
 }

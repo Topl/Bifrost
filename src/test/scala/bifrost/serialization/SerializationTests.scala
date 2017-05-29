@@ -117,16 +117,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ProfileTransaction Serialization") {
-    forAll(profileTxGen) {
-      p: ProfileTransaction =>
-        val parsed = ProfileTransactionCompanion.parseBytes(
-          ProfileTransactionCompanion.toBytes(p)
-        ).get
-        ProfileTransactionCompanion.toBytes(parsed) shouldEqual ProfileTransactionCompanion.toBytes(p)
-    }
-  }
-
   property("ContractMethodExecution Serialization") {
     forAll(contractMethodExecutionGen) {
       c: ContractMethodExecution =>
@@ -136,6 +126,27 @@ class SerializationTests extends PropSpec
         ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c)
     }
   }
+
+  property("ContractCompletion Serialization") {
+    forAll(contractCompletionGen) {
+      c: ContractCompletion =>
+        val parsed = ContractTransactionCompanion.parseBytes(
+          ContractTransactionCompanion.toBytes(c)
+        ).get
+        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c)
+    }
+  }
+
+  property("ProfileTransaction Serialization") {
+    forAll(profileTxGen) {
+      p: ProfileTransaction =>
+        val parsed = ProfileTransactionCompanion.parseBytes(
+            ProfileTransactionCompanion.toBytes(p)
+        ).get
+        ProfileTransactionCompanion.toBytes(parsed) shouldEqual ProfileTransactionCompanion.toBytes(p)
+    }
+  }
+
 
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {

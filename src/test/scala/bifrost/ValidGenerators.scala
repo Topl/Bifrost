@@ -1,8 +1,8 @@
 package bifrost
 
-import bifrost.BifrostGenerators
 import bifrost.contract.{Agreement, Contract}
 import bifrost.transaction._
+import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box.{ContractBox, ProfileBox}
 import com.google.common.primitives.{Bytes, Longs}
 import org.scalacheck.Gen
@@ -42,12 +42,6 @@ trait ValidGenerators extends BifrostGenerators {
     "agreement" -> agreement
   ).asJson, id)
 
-  lazy val contractBoxGen: Gen[ContractBox] = for {
-    proposition <- oneOfNPropositionGen
-    nonce <- positiveLongGen
-    value <- contractGen.map(_.json)
-  } yield ContractBox(proposition._2, nonce, value)
-
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen
     fee <- positiveLongGen
@@ -76,6 +70,40 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     party <- propositionGen
   } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sigSeq, fee, timestamp)
+
+  lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+    val parties = allKeyPairs.map(_._2)
+
+    val contract = Contract(Map(
+      "producer" -> Base58.encode(parties(0).pubKeyBytes).asJson,
+      "investor" -> Base58.encode(parties(1).pubKeyBytes).asJson,
+      "hub" -> Base58.encode(parties(2).pubKeyBytes).asJson,
+      "storage" -> Map("status" -> Gen.oneOf(validStatuses).sample.get.asJson, "other" -> jsonGen().sample.get).asJson,
+      "agreement" -> validAgreementGen.sample.get.json
+    ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
+
+    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+    val contractBox = ContractBox(proposition, positiveLongGen.sample.get, contract.json)
+
+    val messageToSign = FastCryptographicHash(
+      contractBox.id ++
+        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+        contractBox.id ++
+        Longs.toByteArray(timestamp) ++
+        Longs.toByteArray(fee)
+    )
+
+    val signatures = allKeyPairs.map(
+      keypair =>
+        PrivateKey25519Companion.sign(keypair._1, messageToSign)
+    )
+
+    ContractCompletion(contractBox, IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
+  }
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 

@@ -286,7 +286,7 @@ object ContractCompletion {
     require(tx.timestamp >= 0)
     require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
       signature.isValid(proposition, tx.messageToSign)
-      signature.isValid(tx.contractBox.proposition, tx.messageToSign)
+      tx.contractBox.proposition.verify(tx.messageToSign, signature.signature)
     })
   }
 

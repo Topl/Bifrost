@@ -293,6 +293,7 @@ object BifrostState {
       case poT: PolyTransfer => PolyTransfer.validate(poT)
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case cc: ContractCreation => ContractCreation.validate(cc)
+      case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case _ => Failure(new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
