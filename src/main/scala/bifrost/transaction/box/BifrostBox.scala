@@ -1,8 +1,9 @@
 package bifrost.transaction.box
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.nio.ByteBuffer
 
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import io.circe.Json
@@ -14,6 +15,7 @@ import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -58,7 +60,6 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
   override def parseBytes(bytes: Array[Byte]): Try[BifrostBox] = {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
     typeStr match {
@@ -240,19 +241,65 @@ object ProfileBoxSerializer extends Serializer[ProfileBox] {
 }
 
 case class ReputationBox(override val proposition: PublicKey25519Proposition,
-                        override val nonce: Long,
-                        override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {
-  override lazy val typeOfBox: String = "Reputation"
+                         override val nonce: Long,
+                         value: (Double, Double)) extends BifrostBox(proposition, nonce, value) {
+  val typeOfBox: String = "Reputation"
+  val id = FastCryptographicHash(proposition.pubKeyBytes ++ "reputation".getBytes)
+
+  override lazy val json: Json = Map(
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "nonce" -> nonce.asJson
+  ).asJson
 }
 
-object ReputationBoxSerializer extends Serializer[ReputationBox] with NoncedBoxSerializer {
+object ReputationBoxSerializer extends Serializer[ReputationBox]  {
+
+  def doubleToByteArray(x: Double): Array[Byte] = {
+    val l = java.lang.Double.doubleToLongBits(x)
+    val a = Array.fill(8)(0.toByte)
+    for (i <- 0 to 7) a(i) = ((l >> ((7 - i) * 8)) & 0xff).toByte
+    a
+  }
+
+  def byteArrayToDouble(x: Array[scala.Byte]): Double = {
+    var i = 0
+    var res = 0.toLong
+    for (i <- 0 to 7) {
+      res +=  ((x(i) & 0xff).toLong << ((7 - i) * 8))
+    }
+    java.lang.Double.longBitsToDouble(res)
+  }
 
   def toBytes(obj: ReputationBox): Array[Byte] = {
-    noncedBoxToBytes(obj, "ReputationBox")
+
+    val boxType = "ReputationBox"
+
+    Bytes.concat(
+      Ints.toByteArray(boxType.getBytes.length),
+      boxType.getBytes,
+      Longs.toByteArray(obj.nonce),
+      doubleToByteArray(obj.value._1),
+      doubleToByteArray(obj.value._2),
+      obj.proposition.pubKeyBytes
+    )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ReputationBox] = Try {
-    val params = noncedBoxParseBytes(bytes)
-    ReputationBox(params._1, params._2, params._3)
+
+    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
+
+    val newBytes = bytes.slice(Ints.BYTES + typeLen, bytes.length)
+
+    val nonce = Longs.fromByteArray(newBytes.take(Longs.BYTES))
+    val Array(alpha: Double, beta: Double) = (0 until 2).map {
+      i => byteArrayToDouble(newBytes.slice(Longs.BYTES + i*Doubles.BYTES, Longs.BYTES + (i + 1)*Doubles.BYTES))
+    }.toArray
+    val proposition = PublicKey25519Proposition(
+      newBytes.slice(Longs.BYTES + 2*Doubles.BYTES, Longs.BYTES + 2*Doubles.BYTES + Constants25519.PubKeyLength)
+    )
+
+    ReputationBox(proposition, nonce, (alpha, beta))
   }
 }
