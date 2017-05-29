@@ -83,7 +83,7 @@ case class ContractCreation(agreement: Agreement,
         ).asJson,
         "lastUpdated" -> timestamp.asJson
       )
-    ).asJson
+      ).asJson
 
     IndexedSeq(ContractBox(proposition, nonce, boxValue))
   }
@@ -123,8 +123,8 @@ object ContractCreation {
     require(tx.timestamp >= 0)
     require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
       signature.isValid(proposition, tx.messageToSign)
-  })
-}
+    })
+  }
 
 }
 
@@ -161,6 +161,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       methodName.getBytes ++
+      party._2.pubKeyBytes ++
       parameters.noSpaces.getBytes ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
@@ -194,9 +195,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override lazy val serializer = ContractMethodExecutionCompanion
 
-  override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    Longs.toByteArray(timestamp)
-  )
+  override lazy val messageToSign: Array[Byte] = hashNoNonces
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
 
@@ -217,6 +216,82 @@ object ContractMethodExecution {
   }
 
 }
+
+case class ContractCompletion(contractBox: ContractBox,
+                              parties: IndexedSeq[(Role, PublicKey25519Proposition)],
+                              signatures: IndexedSeq[Signature25519],
+                              fee: Long,
+                              timestamp: Long)
+  extends ContractTransaction {
+
+  override type M = ContractCompletion
+
+  lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+
+  lazy val proposition = MofNProposition(1,
+    Set(
+      contract.Producer.pubKeyBytes,
+      contract.Hub.pubKeyBytes,
+      contract.Investor.pubKeyBytes
+    )
+  )
+
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ parties.map(
+    party => ProfileBox.idFromBox(party._2, "reputation")
+  )
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
+    new BoxUnlocker[MofNProposition] {
+      override val closedBoxId: Array[Byte] = contractBox.id
+      override val boxKey: Proof[MofNProposition] = MultiSignature25519(signatures.toSet)
+    }
+  )
+
+  lazy val hashNoNonces = FastCryptographicHash(
+    contractBox.id ++
+      parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee)
+  )
+
+
+  override lazy val newBoxes: Traversable[BifrostBox] = IndexedSeq[BifrostBox]()
+
+  override lazy val json: Json = Map(
+    "contract" -> contract.json,
+    "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
+    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
+
+  override lazy val serializer = ContractCompletionCompanion
+
+  override lazy val messageToSign: Array[Byte] = hashNoNonces
+
+  override def toString: String = s"ContractCompletion(${json.noSpaces})"
+
+}
+
+object ContractCompletion {
+  type Value = Long
+  type Nonce = Long
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  def validate(tx: ContractCompletion): Try[Unit] = Try {
+    require(tx.signatures.size == 3)
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
+      signature.isValid(proposition, tx.messageToSign)
+      signature.isValid(tx.contractBox.proposition, tx.messageToSign)
+    })
+  }
+
+}
+
 
 
 abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
@@ -434,10 +509,10 @@ object ArbitTransfer extends TransferUtil {
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,
-                       signature: Signature25519,
-                       keyValues: Map[String, String],
-                       override val fee: Long,
-                       override val timestamp: Long)
+                              signature: Signature25519,
+                              keyValues: Map[String, String],
+                              override val fee: Long,
+                              override val timestamp: Long)
   extends BifrostTransaction{
 
   override type M = ProfileTransaction
