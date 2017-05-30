@@ -33,4 +33,8 @@ class ContractCreationSpec extends PropSpec
     }
   }
 
+  property("Transaction returns ContractBox and AssetBoxes for Hub") {
+    // TODO
+  }
+
 }

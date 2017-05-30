@@ -218,6 +218,7 @@ object ContractMethodExecution {
 }
 
 case class ContractCompletion(contractBox: ContractBox,
+                              reputation: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                               parties: IndexedSeq[(Role, PublicKey25519Proposition)],
                               signatures: IndexedSeq[Signature25519],
                               fee: Long,
@@ -236,9 +237,7 @@ case class ContractCompletion(contractBox: ContractBox,
     )
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ parties.map(
-    party => ProfileBox.idFromBox(party._2, "reputation")
-  )
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ reputation.map(box => ReputationBox.idFromBox(box._1, box._2))
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
@@ -256,7 +255,28 @@ case class ContractCompletion(contractBox: ContractBox,
   )
 
 
-  override lazy val newBoxes: Traversable[BifrostBox] = IndexedSeq[BifrostBox]()
+  override lazy val newBoxes: Traversable[BifrostBox] = {
+    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    val nonce = ContractMethodExecution.nonceFromDigest(digest)
+
+    /* Get yield */
+    val input: Long = contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
+    val output: Long = contract.storage("currentFulfillment").get.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
+    val yieldRate = output.toDouble / input.toDouble
+
+    /* Calculate alpha, beta changes */
+    val w = input
+    val alpha: Double = (w.toDouble / 1000)*(2*yieldRate - 1)
+    val beta: Double = (w.toDouble / 1000)*(2 - yieldRate)
+
+    /* Reputation adjustment for producer */
+    val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
+
+    /* Change amount held in hub to account for actual delivery */
+    //TODO add asset box: val amountAddedToHubAssets = output - input
+
+    Seq(producerRep)
+  }
 
   override lazy val json: Json = Map(
     "contract" -> contract.json,

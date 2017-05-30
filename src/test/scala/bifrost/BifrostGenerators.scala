@@ -190,7 +190,7 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-  } yield ContractCompletion(contract, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+  } yield ContractCompletion(contract, IndexedSeq(), parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
 
   lazy val profileTxGen: Gen[ProfileTransaction] = for {
     from <- propositionGen

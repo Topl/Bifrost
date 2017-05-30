@@ -82,7 +82,13 @@ trait ValidGenerators extends BifrostGenerators {
       "producer" -> Base58.encode(parties(0).pubKeyBytes).asJson,
       "investor" -> Base58.encode(parties(1).pubKeyBytes).asJson,
       "hub" -> Base58.encode(parties(2).pubKeyBytes).asJson,
-      "storage" -> Map("status" -> Gen.oneOf(validStatuses).sample.get.asJson, "other" -> jsonGen().sample.get).asJson,
+      "storage" -> Map(
+        "status" -> Gen.oneOf(validStatuses).sample.get.asJson,
+        "currentFulfillment" -> Map(
+          "deliveredQuantity" -> positiveLongGen.sample.get.asJson
+        ).asJson,
+        "other" -> jsonGen().sample.get
+      ).asJson,
       "agreement" -> validAgreementGen.sample.get.json
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
 
@@ -102,7 +108,7 @@ trait ValidGenerators extends BifrostGenerators {
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
 
-    ContractCompletion(contractBox, IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
+    ContractCompletion(contractBox, IndexedSeq(), IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
   }
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")

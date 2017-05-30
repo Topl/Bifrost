@@ -1,8 +1,5 @@
 package bifrost.transaction.box
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
-import java.nio.ByteBuffer
-
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -11,11 +8,9 @@ import io.circe.parser._
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.serialization.Serializer
-import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -244,13 +239,18 @@ case class ReputationBox(override val proposition: PublicKey25519Proposition,
                          override val nonce: Long,
                          value: (Double, Double)) extends BifrostBox(proposition, nonce, value) {
   val typeOfBox: String = "Reputation"
-  val id = FastCryptographicHash(proposition.pubKeyBytes ++ "reputation".getBytes)
+  val id = ReputationBox.idFromBox(proposition, nonce)
 
   override lazy val json: Json = Map(
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.asJson
   ).asJson
+}
+
+object ReputationBox {
+  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
+    FastCryptographicHash(prop.pubKeyBytes ++ "reputation".getBytes ++ Longs.toByteArray(nonce))
 }
 
 object ReputationBoxSerializer extends Serializer[ReputationBox]  {

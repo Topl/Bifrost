@@ -2,7 +2,7 @@ package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract._
-import bifrost.transaction.box.{ContractBox, ContractBoxSerializer}
+import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, ParsingFailure}
 import io.circe.optics.JsonPath._
 import io.circe.parser._
@@ -305,6 +305,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       Longs.toByteArray(cc.timestamp),
       Ints.toByteArray(cc.signatures.length),
       Ints.toByteArray(cc.parties.length),
+      Ints.toByteArray(cc.reputation.length),
       cc.parties.foldLeft(Array[Byte]())((a, b) => a ++ (b._1 match {
         case Role.Producer => Ints.toByteArray(0)
         case Role.Investor => Ints.toByteArray(1)
@@ -312,10 +313,12 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       })),
       cc.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
       cc.parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      cc.reputation.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
       cc.contractBox.bytes
     )
   }
 
+  //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[ContractCompletion] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
@@ -329,11 +332,11 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
 
     numReadBytes = 2*Longs.BYTES
 
-    val Array(sigLength: Int, partiesLength: Int, role1: Int, role2: Int, role3: Int) = (0 until 5).map { i =>
+    val Array(sigLength: Int, partiesLength: Int, reputationLength: Int, role1: Int, role2: Int, role3: Int) = (0 until 6).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 5*Ints.BYTES
+    numReadBytes += 6*Ints.BYTES
 
     val signatures = (0 until sigLength) map { i =>
       Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
@@ -348,6 +351,20 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
 
     numReadBytes += partiesLength * Curve25519.KeyLength
 
+    val reputation: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until reputationLength) map { i =>
+      val proposition = PublicKey25519Proposition(bytesWithoutType.slice(
+        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES),
+        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES) + Constants25519.PubKeyLength
+      ))
+
+      val nonce = Longs.fromByteArray(bytesWithoutType.slice(
+        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES) + Constants25519.PubKeyLength,
+        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES) + Constants25519.PubKeyLength + Longs.BYTES
+      ))
+
+      (proposition, nonce)
+    }
+
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
 
     val roleTypes = IndexedSeq(role1, role2, role3).map {
@@ -356,7 +373,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       case 2 => Role.Hub
     }
 
-    ContractCompletion(contractBox, roleTypes.zip(parties), signatures, fee, timestamp)
+    ContractCompletion(contractBox, reputation, roleTypes.zip(parties), signatures, fee, timestamp)
   }
 
 }
