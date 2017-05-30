@@ -3,10 +3,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import scorex.crypto.encode.Base58
-import io.circe.syntax._
 
-import scala.util.Success
 
 class ContractSpec extends PropSpec
   with PropertyChecks
@@ -32,15 +29,4 @@ class ContractSpec extends PropSpec
     }
   }
 
-  property("Calling a method with invalid party (e.g. Producer for Investor) results in Failure") {
-
-  }
-
-  property("Contract created from Json should have fields that match") {
-
-  }
-
-  property("Method executed that updates Contract should return updated Contract object") {
-
-  }
 }
