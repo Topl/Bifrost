@@ -66,7 +66,6 @@ case class ContractCreation(agreement: Agreement,
     AgreementCompanion.toBytes(agreement) ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
   )
 
@@ -99,7 +98,6 @@ case class ContractCreation(agreement: Agreement,
   override lazy val serializer = ContractCreationCompanion
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    Longs.toByteArray(timestamp),
     AgreementCompanion.toBytes(agreement),
     parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
   )
@@ -115,6 +113,7 @@ object ContractCreation {
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
+    val outcome= Agreement.validate(tx.agreement)
     require(Agreement.validate(tx.agreement).isSuccess)
 
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
@@ -132,7 +131,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
                                    party: (Role, PublicKey25519Proposition),
                                    methodName: String,
                                    parameters: Json,
-                                   signatures: IndexedSeq[Signature25519],
+                                   signature: Signature25519,
                                    fee: Long,
                                    timestamp: Long)
   extends ContractTransaction {
@@ -154,7 +153,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
       override val closedBoxId: Array[Byte] = contractBox.id
-      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(0)))
+      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signature))
     }
   )
 
@@ -188,7 +187,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
     "party" -> ( party._1.toString -> Base58.encode(party._2.pubKeyBytes).asJson ).asJson,
     "methodName" -> methodName.asJson,
     "parameters" -> parameters,
-    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "signature" -> Base58.encode(signature.bytes).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
@@ -208,11 +207,10 @@ object ContractMethodExecution {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: ContractMethodExecution): Try[Unit] = Try {
-    require(tx.signatures.size == 2)
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures(0).isValid(tx.contractBox.proposition, tx.messageToSign))
-    require(tx.signatures(1).isValid(tx.party._2, tx.messageToSign))
+    require(MultiSignature25519(Set(tx.signature)).isValid(tx.contractBox.proposition, tx.messageToSign))
+    require(tx.signature.isValid(tx.party._2, tx.messageToSign))
   }
 
 }
@@ -306,7 +304,7 @@ object ContractCompletion {
     require(tx.timestamp >= 0)
     require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
       signature.isValid(proposition, tx.messageToSign)
-      tx.contractBox.proposition.verify(tx.messageToSign, signature.signature)
+      MultiSignature25519(Set(signature)).isValid(tx.contractBox.proposition, tx.messageToSign)
     })
   }
 

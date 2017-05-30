@@ -223,7 +223,6 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         Longs.toByteArray(cme.timestamp),
         Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-        Ints.toByteArray(cme.signatures.length),
         cme.party._1 match {
           case Role.Producer => Ints.toByteArray(0)
           case Role.Investor => Ints.toByteArray(1)
@@ -232,7 +231,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         cme.party._2.pubKeyBytes,
         cme.methodName.getBytes,
         cme.parameters.noSpaces.getBytes,
-        cme.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+        cme.signature.bytes,
         cme.contractBox.bytes
     )
   }
@@ -251,11 +250,11 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes = 2*Longs.BYTES
 
-    val Array(methodNameLength: Int, parameterJsonLength: Int, sigLength: Int, roleInt: Int) = (0 until 4).map { i =>
+    val Array(methodNameLength: Int, parameterJsonLength: Int, roleInt: Int) = (0 until 3).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 4*Ints.BYTES
+    numReadBytes += 3*Ints.BYTES
 
     val party: PublicKey25519Proposition = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
 
@@ -272,11 +271,9 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += parameterJsonLength
 
-    val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
-    }
+    val signature = Signature25519(bytesWithoutType.slice(numReadBytes, numReadBytes + Signature25519.SignatureSize))
 
-    numReadBytes += sigLength * Signature25519.SignatureSize
+    numReadBytes += Signature25519.SignatureSize
 
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
 
@@ -286,7 +283,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
       case 2 => Role.Hub
     }
 
-    ContractMethodExecution(contractBox, role -> party, methodName, parameters, signatures, fee, timestamp)
+    ContractMethodExecution(contractBox, role -> party, methodName, parameters, signature, fee, timestamp)
   }
 
 }
@@ -382,7 +379,8 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def toBytes(a: Agreement): Array[Byte] = {
     Bytes.concat(
-      Longs.toByteArray(a.contractEndTime),
+      Longs.toByteArray(a.contractExpirationTime),
+      Longs.toByteArray(a.contractEffectiveTime),
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
       a.terms.json.noSpaces.getBytes
     )
@@ -390,11 +388,11 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
 
-    val Array(contractEndTime: Long, termsLength: Long) = (0 until 2).map { i =>
+    val Array(contractExpirationTime: Long, contractEffectiveTime: Long, termsLength: Long) = (0 until 3).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    var numBytesRead = 2*Longs.BYTES
+    var numBytesRead = 3*Longs.BYTES
 
     val termsMap: Map[String, Json] = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
@@ -420,7 +418,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     )
 
-    Agreement(terms, contractEndTime)
+    Agreement(terms, contractEffectiveTime, contractExpirationTime)
   }
 }
 

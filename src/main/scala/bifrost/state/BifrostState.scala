@@ -5,14 +5,17 @@ import java.time.Instant
 
 import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
+import bifrost.contract.Contract
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
+import bifrost.transaction.proof.MultiSignature25519
+import io.circe.{Json, JsonObject}
+import io.circe.syntax._
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.MinimalState.VersionTag
 import scorex.core.transaction.state.{PrivateKey25519, StateChanges}
@@ -108,6 +111,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     case cc: ContractCreation => validateContractCreation(cc)
     case prT: ProfileTransaction => validateProfileTransaction(prT)
     case cme: ContractMethodExecution => validateContractMethodExecution(cme)
+    case cComp: ContractCompletion => validateContractCompletion(cComp)
   }
 
   /**
@@ -155,25 +159,51 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   /**
+    *
+    * @param pt: ProfileTransaction
+    * @return success or failure
+    */
+  def validateProfileTransaction(pt: ProfileTransaction): Try[Unit] = Try {
+    /* Make sure there are no existing boxes of the all fields in tx
+    *  If there is one box that exists then the tx is invalid
+    * */
+    val boxesExist: Boolean = pt.newBoxes.forall(curBox => {
+      val pBox = curBox.asInstanceOf[ProfileBox]
+      val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
+      boxBytes match {
+        case None => false
+        case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
+      }
+    })
+    require(!boxesExist)
+
+    semanticValidity(pt)
+  }
+
+  /**
     * validates ContractCreation instance on its unlockers && timestamp of the contract
     *
     * @param cc: ContractCreation object
     * @return
     */
   //noinspection ScalaStyle
-  def validateContractCreation(cc: ContractCreation): Try[Unit] = Try {
+  def validateContractCreation(cc: ContractCreation): Try[Unit] = {
 
     /* First check to see all roles are present */
-    val roleBoxes: IndexedSeq[ProfileBox] = cc.signatures.zipWithIndex.map {
-      case (sig, index) =>
+    val roleBoxAttempts: IndexedSeq[Try[ProfileBox]] = cc.signatures.zipWithIndex.map {
+      case (sig, index) => Try {
+        // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
         require(sig.isValid(cc.parties(index)._2, cc.messageToSign))
         getProfileBox(cc.parties(index)._2, "role").get
+      }
     }
 
-    require(ProfileBox.acceptableRoleValues.equals(roleBoxes.map(_.value).toSet))
+    val roleBoxes: IndexedSeq[String] = roleBoxAttempts collect { case s: Success[ProfileBox] if s.isSuccess => s.get.value }
+
+    require(Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet))
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
-    require(roleBoxes.zip(cc.parties.map(_._1)).forall { case (box, role) => box.value.equals(role.toString) })
+    require(roleBoxes.zip(cc.parties.map(_._1)).forall { case (boxRole, role) => boxRole.equals(role.toString) })
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
@@ -209,29 +239,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     statefulValid.flatMap(_ => semanticValidity(cc))
 
-    // TODO check reputation of parties
-  }
-
-  /**
-    *
-    * @param pt: ProfileTransaction
-    * @return success or failure
-    */
-  def validateProfileTransaction(pt: ProfileTransaction): Try[Unit] = Try {
-    /* Make sure there are no existing boxes of the all fields in tx
-    *  If there is one box that exists then the tx is invalid
-    * */
-    val boxesExist: Boolean = pt.newBoxes.forall(curBox => {
-      val pBox = curBox.asInstanceOf[ProfileBox]
-      val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
-      boxBytes match {
-        case None => false
-        case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
-      }
-    })
-    require(!boxesExist)
-
-    semanticValidity(pt)
+    // TODO check whether hub has sufficient room
   }
 
   /**
@@ -239,7 +247,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @param cme: the ContractMethodExecution to validate
     * @return
     */
-  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
+  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = {
 
     val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
 
@@ -251,15 +259,18 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     } else {
 
-      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.proposition
+      val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
+      val contractProposition: MofNProposition = contractBox.proposition
+      val contract: Contract = Contract(contractBox.json, contractBox.id)
+      val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
       val profileBox = getProfileBox(cme.party._2, "role").get
 
       /* This person belongs to contract */
-      if (!cme.signatures(0).isValid(contractProposition, cme.messageToSign)) {
+      if (!MultiSignature25519(Set(cme.signature)).isValid(contractProposition, cme.messageToSign)) {
         Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
 
       /* Signature matches profilebox owner */
-      } else if (!cme.signatures(1).isValid(profileBox.proposition, cme.messageToSign)) {
+      } else if (!cme.signature.isValid(profileBox.proposition, cme.messageToSign)) {
         Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.party._2.pubKeyBytes)} profileBox"))
 
       /* Role provided by CME matches profilebox */
@@ -267,13 +278,82 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         Failure(new IllegalAccessException(s"Role ${cme.party._1} for ${Base58.encode(cme.party._2.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
 
       /* Timestamp is after most recent block, not in future */
-      } else if (cme.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli) {
+      } else if (cme.timestamp <= timestamp || cme.timestamp > Instant.now.toEpochMilli) {
         Failure(new Exception("Unacceptable timestamp"))
+
+      } else if (effectiveDate > Instant.now.toEpochMilli) {
+        Failure(new Exception("Effective date hasn't passed"))
 
       } else {
         semanticValidity(cme)
       }
 
+    }
+  }
+
+  /**
+    *
+    * @param cc: the ContractMethodExecution to validate
+    * @return
+    */
+  //noinspection ScalaStyle
+  def validateContractCompletion(cc: ContractCompletion): Try[Unit] = {
+
+    val contractBytes = storage.get(ByteArrayWrapper(cc.contractBox.id))
+    //TODO fee verification
+
+    /* Contract exists */
+    if (contractBytes.isEmpty)
+      Failure(new NoSuchElementException(s"Contract ${cc.contractBox.id} does not exist"))
+
+    else {
+      val contractJson: Json = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.json
+      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.proposition
+
+      /* Checking that all of the parties are part of the contract and have claimed roles */
+      val verifyParties = Try {
+        require(cc.parties.zipWithIndex.map {
+          case ((role, proposition), i) =>
+            val profileBox = getProfileBox(proposition, "role").get
+
+            /* This person belongs to contract */
+            if (!MultiSignature25519(Set(cc.signatures(i))).isValid(contractProposition, cc.messageToSign))
+              throw new IllegalAccessException(s"Signature is invalid for contractBox")
+
+            /* Signature matches profilebox owner */
+            else if (!cc.signatures(i).isValid(profileBox.proposition, cc.messageToSign))
+              throw new IllegalAccessException(s"Signature is invalid for ${Base58.encode(proposition.pubKeyBytes)} profileBox")
+
+            /* Role provided by cc matches profilebox */
+            else if (!profileBox.value.equals(role.toString))
+              throw new IllegalAccessException(s"Role $role for ${Base58.encode(proposition.pubKeyBytes)} does not match ${profileBox.value} in profileBox")
+
+            role
+
+          /* Checking that all the roles are represented */
+        }.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer)))
+      }
+
+      if (verifyParties.isFailure) verifyParties
+
+      /* Make sure timestamp is after most recent block, not in future */
+      else if (cc.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli)
+        Failure(new Exception("Unacceptable timestamp"))
+
+      /* Contract is in completed state, waiting for completion */
+      else {
+        val endorsementsJsonObj: JsonObject = cc.contract.storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
+        val endorseAttempt = endorsementsJsonObj(Base58.encode(cc.parties.head._2.pubKeyBytes))
+
+        val allEndorsedAndAgree = Try {
+          cc.parties.tail.foldLeft(endorseAttempt.get.asString.get)((a, b) => {
+            require(endorsementsJsonObj(Base58.encode(b._2.pubKeyBytes)).get.asString.get == a)
+            a
+          })
+        }
+
+        allEndorsedAndAgree.flatMap(_ => semanticValidity(cc))
+      }
     }
   }
 }
@@ -341,7 +421,7 @@ object BifrostState {
         stateStorage.close()
       }
     })
-    val version = stateStorage.lastVersionID.map(_.data).getOrElse(Array.emptyByteArray)
+    val version = stateStorage.lastVersionID.fold(Array.emptyByteArray)(_.data)
 
     var timestamp: Long = 0L
     if (callFromGenesis) {

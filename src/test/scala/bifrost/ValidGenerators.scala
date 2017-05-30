@@ -1,5 +1,7 @@
 package bifrost
 
+import java.time.Instant
+
 import bifrost.contract.{Agreement, Contract}
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
@@ -20,8 +22,7 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validAgreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
-    timestamp <- positiveLongGen
-  } yield Agreement(terms, timestamp)
+  } yield Agreement(terms, Instant.now.toEpochMilli + 100000L, Instant.now.toEpochMilli + 300000L)
 
   // TODO this should be an enum
   val validStatuses: List[String] = List("expired", "complete", "initialized")
@@ -50,7 +51,6 @@ trait ValidGenerators extends BifrostGenerators {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
     val messageToSign = Bytes.concat(
-      Longs.toByteArray(timestamp),
       AgreementCompanion.toBytes(agreement),
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
     )
@@ -65,11 +65,11 @@ trait ValidGenerators extends BifrostGenerators {
     contract <- contractBoxGen
     methodName <- stringGen
     parameters <- jsonArrayGen()
-    sigSeq <- sigSeqGen
+    sig <- signatureGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     party <- propositionGen
-  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sigSeq, fee, timestamp)
+  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sig, fee, timestamp)
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
     fee <- positiveLongGen
