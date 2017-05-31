@@ -7,10 +7,12 @@ import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box.{ContractBox, ProfileBox}
 import com.google.common.primitives.{Bytes, Longs}
+import io.circe.Json
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.PrivateKey25519Companion
 
 import scala.util.Random
@@ -22,7 +24,8 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validAgreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
-  } yield Agreement(terms, Instant.now.toEpochMilli + 100000L, Instant.now.toEpochMilli + 300000L)
+    delta <- positiveLongGen
+  } yield Agreement(terms, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
 
   // TODO this should be an enum
   val validStatuses: List[String] = List("expired", "complete", "initialized")
@@ -61,39 +64,83 @@ trait ValidGenerators extends BifrostGenerators {
     ContractCreation(agreement, IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties), signatures, fee, timestamp)
   }
 
-  lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
-    contract <- contractBoxGen
-    methodName <- stringGen
-    parameters <- jsonArrayGen()
-    sig <- signatureGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    party <- propositionGen
-  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sig, fee, timestamp)
+  lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
-  lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield {
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
+  def createContractBox(agreement: Agreement,
+                        status: String,
+                        currentFulfillment: Map[String, Json],
+                        parties: IndexedSeq[PublicKey25519Proposition]): ContractBox = {
 
     val contract = Contract(Map(
       "producer" -> Base58.encode(parties(0).pubKeyBytes).asJson,
       "investor" -> Base58.encode(parties(1).pubKeyBytes).asJson,
       "hub" -> Base58.encode(parties(2).pubKeyBytes).asJson,
       "storage" -> Map(
-        "status" -> Gen.oneOf(validStatuses).sample.get.asJson,
-        "currentFulfillment" -> Map(
-          "deliveredQuantity" -> positiveLongGen.sample.get.asJson
-        ).asJson,
+        "status" -> status.asJson,
+        "currentFulfillment" -> currentFulfillment.asJson,
         "other" -> jsonGen().sample.get
       ).asJson,
-      "agreement" -> validAgreementGen.sample.get.json
+      "agreement" -> agreement.json
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
 
     val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val contractBox = ContractBox(proposition, positiveLongGen.sample.get, contract.json)
+    ContractBox(proposition, positiveLongGen.sample.get, contract.json)
+  }
+
+  lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
+    methodName <- Gen.oneOf(validContractMethods)
+    parameters <- jsonArrayGen()
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen.map(_ / 3)
+    status <- Gen.oneOf(validStatuses)
+    deliveredQuantity <- positiveLongGen
+    effDelta <- positiveLongGen.map(_ / 3)
+    expDelta <- positiveLongGen.map(_ / 3)
+  } yield {
+    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+    val parties = allKeyPairs.map(_._2)
+
+    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
+
+    val contractBox = createContractBox(
+      Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
+      "initialized",
+      currentFulfillment,
+      parties
+    )
+
+    val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
+
+    val hashNoNonces = FastCryptographicHash(
+      contractBox.id ++
+        methodName.getBytes ++
+        (sender._2)._2.pubKeyBytes ++
+        parameters.noSpaces.getBytes ++
+        contractBox.id ++
+        Longs.toByteArray(timestamp) ++
+        Longs.toByteArray(fee)
+    )
+
+    val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
+    val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
+
+    ContractMethodExecution(contractBox, sender._1 -> (sender._2)._2, methodName, parameters, signature, fee, timestamp)
+  }
+
+
+  lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    agreement <- validAgreementGen
+    status <- Gen.oneOf(validStatuses)
+    deliveredQuantity <- positiveLongGen
+  } yield {
+    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+    val parties = allKeyPairs.map(_._2)
+
+    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
+
+    val contractBox = createContractBox(agreement, status, currentFulfillment, parties)
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
@@ -110,8 +157,6 @@ trait ValidGenerators extends BifrostGenerators {
 
     ContractCompletion(contractBox, IndexedSeq(), IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
   }
-
-  lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
     from <- fromSeqGen

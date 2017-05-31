@@ -194,7 +194,9 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override lazy val serializer = ContractMethodExecutionCompanion
 
-  override lazy val messageToSign: Array[Byte] = hashNoNonces
+  override lazy val messageToSign: Array[Byte] = {
+    FastCryptographicHash(contract.storage.asJson.noSpaces.getBytes ++ hashNoNonces)
+  }
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
 
@@ -211,6 +213,12 @@ object ContractMethodExecution {
     require(tx.timestamp >= 0)
     require(MultiSignature25519(Set(tx.signature)).isValid(tx.contractBox.proposition, tx.messageToSign))
     require(tx.signature.isValid(tx.party._2, tx.messageToSign))
+
+    val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
+    val expDate = tx.contract.agreement("expirationTimestamp").get.asNumber.get.toLong.get
+
+    require(tx.timestamp >= effDate)
+    require(tx.timestamp < expDate)
   }
 
 }

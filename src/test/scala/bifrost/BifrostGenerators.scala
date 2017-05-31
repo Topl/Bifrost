@@ -185,6 +185,16 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
 
+  lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
+    contract <- contractBoxGen
+    methodName <- stringGen
+    parameters <- jsonArrayGen()
+    sig <- signatureGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    party <- propositionGen
+  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sig, fee, timestamp)
+
   lazy val contractCompletionGen: Gen[ContractCompletion] = for {
     contract <- contractBoxGen
     parties <- partiesGen

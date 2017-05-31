@@ -30,11 +30,12 @@ object Agreement {
 
     require(a.terms.pledge > 0)
     require(a.terms.xrate > 0)
-    //TODO maybe validate functions here?
+    //TODO maybe validate share/fulfill functions
 
     require(a.contractExpirationTime > Instant.now.toEpochMilli)
     require(a.contractEffectiveTime > Instant.now.toEpochMilli)
     require(a.contractExpirationTime > a.contractEffectiveTime)
+
   }
 }
 
