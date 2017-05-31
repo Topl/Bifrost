@@ -118,6 +118,7 @@ case class ContractBox(proposition: MofNProposition,
   )
 
   override lazy val json: Json = Map(
+    "type" -> "Contract".asJson,
     "id" -> Base58.encode(id).asJson,
     "proposition" -> proposition.setOfPubKeyBytes.map(Base58.encode(_).asJson).asJson,
     "value" -> value.asJson,

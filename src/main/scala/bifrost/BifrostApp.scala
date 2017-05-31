@@ -23,8 +23,8 @@ import scala.util.Try
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication {
   // use for debug only
-  val path: Path = Path ("/tmp")
-  Try(path.deleteRecursively())
+//  val path: Path = Path ("/tmp")
+//  Try(path.deleteRecursively())
 
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox
@@ -66,11 +66,11 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
   localInterface
   nodeViewSynchronizer
 
-  if (settings.nodeName == "node1") {
-    log.info("Starting transactions generation")
-    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
-    generator ! StartGeneration(FiniteDuration(5, SECONDS))
-  }
+//  if (settings.nodeName == "node1") {
+//    log.info("Starting transactions generation")
+//    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
+//    generator ! StartGeneration(FiniteDuration(5, SECONDS))
+//  }
 }
 
 object BifrostApp extends App {

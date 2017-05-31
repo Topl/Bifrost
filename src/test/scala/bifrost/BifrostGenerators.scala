@@ -87,7 +87,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
 
-  def samplePositiveDouble: Double = positiveDoubleGen.sample.get
+  def samplePositiveDouble: Double = Random.nextFloat()
 
   lazy val bigDecimalGen: Gen[BigDecimal] = for {
     wholeNumber <- numStringGen
@@ -98,7 +98,8 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val seqDoubleGen: Gen[Seq[(Double, (Double, Double, Double))]] = for {
     seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map {
-    _ => (samplePositiveDouble, (samplePositiveDouble, samplePositiveDouble, samplePositiveDouble))
+    val first = samplePositiveDouble / 2; val second = samplePositiveDouble / 2
+    _ => (samplePositiveDouble, (first, second, 1 - first - second))
   }
 
   lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen.map(new PiecewiseLinearMultiple(_))
