@@ -76,7 +76,7 @@ case class ContractCreation(agreement: Agreement,
 
     val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson).toMap ++
       Map(
-        "agreement" -> Base58.encode(AgreementCompanion.toBytes(agreement)).asJson,
+        "agreement" -> agreement.json,
         "storage" -> Map(
           "status" -> "initialized".asJson
         ).asJson,

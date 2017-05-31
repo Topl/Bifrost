@@ -70,7 +70,6 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
     case _ => None
   }
 
-
   override def generateNewSecret(): BWallet = {
     val prevSecrets = secrets
     val nonce: Array[Byte] = Ints.toByteArray(prevSecrets.size)

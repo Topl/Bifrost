@@ -44,6 +44,8 @@ class BifrostStateSpec extends PropSpec
 
   val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history = gs._1; var genesisState = gs._2; var gw = gs._3
+  // Generate new secret
+  gw.generateNewSecret(); gw.generateNewSecret()
   val genesisBlockId = genesisState.version
 
   property("A block with valid contract creation will result in an entry in the LSMStore") {
@@ -97,6 +99,8 @@ class BifrostStateSpec extends PropSpec
         Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
         Seq(poT)
       )
+
+      require(genesisState.validate(poT).isSuccess)
 
       val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(2)).get
       val newWallet = gw.scanPersistent(block)
