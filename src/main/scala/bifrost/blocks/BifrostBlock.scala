@@ -20,7 +20,7 @@ import scala.util.Try
 
 case class BifrostBlock(override val parentId: BlockId,
                         override val timestamp: Block.Timestamp,
-                        generatorBox: ArbitBox,
+                        forgerBox: ArbitBox,
                         signature: Signature25519,
                         txs: Seq[BifrostTransaction])
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
@@ -41,7 +41,7 @@ case class BifrostBlock(override val parentId: BlockId,
     "id" -> Base58.encode(id).asJson,
     "parentId" -> Base58.encode(parentId).asJson,
     "timestamp" -> timestamp.asJson,
-    "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(generatorBox)).asJson,
+    "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson
   ).asJson
@@ -75,7 +75,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   def messageToSign(block: BifrostBlock): Array[Byte] = {
 
     val numTx = Ints.toByteArray(block.txs.length)
-    val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.generatorBox)
+    val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
         block.parentId,

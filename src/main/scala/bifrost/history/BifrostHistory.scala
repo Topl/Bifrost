@@ -24,8 +24,11 @@ import scala.annotation.tailrec
 import scala.util.{Failure, Try}
 
 /**
-  * History storage
-  * we store all the blocks, even if they are not in a main chain
+  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
+  *
+  * @param storage      a wrapper primarily for the LSMStore and for storage of the minimal state
+  * @param settings     settings regarding updating forging difficulty, constants, etc.
+  * @param validators   rule sets that dictate validity of blocks in the history
   */
 class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, validators: Seq[BlockValidator[BifrostBlock]])
   extends History[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BifrostSyncInfo, BifrostHistory] with ScorexLogging {
@@ -54,28 +57,31 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined
 
   /**
+    * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
     *
-    * @param block - block to append
-    * @return
+    * @param block  block to append
+    * @return       the update history including `block` as the most recent block
     */
   override def append(block: BifrostBlock):
   Try[(BifrostHistory, ProgressInfo[BifrostBlock])] = Try {
 
     log.debug(s"Trying to append block ${Base58.encode(block.id)} to history")
-    val validationResuls = validators.map(_.validate(block))
+    val validationResults = validators.map(_.validate(block))
 
-    validationResuls.foreach {
+    validationResults.foreach {
       case Failure(e) => log.warn(s"Block validation failed", e)
       case _ =>
     }
 
-    validationResuls.foreach(_.get)
+    validationResults.foreach(_.get)
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
+
       if (isGenesis(block)) {
         storage.update(block, settings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
         (new BifrostHistory(storage, settings, validators), progInfo)
+
       } else {
         val parent = modifierById(block.parentId).get
 
@@ -101,12 +107,19 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
         (new BifrostHistory(storage, settings, validators), mod)
       }
     }
+
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
-      s"Best score is ${score}. " +
-      s"Pair: ${Base58.encode(bestBlockId)}")
+      s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
+
     res
   }
 
+  /**
+    * Removes this block (and its children) from the history and rolls back to the state after the parent block
+    *
+    * @param modifierId   the id of the block to chop off
+    * @return             a new history which is the current history ending at the parent of the dropped block
+    */
   override def drop(modifierId: ModifierId): BifrostHistory = {
 
     val block = storage.modifierById(modifierId).get
@@ -117,37 +130,61 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     new BifrostHistory(storage, settings, validators)
   }
 
+  /**
+    * Calculates the changes necessary for a swap to a fork
+    *
+    * @param block  the block that has a parent on the canonical chain but is not on the chain
+    * @return       ProgressInfo that specifies the blocks to delete (worse fork) and blocks to add (better fork)
+    */
   def bestForkChanges(block: BifrostBlock): ProgressInfo[BifrostBlock] = {
+
+    /* Get the two branches of the fork including their common block */
     val (newSuffix, oldSuffix) = commonBlockThenSuffixes(modifierById(block.parentId).get)
+
     log.debug(s"Processing fork for block ${Base58.encode(block.id)}: \n" +
       s"old: ${oldSuffix.map(Base58.encode)}\n" +
       s"new: ${newSuffix.map(Base58.encode)}")
 
+    /* Roll back to the common block */
     val rollbackPoint = newSuffix.headOption
-
     val throwBlocks = oldSuffix.tail.map(id => modifierById(id).get)
+
+    /* Add the newSuffix to the rolled-back chain */
     val applyBlocks = newSuffix.tail.map(id => modifierById(id).get) ++ Seq(block)
+
     require(applyBlocks.nonEmpty)
     require(throwBlocks.nonEmpty)
 
     ProgressInfo[BifrostBlock](rollbackPoint, throwBlocks, applyBlocks)
   }
 
-  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt = {
-    if (value < min) min else if (value > max) max else value
-  }
+  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt = max.min(value.max(min))
 
+  /**
+    * Forms a list of available blocks to build upon
+    *
+    * @return the blocks that are "exposed" for use
+    */
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) Seq(settings.GenesisParentId)
     else Seq(bestBlockId) // TODO return sequence of exposed endpoints?
 
+
+  /**
+    * Gather blocks from after `from` that should be added to the chain
+    *
+    * @param from   the list of known blocks from which to gather continuation
+    * @param size   the number of blocks to return after `from`
+    * @return
+    */
   override def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
                                size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
+    /* Whether m is a genesis block or is in `from` */
     def inList(m: BifrostBlock): Boolean = idInList(m.id) || isGenesis(m)
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 sameElements id)
 
-    // Extend chain back until end of from is found, then return <size> blocks continuing from that point
+    /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
     chainBack(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
       case Some(chain) =>
@@ -160,6 +197,14 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
   override def syncInfo(answer: Boolean): BifrostSyncInfo =
     BifrostSyncInfo(answer, bestBlockId, score)
 
+  /**
+    * Given a sequence of blocks, finds the subset of blocks that diverge from the local state's sequence. This works
+    * back from the most recent block to earlier blocks until one is found that exists in both sequences.
+    *
+    * @param otherLastBlocks  the sequence of blocks against which to compare the local list
+    * @param suffixFound      the sequence of blocks so far that do not match the local state
+    * @return                 the eventual sequence of blocks that differs, including the merge point block
+    */
   @tailrec
   private def divergentSuffix(otherLastBlocks: Seq[ModifierId], suffixFound: Seq[ModifierId] = Seq()): Seq[ModifierId] = {
     val head = otherLastBlocks.head
@@ -189,20 +234,32 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
 
   private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
 
-  def blockGenerator(m: BifrostBlock): PublicKey25519Proposition = m.generatorBox.proposition
+  def blockForger(m: BifrostBlock): PublicKey25519Proposition = m.forgerBox.proposition
 
-  def generatorDistribution(): Map[PublicKey25519Proposition, Int] = {
+  /**
+    * Calculates the distribution of blocks to forgers
+    *
+    * @return   a map from public keys of forgers to the number of blocks they have forged
+    */
+  def forgerDistribution(): Map[PublicKey25519Proposition, Int] = {
     val map = collection.mutable.Map[PublicKey25519Proposition, Int]().withDefaultValue(0)
+
+    /**
+      * Finds the forger for this block, increments their block number entry in `map`, and continues down the chain
+      *
+      * @param m  the current block for which to increment the forger entry
+      */
     @tailrec
-    def loop(m: BifrostBlock): Unit = {
-      val generator = blockGenerator(m)
-      map.update(generator, map(generator) + 1)
+    def loopBackAndIncrementForger(m: BifrostBlock): Unit = {
+      val forger = blockForger(m)
+      map.update(forger, map(forger) + 1)
       parentBlock(m) match {
-        case Some(parent) => loop(parent)
+        case Some(parent) => loopBackAndIncrementForger(parent)
         case None =>
       }
     }
-    loop(bestBlock)
+
+    loopBackAndIncrementForger(bestBlock)
     map.toMap
   }
 
@@ -220,7 +277,14 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
   def parentBlock(m: BifrostBlock): Option[BifrostBlock] = modifierById(m.parentId)
 
   /**
-    * Go back though chain and get block ids until condition until
+    * Go back through chain and get block ids until condition `until` is satisfied
+    *
+    * @param m      the modifier to start at
+    * @param until  the condition that indicates (when true) that recursion should stop
+    * @param limit  the maximum number of blocks to recurse back
+    * @param acc    the aggregated chain so far
+    * @return       the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+    *               (None only if the parent for a block was not found) starting from the original `m`
     */
   @tailrec
   private def chainBack(m: BifrostBlock,
@@ -230,8 +294,10 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
 
     val sum: Seq[(ModifierTypeId, ModifierId)] = (BifrostBlock.ModifierTypeId -> m.id) +: acc
 
+    /* Check if the limit has been reached or if condition satisfied */
     if (limit <= 0 || until(m)) {
       Some(sum)
+
     } else {
       parentBlock(m) match {
         case Some(parent) => chainBack(parent, until, limit - 1, sum)
@@ -243,20 +309,29 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
   }
 
   /**
-    * find common suffixes for two chains - starting from forkBlock and from bestPowBlock
-    * returns last common block and then variant blocks for two chains,
+    * Find common suffixes for two chains starting from forkBlock
+    *
+    * @param forkBlock  the common source of a potential fork (normally just the parent of bestBlock)
+    * @param limit      how far back to check for a common block
+    * @return           sequences which contain the last common block and variant blocks for the chains
     */
   final def commonBlockThenSuffixes(forkBlock: BifrostBlock,
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
+    /* The entire chain that was "best" */
     val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
 
+    /* `in` specifies whether `loserChain` has this block */
     def in(m: BifrostBlock): Boolean = loserChain.exists(s => s sameElements m.id)
 
+    /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
     val winnerChain = chainBack(forkBlock, in, limit).get.map(_._2)
 
     val i = loserChain.indexWhere(id => id sameElements winnerChain.head)
+
+    /* The two segments including their common block */
     (winnerChain, loserChain.takeRight(loserChain.length - i))
+
   }.ensuring(r => r._1.head sameElements r._2.head)
 
   /**
