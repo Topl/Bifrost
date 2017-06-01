@@ -352,7 +352,21 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           })
         }
 
-        allEndorsedAndAgree.flatMap(_ => semanticValidity(cc))
+        val producerProposition = cc.parties.find(_._1 == Role.Producer).map(_._2).get
+        val producerReputationIsValid = Try {
+          cc.producerReputation.foreach(claimedBox => {
+            val box: ReputationBox = closedBox(claimedBox.id).get.asInstanceOf[ReputationBox]
+
+            if (box.proposition != producerProposition)
+              throw new Exception(s"Claimed reputation box had proposition $producerProposition but actually had ${box.proposition}")
+
+            if (box.value != claimedBox.value)
+              throw new Exception(s"Claimed reputation box with value ${claimedBox.value} but actually had ${box.value}")
+
+          })
+        }
+
+        allEndorsedAndAgree.flatMap(_ => producerReputationIsValid).flatMap(_ => semanticValidity(cc))
       }
     }
   }
