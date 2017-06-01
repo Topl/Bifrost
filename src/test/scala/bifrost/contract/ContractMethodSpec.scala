@@ -233,13 +233,13 @@ class ContractMethodSpec extends PropSpec
             val expiredContract = new Contract(
               contract.Producer, contract.Hub, contract.Investor,
               contract.storage.add("status", "expired".asJson),
-              contract.agreement, contract.id
+              contract.agreement, System.currentTimeMillis(), contract.id
             )
 
             val completedContract = new Contract(
               contract.Producer, contract.Hub, contract.Investor,
               contract.storage.add("status", "complete".asJson),
-              contract.agreement, contract.id
+              contract.agreement, System.currentTimeMillis(), contract.id
             )
 
             /* Resolve the pending deliveries */
@@ -309,7 +309,8 @@ class ContractMethodSpec extends PropSpec
       "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
       "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
       "storage" -> Map("status" -> status.asJson, "other" -> storage).asJson,
-      "agreement" -> agreement
+      "agreement" -> agreement,
+      "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
 
     forAll(expirableContractGen) {
@@ -402,7 +403,8 @@ class ContractMethodSpec extends PropSpec
         ).asJson,
         "other" -> storage
       ).asJson,
-      "agreement" -> agreement
+      "agreement" -> agreement,
+      "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
 
     forAll(endorseableContractGen) {
@@ -531,7 +533,8 @@ class ContractMethodSpec extends PropSpec
         ).asJson,
         "other" -> storage
       ).asJson,
-      "agreement" -> agreement
+      "agreement" -> agreement,
+      "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
 
     forAll(nonEndorseableContractGen) {

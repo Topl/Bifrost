@@ -44,7 +44,8 @@ trait ValidGenerators extends BifrostGenerators {
     "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
     "storage" -> Map("status" -> status.asJson, "other" -> storage).asJson,
-    "agreement" -> agreement
+    "agreement" -> agreement,
+    "lastUpdated" -> System.currentTimeMillis().asJson
   ).asJson, id)
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
@@ -81,7 +82,8 @@ trait ValidGenerators extends BifrostGenerators {
         "currentFulfillment" -> currentFulfillment.asJson,
         "other" -> jsonGen().sample.get
       ).asJson,
-      "agreement" -> agreement.json
+      "agreement" -> agreement.json,
+      "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
 
     val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
@@ -143,11 +145,13 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(agreement, status, currentFulfillment, parties)
 
+    lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
         parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
         contractBox.id ++
-        Longs.toByteArray(timestamp) ++
+        Longs.toByteArray(contract.lastUpdated) ++
         Longs.toByteArray(fee)
     )
 

@@ -200,10 +200,16 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val roleBoxes: IndexedSeq[String] = roleBoxAttempts collect { case s: Success[ProfileBox] if s.isSuccess => s.get.value }
 
-    require(Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet))
+    if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
+      log.debug("Could not find roleBoxes that satisfy this transaction")
+      return Failure(new Exception("Could not find roleboxes that satisfy this transaction"))
+    }
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
-    require(roleBoxes.zip(cc.parties.map(_._1)).forall { case (boxRole, role) => boxRole.equals(role.toString) })
+    if (!roleBoxes.zip(cc.parties.map(_._1)).forall { case (boxRole, role) => boxRole.equals(role.toString) }) {
+      log.debug("role boxes does not match the roles stated in the contract creation")
+      return Failure(new Exception("role boxes does not match the roles stated in the contract creation"))
+    }
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
@@ -213,7 +219,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             if (unlocker.boxKey.isValid(box.proposition, cc.messageToSign)) {
               Success()
             } else {
-              Failure(new Exception("Incorrect unlcoker"))
+              Failure(new Exception("Incorrect unlocker"))
             }
           case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
         }
@@ -261,7 +267,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
       val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
       val contractProposition: MofNProposition = contractBox.proposition
-      val contract: Contract = Contract(contractBox.json, contractBox.id)
+      val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
       val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
       val profileBox = getProfileBox(cme.party._2, "role").get
 

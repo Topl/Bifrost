@@ -17,6 +17,7 @@ class Contract(val Producer: PublicKey25519Proposition,
                val Investor: PublicKey25519Proposition,
                val storage: JsonObject,
                val agreement: JsonObject,
+               val lastUpdated: Long,
                val id: Array[Byte]) {
 
   lazy val json: Json = Map(
@@ -24,7 +25,8 @@ class Contract(val Producer: PublicKey25519Proposition,
     "hub" -> Base58.encode(Hub.pubKeyBytes).asJson,
     "investor" -> Base58.encode(Investor.pubKeyBytes).asJson,
     "agreement" -> agreement.asJson,
-    "storage" -> storage.asJson
+    "storage" -> storage.asJson,
+    "lastUpdated" -> lastUpdated.asJson
   ).asJson
 
   /**
@@ -51,7 +53,7 @@ class Contract(val Producer: PublicKey25519Proposition,
       ).asJson
     )
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
   }
 
   /**
@@ -116,7 +118,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
   }
 
   /**
@@ -159,7 +161,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, id))
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
   }
 
   /**
@@ -179,7 +181,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     else {
       val newStorage = storage.add("status", "expired".asJson)
-      new Contract(Producer, Hub, Investor, newStorage, agreement, id)
+      new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id)
     }
 
   }
@@ -205,6 +207,7 @@ object Contract {
       new PublicKey25519Proposition(Base58.decode(jsonMap("investor").asString.get).get),
       jsonMap("storage").asObject.get,
       jsonMap("agreement").asObject.get,
+      jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id
     )
   }

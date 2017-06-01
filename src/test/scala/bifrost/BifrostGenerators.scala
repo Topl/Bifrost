@@ -169,7 +169,8 @@ trait BifrostGenerators extends CoreGenerators {
     "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
     "storage" -> Map("status" -> status, "other" -> storage).asJson,
-    "agreement" -> agreement
+    "agreement" -> agreement,
+    "lastUpdated" -> System.currentTimeMillis().asJson
   ).asJson, id)
 
   lazy val contractBoxGen: Gen[ContractBox] = for {

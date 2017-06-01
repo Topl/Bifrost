@@ -53,5 +53,5 @@ object MultiSignature25519Serializer extends Serializer[MultiSignature25519] {
 }
 
 object MultiSignature25519 {
-  lazy val SignatureSize = Curve25519.SignatureLength
+  lazy val SignatureSize = Signature25519.SignatureSize
 }

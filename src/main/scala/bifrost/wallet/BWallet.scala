@@ -52,6 +52,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
           case cb: ContractBox => true
           case ab: ArbitBox => ab.value > 0
           case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
+          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2.isInstanceOf[Double]
         }
         case _ => false
       }

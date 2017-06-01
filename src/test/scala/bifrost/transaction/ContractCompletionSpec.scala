@@ -23,6 +23,9 @@ class ContractCompletionSpec extends PropSpec
     forAll(validContractCompletionGen) {
       cc: ContractCompletion =>
         val semanticValid = BifrostState.semanticValidity(cc)
+        if (semanticValid.isFailure) {
+          semanticValid.failed.get.printStackTrace()
+        }
         semanticValid.isSuccess shouldBe true
     }
   }

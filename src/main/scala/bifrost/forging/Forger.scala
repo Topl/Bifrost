@@ -49,7 +49,13 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] =
     memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      if (state.validate(tx).isSuccess && txNotIncluded) txSoFar :+ tx
+      val txValid = state.validate(tx)
+      if (txValid.isFailure) {
+        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
+        txValid.failed.get.printStackTrace()
+        memPool.remove(tx)
+      }
+      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx
       else txSoFar
     }
 

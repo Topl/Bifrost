@@ -256,7 +256,7 @@ case class ContractCompletion(contractBox: ContractBox,
     contractBox.id ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(contract.lastUpdated) ++
       Longs.toByteArray(fee)
   )
 

@@ -243,6 +243,8 @@ case class ReputationBox(override val proposition: PublicKey25519Proposition,
   val id = ReputationBox.idFromBox(proposition, nonce)
 
   override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "type" -> "Reputation".asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.asJson
