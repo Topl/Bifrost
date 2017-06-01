@@ -90,7 +90,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
   def generators: Route = path("generators") {
     getJsonRoute {
       viewAsync().map { view =>
-        val map: Map[String, Int] = view.history.generatorDistribution()
+        val map: Map[String, Int] = view.history.forgerDistribution()
           .map(d => Base58.encode(d._1.pubKeyBytes) -> d._2)
         SuccessApiResponse(map.asJson)
       }
