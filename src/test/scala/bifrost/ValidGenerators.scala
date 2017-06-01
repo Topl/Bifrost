@@ -3,9 +3,10 @@ package bifrost
 import java.time.Instant
 
 import bifrost.contract.{Agreement, Contract}
+import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
-import bifrost.transaction.box.{ContractBox, ProfileBox}
+import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import org.scalacheck.Gen
@@ -127,13 +128,13 @@ trait ValidGenerators extends BifrostGenerators {
     ContractMethodExecution(contractBox, sender._1 -> (sender._2)._2, methodName, parameters, signature, fee, timestamp)
   }
 
-
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     agreement <- validAgreementGen
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
+    numReputation <- positiveTinyIntGen
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
@@ -155,7 +156,13 @@ trait ValidGenerators extends BifrostGenerators {
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
 
-    ContractCompletion(contractBox, IndexedSeq(), IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
+    val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
+
+    val reputation = (0 until numReputation).map(_ =>
+      ReputationBox(parties(0), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
+    )
+
+    ContractCompletion(contractBox, reputation, IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {

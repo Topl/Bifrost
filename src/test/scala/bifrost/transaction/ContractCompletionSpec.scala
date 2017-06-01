@@ -28,7 +28,7 @@ class ContractCompletionSpec extends PropSpec
   }
 
   property("Transaction with modified signature should be invalid") {
-    forAll(contractCompletionGen) {
+    forAll(validContractCompletionGen) {
       tx: ContractCompletion =>
         val wrongSig: Array[Byte] = (tx.signatures.head.bytes.head + 1).toByte +: tx.signatures.head.bytes.tail
         val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
@@ -45,8 +45,9 @@ class ContractCompletionSpec extends PropSpec
         val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(cc.proposition) ++ cc.hashNoNonces)
         val nonce = ContractMethodExecution.nonceFromDigest(digest)
 
-        val alpha: Double = (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)
-        val beta: Double = (input.toDouble / 1000)*(2 - deliveredAmount.toDouble/input.toDouble )
+        val (alphaSum: Double, betaSum: Double) = cc.producerReputation.foldLeft((0.0, 0.0))((a, b) => (a._1 + b.value._1, a._2 + b.value._2))
+        val alpha: Double = alphaSum + (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)
+        val beta: Double = betaSum + (input.toDouble / 1000)*(2 - deliveredAmount.toDouble/input.toDouble)
 
         cc.newBoxes shouldBe Seq(ReputationBox(cc.contract.Producer, nonce, (alpha, beta)))
     }

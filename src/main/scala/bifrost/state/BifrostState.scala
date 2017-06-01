@@ -392,6 +392,7 @@ object BifrostState {
           case at: ArbitTransfer => (at.boxIdsToOpen.toSet, at.newBoxes.toSet, at.fee)
           case cc: ContractCreation => (cc.boxIdsToOpen.toSet, cc.newBoxes.toSet, cc.fee)
           case cme: ContractMethodExecution => (cme.boxIdsToOpen.toSet, cme.newBoxes.toSet, cme.fee)
+          case ccomp: ContractCompletion => (ccomp.boxIdsToOpen.toSet, ccomp.newBoxes.toSet, ccomp.fee)
           case pt: ProfileTransaction => (pt.boxIdsToOpen.toSet, pt.newBoxes.toSet, pt.fee)
         }
       }

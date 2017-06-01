@@ -250,6 +250,9 @@ case class ReputationBox(override val proposition: PublicKey25519Proposition,
 }
 
 object ReputationBox {
+
+  val byteSize = Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES
+
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "reputation".getBytes ++ Longs.toByteArray(nonce))
 }

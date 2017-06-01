@@ -224,7 +224,7 @@ object ContractMethodExecution {
 }
 
 case class ContractCompletion(contractBox: ContractBox,
-                              reputation: IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                              producerReputation: IndexedSeq[ReputationBox],
                               parties: IndexedSeq[(Role, PublicKey25519Proposition)],
                               signatures: IndexedSeq[Signature25519],
                               fee: Long,
@@ -243,7 +243,7 @@ case class ContractCompletion(contractBox: ContractBox,
     )
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ reputation.map(box => ReputationBox.idFromBox(box._1, box._2))
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ producerReputation.map(_.id)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
@@ -270,10 +270,13 @@ case class ContractCompletion(contractBox: ContractBox,
     val output: Long = contract.storage("currentFulfillment").get.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
     val yieldRate = output.toDouble / input.toDouble
 
+    /* Calculate sum of reputation from before */
+    val (alphaSum: Double, betaSum: Double) = producerReputation.foldLeft((0.0, 0.0))((sum, delta) => (sum._1 + delta.value._1, sum._2 + delta.value._2))
+
     /* Calculate alpha, beta changes */
     val w = input
-    val alpha: Double = (w.toDouble / 1000)*(2*yieldRate - 1)
-    val beta: Double = (w.toDouble / 1000)*(2 - yieldRate)
+    val alpha: Double = alphaSum + (w.toDouble / 1000)*(2*yieldRate - 1)
+    val beta: Double = betaSum + (w.toDouble / 1000)*(2 - yieldRate)
 
     /* Reputation adjustment for producer */
     val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
