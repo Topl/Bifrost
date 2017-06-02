@@ -4,6 +4,7 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
+import bifrost.transaction.ContractCreation.Nonce
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
@@ -20,6 +21,9 @@ import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
+import scala.collection.parallel.immutable
 import scala.util.{Failure, Success, Try}
 import scala.util.parsing.json.JSONArray
 
@@ -225,9 +229,10 @@ object ContractMethodExecution {
 
 case class ContractCompletion(contractBox: ContractBox,
                               producerReputation: IndexedSeq[ReputationBox],
-                              parties: IndexedSeq[(Role, PublicKey25519Proposition)],
-                              signatures: IndexedSeq[Signature25519],
-                              fee: Long,
+                              parties: mutable.HashMap[Role, PublicKey25519Proposition],
+                              signatures: mutable.HashMap[PublicKey25519Proposition, Signature25519],
+                              feePreBoxes: mutable.HashMap[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                              fee: mutable.HashMap[PublicKey25519Proposition, Long],
                               timestamp: Long)
   extends ContractTransaction {
 
@@ -243,21 +248,39 @@ case class ContractCompletion(contractBox: ContractBox,
     )
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ producerReputation.map(_.id)
+  lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) => v.map {
+      case (nonce, value) =>
+        (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+    }
+  }
+
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ producerReputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
-    new BoxUnlocker[MofNProposition] {
-      override val closedBoxId: Array[Byte] = contractBox.id
-      override val boxKey: Proof[MofNProposition] = MultiSignature25519(signatures.toSet)
+      new BoxUnlocker[MofNProposition] {
+        override val closedBoxId: Array[Byte] = contractBox.id
+        override val boxKey: Proof[MofNProposition] = MultiSignature25519(signatures.values.toSet)
+      }
+    ) ++
+    boxIdsToOpen.tail.take(producerReputation.length).map(id =>
+      new BoxUnlocker[MofNProposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signatures(parties(Role.Producer))
+      }
+    ) ++
+    feeBoxIdKeyPairs.map { case (boxId: Array[Byte], owner: PublicKey25519Proposition) =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = boxId
+        override val boxKey: Signature25519 = signatures(owner)
+      }
     }
-  )
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
-      Longs.toByteArray(fee)
+      fee.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
 
 
@@ -284,14 +307,31 @@ case class ContractCompletion(contractBox: ContractBox,
     /* Change amount held in hub to account for actual delivery */
     //TODO add asset box: val amountAddedToHubAssets = output - input
 
-    Seq(producerRep)
+    val canSend = feePreBoxes.mapValues(_.map(_._2).sum)
+    val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map{ case (prop, amount) => prop -> (amount - fee(prop))}
+    val deductedFeeBoxes = preboxesLessFees.zipWithIndex.map {
+      case ((prop, value), idx) =>
+        val nonce = ContractCreation.nonceFromDigest(FastCryptographicHash("ContractCreation".getBytes ++ prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx)))
+        PolyBox(prop, nonce, value)
+    }
+
+    Seq(producerRep) ++ deductedFeeBoxes
   }
 
   override lazy val json: Json = Map(
-    "contract" -> contract.json,
+    "contractBox" -> contractBox.json,
+    "producerReputation" -> producerReputation.map(_.json).asJson,
     "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
-    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
-    "fee" -> fee.asJson,
+    "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes).asJson }.asJson,
+    "feePreBoxes" -> feePreBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
+      Base58.encode(prop.pubKeyBytes) -> preBoxes.map(pb =>
+        Map(
+          "nonce" -> pb._1.asJson,
+          "value" -> pb._2.asJson
+        ).asJson
+      )
+    }.asJson,
+    "fee" -> fee.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
@@ -311,11 +351,12 @@ object ContractCompletion {
 
   def validate(tx: ContractCompletion): Try[Unit] = Try {
     require(tx.signatures.size == 3)
-    require(tx.fee >= 0)
+    require(tx.fee.values.sum >= 0)
+    tx.fee.values.foreach(v => require(v >= 0))
     require(tx.timestamp >= 0)
-    require(tx.signatures.zip(tx.parties) forall { case (signature, (_, proposition)) =>
-      signature.isValid(proposition, tx.messageToSign)
-      MultiSignature25519(Set(signature)).isValid(tx.contractBox.proposition, tx.messageToSign)
+    require(tx.parties forall { case (_, proposition) =>
+      tx.signatures(proposition).isValid(proposition, tx.messageToSign)
+      MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
     })
   }
 
@@ -406,15 +447,18 @@ trait TransferUtil {
 
     // Match only the type of boxes specified by txType
     val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
-      case "PolyTransfer" => w.boxes().flatMap(
-        a => if (a.box.isInstanceOf[PolyBox]) Some(a.box.asInstanceOf[BifrostPublic25519NoncedBox]) else None)
-      case "ArbitTransfer" => w.boxes().flatMap(
-        a => if (a.box.isInstanceOf[ArbitBox]) Some(a.box.asInstanceOf[BifrostPublic25519NoncedBox]) else None)
+      case "PolyTransfer" => w.boxes().flatMap(_.box match {
+        case p: PolyBox => Some(p)
+        case _ => None
+      })
+      case "ArbitTransfer" => w.boxes().flatMap(_.box match {
+        case a: ArbitBox => Some(a)
+        case _ => None
+      })
     }
 
     val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes.flatMap {
-      case b: BifrostPublic25519NoncedBox =>
-        w.secretByPublicImage(b.proposition).map ((_, b.nonce, b.value))
+      b: BifrostPublic25519NoncedBox => w.secretByPublicImage(b.proposition).map((_, b.nonce, b.value))
     }.toIndexedSeq
 
     val canSend = from.map(_._3).sum
