@@ -1,7 +1,6 @@
 package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.ContractCreation.Nonce
@@ -9,7 +8,6 @@ import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSeri
 import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
-import bifrost.transaction.ContractMethodExecutionCompanion
 import bifrost.transaction.Role.Role
 import io.circe.Json
 import io.circe.syntax._
@@ -21,21 +19,16 @@ import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.immutable.HashMap
-import scala.collection.mutable
-import scala.collection.parallel.immutable
 import scala.util.{Failure, Success, Try}
-import scala.util.parsing.json.JSONArray
 
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 }
 
-sealed abstract class ContractTransaction(parties: HashMap[Role, PublicKey25519Proposition],
-                                          signatures: HashMap[PublicKey25519Proposition, Signature25519],
-                                          feePreBoxes: HashMap[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                          fee: HashMap[PublicKey25519Proposition, Long],
+sealed abstract class ContractTransaction(parties: Map[Role, PublicKey25519Proposition],
+                                          signatures: Map[PublicKey25519Proposition, Signature25519],
+                                          feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                                          fee: Map[PublicKey25519Proposition, Long],
                                           timestamp: Long) extends BifrostTransaction {
   lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
     v.map {
@@ -86,10 +79,10 @@ object Role extends Enumeration {
 }
 
 case class ContractCreation(agreement: Agreement,
-                            parties: HashMap[Role, PublicKey25519Proposition],
-                            signatures: HashMap[PublicKey25519Proposition, Signature25519],
-                            feePreBoxes: HashMap[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                            fee: HashMap[PublicKey25519Proposition, Long],
+                            parties: Map[Role, PublicKey25519Proposition],
+                            signatures: Map[PublicKey25519Proposition, Signature25519],
+                            feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                            fee: Map[PublicKey25519Proposition, Long],
                             timestamp: Long)
   extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
 
@@ -166,10 +159,10 @@ object ContractCreation {
 case class ContractMethodExecution(contractBox: ContractBox,
                                    methodName: String,
                                    parameters: Json,
-                                   parties: HashMap[Role, PublicKey25519Proposition],
-                                   signatures: HashMap[PublicKey25519Proposition, Signature25519],
-                                   feePreBoxes: HashMap[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                   fee: HashMap[PublicKey25519Proposition, Long],
+                                   parties: Map[Role, PublicKey25519Proposition],
+                                   signatures: Map[PublicKey25519Proposition, Signature25519],
+                                   feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                                   fee: Map[PublicKey25519Proposition, Long],
                                    timestamp: Long)
   extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
 
@@ -264,10 +257,10 @@ object ContractMethodExecution {
 
 case class ContractCompletion(contractBox: ContractBox,
                               producerReputation: IndexedSeq[ReputationBox],
-                              parties: HashMap[Role, PublicKey25519Proposition],
-                              signatures: HashMap[PublicKey25519Proposition, Signature25519],
-                              feePreBoxes: HashMap[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                              fee: HashMap[PublicKey25519Proposition, Long],
+                              parties: Map[Role, PublicKey25519Proposition],
+                              signatures: Map[PublicKey25519Proposition, Signature25519],
+                              feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                              fee: Map[PublicKey25519Proposition, Long],
                               timestamp: Long)
   extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
 
