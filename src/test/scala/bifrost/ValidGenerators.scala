@@ -52,6 +52,7 @@ trait ValidGenerators extends BifrostGenerators {
     agreement <- validAgreementGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    numFeeBoxes <- positiveTinyIntGen
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
@@ -63,7 +64,15 @@ trait ValidGenerators extends BifrostGenerators {
       keypair =>
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
-    ContractCreation(agreement, IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties), signatures, fee, timestamp)
+
+    ContractCreation(
+      agreement,
+      IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
+      parties.map(_ -> signatureGen.sample.get).toMap,
+      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
+      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      timestamp
+    )
   }
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
@@ -97,6 +106,7 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen.map(_ / 3)
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
+    numFeeBoxes <- positiveTinyIntGen
     effDelta <- positiveLongGen.map(_ / 3)
     expDelta <- positiveLongGen.map(_ / 3)
   } yield {
@@ -127,7 +137,16 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
     val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
 
-    ContractMethodExecution(contractBox, sender._1 -> (sender._2)._2, methodName, parameters, signature, fee, timestamp)
+    ContractMethodExecution(
+      contractBox,
+      methodName,
+      parameters,
+      Map(sender._1 -> (sender._2)._2),
+      parties.map(_ -> signatureGen.sample.get).toMap,
+      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
+      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      timestamp
+    )
   }
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
@@ -137,6 +156,7 @@ trait ValidGenerators extends BifrostGenerators {
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
+    numFeeBoxes <- positiveTinyIntGen
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
@@ -166,7 +186,15 @@ trait ValidGenerators extends BifrostGenerators {
       ReputationBox(parties(0), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
     )
 
-    ContractCompletion(contractBox, reputation, IndexedSeq(Role.Producer, Role.Investor, Role.Hub).zip(parties), signatures, fee, timestamp)
+    ContractCompletion(
+      contractBox,
+      reputation,
+      IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
+      parties.map(_ -> signatureGen.sample.get).toMap,
+      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
+      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      timestamp
+    )
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {

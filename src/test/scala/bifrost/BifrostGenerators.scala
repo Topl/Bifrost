@@ -7,6 +7,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
@@ -142,11 +143,11 @@ trait BifrostGenerators extends CoreGenerators {
     fulfilment <- fulfilFuncGen
   } yield new AgreementTerms(pledge, xrate, share, fulfilment)
 
-  lazy val partiesGen: Gen[IndexedSeq[(Role, PublicKey25519Proposition)]] = for {
+  lazy val partiesGen: Gen[Map[Role, PublicKey25519Proposition]] = for {
     a <- propositionGen
     b <- propositionGen
     c <- propositionGen
-  } yield IndexedSeq(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
+  } yield Map(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
 
   lazy val agreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
@@ -179,31 +180,62 @@ trait BifrostGenerators extends CoreGenerators {
     value <- contractGen.map(_.json)
   } yield ContractBox(proposition._2, nonce, value)
 
+  lazy val preFeeBoxGen: Gen[(Nonce, Long)] = for {
+    nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
+    amount <- positiveLongGen
+  } yield (nonce, amount)
+
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- agreementGen
     parties <- partiesGen
     signature <- signatureGen
-    fee <- positiveLongGen
+    numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
-  } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+  } yield ContractCreation(
+    agreement,
+    parties,
+    parties.map { case (_, v) => (v, signatureGen.sample.get) },
+    parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+    parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+    timestamp
+  )
 
   lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     contract <- contractBoxGen
     methodName <- stringGen
     parameters <- jsonArrayGen()
     sig <- signatureGen
+    numFeeBoxes <- positiveTinyIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     party <- propositionGen
-  } yield ContractMethodExecution(contract, Gen.oneOf(Role.values.toSeq).sample.get -> party, methodName, parameters, sig, fee, timestamp)
+  } yield ContractMethodExecution(
+    contract,
+    methodName,
+    parameters,
+    Map(Gen.oneOf(Role.values.toSeq).sample.get -> party),
+    Map(party -> sig),
+    Map(party -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get}),
+    Map(party -> positiveTinyIntGen.sample.get.toLong),
+    timestamp
+  )
 
   lazy val contractCompletionGen: Gen[ContractCompletion] = for {
     contract <- contractBoxGen
     parties <- partiesGen
     signature <- signatureGen
     fee <- positiveLongGen
+    numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
-  } yield ContractCompletion(contract, IndexedSeq(), parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+  } yield ContractCompletion(
+    contract,
+    IndexedSeq(),
+    parties,
+    parties.map { case (_, v) => (v, signatureGen.sample.get) },
+    parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+    parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+    timestamp
+  )
 
   lazy val profileTxGen: Gen[ProfileTransaction] = for {
     from <- propositionGen

@@ -3,7 +3,7 @@ package bifrost.transaction
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
-import bifrost.transaction.ContractCreation.Nonce
+import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
@@ -75,6 +75,10 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
   }
 }
 
+object ContractTransaction {
+  type Nonce = Long
+}
+
 object Role extends Enumeration {
   type Role = Value
   val Producer: Role = Value("producer")
@@ -138,8 +142,6 @@ case class ContractCreation(agreement: Agreement,
 }
 
 object ContractCreation {
-  type Value = Long
-  type Nonce = Long
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
@@ -235,8 +237,6 @@ case class ContractMethodExecution(contractBox: ContractBox,
 }
 
 object ContractMethodExecution {
-  type Value = Long
-  type Nonce = Long
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
@@ -345,8 +345,6 @@ case class ContractCompletion(contractBox: ContractBox,
 }
 
 object ContractCompletion {
-  type Value = Long
-  type Nonce = Long
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 

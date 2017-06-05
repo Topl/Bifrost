@@ -2,8 +2,7 @@ package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
-import bifrost.transaction.ContractCompletion.Nonce
-import bifrost.transaction.ContractCreation.Nonce
+import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, ParsingFailure}
@@ -138,7 +137,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
     numReadBytes += partiesLength*(Ints.BYTES*2)
 
     val signatures: Map[PublicKey25519Proposition, Signature25519] = (0 until sigLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*(Ints.BYTES + Curve25519.SignatureLength), numReadBytes + i*Curve25519.SignatureLength + (i + 1)*Ints.BYTES))
       val sigBytes = bytes.slice(numReadBytes + (i + 1)*Ints.BYTES + i*Curve25519.SignatureLength, numReadBytes + (i + 1)*Ints.BYTES + (i + 1)*Curve25519.SignatureLength)
       keyMapping(pkInt) -> Signature25519(sigBytes)
     }.toMap
