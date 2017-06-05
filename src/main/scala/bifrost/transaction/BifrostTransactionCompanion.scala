@@ -3,6 +3,8 @@ package bifrost.transaction
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
 import bifrost.transaction.ContractCompletion.Nonce
+import bifrost.transaction.ContractCreation.Nonce
+import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, ParsingFailure}
 import io.circe.optics.JsonPath._
@@ -68,6 +70,107 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
         case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
       }
   }
+
+  def commonToBytes(m: ContractTransaction): Array[Byte] = {
+
+    // Used to reduce overall size in the default case where publickeys are the same across multiple maps
+    val keyMapping: Map[Array[Byte], Int] = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).zipWithIndex.toMap
+
+    Bytes.concat(
+      Longs.toByteArray(m.timestamp),
+      Ints.toByteArray(m.signatures.size),
+      Ints.toByteArray(m.parties.size),
+      Ints.toByteArray(m.feePreBoxes.size),
+      Ints.toByteArray(m.fees.size),
+      Ints.toByteArray(keyMapping.size),
+      keyMapping.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
+      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._2.pubKeyBytes)) ++ (b._1 match {
+        case Role.Producer => Ints.toByteArray(0)
+        case Role.Investor => Ints.toByteArray(1)
+        case Role.Hub => Ints.toByteArray(2)
+      })),
+      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ b._2.bytes),
+      m.feePreBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Ints.toByteArray(b._2.length) ++
+        b._2.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2))),
+      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Longs.toByteArray(b._2))
+    )
+  }
+
+  //noinspection ScalaStyle
+  def commonParseBytes(bytes: Array[Byte]): (
+    Map[Role, PublicKey25519Proposition],
+    Map[PublicKey25519Proposition, Signature25519],
+    Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+    Map[PublicKey25519Proposition, Long],
+    Long
+    ) = {
+
+    var numReadBytes = 0
+
+    val timestamp: Long = Longs.fromByteArray(bytes.slice(0, Longs.BYTES))
+
+    numReadBytes += Longs.BYTES
+
+    val Array(sigLength: Int, partiesLength: Int, feePreBoxLength: Int, feesLength: Int, keyMappingSize: Int) = (0 until 5).map { i =>
+      Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+    }.toArray
+
+    numReadBytes += 5*Ints.BYTES
+
+    val keyMapping: Map[Int, PublicKey25519Proposition] = (0 until keyMappingSize).map { i =>
+      i -> PublicKey25519Proposition(bytes.slice(numReadBytes + i*Constants25519.PubKeyLength, numReadBytes + (i + 1)*Constants25519.PubKeyLength))
+    }.toMap
+
+    numReadBytes += keyMappingSize*Constants25519.PubKeyLength
+
+    val roleTypes = Map[Int, Role.Role](
+      0 -> Role.Producer,
+      1 -> Role.Investor,
+      2 -> Role.Hub
+    )
+
+    val parties: Map[Role.Role, PublicKey25519Proposition] = (0 until partiesLength).map { i =>
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+      val roleInt = Ints.fromByteArray(bytes.slice(numReadBytes + (i + 1)*Ints.BYTES + i*Ints.BYTES, numReadBytes + 2*(i + 1)*Ints.BYTES))
+      roleTypes(roleInt) -> keyMapping(pkInt)
+    }.toMap
+
+    numReadBytes += partiesLength*(Ints.BYTES*2)
+
+    val signatures: Map[PublicKey25519Proposition, Signature25519] = (0 until sigLength).map { i =>
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+      val sigBytes = bytes.slice(numReadBytes + (i + 1)*Ints.BYTES + i*Curve25519.SignatureLength, numReadBytes + (i + 1)*Ints.BYTES + (i + 1)*Curve25519.SignatureLength)
+      keyMapping(pkInt) -> Signature25519(sigBytes)
+    }.toMap
+
+    numReadBytes += sigLength*(Ints.BYTES + Curve25519.SignatureLength)
+
+    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (0 until feePreBoxLength).map { i =>
+      var bytesSoFar = i*(2*Ints.BYTES + 2*Longs.BYTES)
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES))
+      bytesSoFar += Ints.BYTES
+
+      val length = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES))
+      bytesSoFar += Ints.BYTES
+
+      val preBoxes = (0 until length).map { j =>
+        var innerBytesSoFar = j*2*Longs.BYTES
+        val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar, numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES))
+        val amount = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES, numReadBytes + bytesSoFar + innerBytesSoFar + 2*Longs.BYTES))
+        nonce -> amount
+      }
+      numReadBytes += bytesSoFar + length*2*Longs.BYTES
+      keyMapping(pkInt) -> preBoxes
+    }.toMap
+
+    val fees: Map[PublicKey25519Proposition, Long] = (0 until feesLength).map { i =>
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+      val fee = Longs.fromByteArray(bytes.slice(numReadBytes + (i + 1)*Ints.BYTES + i*Longs.BYTES, numReadBytes + (i + 1)*Ints.BYTES + (i + 1)*Longs.BYTES))
+      keyMapping(pkInt) -> fee
+    }.toMap
+
+    (parties, signatures, feePreBoxes, fees, timestamp)
+  }
 }
 
 object TransferTransactionCompanion extends Serializer[TransferTransaction] {
@@ -130,6 +233,7 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
   }
 }
 
+//noinspection ScalaStyle
 object ContractCreationCompanion extends Serializer[ContractCreation] {
 
   override def toBytes(m: ContractCreation): Array[Byte] = {
@@ -142,18 +246,9 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Longs.toByteArray(m.timestamp),
       Longs.toByteArray(agreementBytes.length),
-      Ints.toByteArray(m.signatures.length),
-      Ints.toByteArray(m.parties.length),
-      m.parties.foldLeft(Array[Byte]())((a,b) => a ++ (b._1 match {
-        case Role.Producer => Ints.toByteArray(0)
-        case Role.Investor => Ints.toByteArray(1)
-        case Role.Hub => Ints.toByteArray(2)
-      })),
       agreementBytes,
-      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
+      ContractTransactionCompanion.commonToBytes(m)
     )
   }
 
@@ -164,45 +259,21 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-    val Array(timestamp: Long, agreementLength: Long) = (0 until 3).map { i =>
-      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
-    }.toArray
+    val agreementLength: Long = Longs.fromByteArray(bytesWithoutType.slice(0, Longs.BYTES))
 
-    numReadBytes = 3*Longs.BYTES
+    numReadBytes = Longs.BYTES
 
-    val Array(sigLength: Int, partiesLength: Int, role1: Int, role2: Int, role3: Int) = (0 until 5).map { i =>
-      Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
-    }.toArray
-
-    numReadBytes += 5*Ints.BYTES
-
-    val agreement = AgreementCompanion.parseBytes(
-      bytesWithoutType.slice(
-        numReadBytes,
-        numReadBytes + agreementLength.toInt
-      )
-    ).get
+    val agreement = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + agreementLength.toInt)).get
 
     numReadBytes += agreementLength.toInt
 
-    val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
-    }
+    val (parties: Map[Role, PublicKey25519Proposition],
+    signatures: Map[PublicKey25519Proposition, Signature25519],
+    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+    fees: Map[PublicKey25519Proposition, Long],
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
 
-    numReadBytes += sigLength * Curve25519.SignatureLength
-
-    val parties = (0 until partiesLength) map { i =>
-      val pk = bytesWithoutType.slice(numReadBytes + i * Curve25519.KeyLength, numReadBytes + (i + 1) * Curve25519.KeyLength )
-      PublicKey25519Proposition(pk)
-    }
-
-    val roleTypes = IndexedSeq(role1, role2, role3).map {
-      case 0 => Role.Producer
-      case 1 => Role.Investor
-      case 2 => Role.Hub
-    }
-
-    ContractCreation(agreement, roleTypes.zip(parties), signatures, fee, timestamp)
+    ContractCreation(agreement, parties, signatures, feePreBoxes, fees, timestamp)
   }
 
 }
@@ -217,20 +288,13 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         /* First two arguments MUST STAY */
         Ints.toByteArray(typeBytes.length),
         typeBytes,
-        Longs.toByteArray(cme.fees),
-        Longs.toByteArray(cme.timestamp),
         Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-        cme.party._1 match {
-          case Role.Producer => Ints.toByteArray(0)
-          case Role.Investor => Ints.toByteArray(1)
-          case Role.Hub => Ints.toByteArray(2)
-        },
-        cme.party._2.pubKeyBytes,
+        Ints.toByteArray(cme.contractBox.bytes.length),
         cme.methodName.getBytes,
         cme.parameters.noSpaces.getBytes,
-        cme.signature.bytes,
-        cme.contractBox.bytes
+        cme.contractBox.bytes,
+        ContractTransactionCompanion.commonToBytes(cme)
     )
   }
 
@@ -242,21 +306,11 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-    val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
-      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
-    }.toArray
-
-    numReadBytes = 2*Longs.BYTES
-
-    val Array(methodNameLength: Int, parameterJsonLength: Int, roleInt: Int) = (0 until 3).map { i =>
+    val Array(methodNameLength: Int, parameterJsonLength: Int, contractBoxLength: Int) = (0 until 3).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
     numReadBytes += 3*Ints.BYTES
-
-    val party: PublicKey25519Proposition = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-
-    numReadBytes += Constants25519.PubKeyLength
 
     val methodName = new String(bytesWithoutType.slice(numReadBytes, numReadBytes + methodNameLength))
 
@@ -269,19 +323,17 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += parameterJsonLength
 
-    val signature = Signature25519(bytesWithoutType.slice(numReadBytes, numReadBytes + Signature25519.SignatureSize))
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + contractBoxLength)).get
 
-    numReadBytes += Signature25519.SignatureSize
+    numReadBytes += contractBoxLength
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
+    val (parties: Map[Role, PublicKey25519Proposition],
+    signatures: Map[PublicKey25519Proposition, Signature25519],
+    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+    fees: Map[PublicKey25519Proposition, Long],
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
 
-    val role = roleInt match {
-      case 0 => Role.Producer
-      case 1 => Role.Investor
-      case 2 => Role.Hub
-    }
-
-    ContractMethodExecution(contractBox, role -> party, methodName, parameters, signature, fee, timestamp)
+    ContractMethodExecution(contractBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp)
   }
 
 }
@@ -296,22 +348,13 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Longs.toByteArray(cc.fees),
-      Longs.toByteArray(cc.timestamp),
-      Ints.toByteArray(cc.signatures.length),
-      Ints.toByteArray(cc.parties.length),
       Ints.toByteArray(cc.producerReputation.length),
-      cc.parties.foldLeft(Array[Byte]())((a, b) => a ++ (b._1 match {
-        case Role.Producer => Ints.toByteArray(0)
-        case Role.Investor => Ints.toByteArray(1)
-        case Role.Hub => Ints.toByteArray(2)
-      })),
-      cc.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-      cc.parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      Ints.toByteArray(cc.contractBox.bytes.length),
       cc.producerReputation.foldLeft(Array[Byte]())((a, b) =>
         a ++ b.proposition.pubKeyBytes ++ Longs.toByteArray(b.nonce) ++ doubleToByteArray(b.value._1) ++ doubleToByteArray(b.value._2)
       ),
-      cc.contractBox.bytes
+      cc.contractBox.bytes,
+      ContractTransactionCompanion.commonToBytes(cc)
     )
   }
 
@@ -323,30 +366,12 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-    val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
-      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
-    }.toArray
 
-    numReadBytes = 2*Longs.BYTES
-
-    val Array(sigLength: Int, partiesLength: Int, reputationLength: Int, role1: Int, role2: Int, role3: Int) = (0 until 6).map { i =>
+    val Array(reputationLength: Int, contractBoxLength: Int) = (0 until 2).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
     }.toArray
 
-    numReadBytes += 6*Ints.BYTES
-
-    val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
-    }
-
-    numReadBytes += sigLength * Curve25519.SignatureLength
-
-    val parties = (0 until partiesLength) map { i =>
-      val pk = bytesWithoutType.slice(numReadBytes + i * Curve25519.KeyLength, numReadBytes + (i + 1) * Curve25519.KeyLength)
-      PublicKey25519Proposition(pk)
-    }
-
-    numReadBytes += partiesLength * Curve25519.KeyLength
+    numReadBytes += 2*Ints.BYTES
 
     val producerReputation: IndexedSeq[ReputationBox] = (0 until reputationLength) map { i =>
       val proposition = PublicKey25519Proposition(bytesWithoutType.slice(
@@ -371,15 +396,15 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       ReputationBox(proposition, nonce, (alpha, beta))
     }
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length)).get
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + contractBoxLength)).get
 
-    val roleTypes = IndexedSeq(role1, role2, role3).map {
-      case 0 => Role.Producer
-      case 1 => Role.Investor
-      case 2 => Role.Hub
-    }
+    val (parties: Map[Role, PublicKey25519Proposition],
+    signatures: Map[PublicKey25519Proposition, Signature25519],
+    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+    fees: Map[PublicKey25519Proposition, Long],
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
 
-    ContractCompletion(contractBox, producerReputation, roleTypes.zip(parties), signatures, fee, timestamp)
+    ContractCompletion(contractBox, producerReputation, parties, signatures, feePreBoxes, fees, timestamp)
   }
 
   def doubleToByteArray(x: Double): Array[Byte] = {

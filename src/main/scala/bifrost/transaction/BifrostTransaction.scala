@@ -25,11 +25,12 @@ sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgePr
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 }
 
-sealed abstract class ContractTransaction(parties: Map[Role, PublicKey25519Proposition],
-                                          signatures: Map[PublicKey25519Proposition, Signature25519],
-                                          feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                          fees: Map[PublicKey25519Proposition, Long],
-                                          timestamp: Long) extends BifrostTransaction {
+sealed abstract class ContractTransaction extends BifrostTransaction {
+
+  def parties: Map[Role, PublicKey25519Proposition]
+  def signatures: Map[PublicKey25519Proposition, Signature25519]
+  def feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
+  def fees: Map[PublicKey25519Proposition, Long]
 
   override val fee: Long = fees.values.sum
 
@@ -87,7 +88,7 @@ case class ContractCreation(agreement: Agreement,
                             feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                             fees: Map[PublicKey25519Proposition, Long],
                             timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
+  extends ContractTransaction {
 
   override type M = ContractCreation
 
@@ -167,7 +168,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
                                    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                                    fees: Map[PublicKey25519Proposition, Long],
                                    timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
+  extends ContractTransaction {
 
   override type M = ContractMethodExecution
 
@@ -265,7 +266,7 @@ case class ContractCompletion(contractBox: ContractBox,
                               feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                               fees: Map[PublicKey25519Proposition, Long],
                               timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
+  extends ContractTransaction {
 
   override type M = ContractCompletion
 
@@ -288,7 +289,7 @@ case class ContractCompletion(contractBox: ContractBox,
       }
     ) ++
     boxIdsToOpen.tail.take(producerReputation.length).map(id =>
-      new BoxUnlocker[MofNProposition] {
+      new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = id
         override val boxKey: Signature25519 = signatures(parties(Role.Producer))
       }
