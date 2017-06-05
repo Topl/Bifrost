@@ -207,7 +207,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
                 nonceLongPair.map(nlp =>
                   (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
                 )
-              }.getOrElse((0, 0))).toIndexedSeq
+              }.getOrElse((0L, 0L))).toIndexedSeq
             )
           )
       })
@@ -262,7 +262,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
                         nonceLongPair.map(nlp =>
                           (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
                         )
-                      }.getOrElse((0, 0))).toIndexedSeq
+                      }.getOrElse((0L, 0L))).toIndexedSeq
                       )
                     )
               })
@@ -374,7 +374,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
             nonceLongPair.map(nlp =>
               (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
             )
-          }.getOrElse((0, 0))).toIndexedSeq
+          }.getOrElse((0L, 0L))).toIndexedSeq
           )
         )
     })

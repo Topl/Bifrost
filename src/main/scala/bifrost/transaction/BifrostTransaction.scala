@@ -28,8 +28,11 @@ sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgePr
 sealed abstract class ContractTransaction(parties: Map[Role, PublicKey25519Proposition],
                                           signatures: Map[PublicKey25519Proposition, Signature25519],
                                           feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                          fee: Map[PublicKey25519Proposition, Long],
+                                          fees: Map[PublicKey25519Proposition, Long],
                                           timestamp: Long) extends BifrostTransaction {
+
+  override val fee: Long = fees.values.sum
+
   lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
     v.map {
       case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
@@ -47,7 +50,7 @@ sealed abstract class ContractTransaction(parties: Map[Role, PublicKey25519Propo
         ).asJson
       )
     }.asJson,
-    "fee" -> fee.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
+    "fee" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
@@ -60,7 +63,7 @@ sealed abstract class ContractTransaction(parties: Map[Role, PublicKey25519Propo
 
   def deductedFeeBoxes(hashNoNonces: Array[Byte]) = {
     val canSend = feePreBoxes.mapValues(_.map(_._2).sum)
-    val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map { case (prop, amount) => prop -> (amount - fee(prop)) }
+    val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map { case (prop, amount) => prop -> (amount - fees(prop)) }
     preboxesLessFees.zipWithIndex.map {
       case ((prop, value), idx) =>
         val nonce = ContractCreation.nonceFromDigest(
@@ -82,9 +85,9 @@ case class ContractCreation(agreement: Agreement,
                             parties: Map[Role, PublicKey25519Proposition],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
                             feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                            fee: Map[PublicKey25519Proposition, Long],
+                            fees: Map[PublicKey25519Proposition, Long],
                             timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
+  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
 
   override type M = ContractCreation
 
@@ -98,7 +101,7 @@ case class ContractCreation(agreement: Agreement,
     AgreementCompanion.toBytes(agreement) ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      fee.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+      fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
@@ -146,8 +149,8 @@ object ContractCreation {
 
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
     require(tx.parties.keys.toSet.size == 3) // Make sure there are exactly 3 unique roles
-    require(tx.fee.values.sum >= 0)
-    tx.fee.values.foreach(v => require(v >= 0))
+    require(tx.fees.values.sum >= 0)
+    tx.fees.values.foreach(v => require(v >= 0))
     require(tx.timestamp >= 0)
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
@@ -162,9 +165,9 @@ case class ContractMethodExecution(contractBox: ContractBox,
                                    parties: Map[Role, PublicKey25519Proposition],
                                    signatures: Map[PublicKey25519Proposition, Signature25519],
                                    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                                   fee: Map[PublicKey25519Proposition, Long],
+                                   fees: Map[PublicKey25519Proposition, Long],
                                    timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
+  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
 
   override type M = ContractMethodExecution
 
@@ -183,7 +186,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
       override val closedBoxId: Array[Byte] = contractBox.id
-      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(parties.toIndexedSeq(0))))
+      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(parties.values.head)))
     }
   ) ++ feeBoxUnlockers
 
@@ -194,7 +197,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
       parameters.noSpaces.getBytes ++
       unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++
-      fee.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+      fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )
 
 
@@ -237,8 +240,8 @@ object ContractMethodExecution {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: ContractMethodExecution): Try[Unit] = Try {
-    require(tx.fee.values.sum >= 0)
-    tx.fee.values.foreach(v => require(v >= 0))
+    require(tx.fees.values.sum >= 0)
+    tx.fees.values.foreach(v => require(v >= 0))
     require(tx.timestamp >= 0)
     require(tx.parties.keys.size == 1)
     require(tx.parties forall { case (_, proposition) =>
@@ -260,9 +263,9 @@ case class ContractCompletion(contractBox: ContractBox,
                               parties: Map[Role, PublicKey25519Proposition],
                               signatures: Map[PublicKey25519Proposition, Signature25519],
                               feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-                              fee: Map[PublicKey25519Proposition, Long],
+                              fees: Map[PublicKey25519Proposition, Long],
                               timestamp: Long)
-  extends ContractTransaction(parties, signatures, feePreBoxes, fee, timestamp) {
+  extends ContractTransaction(parties, signatures, feePreBoxes, fees, timestamp) {
 
   override type M = ContractCompletion
 
@@ -297,7 +300,7 @@ case class ContractCompletion(contractBox: ContractBox,
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
-      fee.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+      fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
 
 
@@ -348,8 +351,8 @@ object ContractCompletion {
 
   def validate(tx: ContractCompletion): Try[Unit] = Try {
     require(tx.signatures.size == 3)
-    require(tx.fee.values.sum >= 0)
-    tx.fee.values.foreach(v => require(v >= 0))
+    require(tx.fees.values.sum >= 0)
+    tx.fees.values.foreach(v => require(v >= 0))
     require(tx.timestamp >= 0)
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)

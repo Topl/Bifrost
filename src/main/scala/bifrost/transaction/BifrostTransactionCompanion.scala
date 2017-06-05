@@ -142,7 +142,6 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Longs.toByteArray(m.fee),
       Longs.toByteArray(m.timestamp),
       Longs.toByteArray(agreementBytes.length),
       Ints.toByteArray(m.signatures.length),
@@ -165,7 +164,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-    val Array(fee: Long, timestamp: Long, agreementLength: Long) = (0 until 3).map { i =>
+    val Array(timestamp: Long, agreementLength: Long) = (0 until 3).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
     }.toArray
 
@@ -218,7 +217,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
         /* First two arguments MUST STAY */
         Ints.toByteArray(typeBytes.length),
         typeBytes,
-        Longs.toByteArray(cme.fee),
+        Longs.toByteArray(cme.fees),
         Longs.toByteArray(cme.timestamp),
         Ints.toByteArray(cme.methodName.getBytes.length),
         Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
@@ -297,7 +296,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Longs.toByteArray(cc.fee),
+      Longs.toByteArray(cc.fees),
       Longs.toByteArray(cc.timestamp),
       Ints.toByteArray(cc.signatures.length),
       Ints.toByteArray(cc.parties.length),
