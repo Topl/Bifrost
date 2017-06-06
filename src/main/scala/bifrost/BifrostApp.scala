@@ -6,12 +6,13 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
+import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import bifrost.wallet.PolyTransferGenerator
 import bifrost.wallet.PolyTransferGenerator.StartGeneration
 import io.circe
-import scorex.core.api.http.{ApiRoute, NodeViewApiRoute, PeersApiRoute, UtilsApiRoute}
+import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
 import scorex.core.network.message.MessageSpec
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
@@ -46,12 +47,12 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
-    NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
+    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
   override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute], typeOf[DebugApiRoute], typeOf[WalletApiRoute],
-    typeOf[ContractApiRoute], typeOf[NodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
+    typeOf[ContractApiRoute], typeOf[GenericNodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
