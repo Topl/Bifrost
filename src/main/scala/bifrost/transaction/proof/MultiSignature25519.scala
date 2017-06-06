@@ -35,7 +35,8 @@ case class MultiSignature25519(signatureSet: Set[Signature25519]) extends ProofO
 
   override def serializer: Serializer[MultiSignature25519] = MultiSignature25519Serializer
 
-  override def toString: String = s"MultiSignature25519(${signatureSet.map(s => Base58.encode(s.signature)).foldLeft("")(_ + ", " + _)})"
+  override def toString: String = s"MultiSignature25519(${signatureSet.tail.map(s => Base58.encode(s.signature))
+    .foldLeft(Base58.encode(signatureSet.head.signature))(_ + ", " + _)})"
 }
 
 object MultiSignature25519Serializer extends Serializer[MultiSignature25519] {

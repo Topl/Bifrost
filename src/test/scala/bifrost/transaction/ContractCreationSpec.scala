@@ -11,6 +11,7 @@ import bifrost.state.BifrostState
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 
 class ContractCreationSpec extends PropSpec
@@ -31,8 +32,8 @@ class ContractCreationSpec extends PropSpec
   property("Tx with modified signature should be invalid") {
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
-        val wrongSig: Array[Byte] = (cc.signatures.head.bytes.head + 1).toByte +: cc.signatures.head.bytes.tail
-        val wrongSigs = (Signature25519(wrongSig) +: cc.signatures.tail).toIndexedSeq
+        val wrongSig: Array[Byte] = (cc.signatures.head._2.bytes.head + 1).toByte +: cc.signatures.head._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
         BifrostState.semanticValidity(cc.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
@@ -55,7 +56,15 @@ class ContractCreationSpec extends PropSpec
         signature <- signatureGen
         fee <- positiveLongGen
         timestamp <- positiveLongGen
-      } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+        numFeeBoxes <- positiveTinyIntGen
+      } yield ContractCreation(
+        agreement,
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
     ) {
       cc: ContractCreation =>
         val semanticValid = BifrostState.semanticValidity(cc)
@@ -77,7 +86,15 @@ class ContractCreationSpec extends PropSpec
         signature <- signatureGen
         fee <- positiveLongGen
         timestamp <- positiveLongGen
-      } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+        numFeeBoxes <- positiveTinyIntGen
+      } yield ContractCreation(
+        agreement,
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
     ) {
       cc: ContractCreation =>
         val semanticValid = BifrostState.semanticValidity(cc)
@@ -98,7 +115,15 @@ class ContractCreationSpec extends PropSpec
         signature <- signatureGen
         fee <- positiveLongGen
         timestamp <- positiveLongGen
-      } yield ContractCreation(agreement, parties, parties.map { _ => signatureGen.sample.get }, fee, timestamp)
+        numFeeBoxes <- positiveTinyIntGen
+      } yield ContractCreation(
+        agreement,
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
     ) {
       cc: ContractCreation =>
         val semanticValid = BifrostState.semanticValidity(cc)

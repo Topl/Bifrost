@@ -17,6 +17,7 @@ import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
 import io.circe.syntax._
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 
 class ContractMethodExecutionSpec extends PropSpec
   with PropertyChecks
@@ -36,8 +37,9 @@ class ContractMethodExecutionSpec extends PropSpec
   property("Tx with modified signature should be invalid") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
-        val wrongSig: Array[Byte] = (cme.signature.bytes.head + 1).toByte +: cme.signature.bytes.tail
-        BifrostState.semanticValidity(cme.copy(signature = Signature25519(wrongSig))).isSuccess shouldBe false
+        val wrongSig: Array[Byte] = (cme.signatures.head._2.bytes.head + 1).toByte +: cme.signatures.head._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cme.signatures + (cme.signatures.head._1 -> Signature25519(wrongSig))
+        BifrostState.semanticValidity(cme.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
 
@@ -48,6 +50,7 @@ class ContractMethodExecutionSpec extends PropSpec
       parameters <- jsonArrayGen()
       fee <- positiveLongGen
       timestamp <- positiveLongGen
+      numFeeBoxes <- positiveTinyIntGen
     } yield {
       val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
       val parties = allKeyPairs.map(_._2)
@@ -76,7 +79,16 @@ class ContractMethodExecutionSpec extends PropSpec
       val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
       val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
 
-      ContractMethodExecution(contractBox, sender._1 -> (sender._2)._2, methodName, parameters, signature, fee, timestamp)
+      ContractMethodExecution(
+        contractBox,
+        methodName,
+        parameters,
+        Map(sender._1 -> sender._2._2),
+        Map(sender._2._2 -> signature),
+        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get}),
+        Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong),
+        timestamp
+      )
     }
 
     forAll(preEffContractMethodExecutionGen) {
@@ -95,6 +107,7 @@ class ContractMethodExecutionSpec extends PropSpec
       parameters <- jsonArrayGen()
       fee <- positiveLongGen
       timestamp <- positiveLongGen
+      numFeeBoxes <- positiveTinyIntGen
     } yield {
       val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
       val parties = allKeyPairs.map(_._2)
@@ -123,7 +136,16 @@ class ContractMethodExecutionSpec extends PropSpec
       val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
       val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
 
-      ContractMethodExecution(contractBox, sender._1 -> (sender._2)._2, methodName, parameters, signature, fee, timestamp)
+      ContractMethodExecution(
+        contractBox,
+        methodName,
+        parameters,
+        Map(sender._1 -> sender._2._2),
+        Map(sender._2._2 -> signature),
+        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get}),
+        Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong),
+        timestamp
+      )
     }
 
     forAll(postExpContractMethodExecutionGen) {

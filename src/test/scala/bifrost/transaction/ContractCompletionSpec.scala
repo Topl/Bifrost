@@ -10,6 +10,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.core.crypto.hash.FastCryptographicHash
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 
 class ContractCompletionSpec extends PropSpec
@@ -33,8 +34,8 @@ class ContractCompletionSpec extends PropSpec
   property("Transaction with modified signature should be invalid") {
     forAll(validContractCompletionGen) {
       tx: ContractCompletion =>
-        val wrongSig: Array[Byte] = (tx.signatures.head.bytes.head + 1).toByte +: tx.signatures.head.bytes.tail
-        val wrongSigs = (Signature25519(wrongSig) +: tx.signatures.tail).toIndexedSeq
+        val wrongSig: Array[Byte] = (tx.signatures.head._2.bytes.head + 1).toByte +: tx.signatures.head._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = tx.signatures + (tx.signatures.head._1 -> Signature25519(wrongSig))
         BifrostState.semanticValidity(tx.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
@@ -52,7 +53,7 @@ class ContractCompletionSpec extends PropSpec
         val alpha: Double = alphaSum + (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)
         val beta: Double = betaSum + (input.toDouble / 1000)*(2 - deliveredAmount.toDouble/input.toDouble)
 
-        cc.newBoxes shouldBe Seq(ReputationBox(cc.contract.Producer, nonce, (alpha, beta)))
+        cc.newBoxes.head shouldBe ReputationBox(cc.contract.Producer, nonce, (alpha, beta))
     }
   }
 

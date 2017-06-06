@@ -190,15 +190,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   def validateContractCreation(cc: ContractCreation): Try[Unit] = {
 
     /* First check to see all roles are present */
-    val roleBoxAttempts: IndexedSeq[Try[ProfileBox]] = cc.signatures.zipWithIndex.map {
-      case (sig, index) => Try {
-        // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
-        require(sig.isValid(cc.parties(index)._2, cc.messageToSign))
-        getProfileBox(cc.parties(index)._2, "role").get
-      }
-    }
+    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
+      // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
+      sig.isValid(prop, cc.messageToSign)
+    }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
-    val roleBoxes: IndexedSeq[String] = roleBoxAttempts collect { case s: Success[ProfileBox] if s.isSuccess => s.get.value }
+
+    val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get.value }
 
     if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
       log.debug("Could not find roleBoxes that satisfy this transaction")
@@ -206,7 +204,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
-    if (!roleBoxes.zip(cc.parties.map(_._1)).forall { case (boxRole, role) => boxRole.equals(role.toString) }) {
+    if (!roleBoxes.zip(cc.parties.keys).forall { case (boxRole, role) => boxRole.equals(role.toString) }) {
       log.debug("role boxes does not match the roles stated in the contract creation")
       return Failure(new Exception("role boxes does not match the roles stated in the contract creation"))
     }
@@ -269,19 +267,19 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val contractProposition: MofNProposition = contractBox.proposition
       val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
       val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-      val profileBox = getProfileBox(cme.party._2, "role").get
+      val profileBox = getProfileBox(cme.parties.values.head, "role").get
 
       /* This person belongs to contract */
-      if (!MultiSignature25519(Set(cme.signature)).isValid(contractProposition, cme.messageToSign)) {
+      if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
         Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
 
       /* Signature matches profilebox owner */
-      } else if (!cme.signature.isValid(profileBox.proposition, cme.messageToSign)) {
-        Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.party._2.pubKeyBytes)} profileBox"))
+      } else if (!cme.signatures.values.head.isValid(profileBox.proposition, cme.messageToSign)) {
+        Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} profileBox"))
 
       /* Role provided by CME matches profilebox */
-      } else if (!profileBox.value.equals(cme.party._1.toString)) {
-        Failure(new IllegalAccessException(s"Role ${cme.party._1} for ${Base58.encode(cme.party._2.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
+      } else if (!profileBox.value.equals(cme.parties.keys.head.toString)) {
+        Failure(new IllegalAccessException(s"Role ${cme.parties.keys.head} for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
 
       /* Timestamp is after most recent block, not in future */
       } else if (cme.timestamp <= timestamp || cme.timestamp > Instant.now.toEpochMilli) {
@@ -318,16 +316,16 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
       /* Checking that all of the parties are part of the contract and have claimed roles */
       val verifyParties = Try {
-        require(cc.parties.zipWithIndex.map {
-          case ((role, proposition), i) =>
+        require(cc.parties.map {
+          case (role, proposition) =>
             val profileBox = getProfileBox(proposition, "role").get
 
             /* This person belongs to contract */
-            if (!MultiSignature25519(Set(cc.signatures(i))).isValid(contractProposition, cc.messageToSign))
+            if (!MultiSignature25519(Set(cc.signatures(proposition))).isValid(contractProposition, cc.messageToSign))
               throw new IllegalAccessException(s"Signature is invalid for contractBox")
 
             /* Signature matches profilebox owner */
-            else if (!cc.signatures(i).isValid(profileBox.proposition, cc.messageToSign))
+            else if (!cc.signatures(proposition).isValid(profileBox.proposition, cc.messageToSign))
               throw new IllegalAccessException(s"Signature is invalid for ${Base58.encode(proposition.pubKeyBytes)} profileBox")
 
             /* Role provided by cc matches profilebox */
