@@ -1,6 +1,6 @@
 package bifrost.transaction.box
 
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.transaction.account.PublicKeyNoncedBox
@@ -35,13 +35,18 @@ abstract class BifrostPublic25519NoncedBox(override val proposition: PublicKey25
 trait NoncedBoxSerializer {
 
   def noncedBoxToBytes(obj: BifrostPublic25519NoncedBox, boxType: String): Array[Byte] = {
-      Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++ obj.proposition.pubKeyBytes ++ Longs.toByteArray(obj.nonce) ++ Longs.toByteArray(obj.value)
+      Bytes.concat(
+        Ints.toByteArray(boxType.getBytes.length),
+        boxType.getBytes,
+        obj.proposition.pubKeyBytes,
+        Longs.toByteArray(obj.nonce),
+        Longs.toByteArray(obj.value)
+      )
   }
 
   def noncedBoxParseBytes(bytes: Array[Byte]): (PublicKey25519Proposition, Long, Long) = {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
     val numReadBytes = Ints.BYTES + typeLen
