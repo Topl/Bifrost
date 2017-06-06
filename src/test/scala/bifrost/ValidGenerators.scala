@@ -7,13 +7,17 @@ import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
+import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
+import scorex.core.transaction.account.PublicKeyNoncedBox
+import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.PrivateKey25519Companion
 
 import scala.util.Random
@@ -50,16 +54,26 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen
-    fee <- positiveLongGen
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+
+    val feePreBoxes = parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+      v.map {
+        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+      }
+    }
+
+    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+
     val messageToSign = Bytes.concat(
-      AgreementCompanion.toBytes(agreement),
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+      AgreementCompanion.toBytes(agreement) ++
+        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
     )
+
     val signatures = allKeyPairs.map(
       keypair =>
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
@@ -68,9 +82,9 @@ trait ValidGenerators extends BifrostGenerators {
     ContractCreation(
       agreement,
       IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
-      parties.map(_ -> signatureGen.sample.get).toMap,
-      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
-      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      parties.zip(signatures).toMap,
+      feePreBoxes,
+      fees,
       timestamp
     )
   }
@@ -124,33 +138,40 @@ trait ValidGenerators extends BifrostGenerators {
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
 
+    val feePreBoxes = Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get})
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+      v.map {
+        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+      }
+    }
+    val fees = Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong)
+
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
         methodName.getBytes ++
-        (sender._2)._2.pubKeyBytes ++
+        sender._2._2.pubKeyBytes ++
         parameters.noSpaces.getBytes ++
-        contractBox.id ++
+        (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
         Longs.toByteArray(timestamp) ++
-        Longs.toByteArray(fee)
+        fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
     val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
-    val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
+    val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     ContractMethodExecution(
       contractBox,
       methodName,
       parameters,
-      Map(sender._1 -> (sender._2)._2),
-      parties.map(_ -> signatureGen.sample.get).toMap,
-      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
-      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      Map(sender._1 -> sender._2._2),
+      Map(sender._2._2 -> signature),
+      feePreBoxes,
+      fees,
       timestamp
     )
   }
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
-    fee <- positiveLongGen
     timestamp <- positiveLongGen
     agreement <- validAgreementGen
     status <- Gen.oneOf(validStatuses)
@@ -165,20 +186,14 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(agreement, status, currentFulfillment, parties)
 
-    lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+    val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
-    val messageToSign = FastCryptographicHash(
-      contractBox.id ++
-        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
-        contractBox.id ++
-        Longs.toByteArray(contract.lastUpdated) ++
-        Longs.toByteArray(fee)
-    )
-
-    val signatures = allKeyPairs.map(
-      keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
+    val feePreBoxes = parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+      v.map {
+        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+      }
+    }
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
@@ -186,15 +201,32 @@ trait ValidGenerators extends BifrostGenerators {
       ReputationBox(parties(0), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
     )
 
+    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
+    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+
+    val messageToSign = FastCryptographicHash(
+      contractBox.id ++
+        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+        boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
+        Longs.toByteArray(contract.lastUpdated) ++
+        fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+    )
+
+    val signatures = allKeyPairs.map(
+      keypair =>
+        PrivateKey25519Companion.sign(keypair._1, messageToSign)
+    )
+
     ContractCompletion(
       contractBox,
       reputation,
       IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
-      parties.map(_ -> signatureGen.sample.get).toMap,
-      parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap,
-      parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap,
+      parties.zip(signatures).toMap,
+      feePreBoxes,
+      fees,
       timestamp
     )
+
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {

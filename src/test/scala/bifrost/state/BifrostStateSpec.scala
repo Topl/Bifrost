@@ -49,13 +49,12 @@ class BifrostStateSpec extends PropSpec
   val genesisBlockId = genesisState.version
 
   property("A block with valid contract creation will result in an entry in the LSMStore") {
-
     // Create block with contract creation
-    forAll(contractCreationGen) {
+    forAll(validContractCreationGen) {
       cc: ContractCreation =>
         val block = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
-          Instant.now().toEpochMilli,
+          Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
           Seq(cc)
@@ -65,7 +64,14 @@ class BifrostStateSpec extends PropSpec
 
         val boxBytes = ContractBoxSerializer.toBytes(box)
 
-        val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(1)).get
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.applyChanges(preparedState.changes(block).get, Ints.toByteArray(2)).get
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
           case Some(wrapper) => wrapper.data sameElements boxBytes

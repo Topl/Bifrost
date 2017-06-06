@@ -246,8 +246,8 @@ object ContractMethodExecution {
     require(tx.timestamp >= 0)
     require(tx.parties.keys.size == 1)
     require(tx.parties forall { case (_, proposition) =>
-      tx.signatures(proposition).isValid(proposition, tx.messageToSign)
-      tx.signatures(proposition).isValid(tx.contractBox.proposition, tx.messageToSign)
+      tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
+        MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
     })
 
     val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
@@ -354,8 +354,12 @@ object ContractCompletion {
     tx.fees.values.foreach(v => require(v >= 0))
     require(tx.timestamp >= 0)
     require(tx.parties forall { case (_, proposition) =>
-      tx.signatures(proposition).isValid(proposition, tx.messageToSign)
-      MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
+      val sig = Set(tx.signatures(proposition))
+      val multiSig = MultiSignature25519(sig)
+      val first = tx.signatures(proposition).isValid(proposition, tx.messageToSign)
+      val second = multiSig.isValid(tx.contractBox.proposition, tx.messageToSign)
+
+        first && second
     })
   }
 

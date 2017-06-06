@@ -53,7 +53,7 @@ class ContractCompletionSpec extends PropSpec
         val alpha: Double = alphaSum + (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)
         val beta: Double = betaSum + (input.toDouble / 1000)*(2 - deliveredAmount.toDouble/input.toDouble)
 
-        cc.newBoxes shouldBe Seq(ReputationBox(cc.contract.Producer, nonce, (alpha, beta)))
+        cc.newBoxes.head shouldBe ReputationBox(cc.contract.Producer, nonce, (alpha, beta))
     }
   }
 
