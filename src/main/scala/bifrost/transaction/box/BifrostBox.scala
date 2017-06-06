@@ -46,6 +46,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
   override def toBytes(obj: BifrostBox): Array[Byte] = obj match {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
+    case as: AssetBox => AssetBoxSerializer.toBytes(as)
     case c: ContractBox => ContractBoxSerializer.toBytes(c)
     case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
@@ -59,6 +60,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 
     typeStr match {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
+      case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
       case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
       case "ContractBox" => ContractBoxSerializer.parseBytes(bytes)
       case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)

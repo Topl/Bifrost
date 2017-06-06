@@ -123,6 +123,13 @@ trait BifrostGenerators extends CoreGenerators {
     value <- positiveLongGen
   } yield ArbitBox(proposition, nonce, value)
 
+  lazy val assetBoxGen: Gen[AssetBox] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+    value <- positiveLongGen
+    asset <- stringGen
+  } yield AssetBox(proposition, nonce, value, asset)
+
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
 
   lazy val reputationBoxGen: Gen[ReputationBox] = for {

@@ -56,6 +56,15 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("AssetBox Serialization") {
+    forAll(assetBoxGen) {
+      b: AssetBox =>
+        val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+    }
+  }
+
   property("Reputation Serialization") {
     forAll(reputationBoxGen) {
       b: ReputationBox =>
