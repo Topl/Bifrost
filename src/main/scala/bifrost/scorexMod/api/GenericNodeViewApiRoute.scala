@@ -32,7 +32,7 @@ case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
 (implicit val context: ActorRefFactory) extends ApiRoute {
 
   override val route = pathPrefix("nodeView") {
-    openSurface ~ persistentModifierById ~ pool
+    openSurface ~ persistentModifierById ~ pool ~ transactionById
   }
 
   type PM <: PersistentNodeViewModifier[P, TX]
@@ -97,7 +97,7 @@ case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
   @Path("/transaction/{id}")
   @ApiOperation(value = "Transaction by id", notes = "Transaction by id", httpMethod = "GET")
   @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "id", value = "block id ", required = true, dataType = "string", paramType = "path")
+    new ApiImplicitParam(name = "id", value = "Transaction id ", required = true, dataType = "string", paramType = "path")
   ))
   def transactionById: Route = path("transaction" / Segment) { case encodedId =>
     getJsonRoute {
