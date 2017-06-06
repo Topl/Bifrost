@@ -106,6 +106,27 @@ object ArbitBoxSerializer extends Serializer[ArbitBox] with NoncedBoxSerializer 
 
 }
 
+case class AssetBox(override val proposition: PublicKey25519Proposition,
+                    override val nonce: Long,
+                    amount: Long,
+                    asset: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
+  override lazy val typeOfBox: String = "Asset"
+}
+
+object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer {
+
+  def toBytes(obj: AssetBox): Array[Byte] = {
+    noncedBoxToBytes(obj, "AssetBox") ++ obj.asset.getBytes ++ Ints.toByteArray(obj.asset.getBytes.length)
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[AssetBox] = Try {
+    val params = noncedBoxParseBytes(bytes)
+    val assetLen = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val asset = new String(bytes.slice(bytes.length - Ints.BYTES - assetLen, bytes.length - Ints.BYTES))
+    AssetBox(params._1, params._2, params._3, asset)
+  }
+}
+
 
 case class ContractBox(proposition: MofNProposition,
                        override val nonce: Long,
