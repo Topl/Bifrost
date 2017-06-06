@@ -40,7 +40,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
     }
   }
 
-  lazy val json: Json = Map(
+  lazy val commonJson: Json = Map(
     "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes).asJson }.asJson,
     "feePreBoxes" -> feePreBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
@@ -127,7 +127,7 @@ case class ContractCreation(agreement: Agreement,
     IndexedSeq(ContractBox(proposition, nonce, boxValue)) ++ deductedFeeBoxes(hashNoNonces)
   }
 
-  override lazy val json: Json = (json.asObject.get.toMap ++ Map(
+  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "agreement" -> agreement.json
   )).asJson
 
@@ -220,7 +220,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
     IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
   }
 
-  override lazy val json: Json = (json.asObject.get.toMap ++ Map(
+  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "contractBox" -> contractBox.json,
     "methodName" -> methodName.asJson,
     "parameters" -> parameters
@@ -331,7 +331,7 @@ case class ContractCompletion(contractBox: ContractBox,
     Seq(producerRep) ++ deductedFeeBoxes(hashNoNonces)
   }
 
-  override lazy val json: Json = (json.asObject.get.toMap ++ Map(
+  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "contractBox" -> contractBox.json,
     "producerReputation" -> producerReputation.map(_.json).asJson
   )).asJson
