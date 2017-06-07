@@ -366,13 +366,33 @@ class BifrostStateSpec extends PropSpec
   }
 
   property("Attempting to validate a contract creation tx with a timestamp too far in the future should error") {
-    // Create invalid contract creation
-    // send tx to state
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(
+          cc.copy(timestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get)
+        )
+
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "ContractCreation timestamp is too far into the future"
+    }
   }
 
   property("Attempting to validate a PolyTransfer for amount you do not have should error") {
-    // Create invalid PolyTransfer
-    // send tx to state
+
   }
 
   override def afterAll() {

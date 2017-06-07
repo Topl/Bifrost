@@ -234,15 +234,19 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         case None => true
       })
 
-      val txTimestampIsAcceptable = cc.timestamp > timestamp && timestamp < Instant.now().toEpochMilli
+      val inPast = cc.timestamp <= timestamp
+      val inFuture = cc.timestamp >= Instant.now().toEpochMilli
+      val txTimestampIsAcceptable = !(inPast || inFuture)
 
 
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
       } else if (!boxesAreNew) {
         Failure(new Exception("ContractCreation attempts to overwrite existing contract"))
-      } else {
+      } else if(inPast) {
         Failure(new Exception("ContractCreation attempts to write into the past"))
+      } else {
+        Failure(new Exception("ContractCreation timestamp is too far into the future"))
       }
     }
 
