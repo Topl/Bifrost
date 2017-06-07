@@ -326,8 +326,43 @@ class BifrostStateSpec extends PropSpec
   }
 
   property("Attempting to validate a contract creation tx with the same id as an existing contract should error") {
-    // Create invalid contract creation
-    // send tx to state
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet ++
+          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+            ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
+          )
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          cc.timestamp
+        )
+
+        val firstCCAddBlock = BifrostBlock(
+          Array.fill(BifrostBlock.SignatureLength)(1: Byte),
+          Instant.now.toEpochMilli,
+          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Seq(cc)
+        )
+
+        val necessaryState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+
+        val preparedChanges = necessaryState.changes(firstCCAddBlock).get
+        val preparedState = necessaryState.applyChanges(preparedChanges, Ints.toByteArray(2)).get.applyChanges(necessaryBoxesSC, Ints.toByteArray(3)).get
+
+        val newState = preparedState.validate(cc)
+
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "ContractCreation attempts to overwrite existing contract"
+    }
   }
 
   property("Attempting to validate a contract creation tx with a timestamp too far in the future should error") {

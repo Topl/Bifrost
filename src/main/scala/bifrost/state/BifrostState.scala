@@ -240,7 +240,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
       } else if (!boxesAreNew) {
-        Failure(new Exception("Boxes attempt to overwrite existing contract"))
+        Failure(new Exception("ContractCreation attempts to overwrite existing contract"))
       } else {
         Failure(new Exception("ContractCreation attempts to write into the past"))
       }
