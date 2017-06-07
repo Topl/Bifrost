@@ -9,7 +9,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.state.BifrostState
-import bifrost.transaction.{ArbitTransfer, ContractCreation, PolyTransfer, ProfileTransaction}
+import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNPropositionSerializer
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
@@ -27,7 +27,7 @@ import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 class BifrostStateSpec extends PropSpec
   with PropertyChecks
@@ -177,8 +177,31 @@ class BifrostStateSpec extends PropSpec
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {
-    // Create invalid contract creation
-    // send tx to state
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+
+        val wrongSig: Array[Byte] = (cc.signatures.head._2.bytes.head + 1).toByte +: cc.signatures.head._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
+        val invalidCC = cc.copy(signatures = wrongSigs)
+
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(invalidCC)
+
+        newState shouldBe a[Failure[_]]
+
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+    }
   }
 
   property("Attempting to validate a contract creation tx with a timestamp that is before the last block timestamp should error") {
