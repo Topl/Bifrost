@@ -48,7 +48,7 @@ class BifrostStateSpec extends PropSpec
   gw.generateNewSecret(); gw.generateNewSecret()
   val genesisBlockId = genesisState.version
 
-  property("A block with valid contract creation will result in an entry in the LSMStore") {
+  property("A block with valid contract creation will result in a contract entry and updated poly boxes in the LSMStore") {
     // Create block with contract creation
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
@@ -60,13 +60,18 @@ class BifrostStateSpec extends PropSpec
           Seq(cc)
         )
 
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val box = cc.newBoxes.head.asInstanceOf[ContractBox]
+        val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.tail.map {
+          case p: PolyBox => p
+          case _ => throw new Exception("Was expecting PolyBoxes but found something else")
+        }
 
         val boxBytes = ContractBoxSerializer.toBytes(box)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet,
+          preExistingPolyBoxes,
           Instant.now.toEpochMilli
         )
 
@@ -77,6 +82,20 @@ class BifrostStateSpec extends PropSpec
           case Some(wrapper) => wrapper.data sameElements boxBytes
           case None => false
         })
+
+        require(deductedFeeBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
+          case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
+          case None => false
+        }))
+
+        /* Checks that the total sum of polys returned is total amount submitted minus total fees */
+        require(deductedFeeBoxes.map(_.value).sum == preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cc.fee)
+
+        /* Checks that the amount returned in polys is equal to amount sent in less fees */
+        require(cc.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cc.feePreBoxes(p._1).map(_._2).sum - cc.fees(p._1)))
+
+        /* Expect none of the prexisting boxes to still be around */
+        require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
 
         genesisState = newState.rollbackTo(genesisBlockId).get
 
