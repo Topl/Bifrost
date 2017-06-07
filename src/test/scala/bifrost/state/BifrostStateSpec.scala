@@ -4,14 +4,11 @@ import java.io.File
 import java.time.Instant
 
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
-import bifrost.state.BifrostState
 import bifrost.transaction._
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNPropositionSerializer
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
 import io.circe
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -19,15 +16,14 @@ import org.scalacheck.Gen
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
+import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Random, Try}
 
 class BifrostStateSpec extends PropSpec
   with PropertyChecks
@@ -47,6 +43,46 @@ class BifrostStateSpec extends PropSpec
   // Generate new secret
   gw.generateNewSecret(); gw.generateNewSecret()
   val genesisBlockId = genesisState.version
+
+  def arbitraryPartyContractCreationGen(num: Int): Gen[ContractCreation] = for {
+    agreement <- validAgreementGen
+    timestamp <- positiveLongGen
+    numFeeBoxes <- positiveTinyIntGen
+  } yield {
+    val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
+
+    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+    val parties = (allKeyPairs.map(_._2) zip (Stream continually roles).flatten).map(t => t._2 -> t._1).toMap
+
+    val feePreBoxes = parties.map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} )
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+      v.map {
+        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+      }
+    }
+
+    val fees = parties.map(_._2 -> positiveTinyIntGen.sample.get.toLong).toMap
+
+    val messageToSign = Bytes.concat(
+      AgreementCompanion.toBytes(agreement) ++
+        parties.values.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+    )
+
+    val signatures = allKeyPairs.map(
+      keypair =>
+        PrivateKey25519Companion.sign(keypair._1, messageToSign)
+    )
+
+
+    ContractCreation(
+      agreement,
+      parties,
+      allKeyPairs.map(_._2).zip(signatures).toMap,
+      feePreBoxes,
+      fees,
+      timestamp
+    )
+  }
 
   property("A block with valid contract creation will result in a contract entry and updated poly boxes in the LSMStore") {
     // Create block with contract creation
@@ -154,10 +190,11 @@ class BifrostStateSpec extends PropSpec
 
   property("A block with valid ProfileTransaction should result in a ProfileBox") {
     val timestamp = System.currentTimeMillis()
+    val role = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub)).head
     val signature = PrivateKey25519Companion.sign(gw.secrets.head,
       ProfileTransaction.messageToSign(timestamp, gw.secrets.head.publicImage,
-        Map("role" -> "investor")))
-    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> "investor"), 0L, timestamp)
+        Map("role" -> role.toString)))
+    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> role.toString), 0L, timestamp)
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -172,8 +209,10 @@ class BifrostStateSpec extends PropSpec
     val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(4)).get
     val box = newState.closedBox(FastCryptographicHash(gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get.asInstanceOf[ProfileBox]
 
+    genesisState = newState.rollbackTo(genesisBlockId).get
+
     box.key shouldBe "role"
-    box.value shouldBe "investor"
+    box.value shouldBe role.toString
   }
 
   property("Attempting to validate a contract creation tx without valid signatures should error") {
@@ -198,9 +237,63 @@ class BifrostStateSpec extends PropSpec
         val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(invalidCC)
 
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+
         newState shouldBe a[Failure[_]]
+    }
+  }
+
+  property("Attempting to validate a contract creation tx without all roles should error") {
+    forAll(arbitraryPartyContractCreationGen(Gen.choose(0, 2).sample.get)) {
+      cc: ContractCreation =>
+
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cc)
 
         genesisState = preparedState.rollbackTo(genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "Not all roles were fulfilled for this transaction"
+    }
+  }
+
+  //noinspection ScalaStyle
+  property("Attempting to validate a contract creation tx with too many signatures (versus parties) should error") {
+    forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
+      cc: ContractCreation =>
+        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet ++
+          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+            ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
+          )
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cc)
+
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "Too many signatures for the parties of this transaction"
     }
   }
 
