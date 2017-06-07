@@ -229,7 +229,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val statefulValid = unlockersValid flatMap { _ =>
 
-      val boxesAreNew = cc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.asInstanceOf[ContractBox].id)) match {
+      val boxesAreNew = cc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
         case Some(box) => false
         case None => true
       })
@@ -239,8 +239,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
-      } else {
+      } else if (!boxesAreNew) {
         Failure(new Exception("Boxes attempt to overwrite existing contract"))
+      } else {
+        Failure(new Exception("ContractCreation attempts to write into the past"))
       }
     }
 

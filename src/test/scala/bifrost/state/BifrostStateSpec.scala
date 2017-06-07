@@ -298,14 +298,34 @@ class BifrostStateSpec extends PropSpec
   }
 
   property("Attempting to validate a contract creation tx with a timestamp that is before the last block timestamp should error") {
+    forAll(validContractCreationGen) {
+      cc: ContractCreation =>
+        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cc.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet ++
+          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+            ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
+          )
 
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes,
+          cc.timestamp + positiveLongGen.sample.get/5 + 1
+        )
+
+        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cc)
+
+        genesisState = preparedState.rollbackTo(genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "ContractCreation attempts to write into the past"
+    }
   }
 
-  property("Attempting to validate a contract creation tx with a timestamp that is in the future should error") {
-
-  }
-
-  property("Attempting to validate a contract creation tx with the same signature as an existing contract should error") {
+  property("Attempting to validate a contract creation tx with the same id as an existing contract should error") {
     // Create invalid contract creation
     // send tx to state
   }
