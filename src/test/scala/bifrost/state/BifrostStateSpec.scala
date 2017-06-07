@@ -312,7 +312,7 @@ class BifrostStateSpec extends PropSpec
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
           preExistingPolyBoxes ++ profileBoxes,
-          cc.timestamp + positiveLongGen.sample.get/5 + 1
+          cc.timestamp + Gen.choose(1L, Long.MaxValue - cc.timestamp - 1L).sample.get
         )
 
         val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
