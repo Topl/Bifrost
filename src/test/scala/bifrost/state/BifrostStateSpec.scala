@@ -31,17 +31,6 @@ class BifrostStateSpec extends PropSpec
   with ValidGenerators
   with BeforeAndAfterAll{
 
-  val settingsFilename = "settings.json"
-  lazy val testSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
-
-  val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
-  val history = gs._1; var genesisState = gs._2; var gw = gs._3
-  // Generate new secret
-  gw.generateNewSecret(); gw.generateNewSecret()
-  val genesisBlockId = genesisState.version
-
 
   //noinspection ScalaStyle
   property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {
@@ -49,15 +38,15 @@ class BifrostStateSpec extends PropSpec
     // Create new block with PolyTransfer
     // send new block to state
     // check updated state
-    val beforePolyBoxes = gw.boxes().filter(_.box match {
-      case a: PolyBox => genesisState.closedBox(a.id).isDefined
+    val beforePolyBoxes = BifrostStateSpec.gw.boxes().filter(_.box match {
+      case a: PolyBox => BifrostStateSpec.genesisState.closedBox(a.id).isDefined
       case _ => false
     }).map(_.box.asInstanceOf[PolyBox])
-    val beforeBoxKeys = beforePolyBoxes.flatMap(b => gw.secretByPublicImage(b.proposition).map(s => (b, s)))
+    val beforeBoxKeys = beforePolyBoxes.flatMap(b => BifrostStateSpec.gw.secretByPublicImage(b.proposition).map(s => (b, s)))
     assert(beforeBoxKeys.map(_._1.value).sum == 100000000L)
 
     forAll(Gen.choose(0, 500)) { num: Int =>
-      val poT = PolyTransferGenerator.generateStatic(gw).get
+      val poT = PolyTransferGenerator.generateStatic(BifrostStateSpec.gw).get
       val block = BifrostBlock(
         Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
@@ -66,10 +55,10 @@ class BifrostStateSpec extends PropSpec
         Seq(poT)
       )
 
-      require(genesisState.validate(poT).isSuccess)
+      require(BifrostStateSpec.genesisState.validate(poT).isSuccess)
 
-      val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(2)).get
-      val newWallet = gw.scanPersistent(block)
+      val newState = BifrostStateSpec.genesisState.applyChanges(BifrostStateSpec.genesisState.changes(block).get, Ints.toByteArray(2)).get
+      val newWallet = BifrostStateSpec.gw.scanPersistent(block)
 
       val arbitBoxes = newWallet.boxes().filter(_.box match {
         case a: ArbitBox => newState.closedBox(a.id).isDefined
@@ -88,18 +77,18 @@ class BifrostStateSpec extends PropSpec
       // TODO: No fee is actually collected due to the reward box is an ArbitBox
       require(polyBoxKeys.map(_._1.value).sum == 100000000L - poT.fee)
 
-      genesisState = newState.rollbackTo(genesisBlockId).get
-      gw = newWallet.rollback(genesisBlockId).get
+      BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+      BifrostStateSpec.gw = newWallet.rollback(BifrostStateSpec.genesisBlockId).get
     }
   }
 
   property("A block with valid ProfileTransaction should result in a ProfileBox") {
     val timestamp = System.currentTimeMillis()
     val role = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub)).head
-    val signature = PrivateKey25519Companion.sign(gw.secrets.head,
-      ProfileTransaction.messageToSign(timestamp, gw.secrets.head.publicImage,
+    val signature = PrivateKey25519Companion.sign(BifrostStateSpec.gw.secrets.head,
+      ProfileTransaction.messageToSign(timestamp, BifrostStateSpec.gw.secrets.head.publicImage,
         Map("role" -> role.toString)))
-    val tx = ProfileTransaction(gw.secrets.head.publicImage, signature, Map("role" -> role.toString), 0L, timestamp)
+    val tx = ProfileTransaction(BifrostStateSpec.gw.secrets.head.publicImage, signature, Map("role" -> role.toString), 0L, timestamp)
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -109,12 +98,12 @@ class BifrostStateSpec extends PropSpec
       Seq(tx)
     )
 
-    require(genesisState.validate(tx).isSuccess)
+    require(BifrostStateSpec.genesisState.validate(tx).isSuccess)
 
-    val newState = genesisState.applyChanges(genesisState.changes(block).get, Ints.toByteArray(4)).get
-    val box = newState.closedBox(FastCryptographicHash(gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get.asInstanceOf[ProfileBox]
+    val newState = BifrostStateSpec.genesisState.applyChanges(BifrostStateSpec.genesisState.changes(block).get, Ints.toByteArray(4)).get
+    val box = newState.closedBox(FastCryptographicHash(BifrostStateSpec.gw.secrets.head.publicKeyBytes ++ "role".getBytes)).get.asInstanceOf[ProfileBox]
 
-    genesisState = newState.rollbackTo(genesisBlockId).get
+    BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
     box.key shouldBe "role"
     box.value shouldBe role.toString
@@ -125,8 +114,23 @@ class BifrostStateSpec extends PropSpec
   }
 
   override def afterAll() {
-    history.storage.storage.close()
-    val path: Path = Path ("/tmp")
-    Try(path.deleteRecursively())
+    BifrostStateSpec.history.storage.storage.close()
   }
+}
+
+object BifrostStateSpec {
+  val settingsFilename = "settings.json"
+  lazy val testSettings = new ForgingSettings {
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
+  }
+
+  val path: Path = Path ("/tmp")
+  Try(path.deleteRecursively())
+
+  val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val history = gs._1; var genesisState = gs._2; var gw = gs._3
+
+  // Generate new secret
+  gw.generateNewSecret(); gw.generateNewSecret()
+  val genesisBlockId = genesisState.version
 }

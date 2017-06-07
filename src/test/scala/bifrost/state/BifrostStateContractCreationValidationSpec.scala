@@ -88,7 +88,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.applyChanges(preparedState.changes(block).get, Ints.toByteArray(2)).get
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
@@ -110,7 +110,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         /* Expect none of the prexisting boxes to still be around */
         require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
 
-        genesisState = newState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
     }
   }
@@ -134,10 +134,10 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(invalidCC)
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
     }
@@ -158,10 +158,10 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(cc)
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Not all roles were fulfilled for this transaction"
@@ -187,10 +187,10 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(cc)
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Too many signatures for the parties of this transaction"
@@ -215,10 +215,10 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           cc.timestamp + Gen.choose(1L, Long.MaxValue - cc.timestamp - 1L).sample.get
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(cc)
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractCreation attempts to write into the past"
@@ -251,14 +251,14 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Seq(cc)
         )
 
-        val necessaryState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val necessaryState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
 
         val preparedChanges = necessaryState.changes(firstCCAddBlock).get
         val preparedState = necessaryState.applyChanges(preparedChanges, Ints.toByteArray(2)).get.applyChanges(necessaryBoxesSC, Ints.toByteArray(3)).get
 
         val newState = preparedState.validate(cc)
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractCreation attempts to overwrite existing contract"
@@ -279,12 +279,12 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
         val newState = preparedState.validate(
           cc.copy(timestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get)
         )
 
-        genesisState = preparedState.rollbackTo(genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractCreation timestamp is too far into the future"
