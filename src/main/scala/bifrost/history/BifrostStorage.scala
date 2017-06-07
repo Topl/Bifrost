@@ -6,6 +6,7 @@ import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier._
 import scorex.core.crypto.hash.FastCryptographicHash
+import scorex.core.transaction.Transaction
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.hash.Sha256
 
@@ -31,7 +32,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       val mtypeId = bytes.head // TODO could check that this is a bifrostblock
       val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
       parsed match {
-        case Failure(e) => log.warn("Failed to parse bytes from bd", e)
+        case Failure(e) => log.warn("Failed to parse bytes from db", e)
         case _ =>
       }
       parsed.toOption
@@ -53,6 +54,10 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =b.transactions.get.map(
+      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
+    )
+
     /* << EXAMPLE >>
       For version "b00123123":
       ADD
@@ -67,7 +72,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
-      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
     )
   }
 
