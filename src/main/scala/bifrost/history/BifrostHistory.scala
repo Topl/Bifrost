@@ -53,6 +53,10 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
 
   override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
 
+  def transactionByIds(ids: Seq[ModifierId]): Seq[BifrostTransaction] = ids.flatMap {
+    id => storage.transactionById(id)
+  }
+
   override def contains(id: ModifierId): Boolean =
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined
 

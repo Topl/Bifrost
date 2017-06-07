@@ -1,6 +1,7 @@
 package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
+import bifrost.history.BifrostHistory
 import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
@@ -166,7 +167,8 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
     case GetLocalObjects(sid, modifierTypeId, modifierIds) =>
       val objs: Seq[NodeViewModifier] = modifierTypeId match {
         case typeId: Byte if typeId == Transaction.ModifierTypeId =>
-          memoryPool().getAll(modifierIds)
+          // memoryPool().getAll(modifierIds)
+          history().asInstanceOf[BifrostHistory].transactionByIds(modifierIds)
         case typeId: Byte =>
           modifierIds.flatMap(id => history().modifierById(id))
       }

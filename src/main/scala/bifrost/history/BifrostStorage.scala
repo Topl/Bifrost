@@ -3,6 +3,7 @@ package bifrost.history
 import com.google.common.primitives.Longs
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
+import bifrost.transaction.BifrostTransaction
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -36,6 +37,15 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
         case _ =>
       }
       parsed.toOption
+    }
+  }
+
+  def transactionById(transactionId: ModifierId): Option[BifrostTransaction] = {
+    storage.get(ByteArrayWrapper(transactionId)).flatMap { bw =>
+      val bytes = bw.data
+      require(bytes.head == Transaction.ModifierTypeId)
+      val blockId = bytes.tail
+      Option(modifierById(blockId).get.txs.filter(_.id sameElements transactionId).head)
     }
   }
 
