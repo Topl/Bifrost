@@ -7,7 +7,6 @@ import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import bifrost.transaction.TransactionReceipt
 import scorex.core.network.ConnectedPeer
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.Proposition
@@ -168,8 +167,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
     case GetLocalObjects(sid, modifierTypeId, modifierIds) =>
       val objs: Seq[NodeViewModifier] = modifierTypeId match {
         case typeId: Byte if typeId == Transaction.ModifierTypeId =>
-          // memoryPool().getAll(modifierIds)
-          history().asInstanceOf[BifrostHistory].transactionByIds(modifierIds)
+          memoryPool().getAll(modifierIds)
         case typeId: Byte =>
           modifierIds.flatMap(id => history().modifierById(id))
       }

@@ -6,7 +6,7 @@ import java.time.Instant
 import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
-import bifrost.transaction.{BifrostTransaction, TransactionReceipt}
+import bifrost.transaction.BifrostTransaction
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier
@@ -52,10 +52,6 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
   override def isEmpty: Boolean = height <= 0
 
   override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
-
-  def transactionByIds(ids: Seq[ModifierId]): Seq[TransactionReceipt] = ids.flatMap {
-    id => storage.transactionById(id)
-  }
 
   override def contains(id: ModifierId): Boolean =
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined

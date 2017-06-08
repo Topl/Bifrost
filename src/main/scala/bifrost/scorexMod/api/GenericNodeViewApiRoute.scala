@@ -5,6 +5,7 @@ import javax.ws.rs.Path
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
+import bifrost.api.http.ApiRouteWithView
 import io.circe.syntax._
 import io.swagger.annotations._
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -29,7 +30,7 @@ import scala.util.{Failure, Success, Try}
 @Api(value = "/nodeView", produces = "application/json")
 case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
 (override val settings: Settings, nodeViewHolderRef: ActorRef)
-(implicit val context: ActorRefFactory) extends ApiRoute {
+(implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   override val route = pathPrefix("nodeView") {
     openSurface ~ persistentModifierById ~ pool ~ transactionById
@@ -82,14 +83,20 @@ case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
   ))
   def persistentModifierById: Route = path("persistentModifier" / Segment) { case encodedId =>
     getJsonRoute {
-      Base58.decode(encodedId) match {
-        case Success(id) =>
-          //TODO 1: Byte
-          (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
-            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-            .map(_.localObjects.headOption.map(_.json).map(j => SuccessApiResponse(j))
-              .getOrElse(ApiError.blockNotExists))
-        case _ => Future(ApiError.blockNotExists)
+      viewAsync().flatMap{ view =>
+        Base58.decode(encodedId) match {
+          case Success(id) =>
+            val blockNumber = view.history.storage.heightOf(id)
+            //TODO 1: Byte
+            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
+              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+              .map(_.localObjects.headOption.map(_.json).map(j => {
+                val modifiedJson = j.asObject.get.add("blockNumber", blockNumber.asJson).asJson
+                SuccessApiResponse(modifiedJson)
+              })
+                .getOrElse(ApiError.blockNotExists))
+          case _ => Future(ApiError.blockNotExists)
+        }
       }
     }
   }
@@ -101,13 +108,21 @@ case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
   ))
   def transactionById: Route = path("transaction" / Segment) { case encodedId =>
     getJsonRoute {
-      Base58.decode(encodedId) match {
-        case Success(id) =>
-          (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
-            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-            .map(_.localObjects.headOption.map(_.json).map(r => SuccessApiResponse(r))
-              .getOrElse(ApiError.transactionNotExists))
-        case _ => Future(ApiError.transactionNotExists)
+      viewAsync().flatMap { view =>
+        Base58.decode(encodedId) match {
+          case Success(id) =>
+            val storage = view.history.storage
+            val blockIdWithPrefix = storage.blockIdOf(id).get
+            require(blockIdWithPrefix.head == Transaction.ModifierTypeId)
+            val blockId = blockIdWithPrefix.tail
+            val blockNumber = storage.heightOf(blockId)
+            val tx = storage.modifierById(blockId).get.txs.filter(_.id sameElements id).head
+
+            val modifiedJson = tx.json.asObject.get.add("blockNumber", blockNumber.asJson)
+            .add("blockHash", Base58.encode(blockId).asJson).asJson
+            Future(SuccessApiResponse(data = modifiedJson))
+          case _ => Future(ApiError.transactionNotExists)
+        }
       }
     }
   }
