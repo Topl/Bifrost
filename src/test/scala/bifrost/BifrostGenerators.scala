@@ -84,7 +84,7 @@ trait BifrostGenerators extends CoreGenerators {
     numDigits <- Gen.choose(0, 80)
   } yield (0 until numDigits).map {
     _ => base10gen.sample.get
-  }.foldLeft("")((a,b) => a + b)
+  }.foldLeft(Gen.choose(1,9).sample.get.toString)((a,b) => a + b)
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
 
@@ -189,7 +189,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val preFeeBoxGen: Gen[(Nonce, Long)] = for {
     nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
-    amount <- positiveLongGen
+    amount <- positiveLongGen.map(_/100L + 1L) // done to allow for sequences to not overflow
   } yield (nonce, amount)
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {

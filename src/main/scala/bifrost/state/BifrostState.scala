@@ -56,8 +56,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
   private def getProfileBox(prop: PublicKey25519Proposition, field: String): Try[ProfileBox] = {
-    val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field)))
-    ProfileBoxSerializer.parseBytes(boxBytes.get.data)
+    storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field))) match {
+      case Some(bytes) => ProfileBoxSerializer.parseBytes(bytes.data)
+      case None => Failure(new Exception(s"Couldn't find profile box for ${Base58.encode(prop.pubKeyBytes)} with field <$field>"))
+    }
   }
 
   override def closedBox(boxId: Array[Byte]): Option[BX] =
@@ -81,10 +83,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
-    val boxIdsToRemove = changes.boxIdsToRemove.map(ByteArrayWrapper.apply)
-
-    // TODO check if b.bytes screws up compared to BifrostBoxCompanion.toBytes
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
     log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
@@ -199,8 +201,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get.value }
 
     if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
-      log.debug("Could not find roleBoxes that satisfy this transaction")
-      return Failure(new Exception("Could not find roleboxes that satisfy this transaction"))
+      log.debug("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid.")
+      return Failure(new Exception("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."))
+    } else if (roleBoxes.size > 3) {
+      log.debug("Too many signatures for the parties of this transaction")
+      return Failure(new Exception("Too many signatures for the parties of this transaction"))
     }
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
@@ -226,18 +231,24 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val statefulValid = unlockersValid flatMap { _ =>
 
-      val boxesAreNew = cc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.asInstanceOf[ContractBox].id)) match {
+      val boxesAreNew = cc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
         case Some(box) => false
         case None => true
       })
 
-      val txTimestampIsAcceptable = cc.timestamp > timestamp && timestamp < Instant.now().toEpochMilli
+      val inPast = cc.timestamp <= timestamp
+      val inFuture = cc.timestamp >= Instant.now().toEpochMilli
+      val txTimestampIsAcceptable = !(inPast || inFuture)
 
 
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
+      } else if (!boxesAreNew) {
+        Failure(new Exception("ContractCreation attempts to overwrite existing contract"))
+      } else if(inPast) {
+        Failure(new Exception("ContractCreation attempts to write into the past"))
       } else {
-        Failure(new Exception("Boxes attempt to overwrite existing contract"))
+        Failure(new Exception("ContractCreation timestamp is too far into the future"))
       }
     }
 
@@ -251,49 +262,81 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @param cme: the ContractMethodExecution to validate
     * @return
     */
-  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = {
+  //noinspection ScalaStyle
+  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
 
     val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
 
-    //TODO fee verification
-
     /* Contract exists */
-    if(contractBytes.isEmpty) {
-      Failure(new NoSuchElementException(s"Contract ${cme.contractBox.id} does not exist"))
+    if(contractBytes.isEmpty)
+      throw new NoSuchElementException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist")
 
-    } else {
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
+    val contractProposition: MofNProposition = contractBox.proposition
+    val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
+    val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
 
-      val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-      val contractProposition: MofNProposition = contractBox.proposition
-      val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-      val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-      val profileBox = getProfileBox(cme.parties.values.head, "role").get
+    /* First check to see all roles are present */
+    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
+      /* Verify that this is being sent by this party because we rely on that during ContractMethodExecution */
+      sig.isValid(prop, cme.messageToSign)
+    }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
-      /* This person belongs to contract */
-      if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
-        Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
+    val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get }
 
-      /* Signature matches profilebox owner */
-      } else if (!cme.signatures.values.head.isValid(profileBox.proposition, cme.messageToSign)) {
-        Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} profileBox"))
+    /* This person belongs to contract */
+    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign))
+      throw new IllegalAccessException(s"Signature is invalid for contractBox")
 
-      /* Role provided by CME matches profilebox */
-      } else if (!profileBox.value.equals(cme.parties.keys.head.toString)) {
-        Failure(new IllegalAccessException(s"Role ${cme.parties.keys.head} for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
+    /* ProfileBox exists for all attempted signers */
+    if (roleBoxes.size != cme.signatures.size)
+      throw new IllegalAccessException(s"${Base58.encode(cme.parties.values.head.pubKeyBytes)} claimed ${cme.parties.keySet.head} role but didn't exist.")
 
-      /* Timestamp is after most recent block, not in future */
-      } else if (cme.timestamp <= timestamp || cme.timestamp > Instant.now.toEpochMilli) {
-        Failure(new Exception("Unacceptable timestamp"))
+    /* Signatures match each profilebox owner */
+    if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) })
+      throw new IllegalAccessException(s"Not all signatures are valid for provided role boxes")
 
-      } else if (effectiveDate > Instant.now.toEpochMilli) {
-        Failure(new Exception("Effective date hasn't passed"))
+    /* Roles provided by CME matches profileboxes */
+    if (!roleBoxes.forall(rb => rb.value match {
+      case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case "hub" => cme.parties.get(Role.Hub).isDefined && (cme.parties(Role.Hub).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case _ => false
+    }))
+      throw new IllegalAccessException(s"Not all roles are valid for signers")
 
-      } else {
-        semanticValidity(cme)
-      }
-
+    val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
+      cme.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
+        partialRes.flatMap(_ => closedBox(unlocker.closedBoxId) match {
+          case Some(box: PolyBox) =>
+            if (unlocker.boxKey.isValid(box.proposition, cme.messageToSign)) {
+              partialRes.get.get(box.proposition) match {
+                case Some(total) => Success(partialRes.get + (box.proposition -> (total + box.value)))
+                case None => Success(partialRes.get + (box.proposition -> box.value))
+              }
+            } else {
+              Failure(new Exception("Incorrect unlocker"))
+            }
+          case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+        })
+      })
     }
-  }
+
+    /* Incorrect unlocker or box provided, or not enough to cover declared fees */
+    if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cme.fees.get(prop) match {
+      case Some(fee) => amount >= fee
+      case None => true
+    }}) throw new Exception("Insufficient balances provided for fees")
+
+    /* Timestamp is after most recent block, not in future */
+    if (cme.timestamp <= timestamp)
+      throw new Exception("ContractMethodExecution attempts to write into the past")
+    if (cme.timestamp > Instant.now.toEpochMilli)
+      throw new Exception("ContractMethodExecution timestamp is too far into the future")
+    if (effectiveDate > Instant.now.toEpochMilli)
+      throw new Exception("Effective date hasn't passed")
+
+  }.flatMap(_ => semanticValidity(cme))
 
   /**
     *

@@ -283,9 +283,9 @@ class ContractMethodSpec extends PropSpec
         val result = Contract.execute(c, "currentStatus")(Gen.oneOf(Seq(c.Producer, c.Hub, c.Investor)).sample.get)(JsonObject.empty)
 
         result shouldBe a[Success[_]]
-        result.get shouldBe a[Left[_,_]]
-        result.get.left.get shouldBe a[Json]
-        result.get.left.get shouldBe c.storage("status").get
+        result.get shouldBe a[Right[_,_]]
+        result.get.right.get shouldBe a[Json]
+        result.get.right.get shouldBe c.storage("status").get
     }
   }
 

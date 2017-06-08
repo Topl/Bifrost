@@ -41,7 +41,7 @@ val loggingDependencies = Seq(
 val testingDependencies = Seq(
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "org.scalactic" %% "scalactic" % "3.0.1" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.2" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
@@ -59,13 +59,13 @@ libraryDependencies += "org.atnos" %% "eff-cats" % "2.0.+"
 
 libraryDependencies ++= Seq(
   "org.scalactic" %% "scalactic" % "3.0.1",
-  "org.scalatest" %% "scalatest" % "3.0.1",
+  "org.scalatest" %% "scalatest" % "3.0.2",
   "org.scalacheck" %% "scalacheck" % "1.13.+"
 )
 
 libraryDependencies ++= Seq(
   "org.scalactic" %% "scalactic" % "3.0.1" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.2" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
   "org.scorexfoundation" %% "iodb" % "0.3.+",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",

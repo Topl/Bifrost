@@ -67,7 +67,9 @@ trait ValidGenerators extends BifrostGenerators {
       }
     }
 
-    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
+    }
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement) ++
@@ -94,12 +96,12 @@ trait ValidGenerators extends BifrostGenerators {
   def createContractBox(agreement: Agreement,
                         status: String,
                         currentFulfillment: Map[String, Json],
-                        parties: IndexedSeq[PublicKey25519Proposition]): ContractBox = {
+                        parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
 
     val contract = Contract(Map(
-      "producer" -> Base58.encode(parties(0).pubKeyBytes).asJson,
-      "investor" -> Base58.encode(parties(1).pubKeyBytes).asJson,
-      "hub" -> Base58.encode(parties(2).pubKeyBytes).asJson,
+      "producer" -> Base58.encode(parties(Role.Producer).pubKeyBytes).asJson,
+      "investor" -> Base58.encode(parties(Role.Investor).pubKeyBytes).asJson,
+      "hub" -> Base58.encode(parties(Role.Hub).pubKeyBytes).asJson,
       "storage" -> Map(
         "status" -> status.asJson,
         "currentFulfillment" -> currentFulfillment.asJson,
@@ -109,16 +111,14 @@ trait ValidGenerators extends BifrostGenerators {
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
 
-    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+    val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
     ContractBox(proposition, positiveLongGen.sample.get, contract.json)
   }
 
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     methodName <- Gen.oneOf(validContractMethods)
-    parameters <- jsonArrayGen()
-    fee <- positiveLongGen
+    parameters <- jsonGen()
     timestamp <- positiveLongGen.map(_ / 3)
-    status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     effDelta <- positiveLongGen.map(_ / 3)
@@ -126,6 +126,7 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
 
@@ -133,7 +134,7 @@ trait ValidGenerators extends BifrostGenerators {
       Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
-      parties
+      roles.zip(parties).toMap
     )
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
@@ -144,7 +145,10 @@ trait ValidGenerators extends BifrostGenerators {
         case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
       }
     }
-    val fees = Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong)
+
+    val senderFeePreBoxes = feePreBoxes(sender._2._2)
+    val fees = Map(sender._2._2 -> (senderFeePreBoxes.map(_._2).sum -
+      Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, senderFeePreBoxes.map(_._2).sum))).sample.get))
 
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
@@ -181,10 +185,11 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, parties)
+    val contractBox = createContractBox(agreement, status, currentFulfillment, roles.zip(parties).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -198,11 +203,13 @@ trait ValidGenerators extends BifrostGenerators {
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
     val reputation = (0 until numReputation).map(_ =>
-      ReputationBox(parties(0), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
+      ReputationBox(parties(roles.indexOf(Role.Producer)), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
     )
 
     val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
-    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
+    }
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
@@ -220,7 +227,7 @@ trait ValidGenerators extends BifrostGenerators {
     ContractCompletion(
       contractBox,
       reputation,
-      IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
+      roles.zip(parties).toMap,
       parties.zip(signatures).toMap,
       feePreBoxes,
       fees,
