@@ -11,6 +11,7 @@ import org.scalacheck.Gen
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}
@@ -112,7 +113,39 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   }
 
   property("Attempting to validate a CME for a contract that doesn't exist should error") {
+    forAll(semanticallyValidContractMethodExecutionGen) {
+      cme: ContractMethodExecution =>
+        val block = BifrostBlock(
+          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+          Instant.now.toEpochMilli,
+          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Seq(cme)
+        )
 
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val box = cme.newBoxes.head.asInstanceOf[ContractBox]
+        val deductedFeeBoxes: Traversable[PolyBox] = cme.newBoxes.tail.map {
+          case p: PolyBox => p
+          case _ => throw new Exception("Was expecting PolyBoxes but found something else")
+        }
+
+        val boxBytes = ContractBoxSerializer.toBytes(box)
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cme)
+
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe s"Contract ${Base58.encode(cme.contractBox.id)} does not exist"
+    }
   }
 
   property("Attempting to validate a CME with a timestamp too far in the future should error") {

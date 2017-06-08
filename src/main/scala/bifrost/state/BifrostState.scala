@@ -268,7 +268,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* Contract exists */
     if(contractBytes.isEmpty) {
-      Failure(new NoSuchElementException(s"Contract ${cme.contractBox.id} does not exist"))
+      Failure(new NoSuchElementException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist"))
 
     } else {
 
