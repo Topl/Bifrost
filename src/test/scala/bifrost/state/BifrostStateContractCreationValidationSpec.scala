@@ -50,7 +50,6 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
 
-
     ContractCreation(
       agreement,
       parties,

@@ -19,6 +19,8 @@ import scorex.core.transaction.state.PrivateKey25519Companion
 import io.circe.syntax._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 
+import scala.util.Random
+
 class ContractMethodExecutionSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
@@ -54,6 +56,7 @@ class ContractMethodExecutionSpec extends PropSpec
     } yield {
       val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
       val parties = allKeyPairs.map(_._2)
+      val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
       val currentFulfillment = Map[String, Json]()
 
@@ -61,7 +64,7 @@ class ContractMethodExecutionSpec extends PropSpec
         Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
         "initialized",
         currentFulfillment,
-        parties
+        roles.zip(parties).toMap
       )
 
       val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
@@ -111,6 +114,7 @@ class ContractMethodExecutionSpec extends PropSpec
     } yield {
       val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
       val parties = allKeyPairs.map(_._2)
+      val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
       val currentFulfillment = Map[String, Json]()
 
@@ -118,7 +122,7 @@ class ContractMethodExecutionSpec extends PropSpec
         Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
         "expired",
         currentFulfillment,
-        parties
+        roles.zip(parties).toMap
       )
 
       val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
