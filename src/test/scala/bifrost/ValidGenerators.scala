@@ -115,10 +115,8 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     methodName <- Gen.oneOf(validContractMethods)
-    parameters <- jsonArrayGen()
-    fee <- positiveLongGen
+    parameters <- jsonGen()
     timestamp <- positiveLongGen.map(_ / 3)
-    status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     effDelta <- positiveLongGen.map(_ / 3)

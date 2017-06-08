@@ -81,10 +81,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
-    val boxIdsToRemove = changes.boxIdsToRemove.map(ByteArrayWrapper.apply)
-
-    // TODO check if b.bytes screws up compared to BifrostBoxCompanion.toBytes
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
     log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
@@ -291,9 +291,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         Failure(new IllegalAccessException(s"Role ${cme.parties.keys.head} for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
 
       /* Timestamp is after most recent block, not in future */
-      } else if (cme.timestamp <= timestamp || cme.timestamp > Instant.now.toEpochMilli) {
-        Failure(new Exception("Unacceptable timestamp"))
-
+      } else if (cme.timestamp <= timestamp) {
+        Failure(new Exception("ContractMethodExecution attempts to write into the past"))
+      } else if (cme.timestamp > Instant.now.toEpochMilli) {
+        Failure(new Exception("ContractMethodExecution timestamp is too far into the future"))
       } else if (effectiveDate > Instant.now.toEpochMilli) {
         Failure(new Exception("Effective date hasn't passed"))
 

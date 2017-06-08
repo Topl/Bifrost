@@ -238,8 +238,8 @@ object Contract {
         val res = rm.reflect(c).reflectMethod(m)(params:_*)
 
         res match {
-          case c: Success[Contract] => Left(c.value)
-          case j: Success[Json] => Right(j.value)
+          case Success(c: Contract) => Left(c)
+          case Success(j: Json) => Right(j)
           case f: Failure[_] => throw f.exception
         }
 
