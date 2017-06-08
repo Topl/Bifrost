@@ -1,14 +1,17 @@
 package bifrost.history
 
+import io.circe._
+import io.circe.syntax._
 import com.google.common.primitives.Longs
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
-import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.{BifrostTransaction, TransactionReceipt}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.Transaction
 import scorex.core.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 
 import scala.util.{Failure, Try}
@@ -40,12 +43,13 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     }
   }
 
-  def transactionById(transactionId: ModifierId): Option[BifrostTransaction] = {
+  def transactionById(transactionId: ModifierId): Option[TransactionReceipt] = {
     storage.get(ByteArrayWrapper(transactionId)).flatMap { bw =>
       val bytes = bw.data
       require(bytes.head == Transaction.ModifierTypeId)
       val blockId = bytes.tail
-      Option(modifierById(blockId).get.txs.filter(_.id sameElements transactionId).head)
+      val tx = modifierById(blockId).get.txs.filter(_.id sameElements transactionId).head
+      Option(TransactionReceipt(tx, blockId))
     }
   }
 

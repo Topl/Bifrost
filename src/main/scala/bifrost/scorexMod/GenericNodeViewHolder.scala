@@ -7,6 +7,7 @@ import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
+import bifrost.transaction.TransactionReceipt
 import scorex.core.network.ConnectedPeer
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.Proposition
