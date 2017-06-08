@@ -75,7 +75,32 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   }
 
   property("Attempting to validate a CME without valid signatures should error") {
+    forAll(semanticallyValidContractMethodExecutionGen) {
+      cme: ContractMethodExecution =>
 
+        val wrongSig: Array[Byte] = (cme.signatures.head._2.bytes.head + 1).toByte +: cme.signatures.head._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cme.signatures + (cme.signatures.head._1 -> Signature25519(wrongSig))
+        val invalidCME = cme.copy(signatures = wrongSigs)
+
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cme.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(invalidCME)
+
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "Signature is invalid for contractBox"
+    }
   }
 
   property("Attempting to validate a CME with a party that is not part of the contract should error") {

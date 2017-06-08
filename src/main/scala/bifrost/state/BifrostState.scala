@@ -199,8 +199,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get.value }
 
     if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
-      log.debug("Not all roles were fulfilled for this transaction")
-      return Failure(new Exception("Not all roles were fulfilled for this transaction"))
+      log.debug("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid.")
+      return Failure(new Exception("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."))
     } else if (roleBoxes.size > 3) {
       log.debug("Too many signatures for the parties of this transaction")
       return Failure(new Exception("Too many signatures for the parties of this transaction"))

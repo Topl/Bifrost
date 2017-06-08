@@ -140,6 +140,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."
     }
   }
 
@@ -164,7 +165,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
         newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe "Not all roles were fulfilled for this transaction"
+        newState.failed.get.getMessage shouldBe "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."
     }
   }
 
