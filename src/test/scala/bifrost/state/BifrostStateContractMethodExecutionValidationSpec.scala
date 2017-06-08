@@ -324,4 +324,5 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   property("Attempting to validate a CME with nonexistent fee boxes should error") {
     //TODO
   }
+  
 }

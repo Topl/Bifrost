@@ -67,7 +67,9 @@ trait ValidGenerators extends BifrostGenerators {
       }
     }
 
-    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
+    }
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement) ++
@@ -143,7 +145,10 @@ trait ValidGenerators extends BifrostGenerators {
         case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
       }
     }
-    val fees = Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong)
+
+    val senderFeePreBoxes = feePreBoxes(sender._2._2)
+    val fees = Map(sender._2._2 -> (senderFeePreBoxes.map(_._2).sum -
+      Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, senderFeePreBoxes.map(_._2).sum))).sample.get))
 
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
@@ -202,7 +207,9 @@ trait ValidGenerators extends BifrostGenerators {
     )
 
     val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
-    val fees = parties.map(_ -> positiveTinyIntGen.sample.get.toLong).toMap
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
+    }
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++

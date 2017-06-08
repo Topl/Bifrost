@@ -80,6 +80,20 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 
 object ContractTransaction {
   type Nonce = Long
+
+  def commonValidation(tx: ContractTransaction): Unit = {
+    require(tx.fees.values.sum >= 0)
+    tx.fees.values.foreach(v => require(v >= 0))
+
+    require(tx.feePreBoxes.forall { case (prop, preBoxes) => preBoxes.map(_._2).sum >= 0 && preBoxes.forall(_._2 >= 0)})
+
+    require(tx.feePreBoxes.forall { case (prop, preBoxes) => tx.fees.get(prop) match {
+      case Some(fee) => preBoxes.map(_._2).sum >= fee
+      case None => false
+    }})
+
+    require(tx.timestamp >= 0)
+  }
 }
 
 object Role extends Enumeration {
@@ -150,17 +164,16 @@ object ContractCreation {
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
-    val outcome= Agreement.validate(tx.agreement)
+    val outcome = Agreement.validate(tx.agreement)
     require(Agreement.validate(tx.agreement).isSuccess)
 
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
     require(tx.parties.keys.toSet.size == 3) // Make sure there are exactly 3 unique roles
-    require(tx.fees.values.sum >= 0)
-    tx.fees.values.foreach(v => require(v >= 0))
-    require(tx.timestamp >= 0)
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
     })
+
+    ContractTransaction.commonValidation(tx)
   }
 
 }
@@ -247,20 +260,21 @@ object ContractMethodExecution {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: ContractMethodExecution): Try[Unit] = Try {
-    require(tx.fees.values.sum >= 0)
-    tx.fees.values.foreach(v => require(v >= 0))
-    require(tx.timestamp >= 0)
-    require(tx.parties.keys.size == 1)
+
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
         MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
     })
+
+    require(tx.parties.keys.size == 1)
 
     val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
     val expDate = tx.contract.agreement("expirationTimestamp").get.asNumber.get.toLong.get
 
     require(tx.timestamp >= effDate)
     require(tx.timestamp < expDate)
+
+    ContractTransaction.commonValidation(tx)
   }
 
 }
@@ -356,9 +370,7 @@ object ContractCompletion {
 
   def validate(tx: ContractCompletion): Try[Unit] = Try {
     require(tx.signatures.size == 3)
-    require(tx.fees.values.sum >= 0)
-    tx.fees.values.foreach(v => require(v >= 0))
-    require(tx.timestamp >= 0)
+
     require(tx.parties forall { case (_, proposition) =>
       val sig = Set(tx.signatures(proposition))
       val multiSig = MultiSignature25519(sig)
@@ -367,6 +379,8 @@ object ContractCompletion {
 
         first && second
     })
+
+    ContractTransaction.commonValidation(tx)
   }
 
 }
