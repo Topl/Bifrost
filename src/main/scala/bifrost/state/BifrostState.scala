@@ -263,66 +263,80 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @return
     */
   //noinspection ScalaStyle
-  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = {
+  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
 
     val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
 
-    //TODO fee verification
-
     /* Contract exists */
-    if(contractBytes.isEmpty) {
-      Failure(new NoSuchElementException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist"))
+    if(contractBytes.isEmpty)
+      throw new NoSuchElementException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist")
 
-    } else {
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
+    val contractProposition: MofNProposition = contractBox.proposition
+    val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
+    val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
 
-      val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-      val contractProposition: MofNProposition = contractBox.proposition
-      val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-      val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
+    /* First check to see all roles are present */
+    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
+      /* Verify that this is being sent by this party because we rely on that during ContractMethodExecution */
+      sig.isValid(prop, cme.messageToSign)
+    }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
-      /* First check to see all roles are present */
-      val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
-        // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
-        sig.isValid(prop, cme.messageToSign)
-      }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
+    val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get }
 
-      val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get }
+    /* This person belongs to contract */
+    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign))
+      throw new IllegalAccessException(s"Signature is invalid for contractBox")
 
-      /* This person belongs to contract */
-      if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
-        Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
+    /* ProfileBox exists for all attempted signers */
+    if (roleBoxes.size != cme.signatures.size)
+      throw new IllegalAccessException(s"${Base58.encode(cme.parties.values.head.pubKeyBytes)} claimed ${cme.parties.keySet.head} role but didn't exist.")
 
-      /* ProfileBox exists for all attempted signers */
-      } else if (roleBoxes.size != cme.signatures.size) {
-        Failure(new IllegalAccessException(s"${Base58.encode(cme.parties.values.head.pubKeyBytes)} claimed ${cme.parties.keySet.head} role but didn't exist."))
+    /* Signatures match each profilebox owner */
+    if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) })
+      throw new IllegalAccessException(s"Not all signatures are valid for provided role boxes")
 
-      /* Signatures match each profilebox owner */
-      } else if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) }) {
-        Failure(new IllegalAccessException(s"Not all signatures are valid for provided role boxes"))
+    /* Roles provided by CME matches profileboxes */
+    if (!roleBoxes.forall(rb => rb.value match {
+      case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case "hub" => cme.parties.get(Role.Hub).isDefined && (cme.parties(Role.Hub).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+      case _ => false
+    }))
+      throw new IllegalAccessException(s"Not all roles are valid for signers")
 
-      /* Roles provided by CME matches profileboxes */
-      } else if (!roleBoxes.forall(rb => rb.value match {
-        case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-        case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-        case "hub" => cme.parties.get(Role.Hub).isDefined && (cme.parties(Role.Hub).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-        case _ => false
-      })) {
-        Failure(new IllegalAccessException(s"Not all roles are valid for signers"))
-
-      /* Timestamp is after most recent block, not in future */
-      } else if (cme.timestamp <= timestamp) {
-        Failure(new Exception("ContractMethodExecution attempts to write into the past"))
-      } else if (cme.timestamp > Instant.now.toEpochMilli) {
-        Failure(new Exception("ContractMethodExecution timestamp is too far into the future"))
-      } else if (effectiveDate > Instant.now.toEpochMilli) {
-        Failure(new Exception("Effective date hasn't passed"))
-
-      } else {
-        semanticValidity(cme)
-      }
-
+    val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
+      cme.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
+        partialRes.flatMap(_ => closedBox(unlocker.closedBoxId) match {
+          case Some(box: PolyBox) =>
+            if (unlocker.boxKey.isValid(box.proposition, cme.messageToSign)) {
+              partialRes.get.get(box.proposition) match {
+                case Some(total) => Success(partialRes.get + (box.proposition -> (total + box.value)))
+                case None => Success(partialRes.get + (box.proposition -> box.value))
+              }
+            } else {
+              Failure(new Exception("Incorrect unlocker"))
+            }
+          case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+        })
+      })
     }
-  }
+
+    /* Incorrect unlocker or box provided, or not enough to cover declared fees */
+    if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cme.fees.get(prop) match {
+      case Some(fee) => amount >= fee
+      case None => true
+    }}) throw new Exception("Insufficient balances provided for fees")
+
+    /* Timestamp is after most recent block, not in future */
+    if (cme.timestamp <= timestamp)
+      throw new Exception("ContractMethodExecution attempts to write into the past")
+    if (cme.timestamp > Instant.now.toEpochMilli)
+      throw new Exception("ContractMethodExecution timestamp is too far into the future")
+    if (effectiveDate > Instant.now.toEpochMilli)
+      throw new Exception("Effective date hasn't passed")
+
+  }.flatMap(_ => semanticValidity(cme))
 
   /**
     *

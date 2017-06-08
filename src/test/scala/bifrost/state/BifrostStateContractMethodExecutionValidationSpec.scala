@@ -322,7 +322,34 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   }
 
   property("Attempting to validate a CME with nonexistent fee boxes should error") {
-    //TODO
+    forAll(semanticallyValidContractMethodExecutionGen) {
+      cme: ContractMethodExecution =>
+        val block = BifrostBlock(
+          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+          Instant.now.toEpochMilli,
+          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Seq(cme)
+        )
+
+        val profileBoxes: Set[BifrostBox] = cme.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          profileBoxes + cme.contractBox,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cme)
+
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "Insufficient balances provided for fees"
+    }
   }
-  
+
 }
