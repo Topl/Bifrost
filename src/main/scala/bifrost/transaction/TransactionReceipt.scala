@@ -14,6 +14,7 @@ import scorex.crypto.encode.Base58
 case class TransactionReceipt(tx: BifrostTransaction, blockHash: Array[Byte]) extends NodeViewModifier {
   override type M = TransactionReceipt
   override val id = tx.id
+  
   override val modifierTypeId: ModifierTypeId = 5: Byte
   override val serializer = tx.serializer.asInstanceOf[Serializer[this.M]]
   override val json: Json = tx.json.asObject.get.add("blockHash", Base58.encode(blockHash).asJson).asJson
