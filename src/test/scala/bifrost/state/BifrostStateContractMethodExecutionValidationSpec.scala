@@ -21,7 +21,6 @@ import scala.util.{Failure, Random}
 class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec {
 
   property("A block with valid CME will result in a contract entry and updated poly boxes in the LSMStore") {
-    // Create block with contract creation
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -43,7 +42,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          Set(cme.contractBox) ++ preExistingPolyBoxes,
+          preExistingPolyBoxes + cme.contractBox,
           Instant.now.toEpochMilli
         )
 
@@ -98,7 +97,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes,
+          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
           cme.timestamp + Gen.choose(1L, Long.MaxValue - cme.timestamp - 1L).sample.get
         )
 
@@ -117,7 +116,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   }
 
   property("Attempting to validate a CME with a timestamp too far in the future should error") {
-    forAll(semanticallyValidContractMethodExecutionGen) {
+    forAll(semanticallyValidContractMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
       cme: ContractMethodExecution =>
         val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
@@ -126,14 +125,12 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes,
+          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
           Instant.now.toEpochMilli
         )
 
         val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.validate(
-          cme.copy(timestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get)
-        )
+        val newState = preparedState.validate(cme)
 
         BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
