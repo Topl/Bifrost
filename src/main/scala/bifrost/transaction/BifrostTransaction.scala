@@ -58,11 +58,14 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
   lazy val feeBoxUnlockers = feeBoxIdKeyPairs.map { case (boxId: Array[Byte], owner: PublicKey25519Proposition) =>
     new BoxUnlocker[PublicKey25519Proposition] {
       override val closedBoxId: Array[Byte] = boxId
-      override val boxKey: Signature25519 = signatures(owner)
+      override val boxKey: Signature25519 = signatures.get(owner) match {
+        case Some(sig) => sig
+        case None => Signature25519(Array[Byte]())
+      }
     }
   }
 
-  def deductedFeeBoxes(hashNoNonces: Array[Byte]) = {
+  def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
     val canSend = feePreBoxes.mapValues(_.map(_._2).sum)
     val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map { case (prop, amount) => prop -> (amount - fees(prop)) }
     preboxesLessFees.zipWithIndex.map {
@@ -189,7 +192,10 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
       override val closedBoxId: Array[Byte] = contractBox.id
-      override val boxKey: Proof[MofNProposition] = MultiSignature25519(Set(signatures(parties.values.head)))
+      override val boxKey: Proof[MofNProposition] = MultiSignature25519(parties.values.map(p => signatures.get(p) match {
+        case Some(sig) => sig
+        case None => Signature25519(Array[Byte]())
+      }).toSet)
     }
   ) ++ feeBoxUnlockers
 

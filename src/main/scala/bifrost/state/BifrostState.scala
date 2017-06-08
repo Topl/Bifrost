@@ -56,8 +56,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
   private def getProfileBox(prop: PublicKey25519Proposition, field: String): Try[ProfileBox] = {
-    val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field)))
-    ProfileBoxSerializer.parseBytes(boxBytes.get.data)
+    storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field))) match {
+      case Some(bytes) => ProfileBoxSerializer.parseBytes(bytes.data)
+      case None => Failure(new Exception(s"Couldn't find profile box for ${Base58.encode(prop.pubKeyBytes)} with field <$field>"))
+    }
   }
 
   override def closedBox(boxId: Array[Byte]): Option[BX] =
@@ -260,6 +262,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @param cme: the ContractMethodExecution to validate
     * @return
     */
+  //noinspection ScalaStyle
   def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = {
 
     val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
@@ -276,19 +279,35 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val contractProposition: MofNProposition = contractBox.proposition
       val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
       val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-      val profileBox = getProfileBox(cme.parties.values.head, "role").get
+
+      /* First check to see all roles are present */
+      val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
+        // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
+        sig.isValid(prop, cme.messageToSign)
+      }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
+
+      val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get }
 
       /* This person belongs to contract */
       if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
         Failure(new IllegalAccessException(s"Signature is invalid for contractBox"))
 
-      /* Signature matches profilebox owner */
-      } else if (!cme.signatures.values.head.isValid(profileBox.proposition, cme.messageToSign)) {
-        Failure(new IllegalAccessException(s"Signature is invalid for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} profileBox"))
+      /* ProfileBox exists for all attempted signers */
+      } else if (roleBoxes.size != cme.signatures.size) {
+        Failure(new IllegalAccessException(s"${Base58.encode(cme.parties.values.head.pubKeyBytes)} claimed ${cme.parties.keySet.head} role but didn't exist."))
 
-      /* Role provided by CME matches profilebox */
-      } else if (!profileBox.value.equals(cme.parties.keys.head.toString)) {
-        Failure(new IllegalAccessException(s"Role ${cme.parties.keys.head} for ${Base58.encode(cme.parties.values.head.pubKeyBytes)} does not match ${profileBox.value} in profileBox"))
+      /* Signatures match each profilebox owner */
+      } else if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) }) {
+        Failure(new IllegalAccessException(s"Not all signatures are valid for provided role boxes"))
+
+      /* Roles provided by CME matches profileboxes */
+      } else if (!roleBoxes.forall(rb => rb.value match {
+        case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+        case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+        case "hub" => cme.parties.get(Role.Hub).isDefined && (cme.parties(Role.Hub).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
+        case _ => false
+      })) {
+        Failure(new IllegalAccessException(s"Not all roles are valid for signers"))
 
       /* Timestamp is after most recent block, not in future */
       } else if (cme.timestamp <= timestamp) {

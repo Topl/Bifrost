@@ -23,6 +23,7 @@ import scala.util.{Failure, Random}
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
+//noinspection ScalaStyle
 class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec {
 
   //noinspection ScalaStyle
@@ -31,14 +32,13 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     parameters <- jsonGen()
     timestamp <- positiveLongGen.map(_ / 3)
     deliveredQuantity <- positiveLongGen
-    numFeeBoxes <- positiveTinyIntGen
     effDelta <- positiveLongGen.map(_ / 3)
     expDelta <- positiveLongGen.map(_ / 3)
   } yield {
     val allKeyPairs = (0 until num + (3 - numInContract)).map(_ => keyPairSetGen.sample.get.head)
 
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-    val parties = (allKeyPairs.map(_._2) zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
+    val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
 
@@ -46,43 +46,46 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
       Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
-      parties.take(num).toMap
+      parties.take(3).map(t => t._1 -> t._2._2).toMap
     )
 
-    val sender = Gen.oneOf(roles.zip(allKeyPairs.take(3))).sample.get
+    val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
-    val feePreBoxes = Map((sender._2)._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get })
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+    val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen.sample.get }).toMap
+    val feeBoxIdKeyPairs: Map[Array[Byte], PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
       v.map {
-        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+        case (nonce, amount) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
       }
     }
-    val fees = Map((sender._2)._2 -> positiveTinyIntGen.sample.get.toLong)
+    val fees = feePreBoxes.map { case (prop, preBoxes) =>
+      prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
+    }
 
+    // TODO create object method to get dummy tx to automatically grab messageToSign
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
         methodName.getBytes ++
-        sender._2._2.pubKeyBytes ++
+        parties.take(numInContract).flatMap(_._2._2.pubKeyBytes) ++
         parameters.noSpaces.getBytes ++
         (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
         Longs.toByteArray(timestamp) ++
-        fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+        fees.flatMap { case (prop, amount) => prop.pubKeyBytes ++ Longs.toByteArray(amount) }
     )
 
     val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
-    val signature = PrivateKey25519Companion.sign((sender._2)._1, messageToSign)
+    val sigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = allKeyPairs.take(numInContract).map(t => t._2 -> PrivateKey25519Companion.sign(t._1, messageToSign))
     var extraSigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = IndexedSeq()
 
     if(num - numInContract > 0) {
-      extraSigs = allKeyPairs.slice(4, allKeyPairs.length).map(t => t._2 -> PrivateKey25519Companion.sign(t._1, messageToSign))
+      extraSigs = parties.slice(3, parties.length).map(t => t._2._2 -> PrivateKey25519Companion.sign(t._2._1, messageToSign))
     }
 
     ContractMethodExecution(
       contractBox,
       methodName,
       parameters,
-      Map(sender._1 -> sender._2._2),
-      Map(sender._2._2 -> signature) ++ extraSigs.toMap,
+      parties.take(numInContract).map(t => t._1 -> t._2._2).toMap,
+      (sigs ++ extraSigs).toMap,
       feePreBoxes,
       fees,
       timestamp
@@ -172,12 +175,65 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   }
 
   property("Attempting to validate a CME with a party that is not part of the contract should error") {
+    forAll(arbitraryPartyContractMethodExecutionGen(num = 1, numInContract = 0)) {
+      cme: ContractMethodExecution =>
+        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cme.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet ++
+          ((cme.signatures.keySet -- cme.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+            ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
+          )
 
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes + cme.contractBox,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cme)
+
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe s"Signature is invalid for contractBox"
+    }
   }
 
   //noinspection ScalaStyle
   property("Attempting to validate a CME with too many signatures (versus parties) should error") {
+    forAll(arbitraryPartyContractMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInContract = 1)) {
+      cme: ContractMethodExecution =>
+        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val profileBoxes: Set[ProfileBox] = cme.parties.map {
+          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        }.toSet ++
+          ((cme.signatures.keySet -- cme.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+            ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
+          )
 
+        val necessaryBoxesSC = BifrostStateChanges(
+          Set(),
+          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
+          Instant.now.toEpochMilli
+        )
+
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val newState = preparedState.validate(cme)
+
+        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+
+        newState shouldBe a[Failure[_]]
+
+        val failMessage = newState.failed.get.getMessage
+
+        /* This can have two outputs, since we can't know exactly how the extra signatures were 'role-d'. Either we get it right, and the signatures
+           are not part of the contract, or we get it wrong, and the roles are not valid */
+        require(failMessage == "Signature is invalid for contractBox" || failMessage == "Not all roles are valid for signers")
+    }
   }
 
   property("Attempting to validate a CME with a timestamp that is before the last block timestamp should error") {
@@ -263,5 +319,9 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution timestamp is too far into the future"
     }
+  }
+
+  property("Attempting to validate a CME with nonexistent fee boxes should error") {
+    //TODO
   }
 }
