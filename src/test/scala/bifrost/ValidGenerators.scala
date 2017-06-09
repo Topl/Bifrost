@@ -96,6 +96,7 @@ trait ValidGenerators extends BifrostGenerators {
   def createContractBox(agreement: Agreement,
                         status: String,
                         currentFulfillment: Map[String, Json],
+                        currentEndorsement: Map[String, Json],
                         parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
 
     val contract = Contract(Map(
@@ -105,6 +106,7 @@ trait ValidGenerators extends BifrostGenerators {
       "storage" -> Map(
         "status" -> status.asJson,
         "currentFulfillment" -> currentFulfillment.asJson,
+        "endorsements" -> currentEndorsement.asJson,
         "other" -> jsonGen().sample.get
       ).asJson,
       "agreement" -> agreement.json,
@@ -129,11 +131,13 @@ trait ValidGenerators extends BifrostGenerators {
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
+    val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
       Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
+      currentEndorsement,
       roles.zip(parties).toMap
     )
 
@@ -188,8 +192,11 @@ trait ValidGenerators extends BifrostGenerators {
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
+    val currentEndorsement = parties.map(p =>
+      Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
+    ).toMap
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, status, currentFulfillment, currentEndorsement, roles.zip(parties).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 

@@ -29,8 +29,9 @@ class BifrostStateSpec extends PropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators
-  with BeforeAndAfterAll{
+  with BeforeAndAfterAll {
 
+  // TODO write a test that simulates the entire contract process
 
   //noinspection ScalaStyle
   property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {

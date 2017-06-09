@@ -59,11 +59,13 @@ class ContractMethodExecutionSpec extends PropSpec
       val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
       val currentFulfillment = Map[String, Json]()
+      val currentEndorsement = Map[String, Json]()
 
       val contractBox = createContractBox(
         Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
         "initialized",
         currentFulfillment,
+        currentEndorsement,
         roles.zip(parties).toMap
       )
 
@@ -117,11 +119,13 @@ class ContractMethodExecutionSpec extends PropSpec
       val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
       val currentFulfillment = Map[String, Json]()
+      val currentEndorsement = Map[String, Json]()
 
       val contractBox = createContractBox(
         Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
         "expired",
         currentFulfillment,
+        currentEndorsement,
         roles.zip(parties).toMap
       )
 

@@ -351,69 +351,95 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* Contract exists */
     if (contractBytes.isEmpty)
-      Failure(new NoSuchElementException(s"Contract ${cc.contractBox.id} does not exist"))
+      Failure(new NoSuchElementException(s"Contract ${Base58.encode(cc.contractBox.id)} does not exist"))
 
     else {
       val contractJson: Json = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.json
       val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.proposition
 
+
       /* Checking that all of the parties are part of the contract and have claimed roles */
       val verifyParties = Try {
-        require(cc.parties.map {
-          case (role, proposition) =>
-            val profileBox = getProfileBox(proposition, "role").get
+        val parties = cc.signatures.map {
+          case (prop, sig) =>
+            val profileBox = getProfileBox(prop, "role") match {
+              case Success(pb) => pb
+              case Failure(_) => throw new IllegalAccessException(s"Role does not exist")
+            }
+
+            val claimedRole = cc.parties.find(_._2.pubKeyBytes sameElements prop.pubKeyBytes) match {
+              case Some(role) => role._1
+              case None => throw new Exception("Unexpected signature for this transaction")
+            }
 
             /* This person belongs to contract */
-            if (!MultiSignature25519(Set(cc.signatures(proposition))).isValid(contractProposition, cc.messageToSign))
+            if (!MultiSignature25519(Set(sig)).isValid(contractProposition, cc.messageToSign))
               throw new IllegalAccessException(s"Signature is invalid for contractBox")
 
             /* Signature matches profilebox owner */
-            else if (!cc.signatures(proposition).isValid(profileBox.proposition, cc.messageToSign))
-              throw new IllegalAccessException(s"Signature is invalid for ${Base58.encode(proposition.pubKeyBytes)} profileBox")
+            else if (!sig.isValid(profileBox.proposition, cc.messageToSign))
+              throw new IllegalAccessException(s"Signature is invalid for ${Base58.encode(prop.pubKeyBytes)} profileBox")
 
             /* Role provided by cc matches profilebox */
-            else if (!profileBox.value.equals(role.toString))
-              throw new IllegalAccessException(s"Role $role for ${Base58.encode(proposition.pubKeyBytes)} does not match ${profileBox.value} in profileBox")
+            else if (!profileBox.value.equals(claimedRole.toString))
+              throw new IllegalAccessException(s"Role ${claimedRole.toString} for ${Base58.encode(prop.pubKeyBytes)} does not match ${profileBox.value} in profileBox")
 
-            role
+            claimedRole
+        }
 
-          /* Checking that all the roles are represented */
-        }.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer)))
+        /* Checking that all the roles are represented */
+        if (!parties.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer)))
+          throw new IllegalAccessException("Not all roles present")
       }
 
       if (verifyParties.isFailure) verifyParties
 
-      /* Make sure timestamp is after most recent block, not in future */
-      else if (cc.timestamp <= timestamp || timestamp >= Instant.now().toEpochMilli)
-        Failure(new Exception("Unacceptable timestamp"))
+      else if (cc.timestamp <= timestamp) {
+        Failure(new Exception("ContractCompletion attempts to write into the past"))
+
+      } else if (cc.timestamp >= Instant.now.toEpochMilli) {
+        Failure(new Exception("ContractCompletion timestamp is too far in the future"))
 
       /* Contract is in completed state, waiting for completion */
-      else {
+      } else {
         val endorsementsJsonObj: JsonObject = cc.contract.storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
         val endorseAttempt = endorsementsJsonObj(Base58.encode(cc.parties.head._2.pubKeyBytes))
 
-        val allEndorsedAndAgree = Try {
-          cc.parties.tail.foldLeft(endorseAttempt.get.asString.get)((a, b) => {
-            require(endorsementsJsonObj(Base58.encode(b._2.pubKeyBytes)).get.asString.get == a)
-            a
-          })
+        endorseAttempt match {
+          case Some(endorsed) =>
+            val allEndorsedAndAgree = Try {
+              cc.parties.tail.foldLeft(endorseAttempt.get.asString.get)((a, b) => {
+                endorsementsJsonObj(Base58.encode(b._2.pubKeyBytes)) match {
+                  case Some(endorsement) =>
+                    if(endorsement.asString.get equals a) a
+                    else throw new Exception("Contract completion endorsements are not all for the same status")
+                  case None =>
+                    throw new Exception("Contract completion has not yet been endorsed by all parties")
+                }
+              })
+            }
+
+            val producerProposition = cc.parties(Role.Producer)
+            val producerReputationIsValid = Try {
+              cc.producerReputation.foreach(claimedBox => {
+                closedBox(claimedBox.id) match {
+                  case Some(b: ReputationBox) =>
+                    if (b.proposition != producerProposition)
+                      throw new Exception(s"Claimed reputation box had proposition $producerProposition but actually had ${b.proposition}")
+
+                    if (b.value != claimedBox.value)
+                      throw new Exception(s"Claimed reputation box with value ${claimedBox.value} but actually had ${b.value}")
+
+                  case None => throw new Exception("Reputation box not found")
+                  case Some(o) => throw new Exception(s"Reputation box expected, found ${o.typeOfBox} instead")
+                }
+
+              })
+            }
+            allEndorsedAndAgree.flatMap(_ => producerReputationIsValid).flatMap(_ => semanticValidity(cc))
+
+          case None => throw new Exception(s"Contract completion has not yet been endorsed by all parties")
         }
-
-        val producerProposition = cc.parties.find(_._1 == Role.Producer).map(_._2).get
-        val producerReputationIsValid = Try {
-          cc.producerReputation.foreach(claimedBox => {
-            val box: ReputationBox = closedBox(claimedBox.id).get.asInstanceOf[ReputationBox]
-
-            if (box.proposition != producerProposition)
-              throw new Exception(s"Claimed reputation box had proposition $producerProposition but actually had ${box.proposition}")
-
-            if (box.value != claimedBox.value)
-              throw new Exception(s"Claimed reputation box with value ${claimedBox.value} but actually had ${box.value}")
-
-          })
-        }
-
-        allEndorsedAndAgree.flatMap(_ => producerReputationIsValid).flatMap(_ => semanticValidity(cc))
       }
     }
   }
