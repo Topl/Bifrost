@@ -7,6 +7,7 @@ import bifrost.contract.Agreement
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.{Ints, Longs}
+import io.circe.Json
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -41,11 +42,13 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
+    val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
       Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
+      currentEndorsement,
       parties.take(3).map(t => t._1 -> t._2._2).toMap
     )
 

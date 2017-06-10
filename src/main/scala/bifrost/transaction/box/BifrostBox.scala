@@ -29,6 +29,8 @@ abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey255
 
   lazy val publicKey = proposition
 
+  val typeOfBox: String
+
   val json: Json
 
   override def equals(obj: Any): Boolean = obj match {
@@ -134,6 +136,7 @@ case class ContractBox(proposition: MofNProposition,
                        override val nonce: Long,
                        value: Json) extends BifrostBox(proposition, nonce, value) {
 
+  val typeOfBox = "ContractBox"
   lazy val id: Array[Byte] = FastCryptographicHash(
     MofNPropositionSerializer.toBytes(proposition) ++
     Longs.toByteArray(nonce) ++
@@ -205,6 +208,8 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
                       value: String,
                       key: String) extends BifrostBox(proposition, nonce, value) {
   lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, key)
+
+  val typeOfBox = "ProfileBox"
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,

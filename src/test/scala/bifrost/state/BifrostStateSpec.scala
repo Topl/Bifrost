@@ -31,8 +31,9 @@ class BifrostStateSpec extends PropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators
-  with BeforeAndAfterAll{
+  with BeforeAndAfterAll {
 
+  // TODO write a test that simulates the entire contract process
 
   val initialBalance = 100000000L
   //noinspection ScalaStyle
