@@ -498,9 +498,12 @@ trait TransferUtil {
 
   def validateTx(tx: TransferTransaction): Try[Unit] = Try {
     require(tx.from.size == tx.signatures.size)
-    require(tx.to.forall(_._2 >= 0))
+    require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
+    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
+      proof.isValid(prop, tx.messageToSign)
+    })
   }
 }
 
@@ -547,12 +550,7 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }
 
-  def validate(tx: PolyTransfer): Try[Unit] = Try {
-    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
-      proof.isValid(prop, tx.messageToSign)
-    })
-    validateTx(tx)
-  }
+  def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
 }
 
 case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
@@ -596,12 +594,7 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }
 
-  def validate(tx: ArbitTransfer): Try[Unit] = Try {
-    require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
-      proof.isValid(prop, tx.messageToSign)
-    })
-    validateTx(tx)
-  }
+  def validate(tx: ArbitTransfer): Try[Unit] = validateTx(tx)
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,

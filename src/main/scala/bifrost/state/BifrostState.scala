@@ -108,12 +108,16 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   }
 
-  override def validate(transaction: TX): Try[Unit] = transaction match {
-    case poT: PolyTransfer => validatePolyTransfer(poT)
-    case cc: ContractCreation => validateContractCreation(cc)
-    case prT: ProfileTransaction => validateProfileTransaction(prT)
-    case cme: ContractMethodExecution => validateContractMethodExecution(cme)
-    case cComp: ContractCompletion => validateContractCompletion(cComp)
+  override def validate(transaction: TX): Try[Unit] = {
+    transaction match {
+      case poT: PolyTransfer => validatePolyTransfer(poT)
+      case arT: ArbitTransfer => validateArbitTransfer(arT)
+      case cc: ContractCreation => validateContractCreation(cc)
+      case prT: ProfileTransaction => validateProfileTransaction(prT)
+      case cme: ContractMethodExecution => validateContractMethodExecution(cme)
+      case cComp: ContractCompletion => validateContractCompletion(cComp)
+      case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
+    }
   }
 
   /**
@@ -121,7 +125,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @param poT: the PolyTransfer to validate
     * @return
     */
-  def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = Try {
+  def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
 
     val statefulValid: Try[Unit] = {
 
@@ -158,6 +162,45 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     statefulValid.flatMap(_ => semanticValidity(poT))
+  }
+
+  def validateArbitTransfer(arT: ArbitTransfer): Try[Unit] = {
+
+    val statefulValid: Try[Unit] = {
+
+      val boxesSumTry: Try[Long] = {
+        arT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+
+          partialRes.flatMap(partialSum =>
+            /* Checks if unlocker is valid and if so adds to current running total */
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: ArbitBox) =>
+                if (unlocker.boxKey.isValid(box.proposition, arT.messageToSign)) {
+                  Success(partialSum + box.value)
+                } else {
+                  Failure(new Exception("Incorrect unlocker"))
+                }
+              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+            }
+          )
+
+        )
+      }
+
+      boxesSumTry flatMap { openSum =>
+        if (arT.newBoxes.map {
+          case p: ArbitBox => p.value
+          case _ => 0L
+        }.sum == openSum - arT.fee) {
+          Success[Unit](Unit)
+        } else {
+          Failure(new Exception("Negative fee"))
+        }
+      }
+
+    }
+
+    statefulValid.flatMap(_ => semanticValidity(arT))
   }
 
   /**
@@ -437,7 +480,7 @@ object BifrostState {
       case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
-      case _ => Failure(new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString))
+      case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
   }
 
