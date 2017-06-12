@@ -104,7 +104,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
 
         val box = cc.newBoxes.head.asInstanceOf[ReputationBox]
-        val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.tail.map {
+        val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.tail.tail.map {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }

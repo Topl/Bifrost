@@ -158,9 +158,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val agreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
+    assetCode <- stringGen
     contractEffectiveTime <- positiveLongGen
     contractEndTime <- positiveLongGen
-  } yield Agreement(terms, contractEffectiveTime, contractEndTime)
+  } yield Agreement(terms, assetCode, contractEffectiveTime, contractEndTime)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 

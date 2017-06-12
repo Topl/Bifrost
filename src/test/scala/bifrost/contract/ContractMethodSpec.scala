@@ -294,7 +294,8 @@ class ContractMethodSpec extends PropSpec
     val lateAgreementGen = for {
       terms <- agreementTermsGen
       diff <- positiveLongGen
-    } yield Agreement(terms, Instant.now.toEpochMilli - diff - 5000, Instant.now.toEpochMilli - diff)
+      assetCode <- stringGen
+    } yield Agreement(terms, assetCode, Instant.now.toEpochMilli - diff - 5000, Instant.now.toEpochMilli - diff)
 
     val expirableContractGen = for {
       producer <- propositionGen

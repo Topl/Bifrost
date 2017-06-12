@@ -13,10 +13,11 @@ import scala.util.Try
   * @param contractExpirationTime  timestamp to prevent parties from holding signatures until an advantageous date
   *                             for a previously agreed upon agreement
   */
-case class Agreement(terms: AgreementTerms, contractEffectiveTime: Long, contractExpirationTime: Long) {
+case class Agreement(terms: AgreementTerms, assetCode: String, contractEffectiveTime: Long, contractExpirationTime: Long) {
 
   lazy val json: Json = Map(
     "terms" -> terms.json,
+    "assetCode" -> assetCode.asJson,
     "contractEffectiveTime" -> contractEffectiveTime.asJson,
     "expirationTimestamp" -> contractExpirationTime.asJson
   ).asJson

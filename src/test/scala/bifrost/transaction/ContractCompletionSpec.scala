@@ -47,7 +47,7 @@ class ContractCompletionSpec extends PropSpec
         val deliveredAmount = cc.contract.storage("currentFulfillment").get.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
 
         val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(cc.proposition) ++ cc.hashNoNonces)
-        val nonce = ContractMethodExecution.nonceFromDigest(digest)
+        val nonce = ContractTransaction.nonceFromDigest(digest)
 
         val (alphaSum: Double, betaSum: Double) = cc.producerReputation.foldLeft((0.0, 0.0))((a, b) => (a._1 + b.value._1, a._2 + b.value._2))
         val alpha: Double = alphaSum + (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)

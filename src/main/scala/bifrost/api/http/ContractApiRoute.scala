@@ -186,8 +186,9 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     )
     val expiration: Long = (agreement \\ "expirationTime").head.asNumber.get.toLong.get
     val effectiveDate: Long = (agreement \\ "effectiveTime").head.asNumber.get.toLong.get
+    val assetCode: String = (agreement \\ "assetCode").head.asString.get
     val terms = new AgreementTerms(pledge, xrate, shareFunc, fulfillFunc)
-    val contractAgreement = new Agreement(terms, effectiveDate, expiration)
+    val contractAgreement = new Agreement(terms, assetCode, effectiveDate, expiration)
 
     val hub = (json \\ "hub").head
     val producer = (json \\ "producer").head

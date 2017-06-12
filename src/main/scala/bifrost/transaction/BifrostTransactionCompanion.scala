@@ -435,6 +435,8 @@ object AgreementCompanion extends Serializer[Agreement] {
       Longs.toByteArray(a.contractExpirationTime),
       Longs.toByteArray(a.contractEffectiveTime),
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
+      Ints.toByteArray(a.assetCode.getBytes.length),
+      a.assetCode.getBytes,
       a.terms.json.noSpaces.getBytes
     )
   }
@@ -446,6 +448,14 @@ object AgreementCompanion extends Serializer[Agreement] {
     }.toArray
 
     var numBytesRead = 3*Longs.BYTES
+
+    val numStrBytes = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
+
+    numBytesRead += Ints.BYTES
+
+    val assetCode: String = new String(bytes.slice(numBytesRead, numBytesRead + numStrBytes))
+
+    numBytesRead += numStrBytes
 
     val termsMap: Map[String, Json] = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
@@ -471,7 +481,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     )
 
-    Agreement(terms, contractEffectiveTime, contractExpirationTime)
+    Agreement(terms, assetCode, contractEffectiveTime, contractExpirationTime)
   }
 }
 
