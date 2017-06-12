@@ -1,4 +1,4 @@
-Project-Bifrost: A Scala Client for the Topl Blockchain Protocol [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
+Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -20,6 +20,7 @@ In progress
 Documentation
 -------------
 [Ongoing documentation](https://www.overleaf.com/read/cwggvsyvptjv) (in development)
+
 [Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/yellowpaper) (in development)
 
 
