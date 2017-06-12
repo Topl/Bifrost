@@ -79,7 +79,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       Longs.toByteArray(m.timestamp),
       Ints.toByteArray(m.signatures.size),
       Ints.toByteArray(m.parties.size),
-      Ints.toByteArray(m.feePreBoxes.size),
+      Ints.toByteArray(m.preFeeBoxes.size),
       Ints.toByteArray(m.fees.size),
       Ints.toByteArray(keyMapping.size),
       keyMapping.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
@@ -89,7 +89,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
         case Role.Hub => Ints.toByteArray(2)
       })),
       m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ b._2.bytes),
-      m.feePreBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Ints.toByteArray(b._2.length) ++
+      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Ints.toByteArray(b._2.length) ++
         b._2.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2))),
       m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Longs.toByteArray(b._2))
     )

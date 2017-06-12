@@ -29,12 +29,12 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 
   def parties: Map[Role, PublicKey25519Proposition]
   def signatures: Map[PublicKey25519Proposition, Signature25519]
-  def feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
+  def preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
   def fees: Map[PublicKey25519Proposition, Long]
 
   override val fee: Long = fees.values.sum
 
-  lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
+  lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = preFeeBoxes.toIndexedSeq.flatMap { case (prop, v) =>
     v.map {
       case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
     }
@@ -43,7 +43,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
   lazy val commonJson: Json = Map(
     "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes).asJson }.asJson,
-    "feePreBoxes" -> feePreBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
+    "feePreBoxes" -> preFeeBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
       Base58.encode(prop.pubKeyBytes) -> preBoxes.map(pb =>
         Map(
           "nonce" -> pb._1.asJson,
@@ -66,7 +66,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
   }
 
   def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
-    val canSend = feePreBoxes.mapValues(_.map(_._2).sum)
+    val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)
     val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map { case (prop, amount) => prop -> (amount - fees(prop)) }
     preboxesLessFees.zipWithIndex.map {
       case ((prop, value), idx) =>
@@ -85,9 +85,9 @@ object ContractTransaction {
     require(tx.fees.values.sum >= 0)
     tx.fees.values.foreach(v => require(v >= 0))
 
-    require(tx.feePreBoxes.forall { case (prop, preBoxes) => preBoxes.map(_._2).sum >= 0 && preBoxes.forall(_._2 >= 0)})
+    require(tx.preFeeBoxes.forall { case (prop, preBoxes) => preBoxes.map(_._2).sum >= 0 && preBoxes.forall(_._2 >= 0)})
 
-    require(tx.feePreBoxes.forall { case (prop, preBoxes) => tx.fees.get(prop) match {
+    require(tx.preFeeBoxes.forall { case (prop, preBoxes) => tx.fees.get(prop) match {
       case Some(fee) => preBoxes.map(_._2).sum >= fee
       case None => false
     }})
@@ -106,7 +106,7 @@ object Role extends Enumeration {
 case class ContractCreation(agreement: Agreement,
                             parties: Map[Role, PublicKey25519Proposition],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
-                            feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                            preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                             fees: Map[PublicKey25519Proposition, Long],
                             timestamp: Long)
   extends ContractTransaction {
@@ -183,7 +183,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
                                    parameters: Json,
                                    parties: Map[Role, PublicKey25519Proposition],
                                    signatures: Map[PublicKey25519Proposition, Signature25519],
-                                   feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                                   preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                                    fees: Map[PublicKey25519Proposition, Long],
                                    timestamp: Long)
   extends ContractTransaction {
@@ -283,7 +283,7 @@ case class ContractCompletion(contractBox: ContractBox,
                               producerReputation: IndexedSeq[ReputationBox],
                               parties: Map[Role, PublicKey25519Proposition],
                               signatures: Map[PublicKey25519Proposition, Signature25519],
-                              feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+                              preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                               fees: Map[PublicKey25519Proposition, Long],
                               timestamp: Long)
   extends ContractTransaction {

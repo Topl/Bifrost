@@ -106,7 +106,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Seq(cme)
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val box = cme.newBoxes.head.asInstanceOf[ContractBox]
         val deductedFeeBoxes: Traversable[PolyBox] = cme.newBoxes.tail.map {
           case p: PolyBox => p
@@ -138,7 +138,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
         require(deductedFeeBoxes.map(_.value).sum == preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cme.fee)
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        require(cme.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cme.feePreBoxes(p._1).map(_._2).sum - cme.fees(p._1)))
+        require(cme.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cme.preFeeBoxes(p._1).map(_._2).sum - cme.fees(p._1)))
 
         /* Expect none of the prexisting boxes to still be around */
         require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
@@ -156,7 +156,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cme.signatures + (cme.signatures.head._1 -> Signature25519(wrongSig))
         val invalidCME = cme.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
@@ -181,7 +181,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     forAll(arbitraryPartyContractMethodExecutionGen(num = 1, numInContract = 0)) {
       cme: ContractMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -210,7 +210,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     forAll(arbitraryPartyContractMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInContract = 1)) {
       cme: ContractMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -243,7 +243,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
@@ -275,7 +275,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Seq(cme)
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val box = cme.newBoxes.head.asInstanceOf[ContractBox]
         val deductedFeeBoxes: Traversable[PolyBox] = cme.newBoxes.tail.map {
           case p: PolyBox => p
@@ -303,7 +303,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
   property("Attempting to validate a CME with a timestamp too far in the future should error") {
     forAll(semanticallyValidContractMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
       cme: ContractMethodExecution =>
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet

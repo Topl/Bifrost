@@ -74,7 +74,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           Seq(cc)
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val box = cc.newBoxes.head.asInstanceOf[ContractBox]
         val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.tail.map {
           case p: PolyBox => p
@@ -106,7 +106,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         require(deductedFeeBoxes.map(_.value).sum == preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cc.fee)
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        require(cc.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cc.feePreBoxes(p._1).map(_._2).sum - cc.fees(p._1)))
+        require(cc.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cc.preFeeBoxes(p._1).map(_._2).sum - cc.fees(p._1)))
 
         /* Expect none of the prexisting boxes to still be around */
         require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
@@ -124,7 +124,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
         val invalidCC = cc.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
@@ -149,7 +149,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
     forAll(arbitraryPartyContractCreationGen(Gen.choose(0, 2).sample.get)) {
       cc: ContractCreation =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
@@ -175,7 +175,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
     forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
       cc: ContractCreation =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -203,7 +203,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -231,7 +231,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -270,7 +270,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
   property("Attempting to validate a contract creation tx with a timestamp too far in the future should error") {
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet

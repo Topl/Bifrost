@@ -5,19 +5,25 @@ import javax.ws.rs.Path
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
+import bifrost.history.BifrostHistory
+import bifrost.mempool.BifrostMemPool
+import bifrost.scorexMod.{GenericBox, GenericBoxTransaction, GenericNodeViewHolder}
+import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
 import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
+import bifrost.wallet.BWallet
 import io.circe.{Json, JsonObject}
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.swagger.annotations._
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
+import scorex.core.PersistentNodeViewModifier
 import scorex.core.api.http.{ApiException, SuccessApiResponse}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
@@ -34,57 +40,41 @@ import scala.util.{Failure, Success, Try}
 @Api(value = "/contract", produces = "application/json")
 case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef)
                             (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+  type HIS = BifrostHistory
+  type MS = BifrostState
+  type VL = BWallet
+  type MP = BifrostMemPool
   override val route: Route = pathPrefix("contract") {
-    declareRole ~ getRole ~ createContract ~ getContractSignature ~ executeContractMethod ~
-      completeContract ~ getCompletionSignature
+    contractRoute
   }
 
-  @Path("/role")
-  @ApiOperation(value = "role",
-    notes = "Declare an address' role to the network",
-    httpMethod = "POST",
-    produces = "application/json",
-    consumes = "application/json")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "body",
-      value = "Json with data",
-      required = true,
-      dataType = "String",
-      paramType = "body",
-      defaultValue = "{\n\t\"role\":\"hub\",\n\t\"publicKey\":\"XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"\n}"
-    )
-  ))
-  def declareRole: Route = path("roles") { entity(as[String]) { body =>
+  //noinspection ScalaStyle
+  def contractRoute: Route = path("") { entity(as[String]) { body =>
     withAuth {
       postJsonRoute {
         viewAsync().map { view =>
+          var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
             case Right(json) => Try {
-              val wallet = view.vault
-              // parse the check for semantic validity
-              val pubKey = (json \\ "publicKey").head.asString.get
-              require(Base58.decode(pubKey).get.length == Curve25519.KeyLength)
-              val pubKeyProp = PublicKey25519Proposition(Base58.decode(pubKey).get)
-              val roleValue = (json \\ "role").head.asString.get
-              require(ProfileBox.acceptableRoleValues.contains(roleValue))
-              // Get the PrivateKey
-              val privKeySet = wallet.secrets.filter(secret => secret.publicImage.pubKeyBytes sameElements Base58.decode(pubKey).get)
-              require(privKeySet.nonEmpty)
-              // create Transaction
-              val timestamp = System.currentTimeMillis()
-              val signature = PrivateKey25519Companion.sign(privKeySet.toSeq.head,
-                  ProfileTransaction.messageToSign(timestamp, pubKeyProp,
-                  Map("role" -> roleValue)))
-              val tx = ProfileTransaction(pubKeyProp, signature, Map("role" -> roleValue), 0L, timestamp)
-              nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProfileTransaction](tx)
-              tx.json
+              val id = (json \\ "id").head.asString.get
+              reqId = id
+              require((json \\ "jsonrpc").head.asString.get == "2.0")
+              val params = (json \\ "params").head.asArray.get
+              require(params.size <= 5, s"size of params is ${params.size}")
+              (json \\ "method").head.asString.get match {
+                case "declareRole" => params.map(declareRole(view, _, id)).asJson
+                case "getRole" => params.map(getRole(view, _, id)).asJson
+                case "getContractSignature" => getContractSignature(view, params.head, id).asJson
+                case "createContract" => createContract(view, params.head, id).asJson
+                case "executeContractMethod" => executeContractMethod(view, params.head, id).asJson
+                case "getCompletionSignature" => getCompletionSignature(view, params.head, id).asJson
+                case "completeContract" => completeContract(view, params.head, id).asJson
+              }
             } match {
-              case Success(resp) => SuccessApiResponse(resp)
+              case Success(resp) => BifrostSuccessResponse(resp, reqId)
               case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
+                BifrostErrorResponse(e, reqId)
             }
           }
         }
@@ -92,86 +82,123 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     }
   }}
 
-  @Path("/roles/{pubKey}")
-  @ApiOperation(value = "role", notes = "Return info about a role associated with an account", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "pubKey",
-      value = "Public Key to check in String format",
-      required = true,
-      dataType = "string",
-      paramType = "path"
-    )
-  ))
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with peer list or error")
-  ))
-  def getRole: Route = path("role" / Segment) { pubKey =>
-    withAuth {
-      getJsonRoute {
-        viewAsync().map { view =>
-          val state = view.state
-          println(s"Get Role Box, ${Base58.decode(pubKey).get}")
-          val box = state.closedBox(FastCryptographicHash(Base58.decode(pubKey).get ++ "role".getBytes)).get
-
-          SuccessApiResponse(box.json.asJson)
-        }
-      }
-    }
+  def declareRole(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val wallet = view.vault
+    // parse the check for semantic validity
+    val pubKey = (params \\ "publicKey").head.asString.get
+    require(Base58.decode(pubKey).get.length == Curve25519.KeyLength)
+    val pubKeyProp = PublicKey25519Proposition(Base58.decode(pubKey).get)
+    val roleValue = (params \\ "role").head.asString.get
+    require(ProfileBox.acceptableRoleValues.contains(roleValue))
+    // Get the PrivateKey
+    val privKeySet = wallet.secrets.filter(secret => secret.publicImage.pubKeyBytes sameElements Base58.decode(pubKey).get)
+    require(privKeySet.nonEmpty)
+    // create Transaction
+    val timestamp = System.currentTimeMillis()
+    val signature = PrivateKey25519Companion.sign(privKeySet.toSeq.head,
+      ProfileTransaction.messageToSign(timestamp, pubKeyProp,
+        Map("role" -> roleValue)))
+    val tx = ProfileTransaction(pubKeyProp, signature, Map("role" -> roleValue), 0L, timestamp)
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProfileTransaction](tx)
+    tx.json
   }
 
-  def createContract: Route = path("create") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
-              val state = view.state
-              val tx = createContractInstance(json, state)
-              nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCreation](tx)
-              tx.json
-            } match {
-              case Success(resp) => SuccessApiResponse(resp)
-              case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
-            }
-          }
-        }
-      }
-    }
-  }}
+  def getRole(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val state = view.state
+    val pubKey = (params \\ "publicKey").head.asString.get
+    println(s"Get Role Box, ${Base58.decode(pubKey).get}")
+    val box = state.closedBox(FastCryptographicHash(Base58.decode(pubKey).get ++ "role".getBytes)).get
+    box.json
+  }
 
-  def getContractSignature: Route = path("signatures") {entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
-              val wallet = view.vault
-              val secrets = wallet.secrets
-              val signingPublicKey = (json \\ "signingPublicKey").head.asString.get
-              val selectedSecret = secrets.toSeq.filter(p =>
-                p.publicImage.pubKeyBytes sameElements Base58.decode(signingPublicKey).get
-              ).head
-              val state = view.state
-              val tx = createContractInstance(json, state)
-              val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
-              Map("signature" -> Base58.encode(signature.signature).asJson,
-                "tx" -> tx.json.asJson).asJson
-            } match {
-              case Success(resp) => SuccessApiResponse(resp)
-              case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
-            }
-          }
-        }
-      }
-    }
-  }}
+  def getContractSignature(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val wallet = view.vault
+    val secrets = wallet.secrets
+    val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+    val selectedSecret = secrets.toSeq.filter(p =>
+      p.publicImage.pubKeyBytes sameElements Base58.decode(signingPublicKey).get
+    ).head
+    val state = view.state
+    val tx = createContractInstance(params, state)
+    val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
+    Map("signature" -> Base58.encode(signature.signature).asJson,
+      "tx" -> tx.json.asJson).asJson
+  }
+
+  def createContract(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val state = view.state
+    val tx = createContractInstance(params, state)
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCreation](tx)
+    tx.json
+  }
+
+  def executeContractMethod(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val wallet = view.vault
+    val state = view.state
+    val contractBoxId = (params \\ "contractBoxId").head.asString.get
+    val role = (params \\ "role").head.asString.get
+    val publicKeyString = (params \\ "publicKey").head.asString.get
+    val methodName = (params \\ "methodName").head.asString.get
+    val methodParams = (params \\ "methodParams").head
+    val fees: Map[PublicKey25519Proposition, Long] = (params \\ "fees").head.asObject.map(_.toMap)
+      .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
+        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
+      })
+
+    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (params \\ "feePreBoxes").head.asObject
+      .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
+      case (prop: String, v: Json) =>
+        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
+          v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
+            val nonceLongPair = preBox.asArray
+            nonceLongPair.map(nlp =>
+              (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
+            )
+          }.getOrElse((0L, 0L))).toIndexedSeq
+          )
+        )
+    })
+
+    // validate inputs
+    require(ProfileBox.acceptableRoleValues.contains(role))
+    val publicKey = PublicKey25519Proposition(Base58.decode(publicKeyString).get)
+    val privKey = wallet.secretByPublicImage(publicKey).get
+    require(privKey != None)
+    val contractBox = state.closedBox(Base58.decode(contractBoxId).get).get.asInstanceOf[ContractBox]
+    // Create a dummy ContractMethodExecution tx for signing
+    val timestamp = System.currentTimeMillis()
+
+    val tempMethodExecution = ContractMethodExecution(contractBox, methodName, methodParams,
+      Map(Role.withName(role) -> publicKey),
+      Map(publicKey -> Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))),
+      feePreBoxes,
+      fees,
+      timestamp
+    )
+
+    val realSignature = PrivateKey25519Companion.sign(privKey, tempMethodExecution.messageToSign)
+    val tx = tempMethodExecution.copy(signatures = Map(publicKey -> realSignature))
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractMethodExecution](tx)
+    tx.json
+  }
+
+  def getCompletionSignature(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val state = view.state
+    val wallet = view.vault
+    val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+    val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+    val tx = createCompletionInstance(params, state)
+    val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
+    Map("signature" -> Base58.encode(signature.signature).asJson,
+      "tx" -> tx.json.asJson).asJson
+  }
+
+  def completeContract(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
+    val state = view.state
+    val tx = createCompletionInstance(params, state)
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)
+    tx.json
+  }
 
   //noinspection ScalaStyle
   def createContractInstance(json: Json, state: BifrostState): ContractCreation = {
@@ -192,12 +219,12 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val hub = (json \\ "hub").head
     val producer = (json \\ "producer").head
     val investor = (json \\ "investor").head
-    val fee: Map[PublicKey25519Proposition, Long] = (json \\ "fee").head.asObject.map(_.toMap)
+    val fees: Map[PublicKey25519Proposition, Long] = (json \\ "fees").head.asObject.map(_.toMap)
       .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
         (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
       })
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "feePreBoxes").head.asObject
+    val preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "preFeeBoxes").head.asObject
       .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
         case (prop: String, v: Json) =>
           (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
@@ -226,130 +253,11 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
         producerPublicKey -> producerSignature,
         investorPublicKey -> investorSignature
       ),
-      feePreBoxes,
-      fee,
+      preFeeBoxes,
+      fees,
       System.currentTimeMillis()
     )
   }
-
-  //noinspection ScalaStyle
-  def executeContractMethod: Route = path("method") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
-              val wallet = view.vault
-              val state = view.state
-              val contractBoxId = (json \\ "contractBoxId").head.asString.get
-              val role = (json \\ "role").head.asString.get
-              val publicKeyString = (json \\ "publicKey").head.asString.get
-              val methodName = (json \\ "methodName").head.asString.get
-              val params = (json \\ "params").head
-              val fee: Map[PublicKey25519Proposition, Long] = (json \\ "fee").head.asObject.map(_.toMap)
-                .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
-                  (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-                })
-
-              val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "feePreBoxes").head.asObject
-                .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
-                  case (prop: String, v: Json) =>
-                    (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
-                      v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
-                        val nonceLongPair = preBox.asArray
-                        nonceLongPair.map(nlp =>
-                          (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-                        )
-                      }.getOrElse((0L, 0L))).toIndexedSeq
-                      )
-                    )
-              })
-
-              // validate inputs
-              require(ProfileBox.acceptableRoleValues.contains(role))
-              val publicKey = PublicKey25519Proposition(Base58.decode(publicKeyString).get)
-              val privKey = wallet.secretByPublicImage(publicKey).get
-              require(privKey != None)
-              val contractBox = state.closedBox(Base58.decode(contractBoxId).get).get.asInstanceOf[ContractBox]
-              // Create a dummy ContractMethodExecution tx for signing
-              val timestamp = System.currentTimeMillis()
-
-
-
-              val tempMethodExecution = ContractMethodExecution(contractBox, methodName, params,
-                Map(Role.withName(role) -> publicKey),
-                Map(publicKey -> Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))),
-                feePreBoxes,
-                fee,
-                timestamp
-              )
-
-              val realSignature = PrivateKey25519Companion.sign(privKey, tempMethodExecution.messageToSign)
-              val tx = tempMethodExecution.copy(signatures = Map(publicKey -> realSignature))
-              nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractMethodExecution](tx)
-              tx.json
-            } match {
-              case Success(resp) => SuccessApiResponse(resp)
-              case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
-            }
-          }
-        }
-      }
-    }
-  }}
-
-  def completeContract: Route = path("complete") {  entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
-              val state = view.state
-              val tx = createCompletionInstance(json, state)
-              nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)
-              tx.json
-            } match {
-              case Success(resp) => SuccessApiResponse(resp)
-              case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
-            }
-          }
-        }
-      }
-    }
-  }}
-
-  def getCompletionSignature: Route = path("complete" / "signatures"){ entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
-              val state = view.state
-              val wallet = view.vault
-              val signingPublicKey = (json \\ "signingPublicKey").head.asString.get
-              val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-              val tx = createCompletionInstance(json, state)
-              val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
-              Map("signature" -> Base58.encode(signature.signature).asJson,
-                "tx" -> tx.json.asJson).asJson
-            } match {
-              case Success(resp) => SuccessApiResponse(resp)
-              case Failure(e) =>
-                e.printStackTrace()
-                ApiException(e)
-            }
-          }
-        }
-      }
-    }
-  }}
 
   def createCompletionInstance(json: Json, state: BifrostState): ContractCompletion = {
     val contractBoxId = (json \\ "contractBoxId").head.asString.get
@@ -359,7 +267,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val hub = (json \\ "hub").head
     val producer = (json \\ "producer").head
     val investor = (json \\ "investor").head
-    val fee: Map[PublicKey25519Proposition, Long] = (json \\ "fee").head.asObject.map(_.toMap)
+    val fees: Map[PublicKey25519Proposition, Long] = (json \\ "fees").head.asObject.map(_.toMap)
       .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
         (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
       })
@@ -394,7 +302,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
         investorPublicKey -> investorSignature
       ),
       feePreBoxes,
-      fee,
+      fees,
       System.currentTimeMillis())
   }
 }

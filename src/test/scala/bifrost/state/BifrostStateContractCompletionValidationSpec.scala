@@ -100,7 +100,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           Seq(cc)
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
 
         val box = cc.newBoxes.head.asInstanceOf[ReputationBox]
@@ -136,7 +136,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         require(deductedFeeBoxes.map(_.value).sum == preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cc.fee)
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        require(cc.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cc.feePreBoxes(p._1).map(_._2).sum - cc.fees(p._1)))
+        require(cc.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cc.preFeeBoxes(p._1).map(_._2).sum - cc.fees(p._1)))
 
         /* Expect none of the prexisting boxes to still be around */
         require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
@@ -154,7 +154,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
         val invalidCC = cc.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -180,7 +180,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     forAll(validContractCompletionGen) {
       cc: ContractCompletion =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -207,7 +207,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     forAll(arbitraryPartyContractCompletionGen(Gen.choose(4, 10).sample.get)) {
       cc: ContractCompletion =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -236,7 +236,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
       cc: ContractCompletion =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -266,7 +266,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
       cc: ContractCompletion =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -294,7 +294,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
   property("Attempting to validate a ContractCompletion with a timestamp too far in the future should error") {
     forAll(validContractCompletionGen) {
       cc: ContractCompletion =>
-        val preExistingPolyBoxes: Set[BifrostBox] = cc.feePreBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = cc.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
