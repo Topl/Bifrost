@@ -343,12 +343,17 @@ case class ContractCompletion(contractBox: ContractBox,
     /* Reputation adjustment for producer */
     val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
 
-    val assetNonce = ContractTransaction.nonceFromDigest(
-      FastCryptographicHash("ContractCompletion".getBytes ++ contract.Hub.pubKeyBytes ++ hashNoNonces)
+    def assetNonce(prop: PublicKey25519Proposition) = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("ContractCompletion".getBytes ++ prop.pubKeyBytes ++ hashNoNonces)
     )
 
-    Seq(producerRep, AssetBox(contract.Hub, assetNonce, output, contract.agreement("assetCode").get.asString.get)) ++
-      deductedFeeBoxes(hashNoNonces)
+    val assetCode: String =  contract.agreement("assetCode").get.asString.get
+    Seq(
+      producerRep,
+      AssetBox(contract.Hub, assetNonce(contract.Hub), output, assetCode),
+      AssetBox(contract.Investor, assetNonce(contract.Investor), output, assetCode),
+      AssetBox(contract.Producer, assetNonce(contract.Producer), output, assetCode)
+    ) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
