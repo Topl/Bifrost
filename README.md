@@ -1,11 +1,11 @@
-Project-Bifrost: A Commodity-backed Cryptocurrency [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
+Project-Bifrost: A Scala Client for the Topl Blockchain Protocol [![Build Status](https://travis-ci.org/Topl/Project-Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Project-Bifrost)
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Join our slack at https://teamtopl.slack.com](https://slackin-inviter.herokuapp.com/badge.svg)](https://slackin-inviter.herokuapp.com)
 [![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost)
 
-Project Bifrost is a cryptocurrency developed to achieve three specific goals:
+Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:
 - Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
 - Create a commodity market that collateralizes a stable currency via storage and redemption
 - Develop a reputation system and historical reference of business behaviour
@@ -20,6 +20,7 @@ In progress
 Documentation
 -------------
 [Ongoing documentation](https://www.overleaf.com/read/cwggvsyvptjv) (in development)
+[Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/yellowpaper) (in development)
 
 
 
