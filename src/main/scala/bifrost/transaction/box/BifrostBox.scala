@@ -113,14 +113,14 @@ object ArbitBoxSerializer extends Serializer[ArbitBox] with NoncedBoxSerializer 
 case class AssetBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
                     amount: Long,
-                    asset: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
+                    assetCode: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
 }
 
 object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer {
 
   def toBytes(obj: AssetBox): Array[Byte] = {
-    noncedBoxToBytes(obj, "AssetBox") ++ obj.asset.getBytes ++ Ints.toByteArray(obj.asset.getBytes.length)
+    noncedBoxToBytes(obj, "AssetBox") ++ obj.assetCode.getBytes ++ Ints.toByteArray(obj.assetCode.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[AssetBox] = Try {
@@ -146,7 +146,7 @@ case class ContractBox(proposition: MofNProposition,
   override lazy val json: Json = Map(
     "type" -> "Contract".asJson,
     "id" -> Base58.encode(id).asJson,
-    "proposition" -> proposition.setOfPubKeyBytes.map(Base58.encode(_).asJson).asJson,
+    "proposition" -> proposition.setOfPubKeyBytes.toList.map(Base58.encode).sorted.map(_.asJson).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.asJson
   ).asJson
@@ -216,7 +216,7 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
     "type" -> "Profile".asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
-    "field" -> key.asJson
+    "key" -> key.asJson
   ).asJson
 }
 

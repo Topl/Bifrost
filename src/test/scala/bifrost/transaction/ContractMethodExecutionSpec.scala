@@ -62,7 +62,12 @@ class ContractMethodExecutionSpec extends PropSpec
       val currentEndorsement = Map[String, Json]()
 
       val contractBox = createContractBox(
-        Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
+        Agreement(
+          agreementTermsGen.sample.get,
+          stringGen.sample.get,
+          timestamp - 100000,
+          timestamp - 100000 + Gen.choose(0, 2000).sample.get
+        ),
         "initialized",
         currentFulfillment,
         currentEndorsement,
@@ -122,7 +127,12 @@ class ContractMethodExecutionSpec extends PropSpec
       val currentEndorsement = Map[String, Json]()
 
       val contractBox = createContractBox(
-        Agreement(agreementTermsGen.sample.get, timestamp - 100000, timestamp - 100000 + Gen.choose(0, 2000).sample.get),
+        Agreement(
+          agreementTermsGen.sample.get,
+          stringGen.sample.get,
+          timestamp - 100000,
+          timestamp - 100000 + Gen.choose(0, 2000).sample.get
+        ),
         "expired",
         currentFulfillment,
         currentEndorsement,

@@ -88,7 +88,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     )
   }
 
-  property("A block with valid ContractCompletion will result in a contract entry and updated poly boxes in the LSMStore") {
+  property("A block with valid ContractCompletion will remove the contract entry and update poly boxes in the LSMStore") {
     // Create block with contract creation
     forAll(validContractCompletionGen) {
       cc: ContractCompletion =>
@@ -104,7 +104,11 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         val preExistingReputationBoxes: Set[ReputationBox] = cc.producerReputation.toSet
 
         val box = cc.newBoxes.head.asInstanceOf[ReputationBox]
-        val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.tail.map {
+        val assetBoxes: Traversable[AssetBox] = cc.newBoxes.slice(1,3).map {
+          case a: AssetBox => a
+          case _ => throw new Exception("Was expecting AssetBoxes but found something else")
+        }
+        val deductedFeeBoxes: Traversable[PolyBox] = cc.newBoxes.slice(4, cc.newBoxes.size).map {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
