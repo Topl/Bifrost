@@ -330,7 +330,7 @@ class ContractMethodSpec extends PropSpec
     forAll(validContractGen.suchThat(c => {
       val status = c.storage("status").get
       val cannotExpire = status.equals("expired".asJson) || status.equals("complete".asJson)
-      val notPastExpiration = c.agreement("expirationTimestamp").get.asNumber.get.toLong.get > Instant.now.toEpochMilli + 5000L
+      val notPastExpiration = c.agreement("contractExpirationTime").get.asNumber.get.toLong.get > Instant.now.toEpochMilli + 5000L
 
       notPastExpiration || cannotExpire
     })) {

@@ -5,8 +5,9 @@ import bifrost.contract._
 import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
-import io.circe.{HCursor, Json, ParsingFailure}
+import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
 import io.circe.optics.JsonPath._
+import io.circe.syntax._
 import io.circe.parser._
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
@@ -457,7 +458,7 @@ object AgreementCompanion extends Serializer[Agreement] {
 
     numBytesRead += numStrBytes
 
-    val termsMap: Map[String, Json] = parse(new String(
+    /*val termsMap: Map[String, Json] = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
     )) match {
       case Left(x) => new HashMap[String, Json]()
@@ -479,7 +480,17 @@ object AgreementCompanion extends Serializer[Agreement] {
         case "PiecewiseLinearSingle" => new PiecewiseLinearSingle(
           fulfilmentMap("points").as[Seq[(Long, Double)]].right.get)
       }
-    )
+    )*/
+
+    val terms: AgreementTerms = parse(new String(
+      bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
+    )) match {
+      case Left(x) => throw new Exception("AgreementTerm json not properly formatted")
+      case Right(x) => x.as[AgreementTerms] match {
+        case Left(_) => throw new Exception("Agreement terms json was malformed")
+        case Right(a: AgreementTerms) => a
+      }
+    }
 
     Agreement(terms, assetCode, contractEffectiveTime, contractExpirationTime)
   }

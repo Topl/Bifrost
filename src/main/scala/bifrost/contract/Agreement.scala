@@ -2,7 +2,7 @@ package bifrost.contract
 
 import java.time.Instant
 
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 
 import scala.util.Try
@@ -19,7 +19,7 @@ case class Agreement(terms: AgreementTerms, assetCode: String, contractEffective
     "terms" -> terms.json,
     "assetCode" -> assetCode.asJson,
     "contractEffectiveTime" -> contractEffectiveTime.asJson,
-    "expirationTimestamp" -> contractExpirationTime.asJson
+    "contractExpirationTime" -> contractExpirationTime.asJson
   ).asJson
 
   override def toString: String = s"Agreement(${json.toString})"
@@ -27,6 +27,7 @@ case class Agreement(terms: AgreementTerms, assetCode: String, contractEffective
 }
 
 object Agreement {
+
   def validate(a: Agreement): Try[Unit] = Try {
 
     require(a.terms.pledge > 0)

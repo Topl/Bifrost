@@ -9,6 +9,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.core.transaction.state.PrivateKey25519
+import scorex.crypto.encode.Base58
 
 /**
   * Created by cykoz on 4/12/17.
@@ -22,10 +23,10 @@ class SerializationTests extends PropSpec
 
   property("oneOfNProposition Serialization") {
     forAll(oneOfNPropositionGen) {
-      case (keySet: Set[PrivateKey25519], mn: MofNProposition) =>
+      case (_, mn: MofNProposition) =>
         val parsed = MofNPropositionSerializer.parseBytes(MofNPropositionSerializer.toBytes(mn)).get
-        val serialized = MofNPropositionSerializer.toBytes(parsed)
-        serialized sameElements MofNPropositionSerializer.toBytes(mn)
+        parsed.m shouldBe mn.m
+        parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
     }
   }
 
@@ -34,7 +35,8 @@ class SerializationTests extends PropSpec
       b: ContractBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b)
+        parsed.json.noSpaces shouldBe b.json.noSpaces
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -43,7 +45,7 @@ class SerializationTests extends PropSpec
       b: PolyBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -52,7 +54,7 @@ class SerializationTests extends PropSpec
       b: ArbitBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -61,7 +63,7 @@ class SerializationTests extends PropSpec
       b: AssetBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -70,7 +72,7 @@ class SerializationTests extends PropSpec
       b: ReputationBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -79,7 +81,7 @@ class SerializationTests extends PropSpec
       b: ProfileBox =>
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -87,7 +89,7 @@ class SerializationTests extends PropSpec
     forAll(agreementGen) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
-        AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
+        AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
     }
   }
 
@@ -97,7 +99,7 @@ class SerializationTests extends PropSpec
         val parsed = TransferTransactionCompanion.parseBytes(
           TransferTransactionCompanion.toBytes(sc)
         ).get
-        TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(sc)
+        TransferTransactionCompanion.toBytes(parsed) sameElements TransferTransactionCompanion.toBytes(sc) shouldBe true
     }
   }
 
@@ -107,7 +109,7 @@ class SerializationTests extends PropSpec
         val parsed = TransferTransactionCompanion.parseBytes(
           TransferTransactionCompanion.toBytes(ac)
         ).get
-        TransferTransactionCompanion.toBytes(parsed) shouldEqual TransferTransactionCompanion.toBytes(ac)
+        TransferTransactionCompanion.toBytes(parsed) sameElements TransferTransactionCompanion.toBytes(ac) shouldBe true
     }
   }
   property("ContractCreation Serialization") {
@@ -118,11 +120,8 @@ class SerializationTests extends PropSpec
         ).get
         val parsedBytes = ContractTransactionCompanion.toBytes(parsed)
         val directParsedBytes = ContractTransactionCompanion.toBytes(c)
-        parsedBytes.length shouldEqual directParsedBytes.length
-        val res = parsedBytes.zip(directParsedBytes).map {
-          case (p, directParsed) =>
-            p shouldEqual directParsed
-        }
+
+        parsedBytes sameElements directParsedBytes shouldBe true
     }
   }
 
@@ -132,7 +131,7 @@ class SerializationTests extends PropSpec
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
-        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c)
+        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c) shouldBe true
     }
   }
 
@@ -142,7 +141,7 @@ class SerializationTests extends PropSpec
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
-        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c)
+        ContractTransactionCompanion.toBytes(parsed) sameElements ContractTransactionCompanion.toBytes(c) shouldBe true
     }
   }
 
@@ -152,7 +151,7 @@ class SerializationTests extends PropSpec
         val parsed = ProfileTransactionCompanion.parseBytes(
             ProfileTransactionCompanion.toBytes(p)
         ).get
-        ProfileTransactionCompanion.toBytes(parsed) shouldEqual ProfileTransactionCompanion.toBytes(p)
+        ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p) shouldBe true
     }
   }
 
@@ -161,7 +160,7 @@ class SerializationTests extends PropSpec
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
-        BifrostBlockCompanion.toBytes(parsed) shouldEqual BifrostBlockCompanion.toBytes(bb)
+        BifrostBlockCompanion.toBytes(parsed) sameElements BifrostBlockCompanion.toBytes(bb) shouldBe true
     }
   }
 
@@ -172,7 +171,7 @@ class SerializationTests extends PropSpec
         val newTerms = parse("""{}""").getOrElse(Json.Null)
         a.terms.json = newTerms
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
-        AgreementCompanion.toBytes(parsed) shouldEqual AgreementCompanion.toBytes(a)
+        AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
     }
   }*/
 }

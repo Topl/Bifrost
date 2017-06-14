@@ -11,6 +11,7 @@ import bifrost.wallet.BWallet
 import bifrost.transaction.Role.Role
 import io.circe.Json
 import io.circe.syntax._
+import io.circe.generic.auto._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
@@ -267,7 +268,7 @@ object ContractMethodExecution {
     require(tx.parties.keys.size == 1)
 
     val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-    val expDate = tx.contract.agreement("expirationTimestamp").get.asNumber.get.toLong.get
+    val expDate = tx.contract.agreement("contractExpirationTime").get.asNumber.get.toLong.get
 
     require(tx.timestamp >= effDate)
     require(tx.timestamp < expDate)
@@ -348,11 +349,25 @@ case class ContractCompletion(contractBox: ContractBox,
     )
 
     val assetCode: String =  contract.agreement("assetCode").get.asString.get
+
+    val investorAmount = Math.min(output, input)
+    val profitAmount: Double = Math.max(output - investorAmount, 0).toDouble
+    val agreement: Agreement = contract.agreement.asJson.as[Agreement] match {
+      case Right(a: Agreement) => a
+      case Left(e) => throw new Exception(s"Could not parse agreement in contract: $e")
+    }
+
+    val shares: (Double, Double, Double) = agreement.terms.share.evaluate(profitAmount.toDouble / input.toDouble)
+
+    val producerProfitShare = (shares._1*profitAmount).toLong
+    val hubProfitShare = (shares._2*profitAmount).toLong
+    val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
+
     Seq(
       producerRep,
-      AssetBox(contract.Hub, assetNonce(contract.Hub), output, assetCode),
-      AssetBox(contract.Investor, assetNonce(contract.Investor), output, assetCode),
-      AssetBox(contract.Producer, assetNonce(contract.Producer), output, assetCode)
+      AssetBox(contract.Producer, assetNonce(contract.Producer),  producerProfitShare,                  assetCode),
+      AssetBox(contract.Hub,      assetNonce(contract.Hub),       hubProfitShare,                       assetCode),
+      AssetBox(contract.Investor, assetNonce(contract.Investor),  investorAmount + investorProfitShare, assetCode)
     ) ++ deductedFeeBoxes(hashNoNonces)
   }
 
