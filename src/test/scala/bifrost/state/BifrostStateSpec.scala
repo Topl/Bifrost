@@ -20,7 +20,6 @@ import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
-import org.scalacheck.Prop.forAllNoShrink
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Random, Success, Try}

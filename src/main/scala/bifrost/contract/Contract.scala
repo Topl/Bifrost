@@ -173,7 +173,7 @@ class Contract(val Producer: PublicKey25519Proposition,
     */
   def checkExpiration(party: PublicKey25519Proposition)(): Try[Contract] = Try {
 
-    val expiration: Long = this.agreement("expirationTimestamp").get.as[Long].right.get
+    val expiration: Long = this.agreement("contractExpirationTime").get.as[Long].right.get
     val currentStatus = storage("status").get
 
     if (currentStatus.equals("expired".asJson) || currentStatus.equals("complete".asJson) || Instant.now().toEpochMilli < expiration)

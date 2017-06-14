@@ -11,6 +11,7 @@ import bifrost.wallet.BWallet
 import bifrost.transaction.Role.Role
 import io.circe.Json
 import io.circe.syntax._
+import io.circe.generic.auto._
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
@@ -70,7 +71,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
     val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend.toIndexedSeq.map { case (prop, amount) => prop -> (amount - fees(prop)) }
     preboxesLessFees.zipWithIndex.map {
       case ((prop, value), idx) =>
-        val nonce = ContractCreation.nonceFromDigest(
+        val nonce = ContractTransaction.nonceFromDigest(
           FastCryptographicHash("ContractCreation".getBytes ++ prop.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(idx))
         )
         PolyBox(prop, nonce, value)
@@ -80,6 +81,8 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 
 object ContractTransaction {
   type Nonce = Long
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
   def commonValidation(tx: ContractTransaction): Unit = {
     require(tx.fees.values.sum >= 0)
@@ -129,7 +132,7 @@ case class ContractCreation(agreement: Agreement,
   override lazy val newBoxes: Traversable[BifrostBox] = {
     // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    val nonce = ContractCreation.nonceFromDigest(digest)
+    val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson) ++
       Map(
@@ -159,8 +162,6 @@ case class ContractCreation(agreement: Agreement,
 }
 
 object ContractCreation {
-
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
@@ -226,7 +227,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val newBoxes: Traversable[BifrostBox] = {
     // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    val nonce = ContractMethodExecution.nonceFromDigest(digest)
+    val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val contractResult = Contract.execute(contract, methodName)(parties.toIndexedSeq(0)._2)(parameters.asObject.get) match {
       case Success(res) => res match {
@@ -257,8 +258,6 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
 object ContractMethodExecution {
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
-
   def validate(tx: ContractMethodExecution): Try[Unit] = Try {
 
     require(tx.parties forall { case (_, proposition) =>
@@ -269,7 +268,7 @@ object ContractMethodExecution {
     require(tx.parties.keys.size == 1)
 
     val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-    val expDate = tx.contract.agreement("expirationTimestamp").get.asNumber.get.toLong.get
+    val expDate = tx.contract.agreement("contractExpirationTime").get.asNumber.get.toLong.get
 
     require(tx.timestamp >= effDate)
     require(tx.timestamp < expDate)
@@ -327,7 +326,7 @@ case class ContractCompletion(contractBox: ContractBox,
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    val nonce = ContractMethodExecution.nonceFromDigest(digest)
+    val nonce = ContractTransaction.nonceFromDigest(digest)
 
     /* Get yield */
     val input: Long = contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
@@ -345,10 +344,31 @@ case class ContractCompletion(contractBox: ContractBox,
     /* Reputation adjustment for producer */
     val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
 
-    /* Change amount held in hub to account for actual delivery */
-    //TODO add asset box: val amountAddedToHubAssets = output - input
+    def assetNonce(prop: PublicKey25519Proposition) = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("ContractCompletion".getBytes ++ prop.pubKeyBytes ++ hashNoNonces)
+    )
 
-    Seq(producerRep) ++ deductedFeeBoxes(hashNoNonces)
+    val assetCode: String =  contract.agreement("assetCode").get.asString.get
+
+    val investorAmount = Math.min(output, input)
+    val profitAmount: Double = Math.max(output - investorAmount, 0).toDouble
+    val agreement: Agreement = contract.agreement.asJson.as[Agreement] match {
+      case Right(a: Agreement) => a
+      case Left(e) => throw new Exception(s"Could not parse agreement in contract: $e")
+    }
+
+    val shares: (Double, Double, Double) = agreement.terms.share.evaluate(profitAmount.toDouble / input.toDouble)
+
+    val producerProfitShare = (shares._1*profitAmount).toLong
+    val hubProfitShare = (shares._2*profitAmount).toLong
+    val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
+
+    Seq(
+      producerRep,
+      AssetBox(contract.Producer, assetNonce(contract.Producer),  producerProfitShare,                  assetCode),
+      AssetBox(contract.Hub,      assetNonce(contract.Hub),       hubProfitShare,                       assetCode),
+      AssetBox(contract.Investor, assetNonce(contract.Investor),  investorAmount + investorProfitShare, assetCode)
+    ) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -365,8 +385,6 @@ case class ContractCompletion(contractBox: ContractBox,
 }
 
 object ContractCompletion {
-
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: ContractCompletion): Try[Unit] = Try {
     require(tx.signatures.size == 3)

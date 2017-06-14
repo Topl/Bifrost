@@ -81,10 +81,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   //noinspection ScalaStyle
   lazy val numStringGen: Gen[String] = for {
-    numDigits <- Gen.choose(0, 80)
+    numDigits <- Gen.choose(0, 78)
   } yield (0 until numDigits).map {
     _ => base10gen.sample.get
-  }.foldLeft(Gen.choose(1,9).sample.get.toString)((a,b) => a + b)
+  }.foldLeft(Gen.choose(1,9).sample.get.toString)((a,b) => a + b) + Gen.choose(1,9).sample.get.toString
 
   lazy val positiveDoubleGen: Gen[Double] = Gen.choose(0, Double.MaxValue)
 
@@ -96,20 +96,20 @@ trait BifrostGenerators extends CoreGenerators {
   } yield BigDecimal(wholeNumber + "." + decimalPortion)
 
   //generate a num from smallInt for len of seq, map that many tuples, concatenate together into seq
-  lazy val seqDoubleGen: Gen[Seq[(Double, (Double, Double, Double))]] = for {
-    seqLen <- positiveTinyIntGen
+  def seqDoubleGen(minLength: Int): Gen[Seq[(Double, (Double, Double, Double))]] = for {
+    seqLen <- Gen.choose(minLength, minLength + positiveTinyIntGen.sample.get)
   } yield (0 until seqLen) map {
     val first = samplePositiveDouble / 2; val second = samplePositiveDouble / 2
     _ => (samplePositiveDouble, (first, second, 1 - first - second))
   }
 
-  lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen.map(new PiecewiseLinearMultiple(_))
+  lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen(2).map(PiecewiseLinearMultiple)
 
-  lazy val seqLongDoubleGen: Gen[Seq[(Long, Double)]] = for {
-    seqLen <- positiveTinyIntGen
+  def seqLongDoubleGen(minLength: Int): Gen[Seq[(Long, Double)]] = for {
+    seqLen <- Gen.choose(minLength, minLength + positiveTinyIntGen.sample.get)
   } yield (0 until seqLen) map { i => (positiveLongGen.sample.get, samplePositiveDouble) }
 
-  lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen.map(new PiecewiseLinearSingle(_))
+  lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(2).map(PiecewiseLinearSingle)
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
@@ -158,9 +158,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val agreementGen: Gen[Agreement] = for {
     terms <- agreementTermsGen
+    assetCode <- stringGen
     contractEffectiveTime <- positiveLongGen
     contractEndTime <- positiveLongGen
-  } yield Agreement(terms, contractEffectiveTime, contractEndTime)
+  } yield Agreement(terms, assetCode, contractEffectiveTime, contractEndTime)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
@@ -296,16 +297,16 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen
   } yield {
-    var keySet = Set[PrivateKey25519]()
-    val prop = MofNProposition(
-      1, (0 until n).map(i =>{
-        val key = key25519Gen.sample.get
-        keySet += key._1
-        key._2.pubKeyBytes
-      }).foldLeft(Set[Array[Byte]]())((set, cur) => set + cur)
-    )
+    val setOfKeys = (0 until n).map(i => {
+      val key = key25519Gen.sample.get
+      (key._1, key._2.pubKeyBytes)
+    }).foldLeft((Set[PrivateKey25519](), Set[Array[Byte]]())) {
+      case (set: (Set[PrivateKey25519], Set[Array[Byte]]), cur: (PrivateKey25519, Array[Byte])) =>
+        (set._1 + cur._1, set._2 + cur._2)
+    }
+    val prop = MofNProposition(1, setOfKeys._2)
 
-    (keySet, prop)
+    (setOfKeys._1, prop)
   }
 
   lazy val keyPairSetGen: Gen[Set[(PrivateKey25519, PublicKey25519Proposition)]] = for {

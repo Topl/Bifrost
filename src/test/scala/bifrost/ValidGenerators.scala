@@ -28,9 +28,10 @@ import scala.util.Random
 trait ValidGenerators extends BifrostGenerators {
 
   lazy val validAgreementGen: Gen[Agreement] = for {
+    assetCode <- stringGen
     terms <- agreementTermsGen
     delta <- positiveLongGen
-  } yield Agreement(terms, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
+  } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
 
   // TODO this should be an enum
   val validStatuses: List[String] = List("expired", "complete", "initialized")
@@ -134,7 +135,7 @@ trait ValidGenerators extends BifrostGenerators {
     val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
-      Agreement(agreementTermsGen.sample.get, timestamp - effDelta, timestamp + expDelta),
+      Agreement(agreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
       currentEndorsement,
