@@ -106,7 +106,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
   def getRole(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val state = view.state
     val pubKey = (params \\ "publicKey").head.asString.get
-    println(s"Get Role Box, ${Base58.decode(pubKey).get}")
+    println(s"Get Role Box, ${pubKey}")
     val box = state.closedBox(FastCryptographicHash(Base58.decode(pubKey).get ++ "role".getBytes)).get
     box.json
   }

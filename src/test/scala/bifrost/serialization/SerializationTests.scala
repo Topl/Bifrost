@@ -6,9 +6,13 @@ import bifrost.transaction._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
 import bifrost.{BifrostGenerators, ValidGenerators}
+import io.circe.{Decoder, HCursor}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.PrivateKey25519
+import scorex.crypto.encode.Base58
+import io.circe.parser.decode
 
 /**
   * Created by cykoz on 4/12/17.
@@ -75,11 +79,24 @@ class SerializationTests extends PropSpec
   }
 
   property("ProfileBox Serialization") {
+    implicit val decodeProfileBox: Decoder[ProfileBox] = new Decoder[ProfileBox] {
+      final def apply(c: HCursor): Decoder.Result[ProfileBox] =
+        for {
+          proposition <- c.downField("proposition").as[String]
+          value <- c.downField("value").as[String]
+          field <- c.downField("key").as[String]
+        } yield {
+          val pubkey = PublicKey25519Proposition(Base58.decode(proposition).get)
+          ProfileBox(pubkey, 0L, value, field)
+        }
+    }
     forAll(profileBoxGen) {
       b: ProfileBox =>
+        val json = b.json
         val parsed = BifrostBoxSerializer.parseBytes(BifrostBoxSerializer.toBytes(b)).get
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         serialized shouldEqual BifrostBoxSerializer.toBytes(b)
+        decode[ProfileBox](json.toString()).right.get.bytes shouldEqual BifrostBoxSerializer.toBytes(b)
     }
   }
 
