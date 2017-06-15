@@ -207,6 +207,7 @@ case class ProfileBox(proposition: PublicKey25519Proposition,
                       override val nonce: Long,
                       value: String,
                       key: String) extends BifrostBox(proposition, nonce, value) {
+
   lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, key)
 
   val typeOfBox = "ProfileBox"
