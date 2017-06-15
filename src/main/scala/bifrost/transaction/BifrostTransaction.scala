@@ -9,7 +9,7 @@ import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import bifrost.transaction.Role.Role
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import io.circe.generic.auto._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -19,6 +19,7 @@ import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Pub
 import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Success, Try}
 
@@ -52,7 +53,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
         ).asJson
       )
     }.asJson,
-    "fee" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
+    "fees" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
@@ -80,6 +81,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 }
 
 object ContractTransaction {
+
   type Nonce = Long
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
@@ -177,6 +179,32 @@ object ContractCreation {
     ContractTransaction.commonValidation(tx)
   }
 
+  implicit val decodeContractCreation: Decoder[ContractCreation] = (c: HCursor) => for {
+    agreement <- c.downField("agreement").as[Agreement]
+    rawParties <- c.downField("parties").as[Map[String, String]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
+    rawFees <- c.downField("fees").as[Map[String, Long]]
+    timestamp <- c.downField("timestamp").as[Long]
+  } yield {
+    def stringToPubKey(rawString: String) = PublicKey25519Proposition(Base58.decode(rawString).get)
+    def stringToSignature(rawString: String) = Signature25519(Base58.decode(rawString).get)
+    val parties = Map(
+      Role.Investor -> stringToPubKey(rawParties.get("investor").get),
+      Role.Producer -> stringToPubKey(rawParties.get("producer").get),
+      Role.Hub -> stringToPubKey(rawParties.get("hub").get)
+    )
+    val signatures = rawSignatures.map { case (key, value) =>
+      if (value == "") {
+        (stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+      } else {
+        (stringToPubKey(key), stringToSignature(value))
+      }
+    }
+    val preFeeBoxes = rawPreFeeBoxes.map { case (key, value) => (stringToPubKey(key), value) }
+    val fees = rawFees.map { case (key, value) => (stringToPubKey(key), value) }
+    ContractCreation(agreement, parties, signatures, preFeeBoxes, fees, timestamp)
+  }
 }
 
 case class ContractMethodExecution(contractBox: ContractBox,

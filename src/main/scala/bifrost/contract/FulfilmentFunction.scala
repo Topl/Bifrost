@@ -38,6 +38,11 @@ object FulfilmentFunction {
 
 /**
   * This will try to interpolate between points
+  * @param points
+  *               a Sequence of (
+  *               Long: timestamp for scheduled delivery
+  *               Double: Percentage amount of total delivery ex. 0.25
+  *               )
   */
 case class PiecewiseLinearSingle(points: Seq[(Long, Double)]) extends FulfilmentFunction {
 

@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.transaction.ContractCreation._
 import bifrost.scorexMod.{GenericBox, GenericBoxTransaction, GenericNodeViewHolder}
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
@@ -203,62 +204,11 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
 
   //noinspection ScalaStyle
   def createContractInstance(json: Json, state: BifrostState): ContractCreation = {
-    val agreement = (json \\ "agreement").head
-    val pledge: Long = (agreement \\ "pledge").head.asNumber.get.toLong.get
-    val xrate: BigDecimal = BigDecimal((agreement \\ "xrate").head.asNumber.get.toString)
-    val shareFunc = new PiecewiseLinearMultiple(
-      (agreement \\ "share").head.as[Seq[(Double,(Double, Double, Double))]].right.get
-    )
-    val fulfillFunc = new PiecewiseLinearSingle(
-      (agreement \\ "fulfill").head.as[Seq[(Long, Double)]].right.get
-    )
-    val expiration: Long = (agreement \\ "expirationTime").head.asNumber.get.toLong.get
-    val effectiveDate: Long = (agreement \\ "effectiveTime").head.asNumber.get.toLong.get
-    val assetCode: String = (agreement \\ "assetCode").head.asString.get
-    val terms = new AgreementTerms(pledge, xrate, shareFunc, fulfillFunc)
-    val contractAgreement = new Agreement(terms, assetCode, effectiveDate, expiration)
-
-    val hub = (json \\ "hub").head
-    val producer = (json \\ "producer").head
-    val investor = (json \\ "investor").head
-    val fees: Map[PublicKey25519Proposition, Long] = (json \\ "fees").head.asObject.map(_.toMap)
-      .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
-        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-      })
-
-    val preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "preFeeBoxes").head.asObject
-      .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
-        case (prop: String, v: Json) =>
-          (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
-            v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
-                val nonceLongPair = preBox.asArray
-                nonceLongPair.map(nlp =>
-                  (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-                )
-              }.getOrElse((0L, 0L))).toIndexedSeq
-            )
-          )
-      })
-
-    val extractedTuple = ContractApiRoute.extractPublicKeyAndSignatures(hub, producer, investor)
-    val Array(hubPublicKey, producerPublicKey, investorPublicKey) = extractedTuple._1
-    val Array(hubSignature, producerSignature, investorSignature) = extractedTuple._2
-
-    ContractCreation(contractAgreement,
-      Map(
-        Role.Hub -> hubPublicKey,
-        Role.Producer -> producerPublicKey,
-        Role.Investor -> investorPublicKey
-      ),
-      Map(
-        hubPublicKey -> hubSignature,
-        producerPublicKey -> producerSignature,
-        investorPublicKey -> investorSignature
-      ),
-      preFeeBoxes,
-      fees,
-      System.currentTimeMillis()
-    )
+    println(json)
+    json.as[ContractCreation] match {
+      case Right(c: ContractCreation) => c
+      case Left(e) => throw new Exception(s"Could not parse ContractCreation: $e")
+    }
   }
 
   def createCompletionInstance(json: Json, state: BifrostState): ContractCompletion = {

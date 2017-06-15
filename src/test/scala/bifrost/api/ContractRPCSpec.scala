@@ -23,7 +23,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.{ProfileTransaction, Role}
-import bifrost.transaction.box.{ArbitBox, ProfileBox}
+import bifrost.transaction.box.{ArbitBox, PolyBox, ProfileBox}
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import io.circe
@@ -70,9 +70,13 @@ class ContractRPCSpec extends WordSpec
     )
   }
 
+  implicit val timeout = Timeout(5.seconds)
+  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 5 seconds)
+
   "Contract RPC" should {
     "return role or error" in {
-      val jsonRequest = ByteString("""
+      val requestBody = ByteString("""
         |{
         |  "jsonrpc": "2.0",
         |  "id": "16",
@@ -82,8 +86,7 @@ class ContractRPCSpec extends WordSpec
         |  }]
         |}
         |""".stripMargin)
-      val postRequest = httpPOST(jsonRequest)
-      postRequest ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").head.asObject.isDefined shouldEqual true
         (res \\ "result").isEmpty shouldEqual true
@@ -91,7 +94,7 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Create a role" in {
-      val jsonRequest = ByteString("""
+      val requestBody = ByteString("""
         |{
         |  "jsonrpc": "2.0",
         |  "id": "16",
@@ -108,33 +111,27 @@ class ContractRPCSpec extends WordSpec
         |    }]
         |}
         |""".stripMargin)
-      val postRequest = httpPOST(jsonRequest)
-      postRequest ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asArray.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
 
-        implicit val timeout = Timeout(5.seconds)
-        val testing = (nodeViewHolderRef ? GetCurrentView)
-          .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
-          .map { view: CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool] =>
-            val state = view.state
-            val wallet = view.vault
-            val profileBoxes = Seq(
-              ProfileBox(wallet.secrets.toSeq(0).publicImage, 0L, Role.Hub.toString, "role"),
-              ProfileBox(wallet.secrets.toSeq(1).publicImage, 0L, Role.Producer.toString, "role"),
-              ProfileBox(wallet.secrets.toSeq(2).publicImage, 0L, Role.Investor.toString, "role")
-            )
-            val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
+        val state = view().state
+        val wallet = view().vault
+        val profileBoxes = Seq(
+          ProfileBox(wallet.secrets.toSeq(0).publicImage, 0L, Role.Hub.toString, "role"),
+          ProfileBox(wallet.secrets.toSeq(1).publicImage, 0L, Role.Producer.toString, "role"),
+          ProfileBox(wallet.secrets.toSeq(2).publicImage, 0L, Role.Investor.toString, "role")
+        )
+        val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
 
-            state.applyChanges(boxSC, Ints.toByteArray(4)).get
-          }
-        Await.result(testing, 5 seconds)
+        state.applyChanges(boxSC, Ints.toByteArray(4)).get
       }
     }
 
+
     "Get the role after declaration" in {
-      val jsonRequest = ByteString("""
+      val requestBody = ByteString("""
        |{
        |  "jsonrpc": "2.0",
        |  "id": "16",
@@ -148,11 +145,77 @@ class ContractRPCSpec extends WordSpec
        |  }]
        |}
        |""".stripMargin)
-      val postRequest = httpPOST(jsonRequest)
-      postRequest ~> route ~> check {
+      httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "result").head.asArray.isDefined shouldEqual true
+        (res \\ "error").isEmpty shouldEqual true
+        val jsonArray = (res \\ "result").head.asArray.get
+        (jsonArray(0) \\ "proposition").head.asString.get shouldEqual "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+        (jsonArray(0) \\ "value").head.asString.get shouldEqual "investor"
+        (jsonArray(1) \\ "proposition").head.asString.get shouldEqual "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+        (jsonArray(1) \\ "value").head.asString.get shouldEqual "hub"
+        (jsonArray(2) \\ "proposition").head.asString.get shouldEqual "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+        (jsonArray(2) \\ "value").head.asString.get shouldEqual "producer"
+      }
+    }
+
+    val contractEffectiveTime = System.currentTimeMillis() + 1000000L
+    val contractExpirationTime = System.currentTimeMillis() + 200000000L
+    val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
+    val contractBodyTemplate = ByteString(s"""
+      |{
+      |  "jsonrpc": "2.0",
+      |  "id": "16",
+      |  "method": "getContractSignature",
+      |  "params": [{
+      |    "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+      |    "agreement": {
+      |      "assetCode": "WHEAT",
+      |      "terms": {
+      |        "pledge": 8000,
+      |			  "xrate": 1.564,
+      |        "share": {
+      |          "functionType": "PiecewiseLinearMultiple",
+      |          "points": [[1.34, [0.25, 0.25, 0.5]]]
+      |        },
+      |        "fulfilment" : {
+      |          "functionType" : "PiecewiseLinearSingle",
+      |          "points" : [[${contractExpirationTime}, 1.00]]
+      |        }
+      |      },
+      |      "contractEffectiveTime": ${contractEffectiveTime},
+      |      "contractExpirationTime": ${contractExpirationTime}
+      |    },
+      |    "parties": {
+      |      "investor": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+      |      "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+      |      "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+      |    },
+      |    "signatures": {
+      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": "",
+      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": "",
+      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
+      |    },
+      |    "preFeeBoxes": {
+      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
+      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": [],
+      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": []
+      |    },
+      |    "fees": {
+      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": 500,
+      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": 0,
+      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": 0
+      |    },
+      |    "timestamp": ${System.currentTimeMillis()}
+      |  }]
+      |}
+      |""".stripMargin)
+    "Get ContractCreation Signature" in {
+      val requestBody = contractBodyTemplate
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        ((res \\ "result").head.asJson \\ "signature").head.asString.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
       }
     }
