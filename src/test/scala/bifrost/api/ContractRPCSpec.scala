@@ -23,7 +23,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.{ProfileTransaction, Role}
-import bifrost.transaction.box.{ArbitBox, PolyBox, ProfileBox}
+import bifrost.transaction.box.{ArbitBox, ContractBox, PolyBox, ProfileBox}
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import io.circe
@@ -38,6 +38,7 @@ import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
@@ -162,61 +163,112 @@ class ContractRPCSpec extends WordSpec
     val contractEffectiveTime = System.currentTimeMillis() + 1000000L
     val contractExpirationTime = System.currentTimeMillis() + 200000000L
     val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
-    val contractBodyTemplate = ByteString(s"""
-      |{
-      |  "jsonrpc": "2.0",
-      |  "id": "16",
-      |  "method": "getContractSignature",
-      |  "params": [{
-      |    "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-      |    "agreement": {
-      |      "assetCode": "WHEAT",
-      |      "terms": {
-      |        "pledge": 8000,
-      |			  "xrate": 1.564,
-      |        "share": {
-      |          "functionType": "PiecewiseLinearMultiple",
-      |          "points": [[1.34, [0.25, 0.25, 0.5]]]
-      |        },
-      |        "fulfilment" : {
-      |          "functionType" : "PiecewiseLinearSingle",
-      |          "points" : [[${contractExpirationTime}, 1.00]]
-      |        }
-      |      },
-      |      "contractEffectiveTime": ${contractEffectiveTime},
-      |      "contractExpirationTime": ${contractExpirationTime}
-      |    },
-      |    "parties": {
-      |      "investor": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-      |      "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
-      |      "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
-      |    },
-      |    "signatures": {
-      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": "",
-      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": "",
-      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
-      |    },
-      |    "preFeeBoxes": {
-      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
-      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": [],
-      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": []
-      |    },
-      |    "fees": {
-      |      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": 500,
-      |      "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": 0,
-      |      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": 0
-      |    },
-      |    "timestamp": ${System.currentTimeMillis()}
-      |  }]
-      |}
-      |""".stripMargin)
+    val contractBodyTemplate = s"""
+      {
+        "jsonrpc": "2.0",
+        "id": "16",
+        "method": "getContractSignature",
+        "params": [{
+          "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+          "agreement": {
+            "assetCode": "WHEAT",
+            "terms": {
+              "pledge": 8000,
+      			  "xrate": 1.564,
+              "share": {
+                "functionType": "PiecewiseLinearMultiple",
+                "points": [[1.34, [0.25, 0.25, 0.5]]]
+              },
+              "fulfilment" : {
+                "functionType" : "PiecewiseLinearSingle",
+                "points" : [[${contractExpirationTime}, 1.00]]
+              }
+            },
+            "contractEffectiveTime": ${contractEffectiveTime},
+            "contractExpirationTime": ${contractExpirationTime}
+          },
+          "parties": {
+            "investor": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+            "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+            "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+          },
+          "signatures": {
+            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": "",
+            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": "",
+            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
+          },
+          "preFeeBoxes": {
+            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
+            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": [],
+            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": []
+          },
+          "fees": {
+            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": 500,
+            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": 0,
+            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": 0
+          },
+          "timestamp": ${System.currentTimeMillis()}
+        }]
+      }
+      """
+    var investorSig = ""; var hubSig = ""; var producerSig = ""
+
     "Get ContractCreation Signature" in {
-      val requestBody = contractBodyTemplate
+      val requestBody = ByteString(contractBodyTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
-        ((res \\ "result").head.asJson \\ "signature").head.asString.isDefined shouldEqual true
+        investorSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
+        investorSig.nonEmpty shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
+      }
+      // Getting Producer and Hub signatures
+      val paramsJson: Json = parse(contractBodyTemplate).getOrElse(Json.Null)
+      val cursor: HCursor = paramsJson.hcursor
+      val hubJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
+        .withFocus(_.mapString(t => "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU")).top.get
+      val producerJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
+        .withFocus(_.mapString(t => "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb")).top.get
+
+      httpPOST(ByteString(hubJson.toString)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        hubSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
+      }
+      httpPOST(ByteString(producerJson.toString)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        producerSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
+      }
+      println(s"Investor: ${investorSig}, Producer: ${producerSig}, Hub: ${hubSig}")
+    }
+
+    var contractBoxId = Array[Byte]()
+    "Create the Contract" in {
+      val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
+      val cursor: HCursor = requestBodyJson.hcursor
+      val requestJson = cursor.downField("method")
+        .withFocus(_.mapString(t => "createContract")).up
+        .downField("params").downArray.downField("signatures").downField("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+        .withFocus(_.mapString(t => investorSig)).up
+        .downField("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU")
+        .withFocus(_.mapString(t => hubSig)).up
+        .downField("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb")
+        .withFocus(_.mapString(t => producerSig)).top.get
+
+      httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
+        view().pool.take(5).toList.size shouldEqual 4
+        // manually add contractBox to state
+        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
+        contractBoxId = txInstance.newBoxes.filter(b => b.isInstanceOf[ContractBox]).head.id
+        val boxSC = BifrostStateChanges(Set(), txInstance.newBoxes.toSet, System.currentTimeMillis())
+
+        view().state.applyChanges(boxSC, Ints.toByteArray(5)).get
+        view().pool.remove(txInstance)
+        view().pool.take(5).toList.size shouldEqual 3
       }
     }
   }

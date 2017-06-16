@@ -43,6 +43,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
   }
 
   lazy val commonJson: Json = Map(
+    "transactionHash" -> Base58.encode(id).asJson,
     "parties" -> parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson ).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes).asJson }.asJson,
     "feePreBoxes" -> preFeeBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>

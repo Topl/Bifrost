@@ -19,8 +19,7 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   private val boxesInMempool = new TrieMap[ByteArrayWrapper, ByteArrayWrapper]()
 
   //getters
-  override def getById(id: ModifierId): Option[BifrostTransaction] =
-  unconfirmed.get(key(id))
+  override def getById(id: ModifierId): Option[BifrostTransaction] = unconfirmed.get(key(id))
 
   override def contains(id: ModifierId): Boolean = unconfirmed.contains(key(id))
 
