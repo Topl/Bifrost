@@ -82,6 +82,11 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 }
 
 object ContractTransaction {
+  type PTS =  Map[Role, PublicKey25519Proposition]
+  type SIG = Map[PublicKey25519Proposition, Signature25519]
+  type FBX = Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
+  type F = Map[PublicKey25519Proposition, Long]
+  type RP = Map[String, String]
 
   type Nonce = Long
 
@@ -99,6 +104,24 @@ object ContractTransaction {
     }})
 
     require(tx.timestamp >= 0)
+  }
+
+  def stringToPubKey(rawString: String): PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(rawString).get)
+
+  def stringToSignature(rawString: String): Signature25519 = Signature25519(Base58.decode(rawString).get)
+
+  def commonDecode(rawParties: RP, rawSignatures: RP, rawFeeBoxes: Map[String, IndexedSeq[(Long, Long)]], rawFees: Map[String, Long]): (PTS, SIG, FBX, F) = {
+    val parties = rawParties.map { case (key, value) => (Role.withName(key), stringToPubKey(value)) }
+    val signatures = rawSignatures.map { case (key, value) =>
+      if (value == "") {
+        (stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+      } else {
+        (stringToPubKey(key), stringToSignature(value))
+      }
+    }
+    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (stringToPubKey(key), value) }
+    val fees = rawFees.map { case (key, value) => (stringToPubKey(key), value) }
+    (parties, signatures, preFeeBoxes, fees)
   }
 }
 
@@ -169,7 +192,7 @@ object ContractCreation {
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
     val outcome = Agreement.validate(tx.agreement)
-    require(Agreement.validate(tx.agreement).isSuccess)
+    require(outcome.isSuccess)
 
     require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
     require(tx.parties.keys.toSet.size == 3) // Make sure there are exactly 3 unique roles
@@ -188,24 +211,10 @@ object ContractCreation {
     rawFees <- c.downField("fees").as[Map[String, Long]]
     timestamp <- c.downField("timestamp").as[Long]
   } yield {
-    def stringToPubKey(rawString: String) = PublicKey25519Proposition(Base58.decode(rawString).get)
-    def stringToSignature(rawString: String) = Signature25519(Base58.decode(rawString).get)
-    val parties = Map(
-      Role.Investor -> stringToPubKey(rawParties.get("investor").get),
-      Role.Producer -> stringToPubKey(rawParties.get("producer").get),
-      Role.Hub -> stringToPubKey(rawParties.get("hub").get)
-    )
-    val signatures = rawSignatures.map { case (key, value) =>
-      if (value == "") {
-        (stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
-      } else {
-        (stringToPubKey(key), stringToSignature(value))
-      }
-    }
-    val preFeeBoxes = rawPreFeeBoxes.map { case (key, value) => (stringToPubKey(key), value) }
-    val fees = rawFees.map { case (key, value) => (stringToPubKey(key), value) }
-    ContractCreation(agreement, parties, signatures, preFeeBoxes, fees, timestamp)
+    val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
+    ContractCreation(agreement, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
   }
+
 }
 
 case class ContractMethodExecution(contractBox: ContractBox,
@@ -305,6 +314,19 @@ object ContractMethodExecution {
     ContractTransaction.commonValidation(tx)
   }
 
+  implicit val decodeContractMethodExecution: Decoder[ContractMethodExecution] = (c: HCursor) => for {
+    contractBox <- c.downField("contractBox").as[ContractBox]
+    methodName <- c.downField("methodName").as[String]
+    methodParams <- c.downField("methodParams").as[Json]
+    rawParties <- c.downField("parties").as[Map[String, String]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
+    rawFees <- c.downField("fees").as[Map[String, Long]]
+    timestamp <- c.downField("timestamp").as[Long]
+  } yield {
+    val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
+    ContractMethodExecution(contractBox, methodName, methodParams, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
+  }
 }
 
 case class ContractCompletion(contractBox: ContractBox,

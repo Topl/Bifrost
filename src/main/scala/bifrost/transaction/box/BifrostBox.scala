@@ -3,7 +3,7 @@ package bifrost.transaction.box
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -153,6 +153,18 @@ case class ContractBox(proposition: MofNProposition,
 
 }
 
+object ContractBox {
+  implicit val decodeContractBox: Decoder[ContractBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[Seq[String]]
+    value <- c.downField("value").as[Json]
+    nonce <- c.downField("nonce").as[Long]
+  } yield {
+    val preparedPubKey = proposition.map(t => Base58.decode(t).get).toSet
+    val prop = MofNProposition(1, preparedPubKey)
+    ContractBox(prop, nonce, value)
+  }
+}
+
 object ContractBoxSerializer extends Serializer[ContractBox] {
 
   def toBytes(obj: ContractBox): Array[Byte] = {
@@ -228,6 +240,15 @@ object ProfileBox {
 
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, field: String): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ field.getBytes)
+
+  implicit val decodeProfileBox: Decoder[ProfileBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[String]
+    value <- c.downField("value").as[String]
+    field <- c.downField("key").as[String]
+  } yield {
+    val pubkey = PublicKey25519Proposition(Base58.decode(proposition).get)
+    ProfileBox(pubkey, 0L, value, field)
+  }
 }
 
 object ProfileBoxSerializer extends Serializer[ProfileBox] {

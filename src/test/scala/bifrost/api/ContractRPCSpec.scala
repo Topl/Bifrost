@@ -39,7 +39,7 @@ import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import java.time.Clock
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -160,7 +160,7 @@ class ContractRPCSpec extends WordSpec
       }
     }
 
-    val contractEffectiveTime = System.currentTimeMillis() + 1000000L
+    val contractEffectiveTime = System.currentTimeMillis() + 100000L
     val contractExpirationTime = System.currentTimeMillis() + 200000000L
     val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
     val contractBodyTemplate = s"""
@@ -243,7 +243,8 @@ class ContractRPCSpec extends WordSpec
       println(s"Investor: ${investorSig}, Producer: ${producerSig}, Hub: ${hubSig}")
     }
 
-    var contractBoxId = Array[Byte]()
+    var contractBox = None: Option[ContractBox]
+    var hubFeeBox = None: Option[PolyBox]; var producerFeeBox = None: Option[PolyBox]; var investorFeeBox = None: Option[PolyBox]
     "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
       val cursor: HCursor = requestBodyJson.hcursor
@@ -261,14 +262,61 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         view().pool.take(5).toList.size shouldEqual 4
+
         // manually add contractBox to state
         val txInstance = view().pool.getById(Base58.decode(txHash).get).get
-        contractBoxId = txInstance.newBoxes.filter(b => b.isInstanceOf[ContractBox]).head.id
-        val boxSC = BifrostStateChanges(Set(), txInstance.newBoxes.toSet, System.currentTimeMillis())
+        txInstance.newBoxes.foreach(b => b match {
+          case b: ContractBox => contractBox = Some(b)
+          case p: PolyBox =>
+            if (p.proposition.pubKeyBytes sameElements Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get) {
+              producerFeeBox = Some(p)
+            } else if (p.proposition.pubKeyBytes sameElements Base58.decode("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU").get) {
+              hubFeeBox = Some(p)
+            } else if (p.proposition.pubKeyBytes sameElements Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get) {
+              investorFeeBox = Some(p)
+            }
+        })
+        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
 
         view().state.applyChanges(boxSC, Ints.toByteArray(5)).get
         view().pool.remove(txInstance)
         view().pool.take(5).toList.size shouldEqual 3
+      }
+    }
+
+    "Execute Deliver Method" in {
+      val requestBody = s"""
+          |{
+          |  "jsonrpc": "2.0",
+          |  "id": "19",
+          |  "method": "executeContractMethod",
+          |  "params": [{
+          |    "signingPublicKey": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
+          |    "contractBox": ${contractBox.get.json},
+          |    "methodName": "deliver",
+          |    "parties": {
+          |	     "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+          |	   },
+          |	   "signatures": {
+          |	     "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
+          |	   },
+          |	   "methodParams": {
+          |      "quantity": 9000
+          |	   },
+          |	   "preFeeBoxes": {
+          |	     "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb" : []
+          |	   },
+          |	   "fees" : {
+          |       "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb" : 0
+          |    },
+          |    "timestamp": ${contractEffectiveTime + 1}
+          |  }]
+          |}
+        """.stripMargin
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println("response", res)
+        view().pool.take(5).toList.size shouldEqual 4
       }
     }
   }

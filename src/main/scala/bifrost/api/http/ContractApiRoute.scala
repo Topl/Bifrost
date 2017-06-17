@@ -117,9 +117,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val wallet = view.vault
     val secrets = wallet.secrets
     val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-    val selectedSecret = secrets.toSeq.filter(p =>
-      p.publicImage.pubKeyBytes sameElements Base58.decode(signingPublicKey).get
-    ).head
+    val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
     val state = view.state
     val tx = createContractInstance(params, state)
     val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
@@ -130,56 +128,31 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
   def createContract(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val state = view.state
     val tx = createContractInstance(params, state)
+    ContractCreation.validate(tx) match {
+      case Success(e) => println("Contract Creation validation success")
+      case Failure(e) => throw e
+    }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCreation](tx)
     tx.json
   }
 
   def executeContractMethod(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val wallet = view.vault
+    val secrets = wallet.secrets
+    val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+    val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
     val state = view.state
-    val contractBoxId = (params \\ "contractBoxId").head.asString.get
-    val role = (params \\ "role").head.asString.get
-    val publicKeyString = (params \\ "publicKey").head.asString.get
-    val methodName = (params \\ "methodName").head.asString.get
-    val methodParams = (params \\ "methodParams").head
-    val fees: Map[PublicKey25519Proposition, Long] = (params \\ "fees").head.asObject.map(_.toMap)
-      .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
-        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-      })
+    val tempTx = params.as[ContractMethodExecution] match {
+      case Right(c: ContractMethodExecution) => c
+      case Left(e) => throw new Exception(s"Could not parse ContractMethodExecution: $e")
+    }
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (params \\ "feePreBoxes").head.asObject
-      .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
-      case (prop: String, v: Json) =>
-        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
-          v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
-            val nonceLongPair = preBox.asArray
-            nonceLongPair.map(nlp =>
-              (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-            )
-          }.getOrElse((0L, 0L))).toIndexedSeq
-          )
-        )
-    })
-
-    // validate inputs
-    require(ProfileBox.acceptableRoleValues.contains(role))
-    val publicKey = PublicKey25519Proposition(Base58.decode(publicKeyString).get)
-    val privKey = wallet.secretByPublicImage(publicKey).get
-    require(privKey != None)
-    val contractBox = state.closedBox(Base58.decode(contractBoxId).get).get.asInstanceOf[ContractBox]
-    // Create a dummy ContractMethodExecution tx for signing
-    val timestamp = System.currentTimeMillis()
-
-    val tempMethodExecution = ContractMethodExecution(contractBox, methodName, methodParams,
-      Map(Role.withName(role) -> publicKey),
-      Map(publicKey -> Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))),
-      feePreBoxes,
-      fees,
-      timestamp
-    )
-
-    val realSignature = PrivateKey25519Companion.sign(privKey, tempMethodExecution.messageToSign)
-    val tx = tempMethodExecution.copy(signatures = Map(publicKey -> realSignature))
+    val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
+    val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
+    ContractMethodExecution.validate(tx) match {
+      case Success(e) => println("validation success")
+      case Failure(e) => throw e
+    }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractMethodExecution](tx)
     tx.json
   }

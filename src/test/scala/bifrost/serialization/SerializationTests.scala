@@ -80,17 +80,6 @@ class SerializationTests extends PropSpec
   }
 
   property("ProfileBox Serialization") {
-    implicit val decodeProfileBox: Decoder[ProfileBox] = new Decoder[ProfileBox] {
-      final def apply(c: HCursor): Decoder.Result[ProfileBox] =
-        for {
-          proposition <- c.downField("proposition").as[String]
-          value <- c.downField("value").as[String]
-          field <- c.downField("key").as[String]
-        } yield {
-          val pubkey = PublicKey25519Proposition(Base58.decode(proposition).get)
-          ProfileBox(pubkey, 0L, value, field)
-        }
-    }
     forAll(profileBoxGen) {
       b: ProfileBox =>
         val json = b.json
@@ -104,7 +93,6 @@ class SerializationTests extends PropSpec
   property("Agreement Serialization") {
     forAll(agreementGen) {
       a: Agreement =>
-        println(a.json)
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
         AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
     }
