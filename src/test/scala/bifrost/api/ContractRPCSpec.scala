@@ -32,14 +32,8 @@ import io.circe._
 import io.circe.parser._
 import io.circe.generic.auto._
 import io.circe.syntax._
-import scorex.core.NodeViewModifier
-import scorex.core.api.http.SuccessApiResponse
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
+import io.circe.optics.JsonPath._
 import scorex.crypto.encode.Base58
-import java.time.Clock
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -292,7 +286,7 @@ class ContractRPCSpec extends WordSpec
           |  "method": "executeContractMethod",
           |  "params": [{
           |    "signingPublicKey": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
-          |    "contractBox": ${contractBox.get.json},
+          |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
           |    "methodName": "deliver",
           |    "parties": {
           |	     "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
@@ -331,7 +325,64 @@ class ContractRPCSpec extends WordSpec
         view().pool.take(5).toList.size shouldEqual 3
         val boxContent = ((res \\ "result").head \\ "contractBox").head
         Base58.encode(contractBox.get.id) sameElements (boxContent \\ "id").head.asString.get
-        (((boxContent \\ "value").head \\ "storage").head \\ "currentFulfillment").nonEmpty shouldEqual true
+        val _fulfillmentStatus = root.value.storage.currentFulfillment.json
+        _fulfillmentStatus.getOption(boxContent).nonEmpty shouldEqual true
+      }
+    }
+
+    "Execute confirmDelivery Method" in {
+      val _deliveryId = root.value.storage.currentFulfillment.pendingDeliveries.each.id.string
+      val deliveryId = _deliveryId.getAll(contractBox.get.json)
+      val requestBody = s"""
+         |{
+         |  "jsonrpc": "2.0",
+         |  "id": "19",
+         |  "method": "executeContractMethod",
+         |  "params": [{
+         |    "signingPublicKey": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+         |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
+         |    "methodName": "confirmDelivery",
+         |	   "methodParams": {
+         |       "deliveryId": ${deliveryId.head.asJson}
+         |	   },
+         |    "parties": {
+         |	     "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+         |	   },
+         |	   "signatures": {
+         |	     "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": ""
+         |	   },
+         |	   "preFeeBoxes": {
+         |	     "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU" : []
+         |	   },
+         |	   "fees" : {
+         |       "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU" : 0
+         |    },
+         |    "timestamp": ${contractEffectiveTime + 10000L}
+         |  }]
+         |}
+        """.stripMargin
+      println(requestBody)
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        println(res)
+        // Manually manipulate state
+        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
+        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
+        txInstance.newBoxes.foreach(b => b match {
+          case b: ContractBox => contractBox = Some(b)
+          case _ =>
+        })
+        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
+
+        view().state.applyChanges(boxSC, Ints.toByteArray(7)).get
+        view().pool.remove(txInstance)
+        // Assertions
+        view().pool.take(5).toList.size shouldEqual 3
+        val boxContent = ((res \\ "result").head \\ "contractBox").head
+        Base58.encode(contractBox.get.id) sameElements (boxContent \\ "id").head.asString.get
+        val _fulfillmentStatus = root.value.storage.currentFulfillment.deliveredQuantity.int
+        _fulfillmentStatus.getOption(boxContent).get shouldEqual 9000
       }
     }
   }

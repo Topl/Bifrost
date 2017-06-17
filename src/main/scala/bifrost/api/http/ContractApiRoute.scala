@@ -17,6 +17,7 @@ import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import bifrost.wallet.BWallet
 import io.circe.{Json, JsonObject}
 import io.circe.parser.parse
+import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import io.swagger.annotations._
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
@@ -139,10 +140,15 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
   def executeContractMethod(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val wallet = view.vault
     val secrets = wallet.secrets
+
     val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+    val contractBoxId = (params \\ "contractBox").head.asString.get
+    val contractBox = view.state.closedBox(Base58.decode(contractBoxId).get)
+
+    val replaceContractBox = root.contractBox.json.modify(b => contractBox.get.json)
+    val modifiedParams: Json = replaceContractBox(params)
     val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-    val state = view.state
-    val tempTx = params.as[ContractMethodExecution] match {
+    val tempTx = modifiedParams.as[ContractMethodExecution] match {
       case Right(c: ContractMethodExecution) => c
       case Left(e) => throw new Exception(s"Could not parse ContractMethodExecution: $e")
     }
