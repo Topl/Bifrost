@@ -153,6 +153,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
       case Success(e) => println("validation success")
       case Failure(e) => throw e
     }
+    tx.newBoxes.toSet
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractMethodExecution](tx)
     tx.json
   }

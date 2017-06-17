@@ -279,9 +279,9 @@ case class ContractMethodExecution(contractBox: ContractBox,
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "contractBox" -> contractBox.json,
+    "contractBox" -> newBoxes.filter(b => b.isInstanceOf[ContractBox]).head.json,
     "methodName" -> methodName.asJson,
-    "parameters" -> parameters
+    "methodParams" -> parameters
   )).asJson
 
   override lazy val serializer = ContractMethodExecutionCompanion

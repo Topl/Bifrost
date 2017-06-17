@@ -315,8 +315,19 @@ class ContractRPCSpec extends WordSpec
         """.stripMargin
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println("response", res)
-        view().pool.take(5).toList.size shouldEqual 4
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
+        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
+        txInstance.newBoxes.foreach(b => b match {
+          case b: ContractBox => contractBox = Some(b)
+          case _ =>
+        })
+        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
+
+        view().state.applyChanges(boxSC, Ints.toByteArray(6)).get
+        view().pool.remove(txInstance)
+        view().pool.take(5).toList.size shouldEqual 3
+        Base58.encode(contractBox.get.id) sameElements (((res \\ "result").head \\ "contractBox").head \\ "id").head.asString.get
       }
     }
   }
