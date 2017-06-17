@@ -316,6 +316,7 @@ class ContractRPCSpec extends WordSpec
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
+        // Manually modify state
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         val txInstance = view().pool.getById(Base58.decode(txHash).get).get
         txInstance.newBoxes.foreach(b => b match {
@@ -326,8 +327,11 @@ class ContractRPCSpec extends WordSpec
 
         view().state.applyChanges(boxSC, Ints.toByteArray(6)).get
         view().pool.remove(txInstance)
+        // Assertions
         view().pool.take(5).toList.size shouldEqual 3
-        Base58.encode(contractBox.get.id) sameElements (((res \\ "result").head \\ "contractBox").head \\ "id").head.asString.get
+        val boxContent = ((res \\ "result").head \\ "contractBox").head
+        Base58.encode(contractBox.get.id) sameElements (boxContent \\ "id").head.asString.get
+        (((boxContent \\ "value").head \\ "storage").head \\ "currentFulfillment").nonEmpty shouldEqual true
       }
     }
   }
