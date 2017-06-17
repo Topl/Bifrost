@@ -168,7 +168,7 @@ class ContractRPCSpec extends WordSpec
             "assetCode": "WHEAT",
             "terms": {
               "pledge": 8000,
-      			  "xrate": 1.564,
+              "xrate": 1.564,
               "share": {
                 "functionType": "PiecewiseLinearMultiple",
                 "points": [[1.34, [0.25, 0.25, 0.5]]]
@@ -239,6 +239,20 @@ class ContractRPCSpec extends WordSpec
 
     var contractBox = None: Option[ContractBox]
     var hubFeeBox = None: Option[PolyBox]; var producerFeeBox = None: Option[PolyBox]; var investorFeeBox = None: Option[PolyBox]
+    def manuallyApplyChanges(res: Json, version: Int): Unit = {
+      // Manually manipulate state
+      val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
+      val txInstance = view().pool.getById(Base58.decode(txHash).get).get
+      txInstance.newBoxes.foreach(b => b match {
+        case b: ContractBox => contractBox = Some(b)
+        case _ =>
+      })
+      val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
+
+      view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
+      view().pool.remove(txInstance)
+    }
+
     "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
       val cursor: HCursor = requestBodyJson.hcursor
@@ -258,22 +272,7 @@ class ContractRPCSpec extends WordSpec
         view().pool.take(5).toList.size shouldEqual 4
 
         // manually add contractBox to state
-        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
-        txInstance.newBoxes.foreach(b => b match {
-          case b: ContractBox => contractBox = Some(b)
-          case p: PolyBox =>
-            if (p.proposition.pubKeyBytes sameElements Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get) {
-              producerFeeBox = Some(p)
-            } else if (p.proposition.pubKeyBytes sameElements Base58.decode("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU").get) {
-              hubFeeBox = Some(p)
-            } else if (p.proposition.pubKeyBytes sameElements Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get) {
-              investorFeeBox = Some(p)
-            }
-        })
-        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
-
-        view().state.applyChanges(boxSC, Ints.toByteArray(5)).get
-        view().pool.remove(txInstance)
+        manuallyApplyChanges(res, 5)
         view().pool.take(5).toList.size shouldEqual 3
       }
     }
@@ -311,16 +310,7 @@ class ContractRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
-        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
-        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
-        txInstance.newBoxes.foreach(b => b match {
-          case b: ContractBox => contractBox = Some(b)
-          case _ =>
-        })
-        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
-
-        view().state.applyChanges(boxSC, Ints.toByteArray(6)).get
-        view().pool.remove(txInstance)
+        manuallyApplyChanges(res, 6)
         // Assertions
         view().pool.take(5).toList.size shouldEqual 3
         val boxContent = ((res \\ "result").head \\ "contractBox").head
@@ -366,17 +356,7 @@ class ContractRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         println(res)
-        // Manually manipulate state
-        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
-        val txInstance = view().pool.getById(Base58.decode(txHash).get).get
-        txInstance.newBoxes.foreach(b => b match {
-          case b: ContractBox => contractBox = Some(b)
-          case _ =>
-        })
-        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
-
-        view().state.applyChanges(boxSC, Ints.toByteArray(7)).get
-        view().pool.remove(txInstance)
+        manuallyApplyChanges(res, 7)
         // Assertions
         view().pool.take(5).toList.size shouldEqual 3
         val boxContent = ((res \\ "result").head \\ "contractBox").head
@@ -384,6 +364,80 @@ class ContractRPCSpec extends WordSpec
         val _fulfillmentStatus = root.value.storage.currentFulfillment.deliveredQuantity.int
         _fulfillmentStatus.getOption(boxContent).get shouldEqual 9000
       }
+    }
+
+    def getEndorseCompletionBody(role: String, publicKey: String): String = {
+      s"""
+       |{
+       |  "jsonrpc": "2.0",
+       |  "id": "21",
+       |  "method": "executeContractMethod",
+       |  "params": [{
+       |    "signingPublicKey": ${publicKey.asJson},
+       |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
+       |    "methodName": "endorseCompletion",
+       |    "methodParams": {},
+       |    "parties": {
+       |	    ${role.asJson}: ${publicKey.asJson}
+       |	  },
+       |	  "signatures": {
+       |	    ${publicKey.asJson}: ""
+       |    },
+       |    "preFeeBoxes": {
+       |	    ${publicKey.asJson} : []
+       |    },
+       |    "fees" : {
+       |      ${publicKey.asJson} : 0
+       |    },
+       |    "timestamp": ${contractEffectiveTime + 10000L}
+       |  }]
+       |}
+      """.stripMargin
+    }
+
+    /**
+      * We have to do this sequantially since we need the references of contractBox for each
+      * request. If we map all three endorsement, we cannot guarantee if the contractBox has
+      * been erased or not.
+      */
+    "Endorse Completions" in {
+      val publicKeys = Map(
+        "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+        "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
+        "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+      )
+      // investor endorses 1st
+      val requestBody = getEndorseCompletionBody("investor", publicKeys("investor"))
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        // modify state
+        manuallyApplyChanges(res, 8)
+      }
+      // producer endorses 2nd
+      val requestBody2 = getEndorseCompletionBody("producer", publicKeys("producer"))
+      httpPOST(ByteString(requestBody2)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        // modify state
+        manuallyApplyChanges(res, 9)
+      }
+      // hub endorses last
+      val requestBody3 = getEndorseCompletionBody("hub", publicKeys("hub"))
+      httpPOST(ByteString(requestBody3)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        println(res)
+        // modify state
+        manuallyApplyChanges(res, 10)
+        // Assertions
+        view().pool.take(5).toList.size shouldEqual 3
+        val endorsements = root.result.contractBox.value.storage.endorsements.json.getOption(res)
+        val endorseMap = endorsements.map(_.as[Map[String, String]].right.get).get
+        endorseMap(publicKeys("investor")) shouldEqual endorseMap(publicKeys("producer"))
+        endorseMap(publicKeys("investor")) shouldEqual endorseMap(publicKeys("hub"))
+      }
+
     }
   }
 
