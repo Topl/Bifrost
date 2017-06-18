@@ -368,12 +368,12 @@ case class ContractCompletion(contractBox: ContractBox,
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
+      //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
-
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
@@ -450,6 +450,19 @@ object ContractCompletion {
     })
 
     ContractTransaction.commonValidation(tx)
+  }
+
+  implicit val decodeContractCompletion: Decoder[ContractCompletion] = (c: HCursor) => for {
+    contractBox <- c.downField("contractBox").as[ContractBox]
+    reputationBoxes <- c.downField("reputationBoxes").as[IndexedSeq[ReputationBox]]
+    rawParties <- c.downField("parties").as[Map[String, String]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
+    rawFees <- c.downField("fees").as[Map[String, Long]]
+    timestamp <- c.downField("timestamp").as[Long]
+  } yield {
+    val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
+    ContractCompletion(contractBox, reputationBoxes, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
   }
 
 }
@@ -671,7 +684,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
                               keyValues: Map[String, String],
                               override val fee: Long,
                               override val timestamp: Long)
-  extends BifrostTransaction{
+  extends BifrostTransaction {
 
   override type M = ProfileTransaction
 

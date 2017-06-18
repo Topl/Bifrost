@@ -307,6 +307,16 @@ object ReputationBox {
 
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "reputation".getBytes ++ Longs.toByteArray(nonce))
+
+  implicit val decodeReputationBox: Decoder[ReputationBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[String]
+    value <- c.downField("value").as[(Double, Double)]
+    nonce <- c.downField("nonce").as[Long]
+  } yield {
+    val preparedPubKey = Base58.decode(proposition).get
+    val prop = PublicKey25519Proposition(preparedPubKey)
+    ReputationBox(prop, nonce, value)
+  }
 }
 
 object ReputationBoxSerializer extends Serializer[ReputationBox]  {

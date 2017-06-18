@@ -15,7 +15,7 @@ import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import bifrost.wallet.BWallet
-import io.circe.{Json, JsonObject}
+import io.circe.{HCursor, Json, JsonObject}
 import io.circe.parser.parse
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
@@ -116,7 +116,6 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
 
   def getContractSignature(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val wallet = view.vault
-    val secrets = wallet.secrets
     val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
     val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
     val state = view.state
@@ -139,14 +138,10 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
 
   def executeContractMethod(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val wallet = view.vault
-    val secrets = wallet.secrets
 
     val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-    val contractBoxId = (params \\ "contractBox").head.asString.get
-    val contractBox = view.state.closedBox(Base58.decode(contractBoxId).get)
 
-    val replaceContractBox = root.contractBox.json.modify(b => contractBox.get.json)
-    val modifiedParams: Json = replaceContractBox(params)
+    val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "contractBox")
     val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
     val tempTx = modifiedParams.as[ContractMethodExecution] match {
       case Right(c: ContractMethodExecution) => c
@@ -168,8 +163,16 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val state = view.state
     val wallet = view.vault
     val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+
+    val modified = replaceBoxIdWithBox(state, params, "contractBox")
+    val modifiedParams = root.reputationBoxes.each.json.modify(
+      id => {
+        val boxInstance = state.closedBox(Base58.decode(id.asString.get).get)
+        boxInstance.get.json
+      }
+    )(modified)
     val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-    val tx = createCompletionInstance(params, state)
+    val tx = createCompletionInstance(modifiedParams, state)
     val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
     Map("signature" -> Base58.encode(signature.signature).asJson,
       "tx" -> tx.json.asJson).asJson
@@ -177,9 +180,28 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
 
   def completeContract(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String): Json = {
     val state = view.state
-    val tx = createCompletionInstance(params, state)
+    val modified = replaceBoxIdWithBox(state, params, "contractBox")
+    val modifiedParams = root.reputationBoxes.each.json.modify(
+      id => {
+        val boxInstance = state.closedBox(Base58.decode(id.asString.get).get)
+        boxInstance.get.json
+      }
+    )(modified)
+    val tx = createCompletionInstance(modifiedParams, state)
+    ContractCompletion.validate(tx) match {
+      case Success(e) => println("validation success")
+      case Failure(e) => throw e
+    }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)
     tx.json
+  }
+
+  private def replaceBoxIdWithBox(state: BifrostState, json: Json, fieldName: String): Json = {
+    val boxId = (json \\ fieldName).head.asString.get
+    val boxInstance = state.closedBox(Base58.decode(boxId).get)
+
+    val cursor: HCursor = json.hcursor
+    cursor.downField(fieldName).withFocus(b => boxInstance.get.json).top.get
   }
 
   //noinspection ScalaStyle
@@ -191,51 +213,56 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
   }
 
   def createCompletionInstance(json: Json, state: BifrostState): ContractCompletion = {
-    val contractBoxId = (json \\ "contractBoxId").head.asString.get
-    val contractBox = state.closedBox(Base58.decode(contractBoxId).get).get.asInstanceOf[ContractBox]
-    val reputationBoxIds = (json \\ "reputationBoxIds").head.as[Array[String]].right.getOrElse(Array[String]())
-    val reputationBoxes = reputationBoxIds.map(b => state.closedBox(Base58.decode(b).get).get.asInstanceOf[ReputationBox])
-    val hub = (json \\ "hub").head
-    val producer = (json \\ "producer").head
-    val investor = (json \\ "investor").head
-    val fees: Map[PublicKey25519Proposition, Long] = (json \\ "fees").head.asObject.map(_.toMap)
-      .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
-        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-      })
-
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "feePreBoxes").head.asObject
-      .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
-      case (prop: String, v: Json) =>
-        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
-          v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
-            val nonceLongPair = preBox.asArray
-            nonceLongPair.map(nlp =>
-              (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
-            )
-          }.getOrElse((0L, 0L))).toIndexedSeq
-          )
-        )
-    })
-    // extract publicKeys and signatures of all three actors
-    val extractedTuple = ContractApiRoute.extractPublicKeyAndSignatures(hub, producer, investor)
-    val Array(hubPublicKey, producerPublicKey, investorPublicKey) = extractedTuple._1
-    val Array(hubSignature, producerSignature, investorSignature) = extractedTuple._2
-    // create ContractCompletion tx
-    ContractCompletion(contractBox, reputationBoxes.toIndexedSeq,
-      Map(
-        Role.Hub -> hubPublicKey,
-        Role.Producer -> producerPublicKey,
-        Role.Investor -> investorPublicKey
-      ),
-      Map(
-        hubPublicKey -> hubSignature,
-        producerPublicKey -> producerSignature,
-        investorPublicKey -> investorSignature
-      ),
-      feePreBoxes,
-      fees,
-      System.currentTimeMillis())
+    json.as[ContractCompletion] match {
+      case Right(c: ContractCompletion) => c
+      case Left(e) => throw new Exception(s"Could not parse ContractCompletion: $e")
+    }
   }
+//    val contractBoxId = (json \\ "contractBoxId").head.asString.get
+//    val contractBox = state.closedBox(Base58.decode(contractBoxId).get).get.asInstanceOf[ContractBox]
+//    val reputationBoxIds = (json \\ "reputationBoxIds").head.as[Array[String]].right.getOrElse(Array[String]())
+//    val reputationBoxes = reputationBoxIds.map(b => state.closedBox(Base58.decode(b).get).get.asInstanceOf[ReputationBox])
+//    val hub = (json \\ "hub").head
+//    val producer = (json \\ "producer").head
+//    val investor = (json \\ "investor").head
+//    val fees: Map[PublicKey25519Proposition, Long] = (json \\ "fees").head.asObject.map(_.toMap)
+//      .fold(Map[PublicKey25519Proposition, Long]())(_.map { case (prop: String, v: Json) =>
+//        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())), v.asNumber.fold(0L)(_.toLong.getOrElse(0L)))
+//      })
+//
+//    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (json \\ "feePreBoxes").head.asObject
+//      .map(_.toMap).fold(Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]())(_.map {
+//      case (prop: String, v: Json) =>
+//        (PublicKey25519Proposition(Base58.decode(prop).getOrElse(Array[Byte]())),
+//          v.asArray.fold(IndexedSeq[(Long, Long)]())(_.map(preBox => {
+//            val nonceLongPair = preBox.asArray
+//            nonceLongPair.map(nlp =>
+//              (nlp(0).asNumber.fold(0L)(_.toLong.getOrElse(0L)), nlp(1).asNumber.fold(0L)(_.toLong.getOrElse(0L)))
+//            )
+//          }.getOrElse((0L, 0L))).toIndexedSeq
+//          )
+//        )
+//    })
+//    // extract publicKeys and signatures of all three actors
+//    val extractedTuple = ContractApiRoute.extractPublicKeyAndSignatures(hub, producer, investor)
+//    val Array(hubPublicKey, producerPublicKey, investorPublicKey) = extractedTuple._1
+//    val Array(hubSignature, producerSignature, investorSignature) = extractedTuple._2
+//    // create ContractCompletion tx
+//    ContractCompletion(contractBox, reputationBoxes.toIndexedSeq,
+//      Map(
+//        Role.Hub -> hubPublicKey,
+//        Role.Producer -> producerPublicKey,
+//        Role.Investor -> investorPublicKey
+//      ),
+//      Map(
+//        hubPublicKey -> hubSignature,
+//        producerPublicKey -> producerSignature,
+//        investorPublicKey -> investorSignature
+//      ),
+//      feePreBoxes,
+//      fees,
+//      System.currentTimeMillis())
+//  }
 }
 
 object ContractApiRoute {
