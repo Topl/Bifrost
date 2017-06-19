@@ -15,6 +15,7 @@ case class AgreementTerms(pledge: Long, xrate: BigDecimal, share: ShareFunction,
   lazy val json: Json = Map(
     "pledge" -> pledge.asJson,
     "xrate" -> xrate.asJson,
+    "investment" -> (BigDecimal(pledge)*xrate).asJson,
     "share" -> share.json,
     "fulfilment" -> fulfilment.json
   ).asJson
