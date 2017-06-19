@@ -135,6 +135,7 @@ object Role extends Enumeration {
 case class ContractCreation(agreement: Agreement,
                             parties: Map[Role, PublicKey25519Proposition],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
+                            preInvestmentBoxes: IndexedSeq[Nonce],
                             preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                             fees: Map[PublicKey25519Proposition, Long],
                             timestamp: Long)
@@ -144,9 +145,16 @@ case class ContractCreation(agreement: Agreement,
 
   lazy val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
+  val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties(Role.Investor), n))
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = feeBoxUnlockers
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = investmentBoxIds.map(id =>
+    new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signatures(Role.Investor)
+      }
+  ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
@@ -174,6 +182,7 @@ case class ContractCreation(agreement: Agreement,
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
+    "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
     "agreement" -> agreement.json
   )).asJson
 
