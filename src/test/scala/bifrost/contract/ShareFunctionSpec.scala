@@ -41,8 +41,8 @@ class ShareFunctionSpec extends PropSpec
       i => forAll(seqDoubleGen(i)) {
         seq =>
           val idx = Gen.choose(0, seq.length).sample.get
-          val first = samplePositiveDouble; val second = samplePositiveDouble
-          Try { PiecewiseLinearMultiple(seq :+ seq(idx)._1 -> (first, second, 2 - first - second)) } shouldBe a[Failure[_]]
+          val first = samplePositiveDouble/3; val second = samplePositiveDouble/3; val third = samplePositiveDouble/3
+          Try { PiecewiseLinearMultiple(seq :+ seq(idx)._1 -> (first, second, third)) } shouldBe a[Failure[_]]
       }
     }
   }

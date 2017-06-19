@@ -21,7 +21,7 @@ abstract class ShareFunction {
 
   // Ensure they all add to 1 and are non-negative
   points.map(_._2).foreach(t => {
-    require(t._1 + t._2 + t._3 - 1 < 1e-5)
+    require(Math.abs(t._1 + t._2 + t._3 - 1) < 1e-5)
     require(t._1 >= 0); require(t._2 >= 0); require(t._3 >= 0)
   })
 

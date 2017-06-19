@@ -45,7 +45,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
-      Agreement(agreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
+      Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
       currentEndorsement,

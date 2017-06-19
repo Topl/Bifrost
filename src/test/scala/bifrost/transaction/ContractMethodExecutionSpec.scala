@@ -63,7 +63,7 @@ class ContractMethodExecutionSpec extends PropSpec
 
       val contractBox = createContractBox(
         Agreement(
-          agreementTermsGen.sample.get,
+          validAgreementTermsGen.sample.get,
           stringGen.sample.get,
           timestamp - 100000,
           timestamp - 100000 + Gen.choose(0, 2000).sample.get
@@ -128,7 +128,7 @@ class ContractMethodExecutionSpec extends PropSpec
 
       val contractBox = createContractBox(
         Agreement(
-          agreementTermsGen.sample.get,
+          validAgreementTermsGen.sample.get,
           stringGen.sample.get,
           timestamp - 100000,
           timestamp - 100000 + Gen.choose(0, 2000).sample.get
