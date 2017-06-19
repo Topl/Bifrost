@@ -132,6 +132,17 @@ object Role extends Enumeration {
   val Hub: Role = Value("hub")
 }
 
+/**
+  *
+  * @param agreement            the Agreement object containing the terms for the proposed contract
+  * @param parties              a mapping specifying which public key should correspond with which role for this contract
+  * @param signatures           a mapping specifying the signatures by each public key for this transaction
+  * @param preInvestmentBoxes   a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
+  * @param preFeeBoxes          a mapping specifying box nonces and amounts corresponding to the PolyBoxes to be used to
+  *                             pay fees for each party contributing fees
+  * @param fees                 a mapping specifying the amount each party is contributing to the fees
+  * @param timestamp            the timestamp of this transaction
+  */
 case class ContractCreation(agreement: Agreement,
                             parties: Map[Role, PublicKey25519Proposition],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
