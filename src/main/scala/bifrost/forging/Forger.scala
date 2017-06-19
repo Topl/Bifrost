@@ -72,6 +72,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
     case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
       log.info("Trying to generate a new block, chain length: " + h.height)
+      log.info("chain difficulty: " + h.difficulty)
 
       val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
         case a: ArbitBox => s.closedBox(a.id).isDefined

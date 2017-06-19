@@ -16,7 +16,7 @@ abstract class ShareFunction {
   // delivered values must be distinct and sum to 1
   require(points.map(_._1).distinct.size == points.size)
   points.map(_._2).foreach(t => {
-    require(t._1 + t._2 + t._3 - 1 < 10E-5)
+    require(t._1 + t._2 + t._3 - 1 < 1E-5)
     require(t._1 > 0); require(t._2 > 0); require(t._3 > 0)
   })
 
