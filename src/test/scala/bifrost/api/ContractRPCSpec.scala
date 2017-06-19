@@ -91,8 +91,8 @@ class ContractRPCSpec extends WordSpec
         |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        (res \\ "error").head.asObject.isDefined shouldEqual true
-        (res \\ "result").isEmpty shouldEqual true
+        (res \\ "error").head.asObject shouldBe defined
+        (res \\ "result").isEmpty shouldBe true
       }
     }
 
@@ -179,11 +179,11 @@ class ContractRPCSpec extends WordSpec
               "xrate": 1.564,
               "share": {
                 "functionType": "PiecewiseLinearMultiple",
-                "points": [[1.0, [0.3, 0.3, 0.3]], [1.34, [0.25, 0.25, 0.5]]]
+                "points": [[0.0, [0.33333333, 0.33333333, 0.33333333]], [1.34, [0.25, 0.25, 0.5]]]
               },
               "fulfilment" : {
                 "functionType" : "PiecewiseLinearSingle",
-                "points" : [[${contractExpirationTime}, 1.00]]
+                "points" : [[0, 0.00], [${contractExpirationTime - contractEffectiveTime - 1}, 0.00],[${contractExpirationTime - contractEffectiveTime}, 1.00]]
               }
             },
             "contractEffectiveTime": ${contractEffectiveTime},
@@ -519,9 +519,9 @@ class ContractRPCSpec extends WordSpec
         // Assertions
         newBoxes.head.asInstanceOf[ReputationBox].value._1 shouldEqual 10.0
         newBoxes.head.asInstanceOf[ReputationBox].value._2 shouldEqual 7.0
-        newBoxes.toList(1).asInstanceOf[AssetBox].value shouldEqual 428
-        newBoxes.toList(2).asInstanceOf[AssetBox].value shouldEqual 428
-        newBoxes.toList(3).asInstanceOf[AssetBox].value shouldEqual 8144
+        newBoxes.toList(1).asInstanceOf[AssetBox].value shouldEqual 325
+        newBoxes.toList(2).asInstanceOf[AssetBox].value shouldEqual 325
+        newBoxes.toList(3).asInstanceOf[AssetBox].value shouldEqual 8350
       }
     }
   }

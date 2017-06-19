@@ -2,7 +2,7 @@ package bifrost
 
 import java.time.Instant
 
-import bifrost.contract.{Agreement, Contract}
+import bifrost.contract._
 import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
@@ -26,12 +26,6 @@ import scala.util.Random
   * Created by cykoz on 5/11/2017.
   */
 trait ValidGenerators extends BifrostGenerators {
-
-  lazy val validAgreementGen: Gen[Agreement] = for {
-    assetCode <- stringGen
-    terms <- agreementTermsGen
-    delta <- positiveLongGen
-  } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
 
   // TODO this should be an enum
   val validStatuses: List[String] = List("expired", "complete", "initialized")
@@ -135,7 +129,7 @@ trait ValidGenerators extends BifrostGenerators {
     val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
-      Agreement(agreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
+      Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
       "initialized",
       currentFulfillment,
       currentEndorsement,

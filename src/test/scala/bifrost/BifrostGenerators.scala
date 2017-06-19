@@ -1,8 +1,8 @@
 package bifrost
 
 import java.io.File
+import java.time.Instant
 
-import com.google.common.primitives.{Bytes, Longs}
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
@@ -25,7 +25,6 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
-import scala.concurrent.duration._
 import scala.util.Random
 
 /**
@@ -143,25 +142,34 @@ trait BifrostGenerators extends CoreGenerators {
     field <- stringGen
   } yield ProfileBox(proposition, 0L, value, field)
 
-  lazy val agreementTermsGen: Gen[AgreementTerms] = for {
-    pledge <- positiveLongGen
-    xrate <- bigDecimalGen
-    share <- shareFuncGen
-    fulfilment <- fulfilFuncGen
-  } yield new AgreementTerms(pledge, xrate, share, fulfilment)
-
   lazy val partiesGen: Gen[Map[Role, PublicKey25519Proposition]] = for {
     a <- propositionGen
     b <- propositionGen
     c <- propositionGen
   } yield Map(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
 
-  lazy val agreementGen: Gen[Agreement] = for {
-    terms <- agreementTermsGen
+  lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(positiveTinyIntGen.sample.get).map(seq => {
+    val first: Double = samplePositiveDouble / 2
+    val second: Double = samplePositiveDouble / 2
+    PiecewiseLinearMultiple((0.0, (first, second, 1 - first - second)) +: seq)
+  })
+
+  lazy val validFulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(positiveTinyIntGen.sample.get).map(seq =>
+    PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq)
+  )
+
+  lazy val validAgreementTermsGen: Gen[AgreementTerms] = for {
+    pledge <- positiveLongGen
+    xrate <- bigDecimalGen
+    share <- validShareFuncGen
+    fulfilment <- validFulfilFuncGen
+  } yield new AgreementTerms(pledge, xrate, share, fulfilment)
+
+  lazy val validAgreementGen: Gen[Agreement] = for {
     assetCode <- stringGen
-    contractEffectiveTime <- positiveLongGen
-    contractEndTime <- positiveLongGen
-  } yield Agreement(terms, assetCode, contractEffectiveTime, contractEndTime)
+    terms <- validAgreementTermsGen
+    delta <- positiveLongGen
+  } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
@@ -171,7 +179,7 @@ trait BifrostGenerators extends CoreGenerators {
     hub <- propositionGen
     storage <- jsonGen()
     status <- jsonGen()
-    agreement <- agreementGen.map(_.json)
+    agreement <- validAgreementGen.map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield Contract(Map(
     "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
@@ -194,7 +202,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield (nonce, amount)
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
-    agreement <- agreementGen
+    agreement <- validAgreementGen
     parties <- partiesGen
     signature <- signatureGen
     numFeeBoxes <- positiveTinyIntGen

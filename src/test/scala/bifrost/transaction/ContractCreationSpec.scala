@@ -45,7 +45,7 @@ class ContractCreationSpec extends PropSpec
   property("Tx with effective date in the past should be invalid") {
 
     lazy val pastEffDateAgreementGen: Gen[Agreement] = for {
-      terms <- agreementTermsGen
+      terms <- validAgreementTermsGen
       contractEndTime <- positiveLongGen
       assetCode <- stringGen
     } yield Agreement(terms, assetCode, Instant.now.toEpochMilli - 1L, contractEndTime)
@@ -76,7 +76,7 @@ class ContractCreationSpec extends PropSpec
 
   property("Tx with expiration date in the past should be invalid") {
     lazy val pastExpDateAgreementGen: Gen[Agreement] = for {
-      terms <- agreementTermsGen
+      terms <- validAgreementTermsGen
       contractEffectiveTime <- positiveLongGen
       assetCode <- stringGen
     } yield Agreement(terms, assetCode, contractEffectiveTime, Instant.now.toEpochMilli - 1L)
@@ -107,7 +107,7 @@ class ContractCreationSpec extends PropSpec
 
   property("Tx with valid expiration date before valid effective date should be invalid") {
     lazy val expBeforeEffAgreementGen: Gen[Agreement] = for {
-      terms <- agreementTermsGen
+      terms <- validAgreementTermsGen
       assetCode <- stringGen
     } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 1000L)
 

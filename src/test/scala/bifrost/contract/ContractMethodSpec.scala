@@ -292,7 +292,7 @@ class ContractMethodSpec extends PropSpec
   property("checkExpiration should update a contract with expirationTimestamp that has passed if not yet expired") {
 
     val lateAgreementGen = for {
-      terms <- agreementTermsGen
+      terms <- validAgreementTermsGen
       diff <- positiveLongGen
       assetCode <- stringGen
     } yield Agreement(terms, assetCode, Instant.now.toEpochMilli - diff - 5000, Instant.now.toEpochMilli - diff)
