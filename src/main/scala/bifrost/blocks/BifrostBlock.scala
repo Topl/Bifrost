@@ -64,33 +64,47 @@ object BifrostBlock {
              privateKey: PrivateKey25519): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
     val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs)
-    val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
-    unsigned.copy(signature = Signature25519(signature))
+    if (parentId sameElements Array.fill(32)(1: Byte)) {
+      // genesis block will skip signature check
+      val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
+      unsigned.copy(signature = Signature25519(genesisSignature))
+    } else {
+      val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
+      unsigned.copy(signature = Signature25519(signature))
+    }
   }
 }
 
 object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
-
-  def messageToSign(block: BifrostBlock): Array[Byte] = {
-
+  def commonMessage(block: BifrostBlock): Array[Byte] = {
     val numTx = Ints.toByteArray(block.txs.length)
     val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
-        block.parentId,
-        Longs.toByteArray(block.timestamp),
-        Longs.toByteArray(generatorBoxBytes.length),
-        Array(block.version),
-        generatorBoxBytes,
-        block.signature.signature,
-        numTx,  // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
-        block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+      block.parentId,
+      Longs.toByteArray(block.timestamp),
+      Longs.toByteArray(generatorBoxBytes.length),
+      Array(block.version),
+      generatorBoxBytes,
+      block.signature.signature,
+      numTx // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
     )
   }
 
+  def messageToSign(block: BifrostBlock): Array[Byte] = {
+    val commonBytes = commonMessage(block)
+
+    //noinspection ScalaStyle
+    if (block.parentId sameElements Array.fill(32)(1: Byte)) {
+      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ tx.messageToSign)
+    } else {
+      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+    }
+  }
+
   override def toBytes(block: BifrostBlock): Array[Byte] = {
-    messageToSign(block)
+    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
