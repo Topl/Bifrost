@@ -14,6 +14,11 @@ abstract class FulfilmentFunction {
 
   // timestamp values must be distinct
   require(points.map(_._1).distinct.size == points.size)
+
+  // anchor at 0
+  require(points.exists(_._1 == 0))
+  require(points.forall(_._2 >= 0.0))
+
   val functionType = "FulfilmentFunction"
   def evaluate(timestamp: Long): Double
 
