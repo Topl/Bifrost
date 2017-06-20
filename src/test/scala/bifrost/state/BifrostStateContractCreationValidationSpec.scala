@@ -172,7 +172,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
   }
 
   property("Attempting to validate a contract creation tx without all roles should error") {
-    forAll(arbitraryPartyContractCreationGen(Gen.choose(0, 2).sample.get)) {
+    forAll(arbitraryPartyContractCreationGen(Gen.choose(1, 2).sample.get)) {
       cc: ContractCreation =>
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
