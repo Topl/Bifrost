@@ -132,7 +132,19 @@ object Role extends Enumeration {
   val Hub: Role = Value("hub")
 }
 
+/**
+  *
+  * @param agreement            the Agreement object containing the terms for the proposed contract
+  * @param preInvestmentBoxes   a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
+  * @param parties              a mapping specifying which public key should correspond with which role for this contract
+  * @param signatures           a mapping specifying the signatures by each public key for this transaction
+  * @param preFeeBoxes          a mapping specifying box nonces and amounts corresponding to the PolyBoxes to be used to
+  *                             pay fees for each party contributing fees
+  * @param fees                 a mapping specifying the amount each party is contributing to the fees
+  * @param timestamp            the timestamp of this transaction
+  */
 case class ContractCreation(agreement: Agreement,
+                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                             parties: Map[Role, PublicKey25519Proposition],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
                             preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
@@ -144,9 +156,16 @@ case class ContractCreation(agreement: Agreement,
 
   lazy val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
+  lazy val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties(Role.Investor), n._1))
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = feeBoxUnlockers
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = investmentBoxIds.map(id =>
+    new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signatures(parties(Role.Investor))
+      }
+  ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
@@ -170,10 +189,22 @@ case class ContractCreation(agreement: Agreement,
       )
     ).asJson
 
-    IndexedSeq(ContractBox(proposition, nonce, boxValue)) ++ deductedFeeBoxes(hashNoNonces)
+    val investorProp = parties(Role.Investor)
+    val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
+    val canSend = availableBoxes.map(_._2).sum
+    val polyInvestment = BigDecimal(agreement.terms.pledge)*agreement.terms.xrate
+    val leftOver: Long = canSend - fees(investorProp) - polyInvestment.toLong
+    val boxNonce = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("ContractCreation".getBytes ++ investorProp.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(0))
+    )
+    val investorDeductedBoxes = PolyBox(investorProp, boxNonce, leftOver)
+    val nonInvestorDeductedBoxes = deductedFeeBoxes(hashNoNonces).filter(_.proposition != parties(Role.Investor))
+
+    IndexedSeq(ContractBox(proposition, nonce, boxValue)) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
+    "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
     "agreement" -> agreement.json
   )).asJson
 
@@ -181,7 +212,8 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
-    parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
+    parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+    unlockers.toArray.flatMap(_.closedBoxId)
   )
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
@@ -205,6 +237,7 @@ object ContractCreation {
 
   implicit val decodeContractCreation: Decoder[ContractCreation] = (c: HCursor) => for {
     agreement <- c.downField("agreement").as[Agreement]
+    preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawParties <- c.downField("parties").as[Map[String, String]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
@@ -212,7 +245,7 @@ object ContractCreation {
     timestamp <- c.downField("timestamp").as[Long]
   } yield {
     val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
-    ContractCreation(agreement, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
+    ContractCreation(agreement, preInvestmentBoxes, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
   }
 
 }
@@ -515,7 +548,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     "timestamp" -> timestamp.asJson
   ).asJson
 
-  def messageToSign0: Array[Byte] = (if(newBoxes.nonEmpty) newBoxes.map(_.bytes).reduce(_ ++ _) else Array[Byte]()) ++
+  def commonMessageToSign: Array[Byte] = (if(newBoxes.nonEmpty) newBoxes.map(_.bytes).reduce(_ ++ _) else Array[Byte]()) ++
     unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
@@ -608,7 +641,7 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
       PolyBox(prop, nonce, value)
   }
 
-  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.messageToSign0
+  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
 }
 
 
@@ -653,7 +686,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       ArbitBox(prop, nonce, value)
   }
 
-  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.messageToSign0
+  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign
 }
 
 object ArbitTransfer extends TransferUtil {

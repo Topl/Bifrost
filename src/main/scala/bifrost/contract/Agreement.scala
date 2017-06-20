@@ -9,9 +9,10 @@ import scala.util.Try
 
 /**
   *
-  * @param terms
-  * @param contractExpirationTime  timestamp to prevent parties from holding signatures until an advantageous date
-  *                             for a previously agreed upon agreement
+  * @param terms                    an AgreementTerms object that specifies the specific compensation terms
+  * @param assetCode                the string identifier for this specific asset to be produced
+  * @param contractEffectiveTime    timestamp that specifies when the contract becomes interactable
+  * @param contractExpirationTime   timestamp that specifies when the contract expires and ceases to be updateable
   */
 case class Agreement(terms: AgreementTerms, assetCode: String, contractEffectiveTime: Long, contractExpirationTime: Long) {
 

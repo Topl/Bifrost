@@ -89,6 +89,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   def samplePositiveDouble: Double = Random.nextFloat()
 
+  lazy val smallBigDecimalGen: Gen[BigDecimal] = for {
+    decimalPortion <- numStringGen
+  } yield BigDecimal("0." + decimalPortion)
+
   lazy val bigDecimalGen: Gen[BigDecimal] = for {
     wholeNumber <- numStringGen
     decimalPortion <- numStringGen
@@ -106,7 +110,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   def seqLongDoubleGen(minLength: Int): Gen[Seq[(Long, Double)]] = for {
     seqLen <- Gen.choose(minLength, minLength + positiveTinyIntGen.sample.get)
-  } yield (0 until seqLen) map { i => (positiveLongGen.sample.get, samplePositiveDouble) }
+  } yield (0 until seqLen) map { _ => (positiveLongGen.sample.get, samplePositiveDouble) }
 
   lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(2).map(PiecewiseLinearSingle)
 
@@ -159,8 +163,8 @@ trait BifrostGenerators extends CoreGenerators {
   )
 
   lazy val validAgreementTermsGen: Gen[AgreementTerms] = for {
-    pledge <- positiveLongGen
-    xrate <- bigDecimalGen
+    pledge <- positiveLongGen.map(_/1e10.toLong + 1L)
+    xrate <- smallBigDecimalGen
     share <- validShareFuncGen
     fulfilment <- validFulfilFuncGen
   } yield new AgreementTerms(pledge, xrate, share, fulfilment)
@@ -198,17 +202,19 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val preFeeBoxGen: Gen[(Nonce, Long)] = for {
     nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
-    amount <- positiveLongGen.map(_/100L + 1L) // done to allow for sequences to not overflow
+    amount <- positiveLongGen.map(_/1e10.toLong + 1L) // done to allow for sequences to not overflow
   } yield (nonce, amount)
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen
+    numInvestmentBoxes <- positiveTinyIntGen
     parties <- partiesGen
     signature <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
   } yield ContractCreation(
     agreement,
+    (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
     parties,
     parties.map { case (_, v) => (v, signatureGen.sample.get) },
     parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },

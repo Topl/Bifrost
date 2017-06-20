@@ -3,11 +3,19 @@ package bifrost.contract
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 
+/**
+  *
+  * @param pledge         the amount of tokens to be produced at the given exchange rate (investment amount = pledge*xrate)
+  * @param xrate          the exchange rate from polys to the asset specified (polys per asset token)
+  * @param share          a function that specifies the profit sharing allocations
+  * @param fulfilment     a function that specifies a schedule of minimum delivery amounts (deadlines)
+  */
 case class AgreementTerms(pledge: Long, xrate: BigDecimal, share: ShareFunction, fulfilment: FulfilmentFunction){
 
   lazy val json: Json = Map(
     "pledge" -> pledge.asJson,
     "xrate" -> xrate.asJson,
+    "investment" -> (BigDecimal(pledge)*xrate).asJson,
     "share" -> share.json,
     "fulfilment" -> fulfilment.json
   ).asJson

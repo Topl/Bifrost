@@ -123,6 +123,7 @@ class SerializationTests extends PropSpec
         val parsed = ContractTransactionCompanion.parseBytes(
           ContractTransactionCompanion.toBytes(c)
         ).get
+
         val parsedBytes = ContractTransactionCompanion.toBytes(parsed)
         val directParsedBytes = ContractTransactionCompanion.toBytes(c)
 
