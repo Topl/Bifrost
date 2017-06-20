@@ -1,7 +1,9 @@
 package bifrost.transaction
 
+import bifrost.BifrostApp
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
+import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -9,10 +11,13 @@ import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import bifrost.transaction.Role.Role
+import io.circe
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import io.circe.generic.auto._
+import io.circe.parser.parse
 import scorex.core.crypto.hash.FastCryptographicHash
+import scorex.core.settings.Settings
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -23,8 +28,28 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Success, Try}
 
+trait TransactionSettings extends Settings
+
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
+
+  implicit lazy val settings = new TransactionSettings {
+    val testnetEndowment: Nonce = 20L
+    override lazy val settingsJSON: Map[String, Json] = settingsFromFile(BifrostApp.settingsFilename)
+
+    override def settingsFromFile(filename: String): Map[String, Json] = Try {
+      val jsonString = scala.io.Source.fromFile(filename).mkString
+      parse(jsonString).right.get
+    }.recoverWith { case t =>
+      Try {
+        val jsonString = scala.io.Source.fromURL(getClass.getResource(s"/$filename")).mkString
+        parse(jsonString).right.get
+      }
+    }.toOption.flatMap(_.asObject).map(_.toMap).getOrElse {
+      Map()
+    }
+  }
+
 }
 
 sealed abstract class ContractTransaction extends BifrostTransaction {
@@ -733,8 +758,22 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
       }
   }
 
-  override lazy val newBoxes: Traversable[BifrostBox] = keyValues.map {
-    case (key, value) => ProfileBox(from, 0L, value, key)
+  lazy val hashNoNonces = FastCryptographicHash(
+    from.pubKeyBytes ++
+      keyValues.foldLeft(Array[Byte]())((a, b) => a ++ b._1.getBytes ++ b._2.getBytes) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee)
+  )
+
+  override lazy val newBoxes: Traversable[BifrostBox] = keyValues.flatMap {
+    case (key, value) =>
+      if(value.equals("investor") && key.equals("role") && settings.isTestnet) {
+        val digest = FastCryptographicHash("ProfileTransaction".getBytes ++ from.pubKeyBytes ++ hashNoNonces)
+        val nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+        Seq(ProfileBox(from, 0L, value, key)) :+ PolyBox(from, nonce, settings.testnetEndowment)
+      } else
+        Seq(ProfileBox(from, 0L, value, key))
   }
 
   override lazy val messageToSign: Array[Byte] = ProfileTransaction.messageToSign(timestamp, from, keyValues)
