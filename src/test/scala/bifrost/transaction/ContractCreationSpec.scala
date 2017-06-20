@@ -58,11 +58,13 @@ class ContractCreationSpec extends PropSpec
         fee <- positiveLongGen
         timestamp <- positiveLongGen
         numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
       } yield ContractCreation(
         agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )
@@ -89,11 +91,13 @@ class ContractCreationSpec extends PropSpec
         fee <- positiveLongGen
         timestamp <- positiveLongGen
         numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
       } yield ContractCreation(
         agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )
@@ -119,11 +123,13 @@ class ContractCreationSpec extends PropSpec
         fee <- positiveLongGen
         timestamp <- positiveLongGen
         numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
       } yield ContractCreation(
         agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )

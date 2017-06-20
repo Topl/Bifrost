@@ -189,6 +189,7 @@ class ContractRPCSpec extends WordSpec
             "contractEffectiveTime": ${contractEffectiveTime},
             "contractExpirationTime": ${contractExpirationTime}
           },
+          "preInvestmentBoxes": [],
           "parties": {
             "investor": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
             "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",

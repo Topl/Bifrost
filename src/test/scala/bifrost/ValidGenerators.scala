@@ -51,9 +51,16 @@ trait ValidGenerators extends BifrostGenerators {
     agreement <- validAgreementGen
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
+    numInvestmentBoxes <- positiveTinyIntGen
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+
+    val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
+      positiveLongGen.sample.get -> (positiveLongGen.sample.get/1e5.toLong + 1L)
+    }
+
+    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
 
     val feePreBoxes = parties.map(_ -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} ).toMap
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
@@ -67,8 +74,9 @@ trait ValidGenerators extends BifrostGenerators {
     }
 
     val messageToSign = Bytes.concat(
-      AgreementCompanion.toBytes(agreement) ++
-        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes)
+      AgreementCompanion.toBytes(agreement),
+      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
+      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
     )
 
     val signatures = allKeyPairs.map(
@@ -78,6 +86,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     ContractCreation(
       agreement,
+      preInvestmentBoxes,
       IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
       parties.zip(signatures).toMap,
       feePreBoxes,

@@ -246,6 +246,8 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
+      Ints.toByteArray(m.preInvestmentBoxes.length),
+      m.preInvestmentBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2)),
       Longs.toByteArray(agreementBytes.length),
       agreementBytes,
       ContractTransactionCompanion.commonToBytes(m)
@@ -259,9 +261,21 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-    val agreementLength: Long = Longs.fromByteArray(bytesWithoutType.slice(0, Longs.BYTES))
+    val numPreInvestmentBoxes: Int = Ints.fromByteArray(bytesWithoutType.slice(0, Ints.BYTES))
 
-    numReadBytes = Longs.BYTES
+    numReadBytes = Ints.BYTES
+
+    val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numPreInvestmentBoxes).map { i =>
+      val nonce = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + 2*i*Longs.BYTES, numReadBytes + (2*i + 1)*Longs.BYTES))
+      val value = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + (2*i + 1)*Longs.BYTES, numReadBytes + 2*(i + 1)*Longs.BYTES))
+      nonce -> value
+    }
+
+    numReadBytes += 2*numPreInvestmentBoxes*Longs.BYTES
+
+    val agreementLength: Long = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Longs.BYTES))
+
+    numReadBytes += Longs.BYTES
 
     val agreement = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + agreementLength.toInt)).get
 
@@ -273,7 +287,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     fees: Map[PublicKey25519Proposition, Long],
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
 
-    ContractCreation(agreement, parties, signatures, feePreBoxes, fees, timestamp)
+    ContractCreation(agreement, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp)
   }
 
 }
@@ -457,30 +471,6 @@ object AgreementCompanion extends Serializer[Agreement] {
     val assetCode: String = new String(bytes.slice(numBytesRead, numBytesRead + numStrBytes))
 
     numBytesRead += numStrBytes
-
-    /*val termsMap: Map[String, Json] = parse(new String(
-      bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
-    )) match {
-      case Left(x) => new HashMap[String, Json]()
-      case Right(x) => x.asObject.get.toMap
-    }
-
-    val fulfilmentMap = termsMap("fulfilment").asObject.get.toMap
-    val shareMap = termsMap("share").asObject.get.toMap
-
-    val terms = new AgreementTerms(
-      termsMap("pledge").asNumber.get.toLong.get,
-      BigDecimal(termsMap("xrate").asString.get),
-      shareMap("functionType").asString.get match {
-        case "PiecewiseLinearMultiple" => new PiecewiseLinearMultiple(
-          shareMap("points").as[Seq[(Double,(Double, Double, Double))]].right.get
-        )
-      },
-      fulfilmentMap("functionType").asString.get match {
-        case "PiecewiseLinearSingle" => new PiecewiseLinearSingle(
-          fulfilmentMap("points").as[Seq[(Long, Double)]].right.get)
-      }
-    )*/
 
     val terms: AgreementTerms = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
