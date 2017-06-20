@@ -7,3 +7,4 @@ script:
    - sbt test
 dist: trusty
 sudo: required
+group: edge
