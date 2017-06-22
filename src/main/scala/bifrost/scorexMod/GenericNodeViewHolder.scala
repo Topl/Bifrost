@@ -232,8 +232,11 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       log.debug(s"Sending extension of length ${ext.length}: ${ext.map(_._2).map(Base58.encode).mkString(",")}")
       log.debug("Comparison with Remote. Remote is: " + comparison)
 
-      require(extensionOpt.nonEmpty || comparison != HistoryComparisonResult.Younger)
+      val theyAreYounger = comparison == HistoryComparisonResult.Younger
+      val notSendingBlocks = extensionOpt.isEmpty
 
+      if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
+      
       sender() ! OtherNodeSyncingStatus(
         remote,
         comparison,
