@@ -3,8 +3,10 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor.{Actor, ActorRef}
+import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
+import bifrost.forging.Forger.TryForging
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
@@ -39,9 +41,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   private val hash = FastCryptographicHash
 
-
-  val InterBlocksDelay = 15 //in seconds
-
   override def preStart(): Unit = {
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
@@ -64,6 +63,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   override def receive: Receive = {
     case StartForging =>
+      log.info("No Better Neighbor. Forger starts forging now.")
       forging = true
       viewHolderRef ! GetCurrentView
 
@@ -71,32 +71,36 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
       forging = false
 
     case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
-      log.info("Trying to generate a new block, chain length: " + h.height)
-      log.info("chain difficulty: " + h.difficulty)
+      self ! TryForging(h, s, w, m)
 
-      val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
-        case a: ArbitBox => s.closedBox(a.id).isDefined
-        case _ => false
-      }).map(_.box.asInstanceOf[ArbitBox])
+    case TryForging(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+      if (forging) {
+        log.info("Trying to generate a new block, chain length: " + h.height)
+        log.info("chain difficulty: " + h.difficulty)
 
-      val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
+        val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
+          case a: ArbitBox => s.closedBox(a.id).isDefined
+          case _ => false
+        }).map(_.box.asInstanceOf[ArbitBox])
 
-      val parent = h.bestBlock
-      log.debug(s"Trying to generate block on top of ${parent.encodedId} with balance " +
-        s"${boxKeys.map(_._1.value).sum}")
+        val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.blockGenerationDelay.length)
+        val parent = h.bestBlock
+        log.debug(s"Trying to generate block on top of ${parent.encodedId} with balance " +
+          s"${boxKeys.map(_._1.value).sum}")
 
-      iteration(parent, boxKeys, pickTransactions(m, s), adjustedTarget) match {
-        case Some(block) =>
-          log.debug(s"Locally generated block: $block")
-          forging = false
-          viewHolderRef !
-            LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock](block)
-        case None =>
-          log.debug(s"Failed to generate block")
+        val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
+
+        iteration(parent, boxKeys, pickTransactions(m, s), adjustedTarget) match {
+          case Some(block) =>
+            log.debug(s"Locally generated block: $block")
+            viewHolderRef !
+              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock](block)
+          case None =>
+            log.debug(s"Failed to generate block")
+        }
+        context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetCurrentView)
       }
-      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay/3)(self ! StartForging)
   }
 }
 
@@ -108,6 +112,8 @@ object Forger extends ScorexLogging {
   case object StartForging
 
   case object StopForging
+
+  case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
   def hit(lastBlock: BifrostBlock)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
@@ -135,6 +141,7 @@ object Forger extends ScorexLogging {
   def calcAdjustedTarget(difficulty: Long,
                          parent: BifrostBlock,
                          targetBlockDelay: Long): BigInt = {
+    println(s"Target Block Delay, ${targetBlockDelay}")
     val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
     BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()

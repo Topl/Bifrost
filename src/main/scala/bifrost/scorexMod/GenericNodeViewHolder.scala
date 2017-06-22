@@ -223,14 +223,14 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   private def compareSyncInfo: Receive = {
     case OtherNodeSyncingInfo(remote, syncInfo: SI) =>
-      log.debug(s"Comparing remote info having starting points: ${syncInfo.startingPoints.map(_._2).map(Base58.encode)}")
+      log.debug(s"Comparing remote info having starting points: ${syncInfo.startingPoints.map(_._2).map(Base58.encode).toList}")
       log.debug(s"Local side contains head: ${history().contains(syncInfo.startingPoints.map(_._2).head)}")
 
       val extensionOpt = history().continuationIds(syncInfo.startingPoints, networkChunkSize)
       val ext = extensionOpt.getOrElse(Seq())
       val comparison = history().compare(syncInfo)
       log.debug(s"Sending extension of length ${ext.length}: ${ext.map(_._2).map(Base58.encode).mkString(",")}")
-      log.debug("Comparison result is: " + comparison)
+      log.debug("Comparison with Remote. Remote is: " + comparison)
 
       require(extensionOpt.nonEmpty || comparison != HistoryComparisonResult.Younger)
 

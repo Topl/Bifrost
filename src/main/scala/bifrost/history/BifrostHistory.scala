@@ -51,6 +51,10 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     */
   override def isEmpty: Boolean = height <= 0
 
+  override def applicable(block: BifrostBlock): Boolean = {
+    contains(block.parentId)
+  }
+
   override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
@@ -86,11 +90,11 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
         val parent = modifierById(block.parentId).get
 
         val oldDifficulty = storage.difficultyOf(block.parentId).get
-        var difficulty = (oldDifficulty * settings.blockGenerationDelay.length) / (block.timestamp - parent.timestamp)
+        var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
 
         if(difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
 
-        val builtOnBestChain = score == storage.parentChainScore(block)
+        val builtOnBestChain = applicable(block)
 
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[BifrostBlock] = if(!builtOnBestChain) {
@@ -99,7 +103,7 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
         } else if (block.parentId sameElements storage.bestBlockId) { // new block parent is best block so far
           log.debug(s"New best block ${Base58.encode(block.id)}")
           ProgressInfo(None, Seq(), Seq(block))
-        } else {
+        } else { // we want to swap to a fork
           bestForkChanges(block)
         }
 
@@ -194,8 +198,29 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     }
   }
 
+  /**
+    * Return specified number of Bifrost blocks, ordered back from last one
+    *
+    * @param count - how many blocks to return
+    * @return PoW blocks, in reverse order (starting from the most recent one)
+    */
+  def lastBlocks(count: Int, startBlock: BifrostBlock): Seq[BifrostBlock] = if (isEmpty) {
+    Seq()
+  } else {
+    @tailrec
+    def loop(b: BifrostBlock, acc: Seq[BifrostBlock] = Seq()): Seq[BifrostBlock] = if (acc.length >= count) {
+      acc
+    } else {
+      modifierById(b.parentId) match {
+        case Some(parent: BifrostBlock) => loop(parent, b +: acc)
+        case _ => b +: acc
+      }
+    }
+    loop(startBlock)
+  }
+
   override def syncInfo(answer: Boolean): BifrostSyncInfo =
-    BifrostSyncInfo(answer, bestBlockId, score)
+    BifrostSyncInfo(answer, lastBlocks(BifrostSyncInfo.MaxLastBlocks, bestBlock).map(_.id), score)
 
   /**
     * Given a sequence of blocks, finds the subset of blocks that diverge from the local state's sequence. This works
@@ -226,6 +251,7 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     val local = score
     val remote = other.score
 
+    log.debug(s"Remote's score is: ${remote}, Local's score is: ${local}")
     if (local < remote) HistoryComparisonResult.Older
     else if (local == remote) HistoryComparisonResult.Equal
     else HistoryComparisonResult.Younger

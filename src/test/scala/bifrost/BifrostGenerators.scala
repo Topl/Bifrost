@@ -6,7 +6,7 @@ import java.time.Instant
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
@@ -77,6 +77,7 @@ trait BifrostGenerators extends CoreGenerators {
   //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1,10)
   lazy val positiveMediumIntGen: Gen[Int] = Gen.choose(1,100)
+  lazy val booleanGen: Gen[Boolean] = Random.nextBoolean()
 
   //noinspection ScalaStyle
   lazy val numStringGen: Gen[String] = for {
@@ -349,6 +350,15 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
+
+  lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
+    answer <- booleanGen
+    score <- positiveLongGen
+    numLastBlocks <- Gen.choose(1,10)
+  } yield {
+    val lastBlockIds = (0 until numLastBlocks).map{ _ => modifierIdGen.sample.get}
+    BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
+  }
 
   def generateHistory: BifrostHistory = {
     val dataDir = s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}"

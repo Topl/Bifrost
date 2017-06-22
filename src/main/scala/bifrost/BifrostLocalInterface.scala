@@ -13,7 +13,7 @@ import scorex.core.transaction.state.PrivateKey25519
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
   extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock] {
 
-  import BifrostLocalInterface._
+  import LocalInterface._
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type TX = BifrostTransaction
@@ -73,17 +73,4 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
       viewHolderRef ! lm
     case a: Any => log.error("Strange input: " + a)
   }
-}
-
-object BifrostLocalInterface {
-
-  case object NoBetterNeighbour
-
-  case object BetterNeighbourAppeared
-
-  case class LocallyGeneratedTransaction[P <: Proposition, TX <: Transaction[P]](tx: TX)
-
-  case class LocallyGeneratedModifier[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
-  (pmod: PMOD)
-
 }

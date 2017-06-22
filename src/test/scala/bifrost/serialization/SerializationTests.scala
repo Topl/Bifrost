@@ -2,6 +2,7 @@ package bifrost.serialization
 
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
+import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
@@ -161,12 +162,19 @@ class SerializationTests extends PropSpec
     }
   }
 
-
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
         BifrostBlockCompanion.toBytes(parsed) sameElements BifrostBlockCompanion.toBytes(bb) shouldBe true
+    }
+  }
+
+  property("BifrostSyncInfo Serialization") {
+    forAll(bifrostSyncInfoGen) {
+      si: BifrostSyncInfo =>
+        val parsed = BifrostSyncInfoSerializer.parseBytes(BifrostSyncInfoSerializer.toBytes(si)).get
+        BifrostSyncInfoSerializer.toBytes(parsed) sameElements BifrostSyncInfoSerializer.toBytes(si) shouldBe true
     }
   }
 

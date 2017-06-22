@@ -20,7 +20,7 @@ class DifficultyBlockValidator(storage: BifrostStorage)
       val hit = Forger.hit(lastBlock)(block.forgerBox)
       val difficulty = storage.difficultyOf(block.parentId).get
       // val target = (Forger.MaxTarget / difficulty) * block.generatorBox.value
-      val target = Forger.calcAdjustedTarget(difficulty, lastBlock, storage.settings.blockGenerationDelay.length)
+      val target = Forger.calcAdjustedTarget(difficulty, lastBlock, storage.settings.targetBlockTime.length)
       require(BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
     }
 

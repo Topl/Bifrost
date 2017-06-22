@@ -23,6 +23,7 @@
   "maxRollback": 100,
   "offlineGeneration": true,
   "blockGenerationDelay": 5000,
+  "targetBlockTime": 30000,
   "cors": false,
   "agent": "2-Hop",
   "version": [0, 0, 1]

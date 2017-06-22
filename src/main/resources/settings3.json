@@ -21,7 +21,8 @@
   "rpcPort": 9093,
   "rpcAllowed": [],
   "maxRollback": 100,
-  "blockGenerationDelay": 0,
+  "blockGenerationDelay": 5000,
+  "targetBlockTime": 30000,
   "cors": false,
   "agent": "2-Hop",
   "version": [0, 0, 1]
