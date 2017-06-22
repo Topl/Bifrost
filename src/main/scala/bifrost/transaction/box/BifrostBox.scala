@@ -113,24 +113,33 @@ object ArbitBoxSerializer extends Serializer[ArbitBox] with NoncedBoxSerializer 
 case class AssetBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
                     amount: Long,
-                    assetCode: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
+                    assetCode: String,
+                    hub: PublicKey25519Proposition) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
 }
 
 object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer {
 
   def toBytes(obj: AssetBox): Array[Byte] = {
-    noncedBoxToBytes(obj, "AssetBox") ++ obj.assetCode.getBytes ++ Ints.toByteArray(obj.assetCode.getBytes.length)
+    noncedBoxToBytes(obj, "AssetBox") ++
+      obj.hub.pubKeyBytes ++
+      obj.assetCode.getBytes ++
+      Ints.toByteArray(obj.assetCode.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[AssetBox] = Try {
     val params = noncedBoxParseBytes(bytes)
+
     val assetLen = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
     val asset = new String(bytes.slice(bytes.length - Ints.BYTES - assetLen, bytes.length - Ints.BYTES))
-    AssetBox(params._1, params._2, params._3, asset)
+
+    val hub = PublicKey25519Proposition(
+      bytes.slice(bytes.length - Ints.BYTES - assetLen - Constants25519.PubKeyLength, bytes.length - Ints.BYTES - assetLen)
+    )
+
+    AssetBox(params._1, params._2, params._3, asset, hub)
   }
 }
-
 
 case class ContractBox(proposition: MofNProposition,
                        override val nonce: Long,

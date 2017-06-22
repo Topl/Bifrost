@@ -132,7 +132,8 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
     value <- positiveLongGen
     asset <- stringGen
-  } yield AssetBox(proposition, nonce, value, asset)
+    hub <- propositionGen
+  } yield AssetBox(proposition, nonce, value, asset, hub)
 
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
 

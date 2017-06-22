@@ -474,9 +474,9 @@ case class ContractCompletion(contractBox: ContractBox,
 
     Seq(
       producerRep,
-      AssetBox(contract.Producer, assetNonce(contract.Producer),  producerProfitShare,                  assetCode),
-      AssetBox(contract.Hub,      assetNonce(contract.Hub),       hubProfitShare,                       assetCode),
-      AssetBox(contract.Investor, assetNonce(contract.Investor),  investorAmount + investorProfitShare, assetCode)
+      AssetBox(contract.Producer, assetNonce(contract.Producer), producerProfitShare, assetCode, contract.Hub),
+      AssetBox(contract.Hub, assetNonce(contract.Hub), hubProfitShare, assetCode, contract.Hub),
+      AssetBox(contract.Investor, assetNonce(contract.Investor), investorAmount + investorProfitShare, assetCode, contract.Hub)
     ) ++ deductedFeeBoxes(hashNoNonces)
   }
 

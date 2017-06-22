@@ -510,6 +510,7 @@ class ContractRPCSpec extends WordSpec
       |  }]
       |}
         """.stripMargin
+
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
@@ -517,11 +518,18 @@ class ContractRPCSpec extends WordSpec
         val txInstance = view().pool.getById(Base58.decode(txHash).get).get
         txInstance.boxIdsToOpen.head shouldEqual contractBox.get.id
         val newBoxes = txInstance.newBoxes
-        // Assertions
+
+
         newBoxes.head.asInstanceOf[ReputationBox].value._1 shouldEqual 10.0
         newBoxes.head.asInstanceOf[ReputationBox].value._2 shouldEqual 7.0
+
+        newBoxes.toList(1) shouldBe an[AssetBox]
         newBoxes.toList(1).asInstanceOf[AssetBox].value shouldEqual 325
+
+        newBoxes.toList(2) shouldBe an[AssetBox]
         newBoxes.toList(2).asInstanceOf[AssetBox].value shouldEqual 325
+
+        newBoxes.toList(3) shouldBe an[AssetBox]
         newBoxes.toList(3).asInstanceOf[AssetBox].value shouldEqual 8350
       }
     }
