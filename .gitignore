@@ -26,3 +26,4 @@ Dockerfile
 sheet.scala
 examples/src/main/scala/examples/sigmastate/
 examples/lib/
+keyfiles/

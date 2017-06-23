@@ -52,6 +52,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-optics" % circeVersion
 ) ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
+libraryDependencies += "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 
 
 //todo: is it needed?
