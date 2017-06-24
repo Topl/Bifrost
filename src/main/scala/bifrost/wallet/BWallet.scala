@@ -162,7 +162,7 @@ object BWallet {
 
   def readOrGenerate(settings: Settings, accounts: Int): BWallet =
     (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
-      w.generateNewSecret()
+      w
     }
 
   //wallet with applied initialBlocks

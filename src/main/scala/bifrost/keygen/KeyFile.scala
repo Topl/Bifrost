@@ -1,6 +1,7 @@
 package bifrost.keygen
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.lang.reflect.Constructor
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -16,6 +17,7 @@ import scala.util.Try
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
@@ -32,6 +34,7 @@ case class KeyFile(pubKeyBytes: Array[Byte], cipherText: Array[Byte], mac: Array
     require(Keccak256(derivedKey.slice(16,32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
 
     val (decrypted, _) = getAESResult(derivedKey, iv, cipherText, false)
+    require(pubKeyBytes sameElements getPkFromSk(decrypted), "PublicKey in file is invalid")
 
     PrivateKey25519(decrypted, pubKeyBytes)
   }
@@ -95,6 +98,8 @@ object KeyFile {
     tempFile
   }
 
+  def getPkFromSk(sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
+
   def readFile(filename: String): KeyFile = {
     val jsonString = scala.io.Source.fromFile(filename).mkString
     parse(jsonString).right.get.as[KeyFile] match {
@@ -118,4 +123,13 @@ object KeyFile {
     KeyFile(pubKey, cipherText, mac, salt, iv)
   }
 
+  // TODO: This is copied from Curve25519 class. Make sure to sync with the its latest implementation.
+  private val provider: OpportunisticCurve25519Provider = {
+    val constructor = classOf[OpportunisticCurve25519Provider]
+      .getDeclaredConstructors
+      .head
+      .asInstanceOf[Constructor[OpportunisticCurve25519Provider]]
+    constructor.setAccessible(true)
+    constructor.newInstance()
+  }
 }
