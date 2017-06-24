@@ -18,12 +18,12 @@
   "walletDir": "/tmp/scorex/data/wallet",
   "dataDir": "/tmp/scorex/data/blockchain",
   "logDir": "/tmp/scorex/data/log",
-  "rpcPort": 9085,
+  "rpcPort": 9086,
   "rpcAllowed": [],
   "maxRollback": 100,
   "offlineGeneration": true,
   "blockGenerationDelay": 5000,
-  "cors": false,
+  "cors": true,
   "agent": "2-Hop",
   "version": [0, 0, 1]
 }

@@ -68,11 +68,213 @@ load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 0);
 /******/ })
 /************************************************************************/
 /******/ ([
 /* 0 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ *
+ * @file {bifrost.js}
+ * @author Nicholas Edmonds <n.edmonds@topl.me>
+ * @date 2017
+ */
+
+//require('es6-promise').polyfill();
+//require('fetch-everywhere');
+
+var Settings = __webpack_require__(1);
+var Topl = __webpack_require__(2);
+var getBlock = __webpack_require__(3);
+
+var Bifrost = function Bifrost() {
+  this.settings = new Settings();
+  this.topl = new Topl(this);
+  this.getBlock = getBlock;
+};
+
+Bifrost.prototype.test = function () {
+  console.log('Bifrost prototype test successful');
+};
+
+module.exports = Bifrost;
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var pkg = __webpack_require__(10);
+
+var Settings = function Settings() {
+  var host = 'http://localhost';
+  var port = '9085';
+  var protocol = 'rpc';
+  var protocolVersion = '2.0';
+  var sdk = { version: pkg.version };
+
+  this.test = function () {
+    console.log('Successful settings inner function test');
+  };
+};
+
+module.exports = Settings;
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/*
+  Defines the set of methods specific to Topl.
+ */
+
+/**
+ *
+ * @file {topl.js}
+ * @fileOverview List of Topl defined RPC calls
+ * @author Nicholas Edmonds <n.edmonds@topl.me>
+ * @date 2017
+ */
+
+/**
+ *
+ * @module topl
+ */
+
+var bifrost = __webpack_require__(0);
+var Endpoint = __webpack_require__(4);
+
+var Topl = function Topl(bifrost) {
+  var declareRole = function declareRole() {};
+
+  endpoints().forEach(function (method) {
+    //TODO attachToObject(self) and setRequestManager(self._requestManager)
+  });
+};
+
+// A list of endpoints with RPC data to build a valid RPC call
+var endpoints = function endpoints() {
+  var getBlock = new Endpoint({
+    name: 'getBlock',
+    params: 2
+  });
+  var getTransaction = new Endpoint({
+    name: 'getTransaction',
+    params: 2
+  });
+  var declareRole = new Endpoint({
+    name: 'declareRole',
+    params: 6
+  });
+  var getRole = new Endpoint({
+    name: 'getRole',
+    params: 1
+  });
+  var getContractSignature = new Endpoint({
+    name: 'getCreationSignature',
+    params: 0
+  });
+  var createContract = new Endpoint({
+    name: 'createContract',
+    params: 0
+  });
+  var deliver = new Endpoint({
+    name: 'deliver',
+    params: 1
+  });
+  var confirmDelivery = new Endpoint({
+    name: 'confirmDelivery',
+    params: 1
+  });
+  var endorseCompletion = new Endpoint({
+    name: 'endorseCompletion',
+    params: 0
+  });
+  var getCompletionSignature = new Endpoint({
+    name: 'getCompletionSignature',
+    params: 0
+  });
+  var completeContract = new Endpoint({
+    name: 'completeContract',
+    params: 0
+  });
+
+  return [getBlock, getTransaction, declareRole, getRole, getContractSignature, createContract, deliver, confirmDelivery, endorseCompletion, getCompletionSignature, completeContract];
+};
+
+module.exports = Topl;
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+__webpack_require__(5).polyfill();
+__webpack_require__(6);
+
+var getBlock = function getBlock() {
+
+    console.log('Forming request');
+	var request = new Request('http://localhost:9086/nodeView/persistentModifier/7rZk9srzypcsuDRKmww5m9qcE62mhrCb839MoAdmvDUh', {
+		method: 'GET',
+		mode: 'cors',
+		redirect: 'follow',
+		headers: new Headers({
+			'Content-Type': 'application/json'
+		})
+	});
+
+    print('Moving on to fetch...');
+
+	// curl -X POST --data '{"jsonrpc":"2.0","method":"topl_getBlock","params":["2xrGdJTBtjZE2RWhBSzGoRwXn4gQ7DkGM5UkymJJk57y"],"id":0}'
+	return fetch(request).then(function (response) {
+		print('Starting first then');
+		return response.json();
+	}).then(function (jsonData) {
+		console.log('Successful fetch request.');
+		console.log(jsonData);
+		JSON.stringify(jsonData);
+		return jsonData;
+	}).catch(function (err) {
+		console.log("Something went wrong.", err);
+	});
+};
+
+module.exports = getBlock;
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/*
+  defines operations that will occur for each method call defined by
+  methods in other files.
+ */
+
+var Endpoint = function Endpoint(rpcMethod) {
+  this.name = rpcMethod.name;
+  this.params = rpcMethod.params || 0;
+};
+
+module.exports = Endpoint;
+
+/***/ }),
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(process, global) {var require;/*!
@@ -211,7 +413,7 @@ function flush() {
 function attemptVertx() {
   try {
     var r = require;
-    var vertx = __webpack_require__(6);
+    var vertx = __webpack_require__(!(function webpackMissingModule() { var e = new Error("Cannot find module \"vertx\""); e.code = 'MODULE_NOT_FOUND'; throw e; }()));
     vertxNext = vertx.runOnLoop || vertx.runOnContext;
     return useVertxTimer();
   } catch (e) {
@@ -969,7 +1171,7 @@ Promise.prototype = {
     The primary way of interacting with a promise is through its `then` method,
     which registers callbacks to receive either a promise's eventual value or the
     reason why the promise cannot be fulfilled.
-
+  
     ```js
     findUser().then(function(user){
       // user is available
@@ -977,14 +1179,14 @@ Promise.prototype = {
       // user is unavailable, and you are given the reason why
     });
     ```
-
+  
     Chaining
     --------
-
+  
     The return value of `then` is itself a promise.  This second, 'downstream'
     promise is resolved with the return value of the first promise's fulfillment
     or rejection handler, or rejected if the handler throws an exception.
-
+  
     ```js
     findUser().then(function (user) {
       return user.name;
@@ -994,7 +1196,7 @@ Promise.prototype = {
       // If `findUser` fulfilled, `userName` will be the user's name, otherwise it
       // will be `'default name'`
     });
-
+  
     findUser().then(function (user) {
       throw new Error('Found user, but still unhappy');
     }, function (reason) {
@@ -1007,7 +1209,7 @@ Promise.prototype = {
     });
     ```
     If the downstream promise does not specify a rejection handler, rejection reasons will be propagated further downstream.
-
+  
     ```js
     findUser().then(function (user) {
       throw new PedagogicalException('Upstream error');
@@ -1019,15 +1221,15 @@ Promise.prototype = {
       // The `PedgagocialException` is propagated all the way down to here
     });
     ```
-
+  
     Assimilation
     ------------
-
+  
     Sometimes the value you want to propagate to a downstream promise can only be
     retrieved asynchronously. This can be achieved by returning a promise in the
     fulfillment or rejection handler. The downstream promise will then be pending
     until the returned promise is settled. This is called *assimilation*.
-
+  
     ```js
     findUser().then(function (user) {
       return findCommentsByAuthor(user);
@@ -1035,9 +1237,9 @@ Promise.prototype = {
       // The user's comments are now available
     });
     ```
-
+  
     If the assimliated promise rejects, then the downstream promise will also reject.
-
+  
     ```js
     findUser().then(function (user) {
       return findCommentsByAuthor(user);
@@ -1047,15 +1249,15 @@ Promise.prototype = {
       // If `findCommentsByAuthor` rejects, we'll have the reason here
     });
     ```
-
+  
     Simple Example
     --------------
-
+  
     Synchronous Example
-
+  
     ```javascript
     let result;
-
+  
     try {
       result = findResult();
       // success
@@ -1063,9 +1265,9 @@ Promise.prototype = {
       // failure
     }
     ```
-
+  
     Errback Example
-
+  
     ```js
     findResult(function(result, err){
       if (err) {
@@ -1075,9 +1277,9 @@ Promise.prototype = {
       }
     });
     ```
-
+  
     Promise Example;
-
+  
     ```javascript
     findResult().then(function(result){
       // success
@@ -1085,15 +1287,15 @@ Promise.prototype = {
       // failure
     });
     ```
-
+  
     Advanced Example
     --------------
-
+  
     Synchronous Example
-
+  
     ```javascript
     let author, books;
-
+  
     try {
       author = findAuthor();
       books  = findBooksByAuthor(author);
@@ -1102,19 +1304,19 @@ Promise.prototype = {
       // failure
     }
     ```
-
+  
     Errback Example
-
+  
     ```js
-
+  
     function foundBooks(books) {
-
+  
     }
-
+  
     function failure(reason) {
-
+  
     }
-
+  
     findAuthor(function(author, err){
       if (err) {
         failure(err);
@@ -1139,9 +1341,9 @@ Promise.prototype = {
       }
     });
     ```
-
+  
     Promise Example;
-
+  
     ```javascript
     findAuthor().
       then(findBooksByAuthor).
@@ -1151,7 +1353,7 @@ Promise.prototype = {
       // something went wrong
     });
     ```
-
+  
     @method then
     @param {Function} onFulfilled
     @param {Function} onRejected
@@ -1163,25 +1365,25 @@ Promise.prototype = {
   /**
     `catch` is simply sugar for `then(undefined, onRejection)` which makes it the same
     as the catch block of a try/catch statement.
-
+  
     ```js
     function findAuthor(){
       throw new Error('couldn't find that author');
     }
-
+  
     // synchronous
     try {
       findAuthor();
     } catch(reason) {
       // something went wrong
     }
-
+  
     // async with promises
     findAuthor().catch(function(reason){
       // something went wrong
     });
     ```
-
+  
     @method catch
     @param {Function} onRejection
     Useful for tooling.
@@ -1234,39 +1436,23 @@ return Promise;
 })));
 //# sourceMappingURL=es6-promise.map
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), __webpack_require__(4)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(7), __webpack_require__(8)))
 
 /***/ }),
-/* 1 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // the whatwg-fetch polyfill installs the fetch() function
 // on the global object (window or self)
 //
 // Return that as the export for use in Webpack, Browserify etc.
-__webpack_require__(5);
+__webpack_require__(9);
 var globalObj = typeof self !== 'undefined' && self || this;
 module.exports = globalObj.fetch.bind(globalObj);
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-__webpack_require__(0).polyfill();
-__webpack_require__(1);
-
-function Bifrost() {
-	this.getBlock = new getBlock(this);
-}
-
-module.exports = Bifrost;
-
-/***/ }),
-/* 3 */
+/* 7 */
 /***/ (function(module, exports) {
 
 // shim for using process in browser
@@ -1456,7 +1642,7 @@ process.umask = function() { return 0; };
 
 
 /***/ }),
-/* 4 */
+/* 8 */
 /***/ (function(module, exports) {
 
 var g;
@@ -1483,7 +1669,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 5 */
+/* 9 */
 /***/ (function(module, exports) {
 
 (function(self) {
@@ -1950,10 +2136,53 @@ module.exports = g;
 
 
 /***/ }),
-/* 6 */
+/* 10 */
 /***/ (function(module, exports) {
 
-/* (ignored) */
+module.exports = {
+	"name": "bifrost-js",
+	"version": "0.0.0",
+	"description": "The official JavaScript API for the Topl cryptocurrency",
+	"main": "./index.js",
+	"dependencies": {
+		"bignumber.js": "^4.0.2",
+		"es6-promise": "^4.1.0",
+		"fetch-everywhere": "^1.0.5"
+	},
+	"devDependencies": {
+		"babel-core": "^6.24.1",
+		"babel-loader": "^7.0.0",
+		"babel-preset-env": "^1.5.1",
+		"eslint": "^4.0.0",
+		"eslint-config-airbnb-base": "^11.2.0",
+		"eslint-plugin-import": "^2.3.0",
+		"html-webpack-plugin": "^2.28.0",
+		"mocha": "^3.4.2",
+		"webpack": "^2.6.1",
+		"webpack-dev-server": "^2.4.5"
+	},
+	"scripts": {
+		"lint": "eslint lib/**/*.js",
+		"test": "./node_modules/.bin/mocha --reporter spec",
+		"build": "webpack",
+		"start": "webpack-dev-server --open",
+		"server": "node ./dist/bundle.js"
+	},
+	"author": "topl.co",
+	"authors": [
+		{
+			"name": "Nicholas Edmonds",
+			"email": "n.edmonds@topl.me",
+			"url": "https://github.com/tuxman"
+		}
+	],
+	"license": "ISC",
+	"homepage": "https://github.com/Topl/Bifrost-JS",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Topl/Bifrost-JS.git"
+	}
+};
 
 /***/ })
 /******/ ]);
