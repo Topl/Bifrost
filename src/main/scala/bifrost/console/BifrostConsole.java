@@ -53,9 +53,9 @@ public class BifrostConsole {
 
             bindings = nashornEngine.getBindings(ScriptContext.ENGINE_SCOPE);
 
-           // for(Map.Entry me : bindings.entrySet()) {
-           //     System.out.printf("%s: %s\n",me.getKey(),String.valueOf(me.getValue()));
-          //  }
+           for(Map.Entry me : bindings.entrySet()) {
+                System.out.printf("%s: %s\n",me.getKey(),String.valueOf(me.getValue()));
+           }
         } catch(ScriptException|FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -65,16 +65,26 @@ public class BifrostConsole {
         Scanner scan = new Scanner(System.in);
         String input = "";
         do {
-            System.out.print("Topl > ");
+            System.out.print("\nTopl > ");
 
             // reads in a line of input, then evaluates as javascript
             input = scan.nextLine();
             try {
-                ScriptObjectMirror result = ((ScriptObjectMirror)nashornEngine.eval(input));
+                Object result = nashornEngine.eval(input);
+
+                int i = 0;
+
+                if (result == null) {
+                    nashornEngine.eval("global.nashornEventLoop.process();");
+                }
+
             } catch(ScriptException e) {
                e.printStackTrace();
             }
         } while(!input.equals("exit"));
     }
 
+    //var b = new Bifrost()
+    //var test = b.getBlock()
+    //var thisWorks = test.then(function(resolve, reject) { console.log(JSON.stringify(resolve)); console.log("In 'thisworks'"); });
 }

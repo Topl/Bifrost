@@ -227,7 +227,7 @@ __webpack_require__(6);
 var getBlock = function getBlock() {
 
     console.log('Forming request');
-	var request = new Request('http://localhost:9086/nodeView/persistentModifier/7rZk9srzypcsuDRKmww5m9qcE62mhrCb839MoAdmvDUh', {
+	var request = new Request('http://localhost:9086/nodeView/persistentModifier/HqQPBS9NVjojpLMrwPgmfnncXnVqXyzBN3tzR3kqK2rf', {
 		method: 'GET',
 		mode: 'cors',
 		redirect: 'follow',
@@ -244,11 +244,10 @@ var getBlock = function getBlock() {
 		return response.json();
 	}).then(function (jsonData) {
 		console.log('Successful fetch request.');
-		console.log(jsonData);
-		JSON.stringify(jsonData);
+		console.log(JSON.stringify(jsonData));
 		return jsonData;
 	}).catch(function (err) {
-		console.log("Something went wrong.", err);
+		console.log("Something went wrong!!!", err);
 	});
 };
 
@@ -588,6 +587,7 @@ function handleMaybeThenable(promise, maybeThenable, then$$) {
   if (maybeThenable.constructor === promise.constructor && then$$ === then && maybeThenable.constructor.resolve === resolve) {
     handleOwnThenable(promise, maybeThenable);
   } else {
+
     if (then$$ === GET_THEN_ERROR) {
       _reject(promise, GET_THEN_ERROR.error);
       GET_THEN_ERROR.error = null;

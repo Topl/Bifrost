@@ -41,8 +41,6 @@
 
   resetEventLoop();
 
-   console.log('main javascript thread ' + Thread.currentThread().getName());
-
   function resetEventLoop() {
     globalTimerId = 1;
     if (timerMap) {
@@ -65,7 +63,6 @@
   function processNextMessages() {
     var remaining = 1;
     while (remaining) {
-      console.log('eventLoop size ' + eventLoop.size() + 'in thread ' + Thread.currentThread().getName());
       phaser.register();
       var message = eventLoop.removeFirst();
       remaining = eventLoop.size();
@@ -75,7 +72,6 @@
       var args = message.args;
 
       try {
-        console.log('processNextMessages in thread ' + Thread.currentThread().getName());
         fn.apply(context, args);
       } catch (e) {
         console.trace(e);
@@ -87,7 +83,6 @@
 
   context.nashornEventLoop = {
     process: function () {
-      console.log('nashornEventLoop.process is called in thread ' + Thread.currentThread().getName())
       while (waitForMessages()) {
         processNextMessages()
       }
@@ -105,8 +100,6 @@
             fn: fn,
             args: args
           });
-           console.log('TimerTask add one event, and eventLoop size ' + eventLoop.size() +
-             ' in thread ' + Thread.currentThread().getName());
         } catch (e) {
           console.trace(e);
         } finally {
