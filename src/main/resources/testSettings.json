@@ -16,6 +16,7 @@
   "walletPassword": "cookies",
   "walletSeed": "genesisoo",
   "walletDir": "/tmp/scorex/test-data/wallet",
+  "keyFileDir": "keyfiles/node1",
   "dataDir": "/tmp/scorex/test-data/blockchain",
   "logDir": "/tmp/scorex/test-data/log",
   "rpcPort": 9085,

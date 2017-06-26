@@ -15,6 +15,7 @@
   "walletDir": "/tmp/scorex/wallet8",
   "walletPassword": "cookies8",
   "walletSeed": "genesiso7",
+  "keyFileDir": "keyfiles/node8",
   "dataDir": "/tmp/scorex/data8",
   "logDir": "/tmp/scorex/log8",
   "rpcPort": 9201,

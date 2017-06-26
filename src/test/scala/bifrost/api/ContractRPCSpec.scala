@@ -19,7 +19,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.{ProfileTransaction, Role}
@@ -66,8 +66,7 @@ class ContractRPCSpec extends WordSpec
     )
   }
 
-  implicit val timeout = Timeout(5.seconds)
-
+  implicit val timeout = Timeout(10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -76,7 +75,7 @@ class ContractRPCSpec extends WordSpec
   )
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 5 seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10 seconds)
 
   // Unlock Secrets
   val gw = view().vault

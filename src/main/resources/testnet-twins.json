@@ -16,6 +16,7 @@
   "walletDir": "/tmp/scorex/testnet/wallet",
   "walletPassword": "cookies",
   "walletSeed": "genesis44",
+  "keyFileDir": "keyfiles/local-testnet",
   "dataDir": "/tmp/scorex/testnet/data",
   "logDir": "/tmp/scorex/testnet/log",
   "rpcPort": 9585,

@@ -15,6 +15,7 @@
   "walletPassword": "cookies2",
   "walletSeed": "genesiso1",
   "walletDir": "/tmp/scorex/data2/wallet",
+  "keyFileDir": "keyfiles/node2",
   "dataDir": "/tmp/scorex/data2/blockchain",
   "logDir": "/tmp/scorex/data2/log",
   "rpcPort": 9089,

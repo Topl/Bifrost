@@ -89,7 +89,6 @@ object KeyFile {
 
     val tempFile = KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
 
-    new File(defaultKeyDir).mkdir()
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString().replace(":", "-")
     val w = new BufferedWriter(new FileWriter(s"${defaultKeyDir}/${dateString}-${Base58.encode(pk.pubKeyBytes)}.json"))
     w.write(tempFile.json.toString())

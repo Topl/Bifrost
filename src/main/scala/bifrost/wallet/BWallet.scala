@@ -84,7 +84,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     val privKey = keyfiles.head.getPrivateKey(password) match {
       case Success(priv) => Set(priv)
       case Failure(e) =>
-        e.getMessage
+        e.printStackTrace()
         Set[S]()
     }
     // ensure no duplicate by comparing privKey strings
@@ -173,6 +173,12 @@ object BWallet {
 
   def exists(settings: Settings): Boolean = walletFile(settings).exists()
 
+  private def directoryEnsuring(dirPath: String): Boolean = {
+    val f = new java.io.File(dirPath)
+    f.mkdirs()
+    f.exists()
+  }
+
   def readOrGenerate(settings: Settings, seed: String): BWallet = {
     val wFile = walletFile(settings)
     wFile.mkdirs()
@@ -183,19 +189,25 @@ object BWallet {
         boxesStorage.close()
       }
     })
+    // Create directory for key files
+    val keyFileDir = settings.settingsJSON.get("keyFileDir").flatMap(_.asString).ensuring(pathOpt =>
+      pathOpt.forall(directoryEnsuring))
 
-    BWallet(Set(), boxesStorage, "keyfiles/" ++ settings.nodeName)
+    BWallet(Set(), boxesStorage, keyFileDir.get)
   }
 
   def readOrGenerate(settings: Settings): BWallet = {
     val gw = readOrGenerate(settings, Base58.encode(settings.walletSeed))
     if (Base58.encode(settings.walletSeed).startsWith("genesis")) {
-      val seed = FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(0))
-      val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
-      if (!gw.publicKeys.contains(pub)) {
-        KeyFile("genesis", seed = seed, gw.defaultKeyDir)
+      val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(c)))
+      val pubKeys = seeds.map { seed =>
+        val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+        if (!gw.publicKeys.contains(pub)) {
+          KeyFile("genesis", seed = seed, gw.defaultKeyDir)
+        }
+        pub
       }
-      gw.unlockKeyFile(Base58.encode(pub.pubKeyBytes), "genesis")
+      gw.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), "genesis")
     }
     gw
   }
