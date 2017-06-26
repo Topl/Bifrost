@@ -55,7 +55,6 @@ case class KeyFile(pubKeyBytes: Array[Byte], cipherText: Array[Byte], mac: Array
 }
 
 object KeyFile {
-  val defaultKeyFilePath = "keyfiles"
 
   def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
     SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
@@ -76,11 +75,11 @@ object KeyFile {
 
   def uuid: String = java.util.UUID.randomUUID.toString
 
-  def apply(password: String): KeyFile = {
-    val seed = uuid
+  def apply(password: String, seed: Array[Byte] = FastCryptographicHash(uuid), defaultKeyDir: String): KeyFile = {
+
     val salt = FastCryptographicHash(uuid)
 
-    var(sk, pk) = PrivateKey25519Companion.generateKeys(seed.getBytes())
+    var(sk, pk) = PrivateKey25519Companion.generateKeys(seed)
     println(s"before privateKey, ${Base58.encode(sk.privKeyBytes)}")
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
@@ -90,9 +89,9 @@ object KeyFile {
 
     val tempFile = KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
 
-    new File(defaultKeyFilePath).mkdir()
+    new File(defaultKeyDir).mkdir()
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString().replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"${defaultKeyFilePath}/${dateString}-${Base58.encode(pk.pubKeyBytes)}.json"))
+    val w = new BufferedWriter(new FileWriter(s"${defaultKeyDir}/${dateString}-${Base58.encode(pk.pubKeyBytes)}.json"))
     w.write(tempFile.json.toString())
     w.close()
     tempFile

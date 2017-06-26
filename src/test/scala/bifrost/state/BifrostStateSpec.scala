@@ -189,7 +189,9 @@ object BifrostStateSpec {
   val gs = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history = gs._1; var genesisState = gs._2; var gw = gs._3
 
-  // Generate new secret
-  gw.generateNewSecret(); gw.generateNewSecret()
+  // Unlock Secrets
+  gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
+  gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
+  gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
   val genesisBlockId = genesisState.version
 }

@@ -33,6 +33,7 @@ import io.circe.parser._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.optics.JsonPath._
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
@@ -76,6 +77,12 @@ class ContractRPCSpec extends WordSpec
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 5 seconds)
+
+  // Unlock Secrets
+  val gw = view().vault
+  // gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  gw.unlockKeyFile(publicKeys("producer"), "genesis")
+  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   "Contract RPC" should {
     "return role or error" in {
@@ -121,10 +128,11 @@ class ContractRPCSpec extends WordSpec
 
         val state = view().state
         val wallet = view().vault
+        println(s"secrets in wallet, ${wallet.secrets}")
         val profileBoxes = Seq(
-          ProfileBox(wallet.secrets.toSeq(0).publicImage, 0L, Role.Hub.toString, "role"),
-          ProfileBox(wallet.secrets.toSeq(1).publicImage, 0L, Role.Producer.toString, "role"),
-          ProfileBox(wallet.secrets.toSeq(2).publicImage, 0L, Role.Investor.toString, "role")
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get), 0L, Role.Hub.toString, "role"),
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("producer")).get), 0L, Role.Producer.toString, "role"),
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get), 0L, Role.Investor.toString, "role")
         )
         val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
 

@@ -124,7 +124,7 @@ object BifrostNodeViewHolder extends ScorexLogging {
 
     val gs = BifrostState.genesisState(settings, Seq(genesisBlock))
     val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
-    gw.generateNewSecret(); gw.generateNewSecret()
+
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
       case ab: ArbitBox => Some(ab.value)
       case _ => None
