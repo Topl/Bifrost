@@ -30,7 +30,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
-    balances ~ transfer ~ sign
+    balances ~ transfer ~ sign ~ generateKeyFile ~ unlockKeyFile
   }
 
   @Path("/transfer")
@@ -130,6 +130,79 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           SuccessApiResponse(Map(
             "signature" -> Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.getBytes).signature).asJson
           ).asJson)
+        }
+      }
+    }
+  }
+
+  @Path("/keyfile/")
+  @ApiOperation(value = "Create a Keyfile", notes = "Create a Keyfile", httpMethod = "POST")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "password",
+      value = "Password to lock the keyfile",
+      required = true,
+      dataType = "string",
+      paramType = "body"
+    )
+  ))
+  def generateKeyFile: Route = path("keyfile") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(json) => Try {
+                val wallet = view.vault
+                val password: String = (json \\ "password").head.asString.get
+                val pubKey = wallet.generateNewSecret(password)
+                Map(
+                  "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
+                ).asJson
+              } match {
+                case Success(resp) => SuccessApiResponse(resp)
+                case Failure(e) => ApiException(e)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Path("/unlock/")
+  @ApiOperation(value = "Unlock a Keyfile", notes = "Unlock a Keyfile", httpMethod = "POST")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "password",
+      value = "Password to lock the keyfile",
+      required = true,
+      dataType = "string",
+      paramType = "body"
+    )
+  ))
+  def unlockKeyFile: Route = path("unlock") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(json) => Try {
+                val wallet = view.vault
+                val publicKey: String = (json \\ "publicKey").head.asString.get
+                val password: String = (json \\ "password").head.asString.get
+                wallet.unlockKeyFile(publicKey, password)
+                Map(
+                  publicKey -> "unlocked".asJson
+                ).asJson
+              } match {
+                case Success(resp) => SuccessApiResponse(resp)
+                case Failure(e) => ApiException(e)
+              }
+            }
+          }
         }
       }
     }

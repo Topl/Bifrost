@@ -94,7 +94,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     require(ProfileBox.acceptableRoleValues.contains(roleValue))
     // Get the PrivateKey
     val privKeySet = wallet.secrets.filter(secret => secret.publicImage.pubKeyBytes sameElements Base58.decode(pubKey).get)
-    require(privKeySet.nonEmpty)
+    require(privKeySet.nonEmpty, "Cannot Find an unlocked privateKey")
     // create Transaction
     val timestamp = System.currentTimeMillis()
     val signature = PrivateKey25519Companion.sign(privKeySet.toSeq.head,

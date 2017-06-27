@@ -1,9 +1,13 @@
 package bifrost.wallet
 
-import java.io.File
+import java.io.{BufferedWriter, File, FileWriter}
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 import com.google.common.primitives.Ints
 import bifrost.blocks.BifrostBlock
+import bifrost.keygen.KeyFile
+import bifrost.keygen.KeyFile.{getAESResult, getDerivedKey, uuid}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
 import bifrost.transaction.BifrostTransaction
@@ -17,12 +21,13 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion,
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 
-case class BWallet(seed: Array[Byte], store: LSMStore)
+case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
   extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BWallet]
     with ScorexLogging {
+  import BWallet._
 
   override type S = PrivateKey25519
   override type PI = ProofOfKnowledgeProposition[S]
@@ -59,11 +64,35 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
       .map(_.get)
   }
 
-  override def publicKeys: Set[PI] = secrets.map(_.publicImage)
+  override def publicKeys: Set[PI] = {
+    //secrets.map(_.publicImage)
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes)).toSet
+  }
 
-  override def secrets: Set[S] = store.get(SecretsKey)
-    .map(_.data.grouped(64).map(b => PrivateKey25519Serializer.parseBytes(b).get).toSet)
-    .getOrElse(Set.empty[PrivateKey25519])
+//  var secrets: Set[S] = {
+//    store.get(SecretsKey)
+//      .map(_.data.grouped(64).map(b => PrivateKey25519Serializer.parseBytes(b).get).toSet)
+//      .getOrElse(Set.empty[PrivateKey25519])
+//    //Set[S]()
+//  }
+
+  def unlockKeyFile(publicKeyString: String, password: String): Unit = {
+    val keyfiles = getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath)).filter(k =>
+      k.pubKeyBytes sameElements Base58.decode(publicKeyString).get
+    )
+    assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
+    val privKey = keyfiles.head.getPrivateKey(password) match {
+      case Success(priv) => Set(priv)
+      case Failure(e) => throw e
+    }
+    // ensure no duplicate by comparing privKey strings
+    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
+      secrets += privKey.head
+      println(s"secrets are: ${secrets + privKey.head}")
+    } else {
+      println(s"${publicKeyString} is already unlocked")
+    }
+  }
 
   override def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
@@ -71,16 +100,18 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
     case _ => None
   }
 
-  override def generateNewSecret(): BWallet = {
-    val prevSecrets = secrets
-    val nonce: Array[Byte] = Ints.toByteArray(prevSecrets.size)
-    val s = FastCryptographicHash(seed ++ nonce)
-    val (priv, _) = PrivateKey25519Companion.generateKeys(s)
-    val allSecrets: Set[PrivateKey25519] = Set(priv) ++ prevSecrets
-    store.update(ByteArrayWrapper(priv.privKeyBytes),
-      Seq(),
-      Seq(SecretsKey -> ByteArrayWrapper(allSecrets.toArray.flatMap(p => PrivateKey25519Serializer.toBytes(p)))))
-    BWallet(seed, store)
+  def generateNewSecret(): BWallet = {
+    val password = Random.nextString(18)
+    log.warn(s"Generated Password is <<${password}>>. Make sure to record this since this will never appear again!!!")
+    val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+
+    BWallet(secrets + privKey, store, defaultKeyDir)
+  }
+
+  def generateNewSecret(password: String): PublicKey25519Proposition = {
+    val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    secrets += privKey
+    privKey.publicImage
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
@@ -108,7 +139,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
 
     boxIds.foreach(box => println(s"Box id ${Base58.encode(box)}"))
 
-    BWallet(seed, store)
+    BWallet(secrets, store, defaultKeyDir)
   }
 
   override def rollback(to: VersionTag): Try[BWallet] = Try {
@@ -117,7 +148,7 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
     } else {
       log.debug(s"Rolling back wallet to: ${Base58.encode(to)}")
       store.rollback(ByteArrayWrapper(to))
-      BWallet(seed, store)
+      BWallet(secrets, store, defaultKeyDir)
     }
   }
 
@@ -126,6 +157,15 @@ case class BWallet(seed: Array[Byte], store: LSMStore)
 }
 
 object BWallet {
+
+  def getListOfFiles(dir: String): List[File] = {
+    val d = new File(dir)
+    if (d.exists && d.isDirectory) {
+      d.listFiles.filter(_.isFile).toList
+    } else {
+      List[File]()
+    }
+  }
 
   def walletFile(settings: Settings): File = {
     val walletDirOpt = settings.walletDirOpt.ensuring(_.isDefined, "wallet dir must be specified")
@@ -137,6 +177,12 @@ object BWallet {
 
   def exists(settings: Settings): Boolean = walletFile(settings).exists()
 
+  private def directoryEnsuring(dirPath: String): Boolean = {
+    val f = new java.io.File(dirPath)
+    f.mkdirs()
+    f.exists()
+  }
+
   def readOrGenerate(settings: Settings, seed: String): BWallet = {
     val wFile = walletFile(settings)
     wFile.mkdirs()
@@ -147,12 +193,27 @@ object BWallet {
         boxesStorage.close()
       }
     })
+    // Create directory for key files
+    val keyFileDir = settings.settingsJSON.get("keyFileDir").flatMap(_.asString).ensuring(pathOpt =>
+      pathOpt.forall(directoryEnsuring))
 
-    BWallet(Base58.decode(seed).get, boxesStorage)
+    BWallet(Set(), boxesStorage, keyFileDir.get)
   }
 
   def readOrGenerate(settings: Settings): BWallet = {
-    readOrGenerate(settings, Base58.encode(settings.walletSeed))
+    val gw = readOrGenerate(settings, Base58.encode(settings.walletSeed))
+    if (Base58.encode(settings.walletSeed).startsWith("genesis")) {
+      val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(c)))
+      val pubKeys = seeds.map { seed =>
+        val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+        if (!gw.publicKeys.contains(pub)) {
+          KeyFile("genesis", seed = seed, gw.defaultKeyDir)
+        }
+        pub
+      }
+      gw.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), "genesis")
+    }
+    gw
   }
 
   def readOrGenerate(settings: Settings, seed: String, accounts: Int): BWallet =
@@ -162,12 +223,12 @@ object BWallet {
 
   def readOrGenerate(settings: Settings, accounts: Int): BWallet =
     (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
-      w.generateNewSecret()
+      w
     }
 
   //wallet with applied initialBlocks
   def genesisWallet(settings: Settings, initialBlocks: Seq[BifrostBlock]): BWallet = {
-    initialBlocks.foldLeft(readOrGenerate(settings).generateNewSecret()) { (a, b) =>
+    initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
       a.scanPersistent(b)
     }
   }
