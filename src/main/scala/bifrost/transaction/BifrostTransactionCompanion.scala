@@ -73,7 +73,8 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keyMapping: Map[Array[Byte], Int] = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).zipWithIndex.toMap
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).toSeq.zipWithIndex
+    val keyMapping: Map[Array[Byte], Int] = keySeq.toMap
 
     Bytes.concat(
       Longs.toByteArray(m.timestamp),
@@ -82,7 +83,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       Ints.toByteArray(m.preFeeBoxes.size),
       Ints.toByteArray(m.fees.size),
       Ints.toByteArray(keyMapping.size),
-      keyMapping.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
       m.parties.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._2.pubKeyBytes)) ++ (b._1 match {
         case Role.Producer => Ints.toByteArray(0)
         case Role.Investor => Ints.toByteArray(1)
@@ -580,19 +581,27 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
   override def toBytes(ac: AssetRedemption): Array[Byte] = {
     val typeBytes = "AssetRedemption".getBytes
 
+    // Used to reduce overall size in the default case where assetcodes are the same across multiple maps
+    val keySeq = (ac.signatures.keySet ++ ac.availableToRedeem.keySet ++ ac.amounts.keySet).toSeq.zipWithIndex
+    val keyMapping: Map[String, Int] = keySeq.toMap
+
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
       Longs.toByteArray(ac.fee),
       Longs.toByteArray(ac.timestamp),
-      Ints.toByteArray(ac.signatures.length),
+      Ints.toByteArray(ac.signatures.size),
       Ints.toByteArray(ac.availableToRedeem.size),
-      Ints.toByteArray(ac.amount.size),
-      ac.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
-      ac.availableToRedeem.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes ++
+      Ints.toByteArray(ac.amounts.size),
+      Ints.toByteArray(keyMapping.size),
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes),
+      ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
+      ),
+      ac.availableToRedeem.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(box => box._1.pubKeyBytes ++ Longs.toByteArray(box._2))
       ),
-      ac.amount.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes ++ Longs.toByteArray(b._2))
+      ac.amounts.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++ Longs.toByteArray(b._2))
     )
   }
 
@@ -604,21 +613,46 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
 
-    val (fee: Long, timestamp: Long) = (0 until 2).map { i =>
+    val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
-    }
+    }.toArray
 
     numReadBytes = 2*Longs.BYTES
 
-    val (sigLength: Int, availableToRedeemLength: Int, amountsLength: Int) = (0 until 3).map { i =>
+    val Array(sigLength: Int, availableToRedeemLength: Int, amountsLength: Int, keyMappingSize: Int) = (0 until 4).map { i =>
       Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
-    }
+    }.toArray
 
-    val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
-    }
+    numReadBytes += 4*Ints.BYTES
 
-    numReadBytes += 3*Curve25519.SignatureLength
+    val keyMapping: Map[Int, String] = (0 until keyMappingSize).map { i =>
+      val strLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+      val assetId = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + strLen))
+
+      numReadBytes += Ints.BYTES + strLen
+      i -> assetId
+    }.toMap
+
+    val signatures: Map[String, IndexedSeq[Signature25519]] = (0 until sigLength).map { i =>
+      val chunkSize = Curve25519.SignatureLength + Ints.BYTES
+      val assetId:String = keyMapping(Ints.fromByteArray(
+        bytes.slice(numReadBytes + i*chunkSize, numReadBytes + i*chunkSize + Ints.BYTES)
+      ))
+
+      val numSigs = Ints.fromByteArray(
+        bytes.slice(numReadBytes + i*chunkSize + Ints.BYTES, numReadBytes + i*chunkSize + 2*Ints.BYTES)
+      )
+
+      val sigs: IndexedSeq[Signature25519] = (0 until numSigs).map { j =>
+        Signature25519(
+          bytes.slice(numReadBytes + i*chunkSize + 2*Ints.BYTES, numReadBytes + (i + 1)*chunkSize)
+        )
+      }
+
+      assetId -> sigs
+    }.toMap
+
+    numReadBytes += sigLength*(Curve25519.SignatureLength + Ints.BYTES)
 
     val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = (0 until availableToRedeemLength).map { _ =>
       var bytesSoFar = 0
@@ -643,11 +677,12 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
       }
 
       bytesSoFar += boxesLength*(Constants25519.PubKeyLength + Longs.BYTES)
+      numReadBytes += bytesSoFar
 
       assetCode -> boxes
     }.toMap
 
-    val amounts: Map[String, Long] = (0 until amountsLength).map { i =>
+    val amounts: Map[String, Long] = (0 until amountsLength).map { _ =>
       val strLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
       val assetCode = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + strLen))
       val amount = Longs.fromByteArray(bytes.slice(numReadBytes + Ints.BYTES + strLen, numReadBytes + Ints.BYTES + strLen + Longs.BYTES))

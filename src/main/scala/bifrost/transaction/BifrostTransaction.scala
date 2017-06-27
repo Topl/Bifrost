@@ -812,13 +812,50 @@ object ProfileTransaction {
 
 
 case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]],
-                           amount: Map[String, Long],
-                           signatures: IndexedSeq[Signature25519],
+                           amounts: Map[String, Long],
+                           signatures: Map[String, IndexedSeq[Signature25519]],
                            fee: Long,
                            timestamp: Long) extends BifrostTransaction {
 
+  override type M = AssetRedemption
+
+  val redemptionGroup: Map[Array[Byte], Signature25519] = availableToRedeem.flatMap(entry =>
+    entry._2.map(t => PublicKeyNoncedBox.idFromBox(t._1, t._2)).zip(signatures(entry._1))
+  )
+
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keySet.toIndexedSeq
+
+  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
+    boxId =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = boxId
+        override val boxKey: Signature25519 = redemptionGroup(boxId)
+      }
+  }
+
+  override val newBoxes: Traversable[BifrostBox] = Traversable()
+
   override lazy val serializer = AssetRedemptionCompanion
 
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+    "availableToRedeem" -> availableToRedeem.map { case (assetCode: String, preBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce)]) =>
+      assetCode -> preBoxes.map(pb =>
+        Map(
+          "proposition" -> pb._1.asJson,
+          "nonce" -> pb._2.asJson
+        ).asJson
+      )
+    }.asJson,
+    "amounts" -> amounts.map(_.asJson).asJson,
+    "signatures" -> signatures.map { case (assetCode: String, signatures: IndexedSeq[Signature25519]) =>
+      assetCode -> signatures.map(s => Base58.encode(s.signature).asJson).asJson
+    }.asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
 }
 
 object AssetRedemption {
