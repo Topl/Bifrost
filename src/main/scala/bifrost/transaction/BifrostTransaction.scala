@@ -809,3 +809,18 @@ object ProfileTransaction {
     require(tx.timestamp >= 0)
   }
 }
+
+
+case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]],
+                           amount: Map[String, Long],
+                           signatures: IndexedSeq[Signature25519],
+                           fee: Long,
+                           timestamp: Long) extends BifrostTransaction {
+
+  override lazy val serializer = AssetRedemptionCompanion
+
+}
+
+object AssetRedemption {
+
+}

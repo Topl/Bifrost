@@ -14,8 +14,6 @@ import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Pr
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-
-import scala.collection.immutable.HashMap
 import scala.util.Try
 
 object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
@@ -31,9 +29,10 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
 
     typeStr match {
-      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
-      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
+      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get
+      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
+      case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
     }
   }
 
@@ -573,5 +572,88 @@ object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSer
   override def parseBytes(bytes: Array[Byte]): Try[ArbitTransfer] = Try {
     val params = parametersParseBytes(bytes)
     ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
+  }
+}
+
+
+object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
+  override def toBytes(ac: AssetRedemption): Array[Byte] = {
+    val typeBytes = "AssetRedemption".getBytes
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(ac.fee),
+      Longs.toByteArray(ac.timestamp),
+      Ints.toByteArray(ac.signatures.length),
+      Ints.toByteArray(ac.availableToRedeem.size),
+      Ints.toByteArray(ac.amount.size),
+      ac.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
+      ac.availableToRedeem.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(box => box._1.pubKeyBytes ++ Longs.toByteArray(box._2))
+      ),
+      ac.amount.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes ++ Longs.toByteArray(b._2))
+    )
+  }
+
+  //noinspection ScalaStyle
+  override def parseBytes(bytes: Array[Byte]): Try[AssetRedemption] = Try {
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    var numReadBytes = Ints.BYTES + typeLength
+    val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
+
+
+    val (fee: Long, timestamp: Long) = (0 until 2).map { i =>
+      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+    }
+
+    numReadBytes = 2*Longs.BYTES
+
+    val (sigLength: Int, availableToRedeemLength: Int, amountsLength: Int) = (0 until 3).map { i =>
+      Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+    }
+
+    val signatures = (0 until sigLength) map { i =>
+      Signature25519(bytes.slice(numReadBytes + i * Curve25519.SignatureLength, numReadBytes + (i + 1) * Curve25519.SignatureLength))
+    }
+
+    numReadBytes += 3*Curve25519.SignatureLength
+
+    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = (0 until availableToRedeemLength).map { _ =>
+      var bytesSoFar = 0
+      val strLen = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + Ints.BYTES))
+      val assetCode = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + strLen))
+
+      bytesSoFar = Ints.BYTES + strLen
+
+      val boxesLength = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES))
+
+      bytesSoFar += Ints.BYTES
+
+      val boxes: IndexedSeq[(PublicKey25519Proposition, Nonce)] =  (0 until boxesLength).map { j =>
+        val prop = PublicKey25519Proposition(
+          bytes.slice(bytesSoFar + j*Constants25519.PubKeyLength, bytesSoFar + (j + 1)*Constants25519.PubKeyLength)
+        )
+
+        val nonceStart = bytesSoFar + (j + 1)*Constants25519.PubKeyLength
+        val nonce = Longs.fromByteArray(bytes.slice(nonceStart, nonceStart + Longs.BYTES))
+
+        prop -> nonce
+      }
+
+      bytesSoFar += boxesLength*(Constants25519.PubKeyLength + Longs.BYTES)
+
+      assetCode -> boxes
+    }.toMap
+
+    val amounts: Map[String, Long] = (0 until amountsLength).map { i =>
+      val strLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+      val assetCode = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + strLen))
+      val amount = Longs.fromByteArray(bytes.slice(numReadBytes + Ints.BYTES + strLen, numReadBytes + Ints.BYTES + strLen + Longs.BYTES))
+      assetCode -> amount
+    }.toMap
+
+    AssetRedemption(availableToRedeem, amounts, signatures, fee, timestamp)
   }
 }
