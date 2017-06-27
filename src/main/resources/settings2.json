@@ -12,7 +12,6 @@
     "addedMaxDelay": 1000,
     "maxConnections": 10
   },
-  "walletPassword": "cookies2",
   "walletSeed": "genesiso1",
   "walletDir": "/tmp/scorex/data2/wallet",
   "keyFileDir": "keyfiles/node2",

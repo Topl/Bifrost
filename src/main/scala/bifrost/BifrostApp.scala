@@ -75,6 +75,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("settings2.json")
+  val settingsFilename = args.headOption.getOrElse("settings.json")
   new BifrostApp(settingsFilename).run()
 }

@@ -13,7 +13,6 @@
     "maxConnections": 10,
     "handshakeTimeout": 2000
   },
-  "walletPassword": "cookies",
   "walletSeed": "genesisoo",
   "walletDir": "/tmp/scorex/data/wallet",
   "keyFileDir": "keyfiles/node1",

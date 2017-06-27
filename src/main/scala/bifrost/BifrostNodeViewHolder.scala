@@ -7,10 +7,11 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
-import bifrost.transaction.{ArbitTransfer, BifrostTransaction, PolyTransfer}
+import bifrost.transaction.{ArbitTransfer, BifrostTransaction, BifrostTransactionCompanion, PolyTransfer}
 import bifrost.wallet.BWallet
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
+import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
@@ -30,7 +31,8 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion)
+    Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion,
+    Transaction.ModifierTypeId -> BifrostTransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)

@@ -83,9 +83,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
     val privKey = keyfiles.head.getPrivateKey(password) match {
       case Success(priv) => Set(priv)
-      case Failure(e) =>
-        e.printStackTrace()
-        Set[S]()
+      case Failure(e) => throw e
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
@@ -108,6 +106,12 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
 
     BWallet(secrets + privKey, store, defaultKeyDir)
+  }
+
+  def generateNewSecret(password: String): PublicKey25519Proposition = {
+    val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    secrets += privKey
+    privKey.publicImage
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
