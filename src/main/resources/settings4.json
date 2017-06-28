@@ -22,5 +22,6 @@
   "rpcAllowed": [],
   "maxRollback": 100,
   "blockGenerationDelay": 0,
+  "testnet": true,
   "cors": false
 }

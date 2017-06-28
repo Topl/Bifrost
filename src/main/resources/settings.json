@@ -25,6 +25,7 @@
   "blockGenerationDelay": 5000,
   "targetBlockTime": 30000,
   "cors": false,
+  "testnet": true,
   "agent": "2-Hop",
   "version": [0, 0, 1]
 }
