@@ -812,7 +812,7 @@ object ProfileTransaction {
 
 
 case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]],
-                           amounts: Map[String, Long],
+                           remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]],
                            signatures: Map[String, IndexedSeq[Signature25519]],
                            fee: Long,
                            timestamp: Long) extends BifrostTransaction {
@@ -823,7 +823,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     entry._2.map(t => PublicKeyNoncedBox.idFromBox(t._1, t._2)).zip(signatures(entry._1))
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keySet.toIndexedSeq
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keys.toIndexedSeq
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
     boxId =>
@@ -849,7 +849,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
         ).asJson
       )
     }.asJson,
-    "amounts" -> amounts.map(_.asJson).asJson,
+    "remainderAllocations" -> remainderAllocations.map(_.asJson).asJson,
     "signatures" -> signatures.map { case (assetCode: String, signatures: IndexedSeq[Signature25519]) =>
       assetCode -> signatures.map(s => Base58.encode(s.signature).asJson).asJson
     }.asJson,
@@ -859,5 +859,22 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
 }
 
 object AssetRedemption {
+  def validate(tx: AssetRedemption): Try[Unit] = Try {
 
+    // Check that all of the signatures are valid for all of the boxes
+    require(tx.signatures.forall{
+      case (assetId: String, sigs: IndexedSeq[Signature25519]) =>
+        val boxesToRedeem = tx.availableToRedeem(assetId)
+        sigs.length == boxesToRedeem.length &&
+          sigs.zip(boxesToRedeem.map(_._1)).forall {
+            case (sig: Signature25519, prop: PublicKey25519Proposition) => sig.isValid(prop, tx.messageToSign)
+          }
+    })
+
+    // Check that all of the assets to be redeemed are consistent with assets provided
+    require(tx.remainderAllocations.keySet.subsetOf(tx.availableToRedeem.keySet))
+
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+  }
 }
