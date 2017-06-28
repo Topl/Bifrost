@@ -57,6 +57,7 @@ Please take a look into open [issues](https://github.com/Topl/Project-Bifrost/is
 
 - Watch active development on [our Floobit](https://floobits.com/mpk2/Project-Bifrost)
 
+For more details, please refer to our [Contributing Guides](https://github.com/Topl/Project-Bifrost/blob/master/CONTRIBUTING.MD)
 
 License
 -------
