@@ -14,7 +14,7 @@ Project Bifrost is a Scala client designed over a cryptocurrency/blockchain prot
 
 Whitepaper
 ----------
-In progress
+[Here it is](https://topl.co/whitepaper)
 
 
 Documentation
