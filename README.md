@@ -25,9 +25,19 @@ Documentation
 
 
 
-Install and Testing
+Installation
 -------------------
 Check out our [Installation Instructions](https://github.com/Topl/Project-Bifrost/wiki/Installation-Instructions)
+
+Testing
+-------
+Go to the project directory
+
+`cd Project-Bifrost`
+
+Type
+
+`sbt test`
 
 NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
 
