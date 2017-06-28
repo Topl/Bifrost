@@ -20,7 +20,7 @@ import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
@@ -814,6 +814,7 @@ object ProfileTransaction {
 case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]],
                            remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]],
                            signatures: Map[String, IndexedSeq[Signature25519]],
+                           hub: PublicKey25519Proposition,
                            fee: Long,
                            timestamp: Long) extends BifrostTransaction {
 
@@ -833,7 +834,29 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
       }
   }
 
-  override val newBoxes: Traversable[BifrostBox] = Traversable()
+  lazy val hashNoNonces = FastCryptographicHash(
+      remainderAllocations.values.foldLeft(Array[Byte]())((a, b) => a ++ b.flatMap(_._1.pubKeyBytes)) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      hub.pubKeyBytes ++
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee)
+  )
+
+  override val newBoxes: Traversable[BifrostBox] = remainderAllocations.flatMap { case (assetCode, remainder) =>
+    remainder.zipWithIndex.map { case (r, i) =>
+
+      val nonce = AssetRedemption.nonceFromDigest(
+        FastCryptographicHash(Bytes.concat(
+          "AssetRedemption".getBytes,
+          hashNoNonces,
+          r._1.pubKeyBytes,
+          Longs.toByteArray(r._2),
+          Ints.toByteArray(i)
+        ))
+      )
+      AssetBox(r._1, nonce, r._2, assetCode, hub)
+    }
+  }
 
   override lazy val serializer = AssetRedemptionCompanion
 
@@ -853,18 +876,22 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     "signatures" -> signatures.map { case (assetCode: String, signatures: IndexedSeq[Signature25519]) =>
       assetCode -> signatures.map(s => Base58.encode(s.signature).asJson).asJson
     }.asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 }
 
 object AssetRedemption {
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
   def validate(tx: AssetRedemption): Try[Unit] = Try {
 
     // Check that all of the signatures are valid for all of the boxes
     require(tx.signatures.forall{
-      case (assetId: String, sigs: IndexedSeq[Signature25519]) =>
-        val boxesToRedeem = tx.availableToRedeem(assetId)
+      case (assetCode: String, sigs: IndexedSeq[Signature25519]) =>
+        val boxesToRedeem = tx.availableToRedeem(assetCode)
         sigs.length == boxesToRedeem.length &&
           sigs.zip(boxesToRedeem.map(_._1)).forall {
             case (sig: Signature25519, prop: PublicKey25519Proposition) => sig.isValid(prop, tx.messageToSign)

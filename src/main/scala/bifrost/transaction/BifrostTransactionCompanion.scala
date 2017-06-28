@@ -594,6 +594,7 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
       Ints.toByteArray(ac.availableToRedeem.size),
       Ints.toByteArray(ac.remainderAllocations.size),
       Ints.toByteArray(keyMapping.size),
+      ac.hub.pubKeyBytes,
       keySeq.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes),
       ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
@@ -626,6 +627,10 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
     }.toArray
 
     numReadBytes += 4*Ints.BYTES
+
+    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+
+    numReadBytes += Constants25519.PubKeyLength
 
     val keyMapping: Map[Int, String] = (0 until keyMappingSize).map { i =>
       val strLen = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
@@ -714,6 +719,6 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
       assetId -> allocationSeq
     }.toMap
 
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, fee, timestamp)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
   }
 }

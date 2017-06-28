@@ -274,6 +274,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val assetRedemptionGen: Gen[AssetRedemption] = for {
     assetLength <- positiveTinyIntGen
+    hub <- propositionGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
@@ -289,7 +290,7 @@ trait BifrostGenerators extends CoreGenerators {
       assetId -> boxes.map(_ => signatureGen.sample.get)
     }
 
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, fee, timestamp)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
   }
 
 
