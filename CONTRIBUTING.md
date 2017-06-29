@@ -3,7 +3,9 @@ How to Contribute
 
 Thank you very much for considering contributing to Project Bifrost! It is people like you that make open-source projects happen.
 
-Currently, we are focusing on releasing the first version of our testnet. There will be invariably bugs and issues, but you can help regardless of what kind of development experience you have. 
+Currently, we are focusing on releasing the first version of our testnet. There will be invariably bugs and issues, but you can help regardless of what kind of development experience you have. We would like to make your development experience as enjoyable as possible. However, it is imperative that you read and follow our [**Contributor Code of Conduct**](https://github.com/Topl/Project-Bifrost/blob/master/CODE_OF_CONDUCT.md).
+
+**STOP RIGHT NOW AND READ THE CONTRIBUTOR CODE OF CONDUCT**
 
 Getting Started
 ---------------
