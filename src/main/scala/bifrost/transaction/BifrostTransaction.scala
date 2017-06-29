@@ -824,7 +824,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     entry._2.map(t => PublicKeyNoncedBox.idFromBox(t._1, t._2)).zip(signatures(entry._1))
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keys.toIndexedSeq
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keys.toIndexedSeq.sortBy(Base58.encode)
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
     boxId =>
@@ -859,6 +859,12 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
   }
 
   override lazy val serializer = AssetRedemptionCompanion
+
+  override lazy val messageToSign: Array[Byte] = {
+    FastCryptographicHash(Bytes.concat(
+      "AssetRedemption".getBytes, hashNoNonces
+    ))
+  }
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,

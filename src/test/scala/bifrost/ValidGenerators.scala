@@ -18,7 +18,8 @@ import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.{Proof, Signature25519}
-import scorex.core.transaction.state.PrivateKey25519Companion
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.Random
 
@@ -287,6 +288,36 @@ trait ValidGenerators extends BifrostGenerators {
     val from = fromKeyPairs._2
     val signature = PrivateKey25519Companion.sign(fromKeyPairs._1, ProfileTransaction.messageToSign(timestamp, from, keyValues))
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
+  }
+
+  lazy val validAssetRedemptionGen: Gen[AssetRedemption] = for {
+    assetLength <- positiveTinyIntGen
+    hub <- propositionGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+
+    val assets = (0 until assetLength).map { _ => stringGen.sample.get }
+
+    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen.sample.get.map(kp => kp._2 -> kp._1).toIndexedSeq
+    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = assets.map(_ -> (0 until positiveTinyIntGen.sample.get).map { _ =>
+      Gen.oneOf(fromKeyPairs).sample.get._1 -> Gen.choose(Long.MinValue, Long.MaxValue).sample.get
+    }).toMap
+
+    val toKeyPairs = keyPairSetGen.sample.get.toIndexedSeq
+    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = assets.map(_ -> (0 until positiveTinyIntGen.sample.get).map { _ =>
+      Gen.oneOf(toKeyPairs).sample.get._2 -> positiveMediumIntGen.sample.get.toLong
+    }).toMap
+
+    val dummySigs = availableToRedeem.map(entry => entry._1 -> entry._2.map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))) )
+    val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp)
+
+    val fromKeyMap = fromKeyPairs.toMap
+    val signatures = availableToRedeem.map { case (assetId, boxes) =>
+      assetId -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign) )
+    }
+
+    dummyTx.copy(signatures = signatures)
   }
 
 }

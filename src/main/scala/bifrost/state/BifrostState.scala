@@ -116,6 +116,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
       case cComp: ContractCompletion => validateContractCompletion(cComp)
+      case ar: AssetRedemption => validateAssetRedemption(ar)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -226,7 +227,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   /**
-    * validates ContractCreation instance on its unlockers && timestamp of the contract
+    * Validates ContractCreation instance on its unlockers && timestamp of the contract
     *
     * @param cc: ContractCreation object
     * @return
@@ -486,6 +487,53 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
     }
   }
+
+  /**
+    *
+    * @param ar:  the AssetRedemption to validate
+    * @return
+    */
+  //noinspection ScalaStyle
+  def validateAssetRedemption(ar: AssetRedemption): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+
+      /* First check that all the proposed boxes exist */
+      val availableAssetsTry: Try[Map[String, Long]] = ar.unlockers.foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
+
+        partialRes.flatMap(partialMap =>
+          /* Checks if unlocker is valid and if so adds to current running total */
+          closedBox(unlocker.closedBoxId) match {
+            case Some(box: AssetBox) =>
+              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.hub equals ar.hub)) {
+                Success(partialMap.get(box.assetCode) match {
+                  case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
+                  case None => partialMap + (box.assetCode -> box.value)
+                })
+              } else {
+                Failure(new Exception("Incorrect unlocker"))
+              }
+            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+          }
+        )
+
+      )
+
+      /* Make sure that there's enough to cover the remainders */
+      availableAssetsTry.flatMap(availableAssets =>
+        ar.remainderAllocations.foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
+        partialRes.flatMap(_ => availableAssets.get(assetCode) match {
+            case Some(amount) => if(amount > remainders.map(_._2).sum) Success() else Failure(new Exception("Not enough assets"))
+            case None => Failure(new Exception("Asset not included in inputs"))
+          })
+        }
+      )
+
+      //TODO validate fees
+
+    }
+
+    statefulValid.flatMap(_ => semanticValidity(ar))
+  }
 }
 
 object BifrostState {
@@ -506,6 +554,7 @@ object BifrostState {
       case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
+      case ar: AssetRedemption => AssetRedemption.validate(ar)
       case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
   }

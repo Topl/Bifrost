@@ -143,7 +143,7 @@ class BifrostStateSpec extends PropSpec
     }
   }
 
-  property("Attempting to validate a Arbit for amount you do not have should error") {
+  property("Attempting to validate an Arbit for amount you do not have should error") {
     import BifrostStateSpec._
     val beforeArbitBoxes = gw.boxes().filter(_.box match {
       case a: ArbitBox => genesisState.closedBox(a.id).isDefined
@@ -170,49 +170,6 @@ class BifrostStateSpec extends PropSpec
       )
 
       genesisState.validate(arT) shouldBe a[Failure[_]]
-    }
-  }
-
-  property("A block with valid AssetRedemption should result in the appropriate amount of tokens") {
-    forAll(assetRedemptionGen) {
-      ar: AssetRedemption =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
-          Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(ar)
-        )
-
-        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap { case (assetCode, toRedeem) =>
-          toRedeem.map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub))
-        }.toSet
-
-
-        val assetBoxes: Traversable[AssetBox] = ar.newBoxes.map {
-          case a: AssetBox => a
-          case _ => throw new Exception("Was expecting AssetBoxes but found something else")
-        }
-
-        val necessaryBoxesSC = BifrostStateChanges(
-          Set(),
-          preExistingAssetBoxes,
-          Instant.now.toEpochMilli
-        )
-
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.applyChanges(preparedState.changes(block).get, Ints.toByteArray(2)).get
-
-        ar.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
-          case Some(wrapper) => wrapper.data sameElements b.bytes
-          case None => false
-        })
-
-        /* Expect none of the prexisting boxes to still be around */
-        require(preExistingAssetBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
-
-        BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
-
     }
   }
 
