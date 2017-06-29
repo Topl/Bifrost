@@ -2,6 +2,8 @@ package bifrost.contract
 
 import java.time.Instant
 
+import bifrost.contract.Contract.Status
+import bifrost.contract.Contract.Status.Status
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import io.circe.syntax._
@@ -23,8 +25,8 @@ class ContractMethodSpec extends PropSpec
   property("deliver called by Producer should return a contract with a pending delivery with the delivery amount (if positive), or a Failure (if negative)") {
 
     forAll(validContractGen.suchThat( c => {
-      val status: String = c.storage("status").get.asString.get
-      !status.equals("expired") && !status.equals("complete")
+      val status: Status = c.storage("status").get.as[Status].right.get
+      !(status equals Status.EXPIRED) && !(status equals Status.COMPLETE)
     })) {
       c: Contract => {
         forAll(Gen.choose(0, Long.MaxValue)) {
@@ -63,8 +65,8 @@ class ContractMethodSpec extends PropSpec
 
   property("deliver called when contract status is expired or complete should return Failure") {
     forAll(validContractGen.suchThat( c => {
-      val status: String = c.storage("status").get.asString.get
-      status.equals("expired") || status.equals("complete")
+      val status: Status = c.storage("status").get.as[Status].right.get
+      (status equals Status.EXPIRED) || (status equals Status.COMPLETE)
     })) {
       c: Contract => {
         forAll(positiveLongGen) {
@@ -81,8 +83,8 @@ class ContractMethodSpec extends PropSpec
 
   property("confirmDelivery called by Hub should return a contract with an amount incremented by the confirmed delivery") {
     forAll(validContractGen.suchThat( c => {
-      val status: String = c.storage("status").get.asString.get
-      !status.equals("expired") && !status.equals("complete")
+      val status: Status = c.storage("status").get.as[Status].right.get
+      !(status equals Status.EXPIRED) && !(status equals Status.COMPLETE)
     })) {
       c: Contract => {
         forAll(positiveTinyIntGen) {
@@ -232,13 +234,13 @@ class ContractMethodSpec extends PropSpec
 
             val expiredContract = new Contract(
               contract.Producer, contract.Hub, contract.Investor,
-              contract.storage.add("status", "expired".asJson),
+              contract.storage.add("status", Status.EXPIRED.asJson),
               contract.agreement, System.currentTimeMillis(), contract.id
             )
 
             val completedContract = new Contract(
               contract.Producer, contract.Hub, contract.Investor,
-              contract.storage.add("status", "complete".asJson),
+              contract.storage.add("status", Status.COMPLETE.asJson),
               contract.agreement, System.currentTimeMillis(), contract.id
             )
 
@@ -302,7 +304,7 @@ class ContractMethodSpec extends PropSpec
       investor <- propositionGen
       hub <- propositionGen
       storage <- jsonGen()
-      status <- Gen.oneOf(validStatuses.filterNot(s => s.equals("expired") || s.equals("complete")))
+      status <- Gen.oneOf(validStatuses.filterNot(s => (s equals Status.EXPIRED) || (s equals Status.COMPLETE)))
       agreement <- lateAgreementGen.map(_.json)
       id <- genBytesList(FastCryptographicHash.DigestSize)
     } yield Contract(Map(
@@ -321,7 +323,7 @@ class ContractMethodSpec extends PropSpec
         result.get shouldBe a[Left[_,_]]
         result.get.left.get shouldBe a[Contract]
 
-        result.get.left.get.storage("status").get shouldBe "expired".asJson
+        result.get.left.get.storage("status").get shouldBe Status.EXPIRED.asJson
     }
   }
 
@@ -387,7 +389,7 @@ class ContractMethodSpec extends PropSpec
       investor <- propositionGen
       hub <- propositionGen
       storage <- jsonGen()
-      status <- Gen.oneOf(validStatuses.filterNot(s => s.equals("expired") || s.equals("complete")))
+      status <- Gen.oneOf(validStatuses.filterNot(s => (s equals Status.EXPIRED) || (s equals Status.COMPLETE)))
       agreement <- validAgreementGen.map(_.json)
       id <- genBytesList(FastCryptographicHash.DigestSize)
       pendingDeliveriesJson <- pendingDeliveriesJsonGen
@@ -507,7 +509,7 @@ class ContractMethodSpec extends PropSpec
       investor <- propositionGen
       hub <- propositionGen
       storage <- jsonGen()
-      status <- Gen.oneOf(validStatuses.filter(s => s.equals("expired") || s.equals("complete")))
+      status <- Gen.oneOf(validStatuses.filter(s => (s equals Status.EXPIRED) || (s equals Status.COMPLETE)))
       agreement <- validAgreementGen.map(_.json)
       id <- genBytesList(FastCryptographicHash.DigestSize)
       pendingDeliveriesJson <- pendingDeliveriesJsonGen

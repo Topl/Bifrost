@@ -2,6 +2,8 @@ package bifrost
 
 import java.time.Instant
 
+import bifrost.contract.Contract.Status
+import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
 import bifrost.transaction.PolyTransfer.Nonce
 import bifrost.transaction._
@@ -28,8 +30,7 @@ import scala.util.Random
   */
 trait ValidGenerators extends BifrostGenerators {
 
-  // TODO this should be an enum
-  val validStatuses: List[String] = List("expired", "complete", "initialized")
+  val validStatuses: List[Status] = Contract.Status.values.toList
 
   lazy val validContractGen: Gen[Contract] = for {
     producer <- propositionGen
@@ -43,7 +44,7 @@ trait ValidGenerators extends BifrostGenerators {
     "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
     "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "storage" -> Map("status" -> status.asJson, "other" -> storage).asJson,
+    "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
     "agreement" -> agreement,
     "lastUpdated" -> System.currentTimeMillis().asJson
   ).asJson, id)
@@ -99,7 +100,7 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
   def createContractBox(agreement: Agreement,
-                        status: String,
+                        status: Status,
                         currentFulfillment: Map[String, Json],
                         currentEndorsement: Map[String, Json],
                         parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
@@ -140,7 +141,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(
       Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
-      "initialized",
+      Status.INITIALISED,
       currentFulfillment,
       currentEndorsement,
       roles.zip(parties).toMap

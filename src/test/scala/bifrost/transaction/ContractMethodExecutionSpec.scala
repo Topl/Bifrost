@@ -5,7 +5,8 @@ package bifrost.transaction
   */
 import java.time.Instant
 
-import bifrost.contract.Agreement
+import bifrost.contract.Contract.Status
+import bifrost.contract.{Agreement, Contract}
 import bifrost.state.BifrostState
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Longs
@@ -68,7 +69,7 @@ class ContractMethodExecutionSpec extends PropSpec
           timestamp - 100000,
           timestamp - 100000 + Gen.choose(0, 2000).sample.get
         ),
-        "initialized",
+        Status.INITIALISED,
         currentFulfillment,
         currentEndorsement,
         roles.zip(parties).toMap
@@ -133,7 +134,7 @@ class ContractMethodExecutionSpec extends PropSpec
           timestamp - 100000,
           timestamp - 100000 + Gen.choose(0, 2000).sample.get
         ),
-        "expired",
+        Status.EXPIRED,
         currentFulfillment,
         currentEndorsement,
         roles.zip(parties).toMap

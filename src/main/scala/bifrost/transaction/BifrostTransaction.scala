@@ -1,6 +1,7 @@
 package bifrost.transaction
 
 import bifrost.BifrostApp
+import bifrost.contract.Contract.Status
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
@@ -208,7 +209,7 @@ case class ContractCreation(agreement: Agreement,
       Map(
         "agreement" -> agreement.json,
         "storage" -> Map(
-          "status" -> "initialized".asJson
+          "status" -> Status.INITIALISED.asJson
         ).asJson,
         "lastUpdated" -> timestamp.asJson
       )

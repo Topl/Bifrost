@@ -2,6 +2,8 @@ package bifrost.contract
 
 import java.time.Instant
 
+import bifrost.contract.Contract.Status
+import bifrost.contract.Contract.Status.Status
 import io.circe._
 import io.circe.syntax._
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -36,11 +38,11 @@ class Contract(val Producer: PublicKey25519Proposition,
     * @param party      the public key of the executor of the method call (valid: all)
     * @return
     */
-  def endorseCompletion(party: PublicKey25519Proposition)(): Try[Contract] = {
+  def endorseCompletion(party: PublicKey25519Proposition)(): Try[Contract] = Try {
 
-    val status: String = storage("status").get.asString.get
+    val status: Status = storage("status").get.as[Status].right.get
 
-    if (status.equals("expired") || status.equals("complete"))
+    if ((status equals Status.EXPIRED) || (status equals Status.COMPLETE))
       return Failure(new IllegalStateException(s"Cannot endorse completion since contract is already <$status>"))
 
     val currentState = storage("currentFulfillment").getOrElse(Map[String,Json]().asJson)
@@ -53,7 +55,7 @@ class Contract(val Producer: PublicKey25519Proposition,
       ).asJson
     )
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
+    new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id)
   }
 
   /**
@@ -82,9 +84,9 @@ class Contract(val Producer: PublicKey25519Proposition,
     if(quantity <= 0L)
       return Failure(new IllegalArgumentException(s"Delivery quantity <$quantity> must be positive"))
 
-    val status: String = storage("status").get.asString.get
+    val status: Status = storage("status").get.as[Status].right.get
 
-    if (status.equals("expired") || status.equals("complete"))
+    if ((status equals Status.EXPIRED) || (status equals Status.COMPLETE))
       return Failure(new IllegalStateException(s"Cannot deliver while contract status is <$status>"))
 
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
@@ -134,9 +136,9 @@ class Contract(val Producer: PublicKey25519Proposition,
     if (!(party.pubKeyBytes sameElements Hub.pubKeyBytes))
       return Failure(new IllegalAccessException(s"[Hub Only]: Account <$party> doesn't have permission to this method."))
 
-    val status: String = storage("status").get.asString.get
+    val status: Status = storage("status").get.as[Status].right.get
 
-    if (status.equals("expired") || status.equals("complete"))
+    if ((status equals Status.EXPIRED) || (status equals Status.COMPLETE))
       return Failure(new IllegalStateException(s"Cannot endorse delivery while contract status is <$status>"))
 
     val currentFulfillmentJsonObj: JsonObject = storage("currentFulfillment").getOrElse(
@@ -176,11 +178,11 @@ class Contract(val Producer: PublicKey25519Proposition,
     val expiration: Long = this.agreement("contractExpirationTime").get.as[Long].right.get
     val currentStatus = storage("status").get
 
-    if (currentStatus.equals("expired".asJson) || currentStatus.equals("complete".asJson) || Instant.now().toEpochMilli < expiration)
+    if((currentStatus equals Status.EXPIRED.asJson) || (currentStatus equals Status.COMPLETE.asJson) || Instant.now().toEpochMilli < expiration)
       this
 
     else {
-      val newStorage = storage.add("status", "expired".asJson)
+      val newStorage = storage.add("status", Status.EXPIRED.asJson)
       new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id)
     }
 
@@ -245,6 +247,18 @@ object Contract {
 
       case _ => throw new MatchError(s"Could not find method <$methodName>")
     }
+  }
+
+  object Status extends Enumeration {
+    type Status = Value
+    val EXPIRED: Status = Value("expired")
+    val COMPLETE: Status = Value("complete")
+    val INITIALISED: Status = Value("initialised")
+    val UNKNOWN: Status = Value("unknown")
+
+    implicit val decodeStatus: Decoder[Status.Value] = Decoder.enumDecoder(Status)
+    implicit val encodeStatus: Encoder[Status.Value] = Encoder.enumEncoder(Status)
+
   }
 
 }

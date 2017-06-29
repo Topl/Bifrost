@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
+import bifrost.contract.Contract.Status
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.{Ints, Longs}
@@ -46,7 +47,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val contractBox = createContractBox(
       Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
-      "initialized",
+      Status.INITIALISED,
       currentFulfillment,
       currentEndorsement,
       parties.take(3).map(t => t._1 -> t._2._2).toMap
