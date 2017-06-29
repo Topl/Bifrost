@@ -2,7 +2,7 @@
 
 ## Our Pledge
 
-In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a strictly technical activity. This means that we will enforce our No Tolerance Policy without hesitation.
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community on Github a strictly technical activity. This means that we will enforce our No Tolerance Policy without hesitation.
 
 ## No Tolerance Policy
 * Any discussions, either explicit or implicit, regarding age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation, is forbidden. The user that initiated such dicussion will be given one and only one warning. Subsequent violations will result in the user being blocked.
