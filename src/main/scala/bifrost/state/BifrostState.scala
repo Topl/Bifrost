@@ -524,6 +524,7 @@ object BifrostState {
           case cme: ContractMethodExecution => (cme.boxIdsToOpen.toSet, cme.newBoxes.toSet, cme.fee)
           case ccomp: ContractCompletion => (ccomp.boxIdsToOpen.toSet, ccomp.newBoxes.toSet, ccomp.fee)
           case pt: ProfileTransaction => (pt.boxIdsToOpen.toSet, pt.newBoxes.toSet, pt.fee)
+          case ar: AssetRedemption => (ar.boxIdsToOpen.toSet, ar.newBoxes.toSet, ar.fee)
         }
       }
 
@@ -533,6 +534,7 @@ object BifrostState {
         })
 
       //no reward additional to tx fees
+      //TODO check that these fees are properly added to forger
       BifrostStateChanges(toRemove, toAdd, mod.timestamp)
     }
   }

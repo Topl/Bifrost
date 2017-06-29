@@ -274,6 +274,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     ArbitTransfer(from, to, fee, timestamp)
   }
+
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
