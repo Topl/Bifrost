@@ -515,6 +515,8 @@ object BifrostState {
     Try {
       val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
+      val gen = mod.forgerBox.proposition
+
       val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
         case Some(txSeq) => txSeq.map {
           // (rm, add, fee)
@@ -534,8 +536,8 @@ object BifrostState {
         })
 
       //no reward additional to tx fees
-      //TODO check that these fees are properly added to forger
-      BifrostStateChanges(toRemove, toAdd, mod.timestamp)
+      //TODO check that these fees are properly deducted for EVERY tx in validate
+      BifrostStateChanges(toRemove, toAdd + PolyBox(gen, 1, reward), mod.timestamp)
     }
   }
 
