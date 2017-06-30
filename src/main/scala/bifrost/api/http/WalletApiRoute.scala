@@ -105,36 +105,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
-  @Path("/sign/{messageToSign}")
-  @ApiOperation(value = "Sign a message", notes = "Sign a message", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "messageToSign",
-      value = "messageToSign in String format",
-      required = true,
-      dataType = "string",
-      paramType = "path"
-    )
-  ))
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with peer list or error")
-  ))
-  def sign: Route = path("sign" / Segment) { messageToSign =>
-    withAuth {
-      getJsonRoute {
-        viewAsync().map { view =>
-          val wallet = view.vault
-          val secrets = wallet.secrets
-          val privKey = secrets.toSeq(0)
-
-          SuccessApiResponse(Map(
-            "signature" -> Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.getBytes).signature).asJson
-          ).asJson)
-        }
-      }
-    }
-  }
-
   @Path("/keyfile/")
   @ApiOperation(value = "Create a Keyfile", notes = "Create a Keyfile", httpMethod = "POST")
   @ApiImplicitParams(Array(
