@@ -65,7 +65,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
       prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
     }
 
-    // TODO create object method to get dummy tx to automatically grab messageToSign
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
         methodName.getBytes ++

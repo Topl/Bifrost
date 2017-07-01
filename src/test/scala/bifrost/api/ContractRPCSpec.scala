@@ -255,14 +255,15 @@ class ContractRPCSpec extends WordSpec
 
     var contractBox = None: Option[ContractBox]
     var hubFeeBox = None: Option[PolyBox]; var producerFeeBox = None: Option[PolyBox]; var investorFeeBox = None: Option[PolyBox]
+
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
       val txInstance = view().pool.getById(Base58.decode(txHash).get).get
-      txInstance.newBoxes.foreach(b => b match {
+      txInstance.newBoxes.foreach {
         case b: ContractBox => contractBox = Some(b)
         case _ =>
-      })
+      }
       val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
 
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
@@ -367,11 +368,10 @@ class ContractRPCSpec extends WordSpec
          |  }]
          |}
         """.stripMargin
-      println(requestBody)
+
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
-        println(res)
         manuallyApplyChanges(res, 7)
         // Assertions
         view().pool.take(5).toList.size shouldEqual 3

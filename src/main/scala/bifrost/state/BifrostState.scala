@@ -297,8 +297,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     statefulValid.flatMap(_ => semanticValidity(cc))
-
-    // TODO check whether hub has sufficient room
   }
 
   /**

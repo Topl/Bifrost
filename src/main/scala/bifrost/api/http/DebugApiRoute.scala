@@ -71,11 +71,11 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     getJsonRoute {
       viewAsync().map { view =>
         val pubkeys: Set[PublicKey25519Proposition] = view.vault.publicKeys.flatMap {
-          case pkp: PublicKey25519Proposition => Some(pkp) // TODO show public keys specific to MofN
+          case pkp: PublicKey25519Proposition => Some(pkp)
           case _ => None
         }
 
-        val count = view.history.count(_ => true)
+        val count = view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
 
         SuccessApiResponse(Map(
           "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,

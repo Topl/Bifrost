@@ -26,7 +26,6 @@ import scala.util.{Failure, Success, Try}
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
-  //TODO move to settings?
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
