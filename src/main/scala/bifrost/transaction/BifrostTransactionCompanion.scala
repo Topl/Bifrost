@@ -22,6 +22,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
+    case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {

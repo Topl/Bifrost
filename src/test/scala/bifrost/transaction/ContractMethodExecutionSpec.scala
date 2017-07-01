@@ -96,7 +96,7 @@ class ContractMethodExecutionSpec extends PropSpec
         parameters,
         Map(sender._1 -> sender._2._2),
         Map(sender._2._2 -> signature),
-        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get}),
+        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get}),
         Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong),
         timestamp
       )
@@ -161,7 +161,7 @@ class ContractMethodExecutionSpec extends PropSpec
         parameters,
         Map(sender._1 -> sender._2._2),
         Map(sender._2._2 -> signature),
-        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get}),
+        Map(sender._2._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get}),
         Map(sender._2._2 -> positiveTinyIntGen.sample.get.toLong),
         timestamp
       )

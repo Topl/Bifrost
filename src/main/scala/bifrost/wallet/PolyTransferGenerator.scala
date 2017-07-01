@@ -46,7 +46,6 @@ object PolyTransferGenerator {
       case pkp: PublicKey25519Proposition => Some(pkp)
       case _ => None
     }.toSeq
-    //todo multiple recipients
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
     PolyTransfer.create(wallet, recipient, Random.nextInt(100), Random.nextInt(100))
   }

@@ -118,18 +118,27 @@ object ContractTransaction {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  def commonValidation(tx: ContractTransaction): Unit = {
-    require(tx.fees.values.sum >= 0)
-    tx.fees.values.foreach(v => require(v >= 0))
+  def commonValidation(tx: ContractTransaction): Try[Unit] = Try {
 
-    require(tx.preFeeBoxes.forall { case (prop, preBoxes) => preBoxes.map(_._2).sum >= 0 && preBoxes.forall(_._2 >= 0)})
+    /* Check for no-overflow and non-negativity of fees*/
+    tx.fees.values.foreach(v => require(v >= 0, "There was a negative fee"))
+    require(tx.fees.values.sum >= 0, "Fees did not sum to a positive value")
 
+    /* Check for no-overflow and non-negativity of polys */
+    require(tx.preFeeBoxes.forall { case (prop, preBoxes) =>
+      preBoxes.map(_._2).sum >= 0 && preBoxes.forall(_._2 >= 0)},
+      "There were negative polys provided or the sum was negative"
+    )
+
+    /* Check that fee is covered */
     require(tx.preFeeBoxes.forall { case (prop, preBoxes) => tx.fees.get(prop) match {
       case Some(fee) => preBoxes.map(_._2).sum >= fee
       case None => false
-    }})
+    }},
+    "There was an insufficient amount of polys provided to cover the fees"
+    )
 
-    require(tx.timestamp >= 0)
+    require(tx.timestamp >= 0, "The timestamp was invalid")
   }
 
   def stringToPubKey(rawString: String): PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(rawString).get)
@@ -252,14 +261,13 @@ object ContractCreation {
     val outcome = Agreement.validate(tx.agreement)
     require(outcome.isSuccess)
 
-    require(tx.parties.size == tx.signatures.size && tx.parties.size == 3)
-    require(tx.parties.keys.toSet.size == 3) // Make sure there are exactly 3 unique roles
-    require(tx.parties forall { case (_, proposition) =>
+    require(tx.parties.size == tx.signatures.size && tx.parties.size == 3, "There aren't exactly 3 parties involved in signing")
+    require(tx.parties.keys.toSet.size == 3, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
+    require(tx.parties.forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
-    })
+    }, "Not all signatures were valid")
 
-    ContractTransaction.commonValidation(tx)
-  }
+  }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractCreation: Decoder[ContractCreation] = (c: HCursor) => for {
     agreement <- c.downField("agreement").as[Agreement]
@@ -320,9 +328,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
       fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )
 
-
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
@@ -350,7 +356,6 @@ case class ContractMethodExecution(contractBox: ContractBox,
   }
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
-
 }
 
 object ContractMethodExecution {
@@ -360,18 +365,17 @@ object ContractMethodExecution {
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
         MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
-    })
+    }, "cme1")
 
-    require(tx.parties.keys.size == 1)
+    require(tx.parties.keys.size == 1, "cme2")
 
     val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
     val expDate = tx.contract.agreement("contractExpirationTime").get.asNumber.get.toLong.get
 
-    require(tx.timestamp >= effDate)
-    require(tx.timestamp < expDate)
+    require(tx.timestamp >= effDate, "cme3")
+    require(tx.timestamp < expDate, "cme4")
 
-    ContractTransaction.commonValidation(tx)
-  }
+  }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractMethodExecution: Decoder[ContractMethodExecution] = (c: HCursor) => for {
     contractBox <- c.downField("contractBox").as[ContractBox]
@@ -497,19 +501,19 @@ case class ContractCompletion(contractBox: ContractBox,
 object ContractCompletion {
 
   def validate(tx: ContractCompletion): Try[Unit] = Try {
-    require(tx.signatures.size == 3)
+    if(tx.signatures.size != 3)
+      throw new Exception("Inappropriate number of parties signed the completion")
 
-    require(tx.parties forall { case (_, proposition) =>
+    if(!tx.parties.forall { case (_, proposition) =>
       val sig = Set(tx.signatures(proposition))
       val multiSig = MultiSignature25519(sig)
       val first = tx.signatures(proposition).isValid(proposition, tx.messageToSign)
       val second = multiSig.isValid(tx.contractBox.proposition, tx.messageToSign)
 
         first && second
-    })
+    }) throw new Exception("Not all party signatures were valid")
 
-    ContractTransaction.commonValidation(tx)
-  }
+  }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractCompletion: Decoder[ContractCompletion] = (c: HCursor) => for {
     contractBox <- c.downField("contractBox").as[ContractBox]
@@ -525,8 +529,6 @@ object ContractCompletion {
   }
 
 }
-
-
 
 abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                    val to: IndexedSeq[(PublicKey25519Proposition, Long)],

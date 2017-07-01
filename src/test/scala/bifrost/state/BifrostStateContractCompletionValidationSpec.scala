@@ -45,7 +45,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
-    val feePreBoxes = parties.map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get} )
+    val feePreBoxes = parties.map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} )
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
       v.map {
         case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)

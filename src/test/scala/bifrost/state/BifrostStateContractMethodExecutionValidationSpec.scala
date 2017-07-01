@@ -55,7 +55,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
-    val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen.sample.get }).toMap
+    val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen().sample.get }).toMap
     val feeBoxIdKeyPairs: Map[Array[Byte], PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
       v.map {
         case (nonce, amount) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
