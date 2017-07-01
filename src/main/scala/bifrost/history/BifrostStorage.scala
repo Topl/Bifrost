@@ -32,13 +32,16 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
     storage.get(ByteArrayWrapper(blockId)).flatMap { bw =>
       val bytes = bw.data
-      val mtypeId = bytes.head // TODO could check that this is a bifrostblock
-      val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
-      parsed match {
-        case Failure(e) => log.warn("Failed to parse bytes from db", e)
-        case _ =>
+      bytes.head match {
+        case BifrostBlock.ModifierTypeId =>
+          val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
+          parsed match {
+            case Failure(e) => log.warn("Failed to parse bytes from db", e)
+            case _ =>
+          }
+          parsed.toOption
+        case _ => None
       }
-      parsed.toOption
     }
   }
 

@@ -77,7 +77,6 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
         notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, source))
 
       case Failure(e) =>
-        memoryPool().remove(tx)
         notifySubscribers(EventType.FailedTransaction, FailedTransaction[P, TX](tx, e, source))
     }
   }
@@ -116,6 +115,10 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
               newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
                 !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
               }
+              val validUnconfirmed = newMemPool.take(100)
+              log.info(s"${Console.GREEN}Re-Broadcast unconfirmed TXs: ${validUnconfirmed.map(tx => Base58.encode(tx.id)).toList}${Console.RESET}")
+              validUnconfirmed.foreach(tx =>
+                notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None)))
               log.info(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
               //we consider that vault always able to perform a rollback needed
@@ -137,6 +140,8 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
               notifySubscribers(EventType.FailedPersistentModifier, FailedModification[P, TX, PMOD](pmod, e, source))
           }
         }
+      case Failure(e) =>
+        e.printStackTrace()
     }
   } else {
     log.warn(s"Trying to apply modifier ${Base58.encode(pmod.id)} that's already in history")

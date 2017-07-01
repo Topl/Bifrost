@@ -26,11 +26,10 @@ import scala.util.{Failure, Success, Try}
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
-  //TODO move to settings?
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
-    balances ~ transfer ~ sign ~ generateKeyFile ~ unlockKeyFile
+    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
   }
 
   @Path("/transfer")
@@ -60,12 +59,14 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 val amount: Long = (json \\ "amount").head.asNumber.get.toLong.get
                 val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((json \\ "recipient").head.asString.get).get)
                 val fee: Long = (json \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(DefaultFee)
-                val tx = PolyTransfer.create(wallet, recipient, amount, fee).get
+                val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee).get
                 nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
                 tx.json
               } match {
                 case Success(resp) => SuccessApiResponse(resp)
-                case Failure(e) => ApiException(e)
+                case Failure(e) =>
+                  e.printStackTrace()
+                  ApiException(e)
               }
             }
           }
@@ -101,36 +102,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           }).asJson,
           "boxes" -> boxes.map(_.box.json).asJson
         ).asJson)
-      }
-    }
-  }
-
-  @Path("/sign/{messageToSign}")
-  @ApiOperation(value = "Sign a message", notes = "Sign a message", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(
-      name = "messageToSign",
-      value = "messageToSign in String format",
-      required = true,
-      dataType = "string",
-      paramType = "path"
-    )
-  ))
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with peer list or error")
-  ))
-  def sign: Route = path("sign" / Segment) { messageToSign =>
-    withAuth {
-      getJsonRoute {
-        viewAsync().map { view =>
-          val wallet = view.vault
-          val secrets = wallet.secrets
-          val privKey = secrets.toSeq(0)
-
-          SuccessApiResponse(Map(
-            "signature" -> Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.getBytes).signature).asJson
-          ).asJson)
-        }
       }
     }
   }

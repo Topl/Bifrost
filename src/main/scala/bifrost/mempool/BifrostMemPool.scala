@@ -38,8 +38,17 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
     this
   }
 
-  //todo
-  override def put(txs: Iterable[BifrostTransaction]): Try[BifrostMemPool] = Success(putWithoutCheck(txs))
+  override def put(txs: Iterable[BifrostTransaction]): Try[BifrostMemPool] = Try {
+    txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
+    txs.foreach(tx => tx.boxIdsToOpen.foreach(boxId => {
+      val exists = boxesInMempool.get(key(boxId)).isDefined
+      require(!exists)
+    }))
+    txs.foreach(tx => {
+      tx.boxIdsToOpen.map(boxId => { boxesInMempool.put(key(boxId), key(boxId)) })
+    })
+    this
+  }
 
   override def putWithoutCheck(txs: Iterable[BifrostTransaction]): BifrostMemPool = {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))

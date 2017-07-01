@@ -3,6 +3,7 @@ package bifrost.transaction
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
 import bifrost.transaction.ContractTransaction.Nonce
+import bifrost.transaction.ContractTransactionCompanion.typeBytes
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
@@ -14,8 +15,6 @@ import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Pr
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-
-import scala.collection.immutable.HashMap
 import scala.util.Try
 
 object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
@@ -24,6 +23,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
+    case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -31,9 +31,10 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
 
     typeStr match {
-      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
-      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get.asInstanceOf[BifrostTransaction]
+      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get
+      case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
+      case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
     }
   }
 
@@ -41,15 +42,16 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
 object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 
-  override def toBytes(m: ContractTransaction): Array[Byte] = {
-    val typeBytes = "ContractTransaction".getBytes
+  val typeBytes = "ContractTransaction".getBytes
 
-    Ints.toByteArray(typeBytes.length) ++
-      typeBytes ++
+  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
+
+  override def toBytes(m: ContractTransaction): Array[Byte] = {
+    prefixBytes ++
       (m match {
-        case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
-        case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toBytes(cme)
-        case ccomp: ContractCompletion => ContractCompletionCompanion.toBytes(ccomp)
+        case cc: ContractCreation => ContractCreationCompanion.toChildBytes(cc)
+        case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toChildBytes(cme)
+        case ccomp: ContractCompletion => ContractCompletionCompanion.toChildBytes(ccomp)
       })
   }
 
@@ -64,17 +66,18 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
     val newTypeLength = Ints.fromByteArray(newBytes.take(Ints.BYTES))
     val newTypeStr = new String(newBytes.slice(Ints.BYTES,  Ints.BYTES + newTypeLength))
 
-      newTypeStr match {
-        case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
-        case "ContractMethodExecution" => ContractMethodExecutionCompanion.parseBytes(newBytes).get
-        case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
-      }
+    newTypeStr match {
+      case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
+      case "ContractMethodExecution" => ContractMethodExecutionCompanion.parseBytes(newBytes).get
+      case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
+    }
   }
 
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keyMapping: Map[Array[Byte], Int] = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).zipWithIndex.toMap
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).toSeq.zipWithIndex
+    val keyMapping: Map[Array[Byte], Int] = keySeq.toMap
 
     Bytes.concat(
       Longs.toByteArray(m.timestamp),
@@ -83,7 +86,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       Ints.toByteArray(m.preFeeBoxes.size),
       Ints.toByteArray(m.fees.size),
       Ints.toByteArray(keyMapping.size),
-      keyMapping.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
       m.parties.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._2.pubKeyBytes)) ++ (b._1 match {
         case Role.Producer => Ints.toByteArray(0)
         case Role.Investor => Ints.toByteArray(1)
@@ -174,15 +177,15 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 }
 
 object TransferTransactionCompanion extends Serializer[TransferTransaction] {
+  val typeBytes = "TransferTransaction".getBytes
+
+  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
 
   override def toBytes(m: TransferTransaction): Array[Byte] = {
-    val typeBytes = "TransferTransaction".getBytes
-
-    Ints.toByteArray(typeBytes.length) ++
-      typeBytes ++
+    prefixBytes ++
       (m match {
-        case sc: PolyTransfer => PolyTransferCompanion.toBytes(sc)
-        case ac: ArbitTransfer => ArbitTransferCompanion.toBytes(ac)
+        case sc: PolyTransfer => PolyTransferCompanion.toChildBytes(sc)
+        case ac: ArbitTransfer => ArbitTransferCompanion.toChildBytes(ac)
       })
   }
 
@@ -208,7 +211,8 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val typeBytes = "ProfileTransaction".getBytes
 
     Bytes.concat(
-      Ints.toByteArray(typeBytes.length), typeBytes,
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
       m.json.toString().getBytes()
     )
   }
@@ -237,11 +241,14 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
 object ContractCreationCompanion extends Serializer[ContractCreation] {
 
   override def toBytes(m: ContractCreation): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(m)
+  }
+
+  def toChildBytes(m: ContractCreation): Array[Byte] = {
     val typeBytes = "ContractCreation".getBytes
 
     val agreementBytes = AgreementCompanion.toBytes(m.agreement)
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
@@ -295,9 +302,12 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecution] {
 
   override def toBytes(cme: ContractMethodExecution): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(cme)
+  }
+
+  def toChildBytes(cme: ContractMethodExecution): Array[Byte] = {
     val typeBytes = "ContractMethodExecution".getBytes
 
-    // TODO this might need a nonce
      Bytes.concat(
         /* First two arguments MUST STAY */
         Ints.toByteArray(typeBytes.length),
@@ -355,9 +365,12 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 object ContractCompletionCompanion extends Serializer[ContractCompletion] {
 
   override def toBytes(cc: ContractCompletion): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(cc)
+  }
+
+  def toChildBytes(cc: ContractCompletion): Array[Byte] = {
     val typeBytes = "ContractCompletion".getBytes
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
@@ -555,6 +568,10 @@ trait TransferSerializer {
 object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSerializer {
 
   override def toBytes(sc: PolyTransfer): Array[Byte] = {
+    TransferTransactionCompanion.prefixBytes ++ toChildBytes(sc)
+  }
+
+  def toChildBytes(sc: PolyTransfer): Array[Byte] = {
     transferToBytes(sc, "PolyTransfer")
   }
 
@@ -567,11 +584,162 @@ object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSeria
 object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSerializer {
 
   override def toBytes(ac: ArbitTransfer): Array[Byte] = {
+    TransferTransactionCompanion.prefixBytes ++ toChildBytes(ac)
+  }
+
+  def toChildBytes(ac: ArbitTransfer): Array[Byte] = {
     transferToBytes(ac, "ArbitTransfer")
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ArbitTransfer] = Try {
     val params = parametersParseBytes(bytes)
     ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
+  }
+}
+
+
+object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
+  override def toBytes(ac: AssetRedemption): Array[Byte] = {
+    val typeBytes = "AssetRedemption".getBytes
+
+    // Used to reduce overall size in the default case where assetcodes are the same across multiple maps
+    val keySeq = (ac.signatures.keySet ++ ac.availableToRedeem.keySet ++ ac.remainderAllocations.keySet).toSeq.zipWithIndex
+    val keyMapping: Map[String, Int] = keySeq.toMap
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(ac.fee),
+      Longs.toByteArray(ac.timestamp),
+      Ints.toByteArray(ac.signatures.size),
+      Ints.toByteArray(ac.availableToRedeem.size),
+      Ints.toByteArray(ac.remainderAllocations.size),
+      Ints.toByteArray(keyMapping.size),
+      ac.hub.pubKeyBytes,
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes),
+      ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
+      ),
+      ac.availableToRedeem.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(box => box._1.pubKeyBytes ++ Longs.toByteArray(box._2))
+      ),
+      ac.remainderAllocations.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(alloc => alloc._1.pubKeyBytes ++ Longs.toByteArray(alloc._2))
+      )
+    )
+  }
+
+  //noinspection ScalaStyle
+  override def parseBytes(bytes: Array[Byte]): Try[AssetRedemption] = Try {
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    var numReadBytes = Ints.BYTES + typeLength
+    val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
+
+
+    val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
+      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+    }.toArray
+
+    numReadBytes = 2*Longs.BYTES
+
+    val Array(sigLength: Int, availableToRedeemLength: Int, amountsLength: Int, keyMappingSize: Int) = (0 until 4).map { i =>
+      Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+    }.toArray
+
+    numReadBytes += 4*Ints.BYTES
+
+    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+
+    numReadBytes += Constants25519.PubKeyLength
+
+    val keyMapping: Map[Int, String] = (0 until keyMappingSize).map { i =>
+      val strLen = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+      val assetId = new String(bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + strLen))
+
+      numReadBytes += Ints.BYTES + strLen
+      i -> assetId
+    }.toMap
+
+    val signatures: Map[String, IndexedSeq[Signature25519]] = (0 until sigLength).map { i =>
+
+      val assetId:String = keyMapping(Ints.fromByteArray(
+        bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)
+      ))
+
+      val numSigs = Ints.fromByteArray(
+        bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES)
+      )
+
+      val sigs: IndexedSeq[Signature25519] = (0 until numSigs).map { j =>
+        Signature25519(
+          bytesWithoutType.slice(
+            numReadBytes + j*Curve25519.SignatureLength + 2*Ints.BYTES,
+            numReadBytes + (j + 1)*Curve25519.SignatureLength  + 2*Ints.BYTES
+          )
+        )
+      }
+
+      numReadBytes += 2*Ints.BYTES + numSigs*Curve25519.SignatureLength
+      assetId -> sigs
+    }.toMap
+
+    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = (0 until availableToRedeemLength).map { _ =>
+      var bytesSoFar = 0
+      val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
+
+      bytesSoFar = Ints.BYTES
+
+      val boxesLength = Ints.fromByteArray(
+        bytesWithoutType.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES)
+      )
+
+      bytesSoFar += Ints.BYTES
+
+      val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
+
+      val boxes: IndexedSeq[(PublicKey25519Proposition, Nonce)] =  (0 until boxesLength).map { j =>
+        val prop = PublicKey25519Proposition(
+          bytesWithoutType.slice(
+            numReadBytes + bytesSoFar + j*chunkSize,
+            numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
+          )
+        )
+
+        val nonceStart = numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
+        val nonce = Longs.fromByteArray(bytesWithoutType.slice(nonceStart, nonceStart + Longs.BYTES))
+
+        prop -> nonce
+      }
+
+      bytesSoFar += boxesLength*chunkSize
+      numReadBytes += bytesSoFar
+
+      assetId -> boxes
+    }.toMap
+
+    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = (0 until amountsLength).map { _ =>
+      val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
+
+      val allocationLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
+
+      val startPosition = numReadBytes + 2*Ints.BYTES
+      val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
+
+      val allocationSeq: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until allocationLength).map { i =>
+        val prop = PublicKey25519Proposition(
+          bytesWithoutType.slice(startPosition + i*chunkSize, startPosition + i*chunkSize + Constants25519.PubKeyLength)
+        )
+        val amount = Longs.fromByteArray(
+          bytesWithoutType.slice(startPosition + i*chunkSize + Constants25519.PubKeyLength, startPosition + (i + 1)*chunkSize)
+        )
+        prop -> amount
+      }
+
+      numReadBytes += 2*Ints.BYTES + allocationLength*chunkSize
+      assetId -> allocationSeq
+    }.toMap
+
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
   }
 }

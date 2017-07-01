@@ -14,6 +14,8 @@ import org.scalatest.{Matchers, PropSpec}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 
+import scala.util.Success
+
 class ContractCreationSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
@@ -25,7 +27,7 @@ class ContractCreationSpec extends PropSpec
     forAll(validContractCreationGen) {
       cc: ContractCreation =>
         val semanticValid = BifrostState.semanticValidity(cc)
-        semanticValid.isSuccess shouldBe true
+        semanticValid shouldBe a[Success[Unit]]
     }
   }
 
@@ -36,10 +38,6 @@ class ContractCreationSpec extends PropSpec
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
         BifrostState.semanticValidity(cc.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
-  }
-
-  property("Tx returns ContractBox and AssetBoxes for Hub") {
-    // TODO
   }
 
   property("Tx with effective date in the past should be invalid") {
@@ -64,7 +62,7 @@ class ContractCreationSpec extends PropSpec
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )
@@ -97,7 +95,7 @@ class ContractCreationSpec extends PropSpec
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )
@@ -129,7 +127,7 @@ class ContractCreationSpec extends PropSpec
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
-        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen.sample.get } },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
         parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
         timestamp
       )

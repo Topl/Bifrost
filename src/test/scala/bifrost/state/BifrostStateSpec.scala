@@ -12,6 +12,7 @@ import bifrost.transaction.box._
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
 import breeze.linalg.View.Require
 import io.circe
+import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.{Gen, Prop}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -31,8 +32,6 @@ class BifrostStateSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators
   with BeforeAndAfterAll {
-
-  // TODO write a test that simulates the entire contract process
 
   val initialBalance = 100000000L
   //noinspection ScalaStyle
@@ -77,7 +76,6 @@ class BifrostStateSpec extends PropSpec
     }).map(_.box.asInstanceOf[PolyBox])
       val polyBoxKeys = polyBoxes.flatMap(b => newWallet.secretByPublicImage(b.proposition).map(s => (b, s)))
       // The resulting poly balance = genesis amount - fee, because the transaction is sent to self
-      // TODO: No fee is actually collected due to the reward box is an ArbitBox
       require(polyBoxKeys.map(_._1.value).sum == initialBalance - poT.fee)
 
       BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
@@ -123,13 +121,14 @@ class BifrostStateSpec extends PropSpec
 
     //noinspection ScalaStyle
     forAll(Gen.choose(0,100)) { num: Int =>
-      val pubkeys: Seq[PublicKey25519Proposition] = gw.publicKeys.flatMap {
+      val pubkeys: IndexedSeq[PublicKey25519Proposition] = gw.publicKeys.flatMap {
         case pkp: PublicKey25519Proposition => Some(pkp)
         case _ => None
-      }.toSeq
-      //todo multiple recipients
+      }.toIndexedSeq
+
+      val toReceive = pubkeys.map(_ -> (Gen.choose(0, 100L).sample.get + initialBalance))
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
-      val poT = PolyTransfer.create(gw, recipient, Random.nextInt(100) + initialBalance, Random.nextInt(100)).get
+      val poT = PolyTransfer.create(gw, toReceive, Random.nextInt(100)).get
       val block = BifrostBlock(
         Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
@@ -142,7 +141,7 @@ class BifrostStateSpec extends PropSpec
     }
   }
 
-  property("Attempting to validate a Arbit for amount you do not have should error") {
+  property("Attempting to validate an Arbit for amount you do not have should error") {
     import BifrostStateSpec._
     val beforeArbitBoxes = gw.boxes().filter(_.box match {
       case a: ArbitBox => genesisState.closedBox(a.id).isDefined
@@ -153,13 +152,13 @@ class BifrostStateSpec extends PropSpec
 
     //noinspection ScalaStyle
     forAll(Gen.choose(0,100)) { num: Int =>
-      val pubkeys: Seq[PublicKey25519Proposition] = gw.publicKeys.flatMap {
+      val pubkeys: IndexedSeq[PublicKey25519Proposition] = gw.publicKeys.flatMap {
         case pkp: PublicKey25519Proposition => Some(pkp)
         case _ => None
-      }.toSeq
-      //todo multiple recipients
-      val recipient = pubkeys(Random.nextInt(pubkeys.size))
-      val arT = ArbitTransfer.create(gw, recipient, Random.nextInt(100) + initialBalance, Random.nextInt(100)).get
+      }.toIndexedSeq
+
+      val toReceive = pubkeys.map(_ -> (Gen.choose(0, 100L).sample.get + initialBalance))
+      val arT = ArbitTransfer.create(gw, toReceive, Random.nextInt(100)).get
       val block = BifrostBlock(
         Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
         Instant.now().toEpochMilli,

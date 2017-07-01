@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
+import bifrost.contract.Contract.Status
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.{Ints, Longs}
@@ -46,7 +47,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val contractBox = createContractBox(
       Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
-      "initialized",
+      Status.INITIALISED,
       currentFulfillment,
       currentEndorsement,
       parties.take(3).map(t => t._1 -> t._2._2).toMap
@@ -54,7 +55,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
-    val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen.sample.get }).toMap
+    val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen().sample.get }).toMap
     val feeBoxIdKeyPairs: Map[Array[Byte], PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
       v.map {
         case (nonce, amount) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
@@ -64,7 +65,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
       prop -> (preBoxes.map(_._2).sum - Gen.choose(0L, Math.max(0, Math.min(Long.MaxValue, preBoxes.map(_._2).sum))).sample.get)
     }
 
-    // TODO create object method to get dummy tx to automatically grab messageToSign
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
         methodName.getBytes ++
