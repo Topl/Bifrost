@@ -632,8 +632,13 @@ object BifrostState {
           (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3 )
         })
 
+      val rewardNonce = Longs.fromByteArray(mod.id.take(8))
+
+      var finalToAdd = toAdd
+      if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
+
       //no reward additional to tx fees
-      BifrostStateChanges(toRemove, toAdd + PolyBox(gen, 1, reward), mod.timestamp)
+      BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
     }
   }
 

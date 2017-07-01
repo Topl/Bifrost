@@ -137,8 +137,6 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       boxIds.filter(bi => !boxIdsToRemove.exists(_.data sameElements bi)).flatten)
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
-    boxIds.foreach(box => println(s"Box id ${Base58.encode(box)}"))
-
     BWallet(secrets, store, defaultKeyDir)
   }
 
