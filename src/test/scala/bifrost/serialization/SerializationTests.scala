@@ -118,6 +118,7 @@ class SerializationTests extends PropSpec
         TransferTransactionCompanion.toBytes(parsed) sameElements TransferTransactionCompanion.toBytes(ac) shouldBe true
     }
   }
+
   property("ContractCreation Serialization") {
     forAll(contractCreationGen) {
       c: ContractCreation =>
@@ -188,14 +189,4 @@ class SerializationTests extends PropSpec
     }
   }
 
-  /* TODO Need a generator that generates erroneous JSON
-  property("Agreement with no Nonce") {
-    forAll(agreementGen) {
-      a: Agreement =>
-        val newTerms = parse("""{}""").getOrElse(Json.Null)
-        a.terms.json = newTerms
-        val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
-        AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
-    }
-  }*/
 }

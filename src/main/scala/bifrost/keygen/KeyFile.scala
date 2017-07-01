@@ -121,7 +121,6 @@ object KeyFile {
     KeyFile(pubKey, cipherText, mac, salt, iv)
   }
 
-  // TODO: This is copied from Curve25519 class. Make sure to sync with the its latest implementation.
   private val provider: OpportunisticCurve25519Provider = {
     val constructor = classOf[OpportunisticCurve25519Provider]
       .getDeclaredConstructors

@@ -54,20 +54,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 
-
-//todo: is it needed?
-libraryDependencies += "org.atnos" %% "eff-cats" % "2.0.+"
-
 libraryDependencies ++= Seq(
-  "org.scalactic" %% "scalactic" % "3.0.1",
-  "org.scalatest" %% "scalatest" % "3.0.2",
-  "org.scalacheck" %% "scalacheck" % "1.13.+"
-)
-
-libraryDependencies ++= Seq(
-  "org.scalactic" %% "scalactic" % "3.0.1" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.2" % "test",
-  "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
   "org.scorexfoundation" %% "iodb" % "0.3.+",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",

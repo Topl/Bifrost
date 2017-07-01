@@ -297,8 +297,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     statefulValid.flatMap(_ => semanticValidity(cc))
-
-    // TODO check whether hub has sufficient room
   }
 
   /**
@@ -349,6 +347,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }))
       throw new IllegalAccessException(s"Not all roles are valid for signers")
 
+    /* Handles fees */
     val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
       cme.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
         partialRes.flatMap(_ => closedBox(unlocker.closedBoxId) match {
@@ -391,7 +390,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   def validateContractCompletion(cc: ContractCompletion): Try[Unit] = {
 
     val contractBytes = storage.get(ByteArrayWrapper(cc.contractBox.id))
-    //TODO fee verification
 
     /* Contract exists */
     if (contractBytes.isEmpty)
@@ -480,7 +478,37 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
               })
             }
-            allEndorsedAndAgree.flatMap(_ => producerReputationIsValid).flatMap(_ => semanticValidity(cc))
+
+            /* Handles fees */
+            val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
+              cc.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
+                partialRes.flatMap(_ => closedBox(unlocker.closedBoxId) match {
+                  case Some(box: PolyBox) =>
+                    if (unlocker.boxKey.isValid(box.proposition, cc.messageToSign)) {
+                      partialRes.get.get(box.proposition) match {
+                        case Some(total) => Success(partialRes.get + (box.proposition -> (total + box.value)))
+                        case None => Success(partialRes.get + (box.proposition -> box.value))
+                      }
+                    } else {
+                      Failure(new Exception("Incorrect unlocker"))
+                    }
+                  case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+                })
+              })
+            }
+
+            /* Incorrect unlocker or box provided, or not enough to cover declared fees */
+            val enoughForFees = Try {
+              if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cc.fees.get(prop) match {
+                case Some(fee) => amount >= fee
+                case None => true
+              }}) throw new Exception("Insufficient balances provided for fees")
+            }
+
+            allEndorsedAndAgree
+              .flatMap(_ => producerReputationIsValid)
+              .flatMap(_ => enoughForFees)
+              .flatMap(_ => semanticValidity(cc))
 
           case None => throw new Exception(s"Contract completion has not yet been endorsed by all parties")
         }
@@ -519,7 +547,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       )
 
       /* Make sure that there's enough to cover the remainders */
-      availableAssetsTry.flatMap(availableAssets =>
+      val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
         ar.remainderAllocations.foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
         partialRes.flatMap(_ => availableAssets.get(assetCode) match {
             case Some(amount) => if(amount > remainders.map(_._2).sum) Success() else Failure(new Exception("Not enough assets"))
@@ -528,8 +556,28 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         }
       )
 
-      //TODO validate fees
+      /* Handles fees */
+      val boxesSumTry: Try[Long] = {
+        ar.unlockers.tail.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) => {
+          partialRes.flatMap(total => closedBox(unlocker.closedBoxId) match {
+            case Some(box: PolyBox) =>
+              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign)) {
+                  Success(total + box.value)
+              } else {
+                Failure(new Exception("Incorrect unlocker"))
+              }
+            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+          })
+        })
+      }
 
+      /* Incorrect unlocker or box provided, or not enough to cover declared fees */
+      val enoughToCoverFees = Try {
+        if (boxesSumTry.isFailure || boxesSumTry.get < ar.fee)
+          throw new Exception("Insufficient balances provided for fees")
+      }
+
+      enoughAssets.flatMap(_ => enoughToCoverFees)
     }
 
     statefulValid.flatMap(_ => semanticValidity(ar))
@@ -585,7 +633,6 @@ object BifrostState {
         })
 
       //no reward additional to tx fees
-      //TODO check that these fees are properly deducted for EVERY tx in validate
       BifrostStateChanges(toRemove, toAdd + PolyBox(gen, 1, reward), mod.timestamp)
     }
   }

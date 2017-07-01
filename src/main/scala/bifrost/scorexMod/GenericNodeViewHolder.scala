@@ -77,7 +77,6 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
         notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, source))
 
       case Failure(e) =>
-        memoryPool().remove(tx)
         notifySubscribers(EventType.FailedTransaction, FailedTransaction[P, TX](tx, e, source))
     }
   }

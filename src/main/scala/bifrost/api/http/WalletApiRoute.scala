@@ -26,7 +26,6 @@ import scala.util.{Failure, Success, Try}
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
-  //TODO move to settings?
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
@@ -60,7 +59,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 val amount: Long = (json \\ "amount").head.asNumber.get.toLong.get
                 val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((json \\ "recipient").head.asString.get).get)
                 val fee: Long = (json \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(DefaultFee)
-                val tx = PolyTransfer.create(wallet, recipient, amount, fee).get
+                val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee).get
                 nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
                 tx.json
               } match {

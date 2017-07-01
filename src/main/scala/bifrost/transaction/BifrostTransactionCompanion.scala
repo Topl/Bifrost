@@ -23,6 +23,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
+    case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -210,7 +211,8 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val typeBytes = "ProfileTransaction".getBytes
 
     Bytes.concat(
-      Ints.toByteArray(typeBytes.length), typeBytes,
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
       m.json.toString().getBytes()
     )
   }
@@ -247,7 +249,6 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     val agreementBytes = AgreementCompanion.toBytes(m.agreement)
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
@@ -307,18 +308,17 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
   def toChildBytes(cme: ContractMethodExecution): Array[Byte] = {
     val typeBytes = "ContractMethodExecution".getBytes
 
-    // TODO this might need a nonce
-    Bytes.concat(
-      /* First two arguments MUST STAY */
-      Ints.toByteArray(typeBytes.length),
-      typeBytes,
-      Ints.toByteArray(cme.methodName.getBytes.length),
-      Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-      Ints.toByteArray(cme.contractBox.bytes.length),
-      cme.methodName.getBytes,
-      cme.parameters.noSpaces.getBytes,
-      cme.contractBox.bytes,
-      ContractTransactionCompanion.commonToBytes(cme)
+     Bytes.concat(
+        /* First two arguments MUST STAY */
+        Ints.toByteArray(typeBytes.length),
+        typeBytes,
+        Ints.toByteArray(cme.methodName.getBytes.length),
+        Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
+        Ints.toByteArray(cme.contractBox.bytes.length),
+        cme.methodName.getBytes,
+        cme.parameters.noSpaces.getBytes,
+        cme.contractBox.bytes,
+        ContractTransactionCompanion.commonToBytes(cme)
     )
   }
 
@@ -371,7 +371,6 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
   def toChildBytes(cc: ContractCompletion): Array[Byte] = {
     val typeBytes = "ContractCompletion".getBytes
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
