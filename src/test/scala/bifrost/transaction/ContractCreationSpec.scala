@@ -40,10 +40,6 @@ class ContractCreationSpec extends PropSpec
     }
   }
 
-  property("Tx returns ContractBox and AssetBoxes for Hub") {
-    // TODO
-  }
-
   property("Tx with effective date in the past should be invalid") {
 
     lazy val pastEffDateAgreementGen: Gen[Agreement] = for {

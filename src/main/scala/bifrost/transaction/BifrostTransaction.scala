@@ -210,7 +210,6 @@ case class ContractCreation(agreement: Agreement,
   )
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    // TODO check if this nonce is secure
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
@@ -608,35 +607,37 @@ trait TransferUtil {
   }
 
   //noinspection ScalaStyle
-  def parametersForCreate(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long, txType: String):
+  def parametersForCreate(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, txType: String):
     (IndexedSeq[(PrivateKey25519, Long, Long)], IndexedSeq[(PublicKey25519Proposition, Long)]) = {
 
-    // Match only the type of boxes specified by txType
-    val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
-      case "PolyTransfer" => w.boxes().flatMap(_.box match {
-        case p: PolyBox => Some(p)
-        case _ => None
-      })
-      case "ArbitTransfer" => w.boxes().flatMap(_.box match {
-        case a: ArbitBox => Some(a)
-        case _ => None
-      })
+    toReceive.foldLeft((IndexedSeq[(PrivateKey25519, Long, Long)](), IndexedSeq[(PublicKey25519Proposition, Long)]())){ case (a, (recipient, amount)) =>
+      // Match only the type of boxes specified by txType
+      val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+        case "PolyTransfer" => w.boxes().flatMap(_.box match {
+          case p: PolyBox => Some(p)
+          case _ => None
+        })
+        case "ArbitTransfer" => w.boxes().flatMap(_.box match {
+          case a: ArbitBox => Some(a)
+          case _ => None
+        })
+      }
+
+      val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes.flatMap {
+        b: BifrostPublic25519NoncedBox => w.secretByPublicImage(b.proposition).map((_, b.nonce, b.value))
+      }.toIndexedSeq
+
+      val canSend = from.map(_._3).sum
+      val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys.find {
+        case _: PublicKey25519Proposition => true
+        case _ => false
+      }.get.asInstanceOf[PublicKey25519Proposition], canSend - amount - fee)
+
+      val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
+
+      require(from.map(_._3).sum - to.map(_._2).sum == fee)
+      (a._1 ++ from, a._2 ++ to)
     }
-
-    val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes.flatMap {
-      b: BifrostPublic25519NoncedBox => w.secretByPublicImage(b.proposition).map((_, b.nonce, b.value))
-    }.toIndexedSeq
-
-    val canSend = from.map(_._3).sum
-    val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys.find {
-      case _: PublicKey25519Proposition => true
-      case _ => false
-    }.get.asInstanceOf[PublicKey25519Proposition], canSend - amount - fee)
-
-    val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
-
-    require(from.map(_._3).sum - to.map(_._2).sum == fee)
-    (from, to)
   }
 
   def validateTx(tx: TransferTransaction): Try[Unit] = Try {
@@ -685,10 +686,9 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp)
   }
 
-  //TODO seq of recipients and amounts
-  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[PolyTransfer] = Try {
+  def create(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long): Try[PolyTransfer] = Try {
 
-    val params = parametersForCreate(w, recipient, amount, fee, "PolyTransfer")
+    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer")
     val timestamp = System.currentTimeMillis()
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }
@@ -729,10 +729,9 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1, to, params._2, fee, timestamp)
   }
 
-  //TODO seq of recipients and amounts
-  def create(w: BWallet, recipient: PublicKey25519Proposition, amount: Long, fee: Long): Try[ArbitTransfer] = Try {
+  def create(w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long): Try[ArbitTransfer] = Try {
 
-    val params = parametersForCreate(w, recipient, amount, fee, "ArbitTransfer")
+    val params = parametersForCreate(w, toRecieve, fee, "ArbitTransfer")
     val timestamp = System.currentTimeMillis()
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp)
   }

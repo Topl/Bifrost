@@ -209,7 +209,8 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
     val typeBytes = "ProfileTransaction".getBytes
 
     Bytes.concat(
-      Ints.toByteArray(typeBytes.length), typeBytes,
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
       m.json.toString().getBytes()
     )
   }
@@ -242,7 +243,6 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     val agreementBytes = AgreementCompanion.toBytes(m.agreement)
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
@@ -298,7 +298,6 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
   override def toBytes(cme: ContractMethodExecution): Array[Byte] = {
     val typeBytes = "ContractMethodExecution".getBytes
 
-    // TODO this might need a nonce
      Bytes.concat(
         /* First two arguments MUST STAY */
         Ints.toByteArray(typeBytes.length),
@@ -358,7 +357,6 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
   override def toBytes(cc: ContractCompletion): Array[Byte] = {
     val typeBytes = "ContractCompletion".getBytes
 
-    // TODO this might need a nonce
     Bytes.concat(
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),

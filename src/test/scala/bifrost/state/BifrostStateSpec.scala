@@ -130,7 +130,7 @@ class BifrostStateSpec extends PropSpec
       }.toSeq
       //todo multiple recipients
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
-      val poT = PolyTransfer.create(gw, recipient, Random.nextInt(100) + initialBalance, Random.nextInt(100)).get
+      val poT = PolyTransfer.create(gw, IndexedSeq((recipient, Random.nextInt(100) + initialBalance)), Random.nextInt(100)).get
       val block = BifrostBlock(
         Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
@@ -160,7 +160,7 @@ class BifrostStateSpec extends PropSpec
       }.toSeq
       //todo multiple recipients
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
-      val arT = ArbitTransfer.create(gw, recipient, Random.nextInt(100) + initialBalance, Random.nextInt(100)).get
+      val arT = ArbitTransfer.create(gw, IndexedSeq((recipient, Random.nextInt(100) + initialBalance)), Random.nextInt(100)).get
       val block = BifrostBlock(
         Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
         Instant.now().toEpochMilli,

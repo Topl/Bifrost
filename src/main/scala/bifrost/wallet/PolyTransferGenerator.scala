@@ -47,6 +47,6 @@ object PolyTransferGenerator {
       case _ => None
     }.toSeq
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
-    PolyTransfer.create(wallet, recipient, Random.nextInt(100), Random.nextInt(100))
+    PolyTransfer.create(wallet, IndexedSeq((recipient, Random.nextInt(100))), Random.nextInt(100))
   }
 }
