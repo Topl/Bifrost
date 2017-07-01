@@ -30,7 +30,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   val DefaultFee = 100
 
   override val route = pathPrefix("wallet") {
-    balances ~ transfer ~ sign ~ generateKeyFile ~ unlockKeyFile
+    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
   }
 
   @Path("/transfer")
@@ -65,7 +65,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 tx.json
               } match {
                 case Success(resp) => SuccessApiResponse(resp)
-                case Failure(e) => ApiException(e)
+                case Failure(e) =>
+                  e.printStackTrace()
+                  ApiException(e)
               }
             }
           }

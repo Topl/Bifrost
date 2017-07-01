@@ -123,7 +123,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
-    val newBoxes = changes.toAppend.filter(s => secretByPublicImage(s.proposition).isDefined).map { box =>
+    val newBoxes = changes.toAppend.filter(s => publicKeys.contains(s.publicKey)).map { box =>
       val boxTransaction = modifier.transactions.getOrElse(Seq())
         .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
       val txId = boxTransaction.map(_.id).getOrElse(Array.fill(32)(0: Byte))

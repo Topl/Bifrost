@@ -3,6 +3,7 @@ package bifrost.transaction
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
 import bifrost.transaction.ContractTransaction.Nonce
+import bifrost.transaction.ContractTransactionCompanion.typeBytes
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
@@ -41,15 +42,16 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
 object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 
-  override def toBytes(m: ContractTransaction): Array[Byte] = {
-    val typeBytes = "ContractTransaction".getBytes
+  val typeBytes = "ContractTransaction".getBytes
 
-    Ints.toByteArray(typeBytes.length) ++
-      typeBytes ++
+  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
+
+  override def toBytes(m: ContractTransaction): Array[Byte] = {
+    prefixBytes ++
       (m match {
-        case cc: ContractCreation => ContractCreationCompanion.toBytes(cc)
-        case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toBytes(cme)
-        case ccomp: ContractCompletion => ContractCompletionCompanion.toBytes(ccomp)
+        case cc: ContractCreation => ContractCreationCompanion.toChildBytes(cc)
+        case cme: ContractMethodExecution => ContractMethodExecutionCompanion.toChildBytes(cme)
+        case ccomp: ContractCompletion => ContractCompletionCompanion.toChildBytes(ccomp)
       })
   }
 
@@ -64,11 +66,11 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
     val newTypeLength = Ints.fromByteArray(newBytes.take(Ints.BYTES))
     val newTypeStr = new String(newBytes.slice(Ints.BYTES,  Ints.BYTES + newTypeLength))
 
-      newTypeStr match {
-        case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
-        case "ContractMethodExecution" => ContractMethodExecutionCompanion.parseBytes(newBytes).get
-        case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
-      }
+    newTypeStr match {
+      case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
+      case "ContractMethodExecution" => ContractMethodExecutionCompanion.parseBytes(newBytes).get
+      case "ContractCompletion" => ContractCompletionCompanion.parseBytes(newBytes).get
+    }
   }
 
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
@@ -174,15 +176,15 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 }
 
 object TransferTransactionCompanion extends Serializer[TransferTransaction] {
+  val typeBytes = "TransferTransaction".getBytes
+
+  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
 
   override def toBytes(m: TransferTransaction): Array[Byte] = {
-    val typeBytes = "TransferTransaction".getBytes
-
-    Ints.toByteArray(typeBytes.length) ++
-      typeBytes ++
+    prefixBytes ++
       (m match {
-        case sc: PolyTransfer => PolyTransferCompanion.toBytes(sc)
-        case ac: ArbitTransfer => ArbitTransferCompanion.toBytes(ac)
+        case sc: PolyTransfer => PolyTransferCompanion.toChildBytes(sc)
+        case ac: ArbitTransfer => ArbitTransferCompanion.toChildBytes(ac)
       })
   }
 
@@ -237,6 +239,10 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
 object ContractCreationCompanion extends Serializer[ContractCreation] {
 
   override def toBytes(m: ContractCreation): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(m)
+  }
+
+  def toChildBytes(m: ContractCreation): Array[Byte] = {
     val typeBytes = "ContractCreation".getBytes
 
     val agreementBytes = AgreementCompanion.toBytes(m.agreement)
@@ -295,20 +301,24 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecution] {
 
   override def toBytes(cme: ContractMethodExecution): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(cme)
+  }
+
+  def toChildBytes(cme: ContractMethodExecution): Array[Byte] = {
     val typeBytes = "ContractMethodExecution".getBytes
 
     // TODO this might need a nonce
-     Bytes.concat(
-        /* First two arguments MUST STAY */
-        Ints.toByteArray(typeBytes.length),
-        typeBytes,
-        Ints.toByteArray(cme.methodName.getBytes.length),
-        Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-        Ints.toByteArray(cme.contractBox.bytes.length),
-        cme.methodName.getBytes,
-        cme.parameters.noSpaces.getBytes,
-        cme.contractBox.bytes,
-        ContractTransactionCompanion.commonToBytes(cme)
+    Bytes.concat(
+      /* First two arguments MUST STAY */
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Ints.toByteArray(cme.methodName.getBytes.length),
+      Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
+      Ints.toByteArray(cme.contractBox.bytes.length),
+      cme.methodName.getBytes,
+      cme.parameters.noSpaces.getBytes,
+      cme.contractBox.bytes,
+      ContractTransactionCompanion.commonToBytes(cme)
     )
   }
 
@@ -355,6 +365,10 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 object ContractCompletionCompanion extends Serializer[ContractCompletion] {
 
   override def toBytes(cc: ContractCompletion): Array[Byte] = {
+    ContractTransactionCompanion.prefixBytes ++ toChildBytes(cc)
+  }
+
+  def toChildBytes(cc: ContractCompletion): Array[Byte] = {
     val typeBytes = "ContractCompletion".getBytes
 
     // TODO this might need a nonce
@@ -555,6 +569,10 @@ trait TransferSerializer {
 object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSerializer {
 
   override def toBytes(sc: PolyTransfer): Array[Byte] = {
+    TransferTransactionCompanion.prefixBytes ++ toChildBytes(sc)
+  }
+
+  def toChildBytes(sc: PolyTransfer): Array[Byte] = {
     transferToBytes(sc, "PolyTransfer")
   }
 
@@ -567,6 +585,10 @@ object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSeria
 object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSerializer {
 
   override def toBytes(ac: ArbitTransfer): Array[Byte] = {
+    TransferTransactionCompanion.prefixBytes ++ toChildBytes(ac)
+  }
+
+  def toChildBytes(ac: ArbitTransfer): Array[Byte] = {
     transferToBytes(ac, "ArbitTransfer")
   }
 
