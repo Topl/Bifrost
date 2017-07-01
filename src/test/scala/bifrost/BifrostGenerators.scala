@@ -272,6 +272,28 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 
+  lazy val assetRedemptionGen: Gen[AssetRedemption] = for {
+    assetLength <- positiveTinyIntGen
+    hub <- propositionGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+
+    val assets = (0 until assetLength).map { _ =>
+      stringGen.sample.get
+    }
+
+    val availableToRedeem = assets.map(_ -> fromSeqGen.sample.get).toMap
+    val remainderAllocations = assets.map(_ -> toSeqGen.sample.get).toMap
+
+    val signatures = availableToRedeem.map { case (assetId, boxes) =>
+      assetId -> boxes.map(_ => signatureGen.sample.get)
+    }
+
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
+  }
+
+
   lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
@@ -281,7 +303,7 @@ trait BifrostGenerators extends CoreGenerators {
     seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { _ => fromGen.sample.get }
 
-  lazy val toGen: Gen[(PublicKey25519Proposition, PolyTransfer.Value)] = for {
+  lazy val toGen: Gen[(PublicKey25519Proposition, Long)] = for {
     proposition <- propositionGen
     value <- positiveLongGen
   } yield (proposition, value)

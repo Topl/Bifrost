@@ -12,6 +12,7 @@ import bifrost.transaction.box._
 import bifrost.wallet.{BWallet, PolyTransferGenerator}
 import breeze.linalg.View.Require
 import io.circe
+import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.{Gen, Prop}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -142,7 +143,7 @@ class BifrostStateSpec extends PropSpec
     }
   }
 
-  property("Attempting to validate a Arbit for amount you do not have should error") {
+  property("Attempting to validate an Arbit for amount you do not have should error") {
     import BifrostStateSpec._
     val beforeArbitBoxes = gw.boxes().filter(_.box match {
       case a: ArbitBox => genesisState.closedBox(a.id).isDefined
