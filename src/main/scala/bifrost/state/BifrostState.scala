@@ -633,7 +633,6 @@ object BifrostState {
         })
 
       //no reward additional to tx fees
-      //TODO check that these fees are properly deducted for EVERY tx in validate
       BifrostStateChanges(toRemove, toAdd + PolyBox(gen, 1, reward), mod.timestamp)
     }
   }
