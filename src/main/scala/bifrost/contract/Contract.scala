@@ -195,9 +195,10 @@ object Contract {
   // get runtime mirror
   val rm: ru.Mirror = ru.runtimeMirror(getClass.getClassLoader)
 
-  // TODO this currently also shows public accessors and the like. May need to build registry to restrict only to named methods
   val contractMethods: Map[String, ru.MethodSymbol] = (ru.typeOf[Contract].decls collect {
-    case m: ru.Symbol if m.isMethod => m.asMethod.name.toString -> m.asMethod
+    case m: ru.Symbol
+      if m.isMethod && !m.asMethod.isGetter && !m.asMethod.isSetter && !m.asMethod.isConstructor =>
+      m.asMethod.name.toString -> m.asMethod
   }).toMap
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
