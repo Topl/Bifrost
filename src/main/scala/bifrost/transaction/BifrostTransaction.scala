@@ -17,6 +17,7 @@ import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import io.circe.generic.auto._
 import io.circe.parser.parse
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.account.PublicKeyNoncedBox
@@ -822,17 +823,17 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
 
   override type M = AssetRedemption
 
-  val redemptionGroup: Map[Array[Byte], Signature25519] = availableToRedeem.flatMap(entry =>
-    entry._2.map(t => PublicKeyNoncedBox.idFromBox(t._1, t._2)).zip(signatures(entry._1))
+  val redemptionGroup: Map[ByteArrayWrapper, Signature25519] = availableToRedeem.flatMap(entry =>
+    entry._2.map(t => ByteArrayWrapper(PublicKeyNoncedBox.idFromBox(t._1, t._2))).zip(signatures(entry._1))
   )
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keys.toIndexedSeq.sortBy(Base58.encode)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = redemptionGroup.keys.toIndexedSeq.map(_.data).sortBy(Base58.encode)
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
     boxId =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = boxId
-        override val boxKey: Signature25519 = redemptionGroup(boxId)
+        override val boxKey: Signature25519 = redemptionGroup(ByteArrayWrapper(boxId))
       }
   }
 

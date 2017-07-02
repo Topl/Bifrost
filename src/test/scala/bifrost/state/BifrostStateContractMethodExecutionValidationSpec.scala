@@ -56,9 +56,9 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
     val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen().sample.get }).toMap
-    val feeBoxIdKeyPairs: Map[Array[Byte], PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
+    val feeBoxIdKeyPairs: Map[ByteArrayWrapper, PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
       v.map {
-        case (nonce, amount) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+        case (nonce, amount) => (ByteArrayWrapper(PublicKeyNoncedBox.idFromBox(prop, nonce)), prop)
       }
     }
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
@@ -70,7 +70,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
         methodName.getBytes ++
         parties.take(numInContract).flatMap(_._2._2.pubKeyBytes) ++
         parameters.noSpaces.getBytes ++
-        (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
+        (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1.data)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, amount) => prop.pubKeyBytes ++ Longs.toByteArray(amount) }
     )
