@@ -435,7 +435,7 @@ case class ContractCompletion(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
+      parties.toIndexedSeq.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
