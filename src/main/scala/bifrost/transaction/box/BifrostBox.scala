@@ -116,6 +116,16 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
                     assetCode: String,
                     hub: PublicKey25519Proposition) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "type" -> typeOfBox.asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "assetCode" -> assetCode.asJson,
+    "value" -> value.asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "nonce" -> nonce.asJson
+  ).asJson
 }
 
 object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer {

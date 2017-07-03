@@ -58,6 +58,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
           case ab: ArbitBox => ab.value > 0
           case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
           case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2.isInstanceOf[Double]
+          case assetB: AssetBox => assetB.amount > 0
         }
         case _ => false
       }
@@ -130,9 +131,13 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
     }
 
-    val boxIdsToRemove = changes.boxIdsToRemove.map(ByteArrayWrapper.apply)
-    val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(newBoxes.toArray.flatMap(_._1.data) ++
-      boxIds.filter(bi => !boxIdsToRemove.exists(_.data sameElements bi)).flatten)
+    val boxIdsToRemove = (changes.boxIdsToRemove -- newBoxes.map(_._1.data)).map(ByteArrayWrapper.apply)
+    val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(
+      newBoxes.filter(b => !boxIds.exists(b._1.data sameElements _)).toArray.flatMap(_._1.data) ++
+      boxIds.filter(bi => {
+        !boxIdsToRemove.exists(_.data sameElements bi)
+      }).flatten
+    )
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
     BWallet(secrets, store, defaultKeyDir)
