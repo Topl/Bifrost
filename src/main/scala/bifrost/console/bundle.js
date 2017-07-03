@@ -226,8 +226,7 @@ __webpack_require__(6);
 
 var getBlock = function getBlock() {
 
-    console.log('Forming request');
-	var request = new Request('http://localhost:9086/nodeView/persistentModifier/HqQPBS9NVjojpLMrwPgmfnncXnVqXyzBN3tzR3kqK2rf', {
+	var request = new Request('http://localhost:9585/nodeView/persistentModifier/4T1pzTxGk7YGHbsgpkT5Xpub4XwBrwDzpojiiXWg67Pj', {
 		method: 'GET',
 		mode: 'cors',
 		redirect: 'follow',
@@ -236,18 +235,13 @@ var getBlock = function getBlock() {
 		})
 	});
 
-    print('Moving on to fetch...');
-
 	// curl -X POST --data '{"jsonrpc":"2.0","method":"topl_getBlock","params":["2xrGdJTBtjZE2RWhBSzGoRwXn4gQ7DkGM5UkymJJk57y"],"id":0}'
 	return fetch(request).then(function (response) {
-		print('Starting first then');
 		return response.json();
 	}).then(function (jsonData) {
-		console.log('Successful fetch request.');
-		console.log(JSON.stringify(jsonData));
 		return jsonData;
 	}).catch(function (err) {
-		console.log("Something went wrong!!!", err);
+        return err;
 	});
 };
 

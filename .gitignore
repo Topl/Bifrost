@@ -6,6 +6,7 @@ scorex.yaml
 
 # scala build folders
 target
+classes
 
 # dotfiles
 .dockerignore
