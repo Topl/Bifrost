@@ -296,7 +296,10 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override type M = ContractMethodExecution
 
-  lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+  lazy val contract: Contract = {
+    val timeUpdatedContract: Map[String, Json] = contractBox.json.asObject.get.apply("value").get.asObject.get.toMap + ("lastUpdated" -> timestamp.asJson)
+    Contract(timeUpdatedContract.asJson, contractBox.id)
+  }
 
   lazy val proposition = MofNProposition(1,
     Set(
