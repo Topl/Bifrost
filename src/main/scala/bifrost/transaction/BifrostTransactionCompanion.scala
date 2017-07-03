@@ -10,11 +10,13 @@ import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
 import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import io.circe.parser._
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+
 import scala.util.Try
 
 object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
@@ -76,8 +78,8 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(_.pubKeyBytes).toSeq.zipWithIndex
-    val keyMapping: Map[Array[Byte], Int] = keySeq.toMap
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(v => ByteArrayWrapper(v.pubKeyBytes)).toSeq.zipWithIndex
+    val keyMapping: Map[ByteArrayWrapper, Int] = keySeq.toMap
 
     Bytes.concat(
       Longs.toByteArray(m.timestamp),
@@ -86,16 +88,17 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       Ints.toByteArray(m.preFeeBoxes.size),
       Ints.toByteArray(m.fees.size),
       Ints.toByteArray(keyMapping.size),
-      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1),
-      m.parties.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._2.pubKeyBytes)) ++ (b._1 match {
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1.data),
+      m.parties.foldLeft(Array[Byte]())((a, b) => {
+        a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._2.pubKeyBytes))) ++ (b._1 match {
         case Role.Producer => Ints.toByteArray(0)
         case Role.Investor => Ints.toByteArray(1)
         case Role.Hub => Ints.toByteArray(2)
-      })),
-      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ b._2.bytes),
-      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Ints.toByteArray(b._2.length) ++
+      })}),
+      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ b._2.bytes),
+      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ Ints.toByteArray(b._2.length) ++
         b._2.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2))),
-      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1.pubKeyBytes)) ++ Longs.toByteArray(b._2))
+      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ Longs.toByteArray(b._2))
     )
   }
 

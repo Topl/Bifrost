@@ -69,13 +69,6 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes)).toSet
   }
 
-//  var secrets: Set[S] = {
-//    store.get(SecretsKey)
-//      .map(_.data.grouped(64).map(b => PrivateKey25519Serializer.parseBytes(b).get).toSet)
-//      .getOrElse(Set.empty[PrivateKey25519])
-//    //Set[S]()
-//  }
-
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath)).filter(k =>
       k.pubKeyBytes sameElements Base58.decode(publicKeyString).get
@@ -114,6 +107,11 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     privKey.publicImage
   }
 
+  def inWallet(publicImage: PI): Boolean = publicImage match {
+    case p: PublicKey25519Proposition => publicKeys.contains(p)
+    case mn: MofNProposition => publicKeys.exists(p => mn.setOfPubKeyBytes.exists(p == PublicKey25519Proposition(_)))
+  }
+
   //we do not process offchain (e.g. by adding them to the wallet)
   override def scanOffchain(tx: BifrostTransaction): BWallet = this
 
@@ -123,7 +121,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
-    val newBoxes = changes.toAppend.filter(s => publicKeys.contains(s.publicKey)).map { box =>
+    val newBoxes = changes.toAppend.filter(s => inWallet(s.proposition)).map { box =>
       val boxTransaction = modifier.transactions.getOrElse(Seq())
         .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
       val txId = boxTransaction.map(_.id).getOrElse(Array.fill(32)(0: Byte))
