@@ -55,7 +55,7 @@ class Contract(val Producer: PublicKey25519Proposition,
       ).asJson
     )
 
-    new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id)
+    new Contract(Producer, Hub, Investor, newStorage, agreement, lastUpdated, id)
   }
 
   /**
@@ -120,7 +120,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, lastUpdated, id))
   }
 
   /**
@@ -163,7 +163,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     val newStorage = storage.add("currentFulfillment", newFulfillmentJsonObj.asJson)
 
-    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id))
+    Success(new Contract(Producer, Hub, Investor, newStorage, agreement, lastUpdated, id))
   }
 
   /**
@@ -183,7 +183,7 @@ class Contract(val Producer: PublicKey25519Proposition,
 
     else {
       val newStorage = storage.add("status", Status.EXPIRED.asJson)
-      new Contract(Producer, Hub, Investor, newStorage, agreement, System.currentTimeMillis(), id)
+      new Contract(Producer, Hub, Investor, newStorage, agreement, lastUpdated, id)
     }
 
   }

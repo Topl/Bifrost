@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.Agreement
+import bifrost.contract.{Agreement, Contract}
 import bifrost.contract.Contract.Status
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
@@ -20,7 +20,7 @@ import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import io.circe.syntax._
 
-import scala.util.{Failure, Random}
+import scala.util.{Failure, Random, Success}
 
 /**
   * Created by Matt Kindy on 6/7/2017.
@@ -95,7 +95,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     )
   }
 
-  property("A block with valid CME will result in a contract entry and updated poly boxes in the LSMStore") {
+  property("A block with valid CME will result in a correct contract entry and updated poly boxes in the LSMStore") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -129,19 +129,33 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           case None => false
         })
 
+        cme.newBoxes.head shouldBe a[ContractBox]
+        val contractJson = cme.newBoxes.head.asInstanceOf[ContractBox].json
+
+        val newContractTimestamp = contractJson.asObject.get.apply("value").get.asObject.get("lastUpdated").get.as[Long].right.get
+        val oldContractTimestamp = cme.contractBox.json.asObject.get.apply("value").get.asObject.get("lastUpdated").get.as[Long].right.get
+
+        Contract.execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._2)(cme.parameters.asObject.get) match {
+          case Success(res) => res match {
+            case Left(_) => newContractTimestamp shouldBe cme.timestamp
+            case Right(_) => newContractTimestamp shouldBe oldContractTimestamp
+          }
+          case Failure(_) => newContractTimestamp shouldBe oldContractTimestamp
+        }
+
         require(deductedFeeBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
           case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
           case None => false
         }))
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
-        require(deductedFeeBoxes.map(_.value).sum == preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cme.fee)
+        deductedFeeBoxes.map(_.value).sum shouldEqual preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cme.fee
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        require(cme.fees.forall(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum == cme.preFeeBoxes(p._1).map(_._2).sum - cme.fees(p._1)))
+        cme.fees.foreach(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum shouldEqual cme.preFeeBoxes(p._1).map(_._2).sum - cme.fees(p._1))
 
         /* Expect none of the prexisting boxes to still be around */
-        require(preExistingPolyBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
+        preExistingPolyBoxes.foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
         BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
 
