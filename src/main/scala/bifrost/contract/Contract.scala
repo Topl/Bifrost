@@ -101,7 +101,7 @@ class Contract(val Producer: PublicKey25519Proposition,
         (pendingDeliveriesJson.asArray.get :+
           Map(
             "quantity" -> quantity.asJson,
-            "timestamp" -> Instant.now.toEpochMilli.asJson
+            "timestamp" -> lastUpdated.asJson
           ).asJson
         ).asJson.noSpaces.getBytes
       )
@@ -112,7 +112,7 @@ class Contract(val Producer: PublicKey25519Proposition,
       (pendingDeliveriesJson.asArray.get :+
         Map(
           "quantity" -> quantity.asJson,
-          "timestamp" -> Instant.now.toEpochMilli.asJson,
+          "timestamp" -> lastUpdated.asJson,
           "id" -> pdId.asJson
         ).asJson
       ).asJson
