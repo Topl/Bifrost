@@ -139,7 +139,7 @@ public class BifrostConsole {
                                     if(updatedResult != null) {
                                         deferred.complete(checkResult(updatedResult).get());
                                     } else {
-                                        Thread.sleep(50);
+                                        Thread.sleep(250);
                                         System.out.print("...");
                                         run();
                                     }
