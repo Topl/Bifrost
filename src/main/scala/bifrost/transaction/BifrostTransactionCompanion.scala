@@ -584,6 +584,34 @@ object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSeria
   }
 }
 
+object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSerializer {
+
+  override def toBytes(at: AssetTransfer): Array[Byte] = {
+    TransferTransactionCompanion.prefixBytes ++ toChildBytes(at)
+  }
+
+  def toChildBytes(at: AssetTransfer): Array[Byte] = {
+    transferToBytes(at, "ArbitTransfer") ++
+      at.hub.pubKeyBytes ++
+      at.assetCode.getBytes ++
+      Ints.toByteArray(at.assetCode.getBytes.length)
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[AssetTransfer] = Try {
+    val params = parametersParseBytes(bytes)
+
+    val assetCodeLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val assetCode: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen, bytes.length - Ints.BYTES)
+    )
+    val hub: PublicKey25519Proposition = PublicKey25519Proposition(
+      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Constants25519.PubKeyLength, bytes.length - Ints.BYTES - assetCodeLen)
+    )
+
+    AssetTransfer(params._1, params._2, params._3, hub, assetCode, params._4, params._5)
+  }
+}
+
 object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSerializer {
 
   override def toBytes(ac: ArbitTransfer): Array[Byte] = {
@@ -599,7 +627,6 @@ object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSer
     ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
   }
 }
-
 
 object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
   override def toBytes(ac: AssetRedemption): Array[Byte] = {
