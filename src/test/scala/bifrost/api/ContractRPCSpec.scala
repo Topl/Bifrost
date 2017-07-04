@@ -139,7 +139,6 @@ class ContractRPCSpec extends WordSpec
       }
     }
 
-
     "Get the role after declaration" in {
       val requestBody = ByteString("""
        |{

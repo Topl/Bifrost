@@ -75,22 +75,25 @@ class ContractTransactionSpec extends PropSpec
       prop -> available
     }
 
+    val roles = IndexedSeq(Role.Investor, Role.Producer, Role.Hub)
+
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
+      roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
     )
 
-    val signatures = allKeyPairs.map(
+    val signatures = allKeyPairs.map {
       keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
+        val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
+        (keypair._2, sig)
+    }
 
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
-      parties.zip(signatures).toMap,
+      roles.zip(parties).toMap,
+      signatures.toMap,
       feePreBoxes,
       fees,
       timestamp
@@ -234,7 +237,7 @@ class ContractTransactionSpec extends PropSpec
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
-        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+        roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
         boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
         Longs.toByteArray(contract.lastUpdated) ++
         fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))

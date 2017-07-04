@@ -49,7 +49,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.values.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
+      parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
     )
 

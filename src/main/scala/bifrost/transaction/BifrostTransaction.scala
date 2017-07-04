@@ -6,7 +6,7 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericBoxTransaction
-import bifrost.transaction.ContractTransaction.Nonce
+import bifrost.transaction.ContractTransaction.{Nonce, stringToPubKey, stringToSignature}
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
@@ -76,8 +76,8 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
     "feePreBoxes" -> preFeeBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
       Base58.encode(prop.pubKeyBytes) -> preBoxes.map(pb =>
         Map(
-          "nonce" -> pb._1.asJson,
-          "value" -> pb._2.asJson
+          "nonce" -> pb._1.toString.asJson,
+          "value" -> pb._2.toString.asJson
         ).asJson
       )
     }.asJson,
@@ -247,7 +247,7 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
-    parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+    parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
     unlockers.toArray.flatMap(_.closedBoxId)
   )
 
@@ -324,7 +324,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       methodName.getBytes ++
-      parties.flatMap(_._2.pubKeyBytes) ++
+      parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       parameters.noSpaces.getBytes ++
       unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++
@@ -435,7 +435,7 @@ case class ContractCompletion(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
+      parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
@@ -480,9 +480,11 @@ case class ContractCompletion(contractBox: ContractBox,
     val hubProfitShare = (shares._2*profitAmount).toLong
     val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
 
+    val producerAsset = AssetBox(contract.Producer, assetNonce(contract.Producer), producerProfitShare, assetCode, contract.Hub)
+
     Seq(
       producerRep,
-      AssetBox(contract.Producer, assetNonce(contract.Producer), producerProfitShare, assetCode, contract.Hub),
+      producerAsset,
       AssetBox(contract.Hub, assetNonce(contract.Hub), hubProfitShare, assetCode, contract.Hub),
       AssetBox(contract.Investor, assetNonce(contract.Investor), investorAmount + investorProfitShare, assetCode, contract.Hub)
     ) ++ deductedFeeBoxes(hashNoNonces)
@@ -565,13 +567,13 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     "from" -> from.map { s =>
       Map(
         "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.asJson
+        "nonce" -> s._2.toString.asJson
       ).asJson
     }.asJson,
     "to" -> to.map { s =>
       Map(
         "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.asJson
+        "value" -> s._2.toString.asJson
       ).asJson
     }.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
@@ -879,12 +881,19 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     "availableToRedeem" -> availableToRedeem.map { case (assetCode: String, preBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce)]) =>
       assetCode -> preBoxes.map(pb =>
         Map(
-          "proposition" -> pb._1.asJson,
-          "nonce" -> pb._2.asJson
+          "proposition" -> Base58.encode(pb._1.pubKeyBytes).asJson,
+          "nonce" -> pb._2.toString.asJson
         ).asJson
       )
     }.asJson,
-    "remainderAllocations" -> remainderAllocations.map(_.asJson).asJson,
+    "remainderAllocations" -> remainderAllocations.map { case (assetCode: String, afterBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce)]) =>
+      assetCode -> afterBoxes.map(ab =>
+        Map(
+          "proposition" -> Base58.encode(ab._1.pubKeyBytes).asJson,
+          "nonce" -> ab._2.toString.asJson
+        ).asJson
+      )
+    }.asJson,
     "signatures" -> signatures.map { case (assetCode: String, signatures: IndexedSeq[Signature25519]) =>
       assetCode -> signatures.map(s => Base58.encode(s.signature).asJson).asJson
     }.asJson,
@@ -915,5 +924,34 @@ object AssetRedemption {
 
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
+  }
+
+  implicit val decodeAssetRedemption: Decoder[AssetRedemption] = (c: HCursor) => for {
+    availableToRedeemRaw <- c.downField("availableToRedeem").as[Map[String, IndexedSeq[(String, Long)]]]
+    remainderAllocationsRaw <- c.downField("remainderAllocations").as[Map[String, IndexedSeq[(String, Long)]]]
+    signaturesRaw <- c.downField("signatures").as[Map[String, IndexedSeq[String]]]
+    hubRaw <- c.downField("hub").as[String]
+    fee <- c.downField("fee").as[Long]
+    timestamp <- c.downField("timestamp").as[Long]
+  } yield {
+    def convertToProp(value: IndexedSeq[(String, Long)]) = value.map {
+      case (pubKeyString, nonce) =>
+        (stringToPubKey(pubKeyString), nonce)
+    }
+
+    val availableToRedeem = availableToRedeemRaw.map { case (key, value) => (key, convertToProp(value)) }
+    val remainderAllocations = remainderAllocationsRaw.map { case (key, value) => (key, convertToProp(value)) }
+    val signatures = signaturesRaw.map {case (key, values) =>
+      val newValues = values.map( value =>
+        if (value == "") {
+          Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))
+        } else {
+          stringToSignature(value)
+        }
+      )
+      (key, newValues)
+    }
+    val hub = PublicKey25519Proposition(Base58.decode(hubRaw).get)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
   }
 }

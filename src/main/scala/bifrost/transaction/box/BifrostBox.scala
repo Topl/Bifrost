@@ -122,9 +122,9 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
-    "value" -> value.asJson,
+    "value" -> value.toString.asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "nonce" -> nonce.asJson
+    "nonce" -> nonce.toString.asJson
   ).asJson
 }
 
@@ -167,7 +167,7 @@ case class ContractBox(proposition: MofNProposition,
     "id" -> Base58.encode(id).asJson,
     "proposition" -> proposition.setOfPubKeyBytes.toList.map(Base58.encode).sorted.map(_.asJson).asJson,
     "value" -> value.asJson,
-    "nonce" -> nonce.asJson
+    "nonce" -> nonce.toString.asJson
   ).asJson
 
 }
@@ -316,7 +316,7 @@ case class ReputationBox(override val proposition: PublicKey25519Proposition,
     "type" -> "Reputation".asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
-    "nonce" -> nonce.asJson
+    "nonce" -> nonce.toString.asJson
   ).asJson
 }
 

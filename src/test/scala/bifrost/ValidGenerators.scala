@@ -57,6 +57,7 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+    val roles = List(Role.Investor, Role.Producer, Role.Hub)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
       positiveLongGen.sample.get -> (positiveLongGen.sample.get/1e5.toLong + 1L)
@@ -93,20 +94,21 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes),
+      roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
     )
 
-    val signatures = allKeyPairs.map(
+    val signatures = allKeyPairs.map{
       keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
+        val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
+        (keypair._2, sig)
+    }
 
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      IndexedSeq(Role.Investor, Role.Producer, Role.Hub).zip(parties).toMap,
-      parties.zip(signatures).toMap,
+      roles.zip(parties).toMap,
+      signatures.toMap,
       feePreBoxes,
       fees,
       timestamp
@@ -260,22 +262,23 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
-        parties.foldLeft(Array[Byte]())((a, b) => a ++ b.pubKeyBytes) ++
+        roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
         boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
         Longs.toByteArray(contract.lastUpdated) ++
         fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
 
-    val signatures = allKeyPairs.map(
+    val signatures = allKeyPairs.map{
       keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
+        val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
+        (keypair._2, sig)
+    }
 
     ContractCompletion(
       contractBox,
       reputation,
       roles.zip(parties).toMap,
-      parties.zip(signatures).toMap,
+      signatures.toMap,
       feePreBoxes,
       fees,
       timestamp

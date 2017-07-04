@@ -26,8 +26,8 @@ abstract class BifrostPublic25519NoncedBox(override val proposition: PublicKey25
     "id" -> Base58.encode(id).asJson,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "value" -> value.asJson,
-    "nonce" -> nonce.asJson
+    "value" -> value.toString.asJson,
+    "nonce" -> nonce.toString.asJson
   ).asJson
 
 }
