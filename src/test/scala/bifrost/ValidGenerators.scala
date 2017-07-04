@@ -304,11 +304,27 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
   } yield {
     val fromKeyPairs = keyPairSetGen.sample.get.head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
     val toKeyPairs = keyPairSetGen.sample.get.head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     ArbitTransfer(from, to, fee, timestamp)
+  }
+
+  lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    hub <- propositionGen
+    assetCode <- stringGen
+  } yield {
+    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
+    val toKeyPairs = keyPairSetGen.sample.get.head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+
+    AssetTransfer(from, to, hub, assetCode, fee, timestamp)
   }
 
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {

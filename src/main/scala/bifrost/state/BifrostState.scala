@@ -229,12 +229,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
       boxesSumTry flatMap { openSum =>
         if (asT.newBoxes.map {
-          case p: PolyBox => p.value
+          case a: AssetBox => a.value
           case _ => 0L
-        }.sum == openSum - asT.fee) {
+        }.sum <= openSum) {
           Success[Unit](Unit)
         } else {
-          Failure(new Exception("Negative fee"))
+          Failure(new Exception("Not enough assets"))
         }
       }
 
