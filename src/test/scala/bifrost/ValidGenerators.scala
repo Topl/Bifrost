@@ -5,8 +5,7 @@ import java.time.Instant
 import bifrost.contract.Contract.Status
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
-import bifrost.transaction.ContractTransaction.Nonce
-import bifrost.transaction.PolyTransfer.Nonce
+import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
@@ -307,11 +306,27 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
   } yield {
     val fromKeyPairs = keyPairSetGen.sample.get.head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
     val toKeyPairs = keyPairSetGen.sample.get.head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     ArbitTransfer(from, to, fee, timestamp)
+  }
+
+  lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    hub <- propositionGen
+    assetCode <- stringGen
+  } yield {
+    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
+    val toKeyPairs = keyPairSetGen.sample.get.head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+
+    AssetTransfer(from, to, hub, assetCode, fee, timestamp)
   }
 
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {

@@ -112,6 +112,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     transaction match {
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
+      case asT: AssetTransfer => validateAssetTransfer(asT)
       case cc: ContractCreation => validateContractCreation(cc)
       case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
@@ -202,6 +203,44 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     statefulValid.flatMap(_ => semanticValidity(arT))
+  }
+
+  def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+
+      val boxesSumTry: Try[Long] = {
+        asT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+
+          partialRes.flatMap(partialSum =>
+            /* Checks if unlocker is valid and if so adds to current running total */
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: AssetBox) =>
+                if (unlocker.boxKey.isValid(box.proposition, asT.messageToSign) && (box.hub equals asT.hub) && (box.assetCode equals asT.assetCode)) {
+                  Success(partialSum + box.value)
+                } else {
+                  Failure(new Exception("Incorrect unlocker"))
+                }
+              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+            }
+          )
+
+        )
+      }
+
+      boxesSumTry flatMap { openSum =>
+        if (asT.newBoxes.map {
+          case a: AssetBox => a.value
+          case _ => 0L
+        }.sum <= openSum) {
+          Success[Unit](Unit)
+        } else {
+          Failure(new Exception("Not enough assets"))
+        }
+      }
+
+    }
+
+    statefulValid.flatMap(_ => semanticValidity(asT))
   }
 
   /**
@@ -598,6 +637,7 @@ object BifrostState {
     tx match {
       case poT: PolyTransfer => PolyTransfer.validate(poT)
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
+      case asT: AssetTransfer => AssetTransfer.validate(asT)
       case cc: ContractCreation => ContractCreation.validate(cc)
       case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
@@ -615,16 +655,7 @@ object BifrostState {
       val gen = mod.forgerBox.proposition
 
       val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
-        case Some(txSeq) => txSeq.map {
-          // (rm, add, fee)
-          case sc: PolyTransfer => (sc.boxIdsToOpen.toSet, sc.newBoxes.toSet, sc.fee)
-          case at: ArbitTransfer => (at.boxIdsToOpen.toSet, at.newBoxes.toSet, at.fee)
-          case cc: ContractCreation => (cc.boxIdsToOpen.toSet, cc.newBoxes.toSet, cc.fee)
-          case cme: ContractMethodExecution => (cme.boxIdsToOpen.toSet, cme.newBoxes.toSet, cme.fee)
-          case ccomp: ContractCompletion => (ccomp.boxIdsToOpen.toSet, ccomp.newBoxes.toSet, ccomp.fee)
-          case pt: ProfileTransaction => (pt.boxIdsToOpen.toSet, pt.newBoxes.toSet, pt.fee)
-          case ar: AssetRedemption => (ar.boxIdsToOpen.toSet, ar.newBoxes.toSet, ar.fee)
-        }
+        case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
       }
 
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
@@ -632,7 +663,7 @@ object BifrostState {
           (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3 )
         })
 
-      val rewardNonce = Longs.fromByteArray(mod.id.take(8))
+      val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
 
       var finalToAdd = toAdd
       if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)

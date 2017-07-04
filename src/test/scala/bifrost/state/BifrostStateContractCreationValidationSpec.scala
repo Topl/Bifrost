@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.PolyTransfer.Nonce
+import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.{AgreementCompanion, ContractCreation, Role}
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints, Longs}

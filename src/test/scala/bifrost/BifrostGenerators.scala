@@ -7,7 +7,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
-import bifrost.transaction.ContractTransaction.Nonce
+import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
@@ -331,12 +331,12 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
 
-  lazy val fromGen: Gen[(PublicKey25519Proposition, PolyTransfer.Nonce)] = for {
+  lazy val fromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
   } yield (proposition, nonce)
 
-  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, PolyTransfer.Nonce)]] = for {
+  lazy val fromSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, Nonce)]] = for {
     seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { _ => fromGen.sample.get }
 
@@ -345,7 +345,7 @@ trait BifrostGenerators extends CoreGenerators {
     value <- positiveLongGen
   } yield (proposition, value)
 
-  lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, PolyTransfer.Value)]] = for {
+  lazy val toSeqGen: Gen[IndexedSeq[(PublicKey25519Proposition, Value)]] = for {
     seqLen <- positiveTinyIntGen
   } yield (0 until seqLen) map { _ => toGen.sample.get }
 
@@ -368,6 +368,16 @@ trait BifrostGenerators extends CoreGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield ArbitTransfer(from, to, signatures, fee, timestamp)
+
+  lazy val assetTransferGen: Gen[AssetTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    signatures <- sigSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    hub <- propositionGen
+    assetCode <- stringGen
+  } yield AssetTransfer(from, to, signatures, hub, assetCode, fee, timestamp)
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen

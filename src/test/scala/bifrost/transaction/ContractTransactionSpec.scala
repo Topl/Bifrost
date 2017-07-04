@@ -5,7 +5,7 @@ package bifrost.transaction
   */
 import bifrost.contract.{Agreement, Contract}
 import bifrost.contract.Contract.Status
-import bifrost.transaction.ContractTransaction.Nonce
+import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.ReputationBox
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
