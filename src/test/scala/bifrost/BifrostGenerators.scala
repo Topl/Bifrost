@@ -369,6 +369,16 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield ArbitTransfer(from, to, signatures, fee, timestamp)
 
+  lazy val assetTransferGen: Gen[AssetTransfer] = for {
+    from <- fromSeqGen
+    to <- toSeqGen
+    signatures <- sigSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    hub <- propositionGen
+    assetCode <- stringGen
+  } yield AssetTransfer(from, to, signatures, hub, assetCode, fee, timestamp)
+
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {
     n <- positiveTinyIntGen
   } yield {

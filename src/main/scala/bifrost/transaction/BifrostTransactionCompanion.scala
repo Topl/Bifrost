@@ -189,6 +189,7 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
       (m match {
         case sc: PolyTransfer => PolyTransferCompanion.toChildBytes(sc)
         case ac: ArbitTransfer => ArbitTransferCompanion.toChildBytes(ac)
+        case at: AssetTransfer => AssetTransferCompanion.toChildBytes(at)
       })
   }
 
@@ -203,8 +204,9 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
     val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 
     newTypeStr match {
-      case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
-      case "ArbitTransfer" => ArbitTransferCompanion.parseBytes(newBytes).get.asInstanceOf[TransferTransaction]
+      case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get
+      case "ArbitTransfer" => ArbitTransferCompanion.parseBytes(newBytes).get
+      case "AssetTransfer" => AssetTransferCompanion.parseBytes(newBytes).get
     }
   }
 }
@@ -591,7 +593,7 @@ object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSer
   }
 
   def toChildBytes(at: AssetTransfer): Array[Byte] = {
-    transferToBytes(at, "ArbitTransfer") ++
+    transferToBytes(at, "AssetTransfer") ++
       at.hub.pubKeyBytes ++
       at.assetCode.getBytes ++
       Ints.toByteArray(at.assetCode.getBytes.length)
