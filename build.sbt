@@ -61,12 +61,16 @@ libraryDependencies ++= Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
-// https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
-libraryDependencies += "org.apache.httpcomponents" % "httpclient" % "4.5.3"
-// https://mvnrepository.com/artifact/org.apache.httpcomponents/httpasyncclient
-libraryDependencies += "org.apache.httpcomponents" % "httpasyncclient" % "4.1.3"
-// https://mvnrepository.com/artifact/org.apache.commons/commons-pool2
-libraryDependencies += "org.apache.commons" % "commons-pool2" % "2.4.2"
+val consoleDependencies = Seq(
+  // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
+  "org.apache.httpcomponents" % "httpclient" % "4.5.3",
+  // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpasyncclient
+  "org.apache.httpcomponents" % "httpasyncclient" % "4.1.3",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-pool2
+  "org.apache.commons" % "commons-pool2" % "2.4.2"
+)
+
+libraryDependencies ++= consoleDependencies
 
 
 libraryDependencies  ++= Seq(

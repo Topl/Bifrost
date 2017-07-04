@@ -16,10 +16,15 @@ import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ScriptFunction;
+import jdk.nashorn.internal.runtime.ScriptObject;
 
 import javax.script.*;
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -27,6 +32,8 @@ public class BifrostConsole {
 
     //TODO check if it even needs to be created by a factory
     private static final NashornScriptEngine nashornEngine;
+    private static ScriptObjectMirror json = null;
+
 
     static {
         NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
@@ -35,8 +42,6 @@ public class BifrostConsole {
 
     private static ScheduledExecutorService globalScheduledThreadPool = Executors.newScheduledThreadPool(20);
 
-
-
     public static void main(String[] args) throws ScriptException, FileNotFoundException {
         ScriptContext context = nashornEngine.getContext();
         context.setBindings(nashornEngine.createBindings(), ScriptContext.ENGINE_SCOPE);
@@ -44,47 +49,118 @@ public class BifrostConsole {
 
         Bindings bindings = nashornEngine.getBindings(ScriptContext.ENGINE_SCOPE);
 
-        for(Map.Entry me : bindings.entrySet()) {
-            System.out.printf("%s: %s\n",me.getKey(),String.valueOf(me.getValue()));
+        try {
+            nashornEngine.eval("this.stringify = function(obj, prop) {" +
+                    "  var placeholder = '____PLACEHOLDER____';" +
+                    "  var fns = [];" +
+                    "  var json = JSON.stringify(obj, function(key, value) {" +
+                    "    if (typeof value === 'function') {" +
+                    "      fns.push(value);" +
+                    "      return placeholder;" +
+                    "    }" +
+                    "    return value;" +
+                    "  }, 2);" +
+                    "  json = json.replace(new RegExp('\"' + placeholder + '\"', 'g'), function(_) {" +
+                    "    var strSig = (fns.shift()+''); " +
+                    "    return strSig.substring(0, strSig.indexOf('{')) + '{...}';" +
+                    "  });" +
+                    "  return '' + json + ';';" +
+                    "};");
+            json = (ScriptObjectMirror) nashornEngine.eval("this");
+
+        } catch (ScriptException e) {
+            e.printStackTrace();
         }
 
         try {
             context.setAttribute("Bifrost", nashornEngine.eval(new FileReader("src/main/scala/bifrost/console/bundle.js")), ScriptContext.ENGINE_SCOPE);
 
-            bindings = nashornEngine.getBindings(ScriptContext.ENGINE_SCOPE);
-
-           for(Map.Entry me : bindings.entrySet()) {
-                System.out.printf("%s: %s\n",me.getKey(),String.valueOf(me.getValue()));
-           }
         } catch(ScriptException|FileNotFoundException e) {
             e.printStackTrace();
         }
 
         Invocable invocable = nashornEngine;
 
-        Scanner scan = new Scanner(System.in);
+        promptForInput();
+    }
+
+    private static void promptForInput() {
         String input = "";
+        Scanner scan = new Scanner(System.in);
+
         do {
-            System.out.print("\nTopl > ");
+            System.out.print("Topl > ");
 
             // reads in a line of input, then evaluates as javascript
             input = scan.nextLine();
-            try {
-                Object result = nashornEngine.eval(input);
 
-                int i = 0;
 
-                if (result == null) {
-                    nashornEngine.eval("global.nashornEventLoop.process();");
+            if (!input.equals("exit")) {
+                try {
+                    ScriptObjectMirror result = (ScriptObjectMirror) nashornEngine.eval(input);
+
+                    try {
+                        System.out.println("\n" + json.callMember("stringify", checkResult(result).get()));
+                    } catch (Exception ignored) { }
+
+                } catch (Exception e) {
+                    System.err.println("There was a problem with that command.");
                 }
-
-            } catch(ScriptException e) {
-               e.printStackTrace();
             }
-        } while(!input.equals("exit"));
+
+        } while (!input.equals("exit"));
+
     }
 
-    //var b = new Bifrost()
-    //var test = b.getBlock()
-    //var thisWorks = test.then(function(resolve, reject) { console.log(JSON.stringify(resolve)); console.log("In 'thisworks'"); });
+    private static Future<JSObject> checkResult(JSObject result) {
+
+        CompletableFuture deferred = new CompletableFuture();
+
+        if (result != null) {
+
+            if (result.keySet().contains("then")) {
+                System.out.println("Waiting for asynchronous call...");
+
+                new java.util.Timer().schedule(
+                        new java.util.TimerTask() {
+                            @Override
+                            public void run() {
+                                try {
+                                    nashornEngine.eval("global.nashornEventLoop.process();");
+
+                                    JSObject checkThen = (JSObject) nashornEngine.eval("function(response) { return response; }");
+                                    ScriptObjectMirror scriptResult = (ScriptObjectMirror)result;
+                                    ((ScriptObjectMirror)scriptResult.get("then")).call(result, checkThen, checkThen);
+
+
+                                    Integer updatedState = (Integer)scriptResult.get("_state");
+                                    JSObject updatedResult = (JSObject) scriptResult.get("_result");
+
+                                    if(updatedResult != null) {
+                                        deferred.complete(checkResult(updatedResult).get());
+                                    } else {
+                                        Thread.sleep(250);
+                                        System.out.print("...");
+                                        run();
+                                    }
+
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    System.err.println("Problem processing");
+                                    deferred.completeExceptionally(e);
+                                }
+                            }
+                        },
+                        250
+                );
+            } else {
+                deferred.complete(result);
+            }
+        } else {
+            deferred.cancel(false);
+        }
+
+        return deferred;
+    }
+
 }
