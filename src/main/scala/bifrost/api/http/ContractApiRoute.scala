@@ -11,7 +11,6 @@ import bifrost.transaction.ContractCreation._
 import bifrost.scorexMod.{GenericBox, GenericBoxTransaction, GenericNodeViewHolder}
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
-import bifrost.transaction.ContractTransaction.Nonce
 import bifrost.transaction._
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import bifrost.wallet.BWallet
