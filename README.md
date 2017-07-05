@@ -11,23 +11,22 @@ Project Bifrost is a Scala client designed over a cryptocurrency/blockchain prot
 - Develop a reputation system and historical reference of business behaviour
 
 
-
 Whitepaper
 ----------
-[Here it is](https://topl.co/whitepaper)
+The latest version of the Topl whitepaper can be found [here](https://topl.co/whitepaper).
 
 
 Documentation
 -------------
-[Ongoing documentation](https://www.overleaf.com/read/cwggvsyvptjv) (in development)
-
 [Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/yellowpaper) (in development)
 
+[Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
 
 
 Installation
 -------------------
 Check out our [Installation Instructions](https://github.com/Topl/Project-Bifrost/wiki/Installation-Instructions-For-Linux)
+
 
 Testing
 -------
@@ -45,22 +44,25 @@ NOTE: Using sbt to run tests using the Windows command line may error. Either us
 Contributions
 -------------
 
-We appreciate your interest in this project! We welcome contributions.
+We appreciate your interest in this project and welcome contributions!
 
-If you'd like to contribute to Project Bifrost, please fork, fix, commit and send a pull request so that we can review your code and merge it when it is complete. For more complex changes, please contact us on our gitter or slack to ensure those changes are reasonable and/or get some early feedback to expedite the review and merge process.
+If you'd like to contribute to Project Bifrost, please fork, fix, commit and send a pull request so that we can review your code and merge it when it is complete. For more complex changes, please contact us via Gitter or Slack to ensure those changes are reasonable and/or get some early feedback to expedite the review and merge process.
 
-Please take a look into open [issues](https://github.com/Topl/Project-Bifrost/issues)!
+**Please read our [Contributing Guide](https://github.com/Topl/Project-Bifrost/blob/master/CONTRIBUTING.md) for more information before submitting any pull requests, as the submission of any content to Topl's repositories constitutes your understanding of and agreement to our Contributor License Agreement and Code of Conduct.**
 
-- [Go to Gitter](https://gitter.im/topl/main)
+To keep up with our development
 
-- [Join Slack](https://slackin-inviter.herokuapp.com)
+- View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-- Watch active development on [our Floobit](https://floobits.com/mpk2/Project-Bifrost)
+- Go to [Gitter](https://gitter.im/topl/main)
 
-For more details, please refer to our [Contributing Guides](https://github.com/Topl/Project-Bifrost/blob/master/CONTRIBUTING.MD)
+- Join our [Slack group](https://slackin-inviter.herokuapp.com)
+
+- Watch active development on [ Floobit](https://floobits.com/mpk2/Project-Bifrost)
+
 
 License
 -------
 Project Bifrost is licensed under the
-[GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html), also included
+[Open Software License v. 3.0 (OSL-3.0)](https://opensource.org/licenses/OSL-3.0), also included
 in our repository in the `LICENSE` file.
