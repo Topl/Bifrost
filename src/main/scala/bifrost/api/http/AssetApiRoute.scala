@@ -6,7 +6,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
-import bifrost.transaction.AssetRedemption
+import bifrost.transaction.{AssetRedemption, AssetTransfer}
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -30,9 +30,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
-  override val route: Route = pathPrefix("asset") {
-    assetRoute
-  }
+  override val route: Route = pathPrefix("asset") { assetRoute }
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>
@@ -50,6 +48,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
               require(params.size <= 5, s"size of params is ${params.size}")
               (json \\ "method").head.asString.get match {
                 case "redeemAssets" => redeemAssets(view, params.head, id).asJson
+                case "transferAssets" => transferAssets(view, params.head, id).asJson
               }
             } match {
               case Success(resp) => BifrostSuccessResponse(resp, reqId)
@@ -79,6 +78,19 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     }
     val tx = tempTx.copy(signatures = modifiedSignatures)
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetRedemption](tx)
+    tx.json
+  }
+
+  private def transferAssets(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String) = {
+    val wallet = view.vault
+
+    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+    val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+    val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+    val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
+    val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+    val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode).get
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
     tx.json
   }
 }
