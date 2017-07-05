@@ -1,11 +1,11 @@
 How to Contribute
 -----------------
 
-Thank you very much for considering contributing to Project Bifrost! It is people like you that make open-source projects happen.
+Thank you very much for considering contributing to Project Bifrost! It is people like you that make open-source projects happen. Currently, we are focusing on improving our testnet client. There will be invariably bugs and issues, but you can help regardless of what kind of development experience you have.
 
-Currently, we are focusing on releasing the first version of our testnet. There will be invariably bugs and issues, but you can help regardless of what kind of development experience you have. We would like to make your development experience as enjoyable as possible. However, it is imperative that you read and follow our [**Contributor Code of Conduct**](https://github.com/Topl/Project-Bifrost/blob/master/CODE_OF_CONDUCT.md).
+Before you begin however, please be sure to read our [Contributor License Agreement](https://github.com/Topl/Project-Bifrost/blob/master/CONTRIBUTING.md), as your submission of any code or content to any projects or repositories own, managed, or controlled by Topl constitutes your understanding of and agreement to the terms therein. Additionally, please read our [**Contributor Code of Conduct**](https://github.com/Topl/Project-Bifrost/blob/master/CODE_OF_CONDUCT.md). We want to ensure a healthy and collaborative environment here and will be enforcing these rules.
 
-**STOP RIGHT NOW AND READ THE CONTRIBUTOR CODE OF CONDUCT**
+**STOP RIGHT NOW AND READ THE CONTRIBUTOR LICENSE AGREEMENT AND CODE OF CONDUCT**
 
 Getting Started
 ---------------
@@ -50,5 +50,3 @@ Making Changes
       user centered design human-centered design physical computing venture capital workflow.
 
 * Submit a pull request to this repository.
-
-
