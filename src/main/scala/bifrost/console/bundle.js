@@ -1626,6 +1626,35 @@ Bifrost.prototype.completeContract = function (params) {
   });
 };
 
+//----------------------------------createKeyFile----------------------------------------------------------------------
+Bifrost.prototype.keyFile = function (password) {
+
+  var request = new Request('http://localhost:9585/wallet/keyfile/' + password, {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json'
+      //'Accept': 'application/json',
+    })
+    /*body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'keyFile',
+      'params': [{
+        'password': password
+      }],
+      'id': '0'
+    })*/
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
 module.exports = Bifrost;
 
 /***/ }),
