@@ -1,16 +1,19 @@
+import sbt.Keys.organization
+import sbtassembly.MergeStrategy
+
 name := "project-bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
-  organization := "org.scorexfoundation",
-  version := "2.0.0-M5-SNAPSHOT"
+  organization := "co.topl",
+  version := "0.1.0-alpha"
 )
 
 scalaVersion := "2.12.1"
-organization := "org.scorexfoundation"
-version := "2.0.0-M5-SNAPSHOT"
+organization := "co.topl"
+version := "0.1.0-alpha"
 
-resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
+mainClass in assembly := Some("bifrost.console.BifrostConsole")
 
 val circeVersion = "0.7+"
 
@@ -52,13 +55,12 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-optics" % circeVersion
 ) ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
-libraryDependencies += "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
-
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.+",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
-  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
+  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
 
 val consoleDependencies = Seq(
@@ -75,17 +77,7 @@ libraryDependencies ++= consoleDependencies
 
 libraryDependencies  ++= Seq(
   // Last snapshot
-  "org.scalanlp" %% "breeze" % "latest.integration",
-
-  // Native libraries are not included by default. add this if you want them (as of 0.7)
-  // Native libraries greatly improve performance, but increase jar sizes.
-  // It also packages various blas implementations, which have licenses that may or may not
-  // be compatible with the Apache License. No GPL code, as best I know.
-  "org.scalanlp" %% "breeze-natives" % "0.13",
-
-  // The visualization library is distributed separately as well.
-  // It depends on LGPL code.
-  "org.scalanlp" %% "breeze-viz" % "0.13"
+  "org.scalanlp" %% "breeze" % "latest.integration"
 )
 
 scalacOptions ++= Seq("-feature", "-deprecation")
@@ -102,21 +94,21 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-publishTo := {
-  val nexus = "https://oss.sonatype.org/"
-  if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
-  else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
-
 fork := true
 
 pomIncludeRepository := { _ => false }
 
-licenses := Seq("CC0" -> url("https://creativecommons.org/publicdomain/zero/1.0/legalcode"))
-
 homepage := Some(url("https://github.com/Topl/Project-Bifrost"))
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+
+
+
+assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
+    case ps if ps.endsWith(".SF") => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case x => old(x)
+  }
+}
 
