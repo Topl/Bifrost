@@ -563,10 +563,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateAssetRedemption(ar: AssetRedemption): Try[Unit] = {
     val statefulValid: Try[Unit] = {
-
+  
       /* First check that all the proposed boxes exist */
       val availableAssetsTry: Try[Map[String, Long]] = ar.unlockers.foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
-
+  
         partialRes.flatMap(partialMap =>
           /* Checks if unlocker is valid and if so adds to current running total */
           closedBox(unlocker.closedBoxId) match {
@@ -582,26 +582,25 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
           }
         )
-
       )
-
+  
       /* Make sure that there's enough to cover the remainders */
       val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
         ar.remainderAllocations.foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
-        partialRes.flatMap(_ => availableAssets.get(assetCode) match {
-            case Some(amount) => if(amount > remainders.map(_._2).sum) Success() else Failure(new Exception("Not enough assets"))
+          partialRes.flatMap(_ => availableAssets.get(assetCode) match {
+            case Some(amount) => if (amount > remainders.map(_._2).sum) Success() else Failure(new Exception("Not enough assets"))
             case None => Failure(new Exception("Asset not included in inputs"))
           })
         }
       )
-
+  
       /* Handles fees */
       val boxesSumTry: Try[Long] = {
         ar.unlockers.tail.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) => {
           partialRes.flatMap(total => closedBox(unlocker.closedBoxId) match {
             case Some(box: PolyBox) =>
               if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign)) {
-                  Success(total + box.value)
+                Success(total + box.value)
               } else {
                 Failure(new Exception("Incorrect unlocker"))
               }
@@ -609,17 +608,66 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           })
         })
       }
-
+  
       /* Incorrect unlocker or box provided, or not enough to cover declared fees */
       val enoughToCoverFees = Try {
         if (boxesSumTry.isFailure || boxesSumTry.get < ar.fee)
           throw new Exception("Insufficient balances provided for fees")
       }
-
+  
       enoughAssets.flatMap(_ => enoughToCoverFees)
     }
-
+  
     statefulValid.flatMap(_ => semanticValidity(ar))
+  }
+  
+  def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+      val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers.foldLeft[Try[Map[(
+        String, PublicKey25519Proposition), Long]]](Success(
+        Map[(String, PublicKey25519Proposition), Long]()))((partialRes, unlocker) =>
+      
+        partialRes.flatMap(partialMap =>
+          closedBox(unlocker.closedBoxId) match {
+            case Some(box: AssetBox) =>
+              if (unlocker.boxKey.isValid(box.proposition, ct.messageToSign)) {
+                Success(partialMap.get(box.assetCode, box.hub) match {
+                  case Some(amount) => partialMap + ((box.assetCode, box.hub) -> (amount + box.value))
+                  case None => partialMap + ((box.assetCode, box.hub) -> box.value)
+                })
+              } else {
+                Failure(new Exception("Incorrect unlocker"))
+              }
+            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+          }
+        )
+      )
+  
+      def amountByKey(key: (String, PublicKey25519Proposition),
+                      assetMap: Map[(String, PublicKey25519Proposition),
+                        IndexedSeq[(PublicKey25519Proposition, Long)]]): Long = {
+        assetMap(key).foldLeft(0L) { case (total, (prop, value)) =>
+          total + value
+        }
+      }
+  
+      //check that the assets being returned + the assets being redeemed equal the total number of assets
+      val returnedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetsToReturn.map {
+        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
+          assetHub -> amountByKey(assetHub, ct.assetsToReturn)
+      }
+  
+      val redeemedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetTokensToRedeem.map {
+        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
+          assetHub -> amountByKey(assetHub, ct.assetTokensToRedeem)
+      }
+  
+      availableAssetsTry.map {
+        case (assetHub, propAmount) =>
+        
+      }
+    }
+    statefulValid.flatMap(_ => semanticValidity(ct))
   }
 }
 
@@ -643,6 +691,7 @@ object BifrostState {
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
+      case ct: ConversionTransaction => ConversionTransaction.validate(ct)
       case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
   }
