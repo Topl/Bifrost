@@ -110,3 +110,8 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
   }
 }
 
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
+
+PB.pythonExe := "C:\\Python27\\python.exe"
