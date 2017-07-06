@@ -79,7 +79,6 @@ trait ValidGenerators extends BifrostGenerators {
       }
     }
 
-    println(feePreBoxes)
 
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
       v.map {
@@ -239,8 +238,6 @@ trait ValidGenerators extends BifrostGenerators {
         case f: Failure[_] => throw f.exception
       }
     }
-
-    println(feePreBoxes)
 
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
       v.map {

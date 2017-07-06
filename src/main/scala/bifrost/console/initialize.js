@@ -1,8 +1,11 @@
-load("src/main/scala/bifrost/console/blob-polyfill.js");
-load("src/main/scala/bifrost/console/global-polyfill.js");
-load("src/main/scala/bifrost/console/timer-polyfill.js");
-load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
-load("src/main/scala/bifrost/console/bundle.js");
+function fromClassPath(file) {
+    return Java.type("bifrost.console.BifrostConsole").class.getResource(file);
+}
+
+load(fromClassPath("global-polyfill.js"));
+load(fromClassPath("timer-polyfill.js"));
+load(fromClassPath("xml-http-request-polyfill.js"));
+load(fromClassPath("bundle.js"));
 
 
 var help = function() {

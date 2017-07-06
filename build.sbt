@@ -6,12 +6,12 @@ name := "project-bifrost"
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
   organization := "co.topl",
-  version := "0.1.0-alpha"
+  version := "0.1.0-alpha.1"
 )
 
 scalaVersion := "2.12.1"
 organization := "co.topl"
-version := "0.1.0-alpha"
+version := "0.1.0-alpha.1"
 
 mainClass in assembly := Some("bifrost.console.BifrostConsole")
 
@@ -101,8 +101,6 @@ pomIncludeRepository := { _ => false }
 homepage := Some(url("https://github.com/Topl/Project-Bifrost"))
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
-
-
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF") => MergeStrategy.discard

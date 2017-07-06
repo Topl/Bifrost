@@ -141,7 +141,6 @@ object Forger extends ScorexLogging {
   def calcAdjustedTarget(difficulty: Long,
                          parent: BifrostBlock,
                          targetBlockDelay: Long): BigInt = {
-    println(s"Target Block Delay, ${targetBlockDelay}")
     val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
     BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
