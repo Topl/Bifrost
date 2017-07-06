@@ -73,7 +73,8 @@ public class BifrostConsole {
         }
 
         try {
-            context.setAttribute("Bifrost", nashornEngine.eval(new FileReader("src/main/scala/bifrost/console/bundle.js")), ScriptContext.ENGINE_SCOPE);
+            context.setAttribute("Bifrost", nashornEngine.eval(new FileReader("src/main/scala/bifrost/console/initialize.js")), ScriptContext.ENGINE_SCOPE);
+            nashornEngine.eval("var bifrost = new Bifrost()");
 
         } catch(ScriptException|FileNotFoundException e) {
             e.printStackTrace();

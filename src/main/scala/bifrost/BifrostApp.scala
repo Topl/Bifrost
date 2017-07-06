@@ -46,13 +46,14 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication {
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef),
+    AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
   override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute], typeOf[DebugApiRoute], typeOf[WalletApiRoute],
-    typeOf[ContractApiRoute], typeOf[GenericNodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
+    typeOf[ContractApiRoute], typeOf[AssetApiRoute], typeOf[GenericNodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 

@@ -1,8 +1,3 @@
-load("src/main/scala/bifrost/console/blob-polyfill.js");
-load("src/main/scala/bifrost/console/global-polyfill.js");
-load("src/main/scala/bifrost/console/timer-polyfill.js");
-load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
-
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -68,7 +63,7 @@ load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 0);
+/******/ 	return __webpack_require__(__webpack_require__.s = 4);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -78,31 +73,11 @@ load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
 "use strict";
 
 
-/**
- *
- * @file {bifrost.js}
- * @author Nicholas Edmonds <n.edmonds@topl.me>
- * @date 2017
- */
+var Contract = function Contract() {};
 
-//require('es6-promise').polyfill();
-//require('fetch-everywhere');
+Contract.prototype.create = function () {};
 
-var Settings = __webpack_require__(1);
-var Topl = __webpack_require__(2);
-var getBlock = __webpack_require__(3);
-
-var Bifrost = function Bifrost() {
-  this.settings = new Settings();
-  this.topl = new Topl(this);
-  this.getBlock = getBlock;
-};
-
-Bifrost.prototype.test = function () {
-  console.log('Bifrost prototype test successful');
-};
-
-module.exports = Bifrost;
+module.exports = Contract;
 
 /***/ }),
 /* 1 */
@@ -111,7 +86,7 @@ module.exports = Bifrost;
 "use strict";
 
 
-var pkg = __webpack_require__(10);
+var pkg = __webpack_require__(8);
 
 var Settings = function Settings() {
   var host = 'http://localhost';
@@ -129,145 +104,6 @@ module.exports = Settings;
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-/*
-  Defines the set of methods specific to Topl.
- */
-
-/**
- *
- * @file {topl.js}
- * @fileOverview List of Topl defined RPC calls
- * @author Nicholas Edmonds <n.edmonds@topl.me>
- * @date 2017
- */
-
-/**
- *
- * @module topl
- */
-
-var bifrost = __webpack_require__(0);
-var Endpoint = __webpack_require__(4);
-
-var Topl = function Topl(bifrost) {
-  var declareRole = function declareRole() {};
-
-  endpoints().forEach(function (method) {
-    //TODO attachToObject(self) and setRequestManager(self._requestManager)
-  });
-};
-
-// A list of endpoints with RPC data to build a valid RPC call
-var endpoints = function endpoints() {
-  var getBlock = new Endpoint({
-    name: 'getBlock',
-    params: 2
-  });
-  var getTransaction = new Endpoint({
-    name: 'getTransaction',
-    params: 2
-  });
-  var declareRole = new Endpoint({
-    name: 'declareRole',
-    params: 6
-  });
-  var getRole = new Endpoint({
-    name: 'getRole',
-    params: 1
-  });
-  var getContractSignature = new Endpoint({
-    name: 'getCreationSignature',
-    params: 0
-  });
-  var createContract = new Endpoint({
-    name: 'createContract',
-    params: 0
-  });
-  var deliver = new Endpoint({
-    name: 'deliver',
-    params: 1
-  });
-  var confirmDelivery = new Endpoint({
-    name: 'confirmDelivery',
-    params: 1
-  });
-  var endorseCompletion = new Endpoint({
-    name: 'endorseCompletion',
-    params: 0
-  });
-  var getCompletionSignature = new Endpoint({
-    name: 'getCompletionSignature',
-    params: 0
-  });
-  var completeContract = new Endpoint({
-    name: 'completeContract',
-    params: 0
-  });
-
-  return [getBlock, getTransaction, declareRole, getRole, getContractSignature, createContract, deliver, confirmDelivery, endorseCompletion, getCompletionSignature, completeContract];
-};
-
-module.exports = Topl;
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-__webpack_require__(5).polyfill();
-__webpack_require__(6);
-
-var getBlock = function getBlock() {
-
-	var request = new Request('http://localhost:9585/nodeView/persistentModifier/4T1pzTxGk7YGHbsgpkT5Xpub4XwBrwDzpojiiXWg67Pj', {
-		method: 'GET',
-		mode: 'cors',
-		redirect: 'follow',
-		headers: new Headers({
-			'Content-Type': 'application/json'
-		})
-	});
-
-	// curl -X POST --data '{"jsonrpc":"2.0","method":"topl_getBlock","params":["2xrGdJTBtjZE2RWhBSzGoRwXn4gQ7DkGM5UkymJJk57y"],"id":0}'
-	return fetch(request).then(function (response) {
-		return response.json();
-	}).then(function (jsonData) {
-		return jsonData;
-	}).catch(function (err) {
-        return err;
-	});
-};
-
-module.exports = getBlock;
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-/*
-  defines operations that will occur for each method call defined by
-  methods in other files.
- */
-
-var Endpoint = function Endpoint(rpcMethod) {
-  this.name = rpcMethod.name;
-  this.params = rpcMethod.params || 0;
-};
-
-module.exports = Endpoint;
-
-/***/ }),
-/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(process, global) {var require;/*!
@@ -581,7 +417,6 @@ function handleMaybeThenable(promise, maybeThenable, then$$) {
   if (maybeThenable.constructor === promise.constructor && then$$ === then && maybeThenable.constructor.resolve === resolve) {
     handleOwnThenable(promise, maybeThenable);
   } else {
-
     if (then$$ === GET_THEN_ERROR) {
       _reject(promise, GET_THEN_ERROR.error);
       GET_THEN_ERROR.error = null;
@@ -1430,23 +1265,371 @@ return Promise;
 })));
 //# sourceMappingURL=es6-promise.map
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(7), __webpack_require__(8)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), __webpack_require__(6)))
 
 /***/ }),
-/* 6 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // the whatwg-fetch polyfill installs the fetch() function
 // on the global object (window or self)
 //
 // Return that as the export for use in Webpack, Browserify etc.
-__webpack_require__(9);
+__webpack_require__(7);
 var globalObj = typeof self !== 'undefined' && self || this;
 module.exports = globalObj.fetch.bind(globalObj);
 
 
 /***/ }),
-/* 7 */
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ *
+ * @file {bifrost.js}
+ * @author Nicholas Edmonds <n.edmonds@topl.me>
+ * @date 2017
+ */
+
+__webpack_require__(2).polyfill();
+__webpack_require__(3);
+
+var Settings = __webpack_require__(1);
+//const Topl = require('./topl.js');
+var Contract = __webpack_require__(0);
+
+var Bifrost = function Bifrost() {
+  this.settings = new Settings();
+  // this.topl = new Topl(this);
+  this.contract = new Contract();
+};
+
+// -----------------------------getBlock---------------------------------------------------------------------------
+Bifrost.prototype.getBlock = function (publicKey) {
+  this.publicKey = publicKey;
+
+  var url = 'http://localhost:9585/nodeView/persistentModifier/' + publicKey;
+
+  var request = new Request(url, {
+    method: 'GET',
+    headers: new Headers({
+      'Content-Type': 'application/json'
+      //'Accept': 'application/json',
+    }) /*
+       body: JSON.stringify({
+       'jsonrpc': '2.0',
+       'method': 'getBlock',
+       'params': [{
+         'publicKey': publicKey
+       }],
+       'id': '0'
+       })*/
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+// -----------------------------getTransaction---------------------------------------------------------------------------
+Bifrost.prototype.getTransaction = function (publicKey) {
+  this.publicKey = publicKey;
+
+  var request = new Request('http://localhost:9585/', {
+    method: 'GET',
+    headers: new Headers({
+      'Content-Type': 'application/json'
+      //'Accept': 'application/json',
+    })
+    /* body: JSON.stringify({
+       //'jsonrpc': '2.0',
+       'method': 'getTransaction',
+       'params': [{
+         'publicKey': publicKey
+       }],
+       'id': '0'
+     })*/
+  });
+
+  fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+// -----------------------------declareRole---------------------------------------------------------------------------
+Bifrost.prototype.declareRole = function (publicKey, role) {
+  this.publicKey = publicKey;
+  this.role = role;
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'declareRole',
+      'params': [{
+        'publicKey': publicKey,
+        'role': role
+      }],
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    console.log(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+// ---------------getRole--------------------------------------------------------------------------------------
+Bifrost.prototype.getRole = function (publicKey) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'getRole',
+      'params': [{
+        'publicKey': publicKey
+      }],
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+// -----------------getContractSignature-------------------------------------------------------------------
+Bifrost.prototype.getContractSignature = function (signingPublicKey) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'getContractSignature',
+      'params': [{
+        'signingPublicKey': signingPublicKey
+      }],
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------createContract----------------------------------------------------------------------
+Bifrost.prototype.createContract = function (params) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'createContract',
+      'params': params,
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------deliver----------------------------------------------------------------------
+Bifrost.prototype.deliver = function (params) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'executeContractMethod',
+      'params': params,
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------confirmDelivery----------------------------------------------------------------------
+Bifrost.prototype.confirmDelivery = function (publicKey) {
+  this.publicKey = publicKey;
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'confirmDelivery',
+      'params': [{
+        'publicKey': '93ZX69AtP1UcCcCS6Rmc2QiYgvqvkLPBqi6rS52vCJod'
+      }],
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------endorseCompletion----------------------------------------------------------------------
+Bifrost.prototype.endorseCompletion = function (params) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'executeContractCompletion',
+      'params': params,
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------getCompletionSignature----------------------------------------------------------------------
+Bifrost.prototype.getCompletionSignature = function (signingPublicKey) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'getCompletionSignature',
+      'params': [{
+        'publicKey': signingPublicKey
+      }],
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+//----------------------------------completeContract----------------------------------------------------------------------
+Bifrost.prototype.completeContract = function (params) {
+
+  var request = new Request('http://localhost:9585/contract/', {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }),
+    body: JSON.stringify({
+      'jsonrpc': '2.0',
+      'method': 'completeContract',
+      'params': params,
+      'id': '0'
+    })
+  });
+
+  return fetch(request).then(function (response) {
+    return response.json();
+  }).then(function (jsonData) {
+    JSON.stringify(jsonData);
+    return jsonData;
+  }).catch(function (err) {
+    return err;
+  });
+};
+
+module.exports = Bifrost;
+
+/***/ }),
+/* 5 */
 /***/ (function(module, exports) {
 
 // shim for using process in browser
@@ -1636,7 +1819,7 @@ process.umask = function() { return 0; };
 
 
 /***/ }),
-/* 8 */
+/* 6 */
 /***/ (function(module, exports) {
 
 var g;
@@ -1663,7 +1846,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 9 */
+/* 7 */
 /***/ (function(module, exports) {
 
 (function(self) {
@@ -2130,7 +2313,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 10 */
+/* 8 */
 /***/ (function(module, exports) {
 
 module.exports = {
