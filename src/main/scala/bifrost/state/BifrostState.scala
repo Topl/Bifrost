@@ -486,6 +486,55 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
     }
   }
+  
+  def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+      val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers.foldLeft[Try[Map[(
+        String, PublicKey25519Proposition), Long]]](Success(
+        Map[(String, PublicKey25519Proposition), Long]()))((partialRes, unlocker) =>
+  
+        partialRes.flatMap(partialMap =>
+          closedBox(unlocker.closedBoxId) match {
+            case Some(box: AssetBox) =>
+              if (unlocker.boxKey.isValid(box.proposition, ct.messageToSign)) {
+                Success(partialMap.get(box.assetCode, box.hub) match {
+                  case Some(amount) => partialMap + ((box.assetCode, box.hub) -> (amount + box.value))
+                  case None => partialMap + ((box.assetCode, box.hub) -> box.value)
+                })
+              } else {
+                Failure(new Exception("Incorrect unlocker"))
+              }
+            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+          }
+        )
+      )
+  
+      def amountByKey(key: (String, PublicKey25519Proposition),
+                      assetMap: Map[(String, PublicKey25519Proposition),
+                        IndexedSeq[(PublicKey25519Proposition, Long)]]): Long = {
+        assetMap(key).foldLeft(0L) { case (total, (prop, value)) =>
+          total + value
+        }
+      }
+  
+      //check that the assets being returned + the assets being redeemed equal the total number of assets
+      val returnedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetsToReturn.map {
+        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
+          assetHub -> amountByKey(assetHub, ct.assetsToReturn)
+      }
+  
+      val redeemedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetTokensToRedeem.map {
+        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
+          assetHub -> amountByKey(assetHub, ct.assetTokensToRedeem)
+      }
+  
+      availableAssetsTry.map {
+        case (assetHub, propAmount) =>
+          
+      }
+    }
+    statefulValid.flatMap(_ => semanticValidity(ct))
+  }
 }
 
 object BifrostState {
@@ -506,6 +555,7 @@ object BifrostState {
       case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
+      case ct: ConversionTransaction => ConversionTransaction.validate(ct)
       case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
   }

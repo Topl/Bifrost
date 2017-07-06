@@ -24,7 +24,7 @@
   "offlineGeneration": true,
   "blockGenerationDelay": 5000,
   "targetBlockTime": 30000,
-  "cors": false,
+  "cors": true,
   "agent": "2-Hop",
   "version": [0, 0, 1]
 }

@@ -161,6 +161,15 @@ class SerializationTests extends PropSpec
         ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p) shouldBe true
     }
   }
+  
+  property("ConversionTransaction Serialization") {
+    forAll(conversionTxGen) {
+      ct: ConversionTransaction =>
+        val parsed = ConversionTransactionCompanion.parseBytes(ConversionTransactionCompanion.toBytes(ct)).get
+          ConversionTransactionCompanion.toBytes(parsed) sameElements
+            ConversionTransactionCompanion.toBytes(ct) shouldBe true
+    }
+  }
 
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
