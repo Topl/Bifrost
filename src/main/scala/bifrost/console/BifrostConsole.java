@@ -59,6 +59,7 @@ public class BifrostConsole {
             nashornEngine.eval("this.stringify = function(obj, prop) {" +
                     "  var placeholder = '____PLACEHOLDER____';" +
                     "  var fns = [];" +
+                    "  obj = Object.assign(obj, Object.getPrototypeOf(obj));" +
                     "  var json = JSON.stringify(obj, function(key, value) {" +
                     "    if (typeof value === 'function') {" +
                     "      fns.push(value);" +
