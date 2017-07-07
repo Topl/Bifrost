@@ -1627,7 +1627,7 @@ Bifrost.prototype.completeContract = function (params) {
 };
 
 //----------------------------------createKeyFile----------------------------------------------------------------------
-Bifrost.prototype.keyFile = function (password) {
+Bifrost.prototype.createKeyFile = function (password) {
 
   var request = new Request('http://localhost:9585/wallet/keyfile/' + password, {
     method: 'POST',

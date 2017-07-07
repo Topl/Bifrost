@@ -75,6 +75,7 @@ public class BifrostConsole {
         try {
             context.setAttribute("Bifrost", nashornEngine.eval(new FileReader("src/main/scala/bifrost/console/initialize.js")), ScriptContext.ENGINE_SCOPE);
             nashornEngine.eval("var bifrost = new Bifrost()");
+            nashornEngine.eval("print('This is the official console for Topl. Type help() to see a list of basic commands.')");
 
         } catch(ScriptException|FileNotFoundException e) {
             e.printStackTrace();
