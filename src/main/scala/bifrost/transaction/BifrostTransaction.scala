@@ -1112,8 +1112,8 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
       returned.map( prop =>
         Map(
           "assetCode" -> assetHub._1.asJson,
-          "hub" -> assetHub._2.asJson,
-          "proposition" -> prop._1.asJson,
+          "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+          "proposition" -> Base58.encode(prop._1.pubKeyBytes).asJson,
           "amount" -> prop._2.asJson
         ).asJson
       )
@@ -1123,8 +1123,8 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
         redeem.map( prop =>
           Map(
             "assetCode" -> assetHub._1.asJson,
-            "hub" -> assetHub._2.asJson,
-            "proposition" -> prop._1.asJson,
+            "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+            "proposition" -> Base58.encode(prop._1.pubKeyBytes).asJson,
             "amount" -> prop._2.asJson
           ).asJson
         )
@@ -1134,8 +1134,8 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
         signatures.map( sig =>
           Map(
             "assetCode" -> assetHub._1.asJson,
-            "hub" -> assetHub._2.asJson,
-            "signature" -> sig.asJson
+            "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+            "signature" -> Base58.encode(sig.signature).asJson
           ).asJson
         )
     }.asJson,

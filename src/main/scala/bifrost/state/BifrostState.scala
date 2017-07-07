@@ -652,20 +652,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
   
       //check that the assets being returned + the assets being redeemed equal the total number of assets
-      val returnedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetsToReturn.map {
-        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
-          assetHub -> amountByKey(assetHub, ct.assetsToReturn)
-      }
-  
-      val redeemedAssets: Map[(String, PublicKey25519Proposition), Long] = ct.assetTokensToRedeem.map {
-        case (assetHub: (String, PublicKey25519Proposition), propAmount: IndexedSeq[(PublicKey25519Proposition, Long)]) =>
-          assetHub -> amountByKey(assetHub, ct.assetTokensToRedeem)
-      }
-  
-      availableAssetsTry.map {
-        case (assetHub, propAmount) =>
-        
-      }
+      Try(availableAssetsTry.get.map{
+        case (assetHub: (String, PublicKey25519Proposition), amount: Long) =>
+          if(ct.assetsToReturn.contains(assetHub) || ct.assetTokensToRedeem.contains(assetHub))
+            require(amountByKey(assetHub, ct.assetsToReturn) + amountByKey(assetHub, ct.assetTokensToRedeem) == availableAssetsTry.get(assetHub))
+      })
     }
     statefulValid.flatMap(_ => semanticValidity(ct))
   }
