@@ -34,6 +34,8 @@ import scala.util.{Failure, Success, Try}
 trait TransactionSettings extends Settings
 
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
+  lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
+
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 
   implicit lazy val settings = new TransactionSettings {
@@ -411,6 +413,13 @@ case class ContractCompletion(contractBox: ContractBox,
   extends ContractTransaction {
   
   import ContractCompletion._
+
+  override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
+    IndexedSeq("ContractCompletion".getBytes ++ parties(Role.Hub).pubKeyBytes,
+      parties(Role.Investor).pubKeyBytes,
+      parties(Role.Producer).pubKeyBytes
+    )
+  )
 
   override type M = ContractCompletion
 

@@ -16,6 +16,7 @@ import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
+import scala.collection.BitSet
 import scala.util.Try
 
 case class BifrostBlock(override val parentId: BlockId,
@@ -26,6 +27,14 @@ case class BifrostBlock(override val parentId: BlockId,
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
   override type M = BifrostBlock
+
+  lazy val bloom: BitSet = txs.foldLeft(BitSet())(
+    (total, b) =>
+      b.bloomTopics match {
+        case Some(e) => total | Bloom.calcBloom(e.head, e.tail)
+        case None => total
+      }
+  )
 
   override lazy val modifierTypeId: Byte = BifrostBlock.ModifierTypeId
 
