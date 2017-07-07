@@ -618,9 +618,7 @@ object ConversionTransactionCompanion extends Serializer[ConversionTransaction] 
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[ConversionTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    println("typeLength: " + typeLength)
     val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
-    println("typeStr: " + typeStr)
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
     
@@ -629,16 +627,12 @@ object ConversionTransactionCompanion extends Serializer[ConversionTransaction] 
       Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
     }.toArray
     
-    println("fee & timestamp Array: " + Array(fee: Long, timestamp: Long).asJson)
-    
     numReadBytes = 2*Longs.BYTES
     
     val Array(totalAssetLength: Int, assetReturnLength: Int, assetRedeemLength: Int, sigLength: Int, keyMappingSize: Int) =
       (0 until 5).map { i =>
         Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
       }.toArray
-    
-    println("length Array: " + Array(totalAssetLength: Int, assetReturnLength: Int, assetRedeemLength: Int, sigLength: Int, keyMappingSize: Int).asJson)
     
     numReadBytes += 5*Ints.BYTES
     
@@ -650,13 +644,12 @@ object ConversionTransactionCompanion extends Serializer[ConversionTransaction] 
       
       val hub = PublicKey25519Proposition(
         bytesWithoutType.slice(
-          numReadBytes + i*Constants25519.PubKeyLength,
-          numReadBytes + (i + 1)*Constants25519.PubKeyLength
+          numReadBytes,
+          numReadBytes + Constants25519.PubKeyLength
         )
       )
       
       numReadBytes += Constants25519.PubKeyLength
-      println("numReadBytes: " + numReadBytes)
       
       i -> (asset, hub)
     }.toMap
