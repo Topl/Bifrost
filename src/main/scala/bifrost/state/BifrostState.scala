@@ -626,22 +626,21 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers.foldLeft[Try[Map[(
         String, PublicKey25519Proposition), Long]]](Success(
         Map[(String, PublicKey25519Proposition), Long]()))((partialRes, unlocker) =>
-      
-        partialRes.flatMap(partialMap =>
-          closedBox(unlocker.closedBoxId) match {
-            case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ct.messageToSign)) {
-                Success(partialMap.get(box.assetCode, box.hub) match {
-                  case Some(amount) => partialMap + ((box.assetCode, box.hub) -> (amount + box.value))
-                  case None => partialMap + ((box.assetCode, box.hub) -> box.value)
-                })
-              } else {
-                Failure(new Exception("Incorrect unlocker"))
-              }
-            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-          }
+          partialRes.flatMap(partialMap =>
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: AssetBox) =>
+                if (unlocker.boxKey.isValid(box.proposition, ct.messageToSign)) {
+                  Success(partialMap.get(box.assetCode, box.hub) match {
+                    case Some(amount) => partialMap + ((box.assetCode, box.hub) -> (amount + box.value))
+                    case None => partialMap + ((box.assetCode, box.hub) -> box.value)
+                  })
+                } else {
+                  Failure(new Exception("Incorrect unlocker"))
+                }
+              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+            }
+          )
         )
-      )
   
       def amountByKey(key: (String, PublicKey25519Proposition),
                       assetMap: Map[(String, PublicKey25519Proposition),
