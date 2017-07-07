@@ -81,6 +81,7 @@ public class BifrostConsole {
 
         context.setAttribute("Bifrost", nashornEngine.eval(new InputStreamReader(apiInitialiser)), ScriptContext.ENGINE_SCOPE);
         nashornEngine.eval("var bifrost = new Bifrost()");
+        nashornEngine.eval("print('This is the Bifrost client console connected to the Topl network. Type help to see a list of basic commands.')");
 
         ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.OFF);
 
@@ -99,18 +100,33 @@ public class BifrostConsole {
         Scanner scan = new Scanner(System.in);
 
         do {
-            System.out.print("Bifrost > ");
+            System.out.print("\nBifrost > ");
 
             // reads in a line of input, then evaluates as javascript, unless key words
             input = scan.nextLine();
 
             switch(input) {
+
                 case "exit":
                     try { nashornEngine.eval("exit()"); }
                     catch (ScriptException e) { e.printStackTrace(); }
                     break;
-                case "show logs": ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL); break;
-                case "hide logs": ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.OFF); break;
+
+                case "help":
+                    try { nashornEngine.eval("help()"); }
+                    catch (ScriptException e) { e.printStackTrace(); }
+                    break;
+
+                case "show logs":
+                    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
+                    System.out.println("Enabling logging visibility...");
+                    break;
+
+                case "hide logs":
+                    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.OFF);
+                    System.out.println("Disabling logging visibility...");
+                    break;
+
                 default:
                     try {
                         ScriptObjectMirror result = (ScriptObjectMirror) nashornEngine.eval(input);

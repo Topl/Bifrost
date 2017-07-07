@@ -6,12 +6,12 @@ name := "project-bifrost"
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
   organization := "co.topl",
-  version := "0.1.0-alpha.1"
+  version := "0.1.0-alpha"
 )
 
 scalaVersion := "2.12.1"
 organization := "co.topl"
-version := "0.1.0-alpha.1"
+version := "0.1.0-alpha"
 
 mainClass in assembly := Some("bifrost.console.BifrostConsole")
 
