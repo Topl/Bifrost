@@ -10,6 +10,7 @@ Project Bifrost is a Scala client designed over a cryptocurrency/blockchain prot
 - Create a commodity market that collateralizes a stable currency via storage and redemption
 - Develop a reputation system and historical reference of business behaviour
 
+Begin interacting with the Topl network with the Bifrost client [alpha testnet release](https://github.com/Topl/Project-Bifrost/releases/tag/v0.1.0-alpha)
 
 Whitepaper
 ----------
