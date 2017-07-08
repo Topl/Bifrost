@@ -448,7 +448,7 @@ trait BifrostGenerators extends CoreGenerators {
     generatorBox <- arbitBoxGen
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
-  } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
+  } yield BifrostBlock(parentId, timestamp, generatorBox, signature, txs, BifrostBlock.createBloom(txs))
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
     answer <- booleanGen

@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 
 import com.google.common.primitives.Longs
-import bifrost.blocks.BifrostBlock
+import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
 import bifrost.transaction.BifrostTransaction
 import bifrost.validation.DifficultyBlockValidator
@@ -19,8 +19,10 @@ import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Pub
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
+import serializer.BloomTopics
 
 import scala.annotation.tailrec
+import scala.collection.BitSet
 import scala.util.{Failure, Try}
 
 /**
@@ -291,13 +293,30 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
 
   def count(f: (BifrostBlock => Boolean)): Int = filter(f).length
 
-  def filter(f: (BifrostBlock => Boolean)): Seq[ModifierId] = {
+  def filter(f: (BifrostBlock => Boolean)): Seq[BifrostBlock] = {
     @tailrec
-    def loop(m: BifrostBlock, acc: Seq[ModifierId]): Seq[ModifierId] = parentBlock(m) match {
-      case Some(parent) => if (f(m)) loop(parent, m.id +: acc) else loop(parent, acc)
-      case None => if (f(m)) m.id +: acc else acc
+    def loop(m: BifrostBlock, acc: Seq[BifrostBlock]): Seq[BifrostBlock] = parentBlock(m) match {
+      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
+      case None => if (f(m)) m +: acc else acc
     }
     loop(bestBlock, Seq())
+  }
+
+  def bloomFilter(bloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
+    val bloom: BitSet = Bloom.calcBloom(bloomTopics.head, bloomTopics.tail)
+    val f: (BifrostBlock => Boolean) = {
+      b =>
+        val blockBloom = BitSet() ++ BloomTopics.parseFrom(b.bloom).topics
+        val andRes = blockBloom & bloom
+        bloom equals andRes
+    }
+    filter(f).flatMap(b => b.txs.filter(tx =>
+      tx.bloomTopics match {
+          // TODO: This should also filter other topics if they are present
+        case Some(e) => e.head sameElements bloomTopics.head
+        case None => false
+      }
+    ))
   }
 
   def parentBlock(m: BifrostBlock): Option[BifrostBlock] = modifierById(m.parentId)

@@ -9,3 +9,7 @@ message AssetRedemptionPB {
     // Address is a message defined somewhere else.
     // repeated Address addresses = 3;
 }
+
+message BloomTopics {
+    repeated int32 topics = 1;
+}
