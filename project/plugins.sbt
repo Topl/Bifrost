@@ -1,10 +1,10 @@
 // Comment to get more information during initialization
-logLevel := Level.Warn
+logLevel := Level.Error
 
 // The Typesafe repository
 resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.13.0")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
 addSbtPlugin("com.github.tkawachi" % "sbt-lock" % "0.3.0")
 

@@ -80,7 +80,6 @@ object KeyFile {
     val salt = FastCryptographicHash(uuid)
 
     var(sk, pk) = PrivateKey25519Companion.generateKeys(seed)
-    println(s"before privateKey, ${Base58.encode(sk.privKeyBytes)}")
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
 

@@ -22,7 +22,7 @@ import scala.reflect.io.Path
 import scala.reflect.runtime.universe._
 import scala.util.Try
 
-class BifrostApp(val settingsFilename: String) extends GenericApplication {
+class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
   // use for debug only
 //  val path: Path = Path ("/tmp")
 //  Try(path.deleteRecursively())

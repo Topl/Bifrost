@@ -27,6 +27,7 @@ import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
 import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -40,7 +41,7 @@ import scala.util.{Failure, Success, Try}
 @Path("/contract")
 @Api(value = "/contract", produces = "application/json")
 case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef)
-                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+                            (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -108,7 +109,6 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val state = view.state
     val pubKey = (params \\ "publicKey").head.asString.get
     val prop = PublicKey25519Proposition(Base58.decode(pubKey).get)
-    println(s"Get Role Box for public Key: ${pubKey}")
     val box = state.closedBox(ProfileBox.idFromBox(prop, "role")).get
     box.json
   }
@@ -128,7 +128,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val state = view.state
     val tx = createContractInstance(params, state)
     ContractCreation.validate(tx) match {
-      case Success(e) => println("Contract Creation validation success")
+      case Success(e) => log.info("Contract creation validated successfully")
       case Failure(e) => throw e
     }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCreation](tx)
@@ -150,7 +150,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
     val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
     ContractMethodExecution.validate(tx) match {
-      case Success(e) => println("validation success")
+      case Success(e) => log.info("Contract method execution successfully validated")
       case Failure(e) => throw e
     }
     tx.newBoxes.toSet
@@ -188,7 +188,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     )(modified)
     val tx = createCompletionInstance(modifiedParams, state)
     ContractCompletion.validate(tx) match {
-      case Success(e) => println("validation success")
+      case Success(e) => log.info("Contract completion successfully validated")
       case Failure(e) => throw e
     }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)

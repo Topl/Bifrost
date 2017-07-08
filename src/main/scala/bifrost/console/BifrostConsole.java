@@ -12,12 +12,17 @@ load("src/main/scala/bifrost/console/xml-http-request-polyfill.js");
 
 package bifrost.console;
 
+import bifrost.BifrostApp;
+import ch.qos.logback.classic.Level;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
+import scorex.core.utils.ScorexLogging;
 
 import javax.script.*;
 import java.io.*;
@@ -32,6 +37,7 @@ public class BifrostConsole {
 
     //TODO check if it even needs to be created by a factory
     private static final NashornScriptEngine nashornEngine;
+    private static final InputStream apiInitialiser = BifrostConsole.class.getResourceAsStream("initialize.js");
     private static ScriptObjectMirror json = null;
 
 
@@ -53,6 +59,7 @@ public class BifrostConsole {
             nashornEngine.eval("this.stringify = function(obj, prop) {" +
                     "  var placeholder = '____PLACEHOLDER____';" +
                     "  var fns = [];" +
+                    "  obj = Object.assign(obj, Object.getPrototypeOf(obj));" +
                     "  var json = JSON.stringify(obj, function(key, value) {" +
                     "    if (typeof value === 'function') {" +
                     "      fns.push(value);" +
@@ -72,15 +79,18 @@ public class BifrostConsole {
             e.printStackTrace();
         }
 
-        try {
-            context.setAttribute("Bifrost", nashornEngine.eval(new FileReader("src/main/scala/bifrost/console/initialize.js")), ScriptContext.ENGINE_SCOPE);
-            nashornEngine.eval("var bifrost = new Bifrost()");
+        context.setAttribute("Bifrost", nashornEngine.eval(new InputStreamReader(apiInitialiser)), ScriptContext.ENGINE_SCOPE);
+        nashornEngine.eval("var bifrost = new Bifrost()");
+        nashornEngine.eval("print('This is the Bifrost client console connected to the Topl network. Type help to see a list of basic commands.')");
 
-        } catch(ScriptException|FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.OFF);
 
         Invocable invocable = nashornEngine;
+
+        Thread t = new Thread(new BifrostApp("testnet-bifrost.json"));
+
+        t.setDaemon(true);
+        t.start();
 
         promptForInput();
     }
@@ -90,23 +100,44 @@ public class BifrostConsole {
         Scanner scan = new Scanner(System.in);
 
         do {
-            System.out.print("Topl > ");
+            System.out.print("\nBifrost > ");
 
-            // reads in a line of input, then evaluates as javascript
+            // reads in a line of input, then evaluates as javascript, unless key words
             input = scan.nextLine();
 
+            switch(input) {
 
-            if (!input.equals("exit")) {
-                try {
-                    ScriptObjectMirror result = (ScriptObjectMirror) nashornEngine.eval(input);
+                case "exit":
+                    try { nashornEngine.eval("exit()"); }
+                    catch (ScriptException e) { e.printStackTrace(); }
+                    break;
 
+                case "help":
+                    try { nashornEngine.eval("help()"); }
+                    catch (ScriptException e) { e.printStackTrace(); }
+                    break;
+
+                case "show logs":
+                    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.ALL);
+                    System.out.println("Enabling logging visibility...");
+                    break;
+
+                case "hide logs":
+                    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.OFF);
+                    System.out.println("Disabling logging visibility...");
+                    break;
+
+                default:
                     try {
-                        System.out.println("\n" + json.callMember("stringify", checkResult(result).get()));
-                    } catch (Exception ignored) { }
+                        ScriptObjectMirror result = (ScriptObjectMirror) nashornEngine.eval(input);
 
-                } catch (Exception e) {
-                    System.err.println("There was a problem with that command.");
-                }
+                        try {
+                            System.out.println("\n" + json.callMember("stringify", checkResult(result).get()));
+                        } catch (Exception ignored) { }
+
+                    } catch (Exception e) {
+                        System.err.println("There was a problem with that command.");
+                    }
             }
 
         } while (!input.equals("exit"));

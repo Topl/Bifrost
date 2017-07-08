@@ -46,7 +46,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
-    println(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    log.info(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
@@ -82,9 +82,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
       secrets += privKey.head
-      println(s"secrets are: ${secrets + privKey.head}")
     } else {
-      println(s"${publicKeyString} is already unlocked")
+      log.warn(s"${publicKeyString} is already unlocked")
     }
   }
 
