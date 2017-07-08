@@ -172,6 +172,15 @@ class SerializationTests extends PropSpec
         ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p) shouldBe true
     }
   }
+  
+  property("ConversionTransaction Serialization") {
+    forAll(conversionTxGen) {
+      ct: ConversionTransaction =>
+        val parsed: ConversionTransaction = ConversionTransactionCompanion.parseBytes(ConversionTransactionCompanion.toBytes(ct)).get
+          val ctToBytes = ConversionTransactionCompanion.toBytes(parsed)
+        ctToBytes sameElements ConversionTransactionCompanion.toBytes(ct) shouldBe true
+    }
+  }
 
   property("AssetRedemption Serialization") {
     forAll(assetRedemptionGen) {

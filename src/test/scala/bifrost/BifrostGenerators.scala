@@ -7,6 +7,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
+import bifrost.transaction.ConversionTransaction
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition
@@ -329,8 +330,36 @@ trait BifrostGenerators extends CoreGenerators {
 
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
   }
-
-
+  
+  lazy val conversionTxGen: Gen[ConversionTransaction] = for {
+    assetLength <- positiveTinyIntGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val assetHub = (0 until assetLength).map{ _ => assetHubGen.sample.get }
+    val totalAssetBoxes = assetHub.map(_ -> IndexedSeq(ctFromGen.sample.get)).toMap
+    val assetsToReturn = assetHub.map(_ -> IndexedSeq(ctToGen.sample.get)).toMap
+    val assetTokensToRedeem = assetHub.map(_ -> IndexedSeq(ctToGen.sample.get)).toMap
+    val conversionSignatures = assetHub.map(_ -> IndexedSeq(signatureGen.sample.get)).toMap
+    
+    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp)
+  }
+  
+  lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
+    asset <- stringGen
+    hub <- propositionGen
+  } yield (asset, hub)
+  
+  lazy val ctFromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
+    proposition <- propositionGen
+    nonce <- positiveLongGen
+  } yield (proposition, nonce)
+  
+  lazy val ctToGen: Gen[(PublicKey25519Proposition, Long)] = for {
+    proposition <- propositionGen
+    amount <- positiveLongGen
+  } yield (proposition, amount)
+  
   lazy val fromGen: Gen[(PublicKey25519Proposition, Nonce)] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
