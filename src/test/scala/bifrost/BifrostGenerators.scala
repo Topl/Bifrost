@@ -7,7 +7,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
-import bifrost.transaction.AssetRedemption.ConversionTransaction
+import bifrost.transaction.ConversionTransaction
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.proposition.MofNProposition

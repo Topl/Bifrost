@@ -118,6 +118,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
       case cComp: ContractCompletion => validateContractCompletion(cComp)
       case ar: AssetRedemption => validateAssetRedemption(ar)
+      case ct: ConversionTransaction => validateConversionTransaction(ct)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -651,10 +652,16 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
   
       //check that the assets being returned + the assets being redeemed equal the total number of assets
-      Try(availableAssetsTry.get.map{
+      Try(availableAssetsTry.get.foreach{
         case (assetHub: (String, PublicKey25519Proposition), amount: Long) =>
-          if(ct.assetsToReturn.contains(assetHub) || ct.assetTokensToRedeem.contains(assetHub))
-            require(amountByKey(assetHub, ct.assetsToReturn) + amountByKey(assetHub, ct.assetTokensToRedeem) == availableAssetsTry.get(assetHub))
+          if(ct.assetsToReturn.contains(assetHub) || ct.assetTokensToRedeem.contains(assetHub)) {
+            val sumOfAssets = amountByKey(assetHub, ct.assetsToReturn) + amountByKey(assetHub, ct.assetTokensToRedeem)
+            if (sumOfAssets != availableAssetsTry.get(assetHub)) {
+              throw new Exception("Not enough assets")
+            }
+          } else {
+            throw new Exception("No such assets available")
+          }
       })
     }
     statefulValid.flatMap(_ => semanticValidity(ct))

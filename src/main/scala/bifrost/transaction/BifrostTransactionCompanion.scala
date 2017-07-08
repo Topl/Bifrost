@@ -2,7 +2,7 @@ package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
-import bifrost.transaction.AssetRedemption.ConversionTransaction
+import bifrost.transaction.ConversionTransaction
 import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.ContractTransactionCompanion.typeBytes
 import bifrost.transaction.Role.Role
@@ -27,6 +27,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
+    case ct: ConversionTransaction => ConversionTransactionCompanion.toBytes(ct)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -38,6 +39,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
+      case "ConversionTransaction" => ConversionTransactionCompanion.parseBytes(bytes).get
     }
   }
 

@@ -1084,16 +1084,16 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
   
   /* make sure that boxes and signatures line up properly
      it is a map of an array of box ids as keys to matching signatures as values */
-  val assetGroup: Map[Array[Byte], Signature25519] = totalAssetBoxes.flatMap(entry =>
-    entry._2.map(t => PublicKeyNoncedBox.idFromBox(t._1, t._2)).zip(conversionSignatures(entry._1)))
+  val assetGroup: Map[ByteArrayWrapper, Signature25519] = totalAssetBoxes.flatMap(entry =>
+    entry._2.map(t => ByteArrayWrapper(PublicKeyNoncedBox.idFromBox(t._1, t._2))).zip(conversionSignatures(entry._1)))
   
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = assetGroup.keySet.toIndexedSeq
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = assetGroup.keySet.toIndexedSeq.map(_.data).sortBy(Base58.encode)
   
   /* unlocks boxes by boxId and signature from assetGroup */
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.map {
     boxId => new BoxUnlocker[PublicKey25519Proposition] {
           override val closedBoxId: Array[Byte] = boxId
-          override val boxKey: Signature25519 = assetGroup(boxId)
+          override val boxKey: Signature25519 = assetGroup(ByteArrayWrapper(boxId))
         }
     }
   
@@ -1101,8 +1101,6 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
   
   override def toString: String = s"ConversionTransaction(${json.noSpaces})"
   
-  // not complete
-  //TODO map out the rest of the arguments
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
@@ -1184,9 +1182,15 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
     }
   }
   
+  override lazy val messageToSign: Array[Byte] = {
+    FastCryptographicHash(Bytes.concat(
+      "ConversionTransaction".getBytes, hashNoNonces
+    ))
+  }
+  
   lazy val hashNoNonces = FastCryptographicHash(
-      //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
-      assetsToReturn.values.foldLeft(Array[Byte]())((a, b) => a ++ b.flatMap(_._1.pubKeyBytes) ++
+    //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
+    assetsToReturn.values.foldLeft(Array[Byte]())((a, b) => a ++ b.flatMap(_._1.pubKeyBytes) ++
       assetsToReturn.keys.foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
