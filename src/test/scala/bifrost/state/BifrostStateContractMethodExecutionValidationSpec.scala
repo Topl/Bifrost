@@ -103,7 +103,8 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cme)
+          Seq(cme),
+          Array[Byte]()
         )
 
         val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
@@ -286,7 +287,8 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cme)
+          Seq(cme),
+          Array[Byte]()
         )
 
         val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
@@ -346,7 +348,8 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cme)
+          Seq(cme),
+          Array[Byte]()
         )
 
         val profileBoxes: Set[BifrostBox] = cme.parties.map {

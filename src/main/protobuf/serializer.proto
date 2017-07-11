@@ -1,0 +1,15 @@
+message IndexSeqPropAndLong {
+
+}
+
+message AssetRedemptionPB {
+    optional string name = 1;
+    optional int32 age = 2;
+
+    // Address is a message defined somewhere else.
+    // repeated Address addresses = 3;
+}
+
+message BloomTopics {
+    repeated int32 topics = 1;
+}

@@ -15,9 +15,10 @@ object Bloom {
       val hash = Keccak256(x)
       //noinspection ScalaStyle
       List(0, 2, 4).map ( i =>
-        hash.slice(i, i + 2).sum % 2048
+        // Need to convert signed Byte to unsigned Int
+        hash.slice(i, i + 2).map(_ + 128).sum % 2048
       )
     }
-    indices.foldLeft(BitSet())((total, x) => total | BitSet(x))
+    BitSet() ++ indices
   }
 }

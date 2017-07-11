@@ -15,6 +15,7 @@ import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.Try
@@ -23,7 +24,8 @@ case class BifrostBlock(override val parentId: BlockId,
                         override val timestamp: Block.Timestamp,
                         forgerBox: ArbitBox,
                         signature: Signature25519,
-                        txs: Seq[BifrostTransaction])
+                        txs: Seq[BifrostTransaction],
+                        bloom: Array[Byte])
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
   override type M = BifrostBlock
@@ -72,7 +74,7 @@ object BifrostBlock {
              //attachment: Array[Byte],
              privateKey: PrivateKey25519): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
-    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs)
+    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, createBloom(txs))
     if (parentId sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
@@ -81,6 +83,17 @@ object BifrostBlock {
       val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
       unsigned.copy(signature = Signature25519(signature))
     }
+  }
+
+  def createBloom(txs: Seq[BifrostTransaction]): Array[Byte] = {
+    val bloomBitSet = txs.foldLeft(BitSet.empty)(
+      (total, b) =>
+        b.bloomTopics match {
+          case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
+          case None => total
+        }
+    ).toSeq
+    BloomTopics(bloomBitSet).toByteArray
   }
 }
 
@@ -95,6 +108,8 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       Longs.toByteArray(block.timestamp),
       Longs.toByteArray(generatorBoxBytes.length),
       Array(block.version),
+      Ints.toByteArray(block.bloom.length),
+      block.bloom,
       generatorBoxBytes,
       block.signature.signature,
       numTx // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
@@ -113,7 +128,10 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   }
 
   override def toBytes(block: BifrostBlock): Array[Byte] = {
-    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
+      bytes ++
+        Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
+        BifrostTransactionCompanion.toBytes(tx))
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
@@ -126,6 +144,11 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val version = bytes.slice(Block.BlockIdLength + Longs.BYTES, Block.BlockIdLength + Longs.BYTES + 1).head
 
     var numBytesRead = Block.BlockIdLength + Longs.BYTES*2 + 1
+
+    val bloomSize = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
+    val bloom = bytes.slice(numBytesRead + Ints.BYTES, numBytesRead + Ints.BYTES + bloomSize)
+
+    numBytesRead += Ints.BYTES + bloomSize
 
     val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
     val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Signature25519.SignatureSize))
@@ -159,6 +182,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
-    BifrostBlock(parentId, timestamp, generatorBox, signature, tx)
+    BifrostBlock(parentId, timestamp, generatorBox, signature, tx, bloom)
   }
 }
