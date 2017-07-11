@@ -36,7 +36,7 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map {
-    _ => Gen.oneOf(transactionTypes).sample.get match {
+    _ => Gen.oneOf(transactionTypes ++: Seq("ContractCompletion")).sample.get match {
       case "ContractCreation" => validContractCreationGen.sample.get
       case "PolyTransfer" => validPolyTransferGen.sample.get
       case "ArbitTransfer" => validArbitTransferGen.sample.get

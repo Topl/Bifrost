@@ -63,10 +63,18 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
-    val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(b.parentId ++ b.bloom))
+    val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = {
+      if (b.parentId sameElements settings.GenesisParentId) {
+        Seq()
+      } else {
+        Seq(blockParentKey(b.id) -> ByteArrayWrapper(b.parentId))
+      }
+    }
 
-    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =b.transactions.get.map(
+    val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(b.bloom))
+
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
     )
 
@@ -84,7 +92,8 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
-      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
+        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
     )
   }
 
@@ -101,6 +110,8 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
+  private def blockParentKey(blockId: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(Sha256("parentId".getBytes ++ blockId))
+
   def blockTimestampKey: ByteArrayWrapper =
     ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
 
@@ -114,9 +125,10 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   } else {
     storage.get(blockDiffKey(blockId)).map(b => Longs.fromByteArray(b.data))
   }
-  def bloomOf(blockId: ModifierId): Option[(ModifierId, BitSet)] = storage.get(blockBloomKey(blockId)).map(b => {
-      (b.data.slice(0, Curve25519.KeyLength), BitSet() ++ BloomTopics.parseFrom(b.data.slice(Curve25519.KeyLength, b.data.length)).topics)
+  def bloomOf(blockId: ModifierId): Option[BitSet] = storage.get(blockBloomKey(blockId)).map(b => {
+      BitSet() ++ BloomTopics.parseFrom(b.data).topics
     })
+  def parentIdOf(blockId: ModifierId): Option[ModifierId] = storage.get(blockParentKey(blockId)).map(_.data)
   def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] = storage.get(ByteArrayWrapper(transactionId)).map(_.data)
 
   def parentChainScore(b: BifrostBlock): Long = scoreOf(b.parentId).getOrElse(0L)

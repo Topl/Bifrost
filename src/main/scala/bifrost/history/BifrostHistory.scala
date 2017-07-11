@@ -309,11 +309,11 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     */
   def getBlockIdsByBloom(f: (BitSet => Boolean)): Seq[Array[Byte]] = {
     @tailrec
-    def loop(m: (Array[Byte], BitSet), acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.bloomOf(m._1) match {
-      case Some(parent) => if (f(m._2)) loop(parent, m._1 +: acc) else loop(parent, acc)
-      case None => if (f(m._2)) m._1 +: acc else acc
+    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.parentIdOf(current) match {
+      case Some(value) => if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
+      case None => if (f(storage.bloomOf(current).get)) current +: acc else acc
     }
-    loop((bestBlock.id, BitSet() ++ BloomTopics.parseFrom(bestBlock.bloom).topics), Seq())
+    loop(bestBlock.id, Seq())
   }
 
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {

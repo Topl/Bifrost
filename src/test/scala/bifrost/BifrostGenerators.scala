@@ -440,6 +440,12 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
+  lazy val intSeqGen: Gen[Seq[Int]] = for {
+    seqLen <- positiveMediumIntGen
+  } yield 0 until seqLen map { _ =>
+    Gen.choose(0, 255).suchThat(i => i >= 0).sample.get
+  }
+
   def specificLengthBytesGen(length: Int): Gen[Array[Byte]] = Gen.listOfN(length, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
   lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
