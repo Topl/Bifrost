@@ -78,13 +78,14 @@ object BifrostBlock {
   }
 
   def createBloom(txs: Seq[BifrostTransaction]): Array[Byte] = {
-    BloomTopics(txs.foldLeft(BitSet())(
+    val bloomBitSet = txs.foldLeft(BitSet.empty)(
       (total, b) =>
         b.bloomTopics match {
-          case Some(e) => total | Bloom.calcBloom(e.head, e.tail)
+          case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
           case None => total
         }
-    ).toSeq).toByteArray
+    ).toSeq
+    BloomTopics(bloomBitSet).toByteArray
   }
 }
 

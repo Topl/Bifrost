@@ -302,18 +302,44 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     loop(bestBlock, Seq())
   }
 
-  def bloomFilter(bloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
-    val bloom: BitSet = Bloom.calcBloom(bloomTopics.head, bloomTopics.tail)
-    val f: (BifrostBlock => Boolean) = {
-      b =>
-        val blockBloom = BitSet() ++ BloomTopics.parseFrom(b.bloom).topics
-        val andRes = blockBloom & bloom
-        bloom equals andRes
+  /**
+    *
+    * @param f: predicate that tests whether a queryBloom is compatible with a block's bloom
+    * @return Seq of blockId that satisfies f
+    */
+  def getBlockIdsByBloom(f: (BitSet => Boolean)): Seq[Array[Byte]] = {
+    @tailrec
+    def loop(m: (Array[Byte], BitSet), acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.bloomOf(m._1) match {
+      case Some(parent) => if (f(m._2)) loop(parent, m._1 +: acc) else loop(parent, acc)
+      case None => if (f(m._2)) m._1 +: acc else acc
     }
-    filter(f).flatMap(b => b.txs.filter(tx =>
+    loop((bestBlock.id, BitSet() ++ BloomTopics.parseFrom(bestBlock.bloom).topics), Seq())
+  }
+
+  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
+    val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
+    val f: (BitSet => Boolean) = {
+      blockBloom =>
+        val andRes = blockBloom & queryBloom
+        queryBloom equals andRes
+    }
+    // Go through all pertinent txs to filter out false positives
+    getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
       tx.bloomTopics match {
-          // TODO: This should also filter other topics if they are present
-        case Some(e) => e.head sameElements bloomTopics.head
+        case Some(txBlooms) => {
+          // First topic must match
+          if (txBlooms.head sameElements queryBloomTopics.head) {
+            var res = true
+            if (txBlooms.tail.nonEmpty) {
+              val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+              val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+              res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+            }
+            res
+          } else {
+            false
+          }
+        }
         case None => false
       }
     ))

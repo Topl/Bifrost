@@ -12,7 +12,10 @@ import scorex.core.transaction.Transaction
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
+import scorex.crypto.signatures.Curve25519
+import serializer.BloomTopics
 
+import scala.collection.BitSet
 import scala.util.{Failure, Try}
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
@@ -60,6 +63,9 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
+    val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(b.parentId ++ b.bloom))
+
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =b.transactions.get.map(
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
     )
@@ -98,6 +104,9 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   def blockTimestampKey: ByteArrayWrapper =
     ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
 
+  private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
+    ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))
+
   def scoreOf(blockId: ModifierId): Option[Long] = storage.get(blockScoreKey(blockId)).map(b => Longs.fromByteArray(b.data))
   def heightOf(blockId: ModifierId): Option[Long] = storage.get(blockHeightKey(blockId)).map(b => Longs.fromByteArray(b.data))
   def difficultyOf(blockId: ModifierId): Option[Long] = if (blockId sameElements settings.GenesisParentId) {
@@ -105,6 +114,9 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   } else {
     storage.get(blockDiffKey(blockId)).map(b => Longs.fromByteArray(b.data))
   }
+  def bloomOf(blockId: ModifierId): Option[(ModifierId, BitSet)] = storage.get(blockBloomKey(blockId)).map(b => {
+      (b.data.slice(0, Curve25519.KeyLength), BitSet() ++ BloomTopics.parseFrom(b.data.slice(Curve25519.KeyLength, b.data.length)).topics)
+    })
   def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] = storage.get(ByteArrayWrapper(transactionId)).map(_.data)
 
   def parentChainScore(b: BifrostBlock): Long = scoreOf(b.parentId).getOrElse(0L)
