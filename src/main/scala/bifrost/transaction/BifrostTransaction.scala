@@ -417,7 +417,8 @@ case class ContractCompletion(contractBox: ContractBox,
   override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
     IndexedSeq("ContractCompletion".getBytes ++ parties(Role.Hub).pubKeyBytes,
       parties(Role.Investor).pubKeyBytes,
-      parties(Role.Producer).pubKeyBytes
+      parties(Role.Producer).pubKeyBytes,
+      parties(Role.Hub).pubKeyBytes
     )
   )
 
@@ -937,6 +938,16 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
                            timestamp: Long) extends BifrostTransaction {
 
   override type M = AssetRedemption
+
+  override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = {
+    val remainderKeys = remainderAllocations.flatMap{
+      case (key, value) =>
+        value.map(t => t._1.pubKeyBytes)
+    }
+    Option(
+      IndexedSeq("AssetRedemption".getBytes ++ hub.pubKeyBytes) ++ remainderKeys.toSet.take(3).toSeq
+    )
+  }
 
   val redemptionGroup: Map[ByteArrayWrapper, Signature25519] = availableToRedeem.flatMap(entry =>
     entry._2.map(t => ByteArrayWrapper(PublicKeyNoncedBox.idFromBox(t._1, t._2))).zip(signatures(entry._1))

@@ -327,18 +327,11 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
       tx.bloomTopics match {
         case Some(txBlooms) => {
-          // First topic must match
-          if (txBlooms.head sameElements queryBloomTopics.head) {
-            var res = true
-            if (txBlooms.tail.nonEmpty) {
-              val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
-              val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
-              res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
-            }
-            res
-          } else {
-            false
-          }
+          var res = false
+          val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+          val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+          res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+          res
         }
         case None => false
       }
