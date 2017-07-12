@@ -38,8 +38,7 @@ class BloomFilterSpec extends PropSpec
         System.currentTimeMillis(),
         arbitBoxGen.sample.get,
         signatureGen.sample.get,
-        txs,
-        BifrostBlock.createBloom(txs)
+        txs
       )
 
       history = history.append(block).get._1

@@ -26,8 +26,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(at),
-          Array[Byte]()
+          Seq(at)
         )
 
         val preExistingAssetBoxes: Set[BifrostBox] = at.from.map(f => AssetBox(f._1, f._2, at.to.map(_._2).sum, at.assetCode, at.hub)).toSet

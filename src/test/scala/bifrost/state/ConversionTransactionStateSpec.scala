@@ -26,8 +26,7 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(ct),
-          Array[Byte]()
+          Seq(ct)
         )
         
         val preExistingAssetBoxes: Set[BifrostBox] = ct.totalAssetBoxes.flatMap { case (assetHub, propNonce) =>
