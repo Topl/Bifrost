@@ -22,7 +22,6 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
   override def preStart(): Unit = {
     val events = Seq(
       GenericNodeViewHolder.EventType.StartingPersistentModifierApplication,
-
       GenericNodeViewHolder.EventType.FailedTransaction,
       GenericNodeViewHolder.EventType.FailedPersistentModifier,
       GenericNodeViewHolder.EventType.SuccessfulTransaction,
