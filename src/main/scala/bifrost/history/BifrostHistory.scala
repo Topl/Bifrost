@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 
 import com.google.common.primitives.Longs
-import bifrost.blocks.BifrostBlock
+import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.{Forger, ForgingConstants, ForgingSettings}
 import bifrost.transaction.BifrostTransaction
 import bifrost.validation.DifficultyBlockValidator
@@ -19,8 +19,10 @@ import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Pub
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
+import serializer.BloomTopics
 
 import scala.annotation.tailrec
+import scala.collection.BitSet
 import scala.util.{Failure, Try}
 
 /**
@@ -291,13 +293,56 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
 
   def count(f: (BifrostBlock => Boolean)): Int = filter(f).length
 
-  def filter(f: (BifrostBlock => Boolean)): Seq[ModifierId] = {
+  def filter(f: (BifrostBlock => Boolean)): Seq[BifrostBlock] = {
     @tailrec
-    def loop(m: BifrostBlock, acc: Seq[ModifierId]): Seq[ModifierId] = parentBlock(m) match {
-      case Some(parent) => if (f(m)) loop(parent, m.id +: acc) else loop(parent, acc)
-      case None => if (f(m)) m.id +: acc else acc
+    def loop(m: BifrostBlock, acc: Seq[BifrostBlock]): Seq[BifrostBlock] = parentBlock(m) match {
+      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
+      case None => if (f(m)) m +: acc else acc
     }
     loop(bestBlock, Seq())
+  }
+
+  /**
+    *
+    * @param f: predicate that tests whether a queryBloom is compatible with a block's bloom
+    * @return Seq of blockId that satisfies f
+    */
+  def getBlockIdsByBloom(f: (BitSet => Boolean)): Seq[Array[Byte]] = {
+    @tailrec
+    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.parentIdOf(current) match {
+      case Some(value) => if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
+      case None => if (f(storage.bloomOf(current).get)) current +: acc else acc
+    }
+    loop(bestBlock.id, Seq())
+  }
+
+  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
+    val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
+    val f: (BitSet => Boolean) = {
+      blockBloom =>
+        val andRes = blockBloom & queryBloom
+        queryBloom equals andRes
+    }
+    // Go through all pertinent txs to filter out false positives
+    getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
+      tx.bloomTopics match {
+        case Some(txBlooms) => {
+          // First topic must match
+          if (txBlooms.head sameElements queryBloomTopics.head) {
+            var res = true
+            if (txBlooms.tail.nonEmpty) {
+              val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+              val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+              res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+            }
+            res
+          } else {
+            false
+          }
+        }
+        case None => false
+      }
+    ))
   }
 
   def parentBlock(m: BifrostBlock): Option[BifrostBlock] = modifierById(m.parentId)

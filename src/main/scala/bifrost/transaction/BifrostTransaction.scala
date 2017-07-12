@@ -34,6 +34,8 @@ import scala.util.{Failure, Success, Try}
 trait TransactionSettings extends Settings
 
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
+  lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
+
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 
   implicit lazy val settings = new TransactionSettings {
@@ -412,6 +414,13 @@ case class ContractCompletion(contractBox: ContractBox,
   
   import ContractCompletion._
 
+  override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
+    IndexedSeq("ContractCompletion".getBytes ++ parties(Role.Hub).pubKeyBytes,
+      parties(Role.Investor).pubKeyBytes,
+      parties(Role.Producer).pubKeyBytes
+    )
+  )
+
   override type M = ContractCompletion
 
   lazy val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
@@ -455,7 +464,8 @@ case class ContractCompletion(contractBox: ContractBox,
 
     /* Get yield */
     val input: Long = contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
-    val output: Long = contract.storage("currentFulfillment").get.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
+    val fulfillment = contract.storage("currentFulfillment").get
+    val output = fulfillment.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
     val yieldRate = output.toDouble / input.toDouble
 
     /* Calculate sum of reputation from before */
@@ -468,8 +478,6 @@ case class ContractCompletion(contractBox: ContractBox,
 
     /* Reputation adjustment for producer */
     val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
-
-
 
     val assetCode: String =  contract.agreement("assetCode").get.asString.get
 
@@ -485,7 +493,7 @@ case class ContractCompletion(contractBox: ContractBox,
     val producerProfitShare = (shares._1*profitAmount).toLong
     val hubProfitShare = (shares._2*profitAmount).toLong
     val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
-    
+
     Seq(
       producerRep,
       AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), producerProfitShare, assetCode, contract.Hub),
