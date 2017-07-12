@@ -2,21 +2,19 @@ package bifrost.network
 
 import scorex.core.network.message.Message.MessageCode
 import scorex.core.network.message.MessageSpec
+import scorex.crypto.hash.Keccak256
+import serializer.ProducerProposal
 
 import scala.util.Try
 
-class ProducerNotifySpec extends MessageSpec[ProducerProposal] {
+object ProducerNotifySpec extends MessageSpec[ProducerProposal] {
 
-  override val messageCode: MessageCode = 1: Byte
+  override val messageCode: MessageCode = Keccak256("ProducerProposal").head: Byte
   override val messageName: String = "ProducerProposal"
 
   override def parseBytes(bytes: Array[Byte]): Try[ProducerProposal] = Try {
-    new ProducerProposal()
+    serializer.ProducerProposal.parseFrom(bytes)
   }
 
-  override def toBytes(data: ProducerProposal): Array[Byte] = Array[Byte]()
-}
-
-class ProducerProposal {
-
+  override def toBytes(data: ProducerProposal): Array[Byte] = serializer.ProducerProposal.toByteArray(data)
 }

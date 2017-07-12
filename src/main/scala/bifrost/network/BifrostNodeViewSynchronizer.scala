@@ -2,21 +2,18 @@ package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.BifrostNodeViewHolder
+import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo
 import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}
-import scorex.core.consensus.{History, SyncInfo}
+import bifrost.transaction.BifrostTransaction
 import scorex.core.network.NetworkController.{DataFromPeer, SendToNetwork}
 import scorex.core.network._
-import scorex.core.network.message.BasicMsgDataTypes._
 import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.utils.ScorexLogging
-import scorex.core.{LocalInterface, NodeViewModifier}
-import scorex.crypto.encode.Base58
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
+import scorex.core.transaction.state.PrivateKey25519
+import serializer.ProducerProposal
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -31,12 +28,16 @@ import scala.concurrent.duration._
 class BifrostNodeViewSynchronizer(networkControllerRef: ActorRef,
                                   viewHolderRef: ActorRef,
                                   localInterfaceRef: ActorRef,
-                                  syncInfoSpec: SyncInfoMessageSpec[SyncInfo])
-  extends GenericNodeViewSynchronizer(networkControllerRef, viewHolderRef, localInterfaceRef, syncInfoSpec) {
+                                  syncInfoSpec: BifrostSyncInfoMessageSpec.type)
+  extends GenericNodeViewSynchronizer[ProofOfKnowledgeProposition[PrivateKey25519],
+    BifrostTransaction,
+    BifrostSyncInfo,
+    BifrostSyncInfoMessageSpec.type
+  ](networkControllerRef, viewHolderRef, localInterfaceRef, syncInfoSpec) {
 
   override def preStart(): Unit = {
     //register as a handler for some types of messages
-    val messageSpecs = Seq(InvSpec, RequestModifierSpec, ModifiersSpec, syncInfoSpec, new ProducerNotifySpec)
+    val messageSpecs = Seq(InvSpec, RequestModifierSpec, ModifiersSpec, syncInfoSpec, ProducerNotifySpec)
     networkControllerRef ! NetworkController.RegisterMessagesHandler(messageSpecs, self)
 
     //subscribe for failed transaction,
@@ -52,19 +53,15 @@ class BifrostNodeViewSynchronizer(networkControllerRef: ActorRef,
   }
 
   private def processProposal: Receive = {
-    case DataFromPeer(spec: ProducerNotifySpec, data: ProducerProposal, remote) =>
+    case DataFromPeer(spec, data: ProducerProposal, remote)
+      if spec.messageCode == ProducerNotifySpec.messageCode =>
+
       networkControllerRef ! NetworkController.SendToNetwork(
-        Message[ProducerProposal](spec, Right(data), None), BroadcastExceptOf(Seq(remote))
+        Message(ProducerNotifySpec, Right(data), None), BroadcastExceptOf(Seq(remote))
       )
   }
 
-  private def newProposal: Receive = {
-    case DataFromPeer(spec: ProducerNotifySpec, data: ProducerProposal, remote) =>
-      networkControllerRef ! NetworkController.SendToNetwork(
-        Message[ProducerProposal](spec, Right(data), None), BroadcastExceptOf(Seq(remote))
-      )
-  }
 
-  override def receive: Receive = newProposal orElse processProposal orElse super.receive
+  override def receive: Receive = processProposal orElse super.receive
 }
 
