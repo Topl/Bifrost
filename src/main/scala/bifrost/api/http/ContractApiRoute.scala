@@ -72,6 +72,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
                 case "executeContractMethod" => executeContractMethod(view, params.head, id).asJson
                 case "getCompletionSignature" => getCompletionSignature(view, params.head, id).asJson
                 case "completeContract" => completeContract(view, params.head, id).asJson
+                case "filter" => bloomFilter(view, params, id).asJson
               }
             } match {
               case Success(resp) => BifrostSuccessResponse(resp, reqId)
@@ -193,6 +194,13 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     }
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)
     tx.json
+  }
+
+  def bloomFilter(view: CurrentView[HIS, MS, VL, MP], params: Vector[Json], id: String): Json = {
+    val history = view.history
+    val queryBloomTopics = params.map(j => j.asString.getOrElse("")).map(s => Base58.decode(s).get)
+    val res = history.bloomFilter(queryBloomTopics)
+    res.map(_.json).asJson
   }
 
   private def replaceBoxIdWithBox(state: BifrostState, json: Json, fieldName: String): Json = {
