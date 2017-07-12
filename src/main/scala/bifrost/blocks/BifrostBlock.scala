@@ -30,14 +30,6 @@ case class BifrostBlock(override val parentId: BlockId,
 
   override type M = BifrostBlock
 
-  lazy val bloom: BitSet = txs.foldLeft(BitSet())(
-    (total, b) =>
-      b.bloomTopics match {
-        case Some(e) => total | Bloom.calcBloom(e.head, e.tail)
-        case None => total
-      }
-  )
-
   override lazy val modifierTypeId: Byte = BifrostBlock.ModifierTypeId
 
   override lazy val transactions: Option[Seq[BifrostTransaction]] = Some(txs)
