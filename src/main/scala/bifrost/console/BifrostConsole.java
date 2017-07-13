@@ -22,6 +22,8 @@ import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
+import scala.util.parsing.json.JSON;
+import scala.util.parsing.json.JSONObject;
 import scorex.core.utils.ScorexLogging;
 
 import javax.script.*;
@@ -195,4 +197,8 @@ public class BifrostConsole {
         return deferred;
     }
 
+    public static String jsScan() {
+        Scanner scan = new Scanner(System.in);
+        return scan.nextLine();
+    }
 }
