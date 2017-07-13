@@ -21,7 +21,9 @@ import scorex.core.{NodeViewHolder, NodeViewModifier}
 import scorex.crypto.encode.Base58
 import serializer.ProducerProposal
 
-class BifrostNodeViewHolder(settings: ForgingSettings, peerManager: PeerMessageManager = PeerMessageManager.emptyManager)
+import scala.util.{Failure, Success}
+
+class BifrostNodeViewHolder(settings: ForgingSettings, private var peerManager: PeerMessageManager = PeerMessageManager.emptyManager)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
 
 
@@ -67,8 +69,10 @@ class BifrostNodeViewHolder(settings: ForgingSettings, peerManager: PeerMessageM
 
   private def handleProposal: Receive = {
     case ProducerInvestmentProposal(p) =>
-      peerManager.put(p)
-      println(peerManager)
+      peerManager.put(p) match {
+        case Success(proposal) => peerManager = proposal
+        case f: Failure[PeerMessageManager] => throw f.failed.get
+      }
   }
 
   override def receive: Receive = handleProposal orElse super.receive

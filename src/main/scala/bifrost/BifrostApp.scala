@@ -1,6 +1,8 @@
 package bifrost
 
+import java.time.Instant
 import java.util.Timer
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
@@ -15,6 +17,7 @@ import bifrost.transaction.box.BifrostBox
 import com.google.protobuf.ByteString
 import io.circe
 import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
+import scorex.core.network.NetworkController
 import scorex.core.network.message.{Message, MessageSpec}
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
@@ -22,6 +25,7 @@ import serializer.ProducerProposal
 import serializer.ProducerProposal.ProposalDetails
 import serializer.ProducerProposal.ProposalDetails.{Location, ProjectDescription}
 
+import scala.concurrent.duration.Duration
 import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
@@ -71,6 +75,24 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   forger
   localInterface
   nodeViewSynchronizer
+
+  /*val scheduler = actorSystem.scheduler
+  val task = new Runnable {
+    def run(): Unit = {
+      networkController ! Message(ProducerNotifySpec, Left(
+        ProducerProposal(
+          ByteString.copyFrom("testProducer".getBytes),
+          ProposalDetails(assetCode = "assetCode"),
+          ByteString.copyFrom("signature".getBytes),
+          Instant.now.toEpochMilli
+        ).toByteArray
+      ), Some(null))
+    }
+  }
+  implicit val executor = actorSystem.dispatcher
+
+  scheduler.schedule(initialDelay = Duration(10000, TimeUnit.MILLISECONDS), interval = Duration(7000, TimeUnit.MILLISECONDS), task)*/
+
 
 //  if (settings.nodeName == "node1") {
 //    log.info("Starting transactions generation")

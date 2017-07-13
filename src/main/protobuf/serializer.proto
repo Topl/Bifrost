@@ -33,4 +33,5 @@ message ProducerProposal {
     required bytes producer = 1;
     required ProposalDetails details = 2;
     required bytes signature = 3;
+    required uint64 timestamp = 4;
 }

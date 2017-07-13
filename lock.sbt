@@ -18,7 +18,13 @@ dependencyOverrides in ThisBuild ++= Set(
   "com.github.swagger-akka-http" % "swagger-akka-http_2.12" % "0.9.2",
   "com.google.code.findbugs" % "annotations" % "2.0.1",
   "com.google.guava" % "guava" % "20.0",
+  "com.google.protobuf" % "protobuf-java" % "3.3.1",
+  "com.lihaoyi" % "fastparse-utils_2.12" % "0.4.2",
+  "com.lihaoyi" % "fastparse_2.12" % "0.4.2",
+  "com.lihaoyi" % "sourcecode_2.12" % "0.1.3",
   "com.thoughtworks.paranamer" % "paranamer" % "2.8",
+  "com.trueaccord.lenses" % "lenses_2.12" % "0.4.12",
+  "com.trueaccord.scalapb" % "scalapb-runtime_2.12" % "0.6.0",
   "com.typesafe" % "config" % "1.3.0",
   "com.typesafe" % "ssl-config-core_2.12" % "0.2.1",
   "com.typesafe.akka" % "akka-actor_2.12" % "2.4.19",
@@ -80,4 +86,4 @@ dependencyOverrides in ThisBuild ++= Set(
   "org.whispersystems" % "curve25519-java" % "0.3.0",
   "org.yaml" % "snakeyaml" % "1.17"
 )
-// LIBRARY_DEPENDENCIES_HASH ae164dfc1afe9226576734a272a586e4d28e4777
+// LIBRARY_DEPENDENCIES_HASH 368f819392fe72adb3cd8f2dcd315e687073111b
