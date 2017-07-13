@@ -42,7 +42,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, ProducerNotifySpec)
 
-  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(classOf[NVHT], settings))
+  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
@@ -71,7 +71,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   forger
   localInterface
   nodeViewSynchronizer
-  
+
 //  if (settings.nodeName == "node1") {
 //    log.info("Starting transactions generation")
 //    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
@@ -80,6 +80,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("settings.json")
+  val settingsFilename = args.headOption.getOrElse("testnet-bifrost.json")
   new BifrostApp(settingsFilename).run()
 }

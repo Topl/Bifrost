@@ -56,6 +56,7 @@ class BifrostNodeViewSynchronizer(networkControllerRef: ActorRef,
     case DataFromPeer(spec, data: ProducerProposal, remote)
       if spec.messageCode == ProducerNotifySpec.messageCode =>
 
+      viewHolderRef ! BifrostNodeViewHolder.ProducerInvestmentProposal(data)
       networkControllerRef ! NetworkController.SendToNetwork(
         Message(ProducerNotifySpec, Right(data), None), BroadcastExceptOf(Seq(remote))
       )

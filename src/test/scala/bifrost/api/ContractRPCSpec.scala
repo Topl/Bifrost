@@ -19,6 +19,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
@@ -53,7 +54,7 @@ class ContractRPCSpec extends WordSpec
   import ContractRPCSpec._
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(classOf[BifrostNodeViewHolder], settings))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
   val route = ContractApiRoute(settings, nodeViewHolderRef).route
   println(settings.toString)
