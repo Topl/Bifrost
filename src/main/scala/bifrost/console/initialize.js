@@ -7,6 +7,12 @@ load(fromClassPath("timer-polyfill.js"));
 load(fromClassPath("xml-http-request-polyfill.js"));
 load(fromClassPath("bundle.js"));
 
+//global variable to represent an agreement JSON template
+var agreement = {"agreement": {"terms": {"pledge": "", "xrate": "","share": {
+                                "functionType": "PiecewiseLinearMultiple", "points": []}, "fulfilment": {
+                                "functionType": "PiecewiseLinearMultiple", "points": []},},
+                                "assetCode": "", "contractEffectiveTime": "", "contractExpirationTime": ""}};
+
  var help = function() {
    print("\n   Welcome to the Bifrost client console for the Topl blockchain. This is a list of basic commands to use with the console. \n\
    Many commands can be run by calling the preset global bifrost object the the function. \n\n\
@@ -27,7 +33,11 @@ load(fromClassPath("bundle.js"));
    getCompletionSignature(comSigParameters)       returns the signing key from a given public key associated \n\
                                                     with a contractBox \n\
    completeContract(completeParameters)           uses a given JSON template to close a completed contract \n\
-   createKeyFile(password)                        generates a new key file using a given password string \n\n\n\
+   createKeyFile(password)                        generates a new key file using a given password string \n\
+   newAgreement()                                 creates a new agreement object with user input values to set \n\
+                                                  the terms for a new agreement. The resulting agreement terms \n\
+                                                  can be seen by entering 'agreement' into the console to call \n\
+                                                  the agreement global variable. \n\n\n\
    There are a few keywords for the console as well: \n\n\
    exit                                           terminates Bifrost\n\
    [show, hide] logs                              enables or disables logging from background activities\n\
@@ -35,3 +45,68 @@ load(fromClassPath("bundle.js"));
    The full API can be accessed via localhost:9585. Read the documentation at https://github.com/Topl/Project-Bifrost/wiki/HTTP-API\n\
    ");
  };
+
+var newAgreement = function() {
+  var scanner = Java.type("bifrost.console.BifrostConsole");
+  var input;
+  var inputArray = [];
+
+  print("  This is the creation tool to generate a new agreement by filling out a predefined \n\
+  JSON template with user input. The completed agreement is held in a global object that can \n\
+  be accessed by typing 'agreement'.\n\n")
+
+  print("pledge:");
+  input = scanner.jsScan();
+  agreement.agreement.terms.pledge = input;
+  print("xrate:");
+  input = scanner.jsScan();
+  agreement.agreement.terms.xrate = input;
+
+  print("share data points,");
+  print("leave blank to finish entering points\npoints:");
+  input = scanner.jsScan();
+  while(input !== "") {
+    inputArray.push(input);
+    input = scanner.jsScan();
+  }
+  agreement.agreement.terms.share.points = inputArray;
+  inputArray = [];
+
+  print("fulfilment data points,");
+  print("leave blank to finish entering points\npoints:");
+  input = scanner.jsScan();
+  while(input !== "") {
+    inputArray.push(input);
+    input = scanner.jsScan();
+  }
+  agreement.agreement.terms.fulfilment.points = inputArray;
+
+  print("asset code:");
+  input = scanner.jsScan();
+  agreement.agreement.assetCode = input;
+
+  var effectiveDate, expirationDate;
+  while(input !== "correct!") {
+    print("Contract dates are in the format - Month Day Year Hour:Minute:Second GMT+0000");
+    print("Example: 'Mar 25 2015 12:34:56 GMT+0100");
+    print("The dates will be converted to the standard Unix epoch timestamp in the resulting JSON object");
+    print("contract effective time:");
+    input = scanner.jsScan();
+    effectiveDate = Math.floor((new Date(input).getTime())/1000);
+    print("contract effective time:");
+    input = scanner.jsScan();
+    expirationDate =  Math.floor((new Date(input).getTime())/1000);
+    if(isNaN(effectiveDate) || isNaN(expirationDate)) {
+      print("Error: The date is not in the correct format");
+    }
+    if(expirationDate > effectiveDate) {
+      input = "correct!";
+    } else {
+      print("Error: The expiration date is before the effective date");
+    }
+  }
+  agreement.agreement.contractEffectiveTime = effectiveDate;
+  agreement.agreement.contractExpirationTime = expirationDate;
+
+  print(JSON.stringify(agreement, undefined, 2));
+};

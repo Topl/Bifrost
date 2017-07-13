@@ -34,9 +34,6 @@ class IODBSpec extends PropSpec
       */
     def writeTx(tx: BifrostTransaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
-      if (tx.isInstanceOf[ContractCompletion]) {
-        println(s"ContractCompletion here: ${Base58.encode(tx.id)}")
-      }
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = tx.newBoxes.map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes))).toList
       blocksStorage.update(ByteArrayWrapper(tx.id), boxIdsToRemove, boxesToAdd)
     }

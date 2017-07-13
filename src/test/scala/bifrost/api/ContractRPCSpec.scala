@@ -23,7 +23,7 @@ import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.{ProfileTransaction, Role}
+import bifrost.transaction.{ContractCompletion, ProfileTransaction, Role}
 import bifrost.transaction.box._
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
@@ -35,7 +35,9 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.optics.JsonPath._
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -495,6 +497,7 @@ class ContractRPCSpec extends WordSpec
       }
     }
 
+    var completionTx = None: Option[ContractCompletion]
     "Complete the Contract" in {
       val requestBody = s"""|{
       |  "jsonrpc" : "2.0",
@@ -524,8 +527,8 @@ class ContractRPCSpec extends WordSpec
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         val txInstance = view().pool.getById(Base58.decode(txHash).get).get
         txInstance.boxIdsToOpen.head shouldEqual contractBox.get.id
+        completionTx = Some(txInstance.asInstanceOf[ContractCompletion])
         val newBoxes = txInstance.newBoxes
-
 
         newBoxes.head.asInstanceOf[ReputationBox].value._1 shouldEqual 10.0
         newBoxes.head.asInstanceOf[ReputationBox].value._2 shouldEqual 7.0
@@ -538,6 +541,34 @@ class ContractRPCSpec extends WordSpec
 
         newBoxes.toList(3) shouldBe an[AssetBox]
         newBoxes.toList(3).asInstanceOf[AssetBox].value shouldEqual 8350
+
+        val history = view().history
+        val tempBlock = BifrostBlock(history.bestBlockId,
+          System.currentTimeMillis(),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          Seq(txInstance)
+        )
+        history.append(tempBlock)
+      }
+    }
+
+    "Get the contract tx by bloom filter" in {
+      val requestBody = s"""
+        |{
+        |  "jsonrpc" : "2.0",
+        |  "id" : "23",
+        |  "method": "filter",
+        |  "params" : [${publicKeys("hub").asJson}]
+        |}
+        """.stripMargin
+
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(requestBody)
+        println(res)
+        (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
+        ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
     }
   }
