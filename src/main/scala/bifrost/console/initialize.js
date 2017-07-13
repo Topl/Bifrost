@@ -8,7 +8,10 @@ load(fromClassPath("xml-http-request-polyfill.js"));
 load(fromClassPath("bundle.js"));
 
 //global variable to represent an agreement JSON template
-var agreement = {"terms": {"share": {}, "fulfilment": {}}};
+var agreement = {"agreement": {"terms": {"pledge": "", "xrate": "","share": {
+                                "functionType": "PiecewiseLinearMultiple", "points": []}, "fulfilment": {
+                                "functionType": "PiecewiseLinearMultiple", "points": []},},
+                                "assetCode": "", "contractEffectiveTime": "", "contractExpirationTime": ""}};
 
  var help = function() {
    print("\n   Welcome to the Bifrost client console for the Topl blockchain. This is a list of basic commands to use with the console. \n\
@@ -48,50 +51,45 @@ var newAgreement = function() {
   var input;
   var inputArray = [];
 
-
-
+  print("  This is the creation tool to generate a new agreement by filling out a predefined \n\
+  JSON template with user input. The completed agreement is held in a global object that can \n\
+  be accessed by typing 'agreement'.\n\n")
 
   print("pledge:");
   input = scanner.jsScan();
-  agreement.terms.pledge = input;
+  agreement.agreement.terms.pledge = input;
   print("xrate:");
   input = scanner.jsScan();
-  agreement.terms.xrate = input;
+  agreement.agreement.terms.xrate = input;
 
-  print("share:");
-  print("function type:");
-  input = scanner.jsScan();
-  agreement.terms.share.functionType = input;
+  print("share data points,");
   print("leave blank to finish entering points\npoints:");
   input = scanner.jsScan();
   while(input !== "") {
     inputArray.push(input);
     input = scanner.jsScan();
   }
-  agreement.terms.share.points = inputArray;
+  agreement.agreement.terms.share.points = inputArray;
   inputArray = [];
 
-  print("fulfilment:");
-  print("function type:");
-  input = scanner.jsScan();
-  agreement.terms.fulfilment.functionType = input;
+  print("fulfilment data points,");
   print("leave blank to finish entering points\npoints:");
   input = scanner.jsScan();
   while(input !== "") {
     inputArray.push(input);
     input = scanner.jsScan();
   }
-  agreement.terms.fulfilment.points = inputArray;
+  agreement.agreement.terms.fulfilment.points = inputArray;
 
   print("asset code:");
   input = scanner.jsScan();
-  agreement.assetCode = input;
+  agreement.agreement.assetCode = input;
 
   var effectiveDate, expirationDate;
   while(input !== "correct!") {
     print("Contract dates are in the format - Month Day Year Hour:Minute:Second GMT+0000");
     print("Example: 'Mar 25 2015 12:34:56 GMT+0100");
-    print("The dates will be converted to the standard Unix epoch timestamp in the resulting JSON file");
+    print("The dates will be converted to the standard Unix epoch timestamp in the resulting JSON object");
     print("contract effective time:");
     input = scanner.jsScan();
     effectiveDate = Math.floor((new Date(input).getTime())/1000);
@@ -107,8 +105,8 @@ var newAgreement = function() {
       print("Error: The expiration date is before the effective date");
     }
   }
-  agreement.contractEffectiveTime = effectiveDate;
-  agreement.contractExpirationTime = expirationDate;
+  agreement.agreement.contractEffectiveTime = effectiveDate;
+  agreement.agreement.contractExpirationTime = expirationDate;
 
   print(JSON.stringify(agreement, undefined, 2));
 };
