@@ -26,7 +26,6 @@ import scala.util.{Failure, Success}
 class BifrostNodeViewHolder(settings: ForgingSettings, private var peerManager: PeerMessageManager = PeerMessageManager.emptyManager)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
 
-
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
   override type HIS = BifrostHistory

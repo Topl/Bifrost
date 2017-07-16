@@ -2,7 +2,7 @@ package bifrost.forging
 
 import java.time.Instant
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 trait ForgerSettings extends Settings {
 }
 
-class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with ScorexLogging {
+class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with ActorLogging {
 
   import Forger._
 
