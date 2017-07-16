@@ -59,25 +59,25 @@ class FullNodeSpec extends TestKit(ActorSystem("TestNode"))
   implicit lazy val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("settings.json")
   }
-  val nodeViewHolder0 = system.actorOf(Props(new BifrostNodeViewHolder(settings)))
-  val forger0 = system.actorOf(Props(classOf[Forger], settings, nodeViewHolder0))
+
 //  val localInterface0 = tempNode0.localInterface
 
 //  val nodeViewHolder1 = tempNode1.nodeViewHolderRef
 //  val forger1 = tempNode1.forger
 //  val localInterface1 = tempNode1.localInterface
 
+  var nodeViewHolder0 = ActorRef.noSender
+  var forger0 = ActorRef.noSender
+
   override def beforeAll: Unit = {
     val path: Path = Path ("/tmp/scorex/data")
     Try(path.deleteRecursively())
+    nodeViewHolder0 = system.actorOf(Props(new BifrostNodeViewHolder(settings)))
+    forger0 = system.actorOf(Props(classOf[Forger], settings, nodeViewHolder0))
   }
 
   override def afterAll {
     TestKit.shutdownActorSystem(system)
-    val path: Path = Path ("/tmp/scorex/data")
-    Try(path.deleteRecursively())
-    val path2: Path = Path ("/tmp/scorex/data2")
-    Try(path2.deleteRecursively())
   }
 
   "A NodeViewHolderActor" must {
