@@ -64,6 +64,10 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
 
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
+
+libraryDependencies += "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.3.2"
+
 val consoleDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
   "org.apache.httpcomponents" % "httpclient" % "4.5.3",

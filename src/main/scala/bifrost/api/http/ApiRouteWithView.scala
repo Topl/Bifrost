@@ -2,8 +2,10 @@ package bifrost.api.http
 
 import akka.actor.ActorRef
 import akka.pattern.ask
+import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.PeerMessageManager
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -17,4 +19,7 @@ trait ApiRouteWithView extends ApiRoute {
 
   protected def viewAsync(): Future[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]] =
     (nodeViewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
+
+  protected def messageManagerAsync(): Future[MessageManager] =
+    (nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager]
 }

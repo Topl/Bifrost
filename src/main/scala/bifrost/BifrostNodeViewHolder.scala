@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.BifrostNodeViewHolder.ProducerInvestmentProposal
+import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager, ProducerInvestmentProposal}
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
@@ -23,7 +23,7 @@ import serializer.ProducerProposal
 
 import scala.util.{Failure, Success}
 
-class BifrostNodeViewHolder(settings: ForgingSettings, private var peerManager: PeerMessageManager = PeerMessageManager.emptyManager)
+class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManager: PeerMessageManager = PeerMessageManager.emptyManager)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
@@ -68,13 +68,21 @@ class BifrostNodeViewHolder(settings: ForgingSettings, private var peerManager: 
 
   private def handleProposal: Receive = {
     case ProducerInvestmentProposal(p) =>
-      peerManager.put(p) match {
-        case Success(proposal) => peerManager = proposal
+      log.debug("Received ProducerInvestmentProposal.")
+      messageManager.put(p) match {
+        case Success(proposal) =>
+          messageManager = proposal
+          log.debug(s"Proposal ${p} Added")
         case f: Failure[PeerMessageManager] => throw f.failed.get
       }
   }
 
-  override def receive: Receive = handleProposal orElse super.receive
+  private def getMessageManager: Receive = {
+    case GetMessageManager =>
+      sender() ! MessageManager(messageManager)
+  }
+
+  override def receive: Receive = handleProposal orElse getMessageManager orElse super.receive
 }
 
 object BifrostNodeViewHolder extends ScorexLogging {
@@ -87,6 +95,10 @@ object BifrostNodeViewHolder extends ScorexLogging {
   type NodeView = (HIS, MS, VL, MP)
 
   case class ProducerInvestmentProposal(p: ProducerProposal)
+
+  case object GetMessageManager
+
+  case class MessageManager(m: PeerMessageManager)
 
   //noinspection ScalaStyle
   def initializeGenesis(settings: ForgingSettings): NodeView = {

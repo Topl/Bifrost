@@ -1,5 +1,6 @@
 package bifrost.api.http
 
+import java.time.Instant
 import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
@@ -8,6 +9,7 @@ import akka.util.Timeout
 import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.ProducerNotifySpec
 import bifrost.transaction.ContractCreation._
 import bifrost.scorexMod.{GenericBox, GenericBoxTransaction, GenericNodeViewHolder}
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
@@ -15,6 +17,8 @@ import bifrost.state.BifrostState
 import bifrost.transaction._
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import bifrost.wallet.BWallet
+import com.google.protobuf.ByteString
+import com.trueaccord.scalapb.json.JsonFormat
 import io.circe.{HCursor, Json, JsonObject}
 import io.circe.parser.parse
 import io.circe.optics.JsonPath._
@@ -31,10 +35,13 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.ProducerProposal
+import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.{Failure, Success, Try}
+import scorex.core.network.message.{Message}
 
 /**
   * Created by cykoz on 5/26/2017.
@@ -42,7 +49,7 @@ import scala.util.{Failure, Success, Try}
 
 @Path("/contract")
 @Api(value = "/contract", produces = "application/json")
-case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef)
+case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
                             (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
   type HIS = BifrostHistory
   type MS = BifrostState
@@ -76,8 +83,10 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
               case "getCompletionSignature" => getCompletionSignature(params.head, id)
               case "completeContract" => completeContract(params.head, id)
               case "filter" => bloomFilter(params, id)
+              case "retrieveProposals" => retrieveProposals(params.head, id)
+              case "postProposals" => postProposals(params.head, id)
             }
-          }.map { resp =>
+          } map { resp =>
             Await.result(resp, timeout.duration)
           } match {
             case Success(resp) => BifrostSuccessResponse(resp, reqId)
@@ -85,7 +94,6 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
               BifrostErrorResponse(e, reqId)
           }
         }
-        
       }
     }
   }}
@@ -226,6 +234,23 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
       val res = history.bloomFilter(queryBloomTopics)
       res.map(_.json).asJson
     }
+  }
+
+  def retrieveProposals(params: Json, id: String): Future[Json] = {
+    messageManagerAsync().map { messageManagerWrapper =>
+      val messageManager = messageManagerWrapper.m
+      val limit = (params \\ "limit").head.asNumber.get.toInt.getOrElse(50)
+      val proposals = messageManager.take(limit)
+      Map(
+        "proposals" -> proposals.map(proposal => parse(JsonFormat.toJsonString(proposal)).right.getOrElse(Json.Null)).asJson,
+        "totalProposals" -> messageManager.size.asJson
+      ).asJson
+    }
+  }
+
+  def postProposals(params: Json, id: String): Future[Json] = {
+    networkControllerRef ! Message(ProducerNotifySpec, Left(JsonFormat.fromJsonString[ProducerProposal](params.toString).toByteArray), Some(null))
+    Future(params)
   }
 
   private def replaceBoxIdWithBox(state: BifrostState, json: Json, fieldName: String): Json = {

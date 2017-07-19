@@ -13,13 +13,15 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
-import bifrost.BifrostNodeViewHolder
+import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager}
+import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
-import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
+import bifrost.forging.{Forger, ForgingSettings}
+import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageManager
+import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageManager, ProducerNotifySpec}
+import bifrost.scorexMod.GenericApplication
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.state.{BifrostState, BifrostStateChanges}
@@ -27,6 +29,7 @@ import bifrost.transaction.{ContractCompletion, ProfileTransaction, Role}
 import bifrost.transaction.box._
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
+import com.trueaccord.scalapb.json.JsonFormat
 import io.circe
 import scorex.core.settings.Settings
 import io.circe._
@@ -34,10 +37,15 @@ import io.circe.parser._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.optics.JsonPath._
+import scorex.core.network.{NetworkController, UPnP}
+import scorex.core.network.message._
+import scorex.core.network.peer.PeerManager
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.ProducerProposal
+import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -58,7 +66,37 @@ class ContractRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  val route = ContractApiRoute(settings, nodeViewHolderRef).route
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, ProducerNotifySpec)
+  //p2p
+  lazy val upnp = new UPnP(settings)
+
+  private lazy val basicSpecs =
+    Seq(
+      GetPeersSpec,
+      PeersSpec,
+      InvSpec,
+      RequestModifierSpec,
+      ModifiersSpec
+    )
+
+  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
+
+  val peerManagerRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
+
+  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
+  val networkController = actorSystem.actorOf(nProps, "networkController")
+
+  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
+
+  val localInterface: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+  )
+
+  val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostNodeViewSynchronizer], networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec)
+  )
+
+  val route = ContractApiRoute(settings, nodeViewHolderRef, networkController).route
   println(settings.toString)
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -569,6 +607,47 @@ class ContractRPCSpec extends WordSpec
         println(res)
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
+      }
+    }
+
+    "Post a Proposal" in {
+      val tempProposal = ProducerProposal(
+        com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
+        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000))),
+        com.google.protobuf.ByteString.copyFrom("signature".getBytes),
+        Instant.now.toEpochMilli)
+      val requestBody = s"""
+         |{
+         |  "jsonrpc" : "2.0",
+         |  "id" : "24",
+         |  "method": "postProposals",
+         |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
+         |}
+        """.stripMargin
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
+        msgManager.m.take(1).head.toByteArray sameElements tempProposal.toByteArray shouldBe true
+      }
+    }
+
+    "Retrieve Proposals" in {
+      val requestBody = s"""
+         |{
+         |  "jsonrpc" : "2.0",
+         |  "id" : "24",
+         |  "method": "retrieveProposals",
+         |  "params" : [{
+         |    "limit": 10
+         |  }]
+         |}
+        """.stripMargin
+      httpPOST(ByteString(requestBody)) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(res)
+        (res \\ "result").head.asObject.isDefined shouldEqual true
+        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
       }
     }
   }
