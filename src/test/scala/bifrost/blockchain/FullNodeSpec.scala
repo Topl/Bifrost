@@ -1,23 +1,12 @@
 package bifrost.blockchain
 
 import akka.actor.{Actor, ActorKilledException, ActorLogging, ActorRef, ActorSystem, Kill, Props}
-import akka.event.LoggingAdapter
 import akka.testkit.{DebugFilter, EventFilter, ImplicitSender, TestActorRef, TestActors, TestKit}
 import bifrost.{BifrostApp, BifrostLocalInterface, BifrostNodeViewHolder}
-import bifrost.blockchain.TeacherProtocol.QuoteRequest
 import bifrost.forging.Forger.{StartForging, StopForging}
 import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.BifrostSyncInfoMessageSpec
-import bifrost.network.{BifrostNodeViewSynchronizer, ProducerNotifySpec}
-import bifrost.scorexMod.GenericApplication
-import bifrost.scorexMod.GenericNodeViewSynchronizer.{CompareViews, RequestFromLocal}
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import com.typesafe.config.ConfigFactory
-import org.slf4j.LoggerFactory
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
 import scorex.core.utils.ScorexLogging
 
 import scala.reflect.io.Path

@@ -12,7 +12,7 @@ import scorex.core.network._
 import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
-import serializer.ProducerProposal
+import serializer.{PeerMessage, ProducerProposal}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -37,7 +37,7 @@ class BifrostNodeViewSynchronizer(networkControllerRef: ActorRef,
 
   override def preStart(): Unit = {
     //register as a handler for some types of messages
-    val messageSpecs = Seq(InvSpec, RequestModifierSpec, ModifiersSpec, syncInfoSpec, ProducerNotifySpec)
+    val messageSpecs = Seq(InvSpec, RequestModifierSpec, ModifiersSpec, syncInfoSpec, PeerMessageSpec)
     networkControllerRef ! NetworkController.RegisterMessagesHandler(messageSpecs, self)
 
     //subscribe for failed transaction,
@@ -52,17 +52,24 @@ class BifrostNodeViewSynchronizer(networkControllerRef: ActorRef,
     context.system.scheduler.schedule(2.seconds, 15.seconds)(self ! GetLocalSyncInfo)
   }
 
-  private def processProposal: Receive = {
-    case DataFromPeer(spec, data: ProducerProposal, remote)
-      if spec.messageCode == ProducerNotifySpec.messageCode =>
-
-      viewHolderRef ! BifrostNodeViewHolder.ProducerInvestmentProposal(data)
-      networkControllerRef ! NetworkController.SendToNetwork(
-        Message(ProducerNotifySpec, Right(data), None), BroadcastExceptOf(Seq(remote))
-      )
+  private def processPeerMessage: Receive = {
+    case DataFromPeer(spec, data: PeerMessage, remote)
+      if spec.messageCode == PeerMessageSpec.messageCode =>
+      data.messageType match {
+        case PeerMessage.Type.ProducerProposal =>
+          viewHolderRef ! BifrostNodeViewHolder.PeerMessageReceived(data)
+          networkControllerRef ! NetworkController.SendToNetwork(
+            Message(PeerMessageSpec, Right(data), None), BroadcastExceptOf(Seq(remote))
+          )
+        case PeerMessage.Type.BuySellOrder =>
+          viewHolderRef ! BifrostNodeViewHolder.PeerMessageReceived(data)
+          networkControllerRef ! NetworkController.SendToNetwork(
+            Message(PeerMessageSpec, Right(data), None), BroadcastExceptOf(Seq(remote))
+          )
+      }
   }
 
 
-  override def receive: Receive = processProposal orElse super.receive
+  override def receive: Receive = processPeerMessage orElse super.receive
 }
 

@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager, ProducerInvestmentProposal}
+import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager, PeerMessageReceived}
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
@@ -19,7 +19,7 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.core.{NodeViewHolder, NodeViewModifier}
 import scorex.crypto.encode.Base58
-import serializer.ProducerProposal
+import serializer.{PeerMessage, ProducerProposal}
 
 import scala.util.{Failure, Success}
 
@@ -67,12 +67,11 @@ class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManage
   }
 
   private def handleProposal: Receive = {
-    case ProducerInvestmentProposal(p) =>
-      log.debug("Received ProducerInvestmentProposal.")
+    case PeerMessageReceived(p) =>
       messageManager.put(p) match {
-        case Success(proposal) =>
-          messageManager = proposal
-          log.debug(s"Proposal ${p} Added")
+        case Success(updatedManager) =>
+          messageManager = updatedManager
+          log.debug(s"Proposal $p Added")
         case f: Failure[PeerMessageManager] => throw f.failed.get
       }
   }
@@ -94,7 +93,7 @@ object BifrostNodeViewHolder extends ScorexLogging {
 
   type NodeView = (HIS, MS, VL, MP)
 
-  case class ProducerInvestmentProposal(p: ProducerProposal)
+  case class PeerMessageReceived(p: PeerMessage)
 
   case object GetMessageManager
 

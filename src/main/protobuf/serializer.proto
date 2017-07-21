@@ -2,6 +2,20 @@ message BloomTopics {
     repeated int32 topics = 1;
 }
 
+message PeerMessage {
+
+    enum Type {
+        ProducerProposal = 1;
+        BuySellOrder = 2;
+    }
+
+    required Type messageType = 1;
+    required bytes signature = 2;
+    required uint64 timestamp = 3;
+    required bytes messageBytes = 4;
+    required bytes signer = 5;
+}
+
 message ProducerProposal {
 
     message ProposalDetails {
@@ -32,8 +46,6 @@ message ProducerProposal {
 
     required bytes producer = 1;
     required ProposalDetails details = 2;
-    required bytes signature = 3;
-    required uint64 timestamp = 4;
 }
 
 message BuySellOrder {

@@ -9,7 +9,7 @@ import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
-import bifrost.network.{BifrostNodeViewSynchronizer, ProducerNotifySpec}
+import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
 import bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
 import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
@@ -44,7 +44,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   }
   log.debug(s"Starting application with settings \n$settings")
 
-  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, ProducerNotifySpec)
+  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 

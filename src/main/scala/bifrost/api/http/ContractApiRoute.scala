@@ -5,18 +5,15 @@ import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import akka.util.Timeout
-import bifrost.contract.{Agreement, AgreementTerms, PiecewiseLinearMultiple, PiecewiseLinearSingle}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.ProducerNotifySpec
+import bifrost.network.{PeerMessageManager, PeerMessageSpec}
 import bifrost.transaction.ContractCreation._
-import bifrost.scorexMod.{GenericBox, GenericBoxTransaction, GenericNodeViewHolder}
-import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
 import bifrost.transaction._
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import bifrost.wallet.BWallet
+import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import com.trueaccord.scalapb.json.JsonFormat
 import io.circe.{HCursor, Json, JsonObject}
@@ -25,23 +22,19 @@ import io.circe.optics.JsonPath._
 import io.circe.syntax._
 import io.swagger.annotations._
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.PersistentNodeViewModifier
 import scorex.core.api.http.{ApiException, SuccessApiResponse}
-import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
-import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import serializer.ProducerProposal
-import serializer.ProducerProposal.ProposalDetails
+import serializer.{PeerMessage, ProducerProposal}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.{Failure, Success, Try}
-import scorex.core.network.message.{Message}
+import scorex.core.network.message.Message
 
 /**
   * Created by cykoz on 5/26/2017.
@@ -240,17 +233,35 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
     messageManagerAsync().map { messageManagerWrapper =>
       val messageManager = messageManagerWrapper.m
       val limit = (params \\ "limit").head.asNumber.get.toInt.getOrElse(50)
-      val proposals = messageManager.take(limit)
+      val producerProposals = messageManager.filter(_.messageType equals PeerMessage.Type.ProducerProposal)
+      val proposals = producerProposals.take(limit)
       Map(
         "proposals" -> proposals.map(proposal => parse(JsonFormat.toJsonString(proposal)).right.getOrElse(Json.Null)).asJson,
-        "totalProposals" -> messageManager.size.asJson
+        "totalProposals" -> producerProposals.size.asJson
       ).asJson
     }
   }
 
   def postProposals(params: Json, id: String): Future[Json] = {
-    networkControllerRef ! Message(ProducerNotifySpec, Left(JsonFormat.fromJsonString[ProducerProposal](params.toString).toByteArray), Some(null))
-    Future(params)
+    viewAsync().map { view =>
+
+      val timestamp = Instant.now.toEpochMilli
+      val producerProposal = JsonFormat.fromJsonString[ProducerProposal](params.toString)
+
+      val wrappedMessage = PeerMessage(
+        PeerMessage.Type.ProducerProposal,
+        ByteString.copyFrom(
+          PrivateKey25519Companion.sign(view.vault.secrets.head, producerProposal.toByteArray ++ Longs.toByteArray(timestamp)).bytes
+        ),
+        timestamp,
+        producerProposal.toByteString,
+        ByteString.copyFrom(view.vault.secrets.head.publicImage.pubKeyBytes)
+      )
+
+      networkControllerRef ! Message(PeerMessageSpec, Left(wrappedMessage.toByteArray), Some(null))
+
+      parse(JsonFormat.toJsonString(wrappedMessage)).right.getOrElse(Json.Null)
+    }
   }
 
   private def replaceBoxIdWithBox(state: BifrostState, json: Json, fieldName: String): Json = {

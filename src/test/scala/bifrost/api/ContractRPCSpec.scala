@@ -20,7 +20,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageManager, ProducerNotifySpec}
+import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageManager, PeerMessageSpec}
 import bifrost.scorexMod.GenericApplication
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
@@ -66,7 +66,7 @@ class ContractRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, ProducerNotifySpec)
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
   //p2p
   lazy val upnp = new UPnP(settings)
 
@@ -613,9 +613,8 @@ class ContractRPCSpec extends WordSpec
     "Post a Proposal" in {
       val tempProposal = ProducerProposal(
         com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
-        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000))),
-        com.google.protobuf.ByteString.copyFrom("signature".getBytes),
-        Instant.now.toEpochMilli)
+        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
+      )
       val requestBody = s"""
          |{
          |  "jsonrpc" : "2.0",
@@ -628,7 +627,7 @@ class ContractRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
-        msgManager.m.take(1).head.toByteArray sameElements tempProposal.toByteArray shouldBe true
+        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
       }
     }
 
