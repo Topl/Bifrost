@@ -9,10 +9,6 @@ lazy val commonSettings = Seq(
   version := "0.1.0-alpha"
 )
 
-scalaVersion := "2.12.1"
-organization := "co.topl"
-version := "0.1.0-alpha"
-
 mainClass in assembly := Some("bifrost.console.BifrostConsole")
 
 val circeVersion = "0.7+"
@@ -95,7 +91,7 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-fork := true
+fork := false
 
 pomIncludeRepository := { _ => false }
 
@@ -116,3 +112,9 @@ PB.targets in Compile := Seq(
 )
 
 PB.pythonExe := "C:\\Python27\\python.exe"
+
+enablePlugins(ScalaJSPlugin)
+
+lazy val bifrost = Project(id = "project-bifrost", base = file("."))
+  .settings(commonSettings: _*)
+
