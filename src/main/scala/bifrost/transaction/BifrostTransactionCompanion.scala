@@ -17,6 +17,7 @@ import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Pr
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.{BuySellOrder, TokenExchangeTxData}
 
 import scala.util.Try
 
@@ -28,6 +29,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
     case ct: ConversionTransaction => ConversionTransactionCompanion.toBytes(ct)
+    case tex: TokenExchangeTransaction => TokenExchangeTransactionCompanion.toBytes(tex)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -40,6 +42,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
       case "ConversionTransaction" => ConversionTransactionCompanion.parseBytes(bytes).get
+      case "TokenExchangeTransaction" => TokenExchangeTransactionCompanion.parseBytes(bytes).get
     }
   }
 
@@ -664,6 +667,25 @@ object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSer
   override def parseBytes(bytes: Array[Byte]): Try[ArbitTransfer] = Try {
     val params = parametersParseBytes(bytes)
     ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
+  }
+}
+
+object TokenExchangeTransactionCompanion extends Serializer[TokenExchangeTransaction] {
+  override def toBytes(tex: TokenExchangeTransaction): Array[Byte] = {
+    val typeBytes = "TokenExchangeTransaction".getBytes
+
+    val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
+
+    prefixBytes ++ TokenExchangeTxData(tex.buyOrder, tex.sellOrder, tex.fee, tex.timestamp).toByteArray
+  }
+
+  override def parseBytes(bytes: Array[Byte]): Try[TokenExchangeTransaction] = Try {
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    var numBytesRead = Ints.BYTES + typeLength
+
+    val txData = TokenExchangeTxData.parseFrom(bytes.slice(numBytesRead, bytes.length))
+    TokenExchangeTransaction(txData.buyOrder, txData.sellOrder, txData.fee, txData.timestamp)
   }
 }
 

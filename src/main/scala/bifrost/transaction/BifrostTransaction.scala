@@ -28,8 +28,10 @@ import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.BuySellOrder
 
 import scala.util.{Failure, Success, Try}
+import scalapb.descriptors.ScalaType.ByteString
 
 trait TransactionSettings extends Settings
 
@@ -855,6 +857,81 @@ object AssetTransfer extends TransferUtil {
 
 
   def validate(tx: AssetTransfer): Try[Unit] = validateTx(tx)
+}
+
+case class TokenExchangeTransaction(buyOrder: BuySellOrder,
+                                    sellOrder: BuySellOrder,
+                                    override val fee: Long,
+                                    override val timestamp: Long
+                                   )
+  extends BifrostTransaction {
+
+  lazy val tokenCodes = IndexedSeq(buyOrder.token1.tokenCode, buyOrder.token2.tokenCode)
+
+  override type M = TokenExchangeTransaction
+
+  override lazy val serializer = TokenExchangeTransactionCompanion
+
+  lazy val token1Tx = {
+    val fromSeller = sellOrder.inputBoxes.map(noncedBox =>
+      (PublicKey25519Proposition(noncedBox.publicKey.toByteArray), noncedBox.nonce)).toIndexedSeq
+    val toBuyer = IndexedSeq((PublicKey25519Proposition(buyOrder.publicKey.toByteArray), sellOrder.token1.quantity)).toIndexedSeq
+    val hub = PublicKey25519Proposition(sellOrder.token1.tokenHub.get.toByteArray)
+    val assetCode = sellOrder.token1.tokenCode
+
+    AssetTransfer(fromSeller, toBuyer, sellOrder.signatures.map(s => Signature25519(s.toByteArray)).toIndexedSeq, hub, assetCode, 0L, sellOrder.timestamp)
+  }
+
+  lazy val token2Tx = {
+    val fromBuyer = buyOrder.inputBoxes.map(noncedBox =>(PublicKey25519Proposition(noncedBox.publicKey.toByteArray), noncedBox.nonce)).toIndexedSeq
+    val toSeller = IndexedSeq((PublicKey25519Proposition(sellOrder.publicKey.toByteArray), buyOrder.token2.quantity - fee)).toIndexedSeq
+    // TODO: Assume token2 is always Poly for now
+    PolyTransfer(fromBuyer, toSeller, buyOrder.signatures.map(s => Signature25519(s.toByteArray)).toIndexedSeq, fee, buyOrder.timestamp)
+  }
+
+  override lazy val newBoxes: Traversable[BifrostBox] = token1Tx.newBoxes ++ token2Tx.newBoxes
+
+  override lazy val boxIdsToOpen = token1Tx.boxIdsToOpen ++ token2Tx.boxIdsToOpen
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = token1Tx.unlockers ++ token2Tx.unlockers
+
+  override lazy val json = tokenCodes.asJson
+
+  override lazy val messageToSign: Array[Byte] = TokenExchangeTransaction.messageToSign(buyOrder) ++ TokenExchangeTransaction.messageToSign(sellOrder)
+}
+
+object TokenExchangeTransaction {
+  def messageToSign(order: BuySellOrder): Array[Byte] = {
+    "TokenExchangeTransaction".getBytes ++ order.toByteArray
+  }
+
+  def validate(tx: TokenExchangeTransaction): Try[Unit] = Try {
+    require(tx.fee <= tx.buyOrder.token2.quantity)
+
+    require(tx.buyOrder.token1.tokenCode == tx.sellOrder.token1.tokenCode)
+    require(tx.buyOrder.token2.tokenCode == tx.sellOrder.token2.tokenCode)
+    require(tx.buyOrder.token1.quantity == tx.sellOrder.token1.quantity)
+    require(tx.buyOrder.token2.quantity == tx.sellOrder.token2.quantity)
+    require(Seq(tx.buyOrder, tx.sellOrder).forall(order => order.token1.quantity >= 0L))
+    require(Seq(tx.buyOrder, tx.sellOrder).forall(order => order.token2.quantity >= 0L))
+    require(tx.buyOrder.token1.tokenHub.get equals tx.sellOrder.token1.tokenHub.get)
+
+    require(tx.buyOrder.inputBoxes.forall(box => box.typeOfBox == "Poly"))
+    require(tx.sellOrder.inputBoxes.forall(box => box.typeOfBox == "Asset"))
+    require(tx.buyOrder.isBuyOrder, "TokenExchangeTX does not have a buy order")
+    require(!tx.sellOrder.isBuyOrder, "TokenExchangeTX does not have a sell order")
+    require(tx.buyOrder.inputBoxes.size == tx.buyOrder.signatures.size)
+    require(tx.sellOrder.inputBoxes.size == tx.sellOrder.signatures.size)
+
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.buyOrder.inputBoxes.zip(tx.buyOrder.signatures).forall { case (box, proof) =>
+      Signature25519(proof.toByteArray).isValid(PublicKey25519Proposition(box.publicKey.toByteArray), messageToSign(tx.buyOrder))
+    })
+    require(tx.sellOrder.inputBoxes.zip(tx.sellOrder.signatures).forall { case (box, proof) =>
+      Signature25519(proof.toByteArray).isValid(PublicKey25519Proposition(box.publicKey.toByteArray), messageToSign(tx.sellOrder))
+    })
+  }
 }
 
 case class ProfileTransaction(from: PublicKey25519Proposition,

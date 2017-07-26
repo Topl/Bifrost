@@ -48,20 +48,36 @@ message ProducerProposal {
     required ProposalDetails details = 2;
 }
 
-message BuySellOrder {
+message NoncedBox {
+    required string typeOfBox = 1;
+    required bytes publicKey = 2;
+    required int64 nonce = 3;
+}
 
-    message CodeAndQty {
+
+message BuySellOrder {
+    message TradeData {
         required string tokenCode = 1;
         required uint64 quantity = 2;
+        optional bytes tokenHub = 3;
     }
 
-    optional CodeAndQty token1 = 1;
-    optional CodeAndQty token2 = 2;
-    repeated bytes publicKeys = 3;
-    repeated uint64 nonces = 4;
-    repeated bytes signatures = 5;
+    required TradeData token1 = 1;
+    required TradeData token2 = 2;
 
-    required bool isBuyOrder = 6;
-    required bytes id = 7;
-    required uint64 timestamp = 8;
+    repeated NoncedBox inputBoxes = 5;
+    repeated bytes signatures = 6;
+
+    required bool isBuyOrder = 7;
+    required bytes id = 8;
+    required uint64 timestamp = 9;
+    required bytes publicKey = 10;
+
+}
+
+message TokenExchangeTxData {
+    required BuySellOrder buyOrder = 1;
+    required BuySellOrder sellOrder = 2;
+    required uint64 fee = 3;
+    required uint64 timestamp = 4;
 }

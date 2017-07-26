@@ -119,6 +119,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case cComp: ContractCompletion => validateContractCompletion(cComp)
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ct: ConversionTransaction => validateConversionTransaction(ct)
+      case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -147,24 +148,25 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
             }
           )
-
         )
       }
-
-      boxesSumTry flatMap { openSum =>
-        if (poT.newBoxes.map {
-          case p: PolyBox => p.value
-          case _ => 0L
-        }.sum == openSum - poT.fee) {
-          Success[Unit](Unit)
-        } else {
-          Failure(new Exception("Negative fee"))
-        }
-      }
-
+      determineEnoughPolys(boxesSumTry: Try[Long], poT)
     }
 
     statefulValid.flatMap(_ => semanticValidity(poT))
+  }
+
+  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+    boxesSumTry flatMap { openSum =>
+      if (tx.newBoxes.map {
+        case p: PolyBox => p.value
+        case _ => 0L
+      }.sum == openSum - tx.fee) {
+        Success[Unit](Unit)
+      } else {
+        Failure(new Exception("Negative fee"))
+      }
+    }
   }
 
   def validateArbitTransfer(arT: ArbitTransfer): Try[Unit] = {
@@ -224,24 +226,25 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
             }
           )
-
         )
       }
-
-      boxesSumTry flatMap { openSum =>
-        if (asT.newBoxes.map {
-          case a: AssetBox => a.value
-          case _ => 0L
-        }.sum <= openSum) {
-          Success[Unit](Unit)
-        } else {
-          Failure(new Exception("Not enough assets"))
-        }
-      }
-
+      determineEnoughAssets(boxesSumTry, asT)
     }
 
     statefulValid.flatMap(_ => semanticValidity(asT))
+  }
+
+  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+    boxesSumTry flatMap { openSum =>
+      if (tx.newBoxes.map {
+        case a: AssetBox => a.value
+        case _ => 0L
+      }.sum <= openSum) {
+        Success[Unit](Unit)
+      } else {
+        Failure(new Exception("Not enough assets"))
+      }
+    }
   }
 
   /**
@@ -666,6 +669,52 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
     statefulValid.flatMap(_ => semanticValidity(ct))
   }
+
+  def validateTokenExchangeTransaction(tex: TokenExchangeTransaction): Try[Unit] = {
+    val tokenHub = tex.buyOrder.token1.tokenHub.get.toByteArray
+    val tokenCode = tex.buyOrder.token1.tokenCode
+    val statefulValid: Try[Unit] = {
+      val assetBoxesSumTry: Try[Long] = {
+        tex.token1Tx.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+
+          partialRes.flatMap(partialSum =>
+            /* Checks if unlocker is valid and if so adds to current running total */
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: AssetBox) =>
+                val tokenGood = (box.hub equals tokenHub) && (box.assetCode equals tokenCode)
+                if (unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.sellOrder)) && tokenGood) {
+                  Success(partialSum + box.value)
+                } else {
+                  Failure(new Exception("Incorrect unlocker Or Incorrect BoxId supplied"))
+                }
+              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+            }
+          )
+        )
+      }
+      val enoughAssetTry = determineEnoughAssets(assetBoxesSumTry, tex)
+      val polyBoxesSumTry: Try[Long] = {
+        tex.token2Tx.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+          partialRes.flatMap(partialSum =>
+            /* Checks if unlocker is valid and if so adds to current running total */
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: PolyBox) =>
+                if (unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.buyOrder))) {
+                  Success(partialSum + box.value)
+                } else {
+                  Failure(new Exception("Incorrect unlocker"))
+                }
+              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+            }
+          )
+        )
+      }
+      val enoughPolyTry = determineEnoughPolys(polyBoxesSumTry, tex)
+      val tries = Seq(enoughAssetTry, enoughPolyTry)
+      Try(tries.foreach(_.get))
+    }
+    statefulValid.flatMap(_ => semanticValidity(tex))
+  }
 }
 
 object BifrostState {
@@ -689,6 +738,7 @@ object BifrostState {
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
       case ct: ConversionTransaction => ConversionTransaction.validate(ct)
+      case tex: TokenExchangeTransaction => TokenExchangeTransaction.validate(tex)
       case _ => throw new Exception("Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
   }
