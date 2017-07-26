@@ -1,7 +1,9 @@
-package bifrost.contract.base
-
-import scala.scalajs.js.Date
-import scala.scalajs.js.annotation.{JSExportTopLevel, ScalaJSDefined}
+import scala.scalajs.js.{Date, JSON}
+import scala.scalajs.js.annotation.{JSExportStatic, JSExportTopLevel, ScalaJSDefined}
+import io.circe._
+import io.circe.generic.auto._
+import io.circe.parser._
+import io.circe.syntax._
 
 /**
   * Created by Matt Kindy on 7/25/2017.
@@ -60,7 +62,16 @@ class Loan(val principal: BigInt,
     }
   }
 
+  override val jsonSerializer = Loan
   override val initialCapital: BigInt = principal
   override val effectiveDate: BigInt = startingDate
   override val expirationDate = None
+}
+
+object Loan extends JSJsonSerializer[Loan] {
+  @JSExportStatic
+  def toJSON(l: Loan): String = l.asJson.noSpaces
+
+  @JSExportStatic
+  def fromJSON(json: String): BaseModule = parse(json).right.get.as[Loan].right.get
 }
