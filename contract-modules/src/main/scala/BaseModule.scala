@@ -1,5 +1,3 @@
-import io.circe.Json
-
 import scala.scalajs.js
 import scala.scalajs.js.annotation.ScalaJSDefined
 import scala.util.Try
