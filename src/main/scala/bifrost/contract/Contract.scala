@@ -92,7 +92,7 @@ object Contract {
       new PublicKey25519Proposition(Base58.decode(jsonMap("investor").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
-      jsonMap("base-module")
+      jsonMap("agreement").asObject.get.toMap("core")
     )
   }
 

@@ -224,9 +224,6 @@ case class ContractCreation(agreement: Agreement,
     val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson) ++
       Map(
         "agreement" -> agreement.json,
-        "storage" -> Map(
-          "status" -> Status.INITIALISED.asJson
-        ).asJson,
         "lastUpdated" -> timestamp.asJson
       )
     ).asJson

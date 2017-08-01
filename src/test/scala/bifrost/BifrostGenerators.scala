@@ -215,14 +215,28 @@ trait BifrostGenerators extends CoreGenerators {
     _ <- stringGen
   } yield {
     s"""
-       |this[$name] = function(){}
+       |this.$name = function(){
+       |
+       |}
+       |
+       |this.$name.fromJSON = function(str) {
+       |    return {};
+       |  }
+       |
+       |this.$name.toJSON = function(o) {
+       |    return "{}";
+       |  }
      """.stripMargin
   }
+
+  val alphanumeric: Gen[String] = for {
+    size <- positiveMediumIntGen
+  } yield Random.alphanumeric.take(size).mkString
 
   lazy val validAgreementGen: Gen[Agreement] = for {
     assetCode <- stringGen
     terms <- validAgreementTermsGen
-    name <- stringGen
+    name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
     initjs <- validInitJsGen(name)
   } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
 
