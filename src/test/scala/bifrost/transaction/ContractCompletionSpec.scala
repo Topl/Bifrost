@@ -40,21 +40,4 @@ class ContractCompletionSpec extends PropSpec
     }
   }
 
-  property("Contract completion correctly calculates and returns updated ReputationBox for Producer") {
-    forAll(validContractCompletionGen) {
-      cc: ContractCompletion =>
-        val input: Long = cc.contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
-        val deliveredAmount = cc.contract.storage("currentFulfillment").get.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
-
-        val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(cc.proposition) ++ cc.hashNoNonces)
-        val nonce = ContractTransaction.nonceFromDigest(digest)
-
-        val (alphaSum: Double, betaSum: Double) = cc.producerReputation.foldLeft((0.0, 0.0))((a, b) => (a._1 + b.value._1, a._2 + b.value._2))
-        val alpha: Double = alphaSum + (input.toDouble / 1000)*(2*deliveredAmount.toDouble/input.toDouble - 1)
-        val beta: Double = betaSum + (input.toDouble / 1000)*(2 - deliveredAmount.toDouble/input.toDouble)
-
-        cc.newBoxes.head shouldBe ReputationBox(cc.contract.Producer, nonce, (alpha, beta))
-    }
-  }
-
 }

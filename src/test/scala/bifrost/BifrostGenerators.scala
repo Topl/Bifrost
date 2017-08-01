@@ -4,6 +4,7 @@ import java.io.File
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
+import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
@@ -14,7 +15,7 @@ import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction._
 import bifrost.transaction.box._
 import io.circe
-import io.circe.Json
+import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
@@ -26,6 +27,7 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
+import scala.collection.mutable
 import scala.util.{Random, Try}
 
 /**
@@ -209,11 +211,20 @@ trait BifrostGenerators extends CoreGenerators {
     fulfilment <- validFulfilFuncGen
   } yield new AgreementTerms(pledge, xrate, share, fulfilment)
 
+  def validInitJsGen(name: String): Gen[String] = for {
+    _ <- stringGen
+  } yield {
+    s"""
+       |this[$name] = function(){}
+     """.stripMargin
+  }
+
   lazy val validAgreementGen: Gen[Agreement] = for {
     assetCode <- stringGen
     terms <- validAgreementTermsGen
-    delta <- positiveLongGen
-  } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 10000L + delta)
+    name <- stringGen
+    initjs <- validInitJsGen(name)
+  } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 

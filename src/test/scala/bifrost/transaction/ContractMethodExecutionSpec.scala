@@ -45,6 +45,7 @@ class ContractMethodExecutionSpec extends PropSpec
         BifrostState.semanticValidity(cme.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
+/*
 
   property("Tx on contract before effective date should be invalid") {
 
@@ -174,5 +175,6 @@ class ContractMethodExecutionSpec extends PropSpec
         semanticValid.failed.get shouldBe an[IllegalArgumentException]
     }
   }
+*/
 
 }

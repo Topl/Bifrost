@@ -362,7 +362,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val serializer = ContractMethodExecutionCompanion
 
   override lazy val messageToSign: Array[Byte] = {
-    FastCryptographicHash(contract.storage.asJson.noSpaces.getBytes ++ hashNoNonces)
+    FastCryptographicHash(contract.json.noSpaces.getBytes ++ hashNoNonces)
   }
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
@@ -379,8 +379,8 @@ object ContractMethodExecution {
 
     require(tx.parties.keys.size == 1, "cme2")
 
-    val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-    val expDate = tx.contract.agreement("contractExpirationTime").get.asNumber.get.toLong.get
+    val effDate = tx.contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
+    val expDate = tx.contract.getFromContract("contractExpirationTime").get.asNumber.get.toLong.get
 
     require(tx.timestamp >= effDate, "cme3")
     require(tx.timestamp < expDate, "cme4")
@@ -461,45 +461,8 @@ case class ContractCompletion(contractBox: ContractBox,
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
-
-    /* Get yield */
-    val input: Long = contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
-    val fulfillment = contract.storage("currentFulfillment").get
-    val output = fulfillment.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
-    val yieldRate = output.toDouble / input.toDouble
-
-    /* Calculate sum of reputation from before */
-    val (alphaSum: Double, betaSum: Double) = producerReputation.foldLeft((0.0, 0.0))((sum, delta) => (sum._1 + delta.value._1, sum._2 + delta.value._2))
-
-    /* Calculate alpha, beta changes */
-    val w = input
-    val alpha: Double = alphaSum + (w.toDouble / 1000)*(2*yieldRate - 1)
-    val beta: Double = betaSum + (w.toDouble / 1000)*(2 - yieldRate)
-
-    /* Reputation adjustment for producer */
-    val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
-
-    val assetCode: String =  contract.agreement("assetCode").get.asString.get
-
-    val investorAmount = Math.min(output, input)
-    val profitAmount: Double = Math.max(output - investorAmount, 0).toDouble
-    val agreement: Agreement = contract.agreement.asJson.as[Agreement] match {
-      case Right(a: Agreement) => a
-      case Left(e) => throw new Exception(s"Could not parse agreement in contract: $e")
-    }
-
-    val shares: (Double, Double, Double) = agreement.terms.share.evaluate(profitAmount.toDouble / input.toDouble)
-
-    val producerProfitShare = (shares._1*profitAmount).toLong
-    val hubProfitShare = (shares._2*profitAmount).toLong
-    val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
-
-    Seq(
-      producerRep,
-      AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), producerProfitShare, assetCode, contract.Hub),
-      AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), hubProfitShare, assetCode, contract.Hub),
-      AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), investorAmount + investorProfitShare, assetCode, contract.Hub)
-    ) ++ deductedFeeBoxes(hashNoNonces)
+    
+    deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

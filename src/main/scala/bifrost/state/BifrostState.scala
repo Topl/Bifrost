@@ -356,7 +356,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
     val contractProposition: MofNProposition = contractBox.proposition
     val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-    val effectiveDate: Long = contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
+    val effectiveDate: Long = contract.getFromContract("effectiveDate").get.asNumber.get.toLong.get
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
@@ -483,76 +483,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         Failure(new Exception("ContractCompletion timestamp is too far in the future"))
 
       /* Contract is in completed state, waiting for completion */
-      } else {
-        val endorsementsJsonObj: JsonObject = cc.contract.storage("endorsements").getOrElse(Map[String, Json]().asJson).asObject.get
-        val endorseAttempt = endorsementsJsonObj(Base58.encode(cc.parties.head._2.pubKeyBytes))
-
-        endorseAttempt match {
-          case Some(endorsed) =>
-            val allEndorsedAndAgree = Try {
-              cc.parties.tail.foldLeft(endorseAttempt.get.asString.get)((a, b) => {
-                endorsementsJsonObj(Base58.encode(b._2.pubKeyBytes)) match {
-                  case Some(endorsement) =>
-                    if(endorsement.asString.get equals a) a
-                    else throw new Exception("Contract completion endorsements are not all for the same status")
-                  case None =>
-                    throw new Exception("Contract completion has not yet been endorsed by all parties")
-                }
-              })
-            }
-
-            val producerProposition = cc.parties(Role.Producer)
-            val producerReputationIsValid = Try {
-              cc.producerReputation.foreach(claimedBox => {
-                closedBox(claimedBox.id) match {
-                  case Some(b: ReputationBox) =>
-                    if (b.proposition != producerProposition)
-                      throw new Exception(s"Claimed reputation box had proposition $producerProposition but actually had ${b.proposition}")
-
-                    if (b.value != claimedBox.value)
-                      throw new Exception(s"Claimed reputation box with value ${claimedBox.value} but actually had ${b.value}")
-
-                  case None => throw new Exception("Reputation box not found")
-                  case Some(o) => throw new Exception(s"Reputation box expected, found ${o.typeOfBox} instead")
-                }
-
-              })
-            }
-
-            /* Handles fees */
-            val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
-              cc.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
-                partialRes.flatMap(_ => closedBox(unlocker.closedBoxId) match {
-                  case Some(box: PolyBox) =>
-                    if (unlocker.boxKey.isValid(box.proposition, cc.messageToSign)) {
-                      partialRes.get.get(box.proposition) match {
-                        case Some(total) => Success(partialRes.get + (box.proposition -> (total + box.value)))
-                        case None => Success(partialRes.get + (box.proposition -> box.value))
-                      }
-                    } else {
-                      Failure(new Exception("Incorrect unlocker"))
-                    }
-                  case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-                })
-              })
-            }
-
-            /* Incorrect unlocker or box provided, or not enough to cover declared fees */
-            val enoughForFees = Try {
-              if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cc.fees.get(prop) match {
-                case Some(fee) => amount >= fee
-                case None => true
-              }}) throw new Exception("Insufficient balances provided for fees")
-            }
-
-            allEndorsedAndAgree
-              .flatMap(_ => producerReputationIsValid)
-              .flatMap(_ => enoughForFees)
-              .flatMap(_ => semanticValidity(cc))
-
-          case None => throw new Exception(s"Contract completion has not yet been endorsed by all parties")
-        }
-      }
+      } else { Success() }
     }
   }
 

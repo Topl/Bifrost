@@ -168,7 +168,7 @@ trait ValidGenerators extends BifrostGenerators {
     val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
-      Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
+      validAgreementGen.sample.get,
       Status.INITIALISED,
       currentFulfillment,
       currentEndorsement,

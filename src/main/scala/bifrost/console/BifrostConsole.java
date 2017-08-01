@@ -40,6 +40,7 @@ public class BifrostConsole {
     //TODO check if it even needs to be created by a factory
     private static final NashornScriptEngine nashornEngine;
     private static final InputStream apiInitialiser = BifrostConsole.class.getResourceAsStream("initialize.js");
+    private static final InputStream test = BifrostConsole.class.getResourceAsStream("contract-modules-fastopt.js");
     private static ScriptObjectMirror json = null;
 
 

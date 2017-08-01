@@ -1,13 +1,15 @@
 package bifrost.contract
 
+import java.time.Instant
+
 import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
-import io.iohk.iodb.ByteArrayWrapper
 import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
+import scala.collection.{SortedSet, mutable}
 import scala.util.{Failure, Success, Try}
 
 
@@ -15,7 +17,7 @@ case class Contract(Producer: PublicKey25519Proposition,
                     Hub: PublicKey25519Proposition,
                     Investor: PublicKey25519Proposition,
                     lastUpdated: Long,
-                    id: ByteArrayWrapper,
+                    id: Array[Byte],
                     baseModule: Json) {
 
   lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
@@ -23,7 +25,7 @@ case class Contract(Producer: PublicKey25519Proposition,
   def applyFunction(methodName: String)(params: JsonObject): Try[(Contract, Option[Json])] = Try {
 
     jsre.eval((baseModule \\ "initjs").head.noSpaces)
-    jsre.eval(s"var c = global[${(baseModule \\ "name").head.noSpaces}].fromJSON(${(baseModule \\ "state").head.noSpaces})")
+    jsre.eval(s"var c = ${(baseModule \\ "name").head.noSpaces}.fromJSON(${(baseModule \\ "state").head.noSpaces})")
 
     val update = s"""
       |var res = c[$methodName](${params.asJson.noSpaces});
@@ -43,9 +45,12 @@ case class Contract(Producer: PublicKey25519Proposition,
 
     val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
 
-    val resultingContract = this.copy(baseModule = baseModule.mapObject(
-      _.add("state", (result \\ "contract").head)
-    ))
+    val resultingContract = this.copy(
+      baseModule = baseModule.mapObject(
+        _.add("state", (result \\ "contract").head)
+      ),
+      lastUpdated = Instant.now.toEpochMilli
+    )
 
     val functionResult: Option[Json] = if((result \\ "__returnedUpdate").head.asBoolean.get) {
       Some((result \\ "functionResult").head)
@@ -56,11 +61,29 @@ case class Contract(Producer: PublicKey25519Proposition,
     (resultingContract, functionResult)
   }
 
+  def getFromContract(property: String): Try[Json] = Try {
+    jsre.eval((baseModule \\ "initjs").head.noSpaces)
+    jsre.eval(s"var c = ${(baseModule \\ "name").head.noSpaces}.fromJSON(${(baseModule \\ "state").head.noSpaces})")
+
+    val update = s"return c.$property;"
+
+    parse(jsre.eval(update).asInstanceOf[String]).right.get
+  }
+
+  lazy val json: Json = Map(
+    "base-module" -> baseModule,
+    "producer" -> Base58.encode(Producer.pubKeyBytes).asJson,
+    "investor" -> Base58.encode(Investor.pubKeyBytes).asJson,
+    "hub" -> Base58.encode(Hub.pubKeyBytes).asJson,
+    "lastUpdated" -> lastUpdated.asJson,
+    "id" -> Base58.encode(id).asJson
+  ).asJson
+
 }
 
 object Contract {
 
-  def apply(cs: Json, id: ByteArrayWrapper): Contract = {
+  def apply(cs: Json, id: Array[Byte]): Contract = {
     val jsonMap = cs.asObject.get.toMap
 
     new Contract(
@@ -73,13 +96,12 @@ object Contract {
     )
   }
 
-
   def execute(c: Contract, methodName: String)(party: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
-    val methodAttempt: Option[Set[String]] = ((c.baseModule \\ "registry").head \\ methodName).headOption.map(_.as[Set[String]].toOption).map(_.get)
+    val methodAttempt: Option[mutable.LinkedHashSet[String]] = ((c.baseModule \\ "registry").head \\ methodName).headOption.map(_.as[mutable.LinkedHashSet[String]].toOption).map(_.get)
 
     methodAttempt match {
-      case Some(params: Set[String]) =>
+      case Some(params: mutable.LinkedHashSet[String]) =>
 
         val res = c.applyFunction(methodName)(args.filterKeys(k => params.contains(k)))
 
