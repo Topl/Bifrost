@@ -4,6 +4,7 @@ import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import akka.util.Timeout
 import bifrost.transaction.PolyTransfer
 import bifrost.transaction.box.{ArbitBox, PolyBox}
 import io.circe.parser._
@@ -19,6 +20,7 @@ import scorex.crypto.encode.Base58
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
 
 @Path("/wallet")
@@ -27,6 +29,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   val DefaultFee = 100
+
+  override implicit val timeout = Timeout(10.seconds)
 
   override val route = pathPrefix("wallet") {
     balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
