@@ -26,8 +26,7 @@ case class Agreement(terms: AgreementTerms, assetCode: String, core: BaseModuleW
 object Agreement {
 
   def validate(a: Agreement): Try[Unit] = Try {
-    require(a.terms.pledge > 0)
-    require(a.terms.xrate > 0)
+
   }
 }
 

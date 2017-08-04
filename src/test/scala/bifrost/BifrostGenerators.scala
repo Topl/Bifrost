@@ -205,11 +205,8 @@ trait BifrostGenerators extends CoreGenerators {
   )
 
   lazy val validAgreementTermsGen: Gen[AgreementTerms] = for {
-    pledge <- positiveLongGen.map(_/1e10.toLong + 1L)
-    xrate <- smallBigDecimalGen
-    share <- validShareFuncGen
-    fulfilment <- validFulfilFuncGen
-  } yield new AgreementTerms(pledge, xrate, share, fulfilment)
+    size <- Gen.choose(1, 16*1024)
+  } yield AgreementTerms(Random.alphanumeric.take(size).mkString)
 
   def validInitJsGen(name: String): Gen[String] = for {
     _ <- stringGen

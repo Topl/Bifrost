@@ -114,7 +114,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual
-          preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - (cc.agreement.terms.xrate*BigDecimal(cc.agreement.terms.pledge)).toLong - cc.fee
+          preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - BigInt((cc.agreement.core.state \\ "investment").head.as[String].right.get).toLong - cc.fee
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         cc.fees.foreach { case (prop, _) =>
@@ -125,7 +125,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-          val investment = (BigDecimal(isInvestor)*cc.agreement.terms.xrate*BigDecimal(cc.agreement.terms.pledge)).toLong
+          val investment = BigInt((cc.agreement.core.state \\ "investment").head.as[String].right.get).toLong
 
           output shouldEqual (input - cc.fees(prop) - investment)
 

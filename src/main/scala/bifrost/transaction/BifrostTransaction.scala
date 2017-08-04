@@ -231,7 +231,7 @@ case class ContractCreation(agreement: Agreement,
     val investorProp = parties(Role.Investor)
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
-    val polyInvestment = BigDecimal(agreement.terms.pledge)*agreement.terms.xrate
+    val polyInvestment = BigInt((agreement.core.state \\ "investment").head.as[String].right.get).toLong
     val leftOver: Long = canSend - fees(investorProp) - polyInvestment.toLong
     val boxNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes ++ investorProp.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(0))
