@@ -14,7 +14,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 
-class BaseModuleWrapperTest extends PropSpec
+class BaseModuleWrapperSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -42,6 +42,7 @@ class BaseModuleWrapperTest extends PropSpec
 
   property("Json encoding and decoding should work") {
     val wrapper = BaseModuleWrapper(osAppropriatePath)(args)
+    println(wrapper.json)
     wrapper.json.as[BaseModuleWrapper].right.get shouldEqual wrapper
   }
 

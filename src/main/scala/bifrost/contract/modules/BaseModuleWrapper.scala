@@ -16,6 +16,8 @@ import io.circe.syntax._
 import io.circe.parser._
 import jdk.nashorn.api.scripting.{JSObject, NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
 import scorex.core.serialization.JsonSerializable
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable
@@ -26,13 +28,18 @@ import scala.util.Try
 /**
   * Created by Matt Kindy on 7/27/2017.
   */
-case class BaseModuleWrapper(name: String, initjs: String, registry: Map[String, mutable.LinkedHashSet[String]], state: Json) extends JsonSerializable {
+case class BaseModuleWrapper(name: String,
+                             initjs: String,
+                             registry: Map[String, mutable.LinkedHashSet[String]],
+                             state: Json,
+                             signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
   lazy val json: Json = Map(
     "state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
     "name" -> name.asJson,
     "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
-    "registry" -> registry.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson
+    "registry" -> registry.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
+    "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
   ).asJson
 }
 
@@ -51,10 +58,10 @@ object BaseModuleWrapper {
     }
   }
 
-  def apply(name: String, initjs: String)(args: JsonObject): BaseModuleWrapper = {
+  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
     val (registry, cleanModuleState) = deriveFromInit(initjs, name)(args)
 
-    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get)
+    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get, signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): BaseModuleWrapper = {
@@ -67,9 +74,14 @@ object BaseModuleWrapper {
     val announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] =
       (json \\ "registry").headOption.map(_.as[Map[String, mutable.LinkedHashSet[String]]].right.get)
 
+    val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
+      .headOption
+      .map(_.as[(String, String)].right.get)
+      .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
+
     val (registry, cleanModuleState) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get)
+    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get, signed)
   }
 
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
@@ -146,6 +158,7 @@ object BaseModuleWrapper {
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
     registry <- c.downField("registry").as[Map[String, mutable.LinkedHashSet[String]]]
+    signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
 
     def decodeGzip(zipped: String): Future[ByteString] = {
@@ -157,7 +170,13 @@ object BaseModuleWrapper {
       for {
         decodedInitjs <- decodeGzip(initjs)
         decodedState <- decodeGzip(state)
-      } yield BaseModuleWrapper(name, new String(decodedInitjs.toArray[Byte]), registry, parse(new String(decodedState.toArray[Byte])).right.get)
+      } yield BaseModuleWrapper(
+        name,
+        new String(decodedInitjs.toArray[Byte]),
+        registry,
+        parse(new String(decodedState.toArray[Byte])).right.get,
+        signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
+      )
     }, Duration.Inf)
   }
 }
