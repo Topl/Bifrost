@@ -47,9 +47,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val contractBox = createContractBox(
       validAgreementGen.sample.get,
-      Status.INITIALISED,
-      currentFulfillment,
-      currentEndorsement,
       parties.take(3).map(t => t._1 -> t._2._2).toMap
     )
 

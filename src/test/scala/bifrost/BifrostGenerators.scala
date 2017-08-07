@@ -208,21 +208,24 @@ trait BifrostGenerators extends CoreGenerators {
     size <- Gen.choose(1, 16*1024)
   } yield AgreementTerms(Random.alphanumeric.take(size).mkString)
 
-  def validInitJsGen(name: String): Gen[String] = for {
+  def validInitJsGen(name: String, assetCode: String): Gen[String] = for {
     _ <- stringGen
   } yield {
     s"""
        |this.$name = function(){
-       |
+       |    this.expirationDate = Date.now() + 1000;
+       |    this.effectiveDate = Date.now() - 100;
+       |    this.status = "initialized"
+       |    this.assetCode = "$assetCode"
        |}
        |
        |this.$name.fromJSON = function(str) {
-       |    return {};
-       |  }
+       |    return new $name();
+       |}
        |
        |this.$name.toJSON = function(o) {
        |    return "{}";
-       |  }
+       |}
      """.stripMargin
   }
 
@@ -230,12 +233,15 @@ trait BifrostGenerators extends CoreGenerators {
     size <- positiveMediumIntGen
   } yield Random.alphanumeric.take(size).mkString
 
-  lazy val validAgreementGen: Gen[Agreement] = for {
-    assetCode <- stringGen
-    terms <- validAgreementTermsGen
-    name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
-    initjs <- validInitJsGen(name)
-  } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+  lazy val validAgreementGen: Gen[Agreement] = {
+    val assetCode = Random.alphanumeric.take(positiveMediumIntGen.sample.get).mkString
+
+    for {
+      terms <- validAgreementTermsGen
+      name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
+      initjs <- validInitJsGen(name, assetCode)
+    } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+  }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 

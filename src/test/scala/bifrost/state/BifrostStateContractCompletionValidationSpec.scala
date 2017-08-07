@@ -41,7 +41,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
     val currentEndorsement = Map[String, Json]()
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, currentEndorsement, parties)
+    val contractBox = createContractBox(agreement, parties)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 

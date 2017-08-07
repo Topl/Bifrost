@@ -458,8 +458,15 @@ case class ContractCompletion(contractBox: ContractBox,
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
-    
-    deductedFeeBoxes(hashNoNonces)
+
+    val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
+
+    IndexedSeq(
+      ReputationBox(PublicKey25519Proposition(parties(Role.Producer).pubKeyBytes), nonce, (0, 0) ),
+      AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), 0, assetCode, contract.Hub),
+      AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), 0, assetCode, contract.Hub),
+      AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), 0, assetCode, contract.Hub)
+    ) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

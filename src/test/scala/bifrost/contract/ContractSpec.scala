@@ -56,7 +56,7 @@ class ContractSpec extends PropSpec
       Agreement(
         AgreementTerms("testing"),
         "myAssetCode",
-        BaseModuleWrapper("test", validInitJsGen("test").sample.get)(JsonObject.empty)
+        BaseModuleWrapper("test", validInitJsGen("test", "testCode").sample.get)(JsonObject.empty)
       )
     } shouldBe a[Success[_]]
   }

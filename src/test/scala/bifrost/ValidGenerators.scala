@@ -128,22 +128,12 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
-  def createContractBox(agreement: Agreement,
-                        status: Status,
-                        currentFulfillment: Map[String, Json],
-                        currentEndorsement: Map[String, Json],
-                        parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
+  def createContractBox(agreement: Agreement, parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
 
     val contract = Contract(Map(
       "producer" -> Base58.encode(parties(Role.Producer).pubKeyBytes).asJson,
       "investor" -> Base58.encode(parties(Role.Investor).pubKeyBytes).asJson,
       "hub" -> Base58.encode(parties(Role.Hub).pubKeyBytes).asJson,
-      "storage" -> Map(
-        "status" -> status.asJson,
-        "currentFulfillment" -> currentFulfillment.asJson,
-        "endorsements" -> currentEndorsement.asJson,
-        "other" -> jsonGen().sample.get
-      ).asJson,
       "agreement" -> agreement.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
@@ -169,9 +159,6 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(
       validAgreementGen.sample.get,
-      Status.INITIALISED,
-      currentFulfillment,
-      currentEndorsement,
       roles.zip(parties).toMap
     )
 
@@ -233,7 +220,7 @@ trait ValidGenerators extends BifrostGenerators {
       Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, currentEndorsement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 

@@ -121,9 +121,6 @@ class ContractTransactionSpec extends PropSpec
 
     val contractBox = createContractBox(
       validAgreementGen.sample.get,
-      Status.INITIALISED,
-      currentFulfillment,
-      currentEndorsement,
       roles.zip(parties).toMap
     )
 
@@ -200,7 +197,7 @@ class ContractTransactionSpec extends PropSpec
       Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, currentEndorsement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
