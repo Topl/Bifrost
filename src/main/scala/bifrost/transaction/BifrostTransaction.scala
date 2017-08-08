@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.BifrostApp
 import bifrost.contract.Contract.Status
+import bifrost.contract.modules.BaseModuleWrapper
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
@@ -359,7 +360,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val serializer = ContractMethodExecutionCompanion
 
   override lazy val messageToSign: Array[Byte] = {
-    FastCryptographicHash(contract.json.noSpaces.getBytes ++ hashNoNonces)
+    FastCryptographicHash((contract.agreement \\ "state").head.noSpaces.getBytes ++ hashNoNonces)
   }
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"

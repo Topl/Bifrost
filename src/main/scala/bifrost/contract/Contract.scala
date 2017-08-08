@@ -67,7 +67,7 @@ case class Contract(Producer: PublicKey25519Proposition,
     jsre.eval(core.initjs)
     jsre.eval(s"var c = ${core.name}.fromJSON(${core.state.noSpaces})")
 
-    val update = s"JSON.stringify(c.$property)"
+    val update = s"c.$property"
 
     println(jsre.eval(update))
 

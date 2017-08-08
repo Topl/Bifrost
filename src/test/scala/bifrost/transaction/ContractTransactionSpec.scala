@@ -115,10 +115,6 @@ class ContractTransactionSpec extends PropSpec
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = Map[String, Json]()
-
     val contractBox = createContractBox(
       validAgreementGen.sample.get,
       roles.zip(parties).toMap

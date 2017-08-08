@@ -233,15 +233,12 @@ trait BifrostGenerators extends CoreGenerators {
     size <- positiveMediumIntGen
   } yield Random.alphanumeric.take(size).mkString
 
-  lazy val validAgreementGen: Gen[Agreement] = {
-    val assetCode = Random.alphanumeric.take(positiveMediumIntGen.sample.get).mkString
-
-    for {
+  lazy val validAgreementGen: Gen[Agreement] = for {
+      assetCode <- alphanumeric
       terms <- validAgreementTermsGen
       name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
       initjs <- validInitJsGen(name, assetCode)
     } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
-  }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 

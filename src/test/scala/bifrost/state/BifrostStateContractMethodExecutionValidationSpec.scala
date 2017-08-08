@@ -5,6 +5,7 @@ import java.time.Instant
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Agreement, Contract}
 import bifrost.contract.Contract.Status
+import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.{Ints, Longs}
@@ -41,9 +42,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
     val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
-
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = Map[String, Json]()
 
     val contractBox = createContractBox(
       validAgreementGen.sample.get,
