@@ -21,6 +21,7 @@
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
+  "targetBlockTime": 30000,
   "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
