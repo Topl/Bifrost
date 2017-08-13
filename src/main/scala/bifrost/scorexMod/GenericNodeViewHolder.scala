@@ -17,7 +17,7 @@ import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
   extends Actor with ScorexLogging{
@@ -240,7 +240,11 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       val theyAreYounger = comparison == HistoryComparisonResult.Younger
       val notSendingBlocks = extensionOpt.isEmpty
 
-      if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
+      if(notSendingBlocks && theyAreYounger){
+        Try(throw new Exception("Other node was younger but we didn't have blocks to send")) match {
+          case Failure(e) => e.printStackTrace()
+        }
+      }
       
       sender() ! OtherNodeSyncingStatus(
         remote,
