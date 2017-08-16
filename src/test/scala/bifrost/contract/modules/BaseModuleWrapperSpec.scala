@@ -24,7 +24,6 @@ class BaseModuleWrapperSpec extends PropSpec
   val args: JsonObject = Map(
     "principal" -> "0".asJson,
     "accruedInterest" -> "0".asJson,
-    "paymentInterest" -> "0".asJson,
     "paymentInterval" -> "0".asJson,
     "interestRate" -> "0".asJson,
     "interestInterval" -> "0".asJson,

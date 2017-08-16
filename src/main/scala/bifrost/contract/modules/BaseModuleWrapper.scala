@@ -91,7 +91,7 @@ object BaseModuleWrapper {
     val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
 
     jsre.eval(initjs)
-    jsre.eval(s"var c = $name.fromJSON(${args.asJson.noSpaces})")
+    jsre.eval(s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
     val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
 
     /* Interpret registry from object */
