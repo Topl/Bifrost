@@ -12,9 +12,6 @@ classes
 .dockerignore
 .editorconfig
 
-# standalone docker
-Dockerfile
-
 # logs
 *.log
 
@@ -28,3 +25,5 @@ sheet.scala
 examples/src/main/scala/examples/sigmastate/
 examples/lib/
 keyfiles/
+
+docker/project-bifrost-assembly-0.1.1-alpha.jar
