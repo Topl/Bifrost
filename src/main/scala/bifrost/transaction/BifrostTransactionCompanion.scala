@@ -502,10 +502,12 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     }
 
+    numBytesRead += termsLength.toInt
+
     val core: BaseModuleWrapper = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + coreLength.toInt)
     )) match {
-      case Left(x) => throw new Exception("BaseModule json not properly formatted")
+      case Left(_) => throw new Exception("BaseModule json not properly formatted")
       case Right(x) => x.as[BaseModuleWrapper] match {
         case Left(_) => throw new Exception("Internal json was malformed in BaseModule")
         case Right(b: BaseModuleWrapper) => b

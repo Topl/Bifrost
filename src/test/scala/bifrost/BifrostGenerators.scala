@@ -28,7 +28,7 @@ import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
 import scala.collection.mutable
-import scala.util.{Random, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -217,14 +217,15 @@ trait BifrostGenerators extends CoreGenerators {
        |    this.effectiveDate = Date.now() - 100;
        |    this.status = "initialized"
        |    this.assetCode = "$assetCode"
+       |    this.initialCapital = "100"
        |}
        |
        |this.$name.fromJSON = function(str) {
-       |    return new $name();
+       |    return Object.assign(new $name(), JSON.parse(str));
        |}
        |
        |this.$name.toJSON = function(o) {
-       |    return "{}";
+       |    return JSON.stringify(o);
        |}
      """.stripMargin
   }
@@ -238,7 +239,9 @@ trait BifrostGenerators extends CoreGenerators {
       terms <- validAgreementTermsGen
       name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
       initjs <- validInitJsGen(name, assetCode)
-    } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+    } yield {
+    Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+  }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
@@ -457,12 +460,13 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map {
-    _ => Gen.oneOf(transactionTypes).sample.get match {
-      case "ContractCreation" => contractCreationGen.sample.get
-      case "PolyTransfer" => polyTransferGen.sample.get
-      case "ArbitTransfer" => arbitTransferGen.sample.get
-      case "ProfileTransaction" => profileTxGen.sample.get
-    }
+    _ => (Gen.oneOf(transactionTypes).sample.get match {
+        case "ContractCreation" => contractCreationGen
+        case "PolyTransfer" => polyTransferGen
+        case "ArbitTransfer" => arbitTransferGen
+        case "ProfileTransaction" => profileTxGen
+        case _ => throw new Exception("Couldn't match the transaction type")
+      }).sample.get
   }
 
   lazy val intSeqGen: Gen[Seq[Int]] = for {

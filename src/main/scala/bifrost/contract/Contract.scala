@@ -23,6 +23,8 @@ case class Contract(Producer: PublicKey25519Proposition,
 
   lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
 
+  jsre.eval(BaseModuleWrapper.objectAssignPolyfill)
+
   def applyFunction(methodName: String)(params: JsonObject): Try[(Contract, Option[Json])] = Try {
 
     jsre.eval((agreement \\ "initjs").head.noSpaces)
@@ -65,13 +67,14 @@ case class Contract(Producer: PublicKey25519Proposition,
   def getFromContract(property: String): Try[Json] = Try {
     val core = (agreement \\ "core").head.as[BaseModuleWrapper].right.get
     jsre.eval(core.initjs)
-    jsre.eval(s"var c = ${core.name}.fromJSON(${core.state.noSpaces})")
+    jsre.eval(s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
     val update = s"c.$property"
 
-    println(jsre.eval(update))
-
-    parse(jsre.eval(update).asInstanceOf[String]).right.get
+    parse(jsre.eval(s"JSON.stringify($update)").asInstanceOf[String]) match {
+      case Right(json: Json) => json
+      case Left(_) => Json.Null
+    }
   }
 
   lazy val json: Json = Map(

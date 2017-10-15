@@ -150,7 +150,10 @@ trait ValidGenerators extends BifrostGenerators {
     val parties = allKeyPairs.map(_._2)
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-    val agreement = validAgreementGen.sample.get
+    /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
+    var agreementOpt = validAgreementGen.sample
+    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen.sample
+    val agreement = agreementOpt.get
 
     val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
 
@@ -184,8 +187,7 @@ trait ValidGenerators extends BifrostGenerators {
         fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-    val state = ((contractBox.value \\ "agreement").head \\ "state").head
-    val messageToSign = FastCryptographicHash(state.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     ContractMethodExecution(
