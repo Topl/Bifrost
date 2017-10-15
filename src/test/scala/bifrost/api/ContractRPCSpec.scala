@@ -100,7 +100,7 @@ class ContractRPCSpec extends WordSpec
         |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        (res \\ "error").head.asObject shouldBe defined
+        (res \\ "error").head.asObject.isDefined shouldBe true
         (res \\ "result").isEmpty shouldBe true
       }
     }
