@@ -94,7 +94,7 @@ object BaseModuleWrapper {
   def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
     val (registry, cleanModuleState) = deriveFromInit(initjs, name)(args)
 
-    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get, signed)
+    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): BaseModuleWrapper = {

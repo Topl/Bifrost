@@ -91,7 +91,7 @@ class SerializationTests extends PropSpec
   }
 
   property("Agreement Serialization") {
-    forAll(validAgreementGen) {
+    forAll(validAgreementGen()) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
         AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true

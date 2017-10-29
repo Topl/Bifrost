@@ -21,7 +21,7 @@ Dockerfile
 # db files
 
 *.data
-
+.history
 
 # for temporary experiments
 sheet.scala

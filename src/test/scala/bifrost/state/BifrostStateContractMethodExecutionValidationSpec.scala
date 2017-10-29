@@ -44,8 +44,8 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var agreementOpt = validAgreementGen.sample
-    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen.sample
+    var agreementOpt = validAgreementGen().sample
+    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
     val contractBox = createContractBox(

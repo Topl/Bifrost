@@ -1,4 +1,6 @@
 package bifrost.contract
+import java.time.Instant
+
 import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
@@ -56,7 +58,15 @@ class ContractSpec extends PropSpec
       Agreement(
         AgreementTerms("testing"),
         "myAssetCode",
-        BaseModuleWrapper("test", validInitJsGen("test", "testCode").sample.get)(JsonObject.empty)
+        BaseModuleWrapper(
+          "test",
+          validInitJsGen(
+            "test",
+            "testCode",
+            Instant.now.toEpochMilli,
+            Instant.now.toEpochMilli + 10000
+          ).sample.get
+        )(JsonObject.empty)
       )
     } shouldBe a[Success[_]]
   }

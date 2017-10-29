@@ -27,7 +27,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
   def arbitraryPartyContractCompletionGen(num: Int): Gen[ContractCompletion] = for {
     timestamp <- positiveLongGen
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen

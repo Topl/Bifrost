@@ -25,7 +25,7 @@ import scorex.core.transaction.proof.{Proof, Signature25519}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random, Success}
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Created by cykoz on 5/11/2017.
@@ -37,12 +37,14 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map {
-    _ => Gen.oneOf(transactionTypes ++: Seq("ContractCompletion")).sample.get match {
-      case "ContractCreation" => validContractCreationGen.sample.get
-      case "PolyTransfer" => validPolyTransferGen.sample.get
-      case "ArbitTransfer" => validArbitTransferGen.sample.get
-      case "ProfileTransaction" => validProfileTransactionGen.sample.get
-      case "ContractCompletion" => validContractCompletionGen.sample.get
+    _ => {
+      val g = Gen.oneOf(transactionTypes :+ contractCompletionGen).sample.get
+
+      var sampled = g.sample
+
+      while(sampled.isEmpty) sampled = g.sample
+
+      sampled.get
     }
   }
 
@@ -52,7 +54,7 @@ trait ValidGenerators extends BifrostGenerators {
     hub <- propositionGen
     storage <- jsonGen()
     status <- Gen.oneOf(validStatuses)
-    agreement <- validAgreementGen.map(_.json)
+    agreement <- validAgreementGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield Contract(Map(
     "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
@@ -64,10 +66,10 @@ trait ValidGenerators extends BifrostGenerators {
   ).asJson, id)
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
-  } yield {
+  } yield Try{
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
     val roles = List(Role.Investor, Role.Producer, Role.Hub)
@@ -89,7 +91,7 @@ trait ValidGenerators extends BifrostGenerators {
           }).map { boxAmount => preFeeBoxGen(boxAmount, boxAmount).sample.get }.toIndexedSeq
         }.toMap
 
-        case f: Failure[_] => throw f.exception
+        case f: Failure[_] => println("Split amongst n exception."); throw f.exception
       }
     }
 
@@ -125,6 +127,9 @@ trait ValidGenerators extends BifrostGenerators {
       fees,
       timestamp
     )
+  } match {
+    case Success(s) => s
+    case Failure(e) => println("FAIL"); throw e
   }
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
@@ -151,8 +156,8 @@ trait ValidGenerators extends BifrostGenerators {
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var agreementOpt = validAgreementGen.sample
-    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen.sample
+    var agreementOpt = validAgreementGen().sample
+    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
     val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
@@ -204,8 +209,7 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
     timestamp <- positiveLongGen
-    agreement <- validAgreementGen
-    status <- Gen.oneOf(validStatuses)
+    agreement <- validAgreementGen()
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
   } yield {
@@ -277,7 +281,6 @@ trait ValidGenerators extends BifrostGenerators {
       fees,
       timestamp
     )
-
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {

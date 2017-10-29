@@ -76,8 +76,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
               }
             } match {
               case Success(resp) => BifrostSuccessResponse(resp, reqId)
-              case Failure(e) =>
-                BifrostErrorResponse(e, reqId)
+              case Failure(e) => BifrostErrorResponse(e, reqId)
             }
           }
         }

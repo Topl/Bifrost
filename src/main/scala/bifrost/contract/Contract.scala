@@ -71,7 +71,9 @@ case class Contract(Producer: PublicKey25519Proposition,
 
     val update = s"c.$property"
 
-    parse(jsre.eval(s"JSON.stringify($update)").asInstanceOf[String]) match {
+    val res = jsre.eval(s"JSON.stringify($update)").asInstanceOf[String]
+
+    parse(res) match {
       case Right(json: Json) => json
       case Left(_) => Json.Null
     }

@@ -23,7 +23,7 @@ import scala.util.{Failure, Random}
 class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
   def arbitraryPartyContractCreationGen(num: Int): Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     numInvestmentBoxes <- positiveTinyIntGen

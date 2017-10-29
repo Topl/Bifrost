@@ -377,11 +377,11 @@ object ContractMethodExecution {
 
     require(tx.parties.keys.size == 1, "cme2")
 
-    val effDate = tx.contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
-    val expDate = tx.contract.getFromContract("contractExpirationTime").get.asNumber.get.toLong.get
+    val effDate = tx.contract.getFromContract("contractEffectiveTime")
+    val expDate = tx.contract.getFromContract("contractExpirationTime")
 
-    require(tx.timestamp >= effDate, "cme3")
-    require(tx.timestamp < expDate, "cme4")
+    require(tx.timestamp >= effDate.get.asNumber.get.toLong.get, "cme3")
+    require(tx.timestamp < expDate.get.asNumber.get.toLong.get, "cme4")
 
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 

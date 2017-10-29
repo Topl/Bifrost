@@ -208,20 +208,20 @@ trait BifrostGenerators extends CoreGenerators {
     size <- Gen.choose(1, 16*1024)
   } yield AgreementTerms(Random.alphanumeric.take(size).mkString)
 
-  def validInitJsGen(name: String, assetCode: String): Gen[String] = for {
+  def validInitJsGen(name: String, assetCode: String, effectiveTimestamp: Long, expirationTimestamp: Long): Gen[String] = for {
     _ <- stringGen
   } yield {
     s"""
        |this.$name = function(){
-       |    this.expirationDate = Date.now() + 1000;
-       |    this.effectiveDate = Date.now() - 100;
+       |    this.contractEffectiveTime = $effectiveTimestamp;
+       |    this.contractExpirationTime = $expirationTimestamp;
        |    this.status = "initialized"
        |    this.assetCode = "$assetCode"
-       |    this.initialCapital = "100"
+       |    this.initialCapital = "0";
        |}
        |
        |this.$name.fromJSON = function(str) {
-       |    return Object.assign(new $name(), JSON.parse(str));
+       |    return new $name();
        |}
        |
        |this.$name.toJSON = function(o) {
@@ -234,14 +234,13 @@ trait BifrostGenerators extends CoreGenerators {
     size <- positiveMediumIntGen
   } yield Random.alphanumeric.take(size).mkString
 
-  lazy val validAgreementGen: Gen[Agreement] = for {
+  // TODO: This results in an empty generator far too often. Fix needed
+  def validAgreementGen(effectiveTimestamp: Long = Instant.now.toEpochMilli, expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[Agreement] = for {
       assetCode <- alphanumeric
       terms <- validAgreementTermsGen
       name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
-      initjs <- validInitJsGen(name, assetCode)
-    } yield {
-    Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
-  }
+      initjs <- validInitJsGen(name, assetCode, effectiveTimestamp, expirationTimestamp)
+  } yield Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
@@ -251,7 +250,7 @@ trait BifrostGenerators extends CoreGenerators {
     hub <- propositionGen
     storage <- jsonGen()
     status <- jsonGen()
-    agreement <- validAgreementGen.map(_.json)
+    agreement <- validAgreementGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield Contract(Map(
     "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
@@ -274,21 +273,20 @@ trait BifrostGenerators extends CoreGenerators {
   } yield (nonce, amount)
 
   lazy val contractCreationGen: Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     numInvestmentBoxes <- positiveTinyIntGen
     parties <- partiesGen
-    signature <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
   } yield ContractCreation(
-    agreement,
-    (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
-    parties,
-    parties.map { case (_, v) => (v, signatureGen.sample.get) },
-    parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} },
-    parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
-    timestamp
-  )
+      agreement,
+      (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
+      parties,
+      parties.map { case (_, v) => (v, signatureGen.sample.get) },
+      parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} },
+      parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+      timestamp
+    )
 
   lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     contract <- contractBoxGen
@@ -455,24 +453,27 @@ trait BifrostGenerators extends CoreGenerators {
     seqLen <- positiveTinyIntGen
   } yield ((0 until seqLen) map { _ => key25519Gen.sample.get }).toSet
 
-  val transactionTypes: Seq[String] = Seq("ContractCreation", "PolyTransfer", "ArbitTransfer","ProfileTransaction")
+  val transactionTypes: Seq[Gen[BifrostTransaction]] = Seq(contractCreationGen, polyTransferGen, arbitTransferGen, profileTxGen)
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map {
-    _ => (Gen.oneOf(transactionTypes).sample.get match {
-        case "ContractCreation" => contractCreationGen
-        case "PolyTransfer" => polyTransferGen
-        case "ArbitTransfer" => arbitTransferGen
-        case "ProfileTransaction" => profileTxGen
-        case _ => throw new Exception("Couldn't match the transaction type")
-      }).sample.get
+    _ => {
+      val g = Gen.oneOf(transactionTypes).sample.get
+
+      var sampled = g.sample
+
+      while(sampled.isEmpty) sampled = g.sample
+
+      sampled.get
+    }
   }
+
 
   lazy val intSeqGen: Gen[Seq[Int]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
-    Gen.choose(0, 255).suchThat(i => i >= 0).sample.get
+    Gen.choose(0, 255).sample.get
   }
 
   def specificLengthBytesGen(length: Int): Gen[Array[Byte]] = Gen.listOfN(length, Arbitrary.arbitrary[Byte]).map(_.toArray)
