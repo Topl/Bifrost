@@ -1,39 +1,29 @@
 package bifrost.api
 
-import java.time.Instant
-import java.util.concurrent.ConcurrentLinkedDeque
-
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
-import akka.http.scaladsl.model.{HttpEntity, HttpRequest, StatusCodes}
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.http.scaladsl.server._
-import akka.pattern.ask
-import Directives._
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model._
-import akka.stream.ActorMaterializer
+import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.BifrostNodeViewHolder
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
-import bifrost.forging.ForgingSettings
+import bifrost.contract.Agreement
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageManager
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
-import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.{ContractCompletion, ProfileTransaction, Role}
 import bifrost.transaction.box._
+import bifrost.transaction.{ContractCompletion, Role}
 import bifrost.wallet.BWallet
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
-import io.circe
-import scorex.core.settings.Settings
 import io.circe._
-import io.circe.parser._
 import io.circe.generic.auto._
-import io.circe.syntax._
 import io.circe.optics.JsonPath._
+import io.circe.parser._
+import io.circe.syntax._
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
@@ -42,7 +32,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Try
 
 /**
   * Created by cykoz on 6/13/2017.
@@ -51,15 +41,13 @@ import scala.util.{Failure, Random, Success, Try}
 class ContractRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
-  with BeforeAndAfterAll {
-
-  import ContractRPCSpec._
+  with BeforeAndAfterAll
+  with BifrostGenerators {
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  val route = ContractApiRoute(settings, nodeViewHolderRef).route
-  println(settings.toString)
+  val route: Route = ContractApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -78,7 +66,7 @@ class ContractRPCSpec extends WordSpec
   )
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10 seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
   // Unlock Secrets
   val gw = view().vault
@@ -88,37 +76,38 @@ class ContractRPCSpec extends WordSpec
 
   "Contract RPC" should {
     "return role or error" in {
-      val requestBody = ByteString("""
+      val requestBody = ByteString(s"""
         |{
         |  "jsonrpc": "2.0",
         |  "id": "16",
         |  "method": "getRole",
         |  "params": [{
-        |      "publicKey": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+        |      "publicKey": "${publicKeys("hub")}"
         |  }]
         |}
         |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "error").head.asObject.isDefined shouldBe true
         (res \\ "result").isEmpty shouldBe true
       }
     }
 
     "Create a role" in {
-      val requestBody = ByteString("""
+      val requestBody = ByteString(s"""
         |{
         |  "jsonrpc": "2.0",
         |  "id": "16",
         |  "method": "declareRole",
         |  "params": [{
-        |        "publicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+        |        "publicKey": "${publicKeys("investor")}",
         |        "role": "investor"
         |    }, {
-        |        "publicKey": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+        |        "publicKey": "${publicKeys("hub")}",
         |        "role": "hub"
         |    }, {
-        |        "publicKey": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
+        |        "publicKey": "${publicKeys("producer")}",
         |        "role": "producer"
         |    }]
         |}
@@ -143,17 +132,17 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Get the role after declaration" in {
-      val requestBody = ByteString("""
+      val requestBody = ByteString(s"""
        |{
        |  "jsonrpc": "2.0",
        |  "id": "16",
        |  "method": "getRole",
        |  "params": [{
-       |      "publicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+       |      "publicKey": "${publicKeys("investor")}"
        |  }, {
-       |      "publicKey": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+       |      "publicKey": "${publicKeys("hub")}"
        |  }, {
-       |      "publicKey": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+       |      "publicKey": "${publicKeys("producer")}"
        |  }]
        |}
        |""".stripMargin)
@@ -162,11 +151,11 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asArray.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
         val jsonArray = (res \\ "result").head.asArray.get
-        (jsonArray(0) \\ "proposition").head.asString.get shouldEqual "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+        (jsonArray(0) \\ "proposition").head.asString.get shouldEqual publicKeys("investor")
         (jsonArray(0) \\ "value").head.asString.get shouldEqual "investor"
-        (jsonArray(1) \\ "proposition").head.asString.get shouldEqual "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+        (jsonArray(1) \\ "proposition").head.asString.get shouldEqual publicKeys("hub")
         (jsonArray(1) \\ "value").head.asString.get shouldEqual "hub"
-        (jsonArray(2) \\ "proposition").head.asString.get shouldEqual "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+        (jsonArray(2) \\ "proposition").head.asString.get shouldEqual publicKeys("producer")
         (jsonArray(2) \\ "value").head.asString.get shouldEqual "producer"
       }
     }
@@ -174,52 +163,37 @@ class ContractRPCSpec extends WordSpec
     val contractEffectiveTime = System.currentTimeMillis() + 100000L
     val contractExpirationTime = System.currentTimeMillis() + 200000000L
     val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
+
+    var sample = validAgreementGen().sample
+
+    while(sample.isEmpty) sample = validAgreementGen().sample
+
+    val agreement: Agreement = sample.get
+
+    val fees = Map(
+      publicKeys("investor") -> 500,
+      publicKeys("hub") -> 0,
+      publicKeys("producer") -> 0
+    )
+
     val contractBodyTemplate = s"""
       {
         "jsonrpc": "2.0",
         "id": "16",
         "method": "getContractSignature",
         "params": [{
-          "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-          "agreement": {
-            "assetCode": "WHEAT",
-            "terms": {
-              "pledge": 8000,
-              "xrate": 1.564,
-              "share": {
-                "functionType": "PiecewiseLinearMultiple",
-                "points": [[0.0, [0.33333333, 0.33333333, 0.33333333]], [1.34, [0.25, 0.25, 0.5]]]
-              },
-              "fulfilment" : {
-                "functionType" : "PiecewiseLinearSingle",
-                "points" : [[0, 0.00], [${contractExpirationTime - contractEffectiveTime - 1}, 0.00],[${contractExpirationTime - contractEffectiveTime}, 1.00]]
-              }
-            },
-            "contractEffectiveTime": ${contractEffectiveTime},
-            "contractExpirationTime": ${contractExpirationTime}
-          },
+          "signingPublicKey": "${publicKeys("investor")}",
+          "agreement": ${agreement.asJson},
           "preInvestmentBoxes": [],
-          "parties": {
-            "investor": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-            "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
-            "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
-          },
-          "signatures": {
-            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": "",
-            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": "",
-            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
-          },
+          "parties": ${publicKeys.map { case (k, v) => k -> v.asJson }.asJson},
+          "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
           "preFeeBoxes": {
-            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
-            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": [],
-            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": []
+            "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
+            "${publicKeys("hub")}": [],
+            "${publicKeys("producer")}": []
           },
-          "fees": {
-            "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ": 500,
-            "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": 0,
-            "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": 0
-          },
-          "timestamp": ${System.currentTimeMillis()}
+          "fees": ${fees.asJson},
+          "timestamp": ${System.currentTimeMillis}
         }]
       }
       """
@@ -238,9 +212,9 @@ class ContractRPCSpec extends WordSpec
       val paramsJson: Json = parse(contractBodyTemplate).getOrElse(Json.Null)
       val cursor: HCursor = paramsJson.hcursor
       val hubJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
-        .withFocus(_.mapString(t => "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU")).top.get
+        .withFocus(_.mapString(_ => publicKeys("hub"))).top.get
       val producerJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
-        .withFocus(_.mapString(t => "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb")).top.get
+        .withFocus(_.mapString(_ => publicKeys("producer"))).top.get
 
       httpPOST(ByteString(hubJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -252,7 +226,7 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldEqual true
         producerSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
       }
-      println(s"Investor: ${investorSig}, Producer: ${producerSig}, Hub: ${hubSig}")
+      println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
     }
 
     var contractBox = None: Option[ContractBox]
@@ -276,13 +250,13 @@ class ContractRPCSpec extends WordSpec
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
       val cursor: HCursor = requestBodyJson.hcursor
       val requestJson = cursor.downField("method")
-        .withFocus(_.mapString(t => "createContract")).up
-        .downField("params").downArray.downField("signatures").downField("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
-        .withFocus(_.mapString(t => investorSig)).up
-        .downField("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU")
-        .withFocus(_.mapString(t => hubSig)).up
-        .downField("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb")
-        .withFocus(_.mapString(t => producerSig)).top.get
+        .withFocus(_.mapString(_ => "createContract")).up
+        .downField("params").downArray.downField("signatures").downField(publicKeys("investor"))
+        .withFocus(_.mapString(_ => investorSig)).up
+        .downField(publicKeys("hub"))
+        .withFocus(_.mapString(_ => hubSig)).up
+        .downField(publicKeys("producer"))
+        .withFocus(_.mapString(_ => producerSig)).top.get
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -303,23 +277,23 @@ class ContractRPCSpec extends WordSpec
           |  "id": "19",
           |  "method": "executeContractMethod",
           |  "params": [{
-          |    "signingPublicKey": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
+          |    "signingPublicKey": "${publicKeys("producer")}",
           |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
           |    "methodName": "deliver",
           |    "parties": {
-          |	     "producer": "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+          |	     "producer": "${publicKeys("producer")}"
           |	   },
           |	   "signatures": {
-          |	     "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb": ""
+          |	     "${publicKeys("producer")}": ""
           |	   },
           |	   "methodParams": {
           |      "quantity": 9000
           |	   },
           |	   "preFeeBoxes": {
-          |	     "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb" : []
+          |	     "${publicKeys("producer")}" : []
           |	   },
           |	   "fees" : {
-          |       "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb" : 0
+          |       "${publicKeys("producer")}" : 0
           |    },
           |    "timestamp": ${contractEffectiveTime + 1}
           |  }]
@@ -348,23 +322,23 @@ class ContractRPCSpec extends WordSpec
          |  "id": "19",
          |  "method": "executeContractMethod",
          |  "params": [{
-         |    "signingPublicKey": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+         |    "signingPublicKey": "${publicKeys("hub")}",
          |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
          |    "methodName": "confirmDelivery",
          |	   "methodParams": {
          |       "deliveryId": ${deliveryId.head.asJson}
          |	   },
          |    "parties": {
-         |	     "hub": "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+         |	     "hub": "${publicKeys("hub")}"
          |	   },
          |	   "signatures": {
-         |	     "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU": ""
+         |	     "${publicKeys("hub")}": ""
          |	   },
          |	   "preFeeBoxes": {
-         |	     "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU" : []
+         |	     "${publicKeys("hub")}" : []
          |	   },
          |	   "fees" : {
-         |       "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU" : 0
+         |       "${publicKeys("hub")}" : 0
          |    },
          |    "timestamp": ${contractEffectiveTime + 10000L}
          |  }]
@@ -414,7 +388,7 @@ class ContractRPCSpec extends WordSpec
     }
 
     /**
-      * We have to do this sequantially since we need the references of contractBox for each
+      * We have to do this sequentially since we need the references of contractBox for each
       * request. If we map all three endorsement, we cannot guarantee if the contractBox has
       * been erased or not.
       */
@@ -580,11 +554,6 @@ class ContractRPCSpec extends WordSpec
 }
 
 object ContractRPCSpec {
-  val settingsFileName = "testSettings.json"
-  lazy val settings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFileName)
-  }
-
   val path: Path = Path ("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 }

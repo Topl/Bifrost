@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.BifrostNodeViewHolder
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.api.http.AssetApiRoute
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
@@ -28,9 +28,8 @@ import scala.util.{Random, Try}
 class AssetRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
-  with BeforeAndAfterAll {
-
-  import AssetRPCSpec._
+  with BeforeAndAfterAll
+  with BifrostGenerators {
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -85,11 +84,6 @@ class AssetRPCSpec extends WordSpec
 }
 
 object AssetRPCSpec {
-  val settingsFileName = "testSettings.json"
-  lazy val settings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFileName)
-  }
-
   val path: Path = Path ("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 }

@@ -36,7 +36,7 @@ import scala.util.{Failure, Random, Success, Try}
 trait BifrostGenerators extends CoreGenerators {
 
   val settings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("settings.json")
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
 
     override lazy val Difficulty: BigInt = 1
   }

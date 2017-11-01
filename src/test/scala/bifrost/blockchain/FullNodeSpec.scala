@@ -70,7 +70,7 @@ class FullNodeSpec extends TestKit(ActorSystem("TestNode"))
   var forger0 = ActorRef.noSender
 
   override def beforeAll: Unit = {
-    val path: Path = Path ("/tmp/scorex/data")
+    val path: Path = Path ("/tmp/scorex/test-data")
     Try(path.deleteRecursively())
     nodeViewHolder0 = system.actorOf(Props(new BifrostNodeViewHolder(settings)))
     forger0 = system.actorOf(Props(classOf[Forger], settings, nodeViewHolder0))

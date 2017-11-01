@@ -212,6 +212,7 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
 
   //noinspection ScalaStyle
   def createContractInstance(json: Json, state: BifrostState): ContractCreation = {
+    println(json)
     json.as[ContractCreation] match {
       case Right(c: ContractCreation) => c
       case Left(e) => throw new Exception(s"Could not parse ContractCreation: $e")

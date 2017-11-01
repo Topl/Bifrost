@@ -1,7 +1,7 @@
 package bifrost.contract
 
 import bifrost.contract.modules.BaseModuleWrapper
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 
 import scala.util.Try
@@ -24,6 +24,8 @@ case class Agreement(terms: AgreementTerms, assetCode: String, core: BaseModuleW
 }
 
 object Agreement {
+
+  implicit val encodeAgreement: Encoder[Agreement] = (a: Agreement) => a.json
 
   def validate(a: Agreement): Try[Unit] = Try {
 
