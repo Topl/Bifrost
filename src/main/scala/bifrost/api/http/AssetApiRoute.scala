@@ -52,8 +52,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
               }
             } match {
               case Success(resp) => BifrostSuccessResponse(resp, reqId)
-              case Failure(e) =>
-                BifrostErrorResponse(e, reqId)
+              case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
             }
           }
         }
