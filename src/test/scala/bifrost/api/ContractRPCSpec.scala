@@ -9,6 +9,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
+import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -48,6 +49,10 @@ class ContractRPCSpec extends WordSpec
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
   val route: Route = ContractApiRoute(settings, nodeViewHolderRef).route
+
+  val path: Path = Path ("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
+
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -164,9 +169,9 @@ class ContractRPCSpec extends WordSpec
     val contractExpirationTime = System.currentTimeMillis() + 200000000L
     val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
 
-    var sample = validAgreementGen().sample
+    var sample = validAgreementGen(contractEffectiveTime, contractExpirationTime).sample
 
-    while(sample.isEmpty) sample = validAgreementGen().sample
+    while(sample.isEmpty) sample = validAgreementGen(contractEffectiveTime, contractExpirationTime).sample
 
     val agreement: Agreement = sample.get
 
@@ -229,8 +234,10 @@ class ContractRPCSpec extends WordSpec
       println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
     }
 
-    var contractBox = None: Option[ContractBox]
-    var hubFeeBox = None: Option[PolyBox]; var producerFeeBox = None: Option[PolyBox]; var investorFeeBox = None: Option[PolyBox]
+    var contractBox: Option[ContractBox] = None
+    var hubFeeBox: Option[PolyBox] = None
+    var producerFeeBox: Option[PolyBox] = None
+    var investorFeeBox: Option[PolyBox] = None
 
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
@@ -270,7 +277,7 @@ class ContractRPCSpec extends WordSpec
       }
     }
 
-    "Execute Deliver Method" in {
+    "Execute Contract Method <changeStatus>" in {
       val requestBody = s"""
           |{
           |  "jsonrpc": "2.0",
@@ -279,7 +286,7 @@ class ContractRPCSpec extends WordSpec
           |  "params": [{
           |    "signingPublicKey": "${publicKeys("producer")}",
           |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
-          |    "methodName": "deliver",
+          |    "methodName": "changeStatus",
           |    "parties": {
           |	     "producer": "${publicKeys("producer")}"
           |	   },
@@ -287,7 +294,7 @@ class ContractRPCSpec extends WordSpec
           |	     "${publicKeys("producer")}": ""
           |	   },
           |	   "methodParams": {
-          |      "quantity": 9000
+          |      "newStatus": "in progress"
           |	   },
           |	   "preFeeBoxes": {
           |	     "${publicKeys("producer")}" : []
@@ -299,7 +306,9 @@ class ContractRPCSpec extends WordSpec
           |  }]
           |}
         """.stripMargin
+
       httpPOST(ByteString(requestBody)) ~> route ~> check {
+        println("RESPONSE", responseAs[String])
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
@@ -308,120 +317,9 @@ class ContractRPCSpec extends WordSpec
         view().pool.take(5).toList.size shouldEqual 3
         val boxContent = ((res \\ "result").head \\ "contractBox").head
         Base58.encode(contractBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
-        val _fulfillmentStatus = root.value.storage.currentFulfillment.json
-        _fulfillmentStatus.getOption(boxContent).nonEmpty shouldEqual true
-      }
-    }
 
-    "Execute confirmDelivery Method" in {
-      val _deliveryId = root.value.storage.currentFulfillment.pendingDeliveries.each.id.string
-      val deliveryId = _deliveryId.getAll(contractBox.get.json)
-      val requestBody = s"""
-         |{
-         |  "jsonrpc": "2.0",
-         |  "id": "19",
-         |  "method": "executeContractMethod",
-         |  "params": [{
-         |    "signingPublicKey": "${publicKeys("hub")}",
-         |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
-         |    "methodName": "confirmDelivery",
-         |	   "methodParams": {
-         |       "deliveryId": ${deliveryId.head.asJson}
-         |	   },
-         |    "parties": {
-         |	     "hub": "${publicKeys("hub")}"
-         |	   },
-         |	   "signatures": {
-         |	     "${publicKeys("hub")}": ""
-         |	   },
-         |	   "preFeeBoxes": {
-         |	     "${publicKeys("hub")}" : []
-         |	   },
-         |	   "fees" : {
-         |       "${publicKeys("hub")}" : 0
-         |    },
-         |    "timestamp": ${contractEffectiveTime + 10000L}
-         |  }]
-         |}
-        """.stripMargin
-
-      httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        manuallyApplyChanges(res, 7)
-        // Assertions
-        view().pool.take(5).toList.size shouldEqual 3
-        val boxContent = ((res \\ "result").head \\ "contractBox").head
-        Base58.encode(contractBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
-        val _fulfillmentStatus = root.value.storage.currentFulfillment.deliveredQuantity.int
-        _fulfillmentStatus.getOption(boxContent).get shouldEqual 9000
-      }
-    }
-
-    def getEndorseCompletionBody(role: String, publicKey: String): String = {
-      s"""
-       |{
-       |  "jsonrpc": "2.0",
-       |  "id": "21",
-       |  "method": "executeContractMethod",
-       |  "params": [{
-       |    "signingPublicKey": ${publicKey.asJson},
-       |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
-       |    "methodName": "endorseCompletion",
-       |    "methodParams": {},
-       |    "parties": {
-       |	    ${role.asJson}: ${publicKey.asJson}
-       |	  },
-       |	  "signatures": {
-       |	    ${publicKey.asJson}: ""
-       |    },
-       |    "preFeeBoxes": {
-       |	    ${publicKey.asJson} : []
-       |    },
-       |    "fees" : {
-       |      ${publicKey.asJson} : 0
-       |    },
-       |    "timestamp": ${contractEffectiveTime + 10000L}
-       |  }]
-       |}
-      """.stripMargin
-    }
-
-    /**
-      * We have to do this sequentially since we need the references of contractBox for each
-      * request. If we map all three endorsement, we cannot guarantee if the contractBox has
-      * been erased or not.
-      */
-    "Endorse Completions" in {
-      // investor endorses 1st
-      val requestBody = getEndorseCompletionBody("investor", publicKeys("investor"))
-      httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        // modify state
-        manuallyApplyChanges(res, 8)
-      }
-      // producer endorses 2nd
-      val requestBody2 = getEndorseCompletionBody("producer", publicKeys("producer"))
-      httpPOST(ByteString(requestBody2)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        manuallyApplyChanges(res, 9)
-      }
-      // hub endorses last
-      val requestBody3 = getEndorseCompletionBody("hub", publicKeys("hub"))
-      httpPOST(ByteString(requestBody3)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        println(res)
-        // modify state
-        manuallyApplyChanges(res, 10)
-        // Assertions
-        view().pool.take(5).toList.size shouldEqual 3
-        val endorsements = root.result.contractBox.value.storage.endorsements.json.getOption(res)
-        val endorseMap = endorsements.map(_.as[Map[String, String]].right.get).get
-        endorseMap(publicKeys("investor")) shouldEqual endorseMap(publicKeys("producer"))
-        endorseMap(publicKeys("investor")) shouldEqual endorseMap(publicKeys("hub"))
+        val state = root.value.agreement.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state.asString.get
+        (parse(state).right.get \\ "status").head.asString.get shouldBe "in progress"
       }
     }
 
@@ -438,9 +336,9 @@ class ContractRPCSpec extends WordSpec
            |    "reputationBoxes": [],
            |    "parties": ${publicKeys.asJson},
            |	  "signatures": {
-           |	    ${publicKeys("investor").asJson}: "",
-           |      ${publicKeys("producer").asJson}: "",
-           |      ${publicKeys("hub").asJson}: ""
+           |	    "${publicKeys("investor").asJson}": "",
+           |      "${publicKeys("producer").asJson}": "",
+           |      "${publicKeys("hub").asJson}": ""
            |    },
            |    "preFeeBoxes": {
            |    },
@@ -482,9 +380,9 @@ class ContractRPCSpec extends WordSpec
       |  	 "reputationBoxes": [],
       |    "parties" : ${publicKeys.asJson},
       |    "signatures" : {
-      |      ${publicKeys("investor").asJson} : ${investorSig.asJson},
-      |      ${publicKeys("producer").asJson} : ${producerSig.asJson},
-      |      ${publicKeys("hub").asJson} : ${hubSig.asJson}
+      |      "${publicKeys("investor").asJson}" : ${investorSig.asJson},
+      |      "${publicKeys("producer").asJson}" : ${producerSig.asJson},
+      |      "${publicKeys("hub").asJson}" : ${hubSig.asJson}
       |    },
       |    "preFeeBoxes" : {
       |    },
@@ -551,9 +449,4 @@ class ContractRPCSpec extends WordSpec
     val path: Path = Path ("/tmp/scorex/test-data")
     Try(path.deleteRecursively())
   }
-}
-
-object ContractRPCSpec {
-  val path: Path = Path ("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
 }

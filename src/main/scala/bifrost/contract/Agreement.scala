@@ -27,6 +27,14 @@ object Agreement {
 
   implicit val encodeAgreement: Encoder[Agreement] = (a: Agreement) => a.json
 
+  implicit val decodeAgreement: Decoder[Agreement] = (c: HCursor) => for {
+    terms <- c.downField("terms").as[AgreementTerms]
+    assetCode <- c.downField("assetCode").as[String]
+    core <- c.downField("core").as[BaseModuleWrapper]
+  } yield {
+    Agreement(terms, assetCode, core)
+  }
+
   def validate(a: Agreement): Try[Unit] = Try {
 
   }

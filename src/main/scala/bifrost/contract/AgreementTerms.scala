@@ -21,7 +21,6 @@ case class AgreementTerms(terms: String){
   }
 
   override def toString: String = s"AgreementTerms(${json.toString})"
-
 }
 
 object AgreementTerms {

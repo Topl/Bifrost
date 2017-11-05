@@ -11,7 +11,7 @@ import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import bifrost.contract.Contract
-import io.circe.{Decoder, HCursor, Json, JsonObject}
+import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
 import jdk.nashorn.api.scripting.{JSObject, NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
@@ -187,6 +187,8 @@ object BaseModuleWrapper {
 
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer = ActorMaterializer()
+
+  implicit val encodeTerms: Encoder[BaseModuleWrapper] = (b: BaseModuleWrapper) => b.json
 
   implicit val decodeTerms: Decoder[BaseModuleWrapper] = (c: HCursor) => for {
     state <- c.downField("state").as[String]

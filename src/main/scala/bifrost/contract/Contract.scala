@@ -22,40 +22,42 @@ case class Contract(Producer: PublicKey25519Proposition,
                     agreement: Json) {
 
   lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
+  val agreementObj: Agreement = agreement.as[Agreement] match {
+    case Right(a) => a
+    case Left(_) => throw new Exception("This is not a valid agreement")
+  }
 
   jsre.eval(BaseModuleWrapper.objectAssignPolyfill)
 
-  def applyFunction(methodName: String)(params: JsonObject): Try[(Contract, Option[Json])] = Try {
+  def applyFunction(methodName: String)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
-    jsre.eval((agreement \\ "initjs").head.noSpaces)
-    jsre.eval(s"var c = ${(agreement \\ "name").head.noSpaces}.fromJSON(${(agreement \\ "state").head.noSpaces})")
+    jsre.eval(agreementObj.core.initjs)
+    jsre.eval(s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
 
     val update = s"""
-      |var res = c[$methodName](${params.asJson.noSpaces});
-      |if(res instanceof ${(agreement \\ "name").head.noSpaces}) {
-      |  return {
+      |var res = c["$methodName"](${params.tail.foldLeft(params.headOption.getOrElse(""))((agg, cur) => s"$agg, $cur")});
+      |if(res instanceof ${agreementObj.core.name}) {
+      |  JSON.stringify({
       |    "__returnedUpdate": true,
-      |    "contract": res.toJSON()
-      |  }
+      |    "contract": ${agreementObj.core.name}.toJSON(res)
+      |  })
       |} else {
-      |  return {
-      |    "__returnedUpdate": false
-      |    "contract": c.toJSON(),
+      |  JSON.stringify({
+      |    "__returnedUpdate": false,
+      |    "contract": ${agreementObj.core.name}.toJSON(c),
       |    "functionResult": res
-      |  }
+      |  })
       |}
     """.stripMargin
 
     val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
 
     val resultingContract = this.copy(
-      agreement = agreement.mapObject(
-        _.add("state", (result \\ "contract").head)
-      ),
+      agreement = agreementObj.copy(core = agreementObj.core.copy(state = (result \\ "contract").head)).asJson,
       lastUpdated = Instant.now.toEpochMilli
     )
 
-    val functionResult: Option[Json] = if((result \\ "__returnedUpdate").head.asBoolean.get) {
+    val functionResult: Option[Json] = if(!(result \\ "__returnedUpdate").head.asBoolean.get) {
       Some((result \\ "functionResult").head)
     } else {
       None
@@ -65,7 +67,7 @@ case class Contract(Producer: PublicKey25519Proposition,
   }
 
   def getFromContract(property: String): Try[Json] = Try {
-    val core = (agreement \\ "core").head.as[BaseModuleWrapper].right.get
+    val core = agreementObj.core
     jsre.eval(core.initjs)
     jsre.eval(s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
@@ -112,7 +114,8 @@ object Contract {
     methodAttempt match {
       case Some(params: mutable.LinkedHashSet[String]) =>
 
-        val res = c.applyFunction(methodName)(args.filterKeys(k => params.contains(k)))
+        val neededArgs = args.toMap.filterKeys(k => params.contains(k)).values.toArray.map(_.noSpaces)
+        val res = c.applyFunction(methodName)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)

@@ -373,15 +373,16 @@ object ContractMethodExecution {
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
         MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
-    }, "cme1")
+    }, "Either an invalid signature was submitted or the party listed was not part of the contract.")
 
-    require(tx.parties.keys.size == 1, "cme2")
+    require(tx.parties.keys.size == 1, "An incorrect number (not equal to 1) of parties provided signatures.")
 
     val effDate = tx.contract.getFromContract("contractEffectiveTime")
     val expDate = tx.contract.getFromContract("contractExpirationTime")
 
-    require(tx.timestamp >= effDate.get.asNumber.get.toLong.get, "cme3")
-    require(tx.timestamp < expDate.get.asNumber.get.toLong.get, "cme4")
+    require(tx.timestamp >= effDate.get.asNumber.get.toLong.get, "The contract was not in effect yet.")
+
+    require(tx.timestamp < expDate.get.asNumber.get.toLong.get, "The contract has expired.")
 
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 

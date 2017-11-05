@@ -45,7 +45,7 @@ class Loan(val principal: BigInt,
         newAccruedInterest -= amount
       }
 
-      val justPaid: (BigInt, BigInt) = (new Date().getUTCMilliseconds, amount)
+      val justPaid: (BigInt, BigInt) = (new Date().getUTCMilliseconds, (accruedInterest + principal).min(amount))
       val nextToPay: Option[(BigInt, BigInt)] = if (amount >= nextPayment.get._2) {
         val paymentAmount = (interestRate*(BigDecimal(paymentInterval)/BigDecimal(interestInterval)))*BigDecimal(principal)
 

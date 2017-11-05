@@ -218,6 +218,11 @@ trait BifrostGenerators extends CoreGenerators {
        |    this.status = "initialized"
        |    this.assetCode = "$assetCode"
        |    this.initialCapital = "0";
+       |
+       |    this.changeStatus = function(newStatus) {
+       |      this.status = newStatus;
+       |      return this;
+       |    }
        |}
        |
        |this.$name.fromJSON = function(str) {
