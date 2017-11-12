@@ -336,9 +336,9 @@ class ContractRPCSpec extends WordSpec
            |    "reputationBoxes": [],
            |    "parties": ${publicKeys.asJson},
            |	  "signatures": {
-           |	    "${publicKeys("investor").asJson}": "",
-           |      "${publicKeys("producer").asJson}": "",
-           |      "${publicKeys("hub").asJson}": ""
+           |	    ${publicKeys("investor").asJson}: "",
+           |      ${publicKeys("producer").asJson}: "",
+           |      ${publicKeys("hub").asJson}: ""
            |    },
            |    "preFeeBoxes": {
            |    },
@@ -380,9 +380,9 @@ class ContractRPCSpec extends WordSpec
       |  	 "reputationBoxes": [],
       |    "parties" : ${publicKeys.asJson},
       |    "signatures" : {
-      |      "${publicKeys("investor").asJson}" : ${investorSig.asJson},
-      |      "${publicKeys("producer").asJson}" : ${producerSig.asJson},
-      |      "${publicKeys("hub").asJson}" : ${hubSig.asJson}
+      |      ${publicKeys("investor").asJson} : ${investorSig.asJson},
+      |      ${publicKeys("producer").asJson} : ${producerSig.asJson},
+      |      ${publicKeys("hub").asJson} : ${hubSig.asJson}
       |    },
       |    "preFeeBoxes" : {
       |    },
@@ -402,17 +402,13 @@ class ContractRPCSpec extends WordSpec
         completionTx = Some(txInstance.asInstanceOf[ContractCompletion])
         val newBoxes = txInstance.newBoxes
 
-        newBoxes.head.asInstanceOf[ReputationBox].value._1 shouldEqual 10.0
-        newBoxes.head.asInstanceOf[ReputationBox].value._2 shouldEqual 7.0
+        newBoxes.head shouldBe a[ReputationBox]
 
         newBoxes.toList(1) shouldBe an[AssetBox]
-        newBoxes.toList(1).asInstanceOf[AssetBox].value shouldEqual 325
 
         newBoxes.toList(2) shouldBe an[AssetBox]
-        newBoxes.toList(2).asInstanceOf[AssetBox].value shouldEqual 325
 
         newBoxes.toList(3) shouldBe an[AssetBox]
-        newBoxes.toList(3).asInstanceOf[AssetBox].value shouldEqual 8350
 
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,

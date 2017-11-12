@@ -64,7 +64,8 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
               require((json \\ "jsonrpc").head.asString.get == "2.0")
               val params = (json \\ "params").head.asArray.get
               require(params.size <= 5, s"size of params is ${params.size}")
-              (json \\ "method").head.asString.get match {
+              val method = (json \\ "method").head.asString.get
+              method match {
                 case "declareRole" => params.map(declareRole(view, _, id)).asJson
                 case "getRole" => params.map(getRole(view, _, id)).asJson
                 case "getContractSignature" => getContractSignature(view, params.head, id).asJson
