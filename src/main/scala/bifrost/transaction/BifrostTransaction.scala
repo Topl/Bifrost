@@ -310,9 +310,10 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   lazy val proposition = MofNProposition(1,
     Set(
-      contract.Producer.pubKeyBytes,
-      contract.Hub.pubKeyBytes,
-      contract.Investor.pubKeyBytes
+      // TODO #22
+      // contract.Producer.pubKeyBytes,
+      // contract.Hub.pubKeyBytes,
+      // contract.Investor.pubKeyBytes
     )
   )
 
@@ -415,10 +416,11 @@ case class ContractCompletion(contractBox: ContractBox,
   import ContractCompletion._
 
   override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
-    IndexedSeq("ContractCompletion".getBytes ++ parties(Role.Hub).pubKeyBytes,
-      parties(Role.Investor).pubKeyBytes,
-      parties(Role.Producer).pubKeyBytes,
-      parties(Role.Hub).pubKeyBytes
+    IndexedSeq("ContractCompletion".getBytes ++ parties(Role.Hub).pubKeyBytes
+      // TODO #22
+      // parties(Role.Investor).pubKeyBytes,
+      // parties(Role.Producer).pubKeyBytes,
+      // parties(Role.Hub).pubKeyBytes
     )
   )
 
@@ -428,9 +430,10 @@ case class ContractCompletion(contractBox: ContractBox,
 
   lazy val proposition = MofNProposition(1,
     Set(
-      contract.Producer.pubKeyBytes,
-      contract.Hub.pubKeyBytes,
-      contract.Investor.pubKeyBytes
+      // TODO #22
+      // contract.Producer.pubKeyBytes,
+      // contract.Hub.pubKeyBytes,
+      // contract.Investor.pubKeyBytes
     )
   )
 
@@ -466,10 +469,11 @@ case class ContractCompletion(contractBox: ContractBox,
     val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
 
     IndexedSeq(
-      ReputationBox(PublicKey25519Proposition(parties(Role.Producer).pubKeyBytes), nonce, (0, 0) ),
-      AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), 0, assetCode, contract.Hub),
-      AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), 0, assetCode, contract.Hub),
-      AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), 0, assetCode, contract.Hub)
+      ReputationBox(PublicKey25519Proposition(parties(Role.Producer).pubKeyBytes), nonce, (0, 0) )
+      // TODO #22
+      // AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), 0, assetCode, contract.Hub),
+      // AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), 0, assetCode, contract.Hub),
+      // AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), 0, assetCode, contract.Hub)
     ) ++ deductedFeeBoxes(hashNoNonces)
   }
 

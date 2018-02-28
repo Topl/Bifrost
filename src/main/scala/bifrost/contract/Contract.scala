@@ -14,12 +14,15 @@ import scala.collection.{SortedSet, mutable}
 import scala.util.{Failure, Success, Try}
 
 
-case class Contract(Producer: PublicKey25519Proposition,
-                    Hub: PublicKey25519Proposition,
-                    Investor: PublicKey25519Proposition,
+case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
                     lastUpdated: Long,
                     id: Array[Byte],
                     agreement: Json) {
+
+  def MIN_PARTIES = 2
+  def MAX_PARTIES = 1024
+  if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES)
+    throw new Exception("Inncorect number of parties in contract")
 
   lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
   val agreementObj: Agreement = agreement.as[Agreement] match {
@@ -83,9 +86,7 @@ case class Contract(Producer: PublicKey25519Proposition,
 
   lazy val json: Json = Map(
     "agreement" -> agreement,
-    "producer" -> Base58.encode(Producer.pubKeyBytes).asJson,
-    "investor" -> Base58.encode(Investor.pubKeyBytes).asJson,
-    "hub" -> Base58.encode(Hub.pubKeyBytes).asJson,
+    "parties" -> Json.Null, // TODO #22
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
   ).asJson
@@ -98,9 +99,7 @@ object Contract {
     val jsonMap = cs.asObject.get.toMap
 
     new Contract(
-      new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
-      new PublicKey25519Proposition(Base58.decode(jsonMap("hub").asString.get).get),
-      new PublicKey25519Proposition(Base58.decode(jsonMap("investor").asString.get).get),
+      Nil, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("agreement")
