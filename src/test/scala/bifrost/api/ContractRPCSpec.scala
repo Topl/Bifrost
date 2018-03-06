@@ -50,10 +50,6 @@ class ContractRPCSpec extends WordSpec
   nodeViewHolderRef
   val route: Route = ContractApiRoute(settings, nodeViewHolderRef).route
 
-  val path: Path = Path ("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
-
-
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
