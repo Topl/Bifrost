@@ -33,7 +33,7 @@ class BaseModuleWrapperSpec extends PropSpec
     "nextPayment" -> Array("0", "0").map(_.asJson).asJson
   ).asJson.asObject.get
 
-  val filePath = URLDecoder.decode(this.getClass.getResource("contract-modules-fastopt.json").getPath, "UTF-8")
+  val filePath = URLDecoder.decode(this.getClass.getResource("/contract-modules-fastopt.json").getPath, "UTF-8")
   val osAppropriatePath: Path = Paths.get(
     if (System.getProperty("os.name").contains("indow")) filePath.substring(1)
     else filePath
