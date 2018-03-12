@@ -130,7 +130,7 @@ object BaseModuleWrapper {
     val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
 
     /* Interpret registry from object */
-    val esprimajs: InputStream = classOf[BaseModuleWrapper].getResourceAsStream("esprima.js")
+    val esprimajs: InputStream = classOf[BaseModuleWrapper].getResourceAsStream("/esprima.js")
     jsre.eval(new InputStreamReader(esprimajs))
 
     val defineEsprimaFnParamParser =
