@@ -15,7 +15,9 @@ import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import serializer.BloomTopics
 
+import scala.collection.BitSet
 import scala.util.Try
 
 case class BifrostBlock(override val parentId: BlockId,
@@ -73,6 +75,17 @@ object BifrostBlock {
       unsigned.copy(signature = Signature25519(signature))
     }
   }
+
+  def createBloom(txs: Seq[BifrostTransaction]): Array[Byte] = {
+    val bloomBitSet = txs.foldLeft(BitSet.empty)(
+      (total, b) =>
+        b.bloomTopics match {
+          case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
+          case None => total
+        }
+    ).toSeq
+    BloomTopics(bloomBitSet).toByteArray
+  }
 }
 
 object BifrostBlockCompanion extends Serializer[BifrostBlock] {
@@ -104,7 +117,10 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   }
 
   override def toBytes(block: BifrostBlock): Array[Byte] = {
-    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
+      bytes ++
+        Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
+        BifrostTransactionCompanion.toBytes(tx))
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {

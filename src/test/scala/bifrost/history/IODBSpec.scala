@@ -2,27 +2,29 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.BifrostGenerators
+import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.{BifrostTransaction, ContractCompletion}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.core.NodeViewModifier._
 import scorex.crypto.encode.Base58
 
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 class IODBSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with BifrostGenerators
+  with ValidGenerators {
 
 
   val iFile = new File(s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}")
   iFile.mkdirs()
   val blocksStorage = new LSMStore(iFile)
+  blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())
 
   property("Rollback should not touch keys before") {
 
@@ -44,8 +46,9 @@ class IODBSpec extends PropSpec
       tx.newBoxes.foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
     }
 
-    forAll(bifrostTransactionSeqGen) { txs =>
+    forAll(validBifrostTransactionSeqGen) { txs =>
       whenever(txs.length >= 2) {
+        blocksStorage.rollback(ByteArrayWrapper(Array[Byte](1)))
 
         /* Make sure transactions get written to storage */
         txs.foreach(tx => { writeTx(tx); checkTx(tx) })

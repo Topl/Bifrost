@@ -10,6 +10,7 @@ import bifrost.api.http.AssetApiRoute
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
@@ -32,7 +33,7 @@ class AssetRPCSpec extends WordSpec
   import AssetRPCSpec._
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(classOf[BifrostNodeViewHolder], settings))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
   val route = AssetApiRoute(settings, nodeViewHolderRef).route
 

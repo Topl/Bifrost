@@ -1,9 +1,11 @@
 package bifrost
 
+import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager, PeerMessageReceived}
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
@@ -17,18 +19,20 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.core.{NodeViewHolder, NodeViewModifier}
 import scorex.crypto.encode.Base58
+import serializer.{PeerMessage, ProducerProposal}
 
-class BifrostNodeViewHolder(settings: ForgingSettings)
+import scala.util.{Failure, Success}
+
+class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManager: PeerMessageManager = PeerMessageManager.emptyManager)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
-
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
-
   override type HIS = BifrostHistory
   override type MS = BifrostState
   override type VL = BWallet
   override type MP = BifrostMemPool
+  type PMM = PeerMessageManager
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
     Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion,
@@ -44,21 +48,40 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     * Restore a local view during a node startup. If no any stored view found
     * (e.g. if it is a first launch of a node) None is to be returned
     */
-  override def restoreState(): Option[(HIS, MS, VL, MP)] = {
+  override def restoreState(): Option[NodeView] = {
     if (BWallet.exists(settings)) {
       Some(
         (
-          BifrostHistory.readOrGenerate(settings), BifrostState.readOrGenerate(settings),
-          BWallet.readOrGenerate(settings, 1), BifrostMemPool.emptyPool
+          BifrostHistory.readOrGenerate(settings),
+          BifrostState.readOrGenerate(settings),
+          BWallet.readOrGenerate(settings, 1),
+          BifrostMemPool.emptyPool
         )
       )
     } else None
   }
 
   //noinspection ScalaStyle
-  override protected def genesisState: (HIS, MS, VL, MP) = {
+  override protected def genesisState: NodeView = {
     BifrostNodeViewHolder.initializeGenesis(settings)
   }
+
+  private def handleProposal: Receive = {
+    case PeerMessageReceived(p) =>
+      messageManager.put(p) match {
+        case Success(updatedManager) =>
+          messageManager = updatedManager
+          log.debug(s"Proposal $p Added")
+        case f: Failure[PeerMessageManager] => throw f.failed.get
+      }
+  }
+
+  private def getMessageManager: Receive = {
+    case GetMessageManager =>
+      sender() ! MessageManager(messageManager)
+  }
+
+  override def receive: Receive = handleProposal orElse getMessageManager orElse super.receive
 }
 
 object BifrostNodeViewHolder extends ScorexLogging {
@@ -66,9 +89,18 @@ object BifrostNodeViewHolder extends ScorexLogging {
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
+  type PMM = PeerMessageManager
+
+  type NodeView = (HIS, MS, VL, MP)
+
+  case class PeerMessageReceived(p: PeerMessage)
+
+  case object GetMessageManager
+
+  case class MessageManager(m: PeerMessageManager)
 
   //noinspection ScalaStyle
-  def initializeGenesis(settings: ForgingSettings): (HIS, MS, VL, MP) = {
+  def initializeGenesis(settings: ForgingSettings): NodeView = {
     val GenesisAccountsNum = 50
     val GenesisBalance = 100000000L
 

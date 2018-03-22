@@ -16,6 +16,7 @@ import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
+import org.scalatest.Fact
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
@@ -31,6 +32,18 @@ import scala.util.{Failure, Random, Success}
 trait ValidGenerators extends BifrostGenerators {
 
   val validStatuses: List[Status] = Contract.Status.values.toList
+
+  lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
+    seqLen <- positiveMediumIntGen
+  } yield 0 until seqLen map {
+    _ => Gen.oneOf(transactionTypes ++: Seq("ContractCompletion")).sample.get match {
+      case "ContractCreation" => validContractCreationGen.sample.get
+      case "PolyTransfer" => validPolyTransferGen.sample.get
+      case "ArbitTransfer" => validArbitTransferGen.sample.get
+      case "ProfileTransaction" => validProfileTransactionGen.sample.get
+      case "ContractCompletion" => validContractCompletionGen.sample.get
+    }
+  }
 
   lazy val validContractGen: Gen[Contract] = for {
     producer <- propositionGen
@@ -370,4 +383,40 @@ trait ValidGenerators extends BifrostGenerators {
     dummyTx.copy(signatures = signatures)
   }
 
+  lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
+    assetLength <- positiveTinyIntGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+  } yield {
+    val assets = (0 until assetLength).map {_ => stringGen.sample.get}
+    val assetHubPairs: Map[String, PublicKey25519Proposition] = assets.map(
+      _ -> propositionGen.sample.get
+    ).toMap
+    
+    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen.sample.get.map(
+      kp => kp._2 -> kp._1).toIndexedSeq
+    val totalAssetBoxes: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]] =
+      assetHubPairs.map{_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> Gen.choose(Long.MinValue, Long.MaxValue).sample.get)}
+    
+    
+    val assetsToReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
+      assetHubPairs.map(_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> positiveMediumIntGen.sample.get.toLong))
+    
+    val assetTokensToRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
+      assetHubPairs.map(_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> positiveMediumIntGen.sample.get.toLong))
+  
+    val dummyConversionSignatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]] =
+      totalAssetBoxes.map(entry => entry._1 -> entry._2.map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
+    
+    val dummyTx = ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, dummyConversionSignatures, fee, timestamp)
+    
+    val fromKeyMap = fromKeyPairs.toMap
+    val realSignatures = totalAssetBoxes.map { case (assetHub, boxes) =>
+        assetHub -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
+    }
+    
+    println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
+    
+    dummyTx.copy(conversionSignatures = realSignatures)
+  }
 }

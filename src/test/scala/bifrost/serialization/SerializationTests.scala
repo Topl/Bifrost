@@ -14,6 +14,9 @@ import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import io.circe.parser.decode
+import serializer.BloomTopics
+
+import scala.collection.BitSet
 
 /**
   * Created by cykoz on 4/12/17.
@@ -172,6 +175,15 @@ class SerializationTests extends PropSpec
         ProfileTransactionCompanion.toBytes(parsed) sameElements ProfileTransactionCompanion.toBytes(p) shouldBe true
     }
   }
+  
+  property("ConversionTransaction Serialization") {
+    forAll(conversionTxGen) {
+      ct: ConversionTransaction =>
+        val parsed: ConversionTransaction = ConversionTransactionCompanion.parseBytes(ConversionTransactionCompanion.toBytes(ct)).get
+          val ctToBytes = ConversionTransactionCompanion.toBytes(parsed)
+        ctToBytes sameElements ConversionTransactionCompanion.toBytes(ct) shouldBe true
+    }
+  }
 
   property("AssetRedemption Serialization") {
     forAll(assetRedemptionGen) {
@@ -199,4 +211,11 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("Bloom Serialization") {
+    forAll(intSeqGen) {
+      intSeq: Seq[Int] =>
+        val parsed = BitSet() ++ BloomTopics.parseFrom(BloomTopics(intSeq).toByteArray).topics
+        BloomTopics(parsed.toSeq).toByteArray sameElements BloomTopics((BitSet() ++ intSeq).toSeq).toByteArray shouldBe true
+    }
+  }
 }

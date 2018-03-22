@@ -1,26 +1,32 @@
 package bifrost
 
+import java.time.Instant
+import java.util.Timer
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
+import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
 import bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
 import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
-import bifrost.wallet.PolyTransferGenerator
-import bifrost.wallet.PolyTransferGenerator.StartGeneration
+import com.google.protobuf.ByteString
 import io.circe
 import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.network.message.MessageSpec
+import scorex.core.network.NetworkController
+import scorex.core.network.message.{Message, MessageSpec}
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
+import serializer.ProducerProposal
+import serializer.ProducerProposal.ProposalDetails
+import serializer.ProducerProposal.ProposalDetails.{Location, ProjectDescription}
 
-import scala.concurrent.duration._
-import scala.reflect.io.Path
+import scala.concurrent.duration.Duration
 import scala.reflect.runtime.universe._
-import scala.util.Try
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
   // use for debug only
@@ -38,14 +44,14 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   }
   log.debug(s"Starting application with settings \n$settings")
 
-  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
+  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
 
-  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(classOf[NVHT], settings))
+  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
-    ContractApiRoute(settings, nodeViewHolderRef),
+    ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
@@ -57,16 +63,36 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
-  override val localInterface: ActorRef = actorSystem.actorOf(Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings))
+  override val localInterface: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+  )
 
-  override val nodeViewSynchronizer: ActorRef =
-    actorSystem.actorOf(Props(classOf[GenericNodeViewSynchronizer[P, TX, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type]],
-      networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec))
+  override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostNodeViewSynchronizer], networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec)
+  )
 
   //touching lazy vals
   forger
   localInterface
   nodeViewSynchronizer
+
+  /*val scheduler = actorSystem.scheduler
+  val task = new Runnable {
+    def run(): Unit = {
+      networkController ! Message(ProducerNotifySpec, Left(
+        ProducerProposal(
+          ByteString.copyFrom("testProducer".getBytes),
+          ProposalDetails(assetCode = "assetCode"),
+          ByteString.copyFrom("signature".getBytes),
+          Instant.now.toEpochMilli
+        ).toByteArray
+      ), Some(null))
+    }
+  }
+  implicit val executor = actorSystem.dispatcher
+
+  scheduler.schedule(initialDelay = Duration(10000, TimeUnit.MILLISECONDS), interval = Duration(7000, TimeUnit.MILLISECONDS), task)*/
+
 
 //  if (settings.nodeName == "node1") {
 //    log.info("Starting transactions generation")

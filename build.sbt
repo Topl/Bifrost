@@ -38,7 +38,8 @@ val apiDependencies = Seq(
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.+",
-  "ch.qos.logback" % "logback-core" % "1.+"
+  "ch.qos.logback" % "logback-core" % "1.+",
+  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17"
 )
 
 val testingDependencies = Seq(
@@ -62,6 +63,10 @@ libraryDependencies ++= Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
+
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
+
+libraryDependencies += "com.trueaccord.scalapb" %% "scalapb-json4s" % "0.3.2"
 
 val consoleDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
@@ -113,3 +118,8 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
+
+PB.pythonExe := "C:\\Python27\\python.exe"

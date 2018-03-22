@@ -12,7 +12,10 @@ import scorex.core.transaction.Transaction
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
+import scorex.crypto.signatures.Curve25519
+import serializer.BloomTopics
 
+import scala.collection.BitSet
 import scala.util.{Failure, Try}
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
@@ -60,7 +63,18 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
-    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =b.transactions.get.map(
+    val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = {
+      if (b.parentId sameElements settings.GenesisParentId) {
+        Seq()
+      } else {
+        Seq(blockParentKey(b.id) -> ByteArrayWrapper(b.parentId))
+      }
+    }
+
+    val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(BifrostBlock.createBloom(b.txs)))
+
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
     )
 
@@ -78,7 +92,8 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
-      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
+        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
     )
   }
 
@@ -95,8 +110,13 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
+  private def blockParentKey(blockId: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(Sha256("parentId".getBytes ++ blockId))
+
   def blockTimestampKey: ByteArrayWrapper =
     ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
+
+  private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
+    ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))
 
   def scoreOf(blockId: ModifierId): Option[Long] = storage.get(blockScoreKey(blockId)).map(b => Longs.fromByteArray(b.data))
   def heightOf(blockId: ModifierId): Option[Long] = storage.get(blockHeightKey(blockId)).map(b => Longs.fromByteArray(b.data))
@@ -105,6 +125,10 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   } else {
     storage.get(blockDiffKey(blockId)).map(b => Longs.fromByteArray(b.data))
   }
+  def bloomOf(blockId: ModifierId): Option[BitSet] = storage.get(blockBloomKey(blockId)).map(b => {
+      BitSet() ++ BloomTopics.parseFrom(b.data).topics
+    })
+  def parentIdOf(blockId: ModifierId): Option[ModifierId] = storage.get(blockParentKey(blockId)).map(_.data)
   def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] = storage.get(ByteArrayWrapper(transactionId)).map(_.data)
 
   def parentChainScore(b: BifrostBlock): Long = scoreOf(b.parentId).getOrElse(0L)
