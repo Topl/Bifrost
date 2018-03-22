@@ -121,7 +121,7 @@ trait ValidGenerators extends BifrostGenerators {
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      roles.zip(parties).toMap,
+      roles.zip(parties),
       signatures.toMap,
       feePreBoxes,
       fees,
@@ -134,12 +134,10 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
 
-  def createContractBox(agreement: Agreement, parties: Map[Role.Role, PublicKey25519Proposition]): ContractBox = {
+  def createContractBox(agreement: Agreement, parties: Seq[(Role.Role, PublicKey25519Proposition)]): ContractBox = {
 
     val contract = Contract(Map(
-      "producer" -> Base58.encode(parties(Role.Producer).pubKeyBytes).asJson,
-      "investor" -> Base58.encode(parties(Role.Investor).pubKeyBytes).asJson,
-      "hub" -> Base58.encode(parties(Role.Hub).pubKeyBytes).asJson,
+      "parties" -> List(1, 2).asJson, // TODO encode parties as JSON
       "agreement" -> agreement.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
@@ -151,16 +149,17 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
   } yield {
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+    val nrOfParties = Random.nextInt(1022) + 2;
+    val allKeyPairs = (0 until nrOfParties).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
-    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+    val roles = (0 until nrOfParties).map(_ => Random.shuffle(Seq(Role.Producer, Role.Investor , Role.Hub)).head )
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
     var agreementOpt = validAgreementGen().sample
     while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
-    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties))
 
     val methodName = Gen.oneOf(agreement.core.registry.keys.toSeq).sample.get
 
@@ -199,7 +198,7 @@ trait ValidGenerators extends BifrostGenerators {
       contractBox,
       methodName,
       parameters,
-      Map(sender._1 -> sender._2._2),
+      Seq(sender._1 -> sender._2._2),
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
@@ -213,16 +212,18 @@ trait ValidGenerators extends BifrostGenerators {
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
   } yield {
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
+
+    val nrOfParties = Random.nextInt(1022) + 2;
+    val allKeyPairs = (0 until nrOfParties).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
-    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+    val roles = (0 until nrOfParties).map(_ => Random.shuffle(Seq(Role.Producer, Role.Investor , Role.Hub)).head )
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
     val currentEndorsement = parties.map(p =>
       Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties))
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -274,8 +275,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     ContractCompletion(
       contractBox,
-      reputation,
-      roles.zip(parties).toMap,
+      roles.zip(parties),
       signatures.toMap,
       feePreBoxes,
       fees,

@@ -83,7 +83,7 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.values).map(v => ByteArrayWrapper(v.pubKeyBytes)).toSeq.zipWithIndex
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.map(_._2)).map(v => ByteArrayWrapper(v.pubKeyBytes)).toSeq.zipWithIndex
     val keyMapping: Map[ByteArrayWrapper, Int] = keySeq.toMap
 
     Bytes.concat(
@@ -298,7 +298,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     numReadBytes += agreementLength.toInt
 
-    val (parties: Map[Role, PublicKey25519Proposition],
+    val (parties: Seq[(Role, PublicKey25519Proposition)],
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
@@ -361,7 +361,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     numReadBytes += contractBoxLength
 
-    val (parties: Map[Role, PublicKey25519Proposition],
+    val (parties: Seq[(Role, PublicKey25519Proposition)],
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
@@ -385,11 +385,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
       /* First two arguments MUST STAY */
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      Ints.toByteArray(cc.producerReputation.length),
       Ints.toByteArray(cc.contractBox.bytes.length),
-      cc.producerReputation.foldLeft(Array[Byte]())((a, b) =>
-        a ++ b.proposition.pubKeyBytes ++ Longs.toByteArray(b.nonce) ++ doubleToByteArray(b.value._1) ++ doubleToByteArray(b.value._2)
-      ),
       cc.contractBox.bytes,
       ContractTransactionCompanion.commonToBytes(cc)
     )
@@ -410,42 +406,19 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
 
     numReadBytes = 2*Ints.BYTES
 
-    val producerReputation: IndexedSeq[ReputationBox] = (0 until reputationLength) map { i =>
-      val proposition = PublicKey25519Proposition(bytesWithoutType.slice(
-        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES),
-        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES) + Constants25519.PubKeyLength
-      ))
-
-      val nonce = Longs.fromByteArray(bytesWithoutType.slice(
-        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES) + Constants25519.PubKeyLength,
-        numReadBytes + i*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES) + Constants25519.PubKeyLength + Longs.BYTES
-      ))
-
-      val Array(alpha: Double, beta: Double) = (0 until 2).map { j =>
-        byteArrayToDouble(
-          bytesWithoutType.slice(
-            numReadBytes + (i + 1)*(Constants25519.PubKeyLength + Longs.BYTES) + 2*i*Doubles.BYTES + j*Doubles.BYTES,
-            numReadBytes + (i + 1)*(Constants25519.PubKeyLength + Longs.BYTES) + 2*i*Doubles.BYTES + (j + 1)*Doubles.BYTES
-          )
-        )
-      }.toArray
-
-      ReputationBox(proposition, nonce, (alpha, beta))
-    }
-
     numReadBytes += reputationLength*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES)
 
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + contractBoxLength)).get
 
     numReadBytes += contractBoxLength
 
-    val (parties: Map[Role, PublicKey25519Proposition],
+    val (parties: Seq[(Role, PublicKey25519Proposition)],
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
 
-    ContractCompletion(contractBox, producerReputation, parties, signatures, feePreBoxes, fees, timestamp)
+    ContractCompletion(contractBox, parties, signatures, feePreBoxes, fees, timestamp)
   }
 
   def doubleToByteArray(x: Double): Array[Byte] = {
