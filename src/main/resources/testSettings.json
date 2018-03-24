@@ -26,5 +26,6 @@
   "cors": false,
   "agent": "2-Hop",
   "testnet": true,
-  "version": [0, 0, 1]
+  "version": [0, 0, 1],
+  "verboseAPI": true
 }

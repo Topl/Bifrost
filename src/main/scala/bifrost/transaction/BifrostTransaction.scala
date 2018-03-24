@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.BifrostApp
 import bifrost.contract.Contract.Status
+import bifrost.contract.modules.BaseModuleWrapper
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.contract.{Contract, _}
 import bifrost.scorexMod.GenericBoxTransaction
@@ -13,7 +14,6 @@ import bifrost.transaction.box._
 import bifrost.transaction.proof.MultiSignature25519
 import bifrost.wallet.BWallet
 import bifrost.transaction.Role.Role
-import io.circe
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -227,9 +227,6 @@ case class ContractCreation(agreement: Agreement,
     val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._2.pubKeyBytes).asJson) ++
       Map(
         "agreement" -> agreement.json,
-        "storage" -> Map(
-          "status" -> Status.INITIALISED.asJson
-        ).asJson,
         "lastUpdated" -> timestamp.asJson
       )
     ).asJson
@@ -237,7 +234,7 @@ case class ContractCreation(agreement: Agreement,
     val investorProp = parties(Role.Investor)
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
-    val polyInvestment = BigDecimal(agreement.terms.pledge)*agreement.terms.xrate
+    val polyInvestment = BigInt((agreement.core.state \\ "initialCapital").head.as[String].right.get).toLong
     val leftOver: Long = canSend - fees(investorProp) - polyInvestment.toLong
     val boxNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes ++ investorProp.pubKeyBytes ++ hashNoNonces ++ Ints.toByteArray(0))
@@ -365,7 +362,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val serializer = ContractMethodExecutionCompanion
 
   override lazy val messageToSign: Array[Byte] = {
-    FastCryptographicHash(contract.storage.asJson.noSpaces.getBytes ++ hashNoNonces)
+    FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
   }
 
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
@@ -378,15 +375,16 @@ object ContractMethodExecution {
     require(tx.parties forall { case (_, proposition) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
         MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
-    }, "cme1")
+    }, "Either an invalid signature was submitted or the party listed was not part of the contract.")
 
-    require(tx.parties.keys.size == 1, "cme2")
+    require(tx.parties.keys.size == 1, "An incorrect number (not equal to 1) of parties provided signatures.")
 
-    val effDate = tx.contract.agreement("contractEffectiveTime").get.asNumber.get.toLong.get
-    val expDate = tx.contract.agreement("contractExpirationTime").get.asNumber.get.toLong.get
+    val effDate = tx.contract.getFromContract("contractEffectiveTime")
+    val expDate = tx.contract.getFromContract("contractExpirationTime")
 
-    require(tx.timestamp >= effDate, "cme3")
-    require(tx.timestamp < expDate, "cme4")
+    require(tx.timestamp >= effDate.get.asNumber.get.toLong.get, "The contract was not in effect yet.")
+
+    require(tx.timestamp < expDate.get.asNumber.get.toLong.get, "The contract has expired.")
 
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
@@ -465,43 +463,13 @@ case class ContractCompletion(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    /* Get yield */
-    val input: Long = contract.agreement("terms").get.asObject.get("pledge").get.asNumber.get.toLong.get
-    val fulfillment = contract.storage("currentFulfillment").get
-    val output = fulfillment.asObject.get("deliveredQuantity").get.asNumber.get.toLong.get
-    val yieldRate = output.toDouble / input.toDouble
+    val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
 
-    /* Calculate sum of reputation from before */
-    val (alphaSum: Double, betaSum: Double) = producerReputation.foldLeft((0.0, 0.0))((sum, delta) => (sum._1 + delta.value._1, sum._2 + delta.value._2))
-
-    /* Calculate alpha, beta changes */
-    val w = input
-    val alpha: Double = alphaSum + (w.toDouble / 1000)*(2*yieldRate - 1)
-    val beta: Double = betaSum + (w.toDouble / 1000)*(2 - yieldRate)
-
-    /* Reputation adjustment for producer */
-    val producerRep: ReputationBox = ReputationBox(contract.Producer, nonce, (alpha, beta))
-
-    val assetCode: String =  contract.agreement("assetCode").get.asString.get
-
-    val investorAmount = Math.min(output, input)
-    val profitAmount: Double = Math.max(output - investorAmount, 0).toDouble
-    val agreement: Agreement = contract.agreement.asJson.as[Agreement] match {
-      case Right(a: Agreement) => a
-      case Left(e) => throw new Exception(s"Could not parse agreement in contract: $e")
-    }
-
-    val shares: (Double, Double, Double) = agreement.terms.share.evaluate(profitAmount.toDouble / input.toDouble)
-
-    val producerProfitShare = (shares._1*profitAmount).toLong
-    val hubProfitShare = (shares._2*profitAmount).toLong
-    val investorProfitShare = profitAmount.toLong - producerProfitShare - hubProfitShare
-
-    Seq(
-      producerRep,
-      AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), producerProfitShare, assetCode, contract.Hub),
-      AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), hubProfitShare, assetCode, contract.Hub),
-      AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), investorAmount + investorProfitShare, assetCode, contract.Hub)
+    IndexedSeq(
+      ReputationBox(PublicKey25519Proposition(parties(Role.Producer).pubKeyBytes), nonce, (0, 0) ),
+      AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), 0, assetCode, contract.Hub),
+      AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), 0, assetCode, contract.Hub),
+      AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), 0, assetCode, contract.Hub)
     ) ++ deductedFeeBoxes(hashNoNonces)
   }
 

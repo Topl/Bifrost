@@ -39,7 +39,7 @@ class ContractCreationSpec extends PropSpec
         BifrostState.semanticValidity(cc.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
-
+/*
   property("Tx with effective date in the past should be invalid") {
 
     lazy val pastEffDateAgreementGen: Gen[Agreement] = for {
@@ -137,6 +137,6 @@ class ContractCreationSpec extends PropSpec
         semanticValid.isSuccess shouldBe false
         semanticValid.failed.get shouldBe an[IllegalArgumentException]
     }
-  }
+  }*/
 
 }

@@ -32,7 +32,7 @@ class ContractTransactionSpec extends PropSpec
 
   //noinspection ScalaStyle
   def potentiallyInvalidContractCreationGen(minFee: Long, maxFee: Long, minFeeSum: Long, maxFeeSum: Long): Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
   } yield {
@@ -116,16 +116,12 @@ class ContractTransactionSpec extends PropSpec
     val parties = allKeyPairs.map(_._2)
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = Map[String, Json]()
+    val gen = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
+    var sample = gen.sample
 
-    val contractBox = createContractBox(
-      Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
-      Status.INITIALISED,
-      currentFulfillment,
-      currentEndorsement,
-      roles.zip(parties).toMap
-    )
+    while(sample.isEmpty) sample = gen.sample
+    val validAgreement = sample.get
+    val contractBox = createContractBox(validAgreement, roles.zip(parties).toMap)
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
 
@@ -165,7 +161,7 @@ class ContractTransactionSpec extends PropSpec
         fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-    val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     ContractMethodExecution(
@@ -182,7 +178,7 @@ class ContractTransactionSpec extends PropSpec
 
   def potentiallyInvalidContractCompletionGen(minFee: Long, maxFee: Long, minFeeSum: Long, maxFeeSum: Long): Gen[ContractCompletion] = for {
     timestamp <- positiveLongGen
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
@@ -200,7 +196,7 @@ class ContractTransactionSpec extends PropSpec
       Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, status, currentFulfillment, currentEndorsement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -265,11 +261,16 @@ class ContractTransactionSpec extends PropSpec
                                                maxFeeSum: Long = Long.MaxValue): Gen[ContractTransaction] = for {
     txType <- Gen.oneOf(ContractCreation, ContractCompletion, ContractMethodExecution)
   } yield {
-    txType match {
-      case ContractCreation => potentiallyInvalidContractCreationGen(minFee, maxFee, minFeeSum, maxFeeSum).sample.get
-      case ContractCompletion => potentiallyInvalidContractCompletionGen(minFee, maxFee, minFeeSum, maxFeeSum).sample.get
-      case ContractMethodExecution => potentiallyInvalidContractMethodExecutionGen(minFee, maxFee, minFeeSum, maxFeeSum).sample.get
+    val typeGen: Gen[ContractTransaction] = txType match {
+      case ContractCreation => potentiallyInvalidContractCreationGen(minFee, maxFee, minFeeSum, maxFeeSum)
+      case ContractCompletion => potentiallyInvalidContractCompletionGen(minFee, maxFee, minFeeSum, maxFeeSum)
+      case ContractMethodExecution => potentiallyInvalidContractMethodExecutionGen(minFee, maxFee, minFeeSum, maxFeeSum)
     }
+
+    var sample = typeGen.sample
+    while(sample.isEmpty) sample = typeGen.sample
+
+    sample.get
   }
 
   property("ContractTransaction with any negative fee will error on semantic validation") {

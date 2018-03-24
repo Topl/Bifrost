@@ -2,9 +2,8 @@ package bifrost.transaction
 
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
-import bifrost.transaction.ConversionTransaction
+import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.ContractTransactionCompanion.typeBytes
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
 import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
@@ -471,22 +470,22 @@ object AgreementCompanion extends Serializer[Agreement] {
 
   override def toBytes(a: Agreement): Array[Byte] = {
     Bytes.concat(
-      Longs.toByteArray(a.contractExpirationTime),
-      Longs.toByteArray(a.contractEffectiveTime),
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
+      Longs.toByteArray(a.core.json.noSpaces.getBytes.length),
       Ints.toByteArray(a.assetCode.getBytes.length),
       a.assetCode.getBytes,
-      a.terms.json.noSpaces.getBytes
+      a.terms.json.noSpaces.getBytes,
+      a.core.json.noSpaces.getBytes
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
 
-    val Array(contractExpirationTime: Long, contractEffectiveTime: Long, termsLength: Long) = (0 until 3).map { i =>
+    val Array(termsLength: Long, coreLength: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    var numBytesRead = 3*Longs.BYTES
+    var numBytesRead = 2*Longs.BYTES
 
     val numStrBytes = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
 
@@ -499,14 +498,26 @@ object AgreementCompanion extends Serializer[Agreement] {
     val terms: AgreementTerms = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
     )) match {
-      case Left(x) => throw new Exception("AgreementTerm json not properly formatted")
+      case Left(_) => throw new Exception("AgreementTerm json not properly formatted")
       case Right(x) => x.as[AgreementTerms] match {
         case Left(_) => throw new Exception("Agreement terms json was malformed")
         case Right(a: AgreementTerms) => a
       }
     }
 
-    Agreement(terms, assetCode, contractEffectiveTime, contractExpirationTime)
+    numBytesRead += termsLength.toInt
+
+    val core: BaseModuleWrapper = parse(new String(
+      bytes.slice(numBytesRead, numBytesRead + coreLength.toInt)
+    )) match {
+      case Left(_) => throw new Exception("BaseModule json not properly formatted")
+      case Right(x) => x.as[BaseModuleWrapper] match {
+        case Left(_) => throw new Exception("Internal json was malformed in BaseModule")
+        case Right(b: BaseModuleWrapper) => b
+      }
+    }
+
+    Agreement(terms, assetCode, core)
   }
 }
 
