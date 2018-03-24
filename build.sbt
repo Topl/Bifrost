@@ -6,12 +6,8 @@ name := "project-bifrost"
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
   organization := "co.topl",
-  version := "0.1.0-alpha"
+  version := "0.1.0-alpha.1.0"
 )
-
-scalaVersion := "2.12.1"
-organization := "co.topl"
-version := "0.1.0-alpha"
 
 mainClass in assembly := Some("bifrost.console.BifrostConsole")
 
@@ -44,8 +40,8 @@ val loggingDependencies = Seq(
 
 val testingDependencies = Seq(
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
-  "org.scalactic" %% "scalactic" % "3.0.1" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.2" % "test",
+  "org.scalactic" %% "scalactic" % "3.0.+",
+  "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
@@ -120,3 +116,12 @@ PB.targets in Compile := Seq(
 )
 
 PB.pythonExe := "C:\\Python27\\python.exe"
+
+lazy val bifrost = Project(id = "project-bifrost", base = file("."))
+  .settings(commonSettings: _*)
+
+lazy val contractModules = Project(id = "contract-modules", base = file("contract-modules"))
+  .settings(commonSettings: _*)
+  .enablePlugins(ScalaJSPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
