@@ -2,7 +2,7 @@ import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
 name := "project-bifrost"
-logLevel := Level.Info
+
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
   organization := "co.topl",
