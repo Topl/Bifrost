@@ -4,7 +4,7 @@ jdk:
 scala:
 - 2.12.1
 script:
-   - sbt test
+   - sbt "testOnly *.BifrostHistorySpec"
 dist: trusty
 sudo: required
 group: edge
