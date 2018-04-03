@@ -137,7 +137,7 @@ trait ValidGenerators extends BifrostGenerators {
   def createContractBox(agreement: Agreement, parties: Seq[(Role.Role, PublicKey25519Proposition)]): ContractBox = {
 
     val contract = Contract(Map(
-      "parties" -> List(1, 2).asJson, // TODO encode parties as JSON
+      "parties" -> parties.map(_._2).map(_.pubKeyBytes).asJson,
       "agreement" -> agreement.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
