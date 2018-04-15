@@ -9,7 +9,11 @@ lazy val commonSettings = Seq(
   version := "0.1.0-alpha.1.0"
 )
 
-mainClass in assembly := Some("bifrost.console.BifrostConsole")
+scalaVersion := "2.12.1"
+organization := "co.topl"
+version := "0.1.1-alpha"
+
+mainClass in assembly := Some("bifrost.BifrostApp")
 
 val circeVersion = "0.7+"
 
@@ -111,6 +115,9 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
   }
 }
 
+connectInput in run := true
+outputStrategy := Some(StdoutOutput)
+
 PB.targets in Compile := Seq(
   scalapb.gen() -> (sourceManaged in Compile).value
 )
@@ -127,4 +134,3 @@ lazy val contractModules = Project(id = "contract-modules", base = file("contrac
   .settings(commonSettings: _*)
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-
