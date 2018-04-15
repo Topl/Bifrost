@@ -1629,20 +1629,18 @@ Bifrost.prototype.completeContract = function (params) {
 //----------------------------------createKeyFile----------------------------------------------------------------------
 Bifrost.prototype.createKeyFile = function (password) {
 
-  var request = new Request('http://localhost:9585/wallet/keyfile/' + password, {
+  var request = new Request('http://localhost:9585/wallet/keyfile', {
     method: 'POST',
     headers: new Headers({
       'Content-Type': 'application/json'
       //'Accept': 'application/json',
-    })
-    /*body: JSON.stringify({
+    }),
+    body: JSON.stringify({
       'jsonrpc': '2.0',
       'method': 'keyFile',
-      'params': [{
-        'password': password
-      }],
+      'password': password,
       'id': '0'
-    })*/
+    })
   });
 
   return fetch(request).then(function (response) {

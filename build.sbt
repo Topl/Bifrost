@@ -120,3 +120,6 @@ PB.targets in Compile := Seq(
 )
 
 PB.pythonExe := "C:\\Python27\\python.exe"
+
+connectInput in run := true
+outputStrategy := Some(StdoutOutput)

@@ -257,11 +257,15 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     *  If there is one box that exists then the tx is invalid
     * */
     val boxesExist: Boolean = pt.newBoxes.forall(curBox => {
-      val pBox = curBox.asInstanceOf[ProfileBox]
-      val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
-      boxBytes match {
-        case None => false
-        case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
+      if (curBox.isInstanceOf[ProfileBox]) {
+        val pBox = curBox.asInstanceOf[ProfileBox]
+        val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
+        boxBytes match {
+          case None => false
+          case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
+        }
+      } else {
+        false
       }
     })
     require(!boxesExist)
