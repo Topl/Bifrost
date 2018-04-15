@@ -328,13 +328,12 @@ class BifrostHistory(val storage: BifrostStorage, settings: ForgingSettings, val
     // Go through all pertinent txs to filter out false positives
     getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
       tx.bloomTopics match {
-        case Some(txBlooms) => {
+        case Some(txBlooms) =>
           var res = false
           val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
           val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
           res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
           res
-        }
         case None => false
       }
     ))

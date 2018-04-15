@@ -23,7 +23,7 @@ import scala.util.{Failure, Random}
 class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
   def arbitraryPartyContractCreationGen(num: Int): Gen[ContractCreation] = for {
-    agreement <- validAgreementGen
+    agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     numInvestmentBoxes <- positiveTinyIntGen
@@ -114,10 +114,10 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual
-          preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - (cc.agreement.terms.xrate*BigDecimal(cc.agreement.terms.pledge)).toLong - cc.fee
+          preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - BigInt((cc.agreement.core.state \\ "initialCapital").head.as[String].right.get).toLong - cc.fee
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        cc.fees.foreach { case (prop, _) =>
+        cc.fees.foreach { case (prop, fee) =>
           var isInvestor = 0L
 
           if(prop == cc.parties(Role.Investor)) isInvestor = 1L
@@ -125,9 +125,11 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-          val investment = (BigDecimal(isInvestor)*cc.agreement.terms.xrate*BigDecimal(cc.agreement.terms.pledge)).toLong
+          val investment =
+            if (prop equals cc.parties(Role.Investor))  BigInt((cc.agreement.core.state \\ "initialCapital").head.as[String].right.get).toLong
+            else 0
 
-          output shouldEqual (input - cc.fees(prop) - investment)
+          output shouldEqual (input - fee - investment)
 
         }
 
@@ -135,7 +137,6 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
         preExistingPolyBoxes.foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
         BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
-
     }
   }
 

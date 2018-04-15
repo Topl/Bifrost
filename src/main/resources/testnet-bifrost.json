@@ -24,5 +24,6 @@
   "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
-  "cors": false
+  "cors": false,
+  "verboseAPI": true
 }

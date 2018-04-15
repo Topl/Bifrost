@@ -5,6 +5,7 @@ import java.time.Instant
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.{Agreement, Contract}
 import bifrost.contract.Contract.Status
+import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.{Ints, Longs}
@@ -42,14 +43,13 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
     val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = Map[String, Json]()
+    /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
+    var agreementOpt = validAgreementGen().sample
+    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
+    val agreement = agreementOpt.get
 
     val contractBox = createContractBox(
-      Agreement(validAgreementTermsGen.sample.get, stringGen.sample.get, timestamp - effDelta, timestamp + expDelta),
-      Status.INITIALISED,
-      currentFulfillment,
-      currentEndorsement,
+      agreement,
       parties.take(3).map(t => t._1 -> t._2._2).toMap
     )
 
@@ -75,7 +75,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
         fees.flatMap { case (prop, amount) => prop.pubKeyBytes ++ Longs.toByteArray(amount) }
     )
 
-    val messageToSign = FastCryptographicHash(contractBox.value.asObject.get("storage").get.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
     val sigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = allKeyPairs.take(numInContract).map(t => t._2 -> PrivateKey25519Companion.sign(t._1, messageToSign))
     var extraSigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = IndexedSeq()
 

@@ -4,19 +4,15 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.box._
+import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe.{Decoder, HCursor}
-import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.crypto.encode.Base58
-import io.circe.parser.decode
+import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
+import scala.util.{Failure, Success}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -95,7 +91,7 @@ class SerializationTests extends PropSpec
   }
 
   property("Agreement Serialization") {
-    forAll(validAgreementGen) {
+    forAll(validAgreementGen()) {
       a: Agreement =>
         val parsed = AgreementCompanion.parseBytes(AgreementCompanion.toBytes(a)).get
         AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
@@ -198,8 +194,12 @@ class SerializationTests extends PropSpec
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
-        val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb)).get
-        BifrostBlockCompanion.toBytes(parsed) sameElements BifrostBlockCompanion.toBytes(bb) shouldBe true
+        val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb))
+        println(parsed)
+        parsed match {
+          case Success(p) => println(BifrostBlockCompanion.toBytes(p) sameElements BifrostBlockCompanion.toBytes(bb)); BifrostBlockCompanion.toBytes(p) sameElements BifrostBlockCompanion.toBytes(bb) shouldBe true
+          case Failure(e) => println("ERROR"); throw e
+        }
     }
   }
 

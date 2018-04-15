@@ -2,6 +2,7 @@ package bifrost.api.http
 
 import java.io.{PrintWriter, StringWriter}
 
+import akka.http.javadsl.settings.ParserSettings.ErrorLoggingVerbosity
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.api.http.ScorexApiResponse
@@ -18,18 +19,19 @@ case class BifrostSuccessResponse(override val data: Json, id: String) extends S
   ).asJson
 }
 
-case class BifrostErrorResponse(e: Throwable, id: String) extends ScorexApiResponse {
+case class BifrostErrorResponse(e: Throwable, code: Int, id: String, verbose: Boolean = false) extends ScorexApiResponse {
   override val success: Boolean = false
-  override val data: Json = (e.getMessage).asJson
+  override val data: Json = e.getMessage.asJson
+  val trace: Option[(String, Json)] = if(verbose) Some("trace" -> e.getStackTrace.map(f => f.toString.asJson).asJson) else None
+
   e.printStackTrace()
-//  val sw = new StringWriter
-//  e.printStackTrace(new PrintWriter(sw))
+
   override def toJson: Json = Map(
     "jsonrpc" -> "2.0".asJson,
     "id" -> id.asJson,
-    "error" -> Map(
-      "code" -> 500.asJson,
+    "error" -> (Seq(
+      "code" -> code.asJson,
       "message" -> data
-    ).asJson
+    ) ++ trace).toMap.asJson
   ).asJson
 }
