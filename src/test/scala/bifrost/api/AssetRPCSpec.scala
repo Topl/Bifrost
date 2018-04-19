@@ -15,7 +15,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import io.circe
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -28,7 +28,6 @@ import scala.util.{Random, Try}
 class AssetRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
-  with BeforeAndAfterAll
   with BifrostGenerators {
 
   val actorSystem = ActorSystem(settings.agentName)
@@ -65,25 +64,20 @@ class AssetRPCSpec extends WordSpec
     "Redeem some assets" in {
       val requestBody = ByteString(
         s"""
-          |{
-          |   "jsonrpc": "2.0",
-          |   "id": "30",
-          |   "method": "redeemAssets",
-          |   "params": [{
-          |     "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-          |   }]
-          |}
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "redeemAssets",
+           |   "params": [{
+           |     "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+           |   }]
+           |}
         """.stripMargin)
     }
   }
 
-  override def afterAll(): Unit = {
-    val path: Path = Path ("/tmp/scorex/test-data")
+  object AssetRPCSpec {
+    val path: Path = Path("/tmp/scorex/test-data")
     Try(path.deleteRecursively())
   }
-}
-
-object AssetRPCSpec {
-  val path: Path = Path ("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
 }

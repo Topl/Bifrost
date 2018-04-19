@@ -79,7 +79,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaStr //nonEmptyBytesGen.map(new String(_))
 
   //noinspection ScalaStyle
   lazy val base10gen: Gen[Int] = Gen.choose(0,10)

@@ -86,7 +86,11 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
 
   lazy val json: Json = Map(
     "agreement" -> agreement,
-    "parties" -> Json.Null, // TODO #22
+    "parties" -> parties.map(p => {
+      Seq(
+        Base58.encode(p._1.pubKeyBytes).asJson -> p._2
+      ).asJson
+    }).asJson, // TODO #22
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
   ).asJson
