@@ -79,7 +79,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaStr //nonEmptyBytesGen.map(new String(_))
 
   //noinspection ScalaStyle
   lazy val base10gen: Gen[Int] = Gen.choose(0,10)
@@ -188,11 +188,11 @@ trait BifrostGenerators extends CoreGenerators {
     field <- stringGen
   } yield ProfileBox(proposition, 0L, value, field)
 
-  lazy val partiesGen: Gen[Map[Role, PublicKey25519Proposition]] = for {
+  lazy val partiesGen: Gen[Seq[(Role, PublicKey25519Proposition)]] = for {
     a <- propositionGen
     b <- propositionGen
     c <- propositionGen
-  } yield Map(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
+  } yield Seq(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
 
   lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(positiveTinyIntGen.sample.get).map(seq => {
     val first: Double = samplePositiveDouble / 2
@@ -287,9 +287,9 @@ trait BifrostGenerators extends CoreGenerators {
       agreement,
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
       parties,
-      parties.map { case (_, v) => (v, signatureGen.sample.get) },
-      parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} },
-      parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+      parties.map({ case (_, v) => (v, signatureGen.sample.get) }).toMap,
+      parties.map({ case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} }).toMap,
+      parties.map({ case (_, v) => v -> positiveTinyIntGen.sample.get.toLong }).toMap,
       timestamp
     )
 
@@ -306,7 +306,7 @@ trait BifrostGenerators extends CoreGenerators {
     contract,
     methodName,
     parameters,
-    Map(Gen.oneOf(Role.values.toSeq).sample.get -> party),
+    Seq(Gen.oneOf(Role.values.toSeq).sample.get -> party),
     Map(party -> sig),
     Map(party -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get}),
     Map(party -> positiveTinyIntGen.sample.get.toLong),
@@ -322,11 +322,10 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
   } yield ContractCompletion(
     contract,
-    IndexedSeq(),
     parties,
-    parties.map { case (_, v) => (v, signatureGen.sample.get) },
-    parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} },
-    parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+    parties.map({ case (_, v) => (v, signatureGen.sample.get) }).toMap,
+    parties.map({ case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} }).toMap,
+    parties.map({ case (_, v) => v -> positiveTinyIntGen.sample.get.toLong }).toMap,
     timestamp
   )
 

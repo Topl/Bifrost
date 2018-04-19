@@ -161,17 +161,26 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
 
       val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "contractBox")
+
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ContractMethodExecution] match {
-        case Right(c: ContractMethodExecution) => c
+        case Right(c: ContractMethodExecution) => println(">>>>>>>>>>>>>>>>>>>>>>ContractMethodExecution", c); c
         case Left(e) => throw new Exception(s"Could not parse ContractMethodExecution: $e")
       }
 
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
+
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> realSignature", realSignature)
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> signingPublicKey", PublicKey25519Proposition(Base58.decode(signingPublicKey).get))
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> copy", tempTx)
+
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
+
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> tx", tx.contract)
+
       ContractMethodExecution.validate(tx) match {
         case Success(e) => log.info("Contract method execution successfully validated")
-        case Failure(e) => throw e
+        case Failure(e) => throw e.getCause
       }
       tx.newBoxes.toSet
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractMethodExecution](tx)
