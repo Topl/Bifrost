@@ -92,7 +92,7 @@ class ContractTransactionSpec extends PropSpec
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      roles.zip(parties).toMap,
+      roles.zip(parties),
       signatures.toMap,
       feePreBoxes,
       fees,
@@ -121,7 +121,7 @@ class ContractTransactionSpec extends PropSpec
 
     while(sample.isEmpty) sample = gen.sample
     val validAgreement = sample.get
-    val contractBox = createContractBox(validAgreement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(validAgreement, roles.zip(parties))
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
 
@@ -168,7 +168,7 @@ class ContractTransactionSpec extends PropSpec
       contractBox,
       methodName,
       parameters,
-      Map(sender._1 -> sender._2._2),
+      Seq(sender._1 -> sender._2._2),
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
@@ -196,7 +196,7 @@ class ContractTransactionSpec extends PropSpec
       Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, roles.zip(parties).toMap)
+    val contractBox = createContractBox(agreement, roles.zip(parties))
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -245,8 +245,7 @@ class ContractTransactionSpec extends PropSpec
 
     ContractCompletion(
       contractBox,
-      reputation,
-      roles.zip(parties).toMap,
+      roles.zip(parties),
       parties.zip(signatures).toMap,
       feePreBoxes,
       fees,

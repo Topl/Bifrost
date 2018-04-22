@@ -10,6 +10,8 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 
 import scala.util.{Failure, Random, Success, Try}
 
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.crypto.signatures.Curve25519
 
 class ContractSpec extends PropSpec
   with PropertyChecks
@@ -53,22 +55,45 @@ class ContractSpec extends PropSpec
     }
   }
 
-  property("Can create contract") {
-    Try {
-      Agreement(
-        AgreementTerms("testing"),
-        "myAssetCode",
-        BaseModuleWrapper(
+  def mockAgreement =
+    Agreement(
+      AgreementTerms("testing"),
+      "myAssetCode",
+      BaseModuleWrapper(
+        "test",
+        validInitJsGen(
           "test",
-          validInitJsGen(
-            "test",
-            "testCode",
-            Instant.now.toEpochMilli,
-            Instant.now.toEpochMilli + 10000
-          ).sample.get
-        )(JsonObject.empty)
+          "testCode",
+          Instant.now.toEpochMilli,
+          Instant.now.toEpochMilli + 10000
+        ).sample.get
+      )(JsonObject.empty)
+    ).json
+
+  def getMockPublicKeyProposition(fillByte: Byte) = {
+    PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(fillByte));
+   }
+
+   property("Can create contract") {
+    Try {
+      Contract(
+        Seq((getMockPublicKeyProposition(0), "hub"),(getMockPublicKeyProposition(1), "producer")),
+        Instant.now.toEpochMilli,
+        Array(),
+        mockAgreement
       )
     } shouldBe a[Success[_]]
+  }
+
+  property("Can not create contract due to incorrect number of parties") {
+    Try {
+      Contract(
+        Seq(),
+        Instant.now.toEpochMilli,
+        Array(),
+        mockAgreement
+      )
+    } shouldBe a[Failure[_]]
   }
 
 }

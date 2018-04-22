@@ -2,7 +2,6 @@ Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol [![Build St
 ====================================================================================================================================================================================
 
 [![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Join our slack at https://teamtopl.slack.com](https://slackin-inviter.herokuapp.com/badge.svg)](https://slackin-inviter.herokuapp.com)
 [![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost)
 
 Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:
@@ -56,8 +55,6 @@ To keep up with our development
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
 - Go to [Gitter](https://gitter.im/topl/main)
-
-- Join our [Slack group](https://slackin-inviter.herokuapp.com)
 
 - Watch active development on [ Floobit](https://floobits.com/mpk2/Project-Bifrost)
 

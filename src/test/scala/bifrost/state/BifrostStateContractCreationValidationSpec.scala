@@ -31,12 +31,12 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
     val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
 
     val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
-    val parties = (allKeyPairs.map(_._2) zip (Stream continually roles).flatten).map(t => t._2 -> t._1).toMap
+    val parties = (allKeyPairs.map(_._2) zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
-    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties(Role.Investor), n._1))
+    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties.head._2, n._1)) // TODO(balinskia): Which party is the investor
 
-    val feePreBoxes = parties.map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} )
+    val feePreBoxes = parties.map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get} ).toMap
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
       v.map {
         case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
@@ -49,7 +49,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      parties.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
     )
 
@@ -83,7 +83,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val box = cc.newBoxes.head.asInstanceOf[ContractBox]
         val returnedPolyBoxes: Traversable[PolyBox] = cc.newBoxes.tail.map {
@@ -118,15 +118,15 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         cc.fees.foreach { case (prop, fee) =>
-          var isInvestor = 0L
+          var isInvestor = 1L // 0L;
 
-          if(prop == cc.parties(Role.Investor)) isInvestor = 1L
+          //if(prop == cc.parties(Investor)) isInvestor = 1L // TODO(balinskia): Which party is the investor
 
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
           val investment =
-            if (prop equals cc.parties(Role.Investor))  BigInt((cc.agreement.core.state \\ "initialCapital").head.as[String].right.get).toLong
+            if (prop equals cc.parties.head._2)  BigInt((cc.agreement.core.state \\ "initialCapital").head.as[String].right.get).toLong // TODO(balinskia): Which party is the investor
             else 0
 
           output shouldEqual (input - fee - investment)
@@ -150,7 +150,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -178,7 +178,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
@@ -208,12 +208,12 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
-          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+          ((cc.signatures.keySet -- cc.parties.map(_._2).toSet) zip (Stream continually roles).flatten).map(t =>
             ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
           )
 
@@ -240,12 +240,12 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
-          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+          ((cc.signatures.keySet -- cc.parties.map(_._2).toSet) zip (Stream continually roles).flatten).map(t =>
             ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
           )
 
@@ -272,12 +272,12 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet  // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
-          ((cc.signatures.keySet -- cc.parties.values.toSet) zip (Stream continually roles).flatten).map(t =>
+          ((cc.signatures.keySet -- cc.parties.map(_._2).toSet) zip (Stream continually roles).flatten).map(t =>
             ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role")
           )
 
@@ -315,7 +315,7 @@ class BifrostStateContractCreationValidationSpec extends BifrostStateSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = (cc.preFeeBoxes.flatMap { case (prop, preBoxes) =>
           preBoxes.map(b => PolyBox(prop, b._1, b._2))
-        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties(Role.Investor), b._1, b._2))).toSet
+        } ++ cc.preInvestmentBoxes.map(b => PolyBox(cc.parties.head._2, b._1, b._2))).toSet // TODO(balinskia): Which party is the investor
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
