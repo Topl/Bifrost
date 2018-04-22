@@ -40,7 +40,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   def boxIds: Seq[Array[Byte]] = store
       .get(BoxIdsKey)
       .map(_.data.grouped(store.keySize).toSeq)
-    .getOrElse(Seq[Array[Byte]]())
+      .getOrElse(Seq[Array[Byte]]())
 
   private lazy val walletBoxSerializer = new GenericWalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
 
