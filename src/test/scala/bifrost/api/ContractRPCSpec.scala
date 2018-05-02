@@ -356,7 +356,7 @@ class ContractRPCSpec extends WordSpec
           |}
         """.stripMargin
 
-      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> contractBox: ", Base58.encode(contractBox.get.id))
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> contractBox: ", Base58.encode(contractBox.get.id), contractBox)
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         println("RESPONSE", responseAs[String])

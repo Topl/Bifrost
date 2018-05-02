@@ -33,6 +33,8 @@ import serializer.BuySellOrder
 import scala.util.{Failure, Success, Try}
 import scalapb.descriptors.ScalaType.ByteString
 
+import scala.util.parsing.json.JSONObject
+
 trait TransactionSettings extends Settings
 
 sealed trait BifrostTransaction extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
@@ -305,18 +307,15 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override type M = ContractMethodExecution
 
   lazy val contract: Contract = {
-    val timeUpdatedContract: Map[String, Json] = contractBox.json.asObject.get.apply("value").get.asObject.get.toMap + ("lastUpdated" -> timestamp.asJson)
+    val valueObject: Map[String, Json] = contractBox.json.asObject.get.toMap
+    val cursor: HCursor = valueObject("value").hcursor
+    val time = cursor.fields
+      println(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> entering contract with contractBox.json: ${time + "lastUpdated" -> timestamp.asJson} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    val timeUpdatedContract: Map[String, Json] = contractBox.json.asObject.get.apply("value").get.asJson.asObject.get.toMap + ("lastUpdated" -> timestamp.asJson)
     Contract(timeUpdatedContract.asJson, contractBox.id)
   }
 
-  lazy val proposition = MofNProposition(1,
-    Set(
-      // TODO #22
-      // contract.Producer.pubKeyBytes,
-      // contract.Hub.pubKeyBytes,
-      // contract.Investor.pubKeyBytes
-    )
-  )
+  lazy val proposition = MofNProposition(1, contract.parties.map(p => p._1.pubKeyBytes).toSet)
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1)
 
@@ -333,7 +332,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       methodName.getBytes ++
-      parties.toSeq.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
+      parties.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
       parameters.noSpaces.getBytes ++
       unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++
@@ -341,12 +340,16 @@ case class ContractMethodExecution(contractBox: ContractBox,
   )
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
+    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Before digest")
+    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MofNProp proposition: ", proposition)
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    println(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MofNProp within newboxes: " +
+      s"$digest <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val contractResult = Contract.execute(contract, methodName)(parties.toIndexedSeq(0)._2)(parameters.asObject.get) match {
       case Success(res) => res match {
-        case Left(updatedContract) => ContractBox(proposition, nonce, updatedContract.json)
+        case Left(updatedContract) => println(">>>>>>>>>>>>>>>>>>>>>>updatedContract", updatedContract);ContractBox(proposition, nonce, updatedContract.json)
         case Right(_) => contractBox
       }
       case Failure(_) => contractBox

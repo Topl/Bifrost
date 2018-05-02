@@ -30,7 +30,6 @@ import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.{PeerMessage, ProducerProposal}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.{Failure, Success, Try}
