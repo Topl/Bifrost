@@ -300,7 +300,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
-    if (!roleBoxes.zip(cc.parties.keys).forall { case (boxRole, role) => boxRole.equals(role.toString) }) {
+    if (!roleBoxes.zip(cc.parties).forall { case (boxRole, role) => boxRole.equals(role.toString) }) {
       log.debug("role boxes does not match the roles stated in the contract creation")
       return Failure(new Exception("role boxes does not match the roles stated in the contract creation"))
     }
@@ -379,13 +379,14 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* ProfileBox exists for all attempted signers */
     if (roleBoxes.size != cme.signatures.size)
-      throw new IllegalAccessException(s"${Base58.encode(cme.parties.values.head.pubKeyBytes)} claimed ${cme.parties.keySet.head} role but didn't exist.")
+      throw new IllegalAccessException(s"${Base58.encode(cme.parties.head._2.pubKeyBytes)} claimed ${cme.parties.head._1} role but didn't exist.")
 
     /* Signatures match each profilebox owner */
     if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) })
       throw new IllegalAccessException(s"Not all signatures are valid for provided role boxes")
 
     /* Roles provided by CME matches profileboxes */
+    /* TODO check roles
     if (!roleBoxes.forall(rb => rb.value match {
       case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
       case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
@@ -393,7 +394,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case _ => false
     }))
       throw new IllegalAccessException(s"Not all roles are valid for signers")
-
+    */
     /* Handles fees */
     val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
       cme.unlockers.tail.foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {

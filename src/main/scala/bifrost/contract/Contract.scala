@@ -14,12 +14,15 @@ import scala.collection.{SortedSet, mutable}
 import scala.util.{Failure, Success, Try}
 
 
-case class Contract(Producer: PublicKey25519Proposition,
-                    Hub: PublicKey25519Proposition,
-                    Investor: PublicKey25519Proposition,
+case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
                     lastUpdated: Long,
                     id: Array[Byte],
                     agreement: Json) {
+
+  def MIN_PARTIES = 2
+  def MAX_PARTIES = 1024
+  if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES)
+    throw new Exception("Incorrect number of parties in contract")
 
   lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
   val agreementObj: Agreement = agreement.as[Agreement] match {
@@ -83,9 +86,11 @@ case class Contract(Producer: PublicKey25519Proposition,
 
   lazy val json: Json = Map(
     "agreement" -> agreement,
-    "producer" -> Base58.encode(Producer.pubKeyBytes).asJson,
-    "investor" -> Base58.encode(Investor.pubKeyBytes).asJson,
-    "hub" -> Base58.encode(Hub.pubKeyBytes).asJson,
+    "parties" -> parties.map(p => {
+      Seq(
+        Base58.encode(p._1.pubKeyBytes).asJson -> p._2
+      ).asJson
+    }).asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
   ).asJson
@@ -95,12 +100,13 @@ case class Contract(Producer: PublicKey25519Proposition,
 object Contract {
 
   def apply(cs: Json, id: Array[Byte]): Contract = {
-    val jsonMap = cs.asObject.get.toMap
+    val jsonMap: Map[String, Json] = cs.asObject.get.toMap
+    val parties: Seq[(PublicKey25519Proposition, String)] = jsonMap("parties").asObject.get.toMap.map{party =>
+      new PublicKey25519Proposition(Base58.decode(party._1).get) -> party._2.asString.get
+    }.toSeq
 
     new Contract(
-      new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
-      new PublicKey25519Proposition(Base58.decode(jsonMap("hub").asString.get).get),
-      new PublicKey25519Proposition(Base58.decode(jsonMap("investor").asString.get).get),
+      parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("agreement")

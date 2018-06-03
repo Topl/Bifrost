@@ -177,7 +177,7 @@ class BifrostStateSpec extends PropSpec
 }
 
 object BifrostStateSpec {
-  val settingsFilename = "settings.json"
+  val settingsFilename = "testSettings.json"
   lazy val testSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }

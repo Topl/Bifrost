@@ -1,6 +1,7 @@
 package bifrost.wallet
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.security.SecureRandom
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -36,9 +37,10 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
-  def boxIds: Seq[Array[Byte]] = {
-    store.get(BoxIdsKey).map(_.data.grouped(store.keySize).toSeq).getOrElse(Seq[Array[Byte]]())
-  }
+  def boxIds: Seq[Array[Byte]] = store
+      .get(BoxIdsKey)
+      .map(_.data.grouped(store.keySize).toSeq)
+      .getOrElse(Seq[Array[Byte]]())
 
   private lazy val walletBoxSerializer = new GenericWalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
 
@@ -83,7 +85,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
       secrets += privKey.head
     } else {
-      log.warn(s"${publicKeyString} is already unlocked")
+      log.warn(s"$publicKeyString is already unlocked")
     }
   }
 
@@ -94,8 +96,14 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   def generateNewSecret(): BWallet = {
-    val password = Random.nextString(18)
-    log.warn(s"Generated Password is <<${password}>>. Make sure to record this since this will never appear again!!!")
+    // Avoid characters that could be easily mistaken for one another (e.g. 1 and l)
+    val letters = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*?"
+    val secureRng = SecureRandom.getInstanceStrong
+    val password = (0 until 18)
+      .map(i => letters.charAt(secureRng.nextInt(letters.length)))
+      .mkString
+
+    log.warn(s"Generated Password is <<$password>>. Make sure to record this since this will never appear again!")
     val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
 
     BWallet(secrets + privKey, store, defaultKeyDir)

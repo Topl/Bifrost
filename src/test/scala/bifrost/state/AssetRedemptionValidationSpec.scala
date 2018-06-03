@@ -2,6 +2,7 @@ package bifrost.state
 
 import java.time.Instant
 
+import bifrost.state.BifrostStateSpec
 import bifrost.blocks.BifrostBlock
 import bifrost.transaction.AssetRedemption
 import bifrost.transaction.box._
