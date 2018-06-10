@@ -65,10 +65,8 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
   } yield Try {
-    val parties = (0 until 3)
-      .map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
-      .map(_._2)
-
+    val allKeyPairs = (0 until 3).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
+    val parties = allKeyPairs.map(_._2)
     val roles = List(Role.Investor, Role.Producer, Role.Hub)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
