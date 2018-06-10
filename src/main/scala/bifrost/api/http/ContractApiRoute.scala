@@ -1,39 +1,40 @@
 package bifrost.api.http
 
 import java.time.Instant
-import javax.ws.rs.Path
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{PeerMessageManager, PeerMessageSpec}
-import bifrost.transaction.ContractCreation._
+import bifrost.network.PeerMessageSpec
 import bifrost.state.BifrostState
+import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
-import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
+import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
-import com.trueaccord.scalapb.json.JsonFormat
-import io.circe.{HCursor, Json, JsonObject}
-import io.circe.parser.parse
 import io.circe.optics.JsonPath._
+import io.circe.parser.parse
 import io.circe.syntax._
+import io.circe.{HCursor, Json}
 import io.swagger.annotations._
+import javax.ws.rs.Path
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
+import scorex.core.api.http.ApiException
+import scorex.core.network.message.Message
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.{PeerMessage, ProducerProposal}
+import scalapb.json4s.JsonFormat
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
-import scorex.core.network.message.Message
 
 /**
   * Created by cykoz on 5/26/2017.
@@ -41,8 +42,8 @@ import scorex.core.network.message.Message
 
 @Path("/contract")
 @Api(value = "/contract", produces = "application/json")
-case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
-                            (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
+case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
+                           (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -53,42 +54,47 @@ case class ContractApiRoute (override val settings: Settings, nodeViewHolderRef:
   }
 
   //noinspection ScalaStyle
-  def contractRoute: Route = path("") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        //viewAsync().map { view =>
-        var reqId = ""
-        parse(body) match {
-          case Left(failure) => ApiException(failure.getCause)
-          case Right(json) => Try {
-            val id = (json \\ "id").head.asString.get
-            reqId = id
-            require((json \\ "jsonrpc").head.asString.get == "2.0")
-            val params = (json \\ "params").head.asArray.get
-            require(params.size <= 5, s"size of params is ${params.size}")
-            (json \\ "method").head.asString.get match {
-              case "declareRole" => declareRole(params, id)
-              case "getRole" => getRole(params, id)
-              case "getContractSignature" => getContractSignature(params.head, id)
-              case "createContract" => createContract(params.head, id)
-              case "executeContractMethod" => executeContractMethod(params.head, id)
-              case "getCompletionSignature" => getCompletionSignature(params.head, id)
-              case "completeContract" => completeContract(params.head, id)
-              case "filter" => bloomFilter(params, id)
-              case "retrieveProposals" => retrieveProposals(params.head, id)
-              case "postProposals" => postProposals(params.head, id)
-            }
-          } map { resp =>
-            Await.result(resp, timeout.duration)
-          } match {
-            case Success(resp) => BifrostSuccessResponse(resp, reqId)
-            case Failure(e) =>
-              BifrostErrorResponse(e, 500, reqId)
+  def contractRoute: Route = path("") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          //viewAsync().map { view =>
+          var reqId = ""
+          parse(body) match {
+            case Left(failure) => ApiException(failure.getCause)
+            case Right(request) =>
+              val futureResponse: Try[Future[Json]] = Try {
+                reqId = (request \\ "id").head.asString.get
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
+                require(params.size <= 5, s"size of params is ${params.size}")
+
+                (request \\ "method").head.asString.get match {
+                  case "declareRole" => declareRole(params, reqId)
+                  case "getRole" => getRole(params, reqId)
+                  case "getContractSignature" => getContractSignature(params.head, reqId)
+                  case "createContract" => createContract(params.head, reqId)
+                  case "executeContractMethod" => executeContractMethod(params.head, reqId)
+                  case "getCompletionSignature" => getCompletionSignature(params.head, reqId)
+                  case "completeContract" => completeContract(params.head, reqId)
+                  case "filter" => bloomFilter(params, reqId)
+                  case "retrieveProposals" => retrieveProposals(params.head, reqId)
+                  case "postProposals" => postProposals(params.head, reqId)
+                }
+              }
+
+              futureResponse map {
+                response => Await.result(response, timeout.duration)
+              } match {
+                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Failure(e) =>
+                  BifrostErrorResponse(e, 500, reqId)
+              }
           }
         }
       }
     }
-  }}
+  }
 
   def declareRole(params: Vector[Json], id: String): Future[Json] = {
     viewAsync().map { view =>

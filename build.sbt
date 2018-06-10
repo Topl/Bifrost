@@ -65,7 +65,6 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
-
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
 
 val consoleDependencies = Seq(
@@ -104,7 +103,7 @@ fork := false
 
 pomIncludeRepository := { _ => false }
 
-homepage := Some(url("https://github.com/Topl/Project-Bifrost"))
+homepage := Some(url("https://github.com/Topl/Bifrost"))
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 

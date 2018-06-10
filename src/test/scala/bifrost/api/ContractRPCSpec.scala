@@ -2,46 +2,34 @@ package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager}
-import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
-import bifrost.api.http.ContractApiRoute
-import bifrost.blocks.BifrostBlock
-import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
-import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageManager, PeerMessageSpec}
-import bifrost.scorexMod.GenericApplication
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView, GetSyncInfo}
-import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
 import bifrost.contract.modules.BaseModuleWrapper
-import bifrost.history.BifrostHistory
+import bifrost.forging.Forger
+import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
+import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractCompletion, Role}
 import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
-import com.trueaccord.scalapb.json.JsonFormat
-import io.circe
-import scorex.core.settings.Settings
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.optics.JsonPath._
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import scalapb.json4s.JsonFormat
+import scorex.core.network.message._
+import scorex.core.network.peer.PeerManager
+import scorex.core.network.{NetworkController, UPnP}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
@@ -51,8 +39,6 @@ import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
 
 /**
   * Created by cykoz on 6/13/2017.
