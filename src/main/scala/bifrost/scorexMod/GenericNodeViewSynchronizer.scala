@@ -171,7 +171,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
 
       val askedIds = asked.getOrElse(typeId, mutable.Set())
 
-      log.info(s"Got modifiers with ids ${data._2.keySet.map(Base58.encode).mkString(",")}")
+      log.debug(s"Got modifiers with ids ${data._2.keySet.map(Base58.encode).mkString(",")}")
 
       val fm = modifiers.flatMap{case(mid, mod) =>
         if(askedIds.exists(id => id sameElements mid)){

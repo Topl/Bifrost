@@ -48,7 +48,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
-    log.info(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)

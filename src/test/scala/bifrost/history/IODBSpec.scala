@@ -34,7 +34,11 @@ class IODBSpec extends PropSpec
       */
     def writeTx(tx: BifrostTransaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
-      val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = tx.newBoxes.map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes))).toList
+      val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+        tx.newBoxes
+          .map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes)))
+          .toList
+
       blocksStorage.update(ByteArrayWrapper(tx.id), boxIdsToRemove, boxesToAdd)
     }
 
@@ -43,7 +47,8 @@ class IODBSpec extends PropSpec
       * @param tx   the transaction to check has boxes in storage
       */
     def checkTx(tx: BifrostTransaction): Unit = {
-      tx.newBoxes.foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
+      tx.newBoxes
+        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
     }
 
     forAll(validBifrostTransactionSeqGen) { txs =>
@@ -51,7 +56,10 @@ class IODBSpec extends PropSpec
         blocksStorage.rollback(ByteArrayWrapper(Array[Byte](1)))
 
         /* Make sure transactions get written to storage */
-        txs.foreach(tx => { writeTx(tx); checkTx(tx) })
+        txs.foreach(tx => {
+          writeTx(tx)
+          checkTx(tx)
+        })
 
         val head = txs.head
 

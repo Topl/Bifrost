@@ -19,8 +19,9 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
                     id: Array[Byte],
                     agreement: Json) {
 
-  def MIN_PARTIES = 2
-  def MAX_PARTIES = 1024
+  val MIN_PARTIES: Int = 2
+  val MAX_PARTIES: Int = 1024
+
   if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES)
     throw new Exception("Incorrect number of parties in contract")
 
@@ -37,8 +38,12 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
     jsre.eval(agreementObj.core.initjs)
     jsre.eval(s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
 
+    val parameterString: String = params
+      .tail
+      .foldLeft(params.headOption.getOrElse(""))((agg, cur) => s"$agg, $cur")
+
     val update = s"""
-      |var res = c["$methodName"](${params.tail.foldLeft(params.headOption.getOrElse(""))((agg, cur) => s"$agg, $cur")});
+      |var res = c["$methodName"]($parameterString);
       |if(res instanceof ${agreementObj.core.name}) {
       |  JSON.stringify({
       |    "__returnedUpdate": true,
@@ -115,13 +120,25 @@ object Contract {
 
   def execute(c: Contract, methodName: String)(party: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
 
-    val methodAttempt: Option[mutable.LinkedHashSet[String]] = ((c.agreement \\ "registry").head \\ methodName).headOption.map(_.as[mutable.LinkedHashSet[String]].toOption).map(_.get)
+    val methodAttempt: Option[mutable.LinkedHashSet[String]] =
+      ((c.agreement \\ "registry").head \\ methodName)
+        .headOption
+        .map(_
+          .as[mutable.LinkedHashSet[String]]
+          .toOption)
+        .map(_.get)
 
     methodAttempt match {
       case Some(params: mutable.LinkedHashSet[String]) =>
 
-        val neededArgs = args.toMap.filterKeys(k => params.contains(k)).values.toArray.map(_.noSpaces)
-        val res = c.applyFunction(methodName)(neededArgs)
+        val neededArgs: Array[String] = args
+          .toMap
+          .filterKeys(k => params.contains(k))
+          .values
+          .toArray
+          .map(_.noSpaces)
+
+        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)

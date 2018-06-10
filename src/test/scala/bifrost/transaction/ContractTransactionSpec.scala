@@ -6,7 +6,8 @@ package bifrost.transaction
 import bifrost.contract.{Agreement, Contract}
 import bifrost.contract.Contract.Status
 import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.ReputationBox
+import bifrost.transaction.Role.Role
+import bifrost.transaction.box.{ContractBox, ReputationBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
@@ -17,10 +18,11 @@ import org.scalatest.{Matchers, PropSpec}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.state.PrivateKey25519Companion
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
+import scala.collection.immutable.Seq
 import scala.util.{Failure, Random, Success, Try}
 
 class ContractTransactionSpec extends PropSpec
@@ -112,16 +114,15 @@ class ContractTransactionSpec extends PropSpec
     if((minFeeSum > 3*maxFee && 2*maxFee > 0) || (maxFeeSum < 3*minFee && 2*minFee < 0) || minFeeSum > maxFeeSum || maxFee < minFee)
       throw new Exception("Fee bounds are irreconciliable")
 
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
-    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+    val allKeyPairs: Seq[(PrivateKey25519, PublicKey25519Proposition)] =
+      (0 until 3).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
 
-    val gen = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
-    var sample = gen.sample
+    val parties: Seq[PublicKey25519Proposition] = allKeyPairs.map(_._2)
+    val roles: Seq[Role] = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-    while(sample.isEmpty) sample = gen.sample
-    val validAgreement = sample.get
-    val contractBox = createContractBox(validAgreement, roles.zip(parties))
+    val gen: Gen[Agreement] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
+    val validAgreement: Agreement = sampleUntilNonEmpty(gen)
+    val contractBox: ContractBox = createContractBox(validAgreement, roles.zip(parties))
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
 
@@ -138,17 +139,20 @@ class ContractTransactionSpec extends PropSpec
         case f: Failure[_] => throw f.exception
       }
     }
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
-      v.map {
-        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes
+      .toIndexedSeq
+      .flatMap { case (prop, v) =>
+        v.map {
+          case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+        }
       }
-    }
 
     val senderFeePreBoxes = feePreBoxes(sender._2._2)
 
-    val fees = feePreBoxes.map { case (prop, preBoxes) =>
-      val available = preBoxes.map(_._2).sum
-      prop -> available
+    val fees = feePreBoxes.map {
+      case (prop, preBoxes) =>
+        val available = preBoxes.map(_._2).sum
+        prop -> available
     }
 
     val hashNoNonces = FastCryptographicHash(
@@ -266,10 +270,7 @@ class ContractTransactionSpec extends PropSpec
       case ContractMethodExecution => potentiallyInvalidContractMethodExecutionGen(minFee, maxFee, minFeeSum, maxFeeSum)
     }
 
-    var sample = typeGen.sample
-    while(sample.isEmpty) sample = typeGen.sample
-
-    sample.get
+    sampleUntilNonEmpty(typeGen)
   }
 
   property("ContractTransaction with any negative fee will error on semantic validation") {

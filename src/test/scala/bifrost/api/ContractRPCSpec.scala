@@ -213,13 +213,12 @@ class ContractRPCSpec extends WordSpec
 
     val contractEffectiveTime = System.currentTimeMillis() + 100000L
     val contractExpirationTime = System.currentTimeMillis() + 200000000L
-    val polyBoxes = view().vault.boxes().filter(_.box.isInstanceOf[PolyBox])
+    val polyBoxes = view()
+      .vault
+      .boxes()
+      .filter(_.box.isInstanceOf[PolyBox])
 
-    var sample = validAgreementGen(contractEffectiveTime, contractExpirationTime).sample
-
-    while(sample.isEmpty) sample = validAgreementGen(contractEffectiveTime, contractExpirationTime).sample
-
-    val agreement: Agreement = sample.get
+    val agreement: Agreement = sampleUntilNonEmpty(validAgreementGen(contractEffectiveTime, contractExpirationTime))
 
     val fees = Map(
       publicKeys("investor") -> 500,

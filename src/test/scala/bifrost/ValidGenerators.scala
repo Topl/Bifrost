@@ -38,13 +38,8 @@ trait ValidGenerators extends BifrostGenerators {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map {
     _ => {
-      val g = Gen.oneOf(transactionTypes :+ contractCompletionGen).sample.get
-
-      var sampled = g.sample
-
-      while(sampled.isEmpty) sampled = g.sample
-
-      sampled.get
+      val g: Gen[BifrostTransaction] = Gen.oneOf(transactionTypes).sample.get
+      sampleUntilNonEmpty(g)
     }
   }
 
@@ -69,9 +64,11 @@ trait ValidGenerators extends BifrostGenerators {
     agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
-  } yield Try{
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
+  } yield Try {
+    val parties = (0 until 3)
+      .map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
+      .map(_._2)
+
     val roles = List(Role.Investor, Role.Producer, Role.Hub)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>

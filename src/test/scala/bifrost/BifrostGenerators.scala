@@ -35,6 +35,16 @@ import scala.util.{Failure, Random, Success, Try}
   */
 trait BifrostGenerators extends CoreGenerators {
 
+  def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
+    var sampled = generator.sample
+
+    while (sampled.isEmpty) {
+      sampled = generator.sample
+    }
+
+    sampled.get
+  }
+
   val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
 
