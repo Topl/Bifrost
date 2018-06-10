@@ -92,6 +92,7 @@ javaOptions ++= Seq(
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2")
 
 //publishing settings
 
