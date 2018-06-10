@@ -1,10 +1,8 @@
 package bifrost.transaction
 
-import bifrost.state.BifrostState
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.proof.Signature25519
 
 class BifrostTransactionSpec extends PropSpec
   with PropertyChecks

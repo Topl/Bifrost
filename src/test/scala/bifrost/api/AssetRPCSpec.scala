@@ -5,22 +5,19 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.api.http.AssetApiRoute
-import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-import io.circe
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
-import scala.util.{Random, Try}
+import scala.util.Try
 
 /**
   * Created by cykoz on 7/3/2017.
@@ -46,7 +43,7 @@ class AssetRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10 seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -55,7 +52,7 @@ class AssetRPCSpec extends WordSpec
   )
 
   // Unlock Secrets
-  val gw = view().vault
+  val gw: BWallet = view().vault
   // gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")

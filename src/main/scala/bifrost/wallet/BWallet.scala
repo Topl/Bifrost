@@ -1,34 +1,32 @@
 package bifrost.wallet
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.File
 import java.security.SecureRandom
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 
-import com.google.common.primitives.Ints
 import bifrost.blocks.BifrostBlock
 import bifrost.keygen.KeyFile
-import bifrost.keygen.KeyFile.{getAESResult, getDerivedKey, uuid}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
+import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion, PrivateKey25519Serializer}
+import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{Failure, Success, Try}
 
 
 case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
   extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BWallet]
     with ScorexLogging {
-  import BWallet._
+
+  import bifrost.wallet.BWallet._
 
   override type S = PrivateKey25519
   override type PI = ProofOfKnowledgeProposition[S]
@@ -38,9 +36,12 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
   def boxIds: Seq[Array[Byte]] = store
-      .get(BoxIdsKey)
-      .map(_.data.grouped(store.keySize).toSeq)
-      .getOrElse(Seq[Array[Byte]]())
+    .get(BoxIdsKey)
+    .map(_
+           .data
+           .grouped(store.keySize)
+           .toSeq)
+    .getOrElse(Seq[Array[Byte]]())
 
   private lazy val walletBoxSerializer = new GenericWalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
 
@@ -59,7 +60,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
           case cb: ContractBox => true
           case ab: ArbitBox => ab.value > 0
           case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
-          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2.isInstanceOf[Double]
+          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
+            .isInstanceOf[Double]
           case assetB: AssetBox => assetB.amount > 0
         }
         case _ => false
@@ -69,13 +71,18 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   override def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
-    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes)).toSet
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
+      .toSet
   }
 
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
-    val keyfiles = getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath)).filter(k =>
-      k.pubKeyBytes sameElements Base58.decode(publicKeyString).get
-    )
+    val keyfiles = getListOfFiles(defaultKeyDir)
+      .map(file => KeyFile.readFile(file.getPath))
+      .filter(k => k
+        .pubKeyBytes sameElements Base58
+        .decode(publicKeyString)
+        .get)
+
     assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
     val privKey = keyfiles.head.getPrivateKey(password) match {
       case Success(priv) => Set(priv)
@@ -91,7 +98,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   override def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
-    case mn: MofNProposition => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
+    case mn: MofNProposition => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(
+      _)))
     case _ => None
   }
 
@@ -129,21 +137,36 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
-    val newBoxes = changes.toAppend.filter(s => inWallet(s.proposition)).map { box =>
-      val boxTransaction = modifier.transactions.getOrElse(Seq())
-        .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
-      val txId = boxTransaction.map(_.id).getOrElse(Array.fill(32)(0: Byte))
-      val ts = boxTransaction.map(_.timestamp).getOrElse(modifier.timestamp)
-      val wb = GenericWalletBox[Any, PI, BifrostBox](box, txId, ts)(BifrostBoxSerializer)
-      ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
-    }
+    val newBoxes = changes
+      .toAppend
+      .filter(s => inWallet(s.proposition))
+      .map { box =>
+        val boxTransaction = modifier
+          .transactions
+          .getOrElse(Seq())
+          .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
+
+        val txId = boxTransaction
+          .map(_.id)
+          .getOrElse(Array.fill(32)(0: Byte))
+
+        val ts = boxTransaction
+          .map(_.timestamp)
+          .getOrElse(modifier.timestamp)
+
+        val wb = GenericWalletBox[Any, PI, BifrostBox](box, txId, ts)(BifrostBoxSerializer)
+        ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
+      }
 
     val boxIdsToRemove = (changes.boxIdsToRemove -- newBoxes.map(_._1.data)).map(ByteArrayWrapper.apply)
     val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(
-      newBoxes.filter(b => !boxIds.exists(b._1.data sameElements _)).toArray.flatMap(_._1.data) ++
-      boxIds.filter(bi => {
-        !boxIdsToRemove.exists(_.data sameElements bi)
-      }).flatten
+      newBoxes
+        .filter(b => !boxIds.exists(b._1.data sameElements _))
+        .toArray
+        .flatMap(_._1.data) ++
+        boxIds.filter(bi => {
+          !boxIdsToRemove.exists(_.data sameElements bi)
+        }).flatten
     )
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
@@ -202,8 +225,11 @@ object BWallet {
       }
     })
     // Create directory for key files
-    val keyFileDir = settings.settingsJSON.get("keyFileDir").flatMap(_.asString).ensuring(pathOpt =>
-      pathOpt.forall(directoryEnsuring))
+    val keyFileDir = settings
+      .settingsJSON
+      .get("keyFileDir")
+      .flatMap(_.asString)
+      .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
 
     BWallet(Set(), boxesStorage, keyFileDir.get)
   }

@@ -1,37 +1,27 @@
 package bifrost
 
-import java.time.Instant
-import java.util.Timer
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
+import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
-import bifrost.scorexMod.{GenericApplication, GenericNodeViewSynchronizer}
+import bifrost.scorexMod.GenericApplication
 import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
-import com.google.protobuf.ByteString
 import io.circe
 import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.network.NetworkController
-import scorex.core.network.message.{Message, MessageSpec}
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.core.network.message.MessageSpec
+import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.transaction.state.PrivateKey25519
-import serializer.ProducerProposal
-import serializer.ProducerProposal.ProposalDetails
-import serializer.ProducerProposal.ProposalDetails.{Location, ProjectDescription}
 
-import scala.concurrent.duration.Duration
 import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
   // use for debug only
-//  val path: Path = Path ("/tmp")
-//  Try(path.deleteRecursively())
+  //  val path: Path = Path ("/tmp")
+  //  Try(path.deleteRecursively())
 
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox
@@ -44,7 +34,8 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   }
   log.debug(s"Starting application with settings \n$settings")
 
-  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
+  override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] =
+    Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
@@ -58,8 +49,13 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
-  override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute], typeOf[DebugApiRoute], typeOf[WalletApiRoute],
-    typeOf[ContractApiRoute], typeOf[AssetApiRoute], typeOf[GenericNodeViewApiRoute[P, TX]], typeOf[PeersApiRoute])
+  override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
+                                         typeOf[DebugApiRoute],
+                                         typeOf[WalletApiRoute],
+                                         typeOf[ContractApiRoute],
+                                         typeOf[AssetApiRoute],
+                                         typeOf[GenericNodeViewApiRoute[P, TX]],
+                                         typeOf[PeersApiRoute])
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
@@ -68,7 +64,11 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   )
 
   override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer], networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec)
+    Props(classOf[BifrostNodeViewSynchronizer],
+          networkController,
+          nodeViewHolderRef,
+          localInterface,
+          BifrostSyncInfoMessageSpec)
   )
 
   //touching lazy vals
@@ -94,11 +94,11 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   scheduler.schedule(initialDelay = Duration(10000, TimeUnit.MILLISECONDS), interval = Duration(7000, TimeUnit.MILLISECONDS), task)*/
 
 
-//  if (settings.nodeName == "node1") {
-//    log.info("Starting transactions generation")
-//    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
-//    generator ! StartGeneration(FiniteDuration(5, SECONDS))
-//  }
+  //  if (settings.nodeName == "node1") {
+  //    log.info("Starting transactions generation")
+  //    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
+  //    generator ! StartGeneration(FiniteDuration(5, SECONDS))
+  //  }
 }
 
 object BifrostApp extends App {

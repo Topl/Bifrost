@@ -18,8 +18,8 @@ import scala.util.Try
   * Created by Matthew on 4/11/2017.
   */
 abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
-                      val nonce: Long,
-                      value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
+                          val nonce: Long,
+                          value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
 
   override type M = BifrostBox
 
@@ -27,7 +27,7 @@ abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey255
 
   // lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
-  lazy val publicKey = proposition
+  lazy val publicKey: ProofOfKnowledgeProposition[PrivateKey25519] = proposition
 
   val typeOfBox: String
 
@@ -92,8 +92,8 @@ object PolyBoxSerializer extends Serializer[PolyBox] with NoncedBoxSerializer {
 }
 
 case class ArbitBox(override val proposition: PublicKey25519Proposition,
-                   override val nonce: Long,
-                   override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {
+                    override val nonce: Long,
+                    override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {
   override lazy val typeOfBox: String = "Arbit"
 }
 
@@ -144,7 +144,8 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
     val asset = new String(bytes.slice(bytes.length - Ints.BYTES - assetLen, bytes.length - Ints.BYTES))
 
     val hub = PublicKey25519Proposition(
-      bytes.slice(bytes.length - Ints.BYTES - assetLen - Constants25519.PubKeyLength, bytes.length - Ints.BYTES - assetLen)
+      bytes.slice(bytes.length - Ints.BYTES - assetLen - Constants25519.PubKeyLength,
+                  bytes.length - Ints.BYTES - assetLen)
     )
 
     AssetBox(params._1, params._2, params._3, asset, hub)
@@ -158,8 +159,8 @@ case class ContractBox(proposition: MofNProposition,
   val typeOfBox = "ContractBox"
   lazy val id: Array[Byte] = FastCryptographicHash(
     MofNPropositionSerializer.toBytes(proposition) ++
-    Longs.toByteArray(nonce) ++
-    value.noSpaces.getBytes
+      Longs.toByteArray(nonce) ++
+      value.noSpaces.getBytes
   )
 
   override lazy val json: Json = Map(
@@ -206,8 +207,8 @@ object ContractBoxSerializer extends Serializer[ContractBox] {
 
     var numReadBytes = Ints.BYTES + typeLen
 
-    val numOfPk = Ints.fromByteArray(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
-    val endIndex = numReadBytes + 2*Ints.BYTES + numOfPk*Constants25519.PubKeyLength
+    val numOfPk = Ints.fromByteArray(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES))
+    val endIndex = numReadBytes + 2 * Ints.BYTES + numOfPk * Constants25519.PubKeyLength
     val proposition = MofNPropositionSerializer.parseBytes(bytes.slice(numReadBytes, endIndex)).get
     numReadBytes = endIndex
 
@@ -230,9 +231,9 @@ object ContractBoxSerializer extends Serializer[ContractBox] {
 /**
   *
   * @param proposition
-  * @param nonce: place holder for now. Make it always zero
+  * @param nonce : place holder for now. Make it always zero
   * @param value
-  * @param key: Name of the profile attribute you wish to use for the box
+  * @param key   : Name of the profile attribute you wish to use for the box
   */
 case class ProfileBox(proposition: PublicKey25519Proposition,
                       override val nonce: Long,
@@ -322,7 +323,7 @@ case class ReputationBox(override val proposition: PublicKey25519Proposition,
 
 object ReputationBox {
 
-  val byteSize = Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES
+  val byteSize = Constants25519.PubKeyLength + Longs.BYTES + 2 * Doubles.BYTES
 
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "reputation".getBytes ++ Longs.toByteArray(nonce))
@@ -338,7 +339,7 @@ object ReputationBox {
   }
 }
 
-object ReputationBoxSerializer extends Serializer[ReputationBox]  {
+object ReputationBoxSerializer extends Serializer[ReputationBox] {
 
   def doubleToByteArray(x: Double): Array[Byte] = {
     val l = java.lang.Double.doubleToLongBits(x)
@@ -351,7 +352,7 @@ object ReputationBoxSerializer extends Serializer[ReputationBox]  {
     var i = 0
     var res = 0.toLong
     for (i <- 0 to 7) {
-      res +=  ((x(i) & 0xff).toLong << ((7 - i) * 8))
+      res += ((x(i) & 0xff).toLong << ((7 - i) * 8))
     }
     java.lang.Double.longBitsToDouble(res)
   }
@@ -379,10 +380,10 @@ object ReputationBoxSerializer extends Serializer[ReputationBox]  {
 
     val nonce = Longs.fromByteArray(newBytes.take(Longs.BYTES))
     val Array(alpha: Double, beta: Double) = (0 until 2).map {
-      i => byteArrayToDouble(newBytes.slice(Longs.BYTES + i*Doubles.BYTES, Longs.BYTES + (i + 1)*Doubles.BYTES))
+      i => byteArrayToDouble(newBytes.slice(Longs.BYTES + i * Doubles.BYTES, Longs.BYTES + (i + 1) * Doubles.BYTES))
     }.toArray
     val proposition = PublicKey25519Proposition(
-      newBytes.slice(Longs.BYTES + 2*Doubles.BYTES, Longs.BYTES + 2*Doubles.BYTES + Constants25519.PubKeyLength)
+      newBytes.slice(Longs.BYTES + 2 * Doubles.BYTES, Longs.BYTES + 2 * Doubles.BYTES + Constants25519.PubKeyLength)
     )
 
     ReputationBox(proposition, nonce, (alpha, beta))

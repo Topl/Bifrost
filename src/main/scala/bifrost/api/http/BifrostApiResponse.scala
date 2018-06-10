@@ -1,8 +1,5 @@
 package bifrost.api.http
 
-import java.io.{PrintWriter, StringWriter}
-
-import akka.http.javadsl.settings.ParserSettings.ErrorLoggingVerbosity
 import io.circe.Json
 import io.circe.syntax._
 import scorex.core.api.http.ScorexApiResponse

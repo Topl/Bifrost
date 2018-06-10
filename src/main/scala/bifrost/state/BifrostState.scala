@@ -3,7 +3,6 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
-import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
@@ -11,14 +10,14 @@ import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.proof.MultiSignature25519
-import io.circe.{Json, JsonObject}
-import io.circe.syntax._
+import com.google.common.primitives.Longs
+import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition, PublicKey25519Proposition}
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.{PrivateKey25519, StateChanges}
+import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
@@ -34,9 +33,10 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
   * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
   * to a previous version.
-  * @param storage: singleton Iodb storage instance
-  * @param version: blockId used to identify each block. Also used for rollback
-  * @param timestamp: timestamp of the block that results in this state
+  *
+  * @param storage : singleton Iodb storage instance
+  * @param version : blockId used to identify each block. Also used for rollback
+  * @param timestamp : timestamp of the block that results in this state
   */
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
@@ -58,7 +58,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   private def getProfileBox(prop: PublicKey25519Proposition, field: String): Try[ProfileBox] = {
     storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field))) match {
       case Some(bytes) => ProfileBoxSerializer.parseBytes(bytes.data)
-      case None => Failure(new Exception(s"Couldn't find profile box for ${Base58.encode(prop.pubKeyBytes)} with field <$field>"))
+      case None => Failure(new Exception(s"Couldn't find profile box for ${
+        Base58.encode(prop
+                        .pubKeyBytes)
+      } with field <$field>"))
     }
   }
 
@@ -74,7 +77,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     } else {
       log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
       storage.rollback(ByteArrayWrapper(version))
-      val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))).get.data)
+      val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
+                                                                                                     .getBytes))).get
+                                                  .data)
       BifrostState(storage, version, timestamp)
     }
   }
@@ -89,8 +94,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
     log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
-      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
+                s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+                s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
     val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
 
@@ -99,7 +104,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,
-      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(timestamp)))
+      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
+        timestamp)))
     )
 
     val newSt = BifrostState(storage, newVersion, timestamp)
@@ -126,7 +132,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param poT: the PolyTransfer to validate
+    * @param poT : the PolyTransfer to validate
     * @return
     */
   def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
@@ -136,18 +142,22 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val boxesSumTry: Try[Long] = {
         poT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: PolyBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, poT.messageToSign)) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
+                                                         partialRes.flatMap(partialSum =>
+                                                                              /* Checks if unlocker is valid and if so adds to current running total */
+                                                                              closedBox(unlocker.closedBoxId) match {
+                                                                                case Some(box: PolyBox) =>
+                                                                                  if (unlocker.boxKey.isValid(box
+                                                                                                                .proposition,
+                                                                                                              poT
+                                                                                                                .messageToSign)) {
+                                                                                    Success(partialSum + box.value)
+                                                                                  } else {
+                                                                                    Failure(new Exception(
+                                                                                      "Incorrect unlocker"))
+                                                                                  }
+                                                                                case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+                                                                              }
+                                                         )
         )
       }
       determineEnoughPolys(boxesSumTry: Try[Long], poT)
@@ -176,18 +186,22 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val boxesSumTry: Try[Long] = {
         arT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: ArbitBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, arT.messageToSign)) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
+                                                         partialRes.flatMap(partialSum =>
+                                                                              /* Checks if unlocker is valid and if so adds to current running total */
+                                                                              closedBox(unlocker.closedBoxId) match {
+                                                                                case Some(box: ArbitBox) =>
+                                                                                  if (unlocker.boxKey.isValid(box
+                                                                                                                .proposition,
+                                                                                                              arT
+                                                                                                                .messageToSign)) {
+                                                                                    Success(partialSum + box.value)
+                                                                                  } else {
+                                                                                    Failure(new Exception(
+                                                                                      "Incorrect unlocker"))
+                                                                                  }
+                                                                                case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+                                                                              }
+                                                         )
 
         )
       }
@@ -214,18 +228,24 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val boxesSumTry: Try[Long] = {
         asT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: AssetBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, asT.messageToSign) && (box.hub equals asT.hub) && (box.assetCode equals asT.assetCode)) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
+                                                         partialRes.flatMap(partialSum =>
+                                                                              /* Checks if unlocker is valid and if so adds to current running total */
+                                                                              closedBox(unlocker.closedBoxId) match {
+                                                                                case Some(box: AssetBox) =>
+                                                                                  if (unlocker.boxKey.isValid(box
+                                                                                                                .proposition,
+                                                                                                              asT
+                                                                                                                .messageToSign) && (box
+                                                                                    .hub equals asT.hub) && (box
+                                                                                    .assetCode equals asT.assetCode)) {
+                                                                                    Success(partialSum + box.value)
+                                                                                  } else {
+                                                                                    Failure(new Exception(
+                                                                                      "Incorrect unlocker"))
+                                                                                  }
+                                                                                case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+                                                                              }
+                                                         )
         )
       }
       determineEnoughAssets(boxesSumTry, asT)
@@ -249,7 +269,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param pt: ProfileTransaction
+    * @param pt : ProfileTransaction
     * @return success or failure
     */
   def validateProfileTransaction(pt: ProfileTransaction): Try[Unit] = Try {
@@ -276,7 +296,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   /**
     * Validates ContractCreation instance on its unlockers && timestamp of the contract
     *
-    * @param cc: ContractCreation object
+    * @param cc : ContractCreation object
     * @return
     */
   //noinspection ScalaStyle
@@ -289,11 +309,15 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
 
-    val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get.value }
+    val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s
+      ._2.isSuccess => s._2.get.value
+    }
 
     if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
-      log.debug("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid.")
-      return Failure(new Exception("Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."))
+      log.debug(
+        "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid.")
+      return Failure(new Exception(
+        "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."))
     } else if (roleBoxes.size > 3) {
       log.debug("Too many signatures for the parties of this transaction")
       return Failure(new Exception("Too many signatures for the parties of this transaction"))
@@ -307,17 +331,23 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val unlockersValid: Try[Unit] = cc.unlockers.foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
 
-      unlockersValid.flatMap { (unlockerValidity) =>
-        closedBox(unlocker.closedBoxId) match {
-          case Some(box) =>
-            if (unlocker.boxKey.isValid(box.proposition, cc.messageToSign)) {
-              Success()
-            } else {
-              Failure(new Exception("Incorrect unlocker"))
-            }
-          case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-        }
-      }
+                                                                                  unlockersValid
+                                                                                    .flatMap { (unlockerValidity) =>
+                                                                                      closedBox(unlocker
+                                                                                                  .closedBoxId) match {
+                                                                                        case Some(box) =>
+                                                                                          if (unlocker.boxKey.isValid(
+                                                                                            box.proposition,
+                                                                                            cc.messageToSign)) {
+                                                                                            Success()
+                                                                                          } else {
+                                                                                            Failure(new Exception(
+                                                                                              "Incorrect unlocker"))
+                                                                                          }
+                                                                                        case None => Failure(new Exception(
+                                                                                          s"Box for unlocker $unlocker is not in the state"))
+                                                                                      }
+                                                                                    }
     )
 
     val statefulValid = unlockersValid flatMap { _ =>
@@ -336,7 +366,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         Success[Unit](Unit)
       } else if (!boxesAreNew) {
         Failure(new Exception("ContractCreation attempts to overwrite existing contract"))
-      } else if(inPast) {
+      } else if (inPast) {
         Failure(new Exception("ContractCreation attempts to write into the past"))
       } else {
         Failure(new Exception("ContractCreation timestamp is too far into the future"))
@@ -348,7 +378,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param cme: the ContractMethodExecution to validate
+    * @param cme : the ContractMethodExecution to validate
     * @return
     */
   //noinspection ScalaStyle
@@ -357,8 +387,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
 
     /* Contract exists */
-    if(contractBytes.isEmpty)
+    if (contractBytes.isEmpty) {
       throw new NoSuchElementException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist")
+    }
 
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
     val contractProposition: MofNProposition = contractBox.proposition
@@ -371,19 +402,29 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       sig.isValid(prop, cme.messageToSign)
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
-    val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s._2.isSuccess => s._2.get }
+    val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s
+      ._2.isSuccess => s._2.get
+    }
 
     /* This person belongs to contract */
-    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign))
+    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
       throw new IllegalAccessException(s"Signature is invalid for contractBox")
+    }
 
     /* ProfileBox exists for all attempted signers */
-    if (roleBoxes.size != cme.signatures.size)
-      throw new IllegalAccessException(s"${Base58.encode(cme.parties.head._2.pubKeyBytes)} claimed ${cme.parties.head._1} role but didn't exist.")
+    if (roleBoxes.size != cme.signatures.size) {
+      throw new IllegalAccessException(s"${Base58.encode(cme.parties.head._2.pubKeyBytes)} claimed ${
+        cme.parties.head
+          ._1
+      } role but didn't exist.")
+    }
 
     /* Signatures match each profilebox owner */
-    if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition, cme.messageToSign) })
+    if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition,
+                                                                                          cme.messageToSign)
+    }) {
       throw new IllegalAccessException(s"Not all signatures are valid for provided role boxes")
+    }
 
     /* Roles provided by CME matches profileboxes */
     /* TODO check roles
@@ -417,21 +458,27 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cme.fees.get(prop) match {
       case Some(fee) => amount >= fee
       case None => true
-    }}) throw new Exception("Insufficient balances provided for fees")
+    }
+    }) {
+      throw new Exception("Insufficient balances provided for fees")
+    }
 
     /* Timestamp is after most recent block, not in future */
-    if (cme.timestamp <= timestamp)
+    if (cme.timestamp <= timestamp) {
       throw new Exception("ContractMethodExecution attempts to write into the past")
-    if (cme.timestamp > Instant.now.toEpochMilli)
+    }
+    if (cme.timestamp > Instant.now.toEpochMilli) {
       throw new Exception("ContractMethodExecution timestamp is too far into the future")
-    if (contractEffectiveTime > Instant.now.toEpochMilli)
+    }
+    if (contractEffectiveTime > Instant.now.toEpochMilli) {
       throw new Exception("Effective date hasn't passed")
+    }
 
   }.flatMap(_ => semanticValidity(cme))
 
   /**
     *
-    * @param cc: the ContractMethodExecution to validate
+    * @param cc : the ContractMethodExecution to validate
     * @return
     */
   //noinspection ScalaStyle
@@ -440,12 +487,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val contractBytes = storage.get(ByteArrayWrapper(cc.contractBox.id))
 
     /* Contract exists */
-    if (contractBytes.isEmpty)
+    if (contractBytes.isEmpty) {
       Failure(new NoSuchElementException(s"Contract ${Base58.encode(cc.contractBox.id)} does not exist"))
-
-    else {
+    } else {
       val contractJson: Json = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.json
-      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.proposition
+      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
+        .proposition
 
 
       /* Checking that all of the parties are part of the contract and have claimed roles */
@@ -463,77 +510,110 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             }
 
             /* This person belongs to contract */
-            if (!MultiSignature25519(Set(sig)).isValid(contractProposition, cc.messageToSign))
+            if (!MultiSignature25519(Set(sig)).isValid(contractProposition, cc.messageToSign)) {
               throw new IllegalAccessException(s"Signature is invalid for contractBox")
-
-            /* Signature matches profilebox owner */
-            else if (!sig.isValid(profileBox.proposition, cc.messageToSign))
-              throw new IllegalAccessException(s"Signature is invalid for ${Base58.encode(prop.pubKeyBytes)} profileBox")
-
-            /* Role provided by cc matches profilebox */
-            else if (!profileBox.value.equals(claimedRole.toString))
-              throw new IllegalAccessException(s"Role ${claimedRole.toString} for ${Base58.encode(prop.pubKeyBytes)} does not match ${profileBox.value} in profileBox")
+            } /* Signature matches profilebox owner */
+            else if (!sig.isValid(profileBox.proposition, cc.messageToSign)) {
+              throw new IllegalAccessException(s"Signature is invalid for ${
+                Base58.encode(prop
+                                .pubKeyBytes)
+              } profileBox")
+            } /* Role provided by cc matches profilebox */
+            else if (!profileBox.value.equals(claimedRole.toString)) {
+              throw new IllegalAccessException(s"Role ${claimedRole.toString} for ${
+                Base58.encode(prop
+                                .pubKeyBytes)
+              } does not match ${profileBox.value} in profileBox")
+            }
 
             claimedRole
         }
 
         /* Checking that all the roles are represented */
-        if (!parties.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer)))
+        if (!parties.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer))) {
           throw new IllegalAccessException("Not all roles present")
+        }
       }
 
-      if (verifyParties.isFailure) verifyParties
-
-      else if (cc.timestamp <= timestamp) {
+      if (verifyParties.isFailure) {
+        verifyParties
+      } else if (cc.timestamp <= timestamp) {
         Failure(new Exception("ContractCompletion attempts to write into the past"))
 
       } else if (cc.timestamp >= Instant.now.toEpochMilli) {
         Failure(new Exception("ContractCompletion timestamp is too far in the future"))
 
-      /* Contract is in completed state, waiting for completion */
-      } else { Success() }
+        /* Contract is in completed state, waiting for completion */
+      } else {
+        Success()
+      }
     }
   }
 
   /**
     *
-    * @param ar:  the AssetRedemption to validate
+    * @param ar :  the AssetRedemption to validate
     * @return
     */
   //noinspection ScalaStyle
   def validateAssetRedemption(ar: AssetRedemption): Try[Unit] = {
     val statefulValid: Try[Unit] = {
-  
+
       /* First check that all the proposed boxes exist */
-      val availableAssetsTry: Try[Map[String, Long]] = ar.unlockers.foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
-  
-        partialRes.flatMap(partialMap =>
-          /* Checks if unlocker is valid and if so adds to current running total */
-          closedBox(unlocker.closedBoxId) match {
-            case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.hub equals ar.hub)) {
-                Success(partialMap.get(box.assetCode) match {
-                  case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
-                  case None => partialMap + (box.assetCode -> box.value)
-                })
-              } else {
-                Failure(new Exception("Incorrect unlocker"))
-              }
-            case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-          }
-        )
+      val availableAssetsTry: Try[Map[String, Long]] = ar.unlockers
+        .foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
+
+                                                                          partialRes.flatMap(partialMap =>
+                                                                                               /* Checks if unlocker is valid and if so adds to current running total */
+                                                                                               closedBox(unlocker
+                                                                                                           .closedBoxId) match {
+                                                                                                 case Some(box: AssetBox) =>
+                                                                                                   if (unlocker.boxKey
+                                                                                                     .isValid(box
+                                                                                                                .proposition,
+                                                                                                              ar
+                                                                                                                .messageToSign) && (box
+                                                                                                     .hub equals ar
+                                                                                                     .hub)) {
+                                                                                                     Success(partialMap
+                                                                                                               .get(box
+                                                                                                                      .assetCode) match {
+                                                                                                               case Some(
+                                                                                                               amount) => partialMap + (box
+                                                                                                                 .assetCode -> (amount + box
+                                                                                                                 .value))
+                                                                                                               case None => partialMap + (box
+                                                                                                                 .assetCode -> box
+                                                                                                                 .value)
+                                                                                                             })
+                                                                                                   } else {
+                                                                                                     Failure(new Exception(
+                                                                                                       "Incorrect unlocker"))
+                                                                                                   }
+                                                                                                 case None => Failure(
+                                                                                                   new Exception(s"Box for unlocker $unlocker is not in the state"))
+                                                                                               }
+                                                                          )
       )
-  
+
       /* Make sure that there's enough to cover the remainders */
       val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
-        ar.remainderAllocations.foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
-          partialRes.flatMap(_ => availableAssets.get(assetCode) match {
-            case Some(amount) => if (amount > remainders.map(_._2).sum) Success() else Failure(new Exception("Not enough assets"))
-            case None => Failure(new Exception("Asset not included in inputs"))
-          })
-        }
+                                                      ar.remainderAllocations
+                                                        .foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
+                                                        partialRes.flatMap(_ => availableAssets.get(assetCode) match {
+                                                          case Some(amount) => if (amount > remainders.map(_._2)
+                                                            .sum) {
+                                                            Success()
+                                                          } else {
+                                                            Failure(new Exception(
+                                                              "Not enough assets"))
+                                                          }
+                                                          case None => Failure(new Exception(
+                                                            "Asset not included in inputs"))
+                                                        })
+                                                      }
       )
-  
+
       /* Handles fees */
       val boxesSumTry: Try[Long] = {
         ar.unlockers.tail.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) => {
@@ -548,40 +628,54 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           })
         })
       }
-  
+
       /* Incorrect unlocker or box provided, or not enough to cover declared fees */
       val enoughToCoverFees = Try {
-        if (boxesSumTry.isFailure || boxesSumTry.get < ar.fee)
+        if (boxesSumTry.isFailure || boxesSumTry.get < ar.fee) {
           throw new Exception("Insufficient balances provided for fees")
+        }
       }
-  
+
       enoughAssets.flatMap(_ => enoughToCoverFees)
     }
-  
+
     statefulValid.flatMap(_ => semanticValidity(ar))
   }
-  
+
   def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers.foldLeft[Try[Map[(
         String, PublicKey25519Proposition), Long]]](Success(
         Map[(String, PublicKey25519Proposition), Long]()))((partialRes, unlocker) =>
-          partialRes.flatMap(partialMap =>
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: AssetBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, ct.messageToSign)) {
-                  Success(partialMap.get(box.assetCode, box.hub) match {
-                    case Some(amount) => partialMap + ((box.assetCode, box.hub) -> (amount + box.value))
-                    case None => partialMap + ((box.assetCode, box.hub) -> box.value)
-                  })
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
-        )
-  
+                                                             partialRes.flatMap(partialMap =>
+                                                                                  closedBox(unlocker
+                                                                                              .closedBoxId) match {
+                                                                                    case Some(box: AssetBox) =>
+                                                                                      if (unlocker.boxKey.isValid(box
+                                                                                                                    .proposition,
+                                                                                                                  ct
+                                                                                                                    .messageToSign)) {
+                                                                                        Success(partialMap.get(box
+                                                                                                                 .assetCode,
+                                                                                                               box
+                                                                                                                 .hub) match {
+                                                                                                  case Some(amount) => partialMap + ((box
+                                                                                                    .assetCode, box
+                                                                                                    .hub) -> (amount + box
+                                                                                                    .value))
+                                                                                                  case None => partialMap + ((box
+                                                                                                    .assetCode, box
+                                                                                                    .hub) -> box.value)
+                                                                                                })
+                                                                                      } else {
+                                                                                        Failure(new Exception(
+                                                                                          "Incorrect unlocker"))
+                                                                                      }
+                                                                                    case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+                                                                                  }
+                                                             )
+      )
+
       def amountByKey(key: (String, PublicKey25519Proposition),
                       assetMap: Map[(String, PublicKey25519Proposition),
                         IndexedSeq[(PublicKey25519Proposition, Long)]]): Long = {
@@ -589,11 +683,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           total + value
         }
       }
-  
+
       //check that the assets being returned + the assets being redeemed equal the total number of assets
-      Try(availableAssetsTry.get.foreach{
+      Try(availableAssetsTry.get.foreach {
         case (assetHub: (String, PublicKey25519Proposition), amount: Long) =>
-          if(ct.assetsToReturn.contains(assetHub) || ct.assetTokensToRedeem.contains(assetHub)) {
+          if (ct.assetsToReturn.contains(assetHub) || ct.assetTokensToRedeem.contains(assetHub)) {
             val sumOfAssets = amountByKey(assetHub, ct.assetsToReturn) + amountByKey(assetHub, ct.assetTokensToRedeem)
             if (sumOfAssets != availableAssetsTry.get(assetHub)) {
               throw new Exception("Not enough assets")
@@ -613,36 +707,54 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val assetBoxesSumTry: Try[Long] = {
         tex.token1Tx.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: AssetBox) =>
-                val tokenGood = (box.hub equals tokenHub) && (box.assetCode equals tokenCode)
-                if (unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.sellOrder)) && tokenGood) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker Or Incorrect BoxId supplied"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
+                                                                  partialRes.flatMap(partialSum =>
+                                                                                       /* Checks if unlocker is valid and if so adds to current running total */
+                                                                                       closedBox(unlocker
+                                                                                                   .closedBoxId) match {
+                                                                                         case Some(box: AssetBox) =>
+                                                                                           val tokenGood = (box
+                                                                                             .hub equals tokenHub) && (box
+                                                                                             .assetCode equals tokenCode)
+                                                                                           if (unlocker.boxKey.isValid(
+                                                                                             box.proposition,
+                                                                                             TokenExchangeTransaction
+                                                                                               .messageToSign(tex
+                                                                                                                .sellOrder)) && tokenGood) {
+                                                                                             Success(partialSum + box
+                                                                                               .value)
+                                                                                           } else {
+                                                                                             Failure(new Exception(
+                                                                                               "Incorrect unlocker Or Incorrect BoxId supplied"))
+                                                                                           }
+                                                                                         case None => Failure(new Exception(
+                                                                                           s"Box for unlocker $unlocker is not in the state"))
+                                                                                       }
+                                                                  )
         )
       }
       val enoughAssetTry = determineEnoughAssets(assetBoxesSumTry, tex)
       val polyBoxesSumTry: Try[Long] = {
         tex.token2Tx.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: PolyBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.buyOrder))) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
-            }
-          )
+                                                                  partialRes.flatMap(partialSum =>
+                                                                                       /* Checks if unlocker is valid and if so adds to current running total */
+                                                                                       closedBox(unlocker
+                                                                                                   .closedBoxId) match {
+                                                                                         case Some(box: PolyBox) =>
+                                                                                           if (unlocker.boxKey.isValid(
+                                                                                             box.proposition,
+                                                                                             TokenExchangeTransaction
+                                                                                               .messageToSign(tex
+                                                                                                                .buyOrder))) {
+                                                                                             Success(partialSum + box
+                                                                                               .value)
+                                                                                           } else {
+                                                                                             Failure(new Exception(
+                                                                                               "Incorrect unlocker"))
+                                                                                           }
+                                                                                         case None => Failure(new Exception(
+                                                                                           s"Box for unlocker $unlocker is not in the state"))
+                                                                                       }
+                                                                  )
         )
       }
       val enoughPolyTry = determineEnoughPolys(polyBoxesSumTry, tex)
@@ -692,7 +804,7 @@ object BifrostState {
 
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
         boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
-          (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3 )
+          (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
         })
 
       val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
@@ -726,7 +838,8 @@ object BifrostState {
     if (callFromGenesis) {
       timestamp = System.currentTimeMillis()
     } else {
-      timestamp = Longs.fromByteArray(stateStorage.get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))).get.data)
+      timestamp = Longs.fromByteArray(stateStorage.get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)))
+                                        .get.data)
     }
 
     BifrostState(stateStorage, version, timestamp)

@@ -3,12 +3,8 @@ package bifrost.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import java.time.Instant
-
-import bifrost.contract.Agreement
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.state.BifrostState
-import org.scalacheck.Gen
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
@@ -25,18 +21,24 @@ class ContractCreationSpec extends PropSpec
 
   property("Generated ContractCreation Tx should be valid") {
     forAll(validContractCreationGen) {
-      cc: ContractCreation =>
-        val semanticValid = BifrostState.semanticValidity(cc)
+      contractCreation: ContractCreation =>
+        val semanticValid = BifrostState.semanticValidity(contractCreation)
         semanticValid shouldBe a[Success[Unit]]
     }
   }
 
   property("Tx with modified signature should be invalid") {
     forAll(validContractCreationGen) {
-      cc: ContractCreation =>
-        val wrongSig: Array[Byte] = (cc.signatures.head._2.bytes.head + 1).toByte +: cc.signatures.head._2.bytes.tail
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cc.signatures + (cc.signatures.head._1 -> Signature25519(wrongSig))
-        BifrostState.semanticValidity(cc.copy(signatures = wrongSigs)).isSuccess shouldBe false
+      contractCreation: ContractCreation =>
+        val wrongSig: Array[Byte] =
+          (contractCreation.signatures.head._2.bytes.head + 1).toByte +:
+            contractCreation.signatures.head._2.bytes.tail
+
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
+          contractCreation.signatures +
+            (contractCreation.signatures.head._1 -> Signature25519(wrongSig))
+
+        BifrostState.semanticValidity(contractCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
 /*

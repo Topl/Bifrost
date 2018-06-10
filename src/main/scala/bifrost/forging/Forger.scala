@@ -3,25 +3,21 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import com.google.common.primitives.Longs
 import bifrost.blocks.BifrostBlock
-import bifrost.forging.Forger.TryForging
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.transaction.BifrostTransaction
-import bifrost.transaction.box.{ArbitBox, PolyBox}
+import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
+import com.google.common.primitives.Longs
 import scorex.core.LocalInterface.LocallyGeneratedModifier
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.{NetworkTime, ScorexLogging}
-import scorex.crypto.encode.Base58
+import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
+import scorex.core.transaction.state.PrivateKey25519
+import scorex.core.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -31,7 +27,7 @@ trait ForgerSettings extends Settings {
 
 class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with ActorLogging {
 
-  import Forger._
+  import bifrost.forging.Forger._
 
   //should be a part of consensus, but for our app is okay
   val TransactionsInBlock = 100

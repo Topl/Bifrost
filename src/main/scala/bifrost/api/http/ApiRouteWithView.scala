@@ -5,10 +5,9 @@ import akka.pattern.ask
 import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageManager
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.core.api.http.ApiRoute
 
 import scala.concurrent.Future

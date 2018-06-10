@@ -2,10 +2,9 @@ package bifrost.history
 
 import bifrost.BifrostGenerators
 import bifrost.blocks.BifrostBlock
-import bifrost.history.BifrostHistory
 import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatest.{Matchers, PropSpec}
 import scorex.core.NodeViewModifier.ModifierId
 import scorex.crypto.encode.Base58
 
@@ -34,7 +33,10 @@ class BifrostHistorySpec extends PropSpec
     val startFrom = ids.head
 
     /* Continuation ids should get the block start up to the end of the chain */
-    val continuationIds = history.continuationIds(Seq((BifrostBlock.ModifierTypeId, startFrom)), ids.length).get.map(_._2)
+    val continuationIds = history
+      .continuationIds(Seq((BifrostBlock.ModifierTypeId, startFrom)), ids.length)
+      .get
+      .map(_._2)
 
     continuationIds.map(Base58.encode) shouldEqual ids.map(Base58.encode)
 
@@ -42,7 +44,9 @@ class BifrostHistorySpec extends PropSpec
     forAll(Gen.choose(0, ids.length - 1)) { startIndex: Int =>
       val startFrom = Seq((BifrostBlock.ModifierTypeId, ids(startIndex)))
       val startList = ids.take(startIndex + 1).map((BifrostBlock.ModifierTypeId, _))
-      val restIds = ids.zipWithIndex.filter { case (datum, index) => index >= startIndex }.map(_._1).map(Base58.encode)
+      val restIds = ids.zipWithIndex.filter {
+        case (_, index) => index >= startIndex
+      }.map(_._1).map(Base58.encode)
 
       val continuationIds = history.continuationIds(startFrom, ids.length).get.map(_._2)
 

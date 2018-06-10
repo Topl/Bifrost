@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import serializer.PeerMessage
@@ -31,11 +30,10 @@ case class PeerMessageManager(var messages: TrieMap[ByteArrayWrapper, PeerMessag
 
     val timeoutPeriod = messages.values.map(_.timestamp).foldLeft(heartbeatInterval)((a, b) => {
       val delta = heartbeatInterval - (Instant.now.toEpochMilli - b)
-      if (delta < a) delta
-      else a
+      if (delta < a) delta else a
     })
 
-    scheduler.scheduleOnce(Duration(timeoutPeriod, TimeUnit.MILLISECONDS),task)
+    scheduler.scheduleOnce(Duration(timeoutPeriod, TimeUnit.MILLISECONDS), task)
   }
 
   private def key(p: PeerMessage): ByteArrayWrapper = ByteArrayWrapper(p.messageBytes.toByteArray)

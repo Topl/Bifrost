@@ -3,31 +3,25 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.{Agreement, Contract}
-import bifrost.contract.Contract.Status
-import bifrost.contract.modules.BaseModuleWrapper
+import bifrost.contract.Contract
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
-import com.google.common.primitives.{Ints, Longs}
-import io.circe.Json
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.account.PublicKeyNoncedBox
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import io.circe.syntax._
 
-import scala.util.{Failure, Random, Success}
+import scala.util.{Failure, Success}
 
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
 //noinspection ScalaStyle
-class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec {
+class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
   //noinspection ScalaStyle
   /* TODO uncomment and fix tests with arbitraryPartyContractMethodExecutionGen
@@ -107,34 +101,79 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           Seq(cme)
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
-        val box = cme.newBoxes.head.asInstanceOf[ContractBox]
-        val deductedFeeBoxes: Traversable[PolyBox] = cme.newBoxes.tail.map {
-          case p: PolyBox => p
-          case _ => throw new Exception("Was expecting PolyBoxes but found something else")
-        }
+        val preExistingPolyBoxes: Set[BifrostBox] = cme
+          .preFeeBoxes
+          .flatMap {
+            case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
+          }
+          .toSet
+
+        val box = cme
+          .newBoxes
+          .head
+          .asInstanceOf[ContractBox]
+
+        val deductedFeeBoxes: Traversable[PolyBox] = cme
+          .newBoxes
+          .tail
+          .map {
+            case p: PolyBox => p
+            case _ => throw new Exception("Was expecting PolyBoxes but found something else")
+          }
+
         val boxBytes = ContractBoxSerializer.toBytes(box)
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
           preExistingPolyBoxes + cme.contractBox,
-          Instant.now.toEpochMilli
-        )
+          Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.applyChanges(preparedState.changes(block).get, Ints.toByteArray(2)).get
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
+
+        val newState = preparedState
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .get
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
-          case Some(wrapper) => wrapper.data sameElements boxBytes
-          case None => false
-        })
+                  case Some(wrapper) => wrapper.data sameElements boxBytes
+                  case None => false
+                })
 
         cme.newBoxes.head shouldBe a[ContractBox]
-        val contractJson = cme.newBoxes.head.asInstanceOf[ContractBox].json
+        val contractJson = cme
+          .newBoxes
+          .head
+          .asInstanceOf[ContractBox]
+          .json
 
-        val newContractTimestamp = contractJson.asObject.get.apply("value").get.asObject.get("lastUpdated").get.as[Long].right.get
-        val oldContractTimestamp = cme.contractBox.json.asObject.get.apply("value").get.asObject.get("lastUpdated").get.as[Long].right.get
+        val newContractTimestamp = contractJson
+          .asObject
+          .flatMap(_.apply("value"))
+          .flatMap(_.asObject.get("lastUpdated"))
+          .map(_.as[Long] match {
+                 case Right(timestamp: Long) => timestamp
+                 case Left(_) =>
+                   throw new JsonProcessingException("Was unable to convert lastUpdated to long in new contract")
+               })
+          .get
 
-        Contract.execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._2)(cme.parameters.asObject.get) match {
+        val oldContractTimestamp = cme
+          .contractBox
+          .json
+          .asObject
+          .flatMap(_.apply("value"))
+          .flatMap(_.asObject.get("lastUpdated"))
+          .map(_.as[Long] match {
+                 case Right(timestamp: Long) => timestamp
+                 case Left(_) =>
+                   throw new JsonProcessingException("Was unable to convert lastUpdated to long in old contract")
+               })
+          .get
+
+        Contract
+          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._2)(cme.parameters.asObject.get) match {
           case Success(res) => res match {
             case Left(_) => newContractTimestamp shouldBe cme.timestamp
             case Right(_) => newContractTimestamp shouldBe oldContractTimestamp
@@ -142,48 +181,80 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
           case Failure(_) => newContractTimestamp shouldBe oldContractTimestamp
         }
 
-        require(deductedFeeBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
-          case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
-          case None => false
-        }))
+        require(deductedFeeBoxes
+                  .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
+                    case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
+                    case None => false
+                  }))
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
-        deductedFeeBoxes.map(_.value).sum shouldEqual preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cme.fee
+        deductedFeeBoxes.map(_.value).sum shouldEqual
+          preExistingPolyBoxes.map { case pb: PolyBox => pb.value }.sum - cme.fee
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
-        cme.fees.foreach(p => deductedFeeBoxes.filter(_.proposition equals p._1).map(_.value).sum shouldEqual cme.preFeeBoxes(p._1).map(_._2).sum - cme.fees(p._1))
+        cme
+          .fees
+          .foreach(p => deductedFeeBoxes
+            .filter(_.proposition equals p._1)
+            .map(_.value)
+            .sum shouldEqual
+            cme.preFeeBoxes(p._1).map(_._2).sum - cme.fees(p._1))
 
         /* Expect none of the prexisting boxes to still be around */
-        preExistingPolyBoxes.foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
+        preExistingPolyBoxes
+          .foreach(pb => newState
+            .storage
+            .get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
-        BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        BifrostStateSpec.genesisState = newState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
     }
   }
 
   property("Attempting to validate a CME without valid signatures should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
-      cme: ContractMethodExecution =>
+      contractMethodExecution: ContractMethodExecution =>
 
-        val wrongSig: Array[Byte] = (cme.signatures.head._2.bytes.head + 1).toByte +: cme.signatures.head._2.bytes.tail
-        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = cme.signatures + (cme.signatures.head._1 -> Signature25519(wrongSig))
-        val invalidCME = cme.copy(signatures = wrongSigs)
+        val wrongSig: Array[Byte] = (contractMethodExecution.signatures.head._2.bytes.head + 1).toByte +:
+          contractMethodExecution.signatures.head._2.bytes.tail
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
-        val profileBoxes: Set[ProfileBox] = cme.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-        }.toSet
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
+          contractMethodExecution.signatures + (contractMethodExecution.signatures.head._1 -> Signature25519(wrongSig))
+
+        val invalidCME = contractMethodExecution.copy(signatures = wrongSigs)
+
+        val preExistingPolyBoxes: Set[BifrostBox] = contractMethodExecution
+          .preFeeBoxes
+          .flatMap {
+            case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
+          }
+          .toSet
+
+        val profileBoxes: Set[ProfileBox] = contractMethodExecution
+          .parties
+          .map {
+            case (r: Role.Role, p: PublicKey25519Proposition) =>
+              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+          }
+          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
-          Instant.now.toEpochMilli
-        )
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
+
         val newState = preparedState.validate(invalidCME)
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Signature is invalid for contractBox"
@@ -254,23 +325,39 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
   property("Attempting to validate a CME with a timestamp that is before the last block timestamp should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
-      cme: ContractMethodExecution =>
+      contractMethodExecution: ContractMethodExecution =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
-        val profileBoxes: Set[ProfileBox] = cme.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-        }.toSet
+        val preExistingPolyBoxes: Set[BifrostBox] = contractMethodExecution
+          .preFeeBoxes
+          .flatMap {
+            case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
+          }
+          .toSet
+
+        val profileBoxes: Set[ProfileBox] = contractMethodExecution
+          .parties
+          .map {
+            case (r: Role.Role, p: PublicKey25519Proposition) =>
+              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+          }
+          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
-          cme.timestamp + Gen.choose(1L, Long.MaxValue - cme.timestamp - 1L).sample.get
-        )
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          contractMethodExecution.timestamp +
+            Gen.choose(1L, Long.MaxValue - contractMethodExecution.timestamp - 1L).sample.get)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.validate(cme)
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        val newState = preparedState.validate(contractMethodExecution)
+
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution attempts to write into the past"
@@ -279,58 +366,92 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
   property("Attempting to validate a CME for a contract that doesn't exist should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
-      cme: ContractMethodExecution =>
+      contractMethodExecution: ContractMethodExecution =>
         val block = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cme)
-        )
+          Seq(contractMethodExecution))
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
-        val box = cme.newBoxes.head.asInstanceOf[ContractBox]
-        val deductedFeeBoxes: Traversable[PolyBox] = cme.newBoxes.tail.map {
-          case p: PolyBox => p
-          case _ => throw new Exception("Was expecting PolyBoxes but found something else")
-        }
+        val preExistingPolyBoxes: Set[BifrostBox] = contractMethodExecution
+          .preFeeBoxes
+          .flatMap {
+            case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
+          }
+          .toSet
+
+        val box = contractMethodExecution
+          .newBoxes
+          .head
+          .asInstanceOf[ContractBox]
+
+        val deductedFeeBoxes: Traversable[PolyBox] = contractMethodExecution
+          .newBoxes
+          .tail
+          .map {
+            case p: PolyBox => p
+            case _ => throw new Exception("Was expecting PolyBoxes but found something else")
+          }
 
         val boxBytes = ContractBoxSerializer.toBytes(box)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
           preExistingPolyBoxes,
-          Instant.now.toEpochMilli
-        )
+          Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.validate(cme)
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        val newState = preparedState.validate(contractMethodExecution)
+
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe s"Contract ${Base58.encode(cme.contractBox.id)} does not exist"
+        newState.failed.get.getMessage shouldBe s"Contract ${
+          Base58.encode(contractMethodExecution.contractBox
+                          .id)
+        } does not exist"
     }
   }
 
   property("Attempting to validate a CME with a timestamp too far in the future should error") {
     forAll(semanticallyValidContractMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
-      cme: ContractMethodExecution =>
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
-        val profileBoxes: Set[ProfileBox] = cme.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-        }.toSet
+      contractMethodExecution: ContractMethodExecution =>
+        val preExistingPolyBoxes: Set[BifrostBox] = contractMethodExecution
+          .preFeeBoxes
+          .flatMap {
+            case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
+          }.toSet
+
+        val profileBoxes: Set[ProfileBox] = contractMethodExecution
+          .parties
+          .map {
+            case (r: Role.Role, p: PublicKey25519Proposition) =>
+              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+          }
+          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + cme.contractBox,
-          Instant.now.toEpochMilli
-        )
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.validate(cme)
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        val newState = preparedState.validate(contractMethodExecution)
+
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution timestamp is too far into the future"
@@ -339,29 +460,37 @@ class BifrostStateContractMethodExecutionValidationSpec extends BifrostStateSpec
 
   property("Attempting to validate a CME with nonexistent fee boxes should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
-      cme: ContractMethodExecution =>
+      contractMethodExecution: ContractMethodExecution =>
         val block = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cme)
-        )
+          Seq(contractMethodExecution))
 
-        val profileBoxes: Set[BifrostBox] = cme.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-        }.toSet
+        val profileBoxes: Set[BifrostBox] = contractMethodExecution
+          .parties
+          .map {
+            case (r: Role.Role, p: PublicKey25519Proposition) =>
+              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+          }
+          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          profileBoxes + cme.contractBox,
-          Instant.now.toEpochMilli
-        )
+          profileBoxes + contractMethodExecution.contractBox,
+          Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.validate(cme)
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        val newState = preparedState.validate(contractMethodExecution)
+
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Insufficient balances provided for fees"

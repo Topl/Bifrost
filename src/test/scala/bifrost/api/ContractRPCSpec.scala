@@ -80,7 +80,11 @@ class ContractRPCSpec extends WordSpec
   )
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer], networkController, nodeViewHolderRef, localInterface, BifrostSyncInfoMessageSpec)
+    Props(classOf[BifrostNodeViewSynchronizer],
+          networkController,
+          nodeViewHolderRef,
+          localInterface,
+          BifrostSyncInfoMessageSpec)
   )
 
   val route = ContractApiRoute(settings, nodeViewHolderRef, networkController).route
@@ -102,27 +106,29 @@ class ContractRPCSpec extends WordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetCurrentView)
+      .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
   // Unlock Secrets
-  val gw = view().vault
+  val gw: BWallet = view().vault
   // gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   "Contract RPC" should {
     "return role or error" in {
-      val requestBody = ByteString(s"""
-        |{
-        |  "jsonrpc": "2.0",
-        |  "id": "16",
-        |  "method": "getRole",
-        |  "params": [{
-        |      "publicKey": "${publicKeys("hub")}"
-        |  }]
-        |}
-        |""".stripMargin)
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "16",
+           |  "method": "getRole",
+           |  "params": [{
+           |      "publicKey": "${publicKeys("hub")}"
+           |  }]
+           |}
+           |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         println(res)
@@ -132,23 +138,24 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Create a role" in {
-      val requestBody = ByteString(s"""
-        |{
-        |  "jsonrpc": "2.0",
-        |  "id": "16",
-        |  "method": "declareRole",
-        |  "params": [{
-        |        "publicKey": "${publicKeys("investor")}",
-        |        "role": "investor"
-        |    }, {
-        |        "publicKey": "${publicKeys("hub")}",
-        |        "role": "hub"
-        |    }, {
-        |        "publicKey": "${publicKeys("producer")}",
-        |        "role": "producer"
-        |    }]
-        |}
-        |""".stripMargin)
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "16",
+           |  "method": "declareRole",
+           |  "params": [{
+           |        "publicKey": "${publicKeys("investor")}",
+           |        "role": "investor"
+           |    }, {
+           |        "publicKey": "${publicKeys("hub")}",
+           |        "role": "hub"
+           |    }, {
+           |        "publicKey": "${publicKeys("producer")}",
+           |        "role": "producer"
+           |    }]
+           |}
+           |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asArray.isDefined shouldEqual true
@@ -159,8 +166,14 @@ class ContractRPCSpec extends WordSpec
         println(s"secrets in wallet, ${wallet.secrets}")
         val profileBoxes = Seq(
           ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get), 0L, Role.Hub.toString, "role"),
-          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("producer")).get), 0L, Role.Producer.toString, "role"),
-          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get), 0L, Role.Investor.toString, "role")
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("producer")).get),
+                     0L,
+                     Role.Producer.toString,
+                     "role"),
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get),
+                     0L,
+                     Role.Investor.toString,
+                     "role")
         )
         val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
 
@@ -169,20 +182,21 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Get the role after declaration" in {
-      val requestBody = ByteString(s"""
-       |{
-       |  "jsonrpc": "2.0",
-       |  "id": "16",
-       |  "method": "getRole",
-       |  "params": [{
-       |      "publicKey": "${publicKeys("investor")}"
-       |  }, {
-       |      "publicKey": "${publicKeys("hub")}"
-       |  }, {
-       |      "publicKey": "${publicKeys("producer")}"
-       |  }]
-       |}
-       |""".stripMargin)
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "16",
+           |  "method": "getRole",
+           |  "params": [{
+           |      "publicKey": "${publicKeys("investor")}"
+           |  }, {
+           |      "publicKey": "${publicKeys("hub")}"
+           |  }, {
+           |      "publicKey": "${publicKeys("producer")}"
+           |  }]
+           |}
+           |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asArray.isDefined shouldEqual true
@@ -212,7 +226,8 @@ class ContractRPCSpec extends WordSpec
       publicKeys("producer") -> 0
     )
 
-    val contractBodyTemplate = s"""
+    val contractBodyTemplate =
+      s"""
       {
         "jsonrpc": "2.0",
         "id": "16",
@@ -233,7 +248,9 @@ class ContractRPCSpec extends WordSpec
         }]
       }
       """
-    var investorSig = ""; var hubSig = ""; var producerSig = ""
+    var investorSig = "";
+    var hubSig = "";
+    var producerSig = ""
 
     "Get ContractCreation Signature" in {
       val requestBody = ByteString(contractBodyTemplate.stripMargin)
@@ -278,7 +295,9 @@ class ContractRPCSpec extends WordSpec
         case b: ContractBox => contractBox = Some(b)
         case _ =>
       }
-      val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet, txInstance.newBoxes.toSet, System.currentTimeMillis())
+      val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+                                      txInstance.newBoxes.toSet,
+                                      System.currentTimeMillis())
 
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
       view().pool.remove(txInstance)
@@ -312,36 +331,39 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Execute Contract Method <changeStatus>" in {
-      val requestBody = s"""
-          |{
-          |  "jsonrpc": "2.0",
-          |  "id": "19",
-          |  "method": "executeContractMethod",
-          |  "params": [{
-          |    "signingPublicKey": "${publicKeys("producer")}",
-          |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
-          |    "methodName": "changeStatus",
-          |    "parties": {
-          |	     "producer": "${publicKeys("producer")}"
-          |	   },
-          |	   "signatures": {
-          |	     "${publicKeys("producer")}": ""
-          |	   },
-          |	   "methodParams": {
-          |      "newStatus": "in progress"
-          |	   },
-          |	   "preFeeBoxes": {
-          |	     "${publicKeys("producer")}" : []
-          |	   },
-          |	   "fees" : {
-          |       "${publicKeys("producer")}" : 0
-          |    },
-          |    "timestamp": ${contractEffectiveTime + 1}
-          |  }]
-          |}
+      val requestBody =
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "19",
+           |  "method": "executeContractMethod",
+           |  "params": [{
+           |    "signingPublicKey": "${publicKeys("producer")}",
+           |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
+           |    "methodName": "changeStatus",
+           |    "parties": {
+           |	     "producer": "${publicKeys("producer")}"
+           |	   },
+           |	   "signatures": {
+           |	     "${publicKeys("producer")}": ""
+           |	   },
+           |	   "methodParams": {
+           |      "newStatus": "in progress"
+           |	   },
+           |	   "preFeeBoxes": {
+           |	     "${publicKeys("producer")}" : []
+           |	   },
+           |	   "fees" : {
+           |       "${publicKeys("producer")}" : 0
+           |    },
+           |    "timestamp": ${contractEffectiveTime + 1}
+           |  }]
+           |}
         """.stripMargin
 
-      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> contractBox: ", Base58.encode(contractBox.get.id), contractBox)
+      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> contractBox: ",
+              Base58.encode(contractBox.get.id),
+              contractBox)
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         println("RESPONSE", responseAs[String])
@@ -355,7 +377,8 @@ class ContractRPCSpec extends WordSpec
         val boxContent = ((res \\ "result").head \\ "contractBox").head
         Base58.encode(contractBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
 
-        val state = root.value.agreement.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state.asString.get
+        val state = root.value.agreement.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state
+          .asString.get
         (parse(state).right.get \\ "status").head.asString.get shouldBe "in progress"
       }
     }
@@ -386,6 +409,7 @@ class ContractRPCSpec extends WordSpec
            |}
         """.stripMargin
       }
+
       val requestBody1 = requestBody(publicKeys("investor"), "investor")
       httpPOST(ByteString(requestBody1)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -408,26 +432,27 @@ class ContractRPCSpec extends WordSpec
 
     var completionTx = None: Option[ContractCompletion]
     "Complete the Contract" in {
-      val requestBody = s"""|{
-      |  "jsonrpc" : "2.0",
-      |  "id" : "23",
-      |  "method": "completeContract",
-      |  "params" : [{
-      |  	 "contractBox": ${Base58.encode(contractBox.get.id).asJson},
-      |  	 "reputationBoxes": [],
-      |    "parties" : ${publicKeys.asJson},
-      |    "signatures" : {
-      |      ${publicKeys("investor").asJson} : ${investorSig.asJson},
-      |      ${publicKeys("producer").asJson} : ${producerSig.asJson},
-      |      ${publicKeys("hub").asJson} : ${hubSig.asJson}
-      |    },
-      |    "preFeeBoxes" : {
-      |    },
-      |    "fees" : {
-      |    },
-      |    "timestamp" : ${contractEffectiveTime + 10000L}
-      |  }]
-      |}
+      val requestBody =
+        s"""|{
+            |  "jsonrpc" : "2.0",
+            |  "id" : "23",
+            |  "method": "completeContract",
+            |  "params" : [{
+            |  	 "contractBox": ${Base58.encode(contractBox.get.id).asJson},
+            |  	 "reputationBoxes": [],
+            |    "parties" : ${publicKeys.asJson},
+            |    "signatures" : {
+            |      ${publicKeys("investor").asJson} : ${investorSig.asJson},
+            |      ${publicKeys("producer").asJson} : ${producerSig.asJson},
+            |      ${publicKeys("hub").asJson} : ${hubSig.asJson}
+            |    },
+            |    "preFeeBoxes" : {
+            |    },
+            |    "fees" : {
+            |    },
+            |    "timestamp" : ${contractEffectiveTime + 10000L}
+            |  }]
+            |}
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
@@ -449,23 +474,24 @@ class ContractRPCSpec extends WordSpec
 
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(txInstance)
+                                     System.currentTimeMillis(),
+                                     ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+                                     Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+                                     Seq(txInstance)
         )
         history.append(tempBlock)
       }
     }
 
     "Get the contract tx by bloom filter" in {
-      val requestBody = s"""
-        |{
-        |  "jsonrpc" : "2.0",
-        |  "id" : "23",
-        |  "method": "filter",
-        |  "params" : [${publicKeys("hub").asJson}]
-        |}
+      val requestBody =
+        s"""
+           |{
+           |  "jsonrpc" : "2.0",
+           |  "id" : "23",
+           |  "method": "filter",
+           |  "params" : [${publicKeys("hub").asJson}]
+           |}
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
@@ -482,13 +508,14 @@ class ContractRPCSpec extends WordSpec
         com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
         ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
       )
-      val requestBody = s"""
-         |{
-         |  "jsonrpc" : "2.0",
-         |  "id" : "24",
-         |  "method": "postProposals",
-         |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
-         |}
+      val requestBody =
+        s"""
+           |{
+           |  "jsonrpc" : "2.0",
+           |  "id" : "24",
+           |  "method": "postProposals",
+           |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
+           |}
         """.stripMargin
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -499,16 +526,18 @@ class ContractRPCSpec extends WordSpec
     }
 
     "Retrieve Proposals" in {
-      val requestBody = s"""
-         |{
-         |  "jsonrpc" : "2.0",
-         |  "id" : "24",
-         |  "method": "retrieveProposals",
-         |  "params" : [{
-         |    "limit": 10
-         |  }]
-         |}
+      val requestBody =
+        s"""
+           |{
+           |  "jsonrpc" : "2.0",
+           |  "id" : "24",
+           |  "method": "retrieveProposals",
+           |  "params" : [{
+           |    "limit": 10
+           |  }]
+           |}
         """.stripMargin
+
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         println(res)

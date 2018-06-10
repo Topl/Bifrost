@@ -4,12 +4,10 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.Forger
 import bifrost.history.BifrostStorage
 import scorex.core.block.BlockValidator
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-class DifficultyBlockValidator(storage: BifrostStorage)
-  extends BlockValidator[BifrostBlock] {
+class DifficultyBlockValidator(storage: BifrostStorage) extends BlockValidator[BifrostBlock] {
 
   def validate(block: BifrostBlock): Try[Unit] = checkConsensusRules(block)
 

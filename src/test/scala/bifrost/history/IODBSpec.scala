@@ -2,16 +2,16 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.{BifrostTransaction, ContractCompletion}
+import bifrost.transaction.BifrostTransaction
+import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.core.NodeViewModifier._
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Random
 
 class IODBSpec extends PropSpec
   with PropertyChecks
@@ -30,7 +30,8 @@ class IODBSpec extends PropSpec
 
     /**
       * Apply a transaction by storing its new boxes (ignore old boxes)
-      * @param tx   the transaction to write boxes to storage
+      *
+      * @param tx the transaction to write boxes to storage
       */
     def writeTx(tx: BifrostTransaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
@@ -44,7 +45,8 @@ class IODBSpec extends PropSpec
 
     /**
       * Check that the boxes for the transaction are all stored
-      * @param tx   the transaction to check has boxes in storage
+      *
+      * @param tx the transaction to check has boxes in storage
       */
     def checkTx(tx: BifrostTransaction): Unit = {
       tx.newBoxes
@@ -74,7 +76,8 @@ class IODBSpec extends PropSpec
 
     /**
       * Apply a block by storing all of its transactions' new boxes (ignore old boxes)
-      * @param b    the block to write tx boxes to storage
+      *
+      * @param b the block to write tx boxes to storage
       */
     def writeBlock(b: BifrostBlock): Unit = {
       blocksStorage.update(
@@ -92,11 +95,13 @@ class IODBSpec extends PropSpec
       blocksStorage.get(ByteArrayWrapper(block.id)).isDefined shouldBe true
     }
 
-    ids.foreach { id => {
-        require(blocksStorage.get(ByteArrayWrapper(id)) match {
+    ids.foreach {
+      id => {
+        val idInStorage = blocksStorage.get(ByteArrayWrapper(id)) match {
           case None => println(s"${Console.RED} Id ${Base58.encode(id)} not found"); false
           case Some(_) => true
-        })
+        }
+        require(idInStorage)
       }
     }
   }

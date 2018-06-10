@@ -18,7 +18,7 @@ import scala.util.{Failure, Random, Success, Try}
   */
 class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
 
-  import PolyTransferGenerator._
+  import bifrost.wallet.PolyTransferGenerator._
 
   override def receive: Receive = {
     case StartGeneration(duration) =>
@@ -41,11 +41,17 @@ object PolyTransferGenerator {
   case class StartGeneration(delay: FiniteDuration)
 
   def generateStatic(wallet: BWallet): Try[PolyTransfer] = {
-    println(s"Wallet's public keys: ${wallet.publicKeys}. Encoded form: ${Base58.encode(wallet.publicKeys.toSeq.head.bytes)}")
-    val pubkeys: Seq[PublicKey25519Proposition] = wallet.publicKeys.flatMap {
-      case pkp: PublicKey25519Proposition => Some(pkp)
-      case _ => None
-    }.toSeq
+    println(s"Wallet's public keys: ${wallet.publicKeys}. Encoded form: ${
+      Base58.encode(wallet.publicKeys.toSeq.head.bytes)
+    }")
+
+    val pubkeys: Seq[PublicKey25519Proposition] = wallet
+      .publicKeys
+      .flatMap {
+        case pkp: PublicKey25519Proposition => Some(pkp)
+        case _ => None
+      }.toSeq
+
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
     PolyTransfer.create(wallet, IndexedSeq((recipient, Random.nextInt(100))), Random.nextInt(100))
   }

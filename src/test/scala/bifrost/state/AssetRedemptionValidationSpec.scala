@@ -2,7 +2,6 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.state.BifrostStateSpec
 import bifrost.blocks.BifrostBlock
 import bifrost.transaction.AssetRedemption
 import bifrost.transaction.box._
@@ -10,10 +9,9 @@ import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random}
+import scala.util.Failure
 
 /**
   * Created by Matt Kindy on 6/7/2017.
@@ -31,9 +29,14 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           Seq(ar)
         )
 
-        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap { case (assetCode, toRedeem) =>
-          toRedeem.map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub))
-        }.toSet
+        val preExistingAssetBoxes: Set[BifrostBox] = ar
+          .availableToRedeem
+          .flatMap {
+            case (assetCode, toRedeem) =>
+              toRedeem
+                .map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub))
+          }
+          .toSet
 
 
         val assetBoxes: Traversable[AssetBox] = ar.newBoxes.map {
@@ -47,34 +50,54 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
-        val newState = preparedState.applyChanges(preparedState.changes(block).get, Ints.toByteArray(2)).get
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
 
-        ar.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
-          case Some(wrapper) => wrapper.data sameElements b.bytes
-          case None => false
-        })
+        val newState = preparedState
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .get
+
+        ar.newBoxes
+          .forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
+            case Some(wrapper) => wrapper.data sameElements b.bytes
+            case None => false
+          })
 
         /* Expect none of the prexisting boxes to still be around */
         require(preExistingAssetBoxes.forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)).isEmpty))
 
-        BifrostStateSpec.genesisState = newState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        BifrostStateSpec.genesisState = newState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
     }
   }
 
   property("Attempting to validate an AssetRedemption with a bad signature should error") {
     forAll(validAssetRedemptionGen) {
-      ar: AssetRedemption =>
+      assetRedemption: AssetRedemption =>
 
-        val headSigs = ar.signatures.head
+        val headSigs = assetRedemption.signatures.head
         val wrongSig: Array[Byte] = (headSigs._2.head.bytes.head + 1).toByte +: headSigs._2.head.bytes.tail
-        val wrongSigs: Map[String, IndexedSeq[Signature25519]] = ar.signatures + (headSigs._1 -> (ar.signatures(headSigs._1).tail :+ Signature25519(wrongSig)))
-        val invalidAR = ar.copy(signatures = wrongSigs)
+        val wrongSigs: Map[String, IndexedSeq[Signature25519]] =
+          assetRedemption.signatures +
+            (headSigs._1 -> (assetRedemption.signatures(headSigs._1).tail :+ Signature25519(wrongSig)))
 
-        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap { case (assetCode, toRedeem) =>
-          toRedeem.map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub))
-        }.toSet
+        val invalidAR = assetRedemption.copy(signatures = wrongSigs)
+
+        val preExistingAssetBoxes: Set[BifrostBox] = assetRedemption
+          .availableToRedeem
+          .flatMap {
+            case (assetCode, toRedeem) =>
+              toRedeem.map(r => AssetBox(r._1,
+                                         r._2,
+                                         assetRedemption.remainderAllocations(assetCode).map(_._2).sum,
+                                         assetCode,
+                                         assetRedemption.hub))
+          }
+          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -82,10 +105,16 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli
         )
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
+
         val newState = preparedState.validate(invalidAR)
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Incorrect unlocker"
@@ -96,20 +125,22 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
     forAll(validAssetRedemptionGen) {
       ar: AssetRedemption =>
 
-        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap { case (assetCode, toRedeem) =>
-          toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.hub))
+        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap {
+          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.hub))
         }.toSet
 
-        val necessaryBoxesSC = BifrostStateChanges(
-          Set(),
-          preExistingAssetBoxes,
-          Instant.now.toEpochMilli
-        )
+        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(1)).get
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .get
+
         val newState = preparedState.validate(ar)
 
-        BifrostStateSpec.genesisState = preparedState.rollbackTo(BifrostStateSpec.genesisBlockId).get
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Not enough assets"
