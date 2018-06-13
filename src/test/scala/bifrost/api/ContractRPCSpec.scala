@@ -317,7 +317,6 @@ class ContractRPCSpec extends WordSpec
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(">>>>>>>>>>>>>>>>>>> create contract res", res)
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         view().pool.take(5).toList.size shouldEqual 4
@@ -360,10 +359,6 @@ class ContractRPCSpec extends WordSpec
            |  }]
            |}
         """.stripMargin
-
-      println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> contractBox: ",
-              Base58.encode(contractBox.get.id),
-              contractBox)
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         println("RESPONSE", responseAs[String])

@@ -337,10 +337,6 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val valueObject: Map[String, Json] = contractBox.json.asObject.get.toMap
     val cursor: HCursor = valueObject("value").hcursor
     val time = cursor.fields
-    println(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> entering contract with contractBox.json: ${
-      time + "lastUpdated" -> timestamp
-        .asJson
-    } <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     val timeUpdatedContract: Map[String, Json] = contractBox.json.asObject.get.apply("value").get.asJson.asObject.get
       .toMap + ("lastUpdated" -> timestamp.asJson)
     Contract(timeUpdatedContract.asJson, contractBox.id)
@@ -371,17 +367,13 @@ case class ContractMethodExecution(contractBox: ContractBox,
   )
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Before digest")
-    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MofNProp proposition: ", proposition)
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    println(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MofNProp within newboxes: " +
-              s"$digest <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val contractResult = Contract.execute(contract, methodName)(parties.toIndexedSeq(0)._2)(parameters.asObject
                                                                                               .get) match {
       case Success(res) => res match {
-        case Left(updatedContract) => println(">>>>>>>>>>>>>>>>>>>>>>updatedContract", updatedContract); ContractBox(
+        case Left(updatedContract) => ContractBox(
           proposition,
           nonce,
           updatedContract.json)

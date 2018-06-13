@@ -140,7 +140,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
                   case Some(wrapper) => wrapper.data sameElements boxBytes
                   case None => false
                 })
-
+        
         cme.newBoxes.head shouldBe a[ContractBox]
         val contractJson = cme
           .newBoxes
