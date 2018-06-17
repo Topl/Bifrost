@@ -2,6 +2,7 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
@@ -68,7 +69,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
     val tempTx = params.as[AssetRedemption] match {
       case Right(a: AssetRedemption) => a
-      case Left(e) => throw new Exception(s"Could not parse AssetRedemption: $e")
+      case Left(e) => throw new JsonParsingException(s"Could not parse AssetRedemption: $e")
     }
 
     val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)

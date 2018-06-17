@@ -117,7 +117,7 @@ trait BifrostGenerators extends CoreGenerators {
           case "Number" => sampleUntilNonEmpty(positiveDoubleGen).asJson
           case _ => sampleUntilNonEmpty(stringGen).asJson
         })
-    } toMap).asJson
+    }.toMap).asJson
   }
 
   def jsonArrayGen(depth: Int = 0): Gen[Json] = for {
