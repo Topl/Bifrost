@@ -3,6 +3,7 @@ package bifrost.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
+
 import bifrost.state.BifrostState
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -33,7 +34,7 @@ class ContractCompletionSpec extends PropSpec
       contractCompletion: ContractCompletion =>
         val wrongSig: Array[Byte] =
           (contractCompletion.signatures.head._2.bytes.head + 1).toByte +:
-          contractCompletion.signatures.head._2.bytes.tail
+            contractCompletion.signatures.head._2.bytes.tail
 
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
           contractCompletion.signatures +

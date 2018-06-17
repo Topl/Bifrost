@@ -90,7 +90,8 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     )
   } */
 
-  property("A block with valid CME will result in a correct contract entry and updated poly boxes in the LSMStore") {
+  property("A block with valid CME will result in a correct contract entry " +
+    "and updated poly boxes in the LSMStore") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -137,10 +138,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
-                  case Some(wrapper) => wrapper.data sameElements boxBytes
-                  case None => false
-                })
-        
+          case Some(wrapper) => wrapper.data sameElements boxBytes
+          case None => false
+        })
+
         cme.newBoxes.head shouldBe a[ContractBox]
         val contractJson = cme
           .newBoxes
@@ -153,10 +154,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .flatMap(_.apply("value"))
           .flatMap(_.asObject.get("lastUpdated"))
           .map(_.as[Long] match {
-                 case Right(timestamp: Long) => timestamp
-                 case Left(_) =>
-                   throw new JsonParsingException("Was unable to convert lastUpdated to long in new contract")
-               })
+            case Right(timestamp: Long) => timestamp
+            case Left(_) =>
+              throw new JsonParsingException("Was unable to convert lastUpdated to long in new contract")
+          })
           .get
 
         val oldContractTimestamp = cme
@@ -166,10 +167,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .flatMap(_.apply("value"))
           .flatMap(_.asObject.get("lastUpdated"))
           .map(_.as[Long] match {
-                 case Right(timestamp: Long) => timestamp
-                 case Left(_) =>
-                   throw new JsonParsingException("Was unable to convert lastUpdated to long in old contract")
-               })
+            case Right(timestamp: Long) => timestamp
+            case Left(_) =>
+              throw new JsonParsingException("Was unable to convert lastUpdated to long in old contract")
+          })
           .get
 
         Contract
@@ -182,10 +183,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         }
 
         require(deductedFeeBoxes
-                  .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
-                    case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
-                    case None => false
-                  }))
+          .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
+            case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
+            case None => false
+          }))
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         deductedFeeBoxes.map(_.value).sum shouldEqual
@@ -415,7 +416,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe s"Contract ${
           Base58.encode(contractMethodExecution.contractBox
-                          .id)
+            .id)
         } does not exist"
     }
   }

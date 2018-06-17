@@ -101,7 +101,8 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     )
   }
 
-  property("A block with valid ContractCompletion will remove the contract entry and update poly boxes in the LSMStore")
+  property("A block with valid ContractCompletion will " +
+    "remove the contract entry and update poly boxes in the LSMStore")
   {
     // Create block with contract creation
     forAll(validContractCompletionGen) {
