@@ -4,9 +4,9 @@ import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
+import bifrost.exceptions.JsonParsingException
 import bifrost.transaction.box._
 import bifrost.transaction.{ContractMethodExecution, Role}
-import com.fasterxml.jackson.core.JsonProcessingException
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
@@ -155,7 +155,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .map(_.as[Long] match {
                  case Right(timestamp: Long) => timestamp
                  case Left(_) =>
-                   throw new JsonProcessingException("Was unable to convert lastUpdated to long in new contract")
+                   throw new JsonParsingException("Was unable to convert lastUpdated to long in new contract")
                })
           .get
 
@@ -168,7 +168,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .map(_.as[Long] match {
                  case Right(timestamp: Long) => timestamp
                  case Left(_) =>
-                   throw new JsonProcessingException("Was unable to convert lastUpdated to long in old contract")
+                   throw new JsonParsingException("Was unable to convert lastUpdated to long in old contract")
                })
           .get
 
