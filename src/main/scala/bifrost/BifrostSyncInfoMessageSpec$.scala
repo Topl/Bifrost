@@ -8,7 +8,8 @@ import scorex.core.network.message.SyncInfoMessageSpec
 
 import scala.util.Try
 
-case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BlockChain.Score) extends SyncInfo {
+case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BlockChain.Score)
+  extends SyncInfo {
   override def startingPoints: Seq[(NodeViewModifier.ModifierTypeId, NodeViewModifier.ModifierId)] = {
     Seq(BifrostBlock.ModifierTypeId -> lastBlockID)
   }

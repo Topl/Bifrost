@@ -8,18 +8,18 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
+import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.{ArbitTransfer, BifrostTransaction, BifrostTransactionCompanion, PolyTransfer}
 import bifrost.wallet.BWallet
+import scorex.core.NodeViewModifier
 import scorex.core.NodeViewModifier.ModifierTypeId
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.Transaction
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
-import scorex.core.{NodeViewHolder, NodeViewModifier}
 import scorex.crypto.encode.Base58
-import serializer.{PeerMessage, ProducerProposal}
+import serializer.PeerMessage
 
 import scala.util.{Failure, Success}
 

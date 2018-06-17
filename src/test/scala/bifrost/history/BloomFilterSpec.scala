@@ -3,16 +3,12 @@ package bifrost.history
 /**
   * Created by cykoz on 7/11/2017.
   */
-import bifrost.{BifrostGenerators, ValidGenerators}
+
 import bifrost.blocks.{BifrostBlock, Bloom}
-import bifrost.history.BifrostHistory
-import bifrost.transaction.{BifrostTransaction, ContractCompletion}
-import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
+import bifrost.transaction.ContractCompletion
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import scorex.core.NodeViewModifier.ModifierId
-import scorex.crypto.encode.Base58
-import serializer.BloomTopics
+import org.scalatest.{Matchers, PropSpec}
 
 import scala.collection.BitSet
 
@@ -35,11 +31,10 @@ class BloomFilterSpec extends PropSpec
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       val block = BifrostBlock(history.bestBlockId,
-        System.currentTimeMillis(),
-        arbitBoxGen.sample.get,
-        signatureGen.sample.get,
-        txs
-      )
+                               System.currentTimeMillis(),
+                               arbitBoxGen.sample.get,
+                               signatureGen.sample.get,
+                               txs)
 
       history = history.append(block).get._1
 
@@ -52,13 +47,13 @@ class BloomFilterSpec extends PropSpec
       history.modifierById(block.id).isDefined shouldBe true
     }
 
-    completionTxs.foreach{ tx =>
+    completionTxs.foreach { tx =>
       val txs = history.bloomFilter(tx.bloomTopics.get)
       txs.length shouldBe 1
       txs.head.bytes sameElements tx.bytes shouldBe true
     }
 
-    completionTxs.foreach{ tx =>
+    completionTxs.foreach { tx =>
       val txs = history.bloomFilter(IndexedSeq(tx.bloomTopics.get(2)))
       txs.length shouldBe 1
       txs.head.bytes sameElements tx.bytes shouldBe true

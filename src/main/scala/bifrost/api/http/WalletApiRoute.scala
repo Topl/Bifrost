@@ -1,7 +1,5 @@
 package bifrost.api.http
 
-import javax.ws.rs.Path
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
@@ -10,17 +8,17 @@ import bifrost.transaction.box.{ArbitBox, PolyBox}
 import io.circe.parser._
 import io.circe.syntax._
 import io.swagger.annotations._
+import javax.ws.rs.Path
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import scorex.core.api.http.{ApiException, SuccessApiResponse}
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
-import scala.concurrent._
-import ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 
 @Path("/wallet")
@@ -30,9 +28,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
 
   val DefaultFee = 100
 
-  override implicit val timeout = Timeout(10.seconds)
+  override implicit val timeout: Timeout = Timeout(10.seconds)
 
-  override val route = pathPrefix("wallet") {
+  override val route: Route = pathPrefix("wallet") {
     balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
   }
 

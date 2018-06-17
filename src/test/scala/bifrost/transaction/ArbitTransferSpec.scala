@@ -14,8 +14,7 @@ class ArbitTransferSpec extends PropSpec
 
   property("Generated ArbitTransfer Tx should be valid") {
     forAll(validArbitTransferGen) {
-      at: ArbitTransfer =>
-        BifrostState.semanticValidity(at).isSuccess shouldBe true
+      at: ArbitTransfer => BifrostState.semanticValidity(at).isSuccess shouldBe true
     }
   }
 }

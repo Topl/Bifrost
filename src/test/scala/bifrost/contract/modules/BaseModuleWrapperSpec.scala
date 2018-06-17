@@ -10,16 +10,13 @@ import io.circe.syntax._
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 
 class BaseModuleWrapperSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
-  with ValidGenerators{
+  with ValidGenerators {
 
   val args: JsonObject = Map(
     "principal" -> "0".asJson,
@@ -35,8 +32,7 @@ class BaseModuleWrapperSpec extends PropSpec
 
   val filePath = URLDecoder.decode(this.getClass.getResource("/contract-modules-fastopt.json").getPath, "UTF-8")
   val osAppropriatePath: Path = Paths.get(
-    if (System.getProperty("os.name").contains("indow")) filePath.substring(1)
-    else filePath
+    if (System.getProperty("os.name").contains("indow")) filePath.substring(1) else filePath
   )
 
   property("Json encoding and decoding should work") {

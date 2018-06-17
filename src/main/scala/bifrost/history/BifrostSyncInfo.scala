@@ -1,7 +1,7 @@
 package bifrost.history
 
-import com.google.common.primitives.{Bytes, Longs}
 import bifrost.blocks.BifrostBlock
+import com.google.common.primitives.Longs
 import scorex.core.NodeViewModifier
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.SyncInfo
@@ -10,9 +10,11 @@ import scorex.core.serialization.Serializer
 
 import scala.util.Try
 
-case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[ModifierId], score: BigInt) extends SyncInfo {
+case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[ModifierId], score: BigInt)
+  extends SyncInfo {
 
-  override def startingPoints: Seq[(ModifierTypeId, ModifierId)] = lastBlockIds.map(b => BifrostBlock.ModifierTypeId -> b)
+  override def startingPoints: Seq[(ModifierTypeId, ModifierId)] =
+    lastBlockIds.map(b => BifrostBlock.ModifierTypeId -> b)
 
   override type M = BifrostSyncInfo
 
@@ -27,9 +29,9 @@ object BifrostSyncInfoSerializer extends Serializer[BifrostSyncInfo] {
 
   override def toBytes(obj: BifrostSyncInfo): Array[Byte] =
     Array(if (obj.answer) 1: Byte else 0: Byte,
-      obj.lastBlockIds.size.toByte
+          obj.lastBlockIds.size.toByte
     ) ++ obj.lastBlockIds.foldLeft(Array[Byte]())((a, b) => a ++ b) ++
-      Longs.toByteArray(obj.score.toByteArray.size) ++ obj.score.toByteArray
+      Longs.toByteArray(obj.score.toByteArray.length) ++ obj.score.toByteArray
 
   def parseBytes(bytes: Array[Byte]): Try[BifrostSyncInfo] = Try {
     val answer = if (bytes.head == 1) true else if (bytes.head == 0) false else throw new Exception("wrong answer byte")
@@ -40,7 +42,8 @@ object BifrostSyncInfoSerializer extends Serializer[BifrostSyncInfo] {
     require(lastBlockIdsSize >= 0 && lastBlockIdsSize <= BifrostSyncInfo.MaxLastBlocks)
     require(bytes.length == 2 + lastBlockIdsSize * NodeViewModifier.ModifierIdSize + Longs.BYTES + scoreByteSize)
 
-    val lastBlockIds = bytes.slice(2, endOfBlockIds)
+    val lastBlockIds = bytes
+      .slice(2, endOfBlockIds)
       .grouped(NodeViewModifier.ModifierIdSize).toSeq
 
     val scoreBytes = bytes.slice(endOfBlockIds + Longs.BYTES, bytes.length)

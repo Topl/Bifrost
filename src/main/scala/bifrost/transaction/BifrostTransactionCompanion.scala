@@ -1,22 +1,21 @@
 package bifrost.transaction
 
-import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.contract._
 import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.Role.Role
-import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}
-import io.circe.{HCursor, Json, JsonObject, ParsingFailure}
+import bifrost.transaction.box.{ContractBox, ContractBoxSerializer}
+import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import io.circe.optics.JsonPath._
-import io.circe.syntax._
 import io.circe.parser._
+import io.circe.{HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import serializer.{BuySellOrder, TokenExchangeTxData}
+import serializer.TokenExchangeTxData
 
 import scala.util.Try
 
@@ -33,7 +32,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.slice(0, Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     typeStr match {
       case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get
@@ -65,13 +64,13 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   override def parseBytes(bytes: Array[Byte]): Try[ContractTransaction] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     /* Grab the rest of the bytes, which should begin similarly (with sub-type) */
     val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
 
     val newTypeLength = Ints.fromByteArray(newBytes.take(Ints.BYTES))
-    val newTypeStr = new String(newBytes.slice(Ints.BYTES,  Ints.BYTES + newTypeLength))
+    val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 
     newTypeStr match {
       case "ContractCreation" => ContractCreationCompanion.parseBytes(newBytes).get
@@ -83,7 +82,8 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
   def commonToBytes(m: ContractTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.map(_._2)).map(v => ByteArrayWrapper(v.pubKeyBytes)).toSeq.zipWithIndex
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.map(_._2)).map(v => ByteArrayWrapper(v.pubKeyBytes))
+      .toSeq.zipWithIndex
     val keyMapping: Map[ByteArrayWrapper, Int] = keySeq.toMap
 
     Bytes.concat(
@@ -96,24 +96,31 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1.data),
       m.parties.foldLeft(Array[Byte]())((a, b) => {
         a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._2.pubKeyBytes))) ++ (b._1 match {
-        case Role.Producer => Ints.toByteArray(0)
-        case Role.Investor => Ints.toByteArray(1)
-        case Role.Hub => Ints.toByteArray(2)
-      })}),
-      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ b._2.bytes),
-      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ Ints.toByteArray(b._2.length) ++
+          case Role.Producer => Ints.toByteArray(0)
+          case Role.Investor => Ints.toByteArray(1)
+          case Role.Hub => Ints.toByteArray(2)
+        })
+      }),
+      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
+        .pubKeyBytes))) ++ b
+        ._2.bytes),
+      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
+        .pubKeyBytes))) ++ Ints
+        .toByteArray(b._2.length) ++
         b._2.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2))),
-      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ Longs.toByteArray(b._2))
+      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
+        .pubKeyBytes))) ++ Longs
+        .toByteArray(b._2))
     )
   }
 
   //noinspection ScalaStyle
   def commonParseBytes(bytes: Array[Byte]): (
     Map[Role, PublicKey25519Proposition],
-    Map[PublicKey25519Proposition, Signature25519],
-    Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
-    Map[PublicKey25519Proposition, Long],
-    Long
+      Map[PublicKey25519Proposition, Signature25519],
+      Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+      Map[PublicKey25519Proposition, Long],
+      Long
     ) = {
 
     var numReadBytes = 0
@@ -122,17 +129,22 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
 
     numReadBytes += Longs.BYTES
 
-    val Array(sigLength: Int, partiesLength: Int, feePreBoxLength: Int, feesLength: Int, keyMappingSize: Int) = (0 until 5).map { i =>
-      Ints.fromByteArray(bytes.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+    val Array(sigLength: Int,
+    partiesLength: Int,
+    feePreBoxLength: Int,
+    feesLength: Int,
+    keyMappingSize: Int) = (0 until 5).map { i =>
+      Ints.fromByteArray(bytes.slice(numReadBytes + i * Ints.BYTES, numReadBytes + (i + 1) * Ints.BYTES))
     }.toArray
 
-    numReadBytes += 5*Ints.BYTES
+    numReadBytes += 5 * Ints.BYTES
 
     val keyMapping: Map[Int, PublicKey25519Proposition] = (0 until keyMappingSize).map { i =>
-      i -> PublicKey25519Proposition(bytes.slice(numReadBytes + i*Constants25519.PubKeyLength, numReadBytes + (i + 1)*Constants25519.PubKeyLength))
+      i -> PublicKey25519Proposition(bytes.slice(numReadBytes + i * Constants25519.PubKeyLength,
+        numReadBytes + (i + 1) * Constants25519.PubKeyLength))
     }.toMap
 
-    numReadBytes += keyMappingSize*Constants25519.PubKeyLength
+    numReadBytes += keyMappingSize * Constants25519.PubKeyLength
 
     val roleTypes = Map[Int, Role.Role](
       0 -> Role.Producer,
@@ -141,20 +153,24 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
     )
 
     val parties: Map[Role.Role, PublicKey25519Proposition] = (0 until partiesLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + 2*i*Ints.BYTES, numReadBytes + (2*i + 1)*Ints.BYTES))
-      val roleInt = Ints.fromByteArray(bytes.slice(numReadBytes + (2*i + 1)*Ints.BYTES, numReadBytes + 2*(i + 1)*Ints.BYTES))
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + 2 * i * Ints.BYTES,
+        numReadBytes + (2 * i + 1) * Ints.BYTES))
+      val roleInt = Ints.fromByteArray(bytes.slice(numReadBytes + (2 * i + 1) * Ints.BYTES,
+        numReadBytes + 2 * (i + 1) * Ints.BYTES))
       roleTypes(roleInt) -> keyMapping(pkInt)
     }.toMap
 
-    numReadBytes += partiesLength*(Ints.BYTES*2)
+    numReadBytes += partiesLength * (Ints.BYTES * 2)
 
     val signatures: Map[PublicKey25519Proposition, Signature25519] = (0 until sigLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*(Ints.BYTES + Curve25519.SignatureLength), numReadBytes + i*Curve25519.SignatureLength + (i + 1)*Ints.BYTES))
-      val sigBytes = bytes.slice(numReadBytes + (i + 1)*Ints.BYTES + i*Curve25519.SignatureLength, numReadBytes + (i + 1)*Ints.BYTES + (i + 1)*Curve25519.SignatureLength)
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Curve25519.SignatureLength),
+        numReadBytes + i * Curve25519.SignatureLength + (i + 1) * Ints.BYTES))
+      val sigBytes = bytes.slice(numReadBytes + (i + 1) * Ints.BYTES + i * Curve25519.SignatureLength,
+        numReadBytes + (i + 1) * Ints.BYTES + (i + 1) * Curve25519.SignatureLength)
       keyMapping(pkInt) -> Signature25519(sigBytes)
     }.toMap
 
-    numReadBytes += sigLength*(Ints.BYTES + Curve25519.SignatureLength)
+    numReadBytes += sigLength * (Ints.BYTES + Curve25519.SignatureLength)
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (0 until feePreBoxLength).map { i =>
       var bytesSoFar = 0
@@ -165,18 +181,22 @@ object ContractTransactionCompanion extends Serializer[ContractTransaction] {
       bytesSoFar += Ints.BYTES
 
       val preBoxes = (0 until length).map { j =>
-        var innerBytesSoFar = j*2*Longs.BYTES
-        val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar, numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES))
-        val amount = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES, numReadBytes + bytesSoFar + innerBytesSoFar + 2*Longs.BYTES))
+        var innerBytesSoFar = j * 2 * Longs.BYTES
+        val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar,
+          numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES))
+        val amount = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES,
+          numReadBytes + bytesSoFar + innerBytesSoFar + 2 * Longs.BYTES))
         nonce -> amount
       }
-      numReadBytes += bytesSoFar + length*2*Longs.BYTES
+      numReadBytes += bytesSoFar + length * 2 * Longs.BYTES
       keyMapping(pkInt) -> preBoxes
     }.toMap
 
     val fees: Map[PublicKey25519Proposition, Long] = (0 until feesLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i*(Ints.BYTES + Longs.BYTES), numReadBytes + i*(Ints.BYTES + Longs.BYTES) + Ints.BYTES))
-      val fee = Longs.fromByteArray(bytes.slice(numReadBytes + i*(Ints.BYTES + Longs.BYTES) + Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES + (i + 1)*Longs.BYTES))
+      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Longs.BYTES),
+        numReadBytes + i * (Ints.BYTES + Longs.BYTES) + Ints.BYTES))
+      val fee = Longs.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Longs.BYTES) + Ints.BYTES,
+        numReadBytes + (i + 1) * Ints.BYTES + (i + 1) * Longs.BYTES))
       keyMapping(pkInt) -> fee
     }.toMap
 
@@ -230,7 +250,7 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
   override def parseBytes(bytes: Array[Byte]): Try[ProfileTransaction] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
@@ -274,7 +294,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
@@ -283,18 +303,21 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     numReadBytes = Ints.BYTES
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numPreInvestmentBoxes).map { i =>
-      val nonce = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + 2*i*Longs.BYTES, numReadBytes + (2*i + 1)*Longs.BYTES))
-      val value = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + (2*i + 1)*Longs.BYTES, numReadBytes + 2*(i + 1)*Longs.BYTES))
+      val nonce = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + 2 * i * Longs.BYTES,
+        numReadBytes + (2 * i + 1) * Longs.BYTES))
+      val value = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + (2 * i + 1) * Longs.BYTES,
+        numReadBytes + 2 * (i + 1) * Longs.BYTES))
       nonce -> value
     }
 
-    numReadBytes += 2*numPreInvestmentBoxes*Longs.BYTES
+    numReadBytes += 2 * numPreInvestmentBoxes * Longs.BYTES
 
     val agreementLength: Long = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Longs.BYTES))
 
     numReadBytes += Longs.BYTES
 
-    val agreement = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + agreementLength.toInt)).get
+    val agreement = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + agreementLength.toInt)).get
 
     numReadBytes += agreementLength.toInt
 
@@ -302,7 +325,8 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
-    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
+      bytesWithoutType.length))
 
     ContractCreation(agreement, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp)
   }
@@ -318,46 +342,49 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
   def toChildBytes(cme: ContractMethodExecution): Array[Byte] = {
     val typeBytes = "ContractMethodExecution".getBytes
 
-     Bytes.concat(
-        /* First two arguments MUST STAY */
-        Ints.toByteArray(typeBytes.length),
-        typeBytes,
-        Ints.toByteArray(cme.methodName.getBytes.length),
-        Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-        Ints.toByteArray(cme.contractBox.bytes.length),
-        cme.methodName.getBytes,
-        cme.parameters.noSpaces.getBytes,
-        cme.contractBox.bytes,
-        ContractTransactionCompanion.commonToBytes(cme)
+    Bytes.concat(
+      /* First two arguments MUST STAY */
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Ints.toByteArray(cme.methodName.getBytes.length),
+      Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
+      Ints.toByteArray(cme.contractBox.bytes.length),
+      cme.methodName.getBytes,
+      cme.parameters.noSpaces.getBytes,
+      cme.contractBox.bytes,
+      ContractTransactionCompanion.commonToBytes(cme)
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractMethodExecution] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
     val Array(methodNameLength: Int, parameterJsonLength: Int, contractBoxLength: Int) = (0 until 3).map { i =>
-      Ints.fromByteArray(bytesWithoutType.slice(i*Ints.BYTES, (i + 1)*Ints.BYTES))
+      Ints.fromByteArray(bytesWithoutType.slice(i * Ints.BYTES, (i + 1) * Ints.BYTES))
     }.toArray
 
-    numReadBytes = 3*Ints.BYTES
+    numReadBytes = 3 * Ints.BYTES
 
     val methodName = new String(bytesWithoutType.slice(numReadBytes, numReadBytes + methodNameLength))
 
     numReadBytes += methodNameLength
 
-    val parameters: Json = parse(new String(bytesWithoutType.slice(numReadBytes, numReadBytes + parameterJsonLength))) match {
+    val parameters: Json = parse(new String(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + parameterJsonLength))) match {
       case Left(f) => throw f
       case Right(j: Json) => j
     }
 
     numReadBytes += parameterJsonLength
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + contractBoxLength)).get
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + contractBoxLength))
+      .get
 
     numReadBytes += contractBoxLength
 
@@ -365,7 +392,8 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
-    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
+      bytesWithoutType.length))
 
     ContractMethodExecution(contractBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp)
   }
@@ -395,20 +423,22 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
   override def parseBytes(bytes: Array[Byte]): Try[ContractCompletion] = Try {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
 
     val Array(reputationLength: Int, contractBoxLength: Int) = (0 until 2).map { i =>
-      Ints.fromByteArray(bytesWithoutType.slice(i*Ints.BYTES, (i + 1)*Ints.BYTES))
+      Ints.fromByteArray(bytesWithoutType.slice(i * Ints.BYTES, (i + 1) * Ints.BYTES))
     }.toArray
 
-    numReadBytes = 2*Ints.BYTES
+    numReadBytes = 2 * Ints.BYTES
 
-    numReadBytes += reputationLength*(Constants25519.PubKeyLength + Longs.BYTES + 2*Doubles.BYTES)
+    numReadBytes += reputationLength * (Constants25519.PubKeyLength + Longs.BYTES + 2 * Doubles.BYTES)
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes, numReadBytes + contractBoxLength)).get
+    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + contractBoxLength))
+      .get
 
     numReadBytes += contractBoxLength
 
@@ -416,7 +446,8 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
-    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes, bytesWithoutType.length))
+    timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
+      bytesWithoutType.length))
 
     ContractCompletion(contractBox, parties, signatures, feePreBoxes, fees, timestamp)
   }
@@ -432,7 +463,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
     var i = 0
     var res = 0.toLong
     for (i <- 0 to 7) {
-      res +=  ((x(i) & 0xff).toLong << ((7 - i) * 8))
+      res += ((x(i) & 0xff).toLong << ((7 - i) * 8))
     }
     java.lang.Double.longBitsToDouble(res)
   }
@@ -458,7 +489,7 @@ object AgreementCompanion extends Serializer[Agreement] {
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    var numBytesRead = 2*Longs.BYTES
+    var numBytesRead = 2 * Longs.BYTES
 
     val numStrBytes = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
 
@@ -496,30 +527,30 @@ object AgreementCompanion extends Serializer[Agreement] {
 
 trait TransferSerializer {
   def transferToBytes(tx: TransferTransaction, txType: String): Array[Byte] = {
-      val typeBytes = txType.getBytes
-    
-      Bytes.concat(
-        Ints.toByteArray(typeBytes.length),
-        typeBytes,
-        Longs.toByteArray(tx.fee),
-        Longs.toByteArray(tx.timestamp),
-        Ints.toByteArray(tx.signatures.length),
-        Ints.toByteArray(tx.from.length),
-        Ints.toByteArray(tx.to.length),
-        tx.signatures.foldLeft(Array[Byte]())((a,b) => a ++ b.bytes),
-        tx.from.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
-        tx.to.foldLeft(Array[Byte]())((a,b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
-      )
+    val typeBytes = txType.getBytes
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(tx.fee),
+      Longs.toByteArray(tx.timestamp),
+      Ints.toByteArray(tx.signatures.length),
+      Ints.toByteArray(tx.from.length),
+      Ints.toByteArray(tx.to.length),
+      tx.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+      tx.from.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
+      tx.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+    )
   }
-  
+
   def conversionToBytes(ct: ConversionTransaction, txType: String): Array[Byte] = {
     val typeBytes = txType.getBytes
-    
+
     // concatenate map keys to reduce size when assetCodes are the same
     val keySeq = (ct.totalAssetBoxes.keySet ++ ct.assetsToReturn.keySet ++
       ct.assetTokensToRedeem.keySet ++ ct.conversionSignatures.keySet).toSeq.zipWithIndex
     val keyMapping: Map[(String, PublicKey25519Proposition), Int] = keySeq.toMap
-    
+
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
@@ -530,63 +561,69 @@ trait TransferSerializer {
       Ints.toByteArray(ct.assetTokensToRedeem.size),
       Ints.toByteArray(ct.conversionSignatures.size),
       Ints.toByteArray(keyMapping.size),
-      keySeq.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(b._1._1.getBytes.length) ++ b._1._1.getBytes ++ b._1._2.pubKeyBytes),
-      ct.totalAssetBoxes.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
-        Ints.toByteArray(b._2.length) ++ b._2.flatMap(totAssets => totAssets._1.pubKeyBytes ++ Longs.toByteArray(totAssets._2))
+      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1._1.getBytes.length) ++ b._1._1.getBytes ++ b
+        ._1._2.pubKeyBytes),
+      ct.totalAssetBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(totAssets => totAssets._1.pubKeyBytes ++ Longs.toByteArray(
+        totAssets._2))
       ),
-      ct.assetsToReturn.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
-        Ints.toByteArray(b._2.length) ++ b._2.flatMap(assetReturn => assetReturn._1.pubKeyBytes ++ Longs.toByteArray(assetReturn._2))
+      ct.assetsToReturn.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(assetReturn => assetReturn._1.pubKeyBytes ++ Longs.toByteArray(
+        assetReturn._2))
       ),
-      ct.assetTokensToRedeem.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
-        Ints.toByteArray(b._2.length) ++ b._2.flatMap(assetRedeem => assetRedeem._1.pubKeyBytes ++ Longs.toByteArray(assetRedeem._2))
+      ct.assetTokensToRedeem.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(assetRedeem => assetRedeem._1.pubKeyBytes ++ Longs.toByteArray(
+        assetRedeem._2))
       ),
-      ct.conversionSignatures.foldLeft(Array[Byte]())((a,b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
+      ct.conversionSignatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
       )
     )
   }
 
   def parametersParseBytes(bytes: Array[Byte]): (IndexedSeq[(PublicKey25519Proposition, Long)],
-                                                 IndexedSeq[(PublicKey25519Proposition, Long)],
-                                                 IndexedSeq[Signature25519], Long, Long) = {
+    IndexedSeq[(PublicKey25519Proposition, Long)],
+    IndexedSeq[Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     var numBytesRead = Ints.BYTES + typeLength
 
     val fee = Longs.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Longs.BYTES))
-    val timestamp = Longs.fromByteArray(bytes.slice(numBytesRead + Longs.BYTES, numBytesRead + 2*Longs.BYTES))
-    val sigLength = Ints.fromByteArray(bytes.slice( numBytesRead + 2*Longs.BYTES, numBytesRead + 2*Longs.BYTES + Ints.BYTES))
+    val timestamp = Longs.fromByteArray(bytes.slice(numBytesRead + Longs.BYTES, numBytesRead + 2 * Longs.BYTES))
+    val sigLength = Ints.fromByteArray(bytes.slice(numBytesRead + 2 * Longs.BYTES,
+      numBytesRead + 2 * Longs.BYTES + Ints.BYTES))
 
-    numBytesRead += 2*Longs.BYTES + Ints.BYTES
+    numBytesRead += 2 * Longs.BYTES + Ints.BYTES
 
     val fromLength = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
-    val toLength = Ints.fromByteArray(bytes.slice(numBytesRead + Ints.BYTES, numBytesRead + 2*Ints.BYTES))
+    val toLength = Ints.fromByteArray(bytes.slice(numBytesRead + Ints.BYTES, numBytesRead + 2 * Ints.BYTES))
 
-    numBytesRead += 2*Ints.BYTES
+    numBytesRead += 2 * Ints.BYTES
 
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(numBytesRead + i * Curve25519.SignatureLength, numBytesRead + (i + 1) * Curve25519.SignatureLength))
+      Signature25519(bytes.slice(numBytesRead + i * Curve25519.SignatureLength,
+        numBytesRead + (i + 1) * Curve25519.SignatureLength))
     }
 
-    numBytesRead += sigLength*Curve25519.SignatureLength
+    numBytesRead += sigLength * Curve25519.SignatureLength
 
     val elementLength = Longs.BYTES + Curve25519.KeyLength
 
     val from = (0 until fromLength) map { i =>
-      val pk = bytes.slice(numBytesRead + i*elementLength, numBytesRead + (i + 1)*elementLength - Longs.BYTES)
+      val pk = bytes.slice(numBytesRead + i * elementLength, numBytesRead + (i + 1) * elementLength - Longs.BYTES)
       val nonce = Longs.fromByteArray(
-        bytes.slice(numBytesRead + (i + 1)*elementLength - Longs.BYTES, numBytesRead + (i + 1)*elementLength)
+        bytes.slice(numBytesRead + (i + 1) * elementLength - Longs.BYTES, numBytesRead + (i + 1) * elementLength)
       )
       (PublicKey25519Proposition(pk), nonce)
     }
 
     numBytesRead += fromLength * elementLength
     val to = (0 until toLength) map { i =>
-      val pk = bytes.slice(numBytesRead + i*elementLength, numBytesRead + (i + 1)*elementLength - Longs.BYTES)
+      val pk = bytes.slice(numBytesRead + i * elementLength, numBytesRead + (i + 1) * elementLength - Longs.BYTES)
       val v = Longs.fromByteArray(
-        bytes.slice(numBytesRead + (i + 1)*elementLength - Longs.BYTES, numBytesRead + (i + 1) * elementLength)
+        bytes.slice(numBytesRead + (i + 1) * elementLength - Longs.BYTES, numBytesRead + (i + 1) * elementLength)
       )
       (PublicKey25519Proposition(pk), v)
     }
@@ -631,7 +668,8 @@ object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSer
       bytes.slice(bytes.length - Ints.BYTES - assetCodeLen, bytes.length - Ints.BYTES)
     )
     val hub: PublicKey25519Proposition = PublicKey25519Proposition(
-      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Constants25519.PubKeyLength, bytes.length - Ints.BYTES - assetCodeLen)
+      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Constants25519.PubKeyLength,
+        bytes.length - Ints.BYTES - assetCodeLen)
     )
 
     AssetTransfer(params._1, params._2, params._3, hub, assetCode, params._4, params._5)
@@ -665,7 +703,7 @@ object TokenExchangeTransactionCompanion extends Serializer[TokenExchangeTransac
 
   override def parseBytes(bytes: Array[Byte]): Try[TokenExchangeTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numBytesRead = Ints.BYTES + typeLength
 
     val txData = TokenExchangeTxData.parseFrom(bytes.slice(numBytesRead, bytes.length))
@@ -678,7 +716,8 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
     val typeBytes = "AssetRedemption".getBytes
 
     // Used to reduce overall size in the default case where assetcodes are the same across multiple maps
-    val keySeq = (ac.signatures.keySet ++ ac.availableToRedeem.keySet ++ ac.remainderAllocations.keySet).toSeq.zipWithIndex
+    val keySeq = (ac.signatures.keySet ++ ac.availableToRedeem.keySet ++ ac.remainderAllocations.keySet).toSeq
+      .zipWithIndex
     val keyMapping: Map[String, Int] = keySeq.toMap
 
     Bytes.concat(
@@ -707,24 +746,26 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[AssetRedemption] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
 
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
-      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+      Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    numReadBytes = 2*Longs.BYTES
+    numReadBytes = 2 * Longs.BYTES
 
-    val Array(sigLength: Int, availableToRedeemLength: Int, amountsLength: Int, keyMappingSize: Int) = (0 until 4).map { i =>
-      Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+    val Array(sigLength: Int, availableToRedeemLength: Int, amountsLength: Int, keyMappingSize: Int) = (0 until 4).map {
+      i =>
+        Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i * Ints.BYTES, numReadBytes + (i + 1) * Ints.BYTES))
     }.toArray
 
-    numReadBytes += 4*Ints.BYTES
+    numReadBytes += 4 * Ints.BYTES
 
-    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
+    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + Constants25519.PubKeyLength))
 
     numReadBytes += Constants25519.PubKeyLength
 
@@ -738,81 +779,86 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
 
     val signatures: Map[String, IndexedSeq[Signature25519]] = (0 until sigLength).map { i =>
 
-      val assetId:String = keyMapping(Ints.fromByteArray(
+      val assetId: String = keyMapping(Ints.fromByteArray(
         bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)
       ))
 
       val numSigs = Ints.fromByteArray(
-        bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES)
+        bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES)
       )
 
       val sigs: IndexedSeq[Signature25519] = (0 until numSigs).map { j =>
         Signature25519(
           bytesWithoutType.slice(
-            numReadBytes + j*Curve25519.SignatureLength + 2*Ints.BYTES,
-            numReadBytes + (j + 1)*Curve25519.SignatureLength  + 2*Ints.BYTES
+            numReadBytes + j * Curve25519.SignatureLength + 2 * Ints.BYTES,
+            numReadBytes + (j + 1) * Curve25519.SignatureLength + 2 * Ints.BYTES
           )
         )
       }
 
-      numReadBytes += 2*Ints.BYTES + numSigs*Curve25519.SignatureLength
+      numReadBytes += 2 * Ints.BYTES + numSigs * Curve25519.SignatureLength
       assetId -> sigs
     }.toMap
 
-    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = (0 until availableToRedeemLength).map { _ =>
-      var bytesSoFar = 0
-      val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
+    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = (0 until availableToRedeemLength)
+      .map { _ =>
+        var bytesSoFar = 0
+        val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
 
-      bytesSoFar = Ints.BYTES
+        bytesSoFar = Ints.BYTES
 
-      val boxesLength = Ints.fromByteArray(
-        bytesWithoutType.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES)
-      )
+        val boxesLength = Ints.fromByteArray(
+          bytesWithoutType.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES)
+        )
 
-      bytesSoFar += Ints.BYTES
+        bytesSoFar += Ints.BYTES
 
-      val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
+        val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
 
-      val boxes: IndexedSeq[(PublicKey25519Proposition, Nonce)] =  (0 until boxesLength).map { j =>
-        val prop = PublicKey25519Proposition(
-          bytesWithoutType.slice(
-            numReadBytes + bytesSoFar + j*chunkSize,
-            numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
+        val boxes: IndexedSeq[(PublicKey25519Proposition, Nonce)] = (0 until boxesLength).map { j =>
+          val prop = PublicKey25519Proposition(
+            bytesWithoutType.slice(
+              numReadBytes + bytesSoFar + j * chunkSize,
+              numReadBytes + bytesSoFar + j * chunkSize + Constants25519.PubKeyLength
+            )
           )
-        )
 
-        val nonceStart = numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
-        val nonce = Longs.fromByteArray(bytesWithoutType.slice(nonceStart, nonceStart + Longs.BYTES))
+          val nonceStart = numReadBytes + bytesSoFar + j * chunkSize + Constants25519.PubKeyLength
+          val nonce = Longs.fromByteArray(bytesWithoutType.slice(nonceStart, nonceStart + Longs.BYTES))
 
-        prop -> nonce
-      }
+          prop -> nonce
+        }
 
-      bytesSoFar += boxesLength*chunkSize
-      numReadBytes += bytesSoFar
+        bytesSoFar += boxesLength * chunkSize
+        numReadBytes += bytesSoFar
 
-      assetId -> boxes
-    }.toMap
+        assetId -> boxes
+      }.toMap
 
-    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = (0 until amountsLength).map { _ =>
-      val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
+    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = (0 until amountsLength).map {
+      _ =>
+        val assetId = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
 
-      val allocationLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
+        val allocationLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + Ints.BYTES,
+          numReadBytes + 2 * Ints.BYTES))
 
-      val startPosition = numReadBytes + 2*Ints.BYTES
-      val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
+        val startPosition = numReadBytes + 2 * Ints.BYTES
+        val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
 
-      val allocationSeq: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until allocationLength).map { i =>
-        val prop = PublicKey25519Proposition(
-          bytesWithoutType.slice(startPosition + i*chunkSize, startPosition + i*chunkSize + Constants25519.PubKeyLength)
-        )
-        val amount = Longs.fromByteArray(
-          bytesWithoutType.slice(startPosition + i*chunkSize + Constants25519.PubKeyLength, startPosition + (i + 1)*chunkSize)
-        )
-        prop -> amount
-      }
+        val allocationSeq: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until allocationLength).map { i =>
+          val prop = PublicKey25519Proposition(
+            bytesWithoutType.slice(startPosition + i * chunkSize,
+              startPosition + i * chunkSize + Constants25519.PubKeyLength)
+          )
+          val amount = Longs.fromByteArray(
+            bytesWithoutType.slice(startPosition + i * chunkSize + Constants25519.PubKeyLength,
+              startPosition + (i + 1) * chunkSize)
+          )
+          prop -> amount
+        }
 
-      numReadBytes += 2*Ints.BYTES + allocationLength*chunkSize
-      assetId -> allocationSeq
+        numReadBytes += 2 * Ints.BYTES + allocationLength * chunkSize
+        assetId -> allocationSeq
     }.toMap
 
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
@@ -820,166 +866,171 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
 }
 
 object ConversionTransactionCompanion extends Serializer[ConversionTransaction] with TransferSerializer {
-  
+
   override def toBytes(ct: ConversionTransaction): Array[Byte] = {
     conversionToBytes(ct, "ConversionTransaction")
   }
+
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[ConversionTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES,  Ints.BYTES + typeLength))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
-    
+
     //read in byte stream to array for fee and timestamp
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
-      Longs.fromByteArray(bytesWithoutType.slice(i*Longs.BYTES, (i + 1)*Longs.BYTES))
+      Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
-    
-    numReadBytes = 2*Longs.BYTES
-    
-    val Array(totalAssetLength: Int, assetReturnLength: Int, assetRedeemLength: Int, sigLength: Int, keyMappingSize: Int) =
+
+    numReadBytes = 2 * Longs.BYTES
+
+    val Array(totalAssetLength: Int,
+    assetReturnLength: Int,
+    assetRedeemLength: Int,
+    sigLength: Int,
+    keyMappingSize: Int) =
       (0 until 5).map { i =>
-        Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i*Ints.BYTES, numReadBytes + (i + 1)*Ints.BYTES))
+        Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + i * Ints.BYTES, numReadBytes + (i + 1) * Ints.BYTES))
       }.toArray
-    
-    numReadBytes += 5*Ints.BYTES
-    
+
+    numReadBytes += 5 * Ints.BYTES
+
     val keyMapping: Map[Int, (String, PublicKey25519Proposition)] = (0 until keyMappingSize).map { i =>
       val ahLen = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
       val asset = new String(bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + ahLen))
-      
+
       numReadBytes += Ints.BYTES + ahLen
-      
+
       val hub = PublicKey25519Proposition(
         bytesWithoutType.slice(
           numReadBytes,
           numReadBytes + Constants25519.PubKeyLength
         )
       )
-      
+
       numReadBytes += Constants25519.PubKeyLength
-      
+
       i -> (asset, hub)
     }.toMap
-    
+
     val totalAssets: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]] =
       (0 until totalAssetLength).map { _ =>
         var bytesSoFar = 0
         val assetHub = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
-        
+
         bytesSoFar = Ints.BYTES
-        
+
         val boxesLength = Ints.fromByteArray(
           bytesWithoutType.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES)
         )
-        
+
         bytesSoFar += Ints.BYTES
-        
+
         val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
-        
+
         val boxes: IndexedSeq[(PublicKey25519Proposition, Nonce)] = (0 until boxesLength).map { j =>
           val prop = PublicKey25519Proposition(
             bytesWithoutType.slice(
-              numReadBytes + bytesSoFar + j*chunkSize,
-              numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
+              numReadBytes + bytesSoFar + j * chunkSize,
+              numReadBytes + bytesSoFar + j * chunkSize + Constants25519.PubKeyLength
             )
           )
-          
-          val nonceStart = numReadBytes + bytesSoFar + j*chunkSize + Constants25519.PubKeyLength
+
+          val nonceStart = numReadBytes + bytesSoFar + j * chunkSize + Constants25519.PubKeyLength
           val nonce = Longs.fromByteArray(bytesWithoutType.slice(nonceStart, nonceStart + Longs.BYTES))
-          
+
           prop -> nonce
         }
-        
-        bytesSoFar += boxesLength*chunkSize
+
+        bytesSoFar += boxesLength * chunkSize
         numReadBytes += bytesSoFar
-        
+
         assetHub -> boxes
       }.toMap
-    
+
     val assetReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
       (0 until assetReturnLength).map { _ =>
         val assetHub = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
-        
+
         val retLength = Ints.fromByteArray(bytesWithoutType.slice(
-          numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
-        
-        val startPosition = numReadBytes + 2*Ints.BYTES
+          numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES))
+
+        val startPosition = numReadBytes + 2 * Ints.BYTES
         val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
-        
+
         val retSeq: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until retLength).map { i =>
           val prop = PublicKey25519Proposition(
             bytesWithoutType.slice(
-              startPosition + i*chunkSize,
-              startPosition + i*chunkSize + Constants25519.PubKeyLength)
+              startPosition + i * chunkSize,
+              startPosition + i * chunkSize + Constants25519.PubKeyLength)
           )
-          
+
           val amount = Longs.fromByteArray(
             bytesWithoutType.slice(
-              startPosition + i*chunkSize + Constants25519.PubKeyLength,
-              startPosition + (i + 1)*chunkSize)
+              startPosition + i * chunkSize + Constants25519.PubKeyLength,
+              startPosition + (i + 1) * chunkSize)
           )
-          
+
           prop -> amount
         }
-  
-        numReadBytes += 2*Ints.BYTES + retLength*chunkSize
+
+        numReadBytes += 2 * Ints.BYTES + retLength * chunkSize
         assetHub -> retSeq
       }.toMap
-    
+
     val assetRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
       (0 until assetRedeemLength).map { _ =>
         val assetHub = keyMapping(Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
-    
+
         val redeemLength = Ints.fromByteArray(bytesWithoutType.slice(
-          numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES))
-    
-        val startPosition = numReadBytes + 2*Ints.BYTES
+          numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES))
+
+        val startPosition = numReadBytes + 2 * Ints.BYTES
         val chunkSize = Constants25519.PubKeyLength + Longs.BYTES
-    
+
         val redeemSeq: IndexedSeq[(PublicKey25519Proposition, Long)] = (0 until redeemLength).map { i =>
           val prop = PublicKey25519Proposition(
             bytesWithoutType.slice(
-              startPosition + i*chunkSize,
-              startPosition + i*chunkSize + Constants25519.PubKeyLength)
+              startPosition + i * chunkSize,
+              startPosition + i * chunkSize + Constants25519.PubKeyLength)
           )
-      
+
           val amount = Longs.fromByteArray(
             bytesWithoutType.slice(
-              startPosition + i*chunkSize + Constants25519.PubKeyLength,
-              startPosition + (i + 1)*chunkSize)
+              startPosition + i * chunkSize + Constants25519.PubKeyLength,
+              startPosition + (i + 1) * chunkSize)
           )
-      
+
           prop -> amount
         }
-    
-        numReadBytes += 2*Ints.BYTES + redeemLength*chunkSize
+
+        numReadBytes += 2 * Ints.BYTES + redeemLength * chunkSize
         assetHub -> redeemSeq
       }.toMap
-    
+
     val signatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]] =
       (0 until sigLength).map { _ =>
         val assetHub = keyMapping(Ints.fromByteArray(
           bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES)))
-        
+
         val numSigs = Ints.fromByteArray(
-          bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2*Ints.BYTES)
+          bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES)
         )
-        
+
         val sigs: IndexedSeq[Signature25519] = (0 until numSigs).map { j =>
           Signature25519(
             bytesWithoutType.slice(
-              numReadBytes + j*Curve25519.SignatureLength + 2*Ints.BYTES,
-              numReadBytes + (j + 1)*Curve25519.SignatureLength + 2*Ints.BYTES
+              numReadBytes + j * Curve25519.SignatureLength + 2 * Ints.BYTES,
+              numReadBytes + (j + 1) * Curve25519.SignatureLength + 2 * Ints.BYTES
             )
           )
         }
-        
-        numReadBytes += 2*Ints.BYTES + numSigs*Curve25519.SignatureLength
+
+        numReadBytes += 2 * Ints.BYTES + numSigs * Curve25519.SignatureLength
         assetHub -> sigs
       }.toMap
-    
+
     ConversionTransaction(totalAssets, assetReturn, assetRedeem, signatures, fee, timestamp)
   }
 }

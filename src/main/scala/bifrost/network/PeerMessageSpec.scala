@@ -1,11 +1,9 @@
 package bifrost.network
 
-import com.google.protobuf.GeneratedMessage
 import scorex.core.network.message.Message.MessageCode
 import scorex.core.network.message.MessageSpec
-import scorex.core.serialization.BytesSerializable
 import scorex.crypto.hash.Keccak256
-import serializer.{PeerMessage, ProducerProposal}
+import serializer.PeerMessage
 
 import scala.util.Try
 

@@ -1,28 +1,21 @@
 package bifrost
 
-import java.time.Instant
-
-import bifrost.contract.Contract.Status
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
-import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.transaction.BifrostTransaction.Nonce
+import bifrost.transaction.Role.Role
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
-import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.Json
+import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.crypto.encode.Base58
-import io.circe.syntax._
-import org.scalatest.Fact
 import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.BoxUnlocker
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.{Proof, Signature25519}
+import scorex.core.transaction.proof.Signature25519
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random, Success, Try}
@@ -34,17 +27,16 @@ trait ValidGenerators extends BifrostGenerators {
 
   val validStatuses: List[Status] = Contract.Status.values.toList
 
+  private val POSSIBLE_ROLES = Seq(Role.Producer, Role.Investor, Role.Hub)
+
   lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
-  } yield 0 until seqLen map {
-    _ => {
-      val g = Gen.oneOf(transactionTypes :+ contractCompletionGen).sample.get
-
-      var sampled = g.sample
-
-      while(sampled.isEmpty) sampled = g.sample
-
-      sampled.get
+  } yield {
+    0 until seqLen map {
+      _ => {
+        val g: Gen[BifrostTransaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
+        sampleUntilNonEmpty(g)
+      }
     }
   }
 
@@ -56,103 +48,132 @@ trait ValidGenerators extends BifrostGenerators {
     status <- Gen.oneOf(validStatuses)
     agreement <- validAgreementGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
-  } yield Contract(Map(
-    "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
-    "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
-    "agreement" -> agreement,
-    "lastUpdated" -> System.currentTimeMillis().asJson
-  ).asJson, id)
+  } yield {
+    Contract(Map(
+      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
+      "agreement" -> agreement,
+      "lastUpdated" -> System.currentTimeMillis().asJson
+    ).asJson, id)
+  }
 
   lazy val validContractCreationGen: Gen[ContractCreation] = for {
     agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
-  } yield Try{
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
-    val roles = List(Role.Investor, Role.Producer, Role.Hub)
+  } yield {
+    Try {
+      val allKeyPairs = (0 until 3).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
+      val parties = allKeyPairs.map(_._2)
 
-    val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
-      positiveLongGen.sample.get -> (positiveLongGen.sample.get/1e5.toLong + 1L)
-    }
+      val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes)
+        .map { _ =>
+          sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
+        }
 
-    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
+      val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
+        .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-      val sum = Gen.choose(0L, Long.MaxValue).sample.get
+      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
+        val sum = sampleUntilNonEmpty(Gen.choose(0L, Long.MaxValue))
 
-      splitAmongN(sum, parties.length, minShareSize = 0) match {
-        case Success(shares) => parties.zip(shares).map { case (party, share) =>
-          party -> (splitAmongN(share, positiveTinyIntGen.sample.get, minShareSize = 0) match {
-            case Success(boxAmounts) => boxAmounts
-            case f: Failure[_] => throw f.exception
-          }).map { boxAmount => preFeeBoxGen(boxAmount, boxAmount).sample.get }.toIndexedSeq
-        }.toMap
+        splitAmongN(sum, parties.length, minShareSize = 0) match {
+          case Success(shares) => parties
+            .zip(shares)
+            .map {
+              case (party, share) =>
+                party -> (splitAmongN(share, sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
+                  case Success(boxAmounts) => boxAmounts
+                  case f: Failure[_] => throw f.exception
+                })
+                  .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
+                  .toIndexedSeq
+            }
+            .toMap
 
-        case f: Failure[_] => println("Split amongst n exception."); throw f.exception
+          case f: Failure[_] => throw f.exception
+        }
       }
-    }
 
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
-      v.map {
-        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+      val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+        .flatMap { case (prop, v) =>
+          v.map {
+            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+          }
+        }
+
+      val fees = feePreBoxes.map { case (prop, preBoxes) =>
+        prop -> preBoxes.map(_._2).sum
       }
+
+      val messageToSign = Bytes.concat(
+        AgreementCompanion.toBytes(agreement),
+        POSSIBLE_ROLES.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+        (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
+      )
+
+      val signatures = allKeyPairs.map {
+        keypair =>
+          val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
+          (keypair._2, sig)
+      }
+
+      ContractCreation(
+        agreement,
+        preInvestmentBoxes,
+        POSSIBLE_ROLES.zip(parties),
+        signatures.toMap,
+        feePreBoxes,
+        fees,
+        timestamp
+      )
+    } match {
+      case Success(s) => s
+      case Failure(e) => println("FAIL"); throw e
     }
-
-    val fees = feePreBoxes.map { case (prop, preBoxes) =>
-      prop -> preBoxes.map(_._2).sum
-    }
-
-    val messageToSign = Bytes.concat(
-      AgreementCompanion.toBytes(agreement),
-      roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
-      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
-    )
-
-    val signatures = allKeyPairs.map{
-      keypair =>
-        val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
-        (keypair._2, sig)
-    }
-
-    ContractCreation(
-      agreement,
-      preInvestmentBoxes,
-      roles.zip(parties),
-      signatures.toMap,
-      feePreBoxes,
-      fees,
-      timestamp
-    )
-  } match {
-    case Success(s) => s
-    case Failure(e) => println("FAIL"); throw e
   }
 
-  lazy val validContractMethods: List[String] = List("endorseCompletion", "currentStatus", "deliver", "confirmDelivery", "checkExpiration")
+  lazy val validContractMethods: List[String] = List("endorseCompletion",
+    "currentStatus",
+    "deliver",
+    "confirmDelivery",
+    "checkExpiration")
 
   def createContractBox(agreement: Agreement, parties: Seq[(Role.Role, PublicKey25519Proposition)]): ContractBox = {
 
-    val contract = Contract(Map(
-      "parties" -> parties.map(_._2).map(_.pubKeyBytes).asJson,
+    val roles = parties
+      .indices
+      .map(_ => Random.shuffle(POSSIBLE_ROLES).head)
+
+    val partiesAndRoles = parties
+      .map(_._2)
+      .map(_.pubKeyBytes)
+      .map(Base58.encode)
+      .zip(roles.map(_.toString))
+      .toMap
+
+    val contractJson = Map(
+      "parties" -> partiesAndRoles.asJson,
       "agreement" -> agreement.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
-    ).asJson, genBytesList(FastCryptographicHash.DigestSize).sample.get)
+    ).asJson
+
+    val contract = Contract(contractJson, sampleUntilNonEmpty(genBytesList(FastCryptographicHash.DigestSize)))
 
     val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
-    ContractBox(proposition, positiveLongGen.sample.get, contract.json)
+    ContractBox(proposition, sampleUntilNonEmpty(positiveLongGen), contract.json)
   }
 
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
   } yield {
-    val nrOfParties = Random.nextInt(1022) + 2;
-    val allKeyPairs = (0 until nrOfParties).map(_ => keyPairSetGen.sample.get.head)
+    val nrOfParties = Random.nextInt(1022) + 2
+    val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
     val parties = allKeyPairs.map(_._2)
-    val roles = (0 until nrOfParties).map(_ => Random.shuffle(Seq(Role.Producer, Role.Investor , Role.Hub)).head )
+    val roles = (0 until nrOfParties).map(_ => Random.shuffle(POSSIBLE_ROLES).head)
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
     var agreementOpt = validAgreementGen().sample
@@ -161,25 +182,42 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(agreement, roles.zip(parties))
 
-    val methodName = Gen.oneOf(agreement.core.registry.keys.toSeq).sample.get
+    val methodName = sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 
-    val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor , Role.Hub).zip(allKeyPairs)).sample.get
+    val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
+      sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
 
-    val feePreBoxes = Map(sender._2._2 -> (splitAmongN(positiveLongGen.sample.get, positiveTinyIntGen.sample.get, minShareSize = 0) match {
-      case Success(boxAmounts) => boxAmounts
+    val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
+      sampleUntilNonEmpty(positiveTinyIntGen),
+      minShareSize = 0) match {
+      case Success(amounts) => amounts
       case f: Failure[_] => throw f.exception
-    }).map { boxAmount => preFeeBoxGen(boxAmount, boxAmount).sample.get }.toIndexedSeq)
-
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
-      v.map {
-        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-      }
     }
+
+    val feeBoxes: Seq[(Nonce, Long)] = boxAmounts
+      .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
+
+    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
+      Map(sender._2._2 -> feeBoxes.toIndexedSeq)
+
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+      .flatMap {
+        case (prop, v) =>
+          v.map {
+            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+          }
+      }
 
     val senderFeePreBoxes = feePreBoxes(sender._2._2)
     val fees = Map(sender._2._2 -> senderFeePreBoxes.map(_._2).sum)
 
-    var parameters = agreement.core.registry.keys.map(k => k -> "".asJson).toMap.asJson
+    val parameters = agreement
+      .core
+      .registry
+      .keys
+      .map(k => k -> "".asJson)
+      .toMap
+      .asJson
 
     val hashNoNonces = FastCryptographicHash(
       contractBox.id ++
@@ -188,7 +226,7 @@ trait ValidGenerators extends BifrostGenerators {
         parameters.noSpaces.getBytes ++
         (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
         Longs.toByteArray(timestamp) ++
-        fees.flatMap{ case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+        fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
     val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
@@ -202,8 +240,7 @@ trait ValidGenerators extends BifrostGenerators {
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
-      timestamp
-    )
+      timestamp)
   }
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
@@ -213,46 +250,68 @@ trait ValidGenerators extends BifrostGenerators {
     numReputation <- positiveTinyIntGen
   } yield {
 
-    val nrOfParties = Random.nextInt(1022) + 2;
-    val allKeyPairs = (0 until nrOfParties).map(_ => keyPairSetGen.sample.get.head)
+    val nrOfParties = Random.nextInt(1022) + 2
+    val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
+
     val parties = allKeyPairs.map(_._2)
-    val roles = (0 until nrOfParties).map(_ => Random.shuffle(Seq(Role.Producer, Role.Investor , Role.Hub)).head )
+    val roles = (0 until nrOfParties)
+      .map(_ => Random
+        .shuffle(POSSIBLE_ROLES)
+        .head)
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = parties.map(p =>
-      Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)).asJson
-    ).toMap
+    val currentEndorsement = parties
+      .map(p => {
+        val hashedFulfillment = FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)
+        Base58.encode(p.pubKeyBytes) -> Base58.encode(hashedFulfillment).asJson
+      })
+      .toMap
 
-    val contractBox = createContractBox(agreement, roles.zip(parties))
+    val contractBox = createContractBox(agreement, POSSIBLE_ROLES.zip(parties))
 
-    val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
+    val contract = Contract(
+      contractBox
+        .json
+        .asObject
+        .flatMap(_("value"))
+        .get,
+      contractBox.id)
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-      val sum = positiveLongGen.sample.get
+      val sum = sampleUntilNonEmpty(positiveLongGen)
 
       splitAmongN(sum, parties.length, minShareSize = 0, maxShareSize = Long.MaxValue) match {
-        case Success(shares) => parties.zip(shares).map { case (party, share) =>
-          party -> (splitAmongN(share, positiveTinyIntGen.sample.get, minShareSize = 0) match {
-            case Success(boxAmounts) => boxAmounts
-            case f: Failure[_] => throw f.exception
-          }).map { boxAmount => preFeeBoxGen(boxAmount, boxAmount).sample.get }.toIndexedSeq
-        }.toMap
+        case Success(shares) => parties
+          .zip(shares)
+          .map {
+            case (party, share) =>
+              party -> (splitAmongN(share, sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
+                case Success(boxAmounts) => boxAmounts
+                case f: Failure[_] => throw f.exception
+              })
+                .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }.toIndexedSeq
+          }
+          .toMap
 
         case f: Failure[_] => throw f.exception
       }
     }
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq.flatMap { case (prop, v) =>
-      v.map {
-        case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes
+      .toIndexedSeq
+      .flatMap {
+        case (prop, v) =>
+          v.map {
+            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
+          }
       }
-    }
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
-    val reputation = (0 until numReputation).map(_ =>
-      ReputationBox(parties(roles.indexOf(Role.Producer)), Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
-    )
+    val reputation = (0 until numReputation)
+      .map(_ => ReputationBox(parties(roles.indexOf(Role.Producer)),
+        sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
+        (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
 
     val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
@@ -260,14 +319,17 @@ trait ValidGenerators extends BifrostGenerators {
     }
 
     val messageToSign = FastCryptographicHash(
-      contractBox.id ++
-        roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
-        boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
-        Longs.toByteArray(contract.lastUpdated) ++
-        fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+      contractBox.id
+        ++ roles
+        .zip(parties)
+        .sortBy(_._1)
+        .foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
+        ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
+        ++ Longs.toByteArray(contract.lastUpdated)
+        ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
 
-    val signatures = allKeyPairs.map{
+    val signatures = allKeyPairs.map {
       keypair =>
         val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
         (keypair._2, sig)
@@ -279,8 +341,7 @@ trait ValidGenerators extends BifrostGenerators {
       signatures.toMap,
       feePreBoxes,
       fees,
-      timestamp
-    )
+      timestamp)
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
@@ -289,9 +350,9 @@ trait ValidGenerators extends BifrostGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
-    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
-    val toKeyPairs = keyPairSetGen.sample.get.head
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     PolyTransfer(from, to, fee, timestamp)
@@ -303,9 +364,9 @@ trait ValidGenerators extends BifrostGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
-    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
-    val toKeyPairs = keyPairSetGen.sample.get.head
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     ArbitTransfer(from, to, fee, timestamp)
@@ -319,9 +380,9 @@ trait ValidGenerators extends BifrostGenerators {
     hub <- propositionGen
     assetCode <- stringGen
   } yield {
-    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
-    val toKeyPairs = keyPairSetGen.sample.get.head
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     AssetTransfer(from, to, hub, assetCode, fee, timestamp)
@@ -335,9 +396,11 @@ trait ValidGenerators extends BifrostGenerators {
     val keyValues = Map(
       "role" -> ProfileBox.acceptableRoleValues.toVector(rnd.nextInt(ProfileBox.acceptableRoleValues.size))
     )
-    val fromKeyPairs = keyPairSetGen.sample.get.head
+    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = fromKeyPairs._2
-    val signature = PrivateKey25519Companion.sign(fromKeyPairs._1, ProfileTransaction.messageToSign(timestamp, from, keyValues))
+    val signature = PrivateKey25519Companion
+      .sign(fromKeyPairs._1, ProfileTransaction.messageToSign(timestamp, from, keyValues))
+
     ProfileTransaction(from, signature, keyValues, fee, timestamp)
   }
 
@@ -348,25 +411,46 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
   } yield {
 
-    val assets = (0 until assetLength).map { _ => stringGen.sample.get }
+    val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
 
-    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen.sample.get.map(kp => kp._2 -> kp._1).toIndexedSeq
-    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = assets.map(_ -> (0 until positiveTinyIntGen.sample.get).map { _ =>
-      Gen.oneOf(fromKeyPairs).sample.get._1 -> Gen.choose(Long.MinValue, Long.MaxValue).sample.get
-    }).toMap
+    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen
+      .sample
+      .get
+      .map(kp => kp._2 -> kp._1)
+      .toIndexedSeq
 
-    val toKeyPairs = keyPairSetGen.sample.get.toIndexedSeq
-    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = assets.map(_ -> (0 until positiveTinyIntGen.sample.get).map { _ =>
-      Gen.oneOf(toKeyPairs).sample.get._2 -> positiveMediumIntGen.sample.get.toLong
-    }).toMap
+    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = assets
+      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
+        .map { _ =>
+          sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
+            sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue))
+        })
+      .toMap
 
-    val dummySigs = availableToRedeem.map(entry => entry._1 -> entry._2.map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))) )
+    val toKeyPairs = keyPairSetGen
+      .sample
+      .get
+      .toIndexedSeq
+
+    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = assets
+      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
+        .map { _ =>
+          sampleUntilNonEmpty(Gen.oneOf(toKeyPairs))._2 -> sampleUntilNonEmpty(positiveMediumIntGen).toLong
+        })
+      .toMap
+
+    val dummySigs = availableToRedeem
+      .map(entry => entry._1 -> entry._2
+        .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
+
     val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp)
 
     val fromKeyMap = fromKeyPairs.toMap
-    val signatures = availableToRedeem.map { case (assetId, boxes) =>
-      assetId -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign) )
-    }
+    val signatures = availableToRedeem
+      .map {
+        case (assetId, boxes) =>
+          assetId -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
+      }
 
     dummyTx.copy(signatures = signatures)
   }
@@ -376,35 +460,60 @@ trait ValidGenerators extends BifrostGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
-    val assets = (0 until assetLength).map {_ => stringGen.sample.get}
+    val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
     val assetHubPairs: Map[String, PublicKey25519Proposition] = assets.map(
-      _ -> propositionGen.sample.get
+      _ -> sampleUntilNonEmpty(propositionGen)
     ).toMap
-    
-    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen.sample.get.map(
-      kp => kp._2 -> kp._1).toIndexedSeq
+
+    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen
+      .sample
+      .get
+      .map(kp => kp._2 -> kp._1)
+      .toIndexedSeq
+
     val totalAssetBoxes: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]] =
-      assetHubPairs.map{_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> Gen.choose(Long.MinValue, Long.MaxValue).sample.get)}
-    
-    
+      assetHubPairs
+        .map {
+          _ ->
+            IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
+              sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)))
+        }
+
+
     val assetsToReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
-      assetHubPairs.map(_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> positiveMediumIntGen.sample.get.toLong))
-    
+      assetHubPairs
+        .map(_ ->
+          IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
+            sampleUntilNonEmpty(positiveMediumIntGen).toLong))
+
     val assetTokensToRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
-      assetHubPairs.map(_ -> IndexedSeq(Gen.oneOf(fromKeyPairs).sample.get._1 -> positiveMediumIntGen.sample.get.toLong))
-  
+      assetHubPairs
+        .map(_ ->
+          IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1
+            -> sampleUntilNonEmpty(positiveMediumIntGen).toLong
+          ))
+
     val dummyConversionSignatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]] =
-      totalAssetBoxes.map(entry => entry._1 -> entry._2.map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
-    
-    val dummyTx = ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, dummyConversionSignatures, fee, timestamp)
-    
+      totalAssetBoxes
+        .map(entry => entry._1 -> entry._2
+          .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
+
+    val dummyTx = ConversionTransaction(totalAssetBoxes,
+      assetsToReturn,
+      assetTokensToRedeem,
+      dummyConversionSignatures,
+      fee,
+      timestamp)
+
     val fromKeyMap = fromKeyPairs.toMap
-    val realSignatures = totalAssetBoxes.map { case (assetHub, boxes) =>
-        assetHub -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
-    }
-    
+    val realSignatures = totalAssetBoxes
+      .map {
+        case (assetHub, boxes) =>
+          assetHub -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
+      }
+
     println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
-    
+
     dummyTx.copy(conversionSignatures = realSignatures)
   }
 }

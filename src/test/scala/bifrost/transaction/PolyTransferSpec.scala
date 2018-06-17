@@ -14,24 +14,24 @@ class PolyTransferSpec extends PropSpec
 
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen) {
-      sct: PolyTransfer =>
-        BifrostState.semanticValidity(sct).isSuccess shouldBe true
+      polyTransfer: PolyTransfer =>
+        BifrostState.semanticValidity(polyTransfer).isSuccess shouldBe true
     }
   }
 
   property("Attempting to validate a PolyTransfer without valid signature should error") {
     // Create invalid PolyTransfer
     // send tx to state
-    forAll(polyTransferGen) { tx =>
-      BifrostState.semanticValidity(tx).isSuccess shouldBe false
+    forAll(polyTransferGen) { polyTransfer =>
+      BifrostState.semanticValidity(polyTransfer).isSuccess shouldBe false
     }
   }
 
   property("Attempting to validate a ArbitTransfer without valid signature should error") {
     // Create invalid PolyTransfer
     // send tx to state
-    forAll(arbitTransferGen) { tx =>
-      BifrostState.semanticValidity(tx).isSuccess shouldBe false
+    forAll(arbitTransferGen) { arbitTransfer =>
+      BifrostState.semanticValidity(arbitTransfer).isSuccess shouldBe false
     }
   }
 }

@@ -1,41 +1,41 @@
 package bifrost.contract
+
 import java.time.Instant
 
 import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe.{Json, JsonObject}
+import io.circe.JsonObject
 import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-
-import scala.util.{Failure, Random, Success, Try}
-
+import org.scalatest.{Matchers, PropSpec}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.signatures.Curve25519
+
+import scala.util.{Failure, Random, Success, Try}
 
 class ContractSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
-  with ValidGenerators{
-/*
-  property("Calling a method not in the contract will throw an error") {
-    forAll(contractGen) {
-      c: Contract => {
-        forAll(stringGen.suchThat(!validContractMethods.contains(_))) {
-          m: String => {
-            val possibleArgs = JsonObject.empty
+  with ValidGenerators {
+  /*
+    property("Calling a method not in the contract will throw an error") {
+      forAll(contractGen) {
+        c: Contract => {
+          forAll(stringGen.suchThat(!validContractMethods.contains(_))) {
+            m: String => {
+              val possibleArgs = JsonObject.empty
 
-            val party = propositionGen.sample.get
+              val party = propositionGen.sample.get
 
-            val result = Contract.execute(c, m)(party)(possibleArgs)
-            assert(result.isFailure && result.failed.get.isInstanceOf[MatchError])
+              val result = Contract.execute(c, m)(party)(possibleArgs)
+              assert(result.isFailure && result.failed.get.isInstanceOf[MatchError])
+            }
           }
         }
       }
-    }
-  }*/
+    }*/
 
   property("Json works properly for AgreementTerms") {
     forAll(validAgreementTermsGen) {
@@ -46,7 +46,7 @@ class ContractSpec extends PropSpec
   }
 
   property("Cannot create AgreementTerms with too long of a string") {
-    forAll(Gen.choose(16*1024 + 1, 100000)) {
+    forAll(Gen.choose(16 * 1024 + 1, 100000)) {
       size: Int => {
         Try {
           AgreementTerms(Random.alphanumeric.take(size).mkString)
@@ -72,12 +72,12 @@ class ContractSpec extends PropSpec
 
   def getMockPublicKeyProposition(fillByte: Byte) = {
     PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(fillByte));
-   }
+  }
 
-   property("Can create contract") {
+  property("Can create contract") {
     Try {
       Contract(
-        Seq((getMockPublicKeyProposition(0), "hub"),(getMockPublicKeyProposition(1), "producer")),
+        Seq((getMockPublicKeyProposition(0), "hub"), (getMockPublicKeyProposition(1), "producer")),
         Instant.now.toEpochMilli,
         Array(),
         mockAgreement

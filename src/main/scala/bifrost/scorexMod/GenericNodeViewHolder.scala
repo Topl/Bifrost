@@ -88,7 +88,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       StartingPersistentModifierApplication[P, TX, PMOD](pmod)
     )
 
-    log.info(s"Apply modifier to nodeViewHolder: ${Base58.encode(pmod.id)}")
+    log.debug(s"Apply modifier to nodeViewHolder: ${Base58.encode(pmod.id)}")
 
     history().append(pmod) match {
       case Success((newHistory, progressInfo)) =>
@@ -111,15 +111,15 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
               val appliedTxs = appliedMods.flatMap(_.transactions).flatten
               var newMemPool = memoryPool()
-              log.info(s"${Console.GREEN}before newMemPool Size: ${newMemPool.size}${Console.RESET}")
+              log.debug(s"${Console.GREEN}before newMemPool Size: ${newMemPool.size}${Console.RESET}")
               newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
                 !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
               }
               val validUnconfirmed = newMemPool.take(100)
-              log.info(s"${Console.GREEN}Re-Broadcast unconfirmed TXs: ${validUnconfirmed.map(tx => Base58.encode(tx.id)).toList}${Console.RESET}")
+              log.debug(s"${Console.GREEN}Re-Broadcast unconfirmed TXs: ${validUnconfirmed.map(tx => Base58.encode(tx.id)).toList}${Console.RESET}")
               validUnconfirmed.foreach(tx =>
                 notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None)))
-              log.info(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
+              log.debug(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
               //we consider that vault always able to perform a rollback needed
               val newVault = if (progressInfo.rollbackNeeded) {
@@ -128,7 +128,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
                 vault().scanPersistent(appliedMods)
               }
 
-              log.info(s"Persistent modifier ${Base58.encode(pmod.id)} applied successfully")
+              log.debug(s"Persistent modifier ${Base58.encode(pmod.id)} applied successfully")
               nodeView = (newHistory, newMinState, newVault, newMemPool)
               notifySubscribers(EventType.SuccessfulPersistentModifier, SuccessfulModification[P, TX, PMOD](pmod, source))
 
@@ -217,7 +217,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       txModify(lt.tx, None)
 
     case lm: LocallyGeneratedModifier[P, TX, PMOD] =>
-      log.info(s"Got locally generated modifier: ${Base58.encode(lm.pmod.id)}")
+      log.debug(s"Got locally generated modifier: ${Base58.encode(lm.pmod.id)}")
       pmodModify(lm.pmod, None)
   }
 

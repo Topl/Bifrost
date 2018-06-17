@@ -5,9 +5,8 @@ import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.transaction.BifrostTransaction
-import scorex.core.{LocalInterface, PersistentNodeViewModifier}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import scorex.core.LocalInterface
+import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.transaction.state.PrivateKey25519
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
@@ -62,14 +61,10 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
   override protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopForging
 
   override def receive: Receive = viewHolderEvents orElse {
-    case NoBetterNeighbour =>
-      onNoBetterNeighbour()
-    case BetterNeighbourAppeared =>
-      onBetterNeighbourAppeared()
-    case lt: LocallyGeneratedTransaction[P, TX] =>
-      viewHolderRef ! lt
-    case lm: LocallyGeneratedModifier[P, TX, PMOD] =>
-      viewHolderRef ! lm
+    case NoBetterNeighbour => onNoBetterNeighbour()
+    case BetterNeighbourAppeared => onBetterNeighbourAppeared()
+    case lt: LocallyGeneratedTransaction[P, TX] => viewHolderRef ! lt
+    case lm: LocallyGeneratedModifier[P, TX, PMOD] => viewHolderRef ! lm
     case a: Any => log.error("Strange input: " + a)
   }
 }

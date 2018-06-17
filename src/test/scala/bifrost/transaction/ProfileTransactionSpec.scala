@@ -18,35 +18,45 @@ class ProfileTransactionSpec extends PropSpec
   with ValidGenerators {
 
   property("Generated ProfileTransaction should be valid") {
-    forAll(validProfileTransactionGen) { tx =>
-      BifrostState.semanticValidity(tx).isSuccess shouldBe true
+    forAll(validProfileTransactionGen) { profileTransaction =>
+      BifrostState.semanticValidity(profileTransaction).isSuccess shouldBe true
     }
   }
 
   property("Attempting to validate a ProfileTransaction without a key of 'role' should error") {
-    forAll(profileTxGen) { tx =>
-      BifrostState.semanticValidity(tx).isSuccess shouldBe false
+    forAll(profileTxGen) { profileTransaction =>
+      BifrostState.semanticValidity(profileTransaction).isSuccess shouldBe false
     }
   }
 
   property("Attempting to validate a Profiletransaction with a key of 'role', but not a value of 'investor', 'producer', or 'hub' should error") {
-    forAll(validProfileTransactionGen) {tx =>
+    forAll(validProfileTransactionGen) { profileTransaction =>
       val wrongKeyValues = Map("role" -> "1")
-      BifrostState.semanticValidity(tx.copy(keyValues = wrongKeyValues)).isSuccess shouldBe false
+      BifrostState.semanticValidity(profileTransaction.copy(keyValues = wrongKeyValues)).isSuccess shouldBe false
     }
   }
 
   property("Attempting to validate a Profiletransaction with modified from should error") {
-    forAll(validProfileTransactionGen) { tx =>
-      val wrongFrom: Array[Byte] = (tx.from.bytes.head + 1).toByte +: tx.from.bytes.tail
-      BifrostState.semanticValidity(tx.copy(from = PublicKey25519Proposition(wrongFrom))).isSuccess shouldBe false
+    forAll(validProfileTransactionGen) { profileTransaction =>
+      val wrongFrom: Array[Byte] =
+        (profileTransaction.from.bytes.head + 1).toByte +:
+          profileTransaction.from.bytes.tail
+
+      BifrostState
+        .semanticValidity(profileTransaction.copy(from = PublicKey25519Proposition(wrongFrom)))
+        .isSuccess shouldBe false
     }
   }
 
   property("Attempting to validate a Profiletransaction with modified signature should error") {
-    forAll(validProfileTransactionGen) { tx =>
-      val wrongSig: Array[Byte] = (tx.signature.bytes.head + 1).toByte +: tx.signature.bytes.tail
-      BifrostState.semanticValidity(tx.copy(signature = Signature25519(wrongSig))).isSuccess shouldBe false
+    forAll(validProfileTransactionGen) { profileTransaction =>
+      val wrongSig: Array[Byte] =
+        (profileTransaction.signature.bytes.head + 1).toByte +:
+          profileTransaction.signature.bytes.tail
+
+      BifrostState
+        .semanticValidity(profileTransaction.copy(signature = Signature25519(wrongSig)))
+        .isSuccess shouldBe false
     }
   }
 }

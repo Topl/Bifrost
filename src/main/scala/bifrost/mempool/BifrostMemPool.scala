@@ -5,10 +5,9 @@ import io.iohk.iodb.ByteArrayWrapper
 import scorex.core.NodeViewModifier.ModifierId
 import scorex.core.transaction.MemoryPool
 import scorex.core.utils.ScorexLogging
-import scorex.crypto.encode.Base58
 
 import scala.collection.concurrent.TrieMap
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 
 case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
@@ -16,6 +15,7 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override type NVCT = BifrostMemPool
 
   private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
+
   private val boxesInMempool = new TrieMap[ByteArrayWrapper, ByteArrayWrapper]()
 
   //getters
@@ -45,7 +45,9 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
       require(!exists)
     }))
     txs.foreach(tx => {
-      tx.boxIdsToOpen.map(boxId => { boxesInMempool.put(key(boxId), key(boxId)) })
+      tx.boxIdsToOpen.map(boxId => {
+        boxesInMempool.put(key(boxId), key(boxId))
+      })
     })
     this
   }
@@ -53,7 +55,9 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def putWithoutCheck(txs: Iterable[BifrostTransaction]): BifrostMemPool = {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
     txs.foreach(tx => {
-      tx.boxIdsToOpen.map(boxId => { boxesInMempool.put(key(boxId), key(boxId)) })
+      tx.boxIdsToOpen.map(boxId => {
+        boxesInMempool.put(key(boxId), key(boxId))
+      })
     })
     this
   }

@@ -3,14 +3,15 @@ package bifrost.contract
 import java.time.Instant
 
 import bifrost.contract.modules.BaseModuleWrapper
+import bifrost.exceptions.{InvalidProvidedContractArgumentsException, JsonParsingException}
 import io.circe._
-import io.circe.syntax._
 import io.circe.parser._
+import io.circe.syntax._
 import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
-import scala.collection.{SortedSet, mutable}
+import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 
@@ -19,15 +20,21 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
                     id: Array[Byte],
                     agreement: Json) {
 
-  def MIN_PARTIES = 2
-  def MAX_PARTIES = 1024
-  if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES)
-    throw new Exception("Incorrect number of parties in contract")
+  val MIN_PARTIES: Int = 2
+  val MAX_PARTIES: Int = 1024
 
-  lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
+  if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES) {
+    throw new InvalidProvidedContractArgumentsException("An invalid number of parties was specified for the contract " +
+      "(must be between 2 and 1024).")
+  }
+
+  lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
+    .getScriptEngine
+    .asInstanceOf[NashornScriptEngine]
+
   val agreementObj: Agreement = agreement.as[Agreement] match {
     case Right(a) => a
-    case Left(_) => throw new Exception("This is not a valid agreement")
+    case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
   }
 
   jsre.eval(BaseModuleWrapper.objectAssignPolyfill)
@@ -37,30 +44,46 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
     jsre.eval(agreementObj.core.initjs)
     jsre.eval(s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
 
-    val update = s"""
-      |var res = c["$methodName"](${params.tail.foldLeft(params.headOption.getOrElse(""))((agg, cur) => s"$agg, $cur")});
-      |if(res instanceof ${agreementObj.core.name}) {
-      |  JSON.stringify({
-      |    "__returnedUpdate": true,
-      |    "contract": ${agreementObj.core.name}.toJSON(res)
-      |  })
-      |} else {
-      |  JSON.stringify({
-      |    "__returnedUpdate": false,
-      |    "contract": ${agreementObj.core.name}.toJSON(c),
-      |    "functionResult": res
-      |  })
-      |}
+    val parameterString: String = params
+      .tail
+      .foldLeft(params
+        .headOption
+        .getOrElse(""))((agg, cur) => s"$agg, $cur")
+
+    val update =
+      s"""
+         |var res = c["$methodName"]($parameterString);
+         |if(res instanceof ${agreementObj.core.name}) {
+         |  JSON.stringify({
+         |    "__returnedUpdate": true,
+         |    "contract": ${agreementObj.core.name}.toJSON(res)
+         |  })
+         |} else {
+         |  JSON.stringify({
+         |    "__returnedUpdate": false,
+         |    "contract": ${agreementObj.core.name}.toJSON(c),
+         |    "functionResult": res
+         |  })
+         |}
     """.stripMargin
 
     val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
 
     val resultingContract = this.copy(
-      agreement = agreementObj.copy(core = agreementObj.core.copy(state = (result \\ "contract").head)).asJson,
+      agreement = agreementObj
+        .copy(core = agreementObj
+          .core
+          .copy(state = (result \\ "contract").head))
+        .asJson,
       lastUpdated = Instant.now.toEpochMilli
     )
 
-    val functionResult: Option[Json] = if(!(result \\ "__returnedUpdate").head.asBoolean.get) {
+    val functionReturnedUpdate = (result \\ "__returnedUpdate")
+      .head
+      .asBoolean
+      .get
+
+    val functionResult: Option[Json] = if (!functionReturnedUpdate) {
       Some((result \\ "functionResult").head)
     } else {
       None
@@ -86,11 +109,12 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
 
   lazy val json: Json = Map(
     "agreement" -> agreement,
-    "parties" -> parties.map(p => {
-      Seq(
-        Base58.encode(p._1.pubKeyBytes).asJson -> p._2
-      ).asJson
-    }).asJson,
+    "parties" -> parties
+      .map(p => {
+        Base58.encode(p._1.pubKeyBytes) -> p._2.asJson
+      })
+      .toMap
+      .asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson
   ).asJson
@@ -99,11 +123,25 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
 
 object Contract {
 
-  def apply(cs: Json, id: Array[Byte]): Contract = {
-    val jsonMap: Map[String, Json] = cs.asObject.get.toMap
-    val parties: Seq[(PublicKey25519Proposition, String)] = jsonMap("parties").asObject.get.toMap.map{party =>
-      new PublicKey25519Proposition(Base58.decode(party._1).get) -> party._2.asString.get
-    }.toSeq
+  def apply(contractJson: Json, id: Array[Byte]): Contract = {
+    val jsonMap: Map[String, Json] = contractJson
+      .asObject
+      .map(_.toMap)
+      .get
+
+    val parties: Seq[(PublicKey25519Proposition, String)] = jsonMap("parties").asObject match {
+      case Some(partiesObject) =>
+        partiesObject
+          .toMap
+          .map {
+            party =>
+              val publicKey = Base58.decode(party._1).get
+              val role = party._2.asString.get
+              new PublicKey25519Proposition(publicKey) -> role
+          }
+          .toSeq
+      case None => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
+    }
 
     new Contract(
       parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
@@ -113,15 +151,26 @@ object Contract {
     )
   }
 
-  def execute(c: Contract, methodName: String)(party: PublicKey25519Proposition)(args: JsonObject): Try[Either[Contract, Json]] = Try {
+  def execute(c: Contract, methodName: String)
+             (party: PublicKey25519Proposition)
+             (args: JsonObject): Try[Either[Contract, Json]] = Try {
 
-    val methodAttempt: Option[mutable.LinkedHashSet[String]] = ((c.agreement \\ "registry").head \\ methodName).headOption.map(_.as[mutable.LinkedHashSet[String]].toOption).map(_.get)
+    val methodAttempt: Option[mutable.LinkedHashSet[String]] =
+      ((c.agreement \\ "registry").head \\ methodName)
+        .headOption
+        .flatMap(_.as[mutable.LinkedHashSet[String]].toOption)
 
     methodAttempt match {
       case Some(params: mutable.LinkedHashSet[String]) =>
 
-        val neededArgs = args.toMap.filterKeys(k => params.contains(k)).values.toArray.map(_.noSpaces)
-        val res = c.applyFunction(methodName)(neededArgs)
+        val neededArgs: Array[String] = args
+          .toMap
+          .filterKeys(k => params.contains(k))
+          .values
+          .toArray
+          .map(_.noSpaces)
+
+        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)
@@ -142,7 +191,6 @@ object Contract {
 
     implicit val decodeStatus: Decoder[Status.Value] = Decoder.enumDecoder(Status)
     implicit val encodeStatus: Encoder[Status.Value] = Encoder.enumEncoder(Status)
-
   }
 
 }

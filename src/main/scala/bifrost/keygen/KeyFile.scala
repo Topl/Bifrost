@@ -1,19 +1,17 @@
 package bifrost.keygen
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{BufferedWriter, FileWriter}
 import java.lang.reflect.Constructor
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import bifrost.keygen.KeyFile._
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
-
-import scala.util.Try
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
@@ -23,17 +21,23 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Keccak256
 
+import scala.util.Try
+
 /**
   * Created by cykoz on 6/22/2017.
   */
 
-case class KeyFile(pubKeyBytes: Array[Byte], cipherText: Array[Byte], mac: Array[Byte], salt: Array[Byte], iv: Array[Byte]) {
+case class KeyFile(pubKeyBytes: Array[Byte],
+                   cipherText: Array[Byte],
+                   mac: Array[Byte],
+                   salt: Array[Byte],
+                   iv: Array[Byte]) {
 
   def getPrivateKey(password: String): Try[PrivateKey25519] = Try {
     val derivedKey = getDerivedKey(password, salt)
-    require(Keccak256(derivedKey.slice(16,32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
+    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
 
-    val (decrypted, _) = getAESResult(derivedKey, iv, cipherText, false)
+    val (decrypted, _) = getAESResult(derivedKey, iv, cipherText, encrypt = false)
     require(pubKeyBytes sameElements getPkFromSk(decrypted), "PublicKey in file is invalid")
 
     PrivateKey25519(decrypted, pubKeyBytes)
@@ -70,7 +74,7 @@ object KeyFile {
     aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
     aesCtr.doFinal(outputText, 0)
 
-    (outputText, Keccak256(derivedKey.slice(16,32) ++ outputText))
+    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
   }
 
   def uuid: String = java.util.UUID.randomUUID.toString
@@ -79,17 +83,17 @@ object KeyFile {
 
     val salt = FastCryptographicHash(uuid)
 
-    var(sk, pk) = PrivateKey25519Companion.generateKeys(seed)
+    var (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
 
     val derivedKey = getDerivedKey(password, salt)
-    val (cipherText, mac)= getAESResult(derivedKey, ivData, sk.privKeyBytes, encrypt = true)
+    val (cipherText, mac) = getAESResult(derivedKey, ivData, sk.privKeyBytes, encrypt = true)
 
     val tempFile = KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
 
-    val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString().replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"${defaultKeyDir}/${dateString}-${Base58.encode(pk.pubKeyBytes)}.json"))
+    val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
+    val w = new BufferedWriter(new FileWriter(s"$defaultKeyDir/$dateString-${Base58.encode(pk.pubKeyBytes)}.json"))
     w.write(tempFile.json.toString())
     w.close()
     tempFile
