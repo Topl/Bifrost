@@ -4,7 +4,7 @@
 #
 version: 2
 jobs:
-  build:
+  tests:
     docker:
       # specify the version you desire here
       - image: circleci/openjdk:8-jdk
@@ -40,3 +40,9 @@ jobs:
         
       # run tests!
       - run: cat /dev/null | sbt test:test
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - unit_tests
