@@ -413,9 +413,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* ProfileBox exists for all attempted signers */
     if (roleBoxes.size != cme.signatures.size) {
-      throw new IllegalAccessException(s"${Base58.encode(cme.parties.head._2.pubKeyBytes)} claimed ${
+      throw new IllegalAccessException(s"${Base58.encode(cme.parties.head._1.pubKeyBytes)} claimed ${
         cme.parties.head
-          ._1
+          ._2
       } role but didn't exist.")
     }
 
@@ -478,7 +478,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param cc : the ContractMethodExecution to validate
+    * @param cc : complete the contract with all parties having signed the completed contract
     * @return
     */
   //noinspection ScalaStyle
@@ -504,8 +504,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
               case Failure(_) => throw new IllegalAccessException(s"Role does not exist")
             }
 
-            val claimedRole = cc.parties.find(_._2.pubKeyBytes sameElements prop.pubKeyBytes) match {
-              case Some(role) => role._1
+            val claimedRole = cc.parties.find(_._1.pubKeyBytes sameElements prop.pubKeyBytes) match {
+              case Some(role) => role._2
               case None => throw new Exception("Unexpected signature for this transaction")
             }
 

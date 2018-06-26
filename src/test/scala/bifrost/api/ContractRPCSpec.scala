@@ -17,7 +17,7 @@ import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.{ContractCompletion, Role}
+import bifrost.transaction.{BifrostTransaction, ContractCompletion, Role}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
@@ -131,7 +131,6 @@ class ContractRPCSpec extends WordSpec
            |""".stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "error").head.asObject.isDefined shouldBe true
         (res \\ "result").isEmpty shouldBe true
       }
@@ -236,7 +235,7 @@ class ContractRPCSpec extends WordSpec
           "signingPublicKey": "${publicKeys("investor")}",
           "agreement": ${agreement.asJson},
           "preInvestmentBoxes": [],
-          "parties": ${publicKeys.map { case (k, v) => k -> v.asJson }.asJson},
+          "parties": ${publicKeys.map { case (k, v) => k -> v.asJson }.toSeq.asJson},
           "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
           "preFeeBoxes": {
             "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
@@ -290,7 +289,7 @@ class ContractRPCSpec extends WordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
-      val txInstance = view().pool.getById(Base58.decode(txHash).get).get
+      val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
       txInstance.newBoxes.foreach {
         case b: ContractBox => contractBox = Some(b)
         case _ =>
@@ -324,8 +323,6 @@ class ContractRPCSpec extends WordSpec
         // manually add contractBox to state
         manuallyApplyChanges(res, 5)
         view().pool.take(5).toList.size shouldEqual 3
-
-        println(requestJson)
       }
     }
 

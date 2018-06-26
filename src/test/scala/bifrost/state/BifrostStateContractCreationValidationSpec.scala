@@ -33,16 +33,16 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
     val parties = allKeyPairs.map(_._2)
       .zip((Stream continually roles).flatten)
-      .map(t => t._2 -> t._1)
+      .map(t => t._1 -> t._2)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
     val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
-      preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties.head._2, n._1))
+      preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties.head._1, n._1))
 
     val feePreBoxes = parties
-      .map(_._2 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
+      .map(_._1 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
       .toMap
 
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] =
@@ -68,7 +68,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      parties.sortBy(_._1.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
 
     val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
@@ -76,7 +76,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      parties,
+      parties.toMap,
       allKeyPairs.map(_._2).zip(signatures).toMap,
       feePreBoxes,
       fees,
@@ -152,7 +152,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
           val investment =
-            if (prop equals contractCreation.parties.head._2) {
+            if (prop equals contractCreation.parties.head._1) {
               BigInt((contractCreation.agreement.core.state \\ "initialCapital")
                        .head
                        .as[String]
@@ -195,7 +195,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractCreation
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -234,7 +234,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = cc
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -375,7 +375,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = cc
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet

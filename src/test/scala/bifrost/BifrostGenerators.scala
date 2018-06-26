@@ -233,12 +233,12 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileBox(proposition, 0L, value, field)
   }
 
-  lazy val partiesGen: Gen[Seq[(Role, PublicKey25519Proposition)]] = for {
+  lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
     a <- propositionGen
     b <- propositionGen
     c <- propositionGen
   } yield {
-    Seq(Role.Producer -> a, Role.Hub -> b, Role.Investor -> c)
+    Map(a -> Role.Producer, b -> Role.Hub, c -> Role.Investor)
   }
 
   lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen)).map(seq => {
@@ -315,9 +315,11 @@ trait BifrostGenerators extends CoreGenerators {
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
     Contract(Map(
-      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
-      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
-      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "parties" -> Map(
+        "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
+        "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
+        "hub" -> Base58.encode(hub.pubKeyBytes).asJson
+      ).asJson,
       "storage" -> Map("status" -> status, "other" -> storage).asJson,
       "agreement" -> agreement,
       "lastUpdated" -> System.currentTimeMillis().asJson
@@ -351,9 +353,9 @@ trait BifrostGenerators extends CoreGenerators {
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       parties,
-      parties.map({ case (_, v) => (v, sampleUntilNonEmpty(signatureGen)) }).toMap,
-      parties.map({ case (_, v) => v -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }).toMap,
-      parties.map({ case (_, v) => v -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }).toMap,
+      parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
+      parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),
+      parties.map({ case (k, _) => k -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }),
       timestamp)
   }
 
@@ -371,7 +373,7 @@ trait BifrostGenerators extends CoreGenerators {
       contract,
       methodName,
       parameters,
-      Seq(sampleUntilNonEmpty(Gen.oneOf(Role.values.toSeq)) -> party),
+      Map(sampleUntilNonEmpty(party) -> Gen.oneOf(Role.values.toSeq).sample.get),
       Map(party -> sig),
       Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
@@ -389,9 +391,9 @@ trait BifrostGenerators extends CoreGenerators {
     ContractCompletion(
       contract,
       parties,
-      parties.map({ case (_, v) => (v, sampleUntilNonEmpty(signatureGen)) }).toMap,
-      parties.map({ case (_, v) => v -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }).toMap,
-      parties.map({ case (_, v) => v -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }).toMap,
+      parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
+      parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),
+      parties.map({ case (k, _) => k -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }),
       timestamp)
   }
 

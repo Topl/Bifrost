@@ -6,7 +6,7 @@ import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
-import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
+import bifrost.transaction.box.{ContractBox, ProfileBox}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -124,7 +124,7 @@ trait ValidGenerators extends BifrostGenerators {
       ContractCreation(
         agreement,
         preInvestmentBoxes,
-        POSSIBLE_ROLES.zip(parties),
+        parties.zip(POSSIBLE_ROLES).toMap,
         signatures.toMap,
         feePreBoxes,
         fees,
@@ -236,7 +236,7 @@ trait ValidGenerators extends BifrostGenerators {
       contractBox,
       methodName,
       parameters,
-      Seq(sender._1 -> sender._2._2),
+      Map(sender._2._2 -> sender._1),
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
@@ -247,7 +247,7 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     agreement <- validAgreementGen()
     deliveredQuantity <- positiveLongGen
-    numReputation <- positiveTinyIntGen
+    //numReputation <- positiveTinyIntGen
   } yield {
 
     val nrOfParties = Random.nextInt(1022) + 2
@@ -308,12 +308,13 @@ trait ValidGenerators extends BifrostGenerators {
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
-    val reputation = (0 until numReputation)
+    /*val reputation = (0 until numReputation)
       .map(_ => ReputationBox(parties(roles.indexOf(Role.Producer)),
         sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
         (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
+    */
 
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
+    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) // ++ reputation.map(_.id)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
       prop -> preBoxes.map(_._2).sum
     }
@@ -337,7 +338,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     ContractCompletion(
       contractBox,
-      roles.zip(parties),
+      parties.zip(roles).toMap,
       signatures.toMap,
       feePreBoxes,
       fees,

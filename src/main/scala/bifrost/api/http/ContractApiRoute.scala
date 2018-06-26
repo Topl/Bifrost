@@ -14,10 +14,11 @@ import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
+import io.circe.Decoder.Result
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{HCursor, Json}
+import io.circe.{Decoder, HCursor, Json}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
@@ -166,6 +167,13 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
 
       val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "contractBox")
+
+      //val cmex =
+      val cme = try{
+        modifiedParams.as[ContractMethodExecution]
+      } catch {
+        case e: Exception => e.getCause
+      }
 
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ContractMethodExecution] match {

@@ -106,7 +106,7 @@ class ContractTransactionSpec extends PropSpec
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      roles.zip(parties),
+      parties.zip(roles).toMap,
       signatures.toMap,
       feePreBoxes,
       fees,
@@ -189,7 +189,7 @@ class ContractTransactionSpec extends PropSpec
       contractBox,
       methodName,
       parameters,
-      Seq(sender._1 -> sender._2._2),
+      Map(sender._2._2 -> sender._1),
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
@@ -275,7 +275,7 @@ class ContractTransactionSpec extends PropSpec
 
     ContractCompletion(
       contractBox,
-      roles.zip(parties),
+      parties.zip(roles).toMap,
       parties.zip(signatures).toMap,
       feePreBoxes,
       fees,

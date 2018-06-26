@@ -93,7 +93,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     ContractCompletion(
       contractBox,
       // TODO(balinskia): Add reputation
-      roles.zip(parties),
+      parties.zip(roles).toMap,
       allKeyPairs.map(_._2).zip(signatures).toMap,
       feePreBoxes,
       fees,
@@ -122,10 +122,11 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           }
           .toSet
 
-        val box = cc
+        /*val box = cc
           .newBoxes
           .head
           .asInstanceOf[ReputationBox]
+        */
 
         val assetBoxes: Traversable[AssetBox] = cc.newBoxes.slice(1, 3).map {
           case a: AssetBox => a
@@ -136,7 +137,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
 
-        val boxBytes = ReputationBoxSerializer.toBytes(box)
+        //val boxBytes = ReputationBoxSerializer.toBytes(box)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -157,11 +158,12 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
                   .get(ByteArrayWrapper(cc.contractBox.id))
                   .isEmpty)
 
-        require(newState.storage.get(ByteArrayWrapper(box.id))
+        /*require(newState.storage.get(ByteArrayWrapper(box.id))
                 match {
                   case Some(wrapper) => wrapper.data sameElements boxBytes
                   case None => false
                 })
+        */
 
         require(deductedFeeBoxes
                   .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
@@ -207,7 +209,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         }.toSet
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) =>
+          case (p: PublicKey25519Proposition, r: Role.Role) =>
             ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
 
@@ -243,7 +245,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           }.toSet
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) =>
+          case (p: PublicKey25519Proposition, r: Role.Role) =>
             ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
 
@@ -280,10 +282,10 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           }.toSet
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) =>
+          case (p: PublicKey25519Proposition, r: Role.Role) =>
             ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
-          (cc.signatures.keySet -- cc.parties.map(_._2).toSet)
+          (cc.signatures.keySet -- cc.parties.map(_._1).toSet)
             .zip((Stream continually roles).flatten)
             .map(t => ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role"))
 
@@ -325,10 +327,10 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
         val profileBoxes: Set[ProfileBox] = cc
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }.toSet ++
-          (cc.signatures.keySet -- cc.parties.map(_._2).toSet)
+          (cc.signatures.keySet -- cc.parties.keySet)
             .zip((Stream continually roles).flatten)
             .map(t => ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role"))
 
@@ -366,10 +368,10 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           }.toSet
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) =>
+          case (p: PublicKey25519Proposition, r: Role.Role) =>
             ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
-          (cc.signatures.keySet -- cc.parties.map(_._2).toSet)
+          (cc.signatures.keySet -- cc.parties.map(_._1).toSet)
             .zip((Stream continually roles).flatten)
             .map(t => ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role"))
 
@@ -405,7 +407,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           }.toSet
 
         val profileBoxes: Set[ProfileBox] = cc.parties.map {
-          case (r: Role.Role, p: PublicKey25519Proposition) =>
+          case (p: PublicKey25519Proposition, r: Role.Role) =>
             ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet
 

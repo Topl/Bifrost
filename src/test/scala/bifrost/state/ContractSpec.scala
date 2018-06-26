@@ -28,7 +28,7 @@ class ContractSpec extends PropSpec
       } ++
       cc
         .preInvestmentBoxes
-        .map(b => PolyBox(cc.parties.head._2, b._1, b._2)))
+        .map(b => PolyBox(cc.parties.head._1, b._1, b._2)))
       .toSet
   }
 
@@ -36,9 +36,9 @@ class ContractSpec extends PropSpec
     cc
       .parties
       .map {
-        case (r: Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
+        case (p: PublicKey25519Proposition, r: Role) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
       }.toSet ++
-      (cc.signatures.keySet -- cc.parties.map(_._2).toSet)
+      (cc.signatures.keySet -- cc.parties.keySet)
         .zip((Stream continually roles).flatten)
         .map(t => ProfileBox(t._1, positiveLongGen.sample.get, t._2.toString, "role"))
   }

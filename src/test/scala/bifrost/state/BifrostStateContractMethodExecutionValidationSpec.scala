@@ -174,7 +174,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         Contract
-          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._2)(cme.parameters.asObject.get) match {
+          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._1)(cme.parameters.asObject.get) match {
           case Success(res) => res match {
             case Left(_) => newContractTimestamp shouldBe cme.timestamp
             case Right(_) => newContractTimestamp shouldBe oldContractTimestamp
@@ -236,7 +236,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -338,7 +338,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -433,7 +433,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -472,7 +472,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[BifrostBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet

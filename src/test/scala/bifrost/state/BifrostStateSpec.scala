@@ -74,7 +74,7 @@ class BifrostStateSpec extends PropSpec
 
       val newState = BifrostStateSpec
         .genesisState
-        .applyChanges(BifrostStateSpec.genesisState.changes(block).get, Ints.toByteArray(2))
+        .applyChanges(BifrostStateSpec.genesisState.changes(block).get, Ints.toByteArray(3))
         .get
 
       val newWallet = BifrostStateSpec.gw.scanPersistent(block)

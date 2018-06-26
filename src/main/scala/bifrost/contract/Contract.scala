@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 
-case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
+case class Contract(parties: Map[PublicKey25519Proposition, String],
                     lastUpdated: Long,
                     id: Array[Byte],
                     agreement: Json) {
@@ -23,7 +23,7 @@ case class Contract(parties: Seq[(PublicKey25519Proposition, String)],
   val MIN_PARTIES: Int = 2
   val MAX_PARTIES: Int = 1024
 
-  if (parties.length < MIN_PARTIES || parties.length > MAX_PARTIES) {
+  if (parties.size < MIN_PARTIES || parties.size > MAX_PARTIES) {
     throw new InvalidProvidedContractArgumentsException("An invalid number of parties was specified for the contract " +
       "(must be between 2 and 1024).")
   }
@@ -129,7 +129,7 @@ object Contract {
       .map(_.toMap)
       .get
 
-    val parties: Seq[(PublicKey25519Proposition, String)] = jsonMap("parties").asObject match {
+    val parties: Map[PublicKey25519Proposition, String] = jsonMap("parties").asObject match {
       case Some(partiesObject) =>
         partiesObject
           .toMap
@@ -139,7 +139,6 @@ object Contract {
               val role = party._2.asString.get
               new PublicKey25519Proposition(publicKey) -> role
           }
-          .toSeq
       case None => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
     }
 
