@@ -28,7 +28,7 @@ class BaseModuleWrapperSpec extends PropSpec
     "totalPaid" -> "0".asJson,
     "lastPayment" -> Array("0", "0").map(_.asJson).asJson,
     "nextPayment" -> Array("0", "0").map(_.asJson).asJson
-  ).asJson.asObject.get
+  ).asJsonObject
 
   val filePath = URLDecoder.decode(this.getClass.getResource("/contract-modules-fastopt.json").getPath, "UTF-8")
   val osAppropriatePath: Path = Paths.get(

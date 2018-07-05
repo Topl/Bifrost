@@ -107,7 +107,7 @@ trait BifrostGenerators extends CoreGenerators {
   def jsonGen(depth: Int = 0): Gen[Json] = for {
     numFields <- positiveTinyIntGen
   } yield {
-    ((0 until numFields) map { _ =>
+    (0 until numFields).map { _ =>
       sampleUntilNonEmpty(stringGen) -> (
         sampleUntilNonEmpty(jsonTypeGen) match {
           case "Object" if depth < 2 => sampleUntilNonEmpty(jsonGen(depth + 1))
@@ -117,7 +117,7 @@ trait BifrostGenerators extends CoreGenerators {
           case "Number" => sampleUntilNonEmpty(positiveDoubleGen).asJson
           case _ => sampleUntilNonEmpty(stringGen).asJson
         })
-    } toMap).asJson
+    }.toMap.asJson
   }
 
   def jsonArrayGen(depth: Int = 0): Gen[Json] = for {

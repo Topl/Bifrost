@@ -2,7 +2,7 @@ package bifrost
 
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
-import bifrost.transaction.BifrostTransaction.Nonce
+import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
@@ -273,7 +273,7 @@ trait ValidGenerators extends BifrostGenerators {
       contractBox
         .json
         .asObject
-        .flatMap(_("value"))
+        .flatMap(_ ("value"))
         .get,
       contractBox.id)
 
@@ -288,8 +288,9 @@ trait ValidGenerators extends BifrostGenerators {
               party -> (splitAmongN(share, sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
                 case Success(boxAmounts) => boxAmounts
                 case f: Failure[_] => throw f.exception
-              })
-                .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }.toIndexedSeq
+              }).map {
+                boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount))
+              }.toIndexedSeq
           }
           .toMap
 
@@ -359,14 +360,18 @@ trait ValidGenerators extends BifrostGenerators {
     PolyTransfer(from, to, fee, timestamp)
   }
 
+  private val testingValue: Value = Longs
+    .fromByteArray(FastCryptographicHash("Testing")
+      .take(Longs.BYTES))
+
   lazy val validArbitTransferGen: Gen[ArbitTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    _ <- fromSeqGen
+    _ <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
+    val from = IndexedSeq((fromKeyPairs._1, testingValue))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
@@ -374,15 +379,15 @@ trait ValidGenerators extends BifrostGenerators {
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
+    _ <- fromSeqGen
+    _ <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     hub <- propositionGen
     assetCode <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(Longs.BYTES))))
+    val from = IndexedSeq((fromKeyPairs._1, testingValue))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
@@ -411,7 +416,6 @@ trait ValidGenerators extends BifrostGenerators {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
   } yield {
-
     val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
 
     val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen

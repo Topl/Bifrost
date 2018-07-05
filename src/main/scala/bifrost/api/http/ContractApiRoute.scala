@@ -4,6 +4,7 @@ import java.time.Instant
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.network.PeerMessageSpec
@@ -178,7 +179,7 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ContractMethodExecution] match {
         case Right(c: ContractMethodExecution) => c
-        case Left(e) => throw new Exception(s"Could not parse ContractMethodExecution: $e")
+        case Left(e) => throw new JsonParsingException(s"Could not parse ContractMethodExecution: $e")
       }
 
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
@@ -293,14 +294,14 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
     println(json)
     json.as[ContractCreation] match {
       case Right(c: ContractCreation) => c
-      case Left(e) => throw new Exception(s"Could not parse ContractCreation: $e")
+      case Left(e) => throw new JsonParsingException(s"Could not parse ContractCreation: $e")
     }
   }
 
   def createCompletionInstance(json: Json, state: BifrostState): ContractCompletion = {
     json.as[ContractCompletion] match {
       case Right(c: ContractCompletion) => c
-      case Left(e) => throw new Exception(s"Could not parse ContractCompletion: $e")
+      case Left(e) => throw new JsonParsingException(s"Could not parse ContractCompletion: $e")
     }
   }
 }
