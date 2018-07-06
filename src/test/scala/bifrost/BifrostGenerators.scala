@@ -316,9 +316,9 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     Contract(Map(
       "parties" -> Map(
-        "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
-        "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
-        "hub" -> Base58.encode(hub.pubKeyBytes).asJson
+        Base58.encode(producer.pubKeyBytes) -> "producer",
+        Base58.encode(investor.pubKeyBytes) -> "investor",
+        Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
       "storage" -> Map("status" -> status, "other" -> storage).asJson,
       "agreement" -> agreement,
