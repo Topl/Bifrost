@@ -50,9 +50,11 @@ trait ValidGenerators extends BifrostGenerators {
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
     Contract(Map(
-      "producer" -> Base58.encode(producer.pubKeyBytes).asJson,
-      "investor" -> Base58.encode(investor.pubKeyBytes).asJson,
-      "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+      "parties" -> Map(
+      Base58.encode(producer.pubKeyBytes) -> "producer",
+      Base58.encode(investor.pubKeyBytes) -> "investor",
+      Base58.encode(hub.pubKeyBytes) -> "hub"
+      ).asJson,
       "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
       "agreement" -> agreement,
       "lastUpdated" -> System.currentTimeMillis().asJson
@@ -111,7 +113,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),
-        POSSIBLE_ROLES.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+        parties.zip(POSSIBLE_ROLES).sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
       )
 

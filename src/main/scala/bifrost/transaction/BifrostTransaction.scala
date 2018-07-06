@@ -253,7 +253,7 @@ case class ContractCreation(agreement: Agreement,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val boxValue: Json = (parties.map(kv => kv._1.toString -> Base58.encode(kv._1.pubKeyBytes).asJson) ++
+    val boxValue: Json = (parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString) ++
       Map(
         "agreement" -> agreement.json,
         "lastUpdated" -> timestamp.asJson
@@ -309,7 +309,7 @@ object ContractCreation {
     val outcome = Agreement.validate(tx.agreement)
     require(outcome.isSuccess)
 
-    require(tx.parties.size == tx.signatures.size && tx.parties.size >= 2,
+    require((tx.parties.size == tx.signatures.size) && tx.parties.size >= 2,
       "There aren't exactly 3 parties involved in signing")
     require(tx.parties.size >= 2, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
     require(tx.parties.forall { case (proposition, _) =>

@@ -169,7 +169,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
 
       val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "contractBox")
 
-      //val cmex =
       val cme = try{
         modifiedParams.as[ContractMethodExecution]
       } catch {

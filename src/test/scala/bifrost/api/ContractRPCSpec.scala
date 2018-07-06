@@ -112,7 +112,7 @@ class ContractRPCSpec extends WordSpec
 
   // Unlock Secrets
   val gw: BWallet = view().vault
-  // gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  //gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
@@ -235,7 +235,7 @@ class ContractRPCSpec extends WordSpec
           "signingPublicKey": "${publicKeys("investor")}",
           "agreement": ${agreement.asJson},
           "preInvestmentBoxes": [],
-          "parties": ${publicKeys.map { case (k, v) => k -> v.asJson }.toSeq.asJson},
+          "parties": ${publicKeys.map { case (k, v) => v -> k.asJson }.toSeq.asJson},
           "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
           "preFeeBoxes": {
             "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
