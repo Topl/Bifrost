@@ -6,7 +6,7 @@ import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
-import bifrost.transaction.box.{ContractBox, ProfileBox}
+import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -142,14 +142,13 @@ trait ValidGenerators extends BifrostGenerators {
     "confirmDelivery",
     "checkExpiration")
 
-  def createContractBox(agreement: Agreement, parties: Seq[(Role.Role, PublicKey25519Proposition)]): ContractBox = {
+  def createContractBox(agreement: Agreement, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
 
     val roles = parties
-      .indices
       .map(_ => Random.shuffle(POSSIBLE_ROLES).head)
 
     val partiesAndRoles = parties
-      .map(_._2)
+      .map(_._1)
       .map(_.pubKeyBytes)
       .map(Base58.encode)
       .zip(roles.map(_.toString))
@@ -163,7 +162,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contract = Contract(contractJson, sampleUntilNonEmpty(genBytesList(FastCryptographicHash.DigestSize)))
 
-    val proposition = MofNProposition(1, parties.map(_._2.pubKeyBytes).toSet)
+    val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
     ContractBox(proposition, sampleUntilNonEmpty(positiveLongGen), contract.json)
   }
 
@@ -180,7 +179,7 @@ trait ValidGenerators extends BifrostGenerators {
     while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
-    val contractBox = createContractBox(agreement, roles.zip(parties))
+    val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
 
     val methodName = sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 
@@ -247,7 +246,7 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     agreement <- validAgreementGen()
     deliveredQuantity <- positiveLongGen
-    //numReputation <- positiveTinyIntGen
+    numReputation <- positiveTinyIntGen
   } yield {
 
     val nrOfParties = Random.nextInt(1022) + 2
@@ -267,7 +266,7 @@ trait ValidGenerators extends BifrostGenerators {
       })
       .toMap
 
-    val contractBox = createContractBox(agreement, POSSIBLE_ROLES.zip(parties))
+    val contractBox = createContractBox(agreement, parties.zip(POSSIBLE_ROLES).toMap)
 
     val contract = Contract(
       contractBox
@@ -309,11 +308,11 @@ trait ValidGenerators extends BifrostGenerators {
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
-    /*val reputation = (0 until numReputation)
+    val reputation = (0 until numReputation)
       .map(_ => ReputationBox(parties(roles.indexOf(Role.Producer)),
         sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
         (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
-    */
+
 
     val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) // ++ reputation.map(_.id)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
@@ -339,6 +338,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     ContractCompletion(
       contractBox,
+      reputation,
       parties.zip(roles).toMap,
       signatures.toMap,
       feePreBoxes,

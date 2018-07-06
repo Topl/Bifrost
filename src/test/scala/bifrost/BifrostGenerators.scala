@@ -382,6 +382,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val contractCompletionGen: Gen[ContractCompletion] = for {
     contract <- contractBoxGen
+    reputation <- reputationBoxGen
     parties <- partiesGen
     signature <- signatureGen
     fee <- positiveLongGen
@@ -390,6 +391,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     ContractCompletion(
       contract,
+      IndexedSeq(reputation),
       parties,
       parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
       parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),

@@ -470,13 +470,15 @@ object ContractMethodExecution {
 }
 
 case class ContractCompletion(contractBox: ContractBox,
-                              // TODO Add producer reputation
+                              producerReputation: IndexedSeq[ReputationBox],
                               parties: Map[PublicKey25519Proposition, Role],
                               signatures: Map[PublicKey25519Proposition, Signature25519],
                               preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                               fees: Map[PublicKey25519Proposition, Long],
                               timestamp: Long)
   extends ContractTransaction {
+
+  import ContractCompletion._
 
   override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
     IndexedSeq("ContractCompletion".getBytes) ++ parties.map(_._1.pubKeyBytes)
@@ -488,7 +490,7 @@ case class ContractCompletion(contractBox: ContractBox,
 
   lazy val proposition = MofNProposition(1, contract.parties.map(_._1.pubKeyBytes).toSet)
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ producerReputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
@@ -496,10 +498,17 @@ case class ContractCompletion(contractBox: ContractBox,
       override val boxKey: Proof[MofNProposition] = MultiSignature25519(signatures.values.toSet)
     }
   ) ++
+    boxIdsToOpen.tail.take(producerReputation.length).map(id =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signatures(parties.find(_._2 == "producer").get._1)
+      }
+    ) ++
     feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
+      //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
       parties.toSeq.sortBy(_._1.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
@@ -511,12 +520,17 @@ case class ContractCompletion(contractBox: ContractBox,
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
+    val hub: PublicKey25519Proposition = contract.parties.find(_._2 == "hub").get._1
+
+    val partyAssets: IndexedSeq[AssetBox] = contract.parties.map { p =>
+      AssetBox(p._1, assetNonce(p._1, hashNoNonces), 0, assetCode, hub)
+    }.toIndexedSeq
 
     IndexedSeq(
-      // AssetBox(contract.Producer, assetNonce(contract.Producer, hashNoNonces), 0, assetCode, contract.Hub),
-      // AssetBox(contract.Hub, assetNonce(contract.Hub, hashNoNonces), 0, assetCode, contract.Hub),
-      // AssetBox(contract.Investor, assetNonce(contract.Investor, hashNoNonces), 0, assetCode, contract.Hub)
-    ) ++ deductedFeeBoxes(hashNoNonces)
+      ReputationBox(parties.find(_._2 == "producer").get._1, nonce, (0, 0))
+    ) ++
+      partyAssets ++
+      deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -553,7 +567,7 @@ object ContractCompletion {
 
   implicit val decodeContractCompletion: Decoder[ContractCompletion] = (c: HCursor) => for {
     contractBox <- c.downField("contractBox").as[ContractBox]
-    //reputationBoxes <- c.downField("reputationBoxes").as[IndexedSeq[ReputationBox]]
+    reputationBoxes <- c.downField("reputationBoxes").as[IndexedSeq[ReputationBox]]
     rawParties <- c.downField("parties").as[Map[String, String]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
@@ -561,7 +575,7 @@ object ContractCompletion {
     timestamp <- c.downField("timestamp").as[Long]
   } yield {
     val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
-    ContractCompletion(contractBox, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
+    ContractCompletion(contractBox, reputationBoxes, commonArgs._1, commonArgs._2, commonArgs._3, commonArgs._4, timestamp)
   }
 
   def assetNonce(prop: PublicKey25519Proposition, hashNoNonces: Array[Byte]): Nonce = ContractTransaction

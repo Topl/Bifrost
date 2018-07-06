@@ -113,6 +113,7 @@ class ContractTransactionSpec extends PropSpec
       timestamp)
   }
 
+  //noinspection scalaStyle
   def potentiallyInvalidContractMethodExecutionGen(minFee: Long,
                                                    maxFee: Long,
                                                    minFeeSum: Long,
@@ -140,7 +141,7 @@ class ContractTransactionSpec extends PropSpec
 
     val gen: Gen[Agreement] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
     val validAgreement: Agreement = sampleUntilNonEmpty(gen)
-    val contractBox: ContractBox = createContractBox(validAgreement, roles.zip(parties))
+    val contractBox: ContractBox = createContractBox(validAgreement, parties.zip(roles).toMap)
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get
 
@@ -197,6 +198,7 @@ class ContractTransactionSpec extends PropSpec
     )
   }
 
+  //noinspection scalaStyle
   def potentiallyInvalidContractCompletionGen(minFee: Long,
                                               maxFee: Long,
                                               minFeeSum: Long,
@@ -222,7 +224,7 @@ class ContractTransactionSpec extends PropSpec
                                              currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, roles.zip(parties))
+    val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -275,6 +277,7 @@ class ContractTransactionSpec extends PropSpec
 
     ContractCompletion(
       contractBox,
+      reputation,
       parties.zip(roles).toMap,
       parties.zip(signatures).toMap,
       feePreBoxes,
