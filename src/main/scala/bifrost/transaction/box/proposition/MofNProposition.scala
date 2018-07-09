@@ -11,6 +11,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
+//noinspection ScalaStyle
 case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
   extends ProofOfKnowledgeProposition[PrivateKey25519] {
 

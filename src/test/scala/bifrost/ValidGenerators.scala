@@ -245,10 +245,7 @@ trait ValidGenerators extends BifrostGenerators {
     val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
 
     val parties = allKeyPairs.map(_._2)
-    val roles: IndexedSeq[Role.Role] = (0 until nrOfParties)
-      .map(_ => Random
-        .shuffle(POSSIBLE_ROLES)
-        .head)
+    val roles = Random.shuffle(POSSIBLE_ROLES)
     val partyRolePairs: Map[PublicKey25519Proposition, Role.Role] = parties.zip(roles).toMap
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
@@ -301,10 +298,6 @@ trait ValidGenerators extends BifrostGenerators {
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
-    println("numReputation " + numReputation)
-    println("partyRolePairs " + partyRolePairs)
-    println("producer " + partyRolePairs.find(_._2 == Role.Producer).get._1)
-
     val reputation = (0 until numReputation)
       .map(_ => ReputationBox(partyRolePairs.find(_._2 == Role.Producer).get._1,
         sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
@@ -317,15 +310,23 @@ trait ValidGenerators extends BifrostGenerators {
     }
 
     val messageToSign = FastCryptographicHash(
-      contractBox.id
-        ++ roles
-        .zip(parties)
-        .sortBy(_._1)
-        .foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes)
+      contractBox.id ++
+        reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
+        partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
         ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
         ++ Longs.toByteArray(contract.lastUpdated)
         ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
+
+    println(contractBox.id + "\n" +
+      reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) + "\n" +
+      partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) + "\n" +
+      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) + "\n" +
+      Longs.toByteArray(contract.lastUpdated) + "\n" +
+      fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
+    println(s"""reputation id's ${reputation.map(b => b.id)} reputation ${reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
+    println(s"""reputation id's ${reputation.map(b => b.id)} reputation ${reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
+    println("messageToSign " + messageToSign)
 
     val signatures = allKeyPairs.map {
       keypair =>

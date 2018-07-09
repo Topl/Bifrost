@@ -65,7 +65,9 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
     val reputation = (0 until numReputation).map(_ =>
-      ReputationBox(parties.find(_._2 == "producer").get._1, Gen.choose(Long.MinValue, Long.MaxValue).sample.get, (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
+      ReputationBox(parties.find(_._2 == Role.Producer).get._1,
+        Gen.choose(Long.MinValue, Long.MaxValue).sample.get,
+        (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get))
     )
 
     val boxIdsToOpen = IndexedSeq(contractBox.id)

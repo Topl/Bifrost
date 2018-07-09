@@ -508,12 +508,22 @@ case class ContractCompletion(contractBox: ContractBox,
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
-      //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
-      parties.toSeq.sortBy(_._1.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+      producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
+      parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
+
+  println(contractBox.id + "\n" +
+    producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) + "\n" +
+    parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) + "\n" +
+    unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) + "\n" +
+    Longs.toByteArray(contract.lastUpdated) + "\n" +
+    fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
+  println(s"""reputation id's ${producerReputation.map(b => b.id)} reputation ${producerReputation.sortBy(_.id.toString).foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
+  println(s"""reputation id's ${producerReputation.map(b => b.id)} reputation ${producerReputation.sortBy(_.id.toString).foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
+  println("hashNoNonces " + hashNoNonces)
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
@@ -557,6 +567,11 @@ object ContractCompletion {
       val multiSig = MultiSignature25519(sig)
       val first = tx.signatures(proposition).isValid(proposition, tx.messageToSign)
       val second = multiSig.isValid(tx.contractBox.proposition, tx.messageToSign)
+
+      println("sig " + sig)
+      println("multiSig " + multiSig)
+      println(tx.signatures(proposition).isValid(proposition, tx.messageToSign))
+      println(multiSig.isValid(tx.contractBox.proposition, tx.messageToSign))
 
       first && second
     }) {

@@ -115,6 +115,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   }
 
+  //noinspection ScalaStyle
   override def validate(transaction: TX): Try[Unit] = {
     transaction match {
       case poT: PolyTransfer => validatePolyTransfer(poT)
