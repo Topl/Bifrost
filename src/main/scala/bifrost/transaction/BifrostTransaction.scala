@@ -501,7 +501,7 @@ case class ContractCompletion(contractBox: ContractBox,
     boxIdsToOpen.tail.take(producerReputation.length).map(id =>
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = id
-        override val boxKey: Signature25519 = signatures(parties.find(_._2 == "producer").get._1)
+        override val boxKey: Signature25519 = signatures(parties.find(_._2 == Role.Producer).get._1)
       }
     ) ++
     feeBoxUnlockers
@@ -527,7 +527,7 @@ case class ContractCompletion(contractBox: ContractBox,
     }.toIndexedSeq
 
     IndexedSeq(
-      ReputationBox(parties.find(_._2 == "producer").get._1, nonce, (0, 0))
+      ReputationBox(parties.find(_._2 == Role.Producer).get._1, nonce, (0, 0))
     ) ++
       partyAssets ++
       deductedFeeBoxes(hashNoNonces)

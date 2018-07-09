@@ -146,18 +146,8 @@ trait ValidGenerators extends BifrostGenerators {
 
   def createContractBox(agreement: Agreement, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
 
-    val roles = parties
-      .map(_ => Random.shuffle(POSSIBLE_ROLES).head)
-
-    val partiesAndRoles = parties
-      .map(_._1)
-      .map(_.pubKeyBytes)
-      .map(Base58.encode)
-      .zip(roles.map(_.toString))
-      .toMap
-
     val contractJson = Map(
-      "parties" -> partiesAndRoles.asJson,
+      "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
       "agreement" -> agreement.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson
@@ -171,7 +161,7 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
   } yield {
-    val nrOfParties = Random.nextInt(1022) + 2
+    val nrOfParties = 3 //Random.nextInt(1022) + 2
     val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
     val parties = allKeyPairs.map(_._2)
     val roles = (0 until nrOfParties).map(_ => Random.shuffle(POSSIBLE_ROLES).head)
@@ -311,8 +301,12 @@ trait ValidGenerators extends BifrostGenerators {
 
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
+    println("numReputation " + numReputation)
+    println("partyRolePairs " + partyRolePairs)
+    println("producer " + partyRolePairs.find(_._2 == Role.Producer).get._1)
+
     val reputation = (0 until numReputation)
-      .map(_ => ReputationBox(partyRolePairs.find(_._2 == "producer").get._1,
+      .map(_ => ReputationBox(partyRolePairs.find(_._2 == Role.Producer).get._1,
         sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
         (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
 
