@@ -96,7 +96,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
 
   lazy val commonJson: Json = Map(
     "transactionHash" -> Base58.encode(id).asJson,
-    "parties" -> parties.map(kv => kv._2.toString -> Base58.encode(kv._1.pubKeyBytes).asJson).asJson,
+    "parties" -> parties.map(kv =>Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson
     }.asJson,
@@ -253,7 +253,7 @@ case class ContractCreation(agreement: Agreement,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val boxValue: Json = (parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString) ++
+    val boxValue: Json = (parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
       Map(
         "agreement" -> agreement.json,
         "lastUpdated" -> timestamp.asJson
@@ -295,7 +295,7 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
-    parties.toSeq.sortBy(_._1.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+    parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
     unlockers.toArray.flatMap(_.closedBoxId)
   )
 

@@ -251,14 +251,15 @@ trait ValidGenerators extends BifrostGenerators {
     numReputation <- positiveTinyIntGen
   } yield {
 
-    val nrOfParties = Random.nextInt(1022) + 2
+    val nrOfParties = 3 //Random.nextInt(1022) + 2
     val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
 
     val parties = allKeyPairs.map(_._2)
-    val roles = (0 until nrOfParties)
+    val roles: IndexedSeq[Role.Role] = (0 until nrOfParties)
       .map(_ => Random
         .shuffle(POSSIBLE_ROLES)
         .head)
+    val partyRolePairs: Map[PublicKey25519Proposition, Role.Role] = parties.zip(roles).toMap
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
     val currentEndorsement = parties
@@ -311,12 +312,12 @@ trait ValidGenerators extends BifrostGenerators {
     val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
 
     val reputation = (0 until numReputation)
-      .map(_ => ReputationBox(parties(roles.indexOf(Role.Producer)),
+      .map(_ => ReputationBox(partyRolePairs.find(_._2 == "producer").get._1,
         sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
         (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
 
 
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) // ++ reputation.map(_.id)
+    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) ++ reputation.map(_.id)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
       prop -> preBoxes.map(_._2).sum
     }

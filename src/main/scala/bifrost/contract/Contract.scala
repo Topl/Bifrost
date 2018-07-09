@@ -113,7 +113,6 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
       .map(p => {
         Base58.encode(p._1.pubKeyBytes) -> p._2.asJson
       })
-      .toMap
       .asJson,
     "lastUpdated" -> lastUpdated.asJson,
     "id" -> Base58.encode(id).asJson

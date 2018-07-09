@@ -32,7 +32,7 @@ class ContractSpec extends PropSpec
       .toSet
   }
 
-  def constructProfileBoxes(cc: ContractCreation, roles: List[Role]) = {
+  def constructProfileBoxes(cc: ContractCreation, roles: List[Role]): Set[ProfileBox] = {
     cc
       .parties
       .map {
