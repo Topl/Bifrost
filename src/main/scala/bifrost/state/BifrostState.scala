@@ -102,6 +102,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
+    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(newVersion)}")
+
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,

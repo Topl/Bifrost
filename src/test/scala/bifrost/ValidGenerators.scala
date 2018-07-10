@@ -311,33 +311,24 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
-        reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
+        //reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
         partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
         ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
         ++ Longs.toByteArray(contract.lastUpdated)
         ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
 
-    println(contractBox.id + "\n" +
-      reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) + "\n" +
-      partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) + "\n" +
-      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) + "\n" +
-      Longs.toByteArray(contract.lastUpdated) + "\n" +
-      fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
-    println(s"""reputation id's ${reputation.map(b => b.id)} reputation ${reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
-    println(s"""reputation id's ${reputation.map(b => b.id)} reputation ${reputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
-    println("messageToSign " + messageToSign)
-
     val signatures = allKeyPairs.map {
       keypair =>
         val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
+        println(s"Validate Signatures: ${keypair} + ${sig.isValid(keypair._2, messageToSign)}")
         (keypair._2, sig)
     }
 
     ContractCompletion(
       contractBox,
       reputation,
-      parties.zip(roles).toMap,
+      partyRolePairs,
       signatures.toMap,
       feePreBoxes,
       fees,

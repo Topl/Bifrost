@@ -52,11 +52,11 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(3))
           .get
 
         ar.newBoxes

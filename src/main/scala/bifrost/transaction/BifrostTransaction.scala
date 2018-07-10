@@ -502,28 +502,19 @@ case class ContractCompletion(contractBox: ContractBox,
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = id
         override val boxKey: Signature25519 = signatures(parties.find(_._2 == Role.Producer).get._1)
+        println(s"Finding producer: ${parties.find(_._2 == Role.Producer)} + ${parties.find(_._2 == Role.Producer).get._1}")
       }
     ) ++
     feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
-      producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
+      //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
       parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
-
-  println(contractBox.id + "\n" +
-    producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) + "\n" +
-    parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) + "\n" +
-    unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) + "\n" +
-    Longs.toByteArray(contract.lastUpdated) + "\n" +
-    fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
-  println(s"""reputation id's ${producerReputation.map(b => b.id)} reputation ${producerReputation.sortBy(_.id.toString).foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
-  println(s"""reputation id's ${producerReputation.map(b => b.id)} reputation ${producerReputation.sortBy(_.id.toString).foldLeft(Array[Byte]())((concat, box) => concat ++ box.id)}""")
-  println("hashNoNonces " + hashNoNonces)
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)

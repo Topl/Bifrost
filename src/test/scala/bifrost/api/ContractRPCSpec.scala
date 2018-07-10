@@ -176,7 +176,7 @@ class ContractRPCSpec extends WordSpec
         )
         val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
 
-        state.applyChanges(boxSC, Ints.toByteArray(4)).get
+        state.applyChanges(boxSC, Ints.toByteArray(7)).get
       }
     }
 
@@ -321,7 +321,7 @@ class ContractRPCSpec extends WordSpec
         view().pool.take(5).toList.size shouldEqual 4
 
         // manually add contractBox to state
-        manuallyApplyChanges(res, 5)
+        manuallyApplyChanges(res, 8)
         view().pool.take(5).toList.size shouldEqual 3
       }
     }
@@ -363,7 +363,7 @@ class ContractRPCSpec extends WordSpec
         println("res", res)
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
-        manuallyApplyChanges(res, 6)
+        manuallyApplyChanges(res, 9)
         // Assertions
         view().pool.take(5).toList.size shouldEqual 3
         val boxContent = ((res \\ "result").head \\ "contractBox").head
