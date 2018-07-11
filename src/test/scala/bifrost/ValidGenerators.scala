@@ -304,7 +304,7 @@ trait ValidGenerators extends BifrostGenerators {
         (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
 
 
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) ++ reputation.map(_.id)
+    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) //++ reputation.map(_.id)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
       prop -> preBoxes.map(_._2).sum
     }

@@ -491,7 +491,7 @@ case class ContractCompletion(contractBox: ContractBox,
 
   lazy val proposition = MofNProposition(1, contract.parties.map(_._1.pubKeyBytes).toSet)
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) ++ producerReputation.map(_.id)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) //++ producerReputation.map(_.id)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
