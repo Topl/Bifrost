@@ -296,7 +296,8 @@ case class ContractCreation(agreement: Agreement,
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
     parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
-    unlockers.toArray.flatMap(_.closedBoxId)
+    //unlockers.toArray.flatMap(_.closedBoxId)
+    boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"

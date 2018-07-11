@@ -138,6 +138,7 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
   def getContractSignature(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
+      println(s">>>>>>>>>>>>>>>>>>>> ${params} <<<<<<<<<<<<<<<<<<<<<<<<")
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state

@@ -235,7 +235,7 @@ class ContractRPCSpec extends WordSpec
           "signingPublicKey": "${publicKeys("investor")}",
           "agreement": ${agreement.asJson},
           "preInvestmentBoxes": [],
-          "parties": ${publicKeys.map { case (k, v) => v -> k.asJson }.toSeq.asJson},
+          "parties": ${publicKeys.map { case (k, v) => v -> k.asJson }.asJson},
           "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
           "preFeeBoxes": {
             "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
