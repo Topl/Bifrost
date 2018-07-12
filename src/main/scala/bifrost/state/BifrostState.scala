@@ -306,16 +306,28 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateContractCreation(cc: ContractCreation): Try[Unit] = {
 
+    println("validateContractCreation")
+    println(cc.signatures)
+    println(cc.messageToSign.mkString(""))
+
+    println("Checking valid signatures")
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
       // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
+      println(sig.isValid(prop, cc.messageToSign))
       sig.isValid(prop, cc.messageToSign)
 
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
+    println("role box attempts")
+    println(roleBoxAttempts.toSet)
+
     val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s
       ._2.isSuccess => s._2.get.value
     }
+
+    println("role boxes")
+    println(roleBoxes.toSet)
 
     if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
       log.debug(
@@ -328,7 +340,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     /* Verifies that the role boxes match the roles stated in the contract creation */
-    if (!roleBoxes.zip(cc.parties).forall { case (boxRole, propRole) => boxRole.equals(propRole._2.toString) }) {
+    if (!roleBoxes.zip(cc.parties).forall { case (boxRole, propToRole) => boxRole.equals(propToRole._2.toString) }) {
       log.debug("role boxes does not match the roles stated in the contract creation")
       return Failure(
         new TransactionValidationException("role boxes does not match the roles stated in the contract creation"))

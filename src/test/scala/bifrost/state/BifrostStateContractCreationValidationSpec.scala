@@ -31,6 +31,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
 
     val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
+    //val roles = Random.shuffle(List(Role.Producer, Role.Hub))
     val parties = allKeyPairs.map(_._2)
       .zip((Stream continually roles).flatten)
       .map(t => t._1 -> t._2)
@@ -38,8 +39,18 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
+    println("arbitrary blah parties")
+    println(parties)
+
+    val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
+
+    println()
+    println("arbitray blah investment box info")
     val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
-      preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties.head._1, n._1))
+      preInvestmentBoxes.map(n => {
+        println(parties.head._1)
+        println(n._1)
+        PublicKeyNoncedBox.idFromBox(allInvestorsSorted.head._1, n._1)})
 
     val feePreBoxes = parties
       .map(_._1 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
@@ -66,12 +77,32 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         prop -> possibleFeeValue
     }
 
+    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      parties.sortBy(_._1.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
-      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
+      parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+      //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
+      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
+    println("pre investment boxes - arbitrary blah")
+    println(preInvestmentBoxes)
+    println()
+
+    println("Printing arbitraryContract....")
+    //println(AgreementCompanion.toBytes(agreement).mkString(""))
+    //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+    println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+    println(preInvestmentBoxes)
+    //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+
+    //println("Signatures in abitraryPartyContractCreationGen")
     val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
+    //println(signatures)
+
+    println("MessageToSign in arbitrayPartyContractCreationGen")
+    println(messageToSign.mkString(""))
+    println()
 
     ContractCreation(
       agreement,
@@ -135,6 +166,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
                     case None => false
                   }))
 
+
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual
           preExistingPolyBoxes
@@ -142,15 +174,45 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
             .sum - BigInt((contractCreation.agreement.core.state \\ "initialCapital").head.as[String].right.get)
             .toLong - contractCreation.fee
 
+
+        println("Fails here")
+        println()
+
+        println("Printing preexisting poly boxes' propositions")
+        preExistingPolyBoxes.foreach{pb => println(pb.proposition)
+          println(pb.json)
+        println(pb.value)}
+        println()
+
+        println("Printing returned poly boxes' propositions")
+        returnedPolyBoxes.foreach{pb => println(pb.proposition)
+        println(pb.value)}
+        println()
+
+        println("Printing contract creation fees boxes' propositions")
+        contractCreation.fees.foreach{case(prop, fee) => println(prop)
+        println(fee)}
+        println()
+
+
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         contractCreation.fees.foreach { case (prop, fee) =>
+
+          println(prop)
           var isInvestor = 1L // 0L;
 
           //if(prop == cc.parties(Investor)) isInvestor = 1L // TODO(balinskia): Which party is the investor
 
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
-          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
+          println("output = " + output)
+
+          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
+            println(pb.value)
+            pb.value }).sum
+
+          println("input = " + input)
+
           val investment =
             if (prop equals contractCreation.parties.head._1) {
               BigInt((contractCreation.agreement.core.state \\ "initialCapital")
@@ -164,8 +226,15 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
               0
             }
 
+          println("investment = "+investment)
+
+          println("fee = " + fee)
+
           output shouldEqual (input - fee - investment)
         }
+
+        println("Amount returned in polys is correct")
+        println()
 
         /* Expect none of the prexisting boxes to still be around */
         preExistingPolyBoxes
@@ -219,7 +288,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
 
         newState.failed.get.getMessage shouldBe
-          "Not all roles were fulfilled for this transaction." +
+          "Not all roles were fulfilled for this transaction. " +
             "Either they weren't provided or the signatures were not valid."
     }
   }
@@ -265,6 +334,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
   //noinspection ScalaStyle
   property("Attempting to validate a contract creation tx with too many signatures (versus parties) should error") {
+
     forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
       cc: ContractCreation =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
@@ -313,7 +383,11 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
           .get
 
+        println("Reached")
+
         val newState = preparedState.validate(cc)
+
+        println("Reached past newState")
 
         BifrostStateSpec.genesisState = preparedState
           .rollbackTo(BifrostStateSpec.genesisBlockId)

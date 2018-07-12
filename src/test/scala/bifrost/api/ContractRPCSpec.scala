@@ -17,7 +17,7 @@ import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.{BifrostTransaction, ContractCompletion, Role}
+import bifrost.transaction.{AgreementCompanion, BifrostTransaction, ContractCompletion, Role}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
@@ -26,6 +26,7 @@ import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+
 import scalapb.json4s.JsonFormat
 import scorex.core.network.message._
 import scorex.core.network.peer.PeerManager
@@ -302,8 +303,13 @@ class ContractRPCSpec extends WordSpec
       view().pool.remove(txInstance)
     }
 
+    println()
+    println("---------------------------------------------------")
+    println()
+
     "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
+
       val cursor: HCursor = requestBodyJson.hcursor
       val requestJson = cursor.downField("method")
         .withFocus(_.mapString(_ => "createContract")).up
@@ -314,8 +320,15 @@ class ContractRPCSpec extends WordSpec
         .downField(publicKeys("producer"))
         .withFocus(_.mapString(_ => producerSig)).top.get
 
+      println(requestJson)
+
+
+
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        println()
+        println("RPC test------------")
+        println(res)
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         view().pool.take(5).toList.size shouldEqual 4

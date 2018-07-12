@@ -75,6 +75,11 @@ trait ValidGenerators extends BifrostGenerators {
           sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
         }
 
+      //val partiesWithRoles = parties.zip(POSSIBLE_ROLES)
+
+      //val allInvestorsSorted = partiesWithRoles.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
+
+
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
         .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
 
@@ -110,6 +115,11 @@ trait ValidGenerators extends BifrostGenerators {
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
         prop -> preBoxes.map(_._2).sum
       }
+
+      println("ValudGenerators")
+      println(AgreementCompanion.toBytes(agreement).mkString(""))
+      println(parties.zip(POSSIBLE_ROLES).sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+      println((investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _).mkString(""))
 
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),

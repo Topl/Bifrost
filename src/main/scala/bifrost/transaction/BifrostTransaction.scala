@@ -226,12 +226,27 @@ case class ContractCreation(agreement: Agreement,
 
   override type M = ContractCreation
 
+  println("Pre investment boexs - BifrostTransaction")
+  println(preInvestmentBoxes)
+  println()
+
+  println()
+  println("BifrostTransaction investment box info")
+
   lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
-  lazy val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes.map(n => PublicKeyNoncedBox.idFromBox(parties
-                                                                                                                  .head
-                                                                                                                  ._1,
-                                                                                                                n._1))
+  println("transaction parties")
+  println(parties)
+  println()
+
+  //val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
+
+
+  lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
+    preInvestmentBoxes.map(n => {
+      println(parties.head._1)
+      println(n._1)
+      PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)})
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
@@ -246,7 +261,8 @@ case class ContractCreation(agreement: Agreement,
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
       parties.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
-      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
@@ -293,12 +309,23 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val serializer = ContractCreationCompanion
 
+  println("BifrostTransaction")
+  //println(AgreementCompanion.toBytes(agreement).mkString(""))
+  //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+  println(preInvestmentBoxes)
+  //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
     parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
     //unlockers.toArray.flatMap(_.closedBoxId)
     boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
+
+  println()
+  println(messageToSign.mkString(""))
+  println()
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
 }
