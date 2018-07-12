@@ -22,6 +22,7 @@ import scala.util.{Failure, Random}
   */
 class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
+  //noinspection ScalaStyle
   def arbitraryPartyContractCreationGen(num: Int): Gen[ContractCreation] = for {
     agreement <- validAgreementGen()
     timestamp <- positiveLongGen
@@ -30,9 +31,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
   } yield {
     val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
 
-    val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
-    //val roles = Random.shuffle(List(Role.Producer, Role.Hub))
-    val parties = allKeyPairs.map(_._2)
+    val roles = Random.shuffle(List(Role.Producer, Role.Hub))
+    val parties = IndexedSeq(allKeyPairs.head._2 -> Role.Investor) ++ allKeyPairs.drop(1).map(_._2)
       .zip((Stream continually roles).flatten)
       .map(t => t._1 -> t._2)
 
@@ -199,9 +199,12 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         contractCreation.fees.foreach { case (prop, fee) =>
 
           println(prop)
-          var isInvestor = 1L // 0L;
+          var isInvestor = 0L // 0L;
 
-          //if(prop == cc.parties(Investor)) isInvestor = 1L // TODO(balinskia): Which party is the investor
+          if(prop == contractCreation.parties.head._1) isInvestor = 1L // TODO(balinskia): Which party is the investor
+
+          println(">>>>>>>>>>>>>>>> returnedPolyBoxes " + returnedPolyBoxes.map(b => b.value + " " + b.proposition))
+          println(">>>>>>>>>>>>>>>>>>>>> does pb.proposition = prop: " + returnedPolyBoxes.map(b => b.proposition equals prop))
 
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
@@ -337,7 +340,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
     forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
       cc: ContractCreation =>
-        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+        val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
       val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)

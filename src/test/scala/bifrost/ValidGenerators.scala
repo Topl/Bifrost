@@ -75,7 +75,10 @@ trait ValidGenerators extends BifrostGenerators {
           sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
         }
 
-      //val partiesWithRoles = parties.zip(POSSIBLE_ROLES)
+      val partiesWithRoles: Map[PublicKey25519Proposition, Role.Role] = Map(allKeyPairs.head._2 -> Role.Investor) ++
+        allKeyPairs.drop(1).map(_._2)
+        .zip((Stream continually Random.shuffle(List(Role.Producer, Role.Hub))).flatten)
+        .map(t => t._1 -> t._2)
 
       //val allInvestorsSorted = partiesWithRoles.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
@@ -118,12 +121,12 @@ trait ValidGenerators extends BifrostGenerators {
 
       println("ValudGenerators")
       println(AgreementCompanion.toBytes(agreement).mkString(""))
-      println(parties.zip(POSSIBLE_ROLES).sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+      println(partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
       println((investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _).mkString(""))
 
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),
-        parties.zip(POSSIBLE_ROLES).sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+        partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
       )
 
@@ -136,7 +139,7 @@ trait ValidGenerators extends BifrostGenerators {
       ContractCreation(
         agreement,
         preInvestmentBoxes,
-        parties.zip(POSSIBLE_ROLES).toMap,
+        partiesWithRoles,
         signatures.toMap,
         feePreBoxes,
         fees,
