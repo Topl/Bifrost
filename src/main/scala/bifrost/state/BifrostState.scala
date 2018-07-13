@@ -754,6 +754,7 @@ object BifrostState {
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 
+  //noinspection ScalaStyle
   def semanticValidity(tx: TX): Try[Unit] = {
     tx match {
       case poT: PolyTransfer => PolyTransfer.validate(poT)

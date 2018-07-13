@@ -165,14 +165,14 @@ class ContractRPCSpec extends WordSpec
         val wallet = view().vault
         println(s"secrets in wallet, ${wallet.secrets}")
         val profileBoxes = Seq(
+          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get),
+            0L,
+            Role.Investor.toString,
+            "role"),
           ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get), 0L, Role.Hub.toString, "role"),
           ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("producer")).get),
                      0L,
                      Role.Producer.toString,
-                     "role"),
-          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get),
-                     0L,
-                     Role.Investor.toString,
                      "role")
         )
         val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
@@ -248,8 +248,8 @@ class ContractRPCSpec extends WordSpec
         }]
       }
       """
-    var investorSig = "";
-    var hubSig = "";
+    var investorSig = ""
+    var hubSig = ""
     var producerSig = ""
 
     "Get ContractCreation Signature" in {
@@ -273,11 +273,15 @@ class ContractRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         hubSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
+        hubSig.nonEmpty shouldEqual true
+        (res \\ "error").isEmpty shouldEqual true
       }
       httpPOST(ByteString(producerJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         producerSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
+        hubSig.nonEmpty shouldEqual true
+        (res \\ "error").isEmpty shouldEqual true
       }
       println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
     }
@@ -292,7 +296,9 @@ class ContractRPCSpec extends WordSpec
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
       val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
       txInstance.newBoxes.foreach {
-        case b: ContractBox => contractBox = Some(b)
+        case b: ContractBox => {
+          contractBox = Some(b)
+        }
         case _ =>
       }
       val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
@@ -302,7 +308,6 @@ class ContractRPCSpec extends WordSpec
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
       view().pool.remove(txInstance)
     }
-
     println()
     println("---------------------------------------------------")
     println()
@@ -320,7 +325,7 @@ class ContractRPCSpec extends WordSpec
         .downField(publicKeys("producer"))
         .withFocus(_.mapString(_ => producerSig)).top.get
 
-      println(requestJson)
+      println(s">>>> requestJson: $requestJson")
 
 
 
@@ -351,7 +356,7 @@ class ContractRPCSpec extends WordSpec
            |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
            |    "methodName": "changeStatus",
            |    "parties": {
-           |	     "producer": "${publicKeys("producer")}"
+           |	     "${publicKeys("producer")}" : "producer"
            |	   },
            |	   "signatures": {
            |	     "${publicKeys("producer")}": ""

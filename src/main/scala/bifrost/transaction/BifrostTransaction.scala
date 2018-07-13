@@ -245,7 +245,8 @@ case class ContractCreation(agreement: Agreement,
   lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
     preInvestmentBoxes.map(n => {
       println(parties.head._1)
-      println(n._1)
+      println(s">>>>>>>>>>>>  ${n._1}")
+      println(s">>>>>>>>>>>> preInvestmentBoxes: ${PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)}")
       PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)})
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
@@ -260,7 +261,7 @@ case class ContractCreation(agreement: Agreement,
 
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
-      parties.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+      parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
@@ -276,7 +277,8 @@ case class ContractCreation(agreement: Agreement,
       )
       ).asJson
 
-    val investor = parties.find(x => x._2 == Role.Investor).get
+    val investor = parties.head
+    println(s">>>>>>> find investor: ${investor.toString()}")
     val investorProp = investor._1
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
@@ -318,13 +320,13 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
-    parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+    parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
     //unlockers.toArray.flatMap(_.closedBoxId)
     boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
 
   println()
-  println(messageToSign.mkString(""))
+  println(s">>>>>>>>>>> messageToSign direct: " + messageToSign.mkString(""))
   println()
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
@@ -337,10 +339,18 @@ object ContractCreation {
     val outcome = Agreement.validate(tx.agreement)
     require(outcome.isSuccess)
 
+    println(s"${tx.signatures.toString()} \n ${tx.parties}")
+    println(s">>>>>>>>>>>>>>>>> signatures: ${tx.signatures.map(p => p._2.signature.toString)}")
+    println(s">>>>>>>>>>>>>>>>> messageToSign: ${tx.messageToSign.toString}")
+    println(s">>>>>>>>>>>>>>>>> ${tx.signatures.map(p => p._1 + " " + p._2.isValid(p._1, tx.messageToSign))}")
+
     require((tx.parties.size == tx.signatures.size) && tx.parties.size >= 2,
       "There aren't exactly 3 parties involved in signing")
     require(tx.parties.size >= 2, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
     require(tx.parties.forall { case (proposition, _) =>
+      println(tx.messageToSign.mkString(""))
+      println(tx.messageToSign.mkString(""))
+      println(s"forall prop: ${proposition.toString()} sig prop: ${tx.signatures(proposition).toString()}")
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
     }, "Not all signatures were valid")
 

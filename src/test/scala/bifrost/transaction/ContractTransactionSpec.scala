@@ -116,7 +116,7 @@ class ContractTransactionSpec extends PropSpec
       timestamp)
   }
 
-  //noinspection scalaStyle
+  //noinspection ScalaStyle
   def potentiallyInvalidContractMethodExecutionGen(minFee: Long,
                                                    maxFee: Long,
                                                    minFeeSum: Long,
@@ -201,7 +201,7 @@ class ContractTransactionSpec extends PropSpec
     )
   }
 
-  //noinspection scalaStyle
+  //noinspection ScalaStyle
   def potentiallyInvalidContractCompletionGen(minFee: Long,
                                               maxFee: Long,
                                               minFeeSum: Long,
