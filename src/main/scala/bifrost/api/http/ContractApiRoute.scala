@@ -186,6 +186,9 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
 
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
 
+      println(s"${tx.signatures.toString()}")
+      println(s"${tx.json}")
+
       ContractMethodExecution.validate(tx) match {
         case Success(e) => log.info("Contract method execution successfully validated")
         case Failure(e) => throw e.getCause

@@ -404,7 +404,7 @@ class ContractRPCSpec extends WordSpec
            |    "signingPublicKey": ${publicKey.asJson},
            |    "contractBox": ${Base58.encode(contractBox.get.id).asJson},
            |    "reputationBoxes": [],
-           |    "parties": ${publicKeys.asJson},
+           |    "parties": ${publicKeys.map(kv => kv._2 -> kv._1).asJson},
            |	  "signatures": {
            |	    ${publicKeys("investor").asJson}: "",
            |      ${publicKeys("producer").asJson}: "",
@@ -450,7 +450,7 @@ class ContractRPCSpec extends WordSpec
             |  "params" : [{
             |  	 "contractBox": ${Base58.encode(contractBox.get.id).asJson},
             |  	 "reputationBoxes": [],
-            |    "parties" : ${publicKeys.asJson},
+            |    "parties" : ${publicKeys.map(kv => kv._2 -> kv._1).asJson},
             |    "signatures" : {
             |      ${publicKeys("investor").asJson} : ${investorSig.asJson},
             |      ${publicKeys("producer").asJson} : ${producerSig.asJson},

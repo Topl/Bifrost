@@ -97,7 +97,7 @@ class ContractTransactionSpec extends PropSpec
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
-      partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+      partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
 
     val signatures = allKeyPairs.map {
@@ -269,7 +269,7 @@ class ContractTransactionSpec extends PropSpec
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
-        partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+        partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
         boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
         Longs.toByteArray(contract.lastUpdated) ++
         fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))

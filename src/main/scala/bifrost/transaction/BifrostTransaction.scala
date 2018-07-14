@@ -270,11 +270,10 @@ case class ContractCreation(agreement: Agreement,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val boxValue: Json = (parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
-      Map(
+    val boxValue: Json = Map(
+        "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
         "agreement" -> agreement.json,
         "lastUpdated" -> timestamp.asJson
-      )
       ).asJson
 
     val investor = parties.head
@@ -397,12 +396,22 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
     val cursor: HCursor = valueObject("value").hcursor
     val time = cursor.fields
-    val timeUpdatedContract = contractBox.json
-      .asObject
-      .flatMap(_.apply("value"))
-      .flatMap(_.asObject)
-      .map(_.toMap)
-      .get + ("lastUpdated" -> timestamp.asJson)
+    val timeUpdatedContract = {
+
+      println(s"valueObject value: ${valueObject("value")}")
+      println(s"valueObject: ${valueObject}")
+      println(s"${contractBox.json.asObject.map(b => b.toMap)}")
+      println(s"contractBox.json: ${cursor.downN(1).downField("value").as[Json]}")
+
+      cursor.downField("lastUpdated").withFocus(x => timestamp.asJson).top.get
+
+      /*contractBox.json
+        .asObject
+        .flatMap(_.apply("value"))
+        .flatMap(_.asObject)
+        .map(_.toMap)
+        .get + ("lastUpdated" -> timestamp.asJson)*/
+    }
 
     Contract(timeUpdatedContract.asJson, contractBox.id)
   }
@@ -424,7 +433,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       methodName.getBytes ++
-      parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+      parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       parameters.noSpaces.getBytes ++
       unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++

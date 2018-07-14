@@ -126,7 +126,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),
-        partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+        partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
       )
 
