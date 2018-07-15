@@ -557,7 +557,7 @@ case class ContractCompletion(contractBox: ContractBox,
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
-      parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+      parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
@@ -607,6 +607,8 @@ object ContractCompletion {
       val first = tx.signatures(proposition).isValid(proposition, tx.messageToSign)
       val second = multiSig.isValid(tx.contractBox.proposition, tx.messageToSign)
 
+      println(tx.parties)
+      println(tx.signatures)
       println("sig " + sig)
       println("multiSig " + multiSig)
       println(tx.signatures(proposition).isValid(proposition, tx.messageToSign))

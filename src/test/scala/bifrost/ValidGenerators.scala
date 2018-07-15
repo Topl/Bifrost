@@ -119,10 +119,6 @@ trait ValidGenerators extends BifrostGenerators {
         prop -> preBoxes.map(_._2).sum
       }
 
-      println("ValudGenerators")
-      println(AgreementCompanion.toBytes(agreement).mkString(""))
-      println(partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
-      println((investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _).mkString(""))
 
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),
@@ -325,7 +321,7 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
         //reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
-        partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
+        partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
         ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
         ++ Longs.toByteArray(contract.lastUpdated)
         ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
