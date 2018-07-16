@@ -89,7 +89,7 @@ class ContractRPCSpec extends WordSpec
   )
 
   val route = ContractApiRoute(settings, nodeViewHolderRef, networkController).route
-  println(settings.toString)
+  //println(settings.toString)
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -163,7 +163,7 @@ class ContractRPCSpec extends WordSpec
 
         val state = view().state
         val wallet = view().vault
-        println(s"secrets in wallet, ${wallet.secrets}")
+        //println(s"secrets in wallet, ${wallet.secrets}")
         val profileBoxes = Seq(
           ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get),
             0L,
@@ -283,7 +283,7 @@ class ContractRPCSpec extends WordSpec
         hubSig.nonEmpty shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
       }
-      println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
+      //println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
     }
 
     var contractBox: Option[ContractBox] = None
@@ -308,9 +308,6 @@ class ContractRPCSpec extends WordSpec
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
       view().pool.remove(txInstance)
     }
-    println()
-    println("---------------------------------------------------")
-    println()
 
     "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
@@ -325,15 +322,12 @@ class ContractRPCSpec extends WordSpec
         .downField(publicKeys("producer"))
         .withFocus(_.mapString(_ => producerSig)).top.get
 
-      println(s">>>> requestJson: $requestJson")
+      //println(s">>>> requestJson: $requestJson")
 
 
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println()
-        println("RPC test------------")
-        println(res)
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         view().pool.take(5).toList.size shouldEqual 4
@@ -376,9 +370,7 @@ class ContractRPCSpec extends WordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        println("RESPONSE", responseAs[String])
         val res = parse(responseAs[String]).right.get
-        println("res", res)
         (res \\ "result").head.asObject.isDefined shouldEqual true
         // Manually modify state
         manuallyApplyChanges(res, 9)
@@ -506,8 +498,6 @@ class ContractRPCSpec extends WordSpec
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(requestBody)
-        println(res)
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }

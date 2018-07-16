@@ -43,8 +43,6 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
     val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
       preInvestmentBoxes.map(n => {
-        println(parties.head._1)
-        println(n._1)
         PublicKeyNoncedBox.idFromBox(allInvestorsSorted.head._1, n._1)})
 
     val feePreBoxes = parties
@@ -330,11 +328,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
-        println("Reached")
-
         val newState = preparedState.validate(cc)
-
-        println("Reached past newState")
 
         BifrostStateSpec.genesisState = preparedState
           .rollbackTo(BifrostStateSpec.genesisBlockId)

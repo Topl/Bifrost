@@ -330,7 +330,7 @@ trait ValidGenerators extends BifrostGenerators {
     val signatures = allKeyPairs.map {
       keypair =>
         val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
-        println(s"Validate Signatures: ${keypair} + ${sig.isValid(keypair._2, messageToSign)}")
+        //println(s"Validate Signatures: ${keypair} + ${sig.isValid(keypair._2, messageToSign)}")
         (keypair._2, sig)
     }
 
@@ -515,7 +515,7 @@ trait ValidGenerators extends BifrostGenerators {
           assetHub -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
       }
 
-    println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
+    //println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
 
     dummyTx.copy(conversionSignatures = realSignatures)
   }
