@@ -278,35 +278,35 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
   }
 
   //noinspection ScalaStyle
-  property("Attempting to validate a contract creation tx with too many signatures (versus parties) should error") {
-
-    forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
-      cc: ContractCreation =>
-        val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
-
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
-      val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
-
-        val necessaryBoxesSC = BifrostStateChanges(
-          Set(),
-          preExistingPolyBoxes ++ profileBoxes,
-          Instant.now.toEpochMilli)
-
-        val preparedState = BifrostStateSpec
-          .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
-          .get
-
-        val newState = preparedState.validate(cc)
-
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
-          .get
-
-        newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe "Too many signatures for the parties of this transaction"
-    }
-  }
+//  property("Attempting to validate a contract creation tx with too many signatures (versus parties) should error") {
+//
+//    forAll(arbitraryPartyContractCreationGen(Gen.choose(4, 10).sample.get)) {
+//      cc: ContractCreation =>
+//        val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
+//
+//        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
+//      val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
+//
+//        val necessaryBoxesSC = BifrostStateChanges(
+//          Set(),
+//          preExistingPolyBoxes ++ profileBoxes,
+//          Instant.now.toEpochMilli)
+//
+//        val preparedState = BifrostStateSpec
+//          .genesisState
+//          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+//          .get
+//
+//        val newState = preparedState.validate(cc)
+//
+//        BifrostStateSpec.genesisState = preparedState
+//          .rollbackTo(BifrostStateSpec.genesisBlockId)
+//          .get
+//
+//        newState shouldBe a[Failure[_]]
+//        newState.failed.get.getMessage shouldBe "Too many signatures for the parties of this transaction"
+//    }
+//  }
 
   property(
     "Attempting to validate a contract creation tx with a timestamp that is before the last block timestamp should error")
