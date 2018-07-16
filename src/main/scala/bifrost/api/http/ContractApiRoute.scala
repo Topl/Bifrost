@@ -138,7 +138,7 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
   def getContractSignature(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      println(s">>>>>>>>>>>>>>>>>>>> ${params} <<<<<<<<<<<<<<<<<<<<<<<<")
+      //println(s">>>>>>>>>>>>>>>>>>>> ${params} <<<<<<<<<<<<<<<<<<<<<<<<")
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state
@@ -186,8 +186,8 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
 
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
 
-      println(s"${tx.signatures.toString()}")
-      println(s"${tx.json}")
+//      println(s"${tx.signatures.toString()}")
+//      println(s"${tx.json}")
 
       ContractMethodExecution.validate(tx) match {
         case Success(e) => log.info("Contract method execution successfully validated")
@@ -294,7 +294,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
 
   //noinspection ScalaStyle
   def createContractInstance(json: Json, state: BifrostState): ContractCreation = {
-    println(json)
     json.as[ContractCreation] match {
       case Right(c: ContractCreation) => c
       case Left(e) => throw new JsonParsingException(s"Could not parse ContractCreation: $e")
