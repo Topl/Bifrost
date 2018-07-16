@@ -39,7 +39,7 @@ jobs:
           key: v1-dependencies--{{ checksum "build.sbt" }}
         
       # run tests!
-      - run: cat /dev/null | sbt test:test
+      - run: cat /dev/null | sbt "testOnly bifrost.transaction.*"
 
 workflows:
   version: 2
