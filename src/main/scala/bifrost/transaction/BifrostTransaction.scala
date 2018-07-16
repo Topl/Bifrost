@@ -226,27 +226,16 @@ case class ContractCreation(agreement: Agreement,
 
   override type M = ContractCreation
 
-  println("Pre investment boexs - BifrostTransaction")
-  println(preInvestmentBoxes)
-  println()
-
-  println()
-  println("BifrostTransaction investment box info")
-
   lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
-
-  println("transaction parties")
-  println(parties)
-  println()
 
   //val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
 
   lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
     preInvestmentBoxes.map(n => {
-      println(parties.head._1)
-      println(s">>>>>>>>>>>>  ${n._1}")
-      println(s">>>>>>>>>>>> preInvestmentBoxes: ${PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)}")
+//      println(parties.head._1)
+//      println(s">>>>>>>>>>>>  ${n._1}")
+//      println(s">>>>>>>>>>>> preInvestmentBoxes: ${PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)}")
       PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)})
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
@@ -277,7 +266,7 @@ case class ContractCreation(agreement: Agreement,
       ).asJson
 
     val investor = parties.head
-    println(s">>>>>>> find investor: ${investor.toString()}")
+//    println(s">>>>>>> find investor: ${investor.toString()}")
     val investorProp = investor._1
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
@@ -310,11 +299,11 @@ case class ContractCreation(agreement: Agreement,
 
   override lazy val serializer = ContractCreationCompanion
 
-  println("BifrostTransaction")
+//  println("BifrostTransaction")
   //println(AgreementCompanion.toBytes(agreement).mkString(""))
   //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
-  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
-  println(preInvestmentBoxes)
+//  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+//  println(preInvestmentBoxes)
   //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
@@ -324,9 +313,9 @@ case class ContractCreation(agreement: Agreement,
     boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
 
-  println()
-  println(s">>>>>>>>>>> messageToSign direct: " + messageToSign.mkString(""))
-  println()
+//  println()
+//  println(s">>>>>>>>>>> messageToSign direct: " + messageToSign.mkString(""))
+//  println()
 
   override def toString: String = s"ContractCreation(${json.noSpaces})"
 }
@@ -338,18 +327,11 @@ object ContractCreation {
     val outcome = Agreement.validate(tx.agreement)
     require(outcome.isSuccess)
 
-    println(s"${tx.signatures.toString()} \n ${tx.parties}")
-    println(s">>>>>>>>>>>>>>>>> signatures: ${tx.signatures.map(p => p._2.signature.toString)}")
-    println(s">>>>>>>>>>>>>>>>> messageToSign: ${tx.messageToSign.toString}")
-    println(s">>>>>>>>>>>>>>>>> ${tx.signatures.map(p => p._1 + " " + p._2.isValid(p._1, tx.messageToSign))}")
 
     require((tx.parties.size == tx.signatures.size) && tx.parties.size >= 2,
       "There aren't exactly 3 parties involved in signing")
     require(tx.parties.size >= 2, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
     require(tx.parties.forall { case (proposition, _) =>
-      println(tx.messageToSign.mkString(""))
-      println(tx.messageToSign.mkString(""))
-      println(s"forall prop: ${proposition.toString()} sig prop: ${tx.signatures(proposition).toString()}")
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
     }, "Not all signatures were valid")
 
@@ -398,10 +380,10 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val time = cursor.fields
     val timeUpdatedContract = {
 
-      println(s"valueObject value: ${valueObject("value")}")
-      println(s"valueObject: ${valueObject}")
-      println(s"${contractBox.json.asObject.map(b => b.toMap)}")
-      println(s"contractBox.json: ${cursor.downN(1).downField("value").as[Json]}")
+//      println(s"valueObject value: ${valueObject("value")}")
+//      println(s"valueObject: ${valueObject}")
+//      println(s"${contractBox.json.asObject.map(b => b.toMap)}")
+//      println(s"contractBox.json: ${cursor.downN(1).downField("value").as[Json]}")
 
       cursor.downField("lastUpdated").withFocus(x => timestamp.asJson).top.get
 

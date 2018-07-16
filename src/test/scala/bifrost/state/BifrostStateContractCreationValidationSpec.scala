@@ -39,13 +39,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    println("arbitrary blah parties")
-    println(parties)
-
     val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
-    println()
-    println("arbitray blah investment box info")
     val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
       preInvestmentBoxes.map(n => {
         println(parties.head._1)
@@ -85,24 +80,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
       //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
       boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
-    println("pre investment boxes - arbitrary blah")
-    println(preInvestmentBoxes)
-    println()
-
-    println("Printing arbitraryContract....")
-    //println(AgreementCompanion.toBytes(agreement).mkString(""))
-    //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
-    println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
-    println(preInvestmentBoxes)
-    //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
-
-    //println("Signatures in abitraryPartyContractCreationGen")
     val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
-    //println(signatures)
-
-    println("MessageToSign in arbitrayPartyContractCreationGen")
-    println(messageToSign.mkString(""))
-    println()
 
     ContractCreation(
       agreement,
@@ -175,46 +153,17 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
             .toLong - contractCreation.fee
 
 
-        println("Fails here")
-        println()
-
-        println("Printing preexisting poly boxes' propositions")
-        preExistingPolyBoxes.foreach{pb => println(pb.proposition)
-          println(pb.json)
-        println(pb.value)}
-        println()
-
-        println("Printing returned poly boxes' propositions")
-        returnedPolyBoxes.foreach{pb => println(pb.proposition)
-        println(pb.value)}
-        println()
-
-        println("Printing contract creation fees boxes' propositions")
-        contractCreation.fees.foreach{case(prop, fee) => println(prop)
-        println(fee)}
-        println()
-
-
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         contractCreation.fees.foreach { case (prop, fee) =>
 
-          println(prop)
           var isInvestor = 0L // 0L;
 
-          if(prop == contractCreation.parties.head._1) isInvestor = 1L // TODO(balinskia): Which party is the investor
-
-          println(">>>>>>>>>>>>>>>> returnedPolyBoxes " + returnedPolyBoxes.map(b => b.value + " " + b.proposition))
-          println(">>>>>>>>>>>>>>>>>>>>> does pb.proposition = prop: " + returnedPolyBoxes.map(b => b.proposition equals prop))
+          if(prop == contractCreation.parties.head._1) isInvestor = 1L // TODO(balinskia): Which party is the investor)
 
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
-          println("output = " + output)
-
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
-            println(pb.value)
             pb.value }).sum
-
-          println("input = " + input)
 
           val investment =
             if (prop equals contractCreation.parties.head._1) {
@@ -229,15 +178,10 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
               0
             }
 
-          println("investment = "+investment)
-
-          println("fee = " + fee)
 
           output shouldEqual (input - fee - investment)
         }
 
-        println("Amount returned in polys is correct")
-        println()
 
         /* Expect none of the prexisting boxes to still be around */
         preExistingPolyBoxes
@@ -279,7 +223,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(4))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         val newState = preparedState.validate(invalidCC)
@@ -318,7 +262,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(5))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         val newState = preparedState.validate(cc)
@@ -352,7 +296,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(6))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         val newState = preparedState.validate(cc)
@@ -383,7 +327,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState.
-          applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
+          applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         println("Reached")
@@ -421,7 +365,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val necessaryState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(8))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
           .get
 
         val preparedChanges = necessaryState.changes(firstCCAddBlock).get
@@ -462,7 +406,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           preExistingPolyBoxes ++ profileBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(11)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(2)).get
         val randomFutureTimestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get
         val newState = preparedState.validate(cc.copy(timestamp = randomFutureTimestamp))
 
