@@ -4,6 +4,15 @@
 #
 version: 2
 jobs:
+  build:
+    macos:
+      xcode: "9.0"
+      
+    steps:
+      # Commands will execute in macOS container
+      # with Xcode 9.0 installed
+      - run: xcodebuild -version
+
   unit_tests:
     docker:
       # specify the version you desire here
