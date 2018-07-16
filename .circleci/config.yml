@@ -18,7 +18,7 @@ jobs:
 
     environment:
       # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx1024m
+      JVM_OPTS: -Xmx512m
       TERM: dumb
     
     steps:
@@ -39,7 +39,7 @@ jobs:
           key: v1-dependencies--{{ checksum "build.sbt" }}
         
       # run tests!
-      - run: cat /dev/null | sbt test:test
+      - run: cat /dev/null | sbt testOnly test.scala.bifrost.api.*
 
 workflows:
   version: 2
