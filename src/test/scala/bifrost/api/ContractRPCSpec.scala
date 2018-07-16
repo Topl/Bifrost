@@ -513,47 +513,47 @@ class ContractRPCSpec extends WordSpec
       }
     }
 
-    "Post a Proposal" in {
-      val tempProposal = ProducerProposal(
-        com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
-        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
-      )
-      val requestBody =
-        s"""
-           |{
-           |  "jsonrpc" : "2.0",
-           |  "id" : "24",
-           |  "method": "postProposals",
-           |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
-           |}
-        """.stripMargin
-      httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
-        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
-      }
-    }
-
-    "Retrieve Proposals" in {
-      val requestBody =
-        s"""
-           |{
-           |  "jsonrpc" : "2.0",
-           |  "id" : "24",
-           |  "method": "retrieveProposals",
-           |  "params" : [{
-           |    "limit": 10
-           |  }]
-           |}
-        """.stripMargin
-
-      httpPOST(ByteString(requestBody)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        println(res)
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
-      }
-    }
+//    "Post a Proposal" in {
+//      val tempProposal = ProducerProposal(
+//        com.google.protobuf.ByteString.copyFrom("testProducer".getBytes),
+//        ProposalDetails(assetCode = "assetCode", fundingNeeds = Some(ProposalDetails.Range(0, 1000)))
+//      )
+//      val requestBody =
+//        s"""
+//           |{
+//           |  "jsonrpc" : "2.0",
+//           |  "id" : "24",
+//           |  "method": "postProposals",
+//           |  "params" : [${JsonFormat.toJsonString(tempProposal)}]
+//           |}
+//        """.stripMargin
+//      httpPOST(ByteString(requestBody)) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "result").head.asObject.isDefined shouldEqual true
+//        val msgManager = Await.result((nodeViewHolderRef ? GetMessageManager).mapTo[MessageManager], 5.seconds)
+//        msgManager.m.take(1).head.messageBytes.toByteArray sameElements tempProposal.toByteArray shouldBe true
+//      }
+//    }
+//
+//    "Retrieve Proposals" in {
+//      val requestBody =
+//        s"""
+//           |{
+//           |  "jsonrpc" : "2.0",
+//           |  "id" : "24",
+//           |  "method": "retrieveProposals",
+//           |  "params" : [{
+//           |    "limit": 10
+//           |  }]
+//           |}
+//        """.stripMargin
+//
+//      httpPOST(ByteString(requestBody)) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        println(res)
+//        (res \\ "result").head.asObject.isDefined shouldEqual true
+//        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
+//      }
+//    }
   }
 }
