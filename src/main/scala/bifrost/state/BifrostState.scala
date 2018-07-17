@@ -73,6 +73,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
+    println("Rollback step")
+    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(version)}")
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
