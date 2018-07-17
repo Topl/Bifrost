@@ -152,11 +152,11 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(15))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(3))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(16))
           .get
 
         require(newState
@@ -226,7 +226,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(4))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(17))
           .get
 
         val newState = preparedState.validate(invalidCC)
@@ -262,7 +262,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(5))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(18))
           .get
 
         val newState = preparedState.validate(cc)
@@ -302,7 +302,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(6))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(19))
           .get
 
         val newState = preparedState.validate(cc)
@@ -348,7 +348,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(20))
           .get
 
         val newState = preparedState.validate(cc)
@@ -389,7 +389,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(8))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(21))
           .get
 
         val newState = preparedState.validate(cc)
@@ -422,7 +422,7 @@ class BifrostStateContractCompletionValidationSpec extends BifrostStateSpec {
           preExistingPolyBoxes ++ profileBoxes + cc.contractBox,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(9)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(22)).get
         val randomFutureTimestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get
         val newState = preparedState.validate(cc.copy(timestamp = randomFutureTimestamp))
 

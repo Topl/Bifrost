@@ -123,11 +123,11 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(23))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(3))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(24))
           .get
 
         require(newState.storage.get(ByteArrayWrapper(box.id))
@@ -221,7 +221,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
           .get
 
         val newState = preparedState.validate(invalidCC)
@@ -260,7 +260,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(26))
           .get
 
         val newState = preparedState.validate(cc)
@@ -325,7 +325,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState.
-          applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          applyChanges(necessaryBoxesSC, Ints.toByteArray(28))
           .get
 
         val newState = preparedState.validate(cc)
@@ -359,14 +359,14 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
 
         val necessaryState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(2))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(29))
           .get
 
         val preparedChanges = necessaryState.changes(firstCCAddBlock).get
         val preparedState = necessaryState
-          .applyChanges(preparedChanges, Ints.toByteArray(9))
+          .applyChanges(preparedChanges, Ints.toByteArray(30))
           .get
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(10))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(31))
           .get
 
         val newState = preparedState.validate(cc)
@@ -400,7 +400,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           preExistingPolyBoxes ++ profileBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(2)).get
+        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(32)).get
         val randomFutureTimestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get
         val newState = preparedState.validate(cc.copy(timestamp = randomFutureTimestamp))
 
