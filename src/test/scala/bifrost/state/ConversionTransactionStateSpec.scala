@@ -48,6 +48,8 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
           }
           .toSet
 
+        //println(preExistingAssetBoxes)
+
         val assetBoxes: Traversable[BifrostBox] = conversionTransaction.newBoxes.map {
           case a: AssetBox => a
           case p: PolyBox => p
