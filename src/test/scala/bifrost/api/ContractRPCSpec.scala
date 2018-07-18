@@ -40,6 +40,8 @@ import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.Try
 
 /**
   * Created by cykoz on 6/13/2017.
@@ -50,6 +52,9 @@ class ContractRPCSpec extends WordSpec
   with ScalatestRouteTest
   with BeforeAndAfterAll
   with BifrostGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -497,7 +502,9 @@ class ContractRPCSpec extends WordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
+        println(requestBody)
         val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
