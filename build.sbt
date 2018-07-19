@@ -99,7 +99,7 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-fork := true
+fork := false
 
 pomIncludeRepository := { _ => false }
 
@@ -132,4 +132,4 @@ lazy val contractModules = Project(id = "contract-modules", base = file("contrac
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-//parallelExecution in ThisBuild := false
+parallelExecution in ThisBuild := false
