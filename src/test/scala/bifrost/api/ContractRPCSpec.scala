@@ -94,7 +94,6 @@ class ContractRPCSpec extends WordSpec
   )
 
   val route = ContractApiRoute(settings, nodeViewHolderRef, networkController).route
-  //println(settings.toString)
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -327,9 +326,6 @@ class ContractRPCSpec extends WordSpec
         .downField(publicKeys("producer"))
         .withFocus(_.mapString(_ => producerSig)).top.get
 
-      //println(s">>>> requestJson: $requestJson")
-
-
 
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -502,9 +498,7 @@ class ContractRPCSpec extends WordSpec
         """.stripMargin
 
       httpPOST(ByteString(requestBody)) ~> route ~> check {
-        println(requestBody)
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }

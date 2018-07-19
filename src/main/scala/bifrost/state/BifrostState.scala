@@ -73,8 +73,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
-    println("Rollback step")
-    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(version)}")
+//    println("Rollback step")
+//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(version)}")
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
@@ -104,7 +104,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
-    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(newVersion)}")
+//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(newVersion)}")
 
     storage.update(
       ByteArrayWrapper(newVersion),
@@ -307,10 +307,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     */
   //noinspection ScalaStyle
   def validateContractCreation(cc: ContractCreation): Try[Unit] = {
-
-//    println("validateContractCreation")
-//    println(cc.signatures)
-//    println(cc.messageToSign.mkString(""))
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
