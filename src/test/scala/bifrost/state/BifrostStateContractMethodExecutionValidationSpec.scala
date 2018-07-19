@@ -94,10 +94,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
   property("A block with valid CME will result in a correct contract entry " +
     "and updated poly boxes in the LSMStore") {
-    println()
-    println()
-    println("Entered----------------------------")
-    println()
+
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -134,28 +131,14 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           preExistingPolyBoxes + cme.contractBox,
           Instant.now.toEpochMilli)
 
-        println()
-        println()
-        println("Prepared state here >>>>>>>>>>>>")
-        println()
-
         val preparedState = BifrostStateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(33))
           .get
 
-        println()
-        println()
-        println("New state here >>>>>>>>>>>>>>>>>>>>")
-        println()
-
         val newState = preparedState
           .applyChanges(preparedState.changes(block).get, Ints.toByteArray(34))
           .get
-
-        println()
-        println()
-        println("New state finished >>>>>>>>>>>>>>>>>>")
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
           case Some(wrapper) => wrapper.data sameElements boxBytes
@@ -231,17 +214,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .rollbackTo(BifrostStateSpec.genesisBlockId)
           .get
 
-        println()
-        println()
-        println("Finished=====================")
-        println()
-
-
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
   property("Attempting to validate a CME without valid signatures should error") {
@@ -290,10 +263,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Signature is invalid for contractBox"
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
   //property("Attempting to validate a CME with a party that is not part of the contract should error") {
@@ -397,10 +366,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution attempts to write into the past"
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
   property("Attempting to validate a CME for a contract that doesn't exist should error") {
@@ -457,10 +422,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
             .id)
         } does not exist"
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
   property("Attempting to validate a CME with a timestamp too far in the future should error") {
@@ -499,10 +460,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution timestamp is too far into the future"
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
   property("Attempting to validate a CME with nonexistent fee boxes should error") {
@@ -542,10 +499,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Insufficient balances provided for fees"
     }
-    println(";;;;;;;;;;;;;;;;;;;;;;")
-    i=i+1
-    println(i)
-    println()
   }
 
 }

@@ -170,7 +170,6 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
   } yield {
-    println("Entered Generator")
     val nrOfParties = 3 //Random.nextInt(1022) + 2
     val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
     val parties = allKeyPairs.map(_._2)

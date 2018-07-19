@@ -303,8 +303,6 @@ trait BifrostGenerators extends CoreGenerators {
     Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
   }
 
-//  println("Checking if valid agreement")
-//  println()
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
   lazy val contractGen: Gen[Contract] = for {
