@@ -74,6 +74,76 @@ object BifrostTransaction {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 }
 
+
+case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                          val signatures: IndexedSeq[Signature25519],
+                          val assetCode: String,
+                          val hub: PublicKey25519Proposition,
+                          override val fee: Long,
+                          override val timestamp: Long) extends BifrostTransaction {
+
+
+  override type M = AssetCreation
+
+  lazy val serializer = AssetCreationCompanion
+
+  override def toString: String = s"AssetCreation(${json.noSpaces})"
+
+  lazy val hashNoNonces = FastCryptographicHash(
+  to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
+  )
+
+  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+   case ((prop, value), idx) =>
+     val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
+       "AssetCreation".getBytes ++
+         prop.pubKeyBytes ++
+         hub.pubKeyBytes ++
+         assetCode.getBytes ++
+         hashNoNonces ++
+         Ints.toByteArray(idx)
+     ))
+     AssetBox(prop, nonce, value, assetCode, hub)
+   }
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "to" -> to.map { s =>
+      Map(
+        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+        "value" -> s._2.asJson
+      ).asJson
+    }.asJson,
+    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "assetCode" -> assetCode.asJson,
+    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
+
+  def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
+  newBoxes
+    .map(_.bytes)
+    .reduce(_ ++ _)
+  } else {
+    Array[Byte]()
+  }) ++
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
+
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(
+  "AssetCreation".getBytes(),
+  commonMessageToSign,
+  hub.pubKeyBytes,
+  assetCode.getBytes
+  )
+
+}
+
+
 sealed abstract class ContractTransaction extends BifrostTransaction {
 
   def parties: Map[PublicKey25519Proposition, Role]
