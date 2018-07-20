@@ -531,7 +531,6 @@ case class ContractCompletion(contractBox: ContractBox,
       new BoxUnlocker[PublicKey25519Proposition] {
         override val closedBoxId: Array[Byte] = id
         override val boxKey: Signature25519 = signatures(parties.find(_._2 == Role.Producer).get._1)
-        //println(s"Finding producer: ${parties.find(_._2 == Role.Producer)} + ${parties.find(_._2 == Role.Producer).get._1}")
       }
     ) ++
     feeBoxUnlockers
@@ -588,13 +587,6 @@ object ContractCompletion {
       val multiSig = MultiSignature25519(sig)
       val first = tx.signatures(proposition).isValid(proposition, tx.messageToSign)
       val second = multiSig.isValid(tx.contractBox.proposition, tx.messageToSign)
-
-//      println(tx.parties)
-//      println(tx.signatures)
-//      println("sig " + sig)
-//      println("multiSig " + multiSig)
-//      println(tx.signatures(proposition).isValid(proposition, tx.messageToSign))
-//      println(multiSig.isValid(tx.contractBox.proposition, tx.messageToSign))
 
       first && second
     }) {
