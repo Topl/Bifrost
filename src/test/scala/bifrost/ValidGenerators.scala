@@ -392,6 +392,19 @@ trait ValidGenerators extends BifrostGenerators {
     AssetTransfer(from, to, hub, assetCode, fee, timestamp)
   }
 
+  lazy val validAssetCreationGen: Gen[AssetTransfer] = for {
+    _ <- toSeqGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    hub <- propositionGen
+    assetCode <- stringGen
+  } yield {
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+
+    AssetCreation(to, hub, assetCode, fee, timestamp)
+  }
+
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {
     fee <- positiveLongGen
     timestamp <- positiveLongGen
