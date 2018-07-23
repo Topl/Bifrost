@@ -748,6 +748,8 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       Longs.toByteArray(ac.timestamp),
       Ints.toByteArray(ac.signatures.length),
       Ints.toByteArray(ac.to.length),
+      Ints.toByteArray(ac.assetCode.getBytes.length),
+      ac.assetCode.getBytes,
       ac.hub.pubKeyBytes,
       ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
       ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
@@ -775,6 +777,16 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     val toLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
     numReadBytes += Ints.BYTES
+
+    val assetCodeLen: Int = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
+    val assetCode: String = new String(
+      bytes.slice(numReadBytes, numReadBytes + assetCodeLen)
+    )
+
+    numReadBytes += assetCodeLen
 
     val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
       numReadBytes + Constants25519.PubKeyLength))
