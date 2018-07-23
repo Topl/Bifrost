@@ -89,6 +89,10 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override def toString: String = s"AssetCreation(${json.noSpaces})"
 
+  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = ???
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = ???
+
   lazy val hashNoNonces = FastCryptographicHash(
   to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
     Longs.toByteArray(timestamp) ++
@@ -97,7 +101,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
    case ((prop, value), idx) =>
-     val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
+     val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
        "AssetCreation".getBytes ++
          prop.pubKeyBytes ++
          hub.pubKeyBytes ++
@@ -141,6 +145,59 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
   assetCode.getBytes
   )
 
+}
+
+object AssetCreation {
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+//  def validate(tx: AssetRedemption): Try[Unit] = Try {
+//
+//    // Check that all of the signatures are valid for all of the boxes
+//    require(tx.signatures.forall {
+//      case (assetCode: String, sigs: IndexedSeq[Signature25519]) =>
+//        val boxesToRedeem = tx.availableToRedeem(assetCode)
+//        sigs.length == boxesToRedeem.length &&
+//          sigs.zip(boxesToRedeem.map(_._1)).forall {
+//            case (sig: Signature25519, prop: PublicKey25519Proposition) => sig.isValid(prop, tx.messageToSign)
+//          }
+//    })
+//
+//    // Check that all of the assets to be redeemed are consistent with assets provided
+//    require(tx.remainderAllocations.keySet.subsetOf(tx.availableToRedeem.keySet))
+//
+//    require(tx.fee >= 0)
+//    require(tx.timestamp >= 0)
+//  }
+//
+//  implicit val decodeAssetRedemption: Decoder[AssetRedemption] = (c: HCursor) => for {
+//    availableToRedeemRaw <- c.downField("availableToRedeem").as[Map[String, IndexedSeq[(String, Long)]]]
+//    remainderAllocationsRaw <- c.downField("remainderAllocations").as[Map[String, IndexedSeq[(String, Long)]]]
+//    signaturesRaw <- c.downField("signatures").as[Map[String, IndexedSeq[String]]]
+//    hubRaw <- c.downField("hub").as[String]
+//    fee <- c.downField("fee").as[Long]
+//    timestamp <- c.downField("timestamp").as[Long]
+//  } yield {
+//    def convertToProp(value: IndexedSeq[(String, Long)]) = value.map {
+//      case (pubKeyString, nonce) =>
+//        (BifrostTransaction.stringToPubKey(pubKeyString), nonce)
+//    }
+//
+//    val availableToRedeem = availableToRedeemRaw.map { case (key, value) => (key, convertToProp(value)) }
+//    val remainderAllocations = remainderAllocationsRaw.map { case (key, value) => (key, convertToProp(value)) }
+//    val signatures = signaturesRaw.map { case (key, values) =>
+//      val newValues = values.map(value =>
+//        if (value == "") {
+//          Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))
+//        } else {
+//          BifrostTransaction.stringToSignature(value)
+//        }
+//      )
+//      (key, newValues)
+//    }
+//    val hub = PublicKey25519Proposition(Base58.decode(hubRaw).get)
+//    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
+//  }
 }
 
 
