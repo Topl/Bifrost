@@ -747,7 +747,7 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       Longs.toByteArray(ac.fee),
       Longs.toByteArray(ac.timestamp),
       Ints.toByteArray(ac.signatures.length),
-      Ints.toByteArray(ac.to.length),
+      Ints.toByteArray(ac.to.size),
       Ints.toByteArray(ac.assetCode.getBytes.length),
       ac.assetCode.getBytes,
       ac.hub.pubKeyBytes,
@@ -763,27 +763,26 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
-
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    numReadBytes += 2 * Longs.BYTES
+    numReadBytes = 2 * Longs.BYTES
 
-    val sigLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes + Ints.BYTES, numReadBytes + 2 * Ints.BYTES))
-
-    numReadBytes += Ints.BYTES
-
-    val toLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    val sigLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
     numReadBytes += Ints.BYTES
 
-    val assetCodeLen: Int = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    val toLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
+    val assetCodeLen: Int = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
     numReadBytes += Ints.BYTES
 
     val assetCode: String = new String(
-      bytes.slice(numReadBytes, numReadBytes + assetCodeLen)
+      bytesWithoutType.slice(numReadBytes, numReadBytes + assetCodeLen)
     )
 
     numReadBytes += assetCodeLen
@@ -794,7 +793,7 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     numReadBytes += Constants25519.PubKeyLength
 
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(numReadBytes + i * Curve25519.SignatureLength,
+      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength,
         numReadBytes + (i + 1) * Curve25519.SignatureLength))
     }
 
@@ -803,12 +802,15 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     val elementLength = Longs.BYTES + Curve25519.KeyLength
 
     val to = (0 until toLength) map { i =>
-      val pk = bytes.slice(numReadBytes + i * elementLength, numReadBytes + (i + 1) * elementLength - Longs.BYTES)
+      val pk = bytesWithoutType.slice(numReadBytes + i * elementLength, numReadBytes + (i + 1) * elementLength - Longs.BYTES)
       val v = Longs.fromByteArray(
-        bytes.slice(numReadBytes + (i + 1) * elementLength - Longs.BYTES, numReadBytes + (i + 1) * elementLength)
+        bytesWithoutType.slice(numReadBytes + (i + 1) * elementLength - Longs.BYTES, numReadBytes + (i + 1) * elementLength)
       )
       (PublicKey25519Proposition(pk), v)
     }
+
+    println("parsed toValues")
+    println()
 
     AssetCreation(to, signatures, assetCode, hub, fee, timestamp)
   }
