@@ -151,25 +151,30 @@ object AssetCreation {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-//  def validate(tx: AssetRedemption): Try[Unit] = Try {
+//  def apply(to: IndexedSeq[(PublicKey25519Proposition, Long)],
+//            assetCode: String,
+//            hub: PublicKey25519Proposition,
+//            fee: Long,
+//            timestamp: Long): AssetCreation{
 //
-//    // Check that all of the signatures are valid for all of the boxes
-//    require(tx.signatures.forall {
-//      case (assetCode: String, sigs: IndexedSeq[Signature25519]) =>
-//        val boxesToRedeem = tx.availableToRedeem(assetCode)
-//        sigs.length == boxesToRedeem.length &&
-//          sigs.zip(boxesToRedeem.map(_._1)).forall {
-//            case (sig: Signature25519, prop: PublicKey25519Proposition) => sig.isValid(prop, tx.messageToSign)
-//          }
-//    })
+//    val fakeSigs = hub.map(_ => Signature25519(Array()))
 //
-//    // Check that all of the assets to be redeemed are consistent with assets provided
-//    require(tx.remainderAllocations.keySet.subsetOf(tx.availableToRedeem.keySet))
+//    val signatures = hub.map { case (priv, _) =>
+//      PrivateKey25519Companion.sign(priv, AssetCreation(to, fakeSign, assetCode, hub, fee, timestamp).messageToSign) }
 //
-//    require(tx.fee >= 0)
-//    require(tx.timestamp >= 0)
+//    AssetCreation(to, signatures, assetCode, hub ,fee, timestamp)
 //  }
-//
+
+  def validate(tx: AssetCreation): Try[Unit] = Try {
+    //require(tx.from.size == tx.signatures.size)
+    require(tx.to.forall(_._2 >= 0L))
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.forall({ case (signature) =>
+      signature.isValid(tx.hub, tx.messageToSign)
+    }))
+  }
+
 //  implicit val decodeAssetRedemption: Decoder[AssetRedemption] = (c: HCursor) => for {
 //    availableToRedeemRaw <- c.downField("availableToRedeem").as[Map[String, IndexedSeq[(String, Long)]]]
 //    remainderAllocationsRaw <- c.downField("remainderAllocations").as[Map[String, IndexedSeq[(String, Long)]]]
