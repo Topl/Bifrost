@@ -35,7 +35,12 @@ case class BifrostBlock(override val parentId: BlockId,
 
   override lazy val serializer = BifrostBlockCompanion
 
+  println("Before block id generation")
+  println()
+
   override lazy val id: BlockId = FastCryptographicHash(serializer.messageToSign(this))
+
+  println("Block id generated")
 
   override lazy val version: Version = 0: Byte
 
@@ -64,6 +69,7 @@ object BifrostBlock {
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519): BifrostBlock = {
+
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
     val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs)
     if (parentId sameElements Array.fill(32)(1: Byte)) {

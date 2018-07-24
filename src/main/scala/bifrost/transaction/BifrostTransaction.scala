@@ -89,9 +89,9 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override def toString: String = s"AssetCreation(${json.noSpaces})"
 
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = ???
+  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = ???
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
   lazy val hashNoNonces = FastCryptographicHash(
   to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
