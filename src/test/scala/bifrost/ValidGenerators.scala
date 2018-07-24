@@ -6,8 +6,8 @@ import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction._
 import bifrost.transaction.box.proposition.MofNProposition
-import bifrost.transaction.box.{ContractBox, ProfileBox, ReputationBox}
-import com.google.common.primitives.{Bytes, Longs}
+import bifrost.transaction.box._
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -392,17 +392,63 @@ trait ValidGenerators extends BifrostGenerators {
     AssetTransfer(from, to, hub, assetCode, fee, timestamp)
   }
 
-  lazy val validAssetCreationGen: Gen[AssetTransfer] = for {
+  lazy val validAssetCreationGen: Gen[AssetCreation] = for {
     _ <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- propositionGen
+    hub <- keyPairSetGen
     assetCode <- stringGen
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    AssetCreation(to, hub, assetCode, fee, timestamp)
+    val oneHub = hub.head
+
+//    val hashNoNonces = FastCryptographicHash(
+//      to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+//        Longs.toByteArray(timestamp) ++
+//        Longs.toByteArray(fee)
+//    )
+//
+//    val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+//      case ((prop, value), idx) =>
+//        val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
+//          "AssetCreation".getBytes ++
+//            prop.pubKeyBytes ++
+//            oneHub._2.pubKeyBytes ++
+//            assetCode.getBytes ++
+//            hashNoNonces ++
+//            Ints.toByteArray(idx)
+//        ))
+//        AssetBox(prop, nonce, value, assetCode, oneHub._2)
+//    }
+//
+//    val commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
+//      newBoxes
+//        .map(_.bytes)
+//        .reduce(_ ++ _)
+//    } else {
+//      Array[Byte]()
+//    }) ++
+//      Longs.toByteArray(timestamp) ++
+//      Longs.toByteArray(fee)
+//
+//    val messageToSign: Array[Byte] = Bytes.concat(
+//      "AssetCreation".getBytes(),
+//      commonMessageToSign,
+//      oneHub._2.pubKeyBytes,
+//      assetCode.getBytes
+//    )
+
+    val fakeSigs = IndexedSeq(Signature25519(Array()))
+
+    val messageToSign = AssetCreation(to, fakeSigs, assetCode, oneHub._2, fee, timestamp).messageToSign
+
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(oneHub._1, messageToSign))
+
+    AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp)
+
+    //println("Generated")
   }
 
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {
