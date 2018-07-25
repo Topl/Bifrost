@@ -151,20 +151,6 @@ object AssetCreation {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-//  def apply(to: IndexedSeq[(PublicKey25519Proposition, Long)],
-//            assetCode: String,
-//            hub: PublicKey25519Proposition,
-//            fee: Long,
-//            timestamp: Long): AssetCreation{
-//
-//    val fakeSigs = hub.map(_ => Signature25519(Array()))
-//
-//    val signatures = hub.map { case (priv, _) =>
-//      PrivateKey25519Companion.sign(priv, AssetCreation(to, fakeSign, assetCode, hub, fee, timestamp).messageToSign) }
-//
-//    AssetCreation(to, signatures, assetCode, hub ,fee, timestamp)
-//  }
-
   def validate(tx: AssetCreation): Try[Unit] = Try {
     //require(tx.from.size == tx.signatures.size)
     require(tx.to.forall(_._2 >= 0L))
@@ -176,34 +162,27 @@ object AssetCreation {
     }))
   }
 
-//  implicit val decodeAssetRedemption: Decoder[AssetRedemption] = (c: HCursor) => for {
-//    availableToRedeemRaw <- c.downField("availableToRedeem").as[Map[String, IndexedSeq[(String, Long)]]]
-//    remainderAllocationsRaw <- c.downField("remainderAllocations").as[Map[String, IndexedSeq[(String, Long)]]]
-//    signaturesRaw <- c.downField("signatures").as[Map[String, IndexedSeq[String]]]
-//    hubRaw <- c.downField("hub").as[String]
-//    fee <- c.downField("fee").as[Long]
-//    timestamp <- c.downField("timestamp").as[Long]
-//  } yield {
-//    def convertToProp(value: IndexedSeq[(String, Long)]) = value.map {
-//      case (pubKeyString, nonce) =>
-//        (BifrostTransaction.stringToPubKey(pubKeyString), nonce)
-//    }
-//
-//    val availableToRedeem = availableToRedeemRaw.map { case (key, value) => (key, convertToProp(value)) }
-//    val remainderAllocations = remainderAllocationsRaw.map { case (key, value) => (key, convertToProp(value)) }
-//    val signatures = signaturesRaw.map { case (key, values) =>
-//      val newValues = values.map(value =>
-//        if (value == "") {
-//          Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))
-//        } else {
-//          BifrostTransaction.stringToSignature(value)
-//        }
-//      )
-//      (key, newValues)
-//    }
-//    val hub = PublicKey25519Proposition(Base58.decode(hubRaw).get)
-//    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
-//  }
+  /**
+    * Route here from AssetApiRoute
+    * Assumes that the Wallet contains the hub's key information
+    * Takes Wallet from current view, and generates signature from hub's public key
+    * Forms corresponding AssetCreation transaction
+    */
+  def createAndApply(w: BWallet,
+             to: IndexedSeq[(PublicKey25519Proposition, Long)],
+             fee: Long,
+             hub: PublicKey25519Proposition,
+             assetCode: String): Try[AssetCreation] = Try {
+
+    val selectedSecret = w.secretByPublicImage(hub).get
+    val fakeSigs = IndexedSeq(Signature25519(Array()))
+    val timestamp = Instant.now.toEpochMilli
+    val messageToSign = AssetCreation(to, fakeSigs, assetCode, hub, fee, timestamp).messageToSign
+
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign))
+
+    AssetCreation(to, signatures, assetCode, hub, fee, timestamp)
+  }
 }
 
 
