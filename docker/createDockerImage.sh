@@ -1,3 +1,3 @@
-cp ../target/scala-2.12/project-bifrost-assembly-0.1.1-alpha.jar ./
+cp ../target/scala-2.12/project-bifrost-assembly-0.2.0-alpha-public.jar ./
 
-docker build -t topl/projectbifrost:0.1.1-testnet .
+docker build -t toplprotocol/projectbifrost:0.2.0-testnet .
