@@ -35,12 +35,7 @@ case class BifrostBlock(override val parentId: BlockId,
 
   override lazy val serializer = BifrostBlockCompanion
 
-  println("Before block id generation")
-  println()
-
   override lazy val id: BlockId = FastCryptographicHash(serializer.messageToSign(this))
-
-  println("Block id generated")
 
   override lazy val version: Version = 0: Byte
 

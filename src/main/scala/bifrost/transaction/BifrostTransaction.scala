@@ -171,6 +171,7 @@ object AssetCreation {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures.forall({ case (signature) =>
+      //println(signature.isValid(tx.hub, tx.messageToSign))
       signature.isValid(tx.hub, tx.messageToSign)
     }))
   }

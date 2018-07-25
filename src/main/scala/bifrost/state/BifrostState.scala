@@ -91,17 +91,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
-    println("Entered apply changes")
-
-
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
-    println(boxesToAdd)
-    println()
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
     val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
-    println(boxIdsToRemove)
-    println()
 
     log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
@@ -132,7 +125,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
       case asT: AssetTransfer => validateAssetTransfer(asT)
-      case ac: AssetCreation => validateAssetCreation(ac)
       case cc: ContractCreation => validateContractCreation(cc)
       case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
@@ -140,6 +132,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ct: ConversionTransaction => validateConversionTransaction(ct)
       case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
+      case ac: AssetCreation => validateAssetCreation(ac)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -782,10 +775,10 @@ object BifrostState {
   def changes(mod: BPMOD): Try[GSC] = {
     Try {
 
-      println("Entered changes")
-      println(mod)
-      println(mod.json)
-      println()
+//      println("Entered changes")
+//      println(mod)
+//      println(mod.json)
+//      println()
       val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
       val gen = mod.forgerBox.proposition
@@ -795,30 +788,30 @@ object BifrostState {
       }
 
 
-      println("Computed box deltas in changes")
-      println()
-      println(boxDeltas)
-      println()
+//      println("Computed box deltas in changes")
+//      println()
+//      println(boxDeltas)
+//      println()
 
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
         boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
           (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
         })
-
-      println("Computed aggregate boxDeltas")
-      println()
-      println(mod.id)
+//
+//      println("Computed aggregate boxDeltas")
+//      println()
+//      println(mod.id)
 
       val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
 
-      println("Computed reward nonce")
-      println()
+//      println("Computed reward nonce")
+//      println()
 
       var finalToAdd = toAdd
       if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
 
-      println("Creating BifrostStateChanges object ")
-      println()
+//      println("Creating BifrostStateChanges object ")
+//      println()
 
       //no reward additional to tx fees
       BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
