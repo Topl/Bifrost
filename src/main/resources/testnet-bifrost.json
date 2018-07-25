@@ -7,12 +7,12 @@
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
-      "127.0.0.1:9084"
+      "18.210.205.156:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "genesisoo",
+  "walletSeed": "testnet",
   "keyFileDir": "keyfiles/local-testnet",
   "walletDir": "/tmp/scorex/testnet/wallet",
   "dataDir": "/tmp/scorex/testnet/data",
