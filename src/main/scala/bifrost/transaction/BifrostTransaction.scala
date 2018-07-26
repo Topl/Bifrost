@@ -109,7 +109,11 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
          hashNoNonces ++
          Ints.toByteArray(idx)
      ))
-     AssetBox(prop, nonce, value, assetCode, hub)
+
+     //TODO assetBoxes elsewhere do not subtract fee from box value
+     //TODO no check that amount >= fee
+     //AssetBox(prop, nonce, value, assetCode, hub)
+     AssetBox(prop, nonce, value - fee, assetCode, hub)
    }
 
   override lazy val json: Json = Map(

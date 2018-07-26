@@ -103,9 +103,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   private def createAssets(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String) = {
     val wallet = view.vault
 
-//    println("Create Assets params (api route)")
-//    println(params)
-//    println()
     val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
     val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
     val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -113,10 +110,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
     val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, hub, assetCode).get
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
-    //println(tx.json)
-    println("----------------------")
-    println("validating transaction")
-    println(AssetCreation.validate(tx))
+//    println("----------------------")
+//    println("validating transaction")
+//    println(AssetCreation.validate(tx))
     tx.json
 
   }

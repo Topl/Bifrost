@@ -331,11 +331,15 @@ class ContractRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
-        view().pool.take(5).toList.size shouldEqual 4
+        //Changed shouldEqual from 4 to 5 since AssetRPCSpec test was added, which creates
+        //a new transaction in the mempool
+        view().pool.take(5).toList.size shouldEqual 5
 
         // manually add contractBox to state
         manuallyApplyChanges(res, 8)
-        view().pool.take(5).toList.size shouldEqual 3
+        //Changed shouldEqual from 3 to 4 since AssetRPCSpec test was added, which creates
+        //a new transaction in the mempool
+        view().pool.take(5).toList.size shouldEqual 4
       }
     }
 
@@ -376,7 +380,9 @@ class ContractRPCSpec extends WordSpec
         // Manually modify state
         manuallyApplyChanges(res, 9)
         // Assertions
-        view().pool.take(5).toList.size shouldEqual 3
+        //Changed shouldEqual from 3 to 4 since AssetRPCSpec test was added, which creates
+        //a new transaction in the mempool
+        view().pool.take(5).toList.size shouldEqual 4
         val boxContent = ((res \\ "result").head \\ "contractBox").head
         Base58.encode(contractBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
 
