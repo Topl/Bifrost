@@ -1,8 +1,5 @@
-Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol [![Build Status](https://travis-ci.org/Topl/Bifrost.svg?branch=master)](https://travis-ci.org/Topl/Bifrost)
+Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol [![CircleCI](https://circleci.com/gh/Topl/Bifrost/tree/master.svg?style=svg)](https://circleci.com/gh/Topl/Bifrost/tree/master)
 ====================================================================================================================================================================================
-
-[![Join the chat at https://gitter.im/topl/main](https://badges.gitter.im/topl/Main.svg)](https://gitter.im/topl/Main?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Floobits Status](https://floobits.com/mpk2/Project-Bifrost.svg)](https://floobits.com/mpk2/Project-Bifrost)
 
 Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:
 - Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
@@ -18,7 +15,7 @@ The latest version of the Topl whitepaper can be found [here](https://topl.co/wh
 
 Documentation
 -------------
-[Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/yellowpaper) (in development)
+[Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
 
 [Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
 
@@ -54,13 +51,11 @@ To keep up with our development
 
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-- Go to [Gitter](https://gitter.im/topl/main)
-
-- Watch active development on [ Floobit](https://floobits.com/mpk2/Project-Bifrost)
+- Join us on our Riot Chat [Riot](https://riot.im/app/#/room/#technical:matrix.topl.co)
 
 
 License
 -------
 Project Bifrost is licensed under the
-[Open Software License v. 3.0 (OSL-3.0)](https://opensource.org/licenses/OSL-3.0), also included
+[Mozilla Public License 2.0 (MPL 2.0)](https://opensource.org/licenses/MPL-2.0), also included
 in our repository in the `LICENSE` file.
