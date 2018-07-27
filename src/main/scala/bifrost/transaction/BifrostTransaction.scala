@@ -367,8 +367,8 @@ case class ContractCreation(agreement: Agreement,
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
       parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
-      //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
@@ -425,8 +425,8 @@ case class ContractCreation(agreement: Agreement,
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     AgreementCompanion.toBytes(agreement),
     parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
-    //unlockers.toArray.flatMap(_.closedBoxId)
-    boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
+    unlockers.toArray.flatMap(_.closedBoxId)
+    //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
 
 //  println()
@@ -643,20 +643,20 @@ case class ContractCompletion(contractBox: ContractBox,
       override val boxKey: Proof[MofNProposition] = MultiSignature25519(signatures.values.toSet)
     }
   ) ++
-    boxIdsToOpen.tail.take(producerReputation.length).map(id =>
-      new BoxUnlocker[PublicKey25519Proposition] {
-        override val closedBoxId: Array[Byte] = id
-        override val boxKey: Signature25519 = signatures(parties.find(_._2 == Role.Producer).get._1)
-      }
-    ) ++
+//    boxIdsToOpen.tail.take(producerReputation.length).map(id =>
+//      new BoxUnlocker[PublicKey25519Proposition] {
+//        override val closedBoxId: Array[Byte] = id
+//        override val boxKey: Signature25519 = signatures(parties.find(_._2 == Role.Producer).get._1)
+//      }
+//    ) ++
     feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     contractBox.id ++
       //producerReputation.foldLeft(Array[Byte]())((concat, box) => concat ++ box.id) ++
       parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
-      //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       Longs.toByteArray(contract.lastUpdated) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
   )
