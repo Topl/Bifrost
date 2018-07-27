@@ -251,8 +251,8 @@ case class ContractCreation(agreement: Agreement,
   lazy val hashNoNonces = FastCryptographicHash(
     AgreementCompanion.toBytes(agreement) ++
       parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
-      //unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
+      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
+      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
