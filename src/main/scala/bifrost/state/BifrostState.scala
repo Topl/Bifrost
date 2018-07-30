@@ -263,7 +263,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
 
 
-  //TO-DO implement
+  //TODO implement
   def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
     semanticValidity(ac)
   }

@@ -222,7 +222,7 @@ class SerializationTests extends PropSpec
   }
 
 
-  //TO-DO write assetCreationTxGen to test
+  //TODO write assetCreationTxGen to test
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
       ac: AssetCreation =>
