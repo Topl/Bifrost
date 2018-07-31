@@ -64,38 +64,38 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
     }
   }
 //
-//  property("Attempting to validate an AssetCreation with a bad signature should error") {
-//    forAll(validAssetCreationGen) {
-//      assetCreation: AssetCreation =>
-//
-//        val headSig = assetCreation.signatures.head
-//        val wrongSig: Array[Byte] = (headSig.bytes.head + 1).toByte +: headSig.bytes.tail
-//        val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetCreation.signatures.tail
-//        val invalidAC = assetCreation.copy(signatures = wrongSigs)
-//
-////        val preExistingAssetBoxes: Set[BifrostBox] =
-////          assetTransfer
-////            .from
-////            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.hub))
-////            .toSet
-//
-//        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
-//
-//        val preparedState = BifrostStateSpec
-//          .genesisState
-//          .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
-//          .get
-//
-//        val newState = preparedState.validate(invalidAC)
-//
-//        BifrostStateSpec.genesisState = preparedState
-//          .rollbackTo(BifrostStateSpec.genesisBlockId)
-//          .get
-//
-//        newState shouldBe a[Failure[_]]
-//        newState.failed.get.getMessage shouldBe "Incorrect unlocker"
-//    }
-//  }
+  property("Attempting to validate an AssetCreation with a bad signature should error") {
+    forAll(validAssetCreationGen) {
+      assetCreation: AssetCreation =>
+
+        val headSig = assetCreation.signatures.head
+        val wrongSig: Array[Byte] = (headSig.bytes.head + 1).toByte +: headSig.bytes.tail
+        val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetCreation.signatures.tail
+        val invalidAC = assetCreation.copy(signatures = wrongSigs)
+
+//        val preExistingAssetBoxes: Set[BifrostBox] =
+//          assetTransfer
+//            .from
+//            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.hub))
+//            .toSet
+
+        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
+
+        val preparedState = BifrostStateSpec
+          .genesisState
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
+          .get
+
+        val newState = preparedState.validate(invalidAC)
+
+        BifrostStateSpec.genesisState = preparedState
+          .rollbackTo(BifrostStateSpec.genesisBlockId)
+          .get
+
+        newState shouldBe a[Failure[_]]
+        newState.failed.get.getMessage shouldBe "requirement failed: Invalid signatures"
+    }
+  }
 //
 //  property("Attempting to validate an AssetTransfer for an amount you do not have should error") {
 //    forAll(validAssetTransferGen) {
