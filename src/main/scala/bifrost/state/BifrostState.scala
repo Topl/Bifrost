@@ -774,11 +774,6 @@ object BifrostState {
 
   def changes(mod: BPMOD): Try[GSC] = {
     Try {
-
-//      println("Entered changes")
-//      println(mod)
-//      println(mod.json)
-//      println()
       val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
       val gen = mod.forgerBox.proposition
@@ -787,31 +782,15 @@ object BifrostState {
         case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
       }
 
-
-//      println("Computed box deltas in changes")
-//      println()
-//      println(boxDeltas)
-//      println()
-
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
         boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
           (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
         })
-//
-//      println("Computed aggregate boxDeltas")
-//      println()
-//      println(mod.id)
 
       val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
 
-//      println("Computed reward nonce")
-//      println()
-
       var finalToAdd = toAdd
       if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
-
-//      println("Creating BifrostStateChanges object ")
-//      println()
 
       //no reward additional to tx fees
       BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)

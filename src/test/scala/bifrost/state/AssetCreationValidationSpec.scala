@@ -63,7 +63,7 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
 
     }
   }
-//
+
   property("Attempting to validate an AssetCreation with a bad signature should error") {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
@@ -72,12 +72,6 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
         val wrongSig: Array[Byte] = (headSig.bytes.head + 1).toByte +: headSig.bytes.tail
         val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetCreation.signatures.tail
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
-
-//        val preExistingAssetBoxes: Set[BifrostBox] =
-//          assetTransfer
-//            .from
-//            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.hub))
-//            .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
