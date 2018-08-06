@@ -75,29 +75,29 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        println(res)
-//        (res \\ "error").head.asObject.isDefined shouldBe true
-//        (res \\ "result").isEmpty shouldBe true
-//      }
+      //      httpPOST(requestBody) ~> route ~> check {
+      //        val res = parse(responseAs[String]).right.get
+      //        println(res)
+      //        (res \\ "error").head.asObject.isDefined shouldBe true
+      //        (res \\ "result").isEmpty shouldBe true
+      //      }
     }
 
     "Create some assets" in {
       val requestBody = ByteString(
         s"""
-            |{
-            |   "jsonrpc": "2.0",
-            |   "id": "30",
-            |   "method": "createAssets",
-            |   "params": [{
-            |     "hub": "${publicKeys("hub")}",
-            |     "to": "${publicKeys("investor")}",
-            |     "amount": 10,
-            |     "assetCode": "etherAssets",
-            |     "fee": 0
-            |   }]
-            |}
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "createAssets",
+           |   "params": [{
+           |     "hub": "${publicKeys("hub")}",
+           |     "to": "${publicKeys("investor")}",
+           |     "amount": 10,
+           |     "assetCode": "etherAssets",
+           |     "fee": 0
+           |   }]
+           |}
         """.stripMargin)
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
@@ -107,7 +107,9 @@ class AssetRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
+    //actorSystem.stop(nodeViewHolderRef)
   }
+
 
   object AssetRPCSpec {
     val path: Path = Path("/tmp/scorex/test-data")

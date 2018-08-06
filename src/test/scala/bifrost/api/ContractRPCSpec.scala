@@ -553,4 +553,5 @@ class ContractRPCSpec extends WordSpec
 //      }
 //    }
   }
+  //actorSystem.stop(nodeViewHolderRef)
 }
