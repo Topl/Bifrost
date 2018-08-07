@@ -49,13 +49,15 @@ class ContractTransactionSpec extends PropSpec
 
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
+    val roles = IndexedSeq(Role.Investor, Role.Producer, Role.Hub)
+    val partiesWithRoles = parties.zip(roles)
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes).map { _ =>
       positiveLongGen.sample.get -> (positiveLongGen.sample.get / 1e5.toLong + 1L)
     }
 
     val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
-      .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
+      .map(n => PublicKeyNoncedBox.idFromBox(partiesWithRoles.find(_._2 == Role.Investor).get._1, n._1))
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
       val sum = Gen.choose(minFeeSum, maxFeeSum).sample.get
@@ -90,11 +92,12 @@ class ContractTransactionSpec extends PropSpec
       prop -> available
     }
 
-    val roles = IndexedSeq(Role.Investor, Role.Producer, Role.Hub)
+    //val roles = IndexedSeq(Role.Investor, Role.Producer, Role.Hub)
 
     val messageToSign = Bytes.concat(
       AgreementCompanion.toBytes(agreement),
-      roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
+      partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
 
     val signatures = allKeyPairs.map {
@@ -106,13 +109,14 @@ class ContractTransactionSpec extends PropSpec
     ContractCreation(
       agreement,
       preInvestmentBoxes,
-      roles.zip(parties),
+      partiesWithRoles.toMap,
       signatures.toMap,
       feePreBoxes,
       fees,
       timestamp)
   }
 
+  //noinspection ScalaStyle
   def potentiallyInvalidContractMethodExecutionGen(minFee: Long,
                                                    maxFee: Long,
                                                    minFeeSum: Long,
@@ -140,7 +144,7 @@ class ContractTransactionSpec extends PropSpec
 
     val gen: Gen[Agreement] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
     val validAgreement: Agreement = sampleUntilNonEmpty(gen)
-    val contractBox: ContractBox = createContractBox(validAgreement, roles.zip(parties))
+    val contractBox: ContractBox = createContractBox(validAgreement, parties.zip(roles).toMap)
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get
 
@@ -189,7 +193,7 @@ class ContractTransactionSpec extends PropSpec
       contractBox,
       methodName,
       parameters,
-      Seq(sender._1 -> sender._2._2),
+      Map(sender._2._2 -> sender._1),
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
@@ -197,6 +201,7 @@ class ContractTransactionSpec extends PropSpec
     )
   }
 
+  //noinspection ScalaStyle
   def potentiallyInvalidContractCompletionGen(minFee: Long,
                                               maxFee: Long,
                                               minFeeSum: Long,
@@ -215,6 +220,7 @@ class ContractTransactionSpec extends PropSpec
     val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
     val parties = allKeyPairs.map(_._2)
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
+    val partiesWithRoles = parties.zip(roles)
 
     val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
     val currentEndorsement = parties.map(p =>
@@ -222,7 +228,7 @@ class ContractTransactionSpec extends PropSpec
                                              currentFulfillment.asJson.noSpaces.getBytes)).asJson
     ).toMap
 
-    val contractBox = createContractBox(agreement, roles.zip(parties))
+    val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
 
     val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
 
@@ -255,7 +261,7 @@ class ContractTransactionSpec extends PropSpec
                Gen.choose(Long.MinValue, Long.MaxValue).sample.get,
                (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get)))
 
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ reputation.map(_.id) ++ feeBoxIdKeyPairs.map(_._1)
+    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1)//++ reputation.map(_.id)
     val fees = feePreBoxes.map { case (prop, preBoxes) =>
       val available = preBoxes.map(_._2).sum
       prop -> available
@@ -263,7 +269,7 @@ class ContractTransactionSpec extends PropSpec
 
     val messageToSign = FastCryptographicHash(
       contractBox.id ++
-        roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes) ++
+        partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
         boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
         Longs.toByteArray(contract.lastUpdated) ++
         fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
@@ -275,7 +281,8 @@ class ContractTransactionSpec extends PropSpec
 
     ContractCompletion(
       contractBox,
-      roles.zip(parties),
+      reputation,
+      partiesWithRoles.toMap,
       parties.zip(signatures).toMap,
       feePreBoxes,
       fees,

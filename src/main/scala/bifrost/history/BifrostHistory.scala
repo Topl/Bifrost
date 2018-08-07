@@ -31,8 +31,7 @@ import scala.util.{Failure, Try}
 class BifrostHistory(val storage: BifrostStorage,
                      settings: ForgingSettings,
                      validators: Seq[BlockValidator[BifrostBlock]])
-  extends History[
-    ProofOfKnowledgeProposition[PrivateKey25519],
+  extends History[ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostTransaction,
     BifrostBlock,
     BifrostSyncInfo,
@@ -266,7 +265,7 @@ class BifrostHistory(val storage: BifrostStorage,
     val local = score
     val remote = other.score
 
-    log.debug(s"Remote's score is: ${remote}, Local's score is: ${local}")
+    log.debug(s"Remote's score is: $remote, Local's score is: $local")
     if (local < remote) {
       HistoryComparisonResult.Older
     } else if (local == remote) {
@@ -308,9 +307,9 @@ class BifrostHistory(val storage: BifrostStorage,
     map.toMap
   }
 
-  def count(f: (BifrostBlock => Boolean)): Int = filter(f).length
+  def count(f: BifrostBlock => Boolean): Int = filter(f).length
 
-  def filter(f: (BifrostBlock => Boolean)): Seq[BifrostBlock] = {
+  def filter(f: BifrostBlock => Boolean): Seq[BifrostBlock] = {
     @tailrec
     def loop(m: BifrostBlock, acc: Seq[BifrostBlock]): Seq[BifrostBlock] = parentBlock(m) match {
       case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
@@ -325,7 +324,7 @@ class BifrostHistory(val storage: BifrostStorage,
     * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
     * @return Seq of blockId that satisfies f
     */
-  def getBlockIdsByBloom(f: (BitSet => Boolean)): Seq[Array[Byte]] = {
+  def getBlockIdsByBloom(f: BitSet => Boolean): Seq[Array[Byte]] = {
     @tailrec
     def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.parentIdOf(current) match {
       case Some(value) =>
@@ -339,7 +338,7 @@ class BifrostHistory(val storage: BifrostStorage,
 
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
-    val f: (BitSet => Boolean) = {
+    val f: BitSet => Boolean = {
       blockBloom =>
         val andRes = blockBloom & queryBloom
         queryBloom equals andRes

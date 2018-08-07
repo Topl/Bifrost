@@ -52,11 +52,11 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(3))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(4))
           .get
 
         ar.newBoxes
@@ -107,7 +107,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(5))
           .get
 
         val newState = preparedState.validate(invalidAR)
@@ -133,7 +133,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(6))
           .get
 
         val newState = preparedState.validate(ar)

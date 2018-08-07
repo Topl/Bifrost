@@ -44,11 +44,11 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(8))
           .get
 
         assetTransfer.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
@@ -89,7 +89,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
           .get
 
         val newState = preparedState.validate(invalidAR)
@@ -117,7 +117,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(10))
           .get
 
         val newState = preparedState.validate(assetTransfer)

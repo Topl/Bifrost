@@ -77,7 +77,7 @@ class ContractSpec extends PropSpec
   property("Can create contract") {
     Try {
       Contract(
-        Seq((getMockPublicKeyProposition(0), "hub"), (getMockPublicKeyProposition(1), "producer")),
+        Map(getMockPublicKeyProposition(0) -> "hub", getMockPublicKeyProposition(1) -> "producer"),
         Instant.now.toEpochMilli,
         Array(),
         mockAgreement
@@ -88,7 +88,7 @@ class ContractSpec extends PropSpec
   property("Can not create contract due to incorrect number of parties") {
     Try {
       Contract(
-        Seq(),
+        Map(),
         Instant.now.toEpochMilli,
         Array(),
         mockAgreement

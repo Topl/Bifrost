@@ -92,6 +92,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
   property("A block with valid CME will result in a correct contract entry " +
     "and updated poly boxes in the LSMStore") {
+
     forAll(semanticallyValidContractMethodExecutionGen) {
       cme: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -130,11 +131,11 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(33))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(34))
           .get
 
         require(newState.storage.get(ByteArrayWrapper(box.id)) match {
@@ -174,7 +175,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         Contract
-          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._2)(cme.parameters.asObject.get) match {
+          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._1)(cme.parameters.asObject.get) match {
           case Success(res) => res match {
             case Left(_) => newContractTimestamp shouldBe cme.timestamp
             case Right(_) => newContractTimestamp shouldBe oldContractTimestamp
@@ -236,7 +237,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -248,7 +249,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(35))
           .get
 
         val newState = preparedState.validate(invalidCME)
@@ -262,7 +263,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     }
   }
 
-  property("Attempting to validate a CME with a party that is not part of the contract should error") {
+  //property("Attempting to validate a CME with a party that is not part of the contract should error") {
     /*forAll(arbitraryPartyContractMethodExecutionGen(num = 1, numInContract = 0)) {
       cme: ContractMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
@@ -288,10 +289,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe s"Signature is invalid for contractBox"
     } */
-  }
+  //}
 
   //noinspection ScalaStyle
-  property("Attempting to validate a CME with too many signatures (versus parties) should error") {
+  //property("Attempting to validate a CME with too many signatures (versus parties) should error") {
     /*forAll(arbitraryPartyContractMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInContract = 1)) {
       cme: ContractMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
@@ -322,7 +323,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
            are not part of the contract, or we get it wrong, and the roles are not valid */
         require(failMessage == "Signature is invalid for contractBox" || failMessage == "Not all roles are valid for signers")
     }*/
-  }
+  //}
 
   property("Attempting to validate a CME with a timestamp that is before the last block timestamp should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
@@ -338,7 +339,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -351,7 +352,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(36))
           .get
 
         val newState = preparedState.validate(contractMethodExecution)
@@ -404,7 +405,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(37))
           .get
 
         val newState = preparedState.validate(contractMethodExecution)
@@ -433,7 +434,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[ProfileBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -445,7 +446,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(38))
           .get
 
         val newState = preparedState.validate(contractMethodExecution)
@@ -472,7 +473,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val profileBoxes: Set[BifrostBox] = contractMethodExecution
           .parties
           .map {
-            case (r: Role.Role, p: PublicKey25519Proposition) =>
+            case (p: PublicKey25519Proposition, r: Role.Role) =>
               ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
           }
           .toSet
@@ -484,7 +485,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(39))
           .get
 
         val newState = preparedState.validate(contractMethodExecution)

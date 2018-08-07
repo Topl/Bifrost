@@ -11,6 +11,8 @@ import org.scalatest.{Matchers, PropSpec}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 
+import scala.util.Success
+
 class ContractCompletionSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
@@ -22,10 +24,7 @@ class ContractCompletionSpec extends PropSpec
     forAll(validContractCompletionGen) {
       contractCompletion: ContractCompletion =>
         val semanticValid = BifrostState.semanticValidity(contractCompletion)
-        if (semanticValid.isFailure) {
-          semanticValid.failed.get.printStackTrace()
-        }
-        semanticValid.isSuccess shouldBe true
+        semanticValid shouldBe a[Success[_]]
     }
   }
 

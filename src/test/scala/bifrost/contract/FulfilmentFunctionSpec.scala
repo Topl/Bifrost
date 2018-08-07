@@ -51,7 +51,7 @@ class FulfilmentFunctionSpec extends PropSpec
     }
   }
 
-  property("FulfilmentFunction should interpolate a line properly") {}
+  //property("FulfilmentFunction should interpolate a line properly") {}
 
 
 }

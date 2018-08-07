@@ -2,11 +2,12 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
-import bifrost.transaction.{AssetRedemption, AssetTransfer}
+import bifrost.transaction.{AssetCreation, AssetRedemption, AssetTransfer}
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -34,23 +35,29 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>
+    println(body)
     withAuth {
       postJsonRoute {
         viewAsync().map { view =>
           var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
-            case Right(json) => Try {
+            case Right(json) =>
+              Try {
               val id = (json \\ "id").head.asString.get
               reqId = id
               require((json \\ "jsonrpc").head.asString.get == "2.0")
               val params = (json \\ "params").head.asArray.get
               require(params.size <= 5, s"size of params is ${params.size}")
+
               (json \\ "method").head.asString.get match {
                 case "redeemAssets" => redeemAssets(view, params.head, id).asJson
                 case "transferAssets" => transferAssets(view, params.head, id).asJson
+                case "createAssets" => createAssets(view, params.head, id).asJson
               }
-            } match {
+            }
+
+            match {
               case Success(resp) => BifrostSuccessResponse(resp, reqId)
               case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
             }
@@ -68,7 +75,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
     val tempTx = params.as[AssetRedemption] match {
       case Right(a: AssetRedemption) => a
-      case Left(e) => throw new Exception(s"Could not parse AssetRedemption: $e")
+      case Left(e) => throw new JsonParsingException(s"Could not parse AssetRedemption: $e")
     }
 
     val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
@@ -91,5 +98,22 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode).get
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
     tx.json
+  }
+
+  private def createAssets(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String) = {
+    val wallet = view.vault
+
+    val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
+    val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
+    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+    val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+    val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+    val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, hub, assetCode).get
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
+//    println("----------------------")
+//    println("validating transaction")
+//    println(AssetCreation.validate(tx))
+    tx.json
+
   }
 }

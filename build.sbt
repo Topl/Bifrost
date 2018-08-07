@@ -11,9 +11,11 @@ lazy val commonSettings = Seq(
 
 scalaVersion := "2.12.1"
 organization := "co.topl"
-version := "0.1.1-alpha"
+version := "0.2.0-alpha"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
+
+test in assembly := {}
 
 val circeVersion = "0.7+"
 
@@ -108,9 +110,10 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF") => MergeStrategy.discard
+    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
     case ps if ps.endsWith(".DSA") => MergeStrategy.discard
     case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+    case ps if ps.endsWith(".xml") => MergeStrategy.first
     case x => old(x)
   }
 }
@@ -134,3 +137,5 @@ lazy val contractModules = Project(id = "contract-modules", base = file("contrac
   .settings(commonSettings: _*)
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+parallelExecution in ThisBuild := false

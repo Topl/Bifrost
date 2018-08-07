@@ -79,6 +79,7 @@ class IODBSpec extends PropSpec
       *
       * @param b the block to write tx boxes to storage
       */
+
     def writeBlock(b: BifrostBlock): Unit = {
       blocksStorage.update(
         ByteArrayWrapper(b.id),

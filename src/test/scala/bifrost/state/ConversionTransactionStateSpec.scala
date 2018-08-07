@@ -48,6 +48,8 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
           }
           .toSet
 
+        //println(preExistingAssetBoxes)
+
         val assetBoxes: Traversable[BifrostBox] = conversionTransaction.newBoxes.map {
           case a: AssetBox => a
           case p: PolyBox => p
@@ -61,11 +63,11 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(11))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(2))
+          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(12))
           .get
 
         conversionTransaction
@@ -126,7 +128,7 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(13))
           .get
 
         val newState = preparedState.validate(invalidAR)
@@ -158,7 +160,7 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
 
         val preparedState = BifrostStateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(1))
+          .applyChanges(necessaryBoxesSC, Ints.toByteArray(14))
           .get
 
         val newState = preparedState.validate(conversionTransaction)
