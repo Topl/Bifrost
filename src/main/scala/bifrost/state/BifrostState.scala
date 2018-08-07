@@ -132,6 +132,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ct: ConversionTransaction => validateConversionTransaction(ct)
       case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
+      case ac: AssetCreation => validateAssetCreation(ac)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -258,6 +259,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     statefulValid.flatMap(_ => semanticValidity(asT))
+  }
+
+
+
+  //TODO implement
+  def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
+    semanticValidity(ac)
   }
 
   private def determineEnoughAssets(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
@@ -750,6 +758,7 @@ object BifrostState {
       case poT: PolyTransfer => PolyTransfer.validate(poT)
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case asT: AssetTransfer => AssetTransfer.validate(asT)
+      case ac: AssetCreation => AssetCreation.validate(ac)
       case cc: ContractCreation => ContractCreation.validate(cc)
       case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)

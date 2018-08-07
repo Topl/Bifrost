@@ -23,8 +23,6 @@ import scala.util.{Failure, Success}
 //noinspection ScalaStyle
 class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
-  var i = 0
-
   //noinspection ScalaStyle
   /* TODO uncomment and fix tests with arbitraryPartyContractMethodExecutionGen
   def arbitraryPartyContractMethodExecutionGen(num: Int, numInContract: Int): Gen[ContractMethodExecution] = for {

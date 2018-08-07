@@ -28,6 +28,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
     case ct: ConversionTransaction => ConversionTransactionCompanion.toBytes(ct)
     case tex: TokenExchangeTransaction => TokenExchangeTransactionCompanion.toBytes(tex)
+    case ac: AssetCreation => AssetCreationCompanion.toBytes(ac)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
@@ -41,6 +42,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
       case "ConversionTransaction" => ConversionTransactionCompanion.parseBytes(bytes).get
       case "TokenExchangeTransaction" => TokenExchangeTransactionCompanion.parseBytes(bytes).get
+      case "AssetCreation" => AssetCreationCompanion.parseBytes(bytes).get
     }
   }
 
@@ -734,6 +736,85 @@ object TokenExchangeTransactionCompanion extends Serializer[TokenExchangeTransac
 
     val txData = TokenExchangeTxData.parseFrom(bytes.slice(numBytesRead, bytes.length))
     TokenExchangeTransaction(txData.buyOrder, txData.sellOrder, txData.fee, txData.timestamp)
+  }
+}
+
+object AssetCreationCompanion extends Serializer[AssetCreation] {
+  override def toBytes(ac: AssetCreation): Array[Byte] = {
+    val typeBytes = "AssetCreation".getBytes
+
+    Bytes.concat(
+      Ints.toByteArray(typeBytes.length),
+      typeBytes,
+      Longs.toByteArray(ac.fee),
+      Longs.toByteArray(ac.timestamp),
+      Ints.toByteArray(ac.signatures.length),
+      Ints.toByteArray(ac.to.size),
+      Ints.toByteArray(ac.assetCode.getBytes.length),
+      ac.assetCode.getBytes,
+      ac.hub.pubKeyBytes,
+      ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+      ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+    )
+  }
+
+  //noinspection ScalaStyle
+  override def parseBytes(bytes: Array[Byte]): Try[AssetCreation] = Try {
+    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
+    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+    var numReadBytes = Ints.BYTES + typeLength
+    val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
+
+    val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
+      Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
+    }.toArray
+
+    numReadBytes = 2 * Longs.BYTES
+
+    val sigLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
+    val toLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
+    val assetCodeLen: Int = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
+    val assetCode: String = new String(
+      bytesWithoutType.slice(numReadBytes, numReadBytes + assetCodeLen)
+    )
+
+    numReadBytes += assetCodeLen
+
+    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + Constants25519.PubKeyLength))
+
+    numReadBytes += Constants25519.PubKeyLength
+
+    val signatures = (0 until sigLength) map { i =>
+      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength,
+        numReadBytes + (i + 1) * Curve25519.SignatureLength))
+    }
+
+    numReadBytes += sigLength * Curve25519.SignatureLength
+
+    val elementLength = Longs.BYTES + Curve25519.KeyLength
+
+    val to = (0 until toLength) map { i =>
+      val pk = bytesWithoutType.slice(numReadBytes + i * elementLength, numReadBytes + (i + 1) * elementLength - Longs.BYTES)
+      val v = Longs.fromByteArray(
+        bytesWithoutType.slice(numReadBytes + (i + 1) * elementLength - Longs.BYTES, numReadBytes + (i + 1) * elementLength)
+      )
+      (PublicKey25519Proposition(pk), v)
+    }
+
+    println("parsed toValues")
+    println()
+
+    AssetCreation(to, signatures, assetCode, hub, fee, timestamp)
   }
 }
 

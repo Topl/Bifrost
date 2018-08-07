@@ -12,6 +12,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.Await
@@ -26,6 +27,9 @@ class AssetRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
+
+//  val path: Path = Path("/tmp/scorex/test-data")
+//  Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -57,6 +61,7 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
+  // TODO asset redemption does not work
   "Asset RPC" should {
     "Redeem some assets" in {
       val requestBody = ByteString(
@@ -70,8 +75,41 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+      //      httpPOST(requestBody) ~> route ~> check {
+      //        val res = parse(responseAs[String]).right.get
+      //        println(res)
+      //        (res \\ "error").head.asObject.isDefined shouldBe true
+      //        (res \\ "result").isEmpty shouldBe true
+      //      }
     }
+
+    "Create some assets" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "createAssets",
+           |   "params": [{
+           |     "hub": "${publicKeys("hub")}",
+           |     "to": "${publicKeys("investor")}",
+           |     "amount": 10,
+           |     "assetCode": "etherAssets",
+           |     "fee": 0
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(res)
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+    //actorSystem.stop(nodeViewHolderRef)
   }
+
 
   object AssetRPCSpec {
     val path: Path = Path("/tmp/scorex/test-data")
