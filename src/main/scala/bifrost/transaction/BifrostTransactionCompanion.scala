@@ -685,22 +685,30 @@ object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSer
     transferToBytes(at, "AssetTransfer") ++
       at.hub.pubKeyBytes ++
       at.assetCode.getBytes ++
-      Ints.toByteArray(at.assetCode.getBytes.length)
+      Ints.toByteArray(at.assetCode.getBytes.length)++
+      at.data.getBytes++
+      Ints.toByteArray(at.data.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[AssetTransfer] = Try {
     val params = parametersParseBytes(bytes)
 
-    val assetCodeLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
-    val assetCode: String = new String(
-      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen, bytes.length - Ints.BYTES)
-    )
-    val hub: PublicKey25519Proposition = PublicKey25519Proposition(
-      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Constants25519.PubKeyLength,
-        bytes.length - Ints.BYTES - assetCodeLen)
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
     )
 
-    AssetTransfer(params._1, params._2, params._3, hub, assetCode, params._4, params._5)
+    val assetCodeLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES - dataLen - Ints.BYTES, bytes.length - Ints.BYTES - dataLen))
+    val assetCode: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen, bytes.length - Ints.BYTES - dataLen - Ints.BYTES)
+    )
+
+    val hub: PublicKey25519Proposition = PublicKey25519Proposition(
+      bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen - Constants25519.PubKeyLength,
+        bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen)
+    )
+
+    AssetTransfer(params._1, params._2, params._3, hub, assetCode, params._4, params._5, data)
   }
 }
 
@@ -811,8 +819,6 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       (PublicKey25519Proposition(pk), v)
     }
 
-    println("parsed toValues")
-    println()
 
     AssetCreation(to, signatures, assetCode, hub, fee, timestamp)
   }
