@@ -817,7 +817,8 @@ trait TransferUtil {
         extraArgs(0).asInstanceOf[PublicKey25519Proposition],
         extraArgs(1).asInstanceOf[String],
         fee,
-        timestamp
+        timestamp,
+        extraArgs(2).asInstanceOf[String]
       )
     }
 
@@ -992,7 +993,8 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
                          hub: PublicKey25519Proposition,
                          assetCode: String,
                          override val fee: Long,
-                         override val timestamp: Long)
+                         override val timestamp: Long,
+                         val data: String)
   extends TransferTransaction(from, to, signatures, fee, timestamp) {
 
   override type M = AssetTransfer
@@ -1034,14 +1036,16 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,
     hub.pubKeyBytes,
-    assetCode.getBytes
+    assetCode.getBytes,
+    data.getBytes
   )
 }
 
@@ -1052,20 +1056,22 @@ object AssetTransfer extends TransferUtil {
             hub: PublicKey25519Proposition,
             assetCode: String,
             fee: Long,
-            timestamp: Long): AssetTransfer = {
-    val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", hub, assetCode).get
-    AssetTransfer(params._1, to, params._2, hub, assetCode, fee, timestamp)
+            timestamp: Long,
+            data: String): AssetTransfer = {
+    val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", hub, assetCode, data).get
+    AssetTransfer(params._1, to, params._2, hub, assetCode, fee, timestamp, data)
   }
 
   def create(w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              fee: Long,
              hub: PublicKey25519Proposition,
-             assetCode: String): Try[AssetTransfer] = Try {
+             assetCode: String,
+             data: String): Try[AssetTransfer] = Try {
 
     val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", hub, assetCode)
     val timestamp = Instant.now.toEpochMilli
-    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, hub, assetCode, fee, timestamp)
+    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, hub, assetCode, fee, timestamp, data)
   }
 
 
@@ -1099,7 +1105,8 @@ case class TokenExchangeTransaction(buyOrder: BuySellOrder,
       hub,
       assetCode,
       0L,
-      sellOrder.timestamp)
+      sellOrder.timestamp,
+      "")
   }
 
   lazy val token2Tx: PolyTransfer = {

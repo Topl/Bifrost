@@ -95,7 +95,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
     val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
     val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-    val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode).get
+    val data: String = (params \\ "data").head.asString.getOrElse("")
+    val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data).get
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
     tx.json
   }
