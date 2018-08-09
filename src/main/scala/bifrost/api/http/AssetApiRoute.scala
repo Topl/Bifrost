@@ -35,7 +35,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>
-    println(body)
     withAuth {
       postJsonRoute {
         viewAsync().map { view =>
