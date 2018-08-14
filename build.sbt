@@ -11,7 +11,7 @@ lazy val commonSettings = Seq(
 
 scalaVersion := "2.12.1"
 organization := "co.topl"
-version := "0.2.0-alpha"
+version := "0.2.2-alpha"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
 
@@ -126,6 +126,9 @@ PB.targets in Compile := Seq(
 )
 
 PB.pythonExe := "C:\\Python27\\python.exe"
+
+connectInput in run := true
+outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "project-bifrost", base = file("."))
   .settings(commonSettings: _*)

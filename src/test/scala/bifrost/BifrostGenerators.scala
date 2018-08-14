@@ -527,8 +527,9 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     hub <- propositionGen
     assetCode <- stringGen
+    data <- stringGen
   } yield {
-    AssetTransfer(from, to, signatures, hub, assetCode, fee, timestamp)
+    AssetTransfer(from, to, signatures, hub, assetCode, fee, timestamp, data)
   }
 
   lazy val assetCreationGen: Gen[AssetCreation] = for {
