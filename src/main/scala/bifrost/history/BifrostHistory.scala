@@ -328,12 +328,7 @@ class BifrostHistory(val storage: BifrostStorage,
     @tailrec
     def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.parentIdOf(current) match {
       case Some(value) =>
-        print(value)
-        if (f(storage.bloomOf(current).get)) {
-          loop(value, current +: acc)
-        } else {
-          loop(value, acc)
-        }
+        if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
       case None =>
         if (f(storage.bloomOf(current).get)) current +: acc else acc
     }

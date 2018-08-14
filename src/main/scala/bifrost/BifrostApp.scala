@@ -23,12 +23,11 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   //  val path: Path = Path ("/tmp")
   //  Try(path.deleteRecursively())
 
+  override type P = ProofOfKnowledgeProposition[PrivateKey25519]
+  override type BX = BifrostBox
   override type TX = BifrostTransaction
   override type PMOD = BifrostBlock
   override type NVHT = BifrostNodeViewHolder
-  override type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  override type BX = BifrostBox
-
 
   implicit lazy val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
