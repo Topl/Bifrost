@@ -1,0 +1,28 @@
+{
+  "p2p": {
+    "name": "local-testnet",
+    "bindAddress": "0.0.0.0",
+    "upnp": false,
+    "upnpGatewayTimeout": 7000,
+    "upnpDiscoverTimeout": 3000,
+    "port": 9084,
+    "knownPeers": [
+    ],
+    "addedMaxDelay": 2000,
+    "maxConnections": 10
+  },
+  "walletSeed": "genesisoo",
+  "keyFileDir": "keyfiles/private-testnet",
+  "walletDir": "/tmp/scorex/private-testnet/wallet",
+  "dataDir": "/tmp/scorex/private-testnet/data",
+  "logDir": "/tmp/scorex/private-testnet/log",
+  "rpcPort": 9085,
+  "rpcAllowed": [],
+  "maxRollback": 100,
+  "targetBlockTime": 6000,
+  "offlineGeneration": true,
+  "testnet": true,
+  "blockGenerationDelay": 2000,
+  "cors": false,
+  "verboseAPI": true
+}
