@@ -333,7 +333,6 @@ class ContractRPCSpec extends WordSpec
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         //Changed shouldEqual from 4 to 5 since AssetRPCSpec test was added, which creates
         //a new transaction in the mempool
-        println(s">>>>>>>>>>> ${view().pool.size}")
         view().pool.take(5).toList.size shouldEqual 4
 
         // manually add contractBox to state
@@ -554,5 +553,4 @@ class ContractRPCSpec extends WordSpec
 //      }
 //    }
   }
-  //actorSystem.stop(nodeViewHolderRef)
 }
