@@ -101,7 +101,7 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-fork := false
+fork := true
 
 pomIncludeRepository := { _ => false }
 
