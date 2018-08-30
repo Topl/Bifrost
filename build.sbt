@@ -138,5 +138,3 @@ lazy val contractModules = Project(id = "contract-modules", base = file("contrac
   .settings(commonSettings: _*)
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-
-parallelExecution in ThisBuild := false
