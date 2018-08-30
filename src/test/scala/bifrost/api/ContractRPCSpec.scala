@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
@@ -13,7 +12,7 @@ import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
+import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
@@ -59,7 +58,7 @@ class ContractRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
   lazy val upnp = new UPnP(settings)
 

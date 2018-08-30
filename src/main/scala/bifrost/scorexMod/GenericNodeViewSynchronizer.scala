@@ -100,6 +100,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       viewHolderRef ! OtherNodeSyncingInfo(remote, syncData)
   }
 
+  //noinspection ScalaStyle
   //view holder is telling other node status
   private def processSyncStatus: Receive = {
     case OtherNodeSyncingStatus(remote, status, remoteSyncInfo, localSyncInfo: SI, extOpt) =>

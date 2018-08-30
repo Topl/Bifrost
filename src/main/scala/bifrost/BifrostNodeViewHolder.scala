@@ -1,11 +1,9 @@
 package bifrost
 
-import bifrost.BifrostNodeViewHolder.{GetMessageManager, MessageManager, PeerMessageReceived}
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageManager
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
@@ -19,11 +17,8 @@ import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Pub
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
-import serializer.PeerMessage
 
-import scala.util.{Failure, Success}
-
-class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManager: PeerMessageManager = PeerMessageManager.emptyManager)
+class BifrostNodeViewHolder(settings: ForgingSettings)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
@@ -32,7 +27,6 @@ class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManage
   override type MS = BifrostState
   override type VL = BWallet
   override type MP = BifrostMemPool
-  type PMM = PeerMessageManager
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
     Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion,
@@ -65,23 +59,6 @@ class BifrostNodeViewHolder(settings: ForgingSettings, private var messageManage
   override protected def genesisState: NodeView = {
     BifrostNodeViewHolder.initializeGenesis(settings)
   }
-
-  private def handleProposal: Receive = {
-    case PeerMessageReceived(p) =>
-      messageManager.put(p) match {
-        case Success(updatedManager) =>
-          messageManager = updatedManager
-          log.debug(s"Proposal $p Added")
-        case f: Failure[PeerMessageManager] => throw f.failed.get
-      }
-  }
-
-  private def getMessageManager: Receive = {
-    case GetMessageManager =>
-      sender() ! MessageManager(messageManager)
-  }
-
-  override def receive: Receive = handleProposal orElse getMessageManager orElse super.receive
 }
 
 object BifrostNodeViewHolder extends ScorexLogging {
@@ -89,15 +66,8 @@ object BifrostNodeViewHolder extends ScorexLogging {
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
-  type PMM = PeerMessageManager
 
   type NodeView = (HIS, MS, VL, MP)
-
-  case class PeerMessageReceived(p: PeerMessage)
-
-  case object GetMessageManager
-
-  case class MessageManager(m: PeerMessageManager)
 
   //noinspection ScalaStyle
   def initializeGenesis(settings: ForgingSettings): NodeView = {

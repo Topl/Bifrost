@@ -7,7 +7,6 @@ import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.PeerMessageSpec
 import bifrost.state.BifrostState
 import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
@@ -24,14 +23,12 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
 import scorex.core.api.http.ApiException
-import scorex.core.network.message.Message
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import serializer.{PeerMessage, ProducerProposal}
 import scalapb.json4s.JsonFormat
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -80,8 +77,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
                   case "getCompletionSignature" => getCompletionSignature(params.head, reqId)
                   case "completeContract" => completeContract(params.head, reqId)
                   case "filter" => bloomFilter(params, reqId)
-                  case "retrieveProposals" => retrieveProposals(params.head, reqId)
-                  case "postProposals" => postProposals(params.head, reqId)
                 }
               }
 
@@ -246,41 +241,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
       val queryBloomTopics = params.map(j => j.asString.getOrElse("")).map(s => Base58.decode(s).get)
       val res = history.bloomFilter(queryBloomTopics)
       res.map(_.json).asJson
-    }
-  }
-
-  def retrieveProposals(params: Json, id: String): Future[Json] = {
-    messageManagerAsync().map { messageManagerWrapper =>
-      val messageManager = messageManagerWrapper.m
-      val limit = (params \\ "limit").head.asNumber.get.toInt.getOrElse(50)
-      val producerProposals = messageManager.filter(_.messageType equals PeerMessage.Type.ProducerProposal)
-      val proposals = producerProposals.take(limit)
-      Map(
-        "proposals" -> proposals.map(proposal => parse(JsonFormat.toJsonString(proposal)).right.getOrElse(Json.Null)).asJson,
-        "totalProposals" -> producerProposals.size.asJson
-      ).asJson
-    }
-  }
-
-  def postProposals(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-
-      val timestamp = Instant.now.toEpochMilli
-      val producerProposal = JsonFormat.fromJsonString[ProducerProposal](params.toString)
-
-      val wrappedMessage = PeerMessage(
-        PeerMessage.Type.ProducerProposal,
-        ByteString.copyFrom(
-          PrivateKey25519Companion.sign(view.vault.secrets.head, producerProposal.toByteArray ++ Longs.toByteArray(timestamp)).bytes
-        ),
-        timestamp,
-        producerProposal.toByteString,
-        ByteString.copyFrom(view.vault.secrets.head.publicImage.pubKeyBytes)
-      )
-
-      networkControllerRef ! Message(PeerMessageSpec, Left(wrappedMessage.toByteArray), Some(null))
-
-      parse(JsonFormat.toJsonString(wrappedMessage)).right.getOrElse(Json.Null)
     }
   }
 

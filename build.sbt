@@ -89,7 +89,8 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-server"
+  "-server",
+  "-Dcom.sun.management.jmxremote"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")

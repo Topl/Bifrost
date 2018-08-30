@@ -1,11 +1,12 @@
 package bifrost
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, AllDeadLetters, DeadLetter, Props}
+import akka.event.Logging
 import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
-import bifrost.network.{BifrostNodeViewSynchronizer, PeerMessageSpec}
+import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
 import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
@@ -35,7 +36,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   log.debug(s"Starting application with settings \n$settings")
 
   override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] =
-    Seq(BifrostSyncInfoMessageSpec, PeerMessageSpec)
+    Seq(BifrostSyncInfoMessageSpec)
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
@@ -71,15 +72,24 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
+  class DeadLetterMonitor extends Actor {
+    def receive = {
+      case msg: AllDeadLetters => log.debug(s"${self.path.name} - dead letter encountered: $msg")
+    }
+  }
+
+  val listener = actorSystem.actorOf(Props(new DeadLetterMonitor))
+  actorSystem.eventStream.subscribe(listener, classOf[AllDeadLetters])
+
   class CheckThreadsRunner extends Thread {
+
     override def run(): Unit =  while(true) {
       import scala.collection.JavaConverters._
       val dispThreads =
         Thread.getAllStackTraces.keySet.asScala.filter(_.getName startsWith "default-akka.actor.default-dispatcher")
 
-      dispThreads.toVector.map(_.getName).sorted.foreach(println)
-      println()
-      println(s"Currently ${dispThreads.size} threads")
+      dispThreads.toVector.map(_.getName).sorted.foreach(log.debug)
+      log.debug(s"\nCurrently ${dispThreads.size} threads")
 
       Thread.sleep(10000)
     }
