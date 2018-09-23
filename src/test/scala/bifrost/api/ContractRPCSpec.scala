@@ -248,7 +248,8 @@ class ContractRPCSpec extends WordSpec
             "${publicKeys("producer")}": []
           },
           "fees": ${fees.asJson},
-          "timestamp": ${System.currentTimeMillis}
+          "timestamp": ${System.currentTimeMillis},
+          "data": ""
         }]
       }
       """
@@ -369,7 +370,8 @@ class ContractRPCSpec extends WordSpec
            |	   "fees" : {
            |       "${publicKeys("producer")}" : 0
            |    },
-           |    "timestamp": ${contractEffectiveTime + 1}
+           |    "timestamp": ${contractEffectiveTime + 1},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -413,7 +415,8 @@ class ContractRPCSpec extends WordSpec
            |    },
            |    "fees" : {
            |    },
-           |    "timestamp": ${contractEffectiveTime + 10000L}
+           |    "timestamp": ${contractEffectiveTime + 10000L},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -459,7 +462,8 @@ class ContractRPCSpec extends WordSpec
             |    },
             |    "fees" : {
             |    },
-            |    "timestamp" : ${contractEffectiveTime + 10000L}
+            |    "timestamp" : ${contractEffectiveTime + 10000L},
+            |    "data": ""
             |  }]
             |}
         """.stripMargin

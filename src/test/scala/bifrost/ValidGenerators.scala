@@ -65,6 +65,7 @@ trait ValidGenerators extends BifrostGenerators {
     agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
+    data <- stringGen
   } yield {
     Try {
       val allKeyPairs = (0 until 3).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
@@ -123,7 +124,8 @@ trait ValidGenerators extends BifrostGenerators {
       val messageToSign = Bytes.concat(
         AgreementCompanion.toBytes(agreement),
         partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
-        (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _)
+        (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
+        data.getBytes
       )
 
       val signatures = allKeyPairs.map {
@@ -139,7 +141,8 @@ trait ValidGenerators extends BifrostGenerators {
         signatures.toMap,
         feePreBoxes,
         fees,
-        timestamp
+        timestamp,
+        data
       )
     } match {
       case Success(s) => s
@@ -169,6 +172,7 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
+    data <- stringGen
   } yield {
     val nrOfParties = 3 //Random.nextInt(1022) + 2
     val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
@@ -229,7 +233,7 @@ trait ValidGenerators extends BifrostGenerators {
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = Bytes.concat(FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     ContractMethodExecution(
@@ -240,7 +244,8 @@ trait ValidGenerators extends BifrostGenerators {
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
-      timestamp)
+      timestamp,
+      data)
   }
 
   lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
@@ -248,6 +253,7 @@ trait ValidGenerators extends BifrostGenerators {
     agreement <- validAgreementGen()
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
+    data <- stringGen
   } yield {
 
     val nrOfParties = 3 //Random.nextInt(1022) + 2
@@ -318,13 +324,14 @@ trait ValidGenerators extends BifrostGenerators {
       prop -> preBoxes.map(_._2).sum
     }
 
-    val messageToSign = FastCryptographicHash(
+    val messageToSign = Bytes.concat(FastCryptographicHash(
       contractBox.id ++
         //reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
         partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
         ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
         ++ Longs.toByteArray(contract.lastUpdated)
-        ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+        ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))),
+        data.getBytes
     )
 
     val signatures = allKeyPairs.map {
@@ -341,7 +348,8 @@ trait ValidGenerators extends BifrostGenerators {
       signatures.toMap,
       feePreBoxes,
       fees,
-      timestamp)
+      timestamp,
+      data)
   }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
@@ -349,13 +357,14 @@ trait ValidGenerators extends BifrostGenerators {
     to <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, Longs.fromByteArray(FastCryptographicHash("Testing").take(8))))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    PolyTransfer(from, to, fee, timestamp)
+    PolyTransfer(from, to, fee, timestamp, data)
   }
 
   private val testingValue: Value = Longs
@@ -367,13 +376,14 @@ trait ValidGenerators extends BifrostGenerators {
     _ <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val from = IndexedSeq((fromKeyPairs._1, testingValue))
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    ArbitTransfer(from, to, fee, timestamp)
+    ArbitTransfer(from, to, fee, timestamp, data)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
@@ -399,6 +409,7 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     hub <- keyPairSetGen
     assetCode <- stringGen
+    data <- stringGen
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
@@ -443,11 +454,11 @@ trait ValidGenerators extends BifrostGenerators {
 
     val fakeSigs = IndexedSeq(Signature25519(Array()))
 
-    val messageToSign = AssetCreation(to, fakeSigs, assetCode, oneHub._2, fee, timestamp).messageToSign
+    val messageToSign = AssetCreation(to, fakeSigs, assetCode, oneHub._2, fee, timestamp, data).messageToSign
 
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(oneHub._1, messageToSign))
 
-    AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp)
+    AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
 
     //println("Generated")
   }
@@ -473,6 +484,7 @@ trait ValidGenerators extends BifrostGenerators {
     hub <- propositionGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
 
@@ -506,7 +518,7 @@ trait ValidGenerators extends BifrostGenerators {
       .map(entry => entry._1 -> entry._2
         .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
 
-    val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp)
+    val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp, data)
 
     val fromKeyMap = fromKeyPairs.toMap
     val signatures = availableToRedeem

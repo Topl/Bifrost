@@ -28,6 +28,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     numInvestmentBoxes <- positiveTinyIntGen
+    data <- stringGen
   } yield {
     val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
 
@@ -87,7 +88,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
       allKeyPairs.map(_._2).zip(signatures).toMap,
       feePreBoxes,
       fees,
-      timestamp)
+      timestamp,
+      data)
   }
 
   private def boundedBy(sum: Long, min: Long, max: Long) = Math.max(min, Math.min(max, sum))

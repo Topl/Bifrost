@@ -95,7 +95,8 @@ class AssetRPCSpec extends WordSpec
            |     "to": "${publicKeys("investor")}",
            |     "amount": 10,
            |     "assetCode": "etherAssets",
-           |     "fee": 0
+           |     "fee": 0,
+           |     "data": ""
            |   }]
            |}
         """.stripMargin)
