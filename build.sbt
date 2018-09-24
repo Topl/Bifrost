@@ -102,7 +102,9 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-fork := true
+parallelExecution in Test := false
+
+fork := false
 
 pomIncludeRepository := { _ => false }
 
