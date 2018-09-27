@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe.JsonObject
+import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
@@ -19,7 +19,7 @@ class ContractSpec extends PropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
-  /*
+
     property("Calling a method not in the contract will throw an error") {
       forAll(contractGen) {
         c: Contract => {
@@ -35,7 +35,7 @@ class ContractSpec extends PropSpec
           }
         }
       }
-    }*/
+    }
 
   property("Json works properly for AgreementTerms") {
     forAll(validAgreementTermsGen) {
@@ -55,7 +55,7 @@ class ContractSpec extends PropSpec
     }
   }
 
-  def mockAgreement =
+  def mockAgreement: Json =
     Agreement(
       AgreementTerms("testing"),
       "myAssetCode",
@@ -70,7 +70,7 @@ class ContractSpec extends PropSpec
       )(JsonObject.empty)
     ).json
 
-  def getMockPublicKeyProposition(fillByte: Byte) = {
+  def getMockPublicKeyProposition(fillByte: Byte): PublicKey25519Proposition = {
     PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(fillByte));
   }
 

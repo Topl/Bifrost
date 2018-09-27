@@ -78,6 +78,8 @@ val consoleDependencies = Seq(
   "org.apache.commons" % "commons-pool2" % "2.4.2"
 )
 
+libraryDependencies += "org.graalvm" % "graal-sdk" % "1.0.0+"
+
 libraryDependencies ++= consoleDependencies
 
 
@@ -89,7 +91,6 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-server",
   "-Dcom.sun.management.jmxremote"
 )
 

@@ -274,6 +274,11 @@ trait BifrostGenerators extends CoreGenerators {
        |      this.status = newStatus;
        |      return this;
        |    }
+       |
+       |    this.newAsset = function(asset, amount) {
+       |      createAsset(asset, amount);
+       |      return this;
+       |    }
        |}
        |
        |this.$name.fromJSON = function(str) {

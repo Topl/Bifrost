@@ -17,6 +17,11 @@ import scorex.core.network.message.MessageSpec
 import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.transaction.state.PrivateKey25519
 
+import org.graalvm.polyglot.Context
+import java.lang.management.ManagementFactory
+import com.sun.management.HotSpotDiagnosticMXBean
+import com.sun.management.VMOption
+
 import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
@@ -72,32 +77,27 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
-  class DeadLetterMonitor extends Actor {
-    def receive = {
-      case msg: AllDeadLetters => log.debug(s"${self.path.name} - dead letter encountered: $msg")
-    }
-  }
+  // Am I running on a JDK that supports JVMCI?
+         val vm_version = System.getProperty("java.vm.version")
+         System.out.printf("java.vm.version = %s%n", vm_version)
 
-  val listener = actorSystem.actorOf(Props(new DeadLetterMonitor))
-  actorSystem.eventStream.subscribe(listener, classOf[AllDeadLetters])
+         val bean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
+  // Is JVMCI enabled?
+          val enableJVMCI = bean.getVMOption("EnableJVMCI")
+          System.out.println(enableJVMCI)
 
-  class CheckThreadsRunner extends Thread {
+  // Is the system using the JVMCI compiler for normal compilations?
+          val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
+          System.out.println(useJVMCICompiler)
 
-    override def run(): Unit =  while(true) {
-      import scala.collection.JavaConverters._
-      val dispThreads =
-        Thread.getAllStackTraces.keySet.asScala.filter(_.getName startsWith "default-akka.actor.default-dispatcher")
+  // What compiler is selected?
+         val compiler = System.getProperty("jvmci.Compiler")
+         System.out.printf("jvmci.Compiler = %s%n", compiler)
 
-      dispThreads.toVector.map(_.getName).sorted.foreach(log.debug)
-      log.debug(s"\nCurrently ${dispThreads.size} threads")
-
-      Thread.sleep(10000)
-    }
-  }
-
-  val checker = new CheckThreadsRunner
-  checker.setDaemon(true)
-  checker.start()
+  val polyglot: Context = Context.create()
+  val array = polyglot.eval("js", "[1,2,42,4]")
+  val result = array.getArrayElement(2).asInt()
+  println(s"Polyglot result: $result")
 
   //touching lazy vals
   forger
@@ -130,6 +130,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("testnet-bifrost.json")
+  val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }
