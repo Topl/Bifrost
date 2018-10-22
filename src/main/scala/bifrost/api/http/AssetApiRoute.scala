@@ -108,7 +108,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
     val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
     val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-    val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, hub, assetCode).get
+    val data: String = (params \\ "data").head.asString.getOrElse("")
+    val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, hub, assetCode, data).get
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
 //    println("----------------------")
 //    println("validating transaction")

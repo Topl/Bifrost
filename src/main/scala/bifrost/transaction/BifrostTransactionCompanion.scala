@@ -250,7 +250,6 @@ object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ProfileTransaction] = Try {
-
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -289,12 +288,16 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       m.preInvestmentBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2)),
       Longs.toByteArray(agreementBytes.length),
       agreementBytes,
-      ContractTransactionCompanion.commonToBytes(m)
+      ContractTransactionCompanion.commonToBytes(m),
+      m.data.getBytes,
+      Ints.toByteArray(m.data.getBytes.length)
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractCreation] = Try {
-
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -330,7 +333,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    ContractCreation(agreement, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp)
+    ContractCreation(agreement, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }
@@ -354,12 +357,16 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
       cme.methodName.getBytes,
       cme.parameters.noSpaces.getBytes,
       cme.contractBox.bytes,
-      ContractTransactionCompanion.commonToBytes(cme)
+      ContractTransactionCompanion.commonToBytes(cme),
+      cme.data.getBytes,
+      Ints.toByteArray(cme.data.getBytes.length)
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ContractMethodExecution] = Try {
-
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
@@ -397,7 +404,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    ContractMethodExecution(contractBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp)
+    ContractMethodExecution(contractBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }
@@ -421,13 +428,17 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
         a ++ b.proposition.pubKeyBytes ++ Longs.toByteArray(b.nonce) ++ doubleToByteArray(b.value._1) ++ doubleToByteArray(b.value._2)
       ),
       cc.contractBox.bytes,
-      ContractTransactionCompanion.commonToBytes(cc)
+      ContractTransactionCompanion.commonToBytes(cc),
+      cc.data.getBytes,
+      Ints.toByteArray(cc.data.getBytes.length)
     )
   }
 
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[ContractCompletion] = Try {
-
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -478,7 +489,7 @@ object ContractCompletionCompanion extends Serializer[ContractCompletion] {
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    ContractCompletion(contractBox, producerReputation, parties, signatures, feePreBoxes, fees, timestamp)
+    ContractCompletion(contractBox, producerReputation, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
   def doubleToByteArray(x: Double): Array[Byte] = {
@@ -666,12 +677,18 @@ object PolyTransferCompanion extends Serializer[PolyTransfer] with TransferSeria
   }
 
   def toChildBytes(sc: PolyTransfer): Array[Byte] = {
-    transferToBytes(sc, "PolyTransfer")
+    transferToBytes(sc, "PolyTransfer") ++
+    sc.data.getBytes ++
+    Ints.toByteArray(sc.data.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[PolyTransfer] = Try {
     val params = parametersParseBytes(bytes)
-    PolyTransfer(params._1, params._2, params._3, params._4, params._5)
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
+    )
+    PolyTransfer(params._1, params._2, params._3, params._4, params._5, data)
   }
 }
 
@@ -719,12 +736,18 @@ object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSer
   }
 
   def toChildBytes(ac: ArbitTransfer): Array[Byte] = {
-    transferToBytes(ac, "ArbitTransfer")
+    transferToBytes(ac, "ArbitTransfer") ++
+    ac.data.getBytes++
+    Ints.toByteArray(ac.data.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ArbitTransfer] = Try {
     val params = parametersParseBytes(bytes)
-    ArbitTransfer(params._1, params._2, params._3, params._4, params._5)
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
+    )
+    ArbitTransfer(params._1, params._2, params._3, params._4, params._5, data)
   }
 }
 
@@ -762,12 +785,18 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       ac.assetCode.getBytes,
       ac.hub.pubKeyBytes,
       ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
-      ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+      ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
+      ac.data.getBytes,
+      Ints.toByteArray(ac.data.getBytes.length)
     )
   }
 
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[AssetCreation] = Try {
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
+    )
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -819,8 +848,13 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       (PublicKey25519Proposition(pk), v)
     }
 
+//    val dataLen: Int = Ints.fromByteArray(bytesWithoutType.slice(bytesWithoutType.length - Ints.BYTES, bytesWithoutType.length))
+//    val data: String = new String(
+//      bytes.slice(bytesWithoutType.length - Ints.BYTES - dataLen, bytesWithoutType.length - Ints.BYTES)
+//    )
 
-    AssetCreation(to, signatures, assetCode, hub, fee, timestamp)
+
+    AssetCreation(to, signatures, assetCode, hub, fee, timestamp, data)
   }
 }
 
@@ -852,12 +886,18 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
       ),
       ac.remainderAllocations.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(alloc => alloc._1.pubKeyBytes ++ Longs.toByteArray(alloc._2))
-      )
+      ),
+      ac.data.getBytes,
+      Ints.toByteArray(ac.data.getBytes.length)
     )
   }
 
   //noinspection ScalaStyle
   override def parseBytes(bytes: Array[Byte]): Try[AssetRedemption] = Try {
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
+    )
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -974,7 +1014,7 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
         assetId -> allocationSeq
     }.toMap
 
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 }
 
