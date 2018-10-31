@@ -118,14 +118,7 @@ class AssetRPCSpec extends WordSpec
         println("-------")
         println(txHash)
         println("--------")
-//        var assetBox: Option[AssetBox] = None
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-//        txInstance.newBoxes.foreach {
-//          case a: AssetBox => {
-//            assetBox = Some(a)
-//          }
-//          case _ =>
-//        }
         val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
           txInstance.newBoxes.toSet,
           System.currentTimeMillis())
