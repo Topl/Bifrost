@@ -7,7 +7,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
-import bifrost.transaction.{AssetCreation, AssetRedemption, AssetTransfer}
+import bifrost.transaction._
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -52,6 +52,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
               (json \\ "method").head.asString.get match {
                 case "redeemAssets" => redeemAssets(view, params.head, id).asJson
                 case "transferAssets" => transferAssets(view, params.head, id).asJson
+                case "transferPolys" => transferPolys(view, params.head, id).asJson
+                case "transferArbits" => transferArbits(view, params.head, id).asJson
                 case "createAssets" => createAssets(view, params.head, id).asJson
               }
             }
@@ -95,8 +97,36 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
     val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
     val data: String = (params \\ "data").head.asString.getOrElse("")
+    println("Just before creation transaction in api route")
     val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data).get
+    println("-------- Was transfer transaction created successfully? ----------")
+    println(tx)
+    println()
     nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
+    tx.json
+  }
+
+  private def transferPolys(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String) = {
+    val wallet = view.vault
+
+    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+    val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+    val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+    val data: String = (params \\ "data").head.asString.getOrElse("")
+    val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data).get
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
+    tx.json
+  }
+
+  private def transferArbits(view: CurrentView[HIS, MS, VL, MP], params: Json, id: String) = {
+    val wallet = view.vault
+
+    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+    val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+    val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+    val data: String = (params \\ "data").head.asString.getOrElse("")
+    val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data).get
+    nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
     tx.json
   }
 

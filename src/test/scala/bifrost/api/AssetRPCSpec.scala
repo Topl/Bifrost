@@ -6,14 +6,22 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.AssetApiRoute
+import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
+import bifrost.state.{BifrostState, BifrostStateChanges}
+import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import com.google.common.primitives.Ints
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.core.transaction.proof.Signature25519
+import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -57,7 +65,7 @@ class AssetRPCSpec extends WordSpec
 
   // Unlock Secrets
   val gw: BWallet = view().vault
-  // gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
@@ -105,9 +113,119 @@ class AssetRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
+        val txHash = ((res \\ "result").head \\ "transactionHash").head.asString.get
+        println()
+        println("-------")
+        println(txHash)
+        println("--------")
+//        var assetBox: Option[AssetBox] = None
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+//        txInstance.newBoxes.foreach {
+//          case a: AssetBox => {
+//            assetBox = Some(a)
+//          }
+//          case _ =>
+//        }
+        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+          txInstance.newBoxes.toSet,
+          System.currentTimeMillis())
+
+        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
+        view().pool.remove(txInstance)
+//        val history = view().history
+//        val tempBlock = BifrostBlock(history.bestBlockId,
+//          System.currentTimeMillis(),
+//          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+//          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+//          Seq(txInstance)
+//        )
+//        history.append(tempBlock)
       }
     }
-    //actorSystem.stop(nodeViewHolderRef)
+
+    "Transfer some assets" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "transferAssets",
+           |   "params": [{
+           |     "hub": "${publicKeys("hub")}",
+           |     "recipient": "${publicKeys("investor")}",
+           |     "amount": 1,
+           |     "assetCode": "etherAssets",
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "Transfer some arbits" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "transferArbits",
+           |   "params": [{
+           |     "recipient": "${publicKeys("producer")}",
+           |     "amount": 5,
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println()
+        println("Arbit transfer result")
+        println(res)
+        println()
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        //Removing transaction from mempool so as not to affect ContractRPC tests
+        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
+
+
+      }
+    }
+
+    "Transfer some polys" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "transferPolys",
+           |   "params": [{
+           |     "recipient": "${publicKeys("investor")}",
+           |     "amount": 5,
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        //view().pool.remove(txInstance)
+      }
+    }
   }
 
 

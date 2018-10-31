@@ -118,7 +118,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
    }
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "transactionHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { s =>
       Map(
@@ -181,6 +181,10 @@ object AssetCreation {
              assetCode: String,
              data: String): Try[AssetCreation] = Try {
 
+    println()
+    println("wallets public keys")
+    println(w.publicKeys)
+    println()
     val selectedSecret = w.secretByPublicImage(hub).get
     val fakeSigs = IndexedSeq(Signature25519(Array()))
     val timestamp = Instant.now.toEpochMilli
@@ -861,11 +865,20 @@ trait TransferUtil {
               case a: ArbitBox => Some(a)
               case _ => None
             })
-            case "AssetTransfer" => w.boxes().flatMap(_.box match {
+            case "AssetTransfer" =>
+              println()
+              println("Entered")
+              println()
+              println(w.boxIds)
+              w.boxes().flatMap(_.box match {
               case a: AssetBox
                 if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
                   (a.hub equals extraArgs(0)
-                    .asInstanceOf[PublicKey25519Proposition]) => Some(a)
+                    .asInstanceOf[PublicKey25519Proposition]) =>
+                println()
+                println("Found")
+                println()
+                Some(a)
               case _ => None
             })
           }
@@ -1086,6 +1099,10 @@ object AssetTransfer extends TransferUtil {
              assetCode: String,
              data: String): Try[AssetTransfer] = Try {
 
+    println()
+    println("wallets public keys")
+    println(w.publicKeys)
+    println()
     val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", hub, assetCode)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, hub, assetCode, fee, timestamp, data)
