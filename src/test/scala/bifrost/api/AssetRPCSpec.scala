@@ -10,9 +10,9 @@ import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.BifrostTransaction
-import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox}
+import bifrost.state.{BifrostState, BifrostStateChanges, BifrostStateSpec}
+import bifrost.transaction.{BifrostTransaction, Role}
+import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox, ProfileBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
@@ -91,6 +91,7 @@ class AssetRPCSpec extends WordSpec
       //      }
     }
 
+
     "Create some assets" in {
       val requestBody = ByteString(
         s"""
@@ -108,31 +109,30 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "transactionHash").head.asString.get
-        println()
-        println("-------")
-        println(txHash)
-        println("--------")
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
-          txInstance.newBoxes.toSet,
-          System.currentTimeMillis())
 
-        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
-        view().pool.remove(txInstance)
-//        val history = view().history
-//        val tempBlock = BifrostBlock(history.bestBlockId,
-//          System.currentTimeMillis(),
-//          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
-//          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-//          Seq(txInstance)
-//        )
-//        history.append(tempBlock)
+//        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+//          txInstance.newBoxes.toSet,
+//          System.currentTimeMillis())
+//
+//        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
+
+        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block as opposed to creating a new state change like above
+        val history = view().history
+        val tempBlock = BifrostBlock(history.bestBlockId,
+          System.currentTimeMillis(),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          Seq(txInstance)
+        )
+        gw.scanPersistent(tempBlock)
+
       }
     }
 
@@ -145,7 +145,7 @@ class AssetRPCSpec extends WordSpec
            |   "method": "transferAssets",
            |   "params": [{
            |     "hub": "${publicKeys("hub")}",
-           |     "recipient": "${publicKeys("investor")}",
+           |     "recipient": "${publicKeys("producer")}",
            |     "amount": 1,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
@@ -156,8 +156,12 @@ class AssetRPCSpec extends WordSpec
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-//        (res \\ "error").isEmpty shouldBe true
-//        (res \\ "result").head.asObject.isDefined shouldBe true
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        //Removing transaction from mempool so as not to affect ContractRPC tests
+        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
       }
     }
 
@@ -179,10 +183,6 @@ class AssetRPCSpec extends WordSpec
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println()
-        println("Arbit transfer result")
-        println(res)
-        println()
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ContractRPC tests
@@ -214,9 +214,9 @@ class AssetRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
-//        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        //view().pool.remove(txInstance)
+        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
       }
     }
   }

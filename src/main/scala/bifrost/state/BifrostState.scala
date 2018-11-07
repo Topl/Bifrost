@@ -114,6 +114,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     )
 
     val newSt = BifrostState(storage, newVersion, timestamp)
+
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
 
