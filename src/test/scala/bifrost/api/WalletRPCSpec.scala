@@ -83,6 +83,32 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
+    "Transfer some polys" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "transfer",
+           |   "params": [{
+           |     "recipient": "${publicKeys("investor")}",
+           |     "amount": 5,
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
+      }
+    }
+
     "Generate a keyfile" in {
       val requestBody = ByteString(
         s"""
@@ -137,31 +163,6 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
-    "Transfer some polys" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "30",
-           |   "method": "transfer",
-           |   "params": [{
-           |     "recipient": "${publicKeys("investor")}",
-           |     "amount": 5,
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-      //println(requestBody)
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
-      }
-    }
 
   }
 
