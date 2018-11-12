@@ -133,6 +133,7 @@ class WalletRPCSpec extends WordSpec
           val tempFile = new File(x.toString)
           tempFile.delete()
           })
+        
       }
     }
 
