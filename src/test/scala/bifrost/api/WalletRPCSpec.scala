@@ -83,59 +83,59 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
-//    "Generate a keyfile" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |   "jsonrpc": "2.0",
-//           |   "id": "30",
-//           |   "method": "generateKeyfile",
-//           |   "params": [{
-//           |     "password": "testpassword"
-//           |   }]
-//           |}
-//        """.stripMargin)
-//      //println(requestBody)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "error").isEmpty shouldBe true
-//        (res \\ "result").head.asObject.isDefined shouldBe true
-//        newPubKey = ((res \\ "result").head \\ "publicKey").head.asString.get
-//      }
-//    }
-//
-//    "Unlock a keyfile" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |   "jsonrpc": "2.0",
-//           |   "id": "30",
-//           |   "method": "unlockKeyfile",
-//           |   "params": [{
-//           |     "publicKey": "${newPubKey}",
-//           |     "password": "testpassword"
-//           |   }]
-//           |}
-//        """.stripMargin)
-//      //println(requestBody)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "error").isEmpty shouldBe true
-//        (res \\ "result").head.asObject.isDefined shouldBe true
-//
-//        //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
-//        //investor, producer and hub keyfiles
-//        var d = new File("keyfiles/node1")
-//        d.listFiles.foreach(x =>
-//          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
-//          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
-//          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
-//          val tempFile = new File(x.toString)
-//          tempFile.delete()
-//          })
-//
-//      }
-//    }
+    "Generate a keyfile" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "generateKeyfile",
+           |   "params": [{
+           |     "password": "testpassword"
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        newPubKey = ((res \\ "result").head \\ "publicKey").head.asString.get
+      }
+    }
+
+    "Unlock a keyfile" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "unlockKeyfile",
+           |   "params": [{
+           |     "publicKey": "${newPubKey}",
+           |     "password": "testpassword"
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+
+        //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
+        //investor, producer and hub keyfiles
+        var d = new File("keyfiles/node1")
+        d.listFiles.foreach(x =>
+          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
+          val tempFile = new File(x.toString)
+          tempFile.delete()
+          })
+
+      }
+    }
 
     "Transfer some polys" in {
       val requestBody = ByteString(
