@@ -1,5 +1,7 @@
 package bifrost.api
 
+import java.io.File
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -120,6 +122,17 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
+
+        //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
+        //investor, producer and hub keyfiles
+        var d = new File("keyfiles/node1")
+        d.listFiles.foreach(x =>
+          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
+          val tempFile = new File(x.toString)
+          tempFile.delete()
+          })
       }
     }
 
