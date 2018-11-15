@@ -3,6 +3,7 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.pattern.ask
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -21,9 +22,9 @@ import scorex.core.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-
-// my imports
+import akka.util.Timeout
 import bifrost.transaction.CoinbaseTransaction
 
 trait ForgerSettings extends Settings {
@@ -47,20 +48,19 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] = {
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("22222222222222222222222222222222222222222222").get) // TODO | use the person's actual key not this dummy key
-    lazy val CB: CoinbaseTransaction = CoinbaseTransaction.createAndApply(BWallet., IndexedSeq((to, 100L)))
-
-
-    memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
-      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      val txValid = state.validate(tx)
-      if (txValid.isFailure) {
-        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
-        txValid.failed.get.printStackTrace()
-        memPool.remove(tx)
+    implicit val timeout: Timeout = 10 seconds
+    val view = (viewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
+      lazy val CB = CoinbaseTransaction.createAndApply(Await.ready(view.map {BWallet => BWallet.vault}, Duration.Inf).value.get.get, IndexedSeq((to, 100L))).get
+      CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+        val txValid = state.validate(tx)
+        if (txValid.isFailure) {
+          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
+          txValid.failed.get.printStackTrace()
+          memPool.remove(tx)
+        }
+        if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
       }
-      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx
-      else txSoFar
-    }
   }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
