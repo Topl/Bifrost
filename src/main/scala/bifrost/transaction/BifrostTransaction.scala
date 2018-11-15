@@ -75,6 +75,90 @@ object BifrostTransaction {
 }
 
 
+//
+// TODO | In progress coinbase tx case class
+// - make serializer
+// - implement functions
+// - implement object
+//
+
+case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                                val signatures: IndexedSeq[Signature25519],
+                                override val timestamp: Long) extends BifrostTransaction {
+
+  override type M = CoinbaseTransaction // just short hand so I don't have to type CoinbaseTransaction
+
+  lazy val serializer = CoinbaseTransactionCompanion
+
+  override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
+
+  lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
+
+  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
+
+  lazy val hashNoNonces = FastCryptographicHash(
+    to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) // message that gets hashed
+  )
+
+  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, 0L, 100L)) /** the tx always creates a single box cus duh
+                                                                                          TODO | attach the value held in the box to inflation aka not a magic number */
+
+  override lazy val json: Json = Map( // tx in json form
+    "id" -> Base58.encode(id).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "to" -> Map(
+        "proposition" -> to.head._1.pubKeyBytes.asJson,
+        "value" -> to.head._2.asJson
+      ).asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
+
+  def commonMessageToSign: Array[Byte] = newBoxes.head.bytes ++ // is the new box + the timestamp + the fee,
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
+
+  override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
+    "CoinbaseTransaction".getBytes(),
+    commonMessageToSign
+  )
+}
+
+object CoinbaseTransaction {
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
+
+  def validate(tx: CoinbaseTransaction): Try[Unit] = Try {
+    /** TODO | no validation checks rn for testing !!!!DO NOT MERGE!!!! without turing these on */
+//    require(tx.to._2 >= 0L) // can't create an empty box
+//    require(tx.fee == 0)
+//    require(tx.timestamp >= 0)
+//    require(tx.signatures.forall({ signature => // should be only one sig
+//      signature.isValid(tx.to._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+//    }), "Invalid signature")
+  }
+
+  def createAndApply(w: BWallet,
+                     to: IndexedSeq[(PublicKey25519Proposition, Long)]
+                    ): Try[CoinbaseTransaction] = Try {
+    val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
+    val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
+    val timestamp = Instant.now.toEpochMilli // generate timestamp
+    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated
+    CoinbaseTransaction(to, signatures, timestamp) // use the sigs you just generated to make the real CB tx
+  }
+
+
+}
+
+
+
+
+
+
 case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
                           val signatures: IndexedSeq[Signature25519],
                           val assetCode: String,
@@ -1109,7 +1193,7 @@ case class TokenExchangeTransaction(buyOrder: BuySellOrder,
       "")
   }
 
-  lazy val token2Tx: PolyTransfer = {
+  lazy val token2Tx: PolyTransfer = { /** STANDUP | Is this supposed to be here? */
     val fromBuyer = buyOrder
       .inputBoxes
       .map(noncedBox => (PublicKey25519Proposition(noncedBox.publicKey.toByteArray), noncedBox.nonce))
@@ -1119,7 +1203,7 @@ case class TokenExchangeTransaction(buyOrder: BuySellOrder,
       (PublicKey25519Proposition(sellOrder.publicKey.toByteArray), buyOrder.token2.quantity - fee)
     ).toIndexedSeq
 
-    // TODO: Assume token2 is always Poly for now
+    // TODO: Assume token2 is always Poly for now LOL
     PolyTransfer(fromBuyer,
       toSeller,
       buyOrder.signatures.map(s => Signature25519(s.toByteArray)).toIndexedSeq,

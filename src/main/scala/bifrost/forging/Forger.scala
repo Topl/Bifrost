@@ -15,12 +15,16 @@ import com.google.common.primitives.Longs
 import scorex.core.LocalInterface.LocallyGeneratedModifier
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
+// my imports
+import bifrost.transaction.CoinbaseTransaction
 
 trait ForgerSettings extends Settings {
 }
@@ -41,7 +45,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] =
+  def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] = {
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("22222222222222222222222222222222222222222222").get) // TODO | use the person's actual key not this dummy key
+    lazy val CB: CoinbaseTransaction = CoinbaseTransaction.createAndApply(BWallet., IndexedSeq((to, 100L)))
+
+
     memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
@@ -53,6 +61,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx
       else txSoFar
     }
+  }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
     if (value < min) min else if (value > max) max else value
