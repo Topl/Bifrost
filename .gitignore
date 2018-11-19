@@ -25,5 +25,6 @@ sheet.scala
 examples/src/main/scala/examples/sigmastate/
 examples/lib/
 keyfiles/
+dumps/
 
 docker/project-bifrost-assembly-0.1.1-alpha.jar

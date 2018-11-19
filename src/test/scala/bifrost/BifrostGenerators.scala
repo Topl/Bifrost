@@ -266,19 +266,21 @@ trait BifrostGenerators extends CoreGenerators {
        |this.$name = function(){
        |    this.contractEffectiveTime = $effectiveTimestamp;
        |    this.contractExpirationTime = $expirationTimestamp;
-       |    this.status = "initialized"
-       |    this.assetCode = "$assetCode"
+       |    this.status = "initialized";
+       |    this.assetCode = "$assetCode";
        |    this.initialCapital = "0";
+       |    _this = this;
        |
        |    this.changeStatus = function(newStatus) {
        |      this.status = newStatus;
        |      return this;
        |    }
        |
-       |    this.newAsset = function(asset, amount) {
-       |      createAsset(asset, amount);
+       |    this.newAsset = function(publicKey, asset, amount) {
+       |      this.createAsset(publicKey, asset, amount);
        |      return this;
        |    }
+       |
        |}
        |
        |this.$name.fromJSON = function(str) {

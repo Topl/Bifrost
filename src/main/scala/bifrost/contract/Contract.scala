@@ -8,6 +8,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
+import org.graalvm.polyglot.Context
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -28,22 +29,29 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
       "(must be between 2 and 1024).")
   }
 
-  lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
+  /*lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
     .getScriptEngine
-    .asInstanceOf[NashornScriptEngine]
+    .asInstanceOf[NashornScriptEngine]*/
+
+  val jsre: Context = Context.create("js")
+
 
   val agreementObj: Agreement = agreement.as[Agreement] match {
     case Right(a) => a
     case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
   }
 
-  jsre.eval(BaseModuleWrapper.objectAssignPolyfill)
+  jsre.eval("js", BaseModuleWrapper.objectAssignPolyfill)
+  println(">>>>>>>>>>>>>>> objectAssignPolyfill eval")
 
   //noinspection ScalaStyle
   def applyFunction(methodName: String)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
-    jsre.eval(agreementObj.core.initjs)
-    jsre.eval(s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
+    println(s">>>>>>>>>>>>> initjs: ${agreementObj.core}")
+    jsre.eval("js", agreementObj.core.initjs)
+    println(">>>>>>>>> agreement initjs")
+    jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
+    println(s">>>>>>>>> agreement name: ${agreementObj.core.name} and state: ${agreementObj.core.state.noSpaces}")
 
     val parameterString: String = params
       .tail
@@ -68,7 +76,10 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
-    val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
+    println(s">>>>>>>>>>>>>>>>>>> Before result: ${agreementObj.core.initjs}")
+    //val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
+    val result = parse(jsre.eval("js", update).asString()).right.get
+    println(s">>>>>>>>>>>>>>>>>>> After result ")
 
     val resultingContract = this.copy(
       agreement = agreementObj
@@ -95,12 +106,12 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
 
   def getFromContract(property: String): Try[Json] = Try {
     val core = agreementObj.core
-    jsre.eval(core.initjs)
-    jsre.eval(s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
+    jsre.eval("js", core.initjs)
+    jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
     val update = s"c.$property"
 
-    val res = jsre.eval(s"JSON.stringify($update)").asInstanceOf[String]
+    val res = jsre.eval("js", s"JSON.stringify($update)").asInstanceOf[String]
 
     parse(res) match {
       case Right(json: Json) => json
