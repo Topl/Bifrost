@@ -50,6 +50,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
                 (json \\ "method").head.asString.get match {
                   case "transfer" => transfer(params.head, id)
                   case "balances" => balances(params.head, id)
+                  case "balancesByKey" => balancesByKey(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
                   case "generateKeyfile" => generateKeyfile(params.head, id)
                 }
@@ -101,6 +102,30 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
         ).asJson
       }
     }
+
+  private def balancesByKey(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val publicKey: String = (params \\ "publicKey").head.asString.get
+
+      val boxes = wallet.boxesByKey(publicKey)
+
+      Map("polyBalance" -> boxes.flatMap(_.box match {
+        case pb: PolyBox => Some(pb.value)
+        case _ => None
+      }).sum.toString.asJson,
+        "arbitBalance" -> boxes.flatMap(_.box match {
+          case ab: ArbitBox => Some(ab.value)
+          case _ => None
+        }).sum.toString.asJson,
+        "publicKeys" -> wallet.publicKeys.flatMap(_ match {
+          case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
+          case _ => None
+        }).asJson,
+        "boxes" -> boxes.map(_.box.json).asJson
+      ).asJson
+    }
+  }
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

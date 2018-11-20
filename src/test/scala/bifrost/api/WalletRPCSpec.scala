@@ -83,6 +83,26 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
+    "Get balances by public key" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "balancesByKey",
+           |   "params": [{"publicKey": "${publicKeys("investor")}"}]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        val boxes = ((res \\ "result").head \\ "boxes").head.asArray
+        boxes.get.foreach(b => (b \\ "proposition").head.asString.get shouldEqual publicKeys("investor"))
+      }
+    }
+
     "Transfer some polys" in {
       val requestBody = ByteString(
         s"""
@@ -156,13 +176,11 @@ class WalletRPCSpec extends WordSpec
           if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
-          val tempFile = new File(x.toString)
-          tempFile.delete()
+            val tempFile = new File(x.toString)
+            tempFile.delete()
           })
-
       }
     }
-
 
   }
 
