@@ -853,10 +853,21 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
           // Match only the type of boxes specified by txType
           val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
-            case "PolyTransfer" => w.boxes().flatMap(_.box match {
+            case "PolyTransfer" =>
+              if(extraArgs(0).asInstanceOf[String] == ""){
+              w.boxes().flatMap(_.box match {
               case p: PolyBox => Some(p)
               case _ => None
-            })
+            })}
+              else {
+                println()
+                println("Entered")
+                println()
+                w.boxesByKey(extraArgs(0).asInstanceOf[String]).flatMap(_.box match {
+                  case p: PolyBox => Some(p)
+                  case _ => None
+                })
+              }
             case "ArbitTransfer" => w.boxes().flatMap(_.box match {
               case a: ArbitBox => Some(a)
               case _ => None
@@ -948,7 +959,17 @@ object PolyTransfer extends TransferUtil {
   }
 
   def create(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String) = Try {
-    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer")
+    println()
+    println("Entered create")
+    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", "")
+    val timestamp = Instant.now.toEpochMilli
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+  }
+
+  def createByKey(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: String) = Try {
+    println()
+    println("Entered createByKey")
+    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom)
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }

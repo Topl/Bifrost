@@ -90,7 +90,7 @@ class WalletRPCSpec extends WordSpec
            |   "jsonrpc": "2.0",
            |   "id": "30",
            |   "method": "balancesByKey",
-           |   "params": [{"publicKey": "${publicKeys("investor")}"}]
+           |   "params": [{"publicKey": "${publicKeys("hub")}"}]
            |}
         """.stripMargin)
 
@@ -121,6 +121,35 @@ class WalletRPCSpec extends WordSpec
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
+      }
+    }
+
+    "Transfer some polys from a specified public key in wallet" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "transferByKey",
+           |   "params": [{
+           |     "recipient": "${publicKeys("hub")}",
+           |     "publicKeyToSendFrom": "${publicKeys("investor")}",
+           |     "amount": 5,
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+      //println(requestBody)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "id").head.asString.get
