@@ -926,7 +926,7 @@ trait TransferUtil {
             }
             else {
               updatedBalance =
-                  (publicKeyToSendChangeTo.asInstanceOf[PublicKey25519Proposition], canSend - amount - fee)
+                  (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
                 //case _ => ()
               }
             to = IndexedSeq(updatedBalance, (recipient, amount))
