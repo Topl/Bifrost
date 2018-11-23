@@ -111,7 +111,7 @@ class WalletRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transfer",
            |   "params": [{
-           |     "recipient": "${publicKeys("investor")}",
+           |     "recipient": "${publicKeys("hub")}",
            |     "amount": 5,
            |     "fee": 0,
            |     "data": ""
@@ -121,6 +121,7 @@ class WalletRPCSpec extends WordSpec
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "id").head.asString.get
@@ -140,7 +141,7 @@ class WalletRPCSpec extends WordSpec
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
            |     "publicKeyToSendFrom": "${publicKeys("investor")}",
-           |     "amount": 5,
+           |     "amount": 100000000,
            |     "fee": 0,
            |     "data": ""
            |   }]
@@ -149,6 +150,7 @@ class WalletRPCSpec extends WordSpec
       //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "id").head.asString.get

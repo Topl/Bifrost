@@ -909,7 +909,7 @@ trait TransferUtil {
             .toIndexedSeq
 
           val canSend = from.map(_._3).sum
-          val updatedBalance: (PublicKey25519Proposition, Long) = (w.publicKeys
+          val updatedBalance2: (PublicKey25519Proposition, Long) = (w.publicKeys
             .find {
               case _: PublicKey25519Proposition => true
               case _ => false
@@ -917,7 +917,23 @@ trait TransferUtil {
             .get
             .asInstanceOf[PublicKey25519Proposition], canSend - amount - fee)
 
-          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
+          var to: IndexedSeq[(PublicKey25519Proposition, Long)] = null
+
+          if(canSend - amount - fee > 0) {
+            val updatedBalance: (PublicKey25519Proposition, Long) = filteredBoxes.head match {
+              case b: BifrostPublic25519NoncedBox =>
+                (b.proposition, canSend - amount - fee)
+              //case _ => ()
+            }
+            to = IndexedSeq(updatedBalance, (recipient, amount))
+
+          }
+          else {
+            to = IndexedSeq((recipient, amount))
+
+          }
+
+//          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
 
           require(from.map(_._3).sum - to.map(_._2).sum == fee)
           (a._1 ++ from, a._2 ++ to)
