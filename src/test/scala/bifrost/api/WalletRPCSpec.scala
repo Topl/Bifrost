@@ -141,6 +141,7 @@ class WalletRPCSpec extends WordSpec
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
            |     "publicKeyToSendFrom": "${publicKeys("investor")}",
+           |     "publicKeyToSendChangeTo": "${publicKeys("investor")}",
            |     "amount": 100000000,
            |     "fee": 0,
            |     "data": ""
