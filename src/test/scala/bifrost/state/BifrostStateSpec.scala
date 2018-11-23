@@ -183,7 +183,6 @@ class BifrostStateSpec extends PropSpec
           case _ => None
         }
         .toIndexedSeq
-
       val toReceive = pubkeys.map(_ -> (Gen.choose(0, 100L).sample.get + initialBalance))
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
       val poT = PolyTransfer.create(gw, toReceive, Random.nextInt(100), "").get
@@ -194,7 +193,6 @@ class BifrostStateSpec extends PropSpec
         Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
         Seq(poT)
       )
-
       genesisState.validate(poT) shouldBe a[Failure[_]]
     }
   }

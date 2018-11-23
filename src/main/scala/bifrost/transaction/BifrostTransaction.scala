@@ -914,7 +914,7 @@ trait TransferUtil {
 
           var to: IndexedSeq[(PublicKey25519Proposition, Long)] = null
 
-          if(canSend - amount - fee > 0) {
+          //if(canSend - amount - fee > 0) {
 
             var updatedBalance: (PublicKey25519Proposition, Long) = null
             if (publicKeyToSendChangeTo == "") {
@@ -923,8 +923,6 @@ trait TransferUtil {
                   (b.proposition, canSend - amount - fee)
                 //case _ => ()
               }
-//              to = IndexedSeq(updatedBalance, (recipient, amount))
-
             }
             else {
               updatedBalance =
@@ -933,11 +931,11 @@ trait TransferUtil {
               }
             to = IndexedSeq(updatedBalance, (recipient, amount))
 
-          }
-          else {
-            to = IndexedSeq((recipient, amount))
-
-          }
+//          }
+//          else {
+//            to = IndexedSeq((recipient, amount))
+//
+//          }
 
 //          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
 
