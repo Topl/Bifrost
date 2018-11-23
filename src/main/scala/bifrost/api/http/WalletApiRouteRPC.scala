@@ -48,8 +48,9 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
                 require(params.size <= 5, s"size of params is ${params.size}")
 
                 (json \\ "method").head.asString.get match {
+
                   case "transfer" => transfer(params.head, id)
-                  case "transferByKey" => transferByKey(params.head, id)
+                  case "transferByKeys" => transferByKeys(params.head, id)
                   case "balances" => balances(params.head, id)
                   case "balancesByKey" => balancesByKey(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
@@ -75,14 +76,18 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").head.asString.get
-      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data).get
+      val data: String = (params \\ "data").head.asString.getOrElse("")
+      var publicKeyToSendFrom: String = ""
+      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+      }
+      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeyToSendFrom).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
     }
   }
 
-  private def transferByKey(params: Json, id: String): Future[Json] = {
+  private def transferByKeys(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -90,11 +95,23 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.get
       var publicKeyToSendFrom: String = ""
-      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
-        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
-      }
-//      val publicKeyToSendFrom: String = (params \\ "publicKeyToSendFrom").head.asString.get
-      val tx = PolyTransfer.createByKey(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeyToSendFrom).get
+//      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+//        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+//      }
+      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").toSeq
+
+      val publicKeysToSendFrom2 = (params \\ "publicKeysToSendFrom").head.asInstanceOf[IndexedSeq[String]]
+
+
+      //      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").children
+
+      println()
+      println(publicKeysToSendFrom)
+      println()
+
+      println(publicKeysToSendFrom2)
+
+      val tx = PolyTransfer.createByKey(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
     }

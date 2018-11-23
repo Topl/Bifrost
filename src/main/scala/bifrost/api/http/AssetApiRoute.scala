@@ -105,7 +105,11 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
       val data: String = (params \\ "data").head.asString.getOrElse("")
-      val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data).get
+      var publicKeyToSendFrom: String = ""
+      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+      }
+      val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data, publicKeyToSendFrom).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
       tx.json
     }
@@ -119,7 +123,11 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
-      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data).get
+      var publicKeyToSendFrom: String = ""
+      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+      }
+      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeyToSendFrom).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
     }
@@ -133,7 +141,11 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
-      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data).get
+      var publicKeyToSendFrom: String = ""
+      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+      }
+      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeyToSendFrom).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
       tx.json
     }
