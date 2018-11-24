@@ -845,7 +845,7 @@ trait TransferUtil {
                           toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                           fee: Long,
                           txType: String,
-                          publicKeyToSendFrom: String,
+                          publicKeysToSendFrom: Vector[String],
                           publicKeyToSendChangeTo: String,
                           extraArgs: Any*):
   (IndexedSeq[(PrivateKey25519, Long, Long)], IndexedSeq[(PublicKey25519Proposition, Long)]) = {
@@ -856,31 +856,31 @@ trait TransferUtil {
           // Match only the type of boxes specified by txType
           val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
             case "PolyTransfer" =>
-              if(publicKeyToSendFrom == ""){
+              if(publicKeysToSendFrom.isEmpty){
               w.boxes().flatMap(_.box match {
               case p: PolyBox => Some(p)
               case _ => None
             })}
               else {
-                w.boxesByKey(publicKeyToSendFrom).flatMap(_.box match {
+                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
                   case p: PolyBox => Some(p)
                   case _ => None
-                })
+                }))
               }
             case "ArbitTransfer" =>
-              if(publicKeyToSendFrom == ""){
+              if(publicKeysToSendFrom.isEmpty){
                 w.boxes().flatMap(_.box match {
                   case a: ArbitBox => Some(a)
                   case _ => None
                 })}
               else {
-                w.boxesByKey(publicKeyToSendFrom).flatMap(_.box match {
+                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
                   case a: ArbitBox => Some(a)
                   case _ => None
-                })
+                }))
               }
             case "AssetTransfer" =>
-              if(publicKeyToSendFrom == "") {
+              if(publicKeysToSendFrom.isEmpty) {
                 w.boxes().flatMap(_.box match {
                   case a: AssetBox
                     if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
@@ -891,14 +891,14 @@ trait TransferUtil {
                 })
               }
               else {
-                w.boxesByKey(publicKeyToSendFrom).flatMap(_.box match {
+                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
                   case a: AssetBox
                     if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
                       (a.hub equals extraArgs(0)
                         .asInstanceOf[PublicKey25519Proposition]) =>
                     Some(a)
                   case _ => None
-                })
+                }))
               }
           }
 
@@ -995,7 +995,7 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: String = "", publicKeyToSendChangeTo: String = "") = Try {
+  def create(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(), publicKeyToSendChangeTo: String = "") = Try {
     val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
@@ -1008,14 +1008,6 @@ object PolyTransfer extends TransferUtil {
 //        val timestamp = Instant.now.toEpochMilli
 //        PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
 //      }//
-
-//  def createByKey(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: String) = Try {
-//    println()
-//    println("Entered createByKey")
-//    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom)
-//    val timestamp = Instant.now.toEpochMilli
-//    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//  }
 
   def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
 }
@@ -1059,7 +1051,7 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: String = "", publicKeyToSendChangeTo: String = ""): Try[ArbitTransfer] = Try
+  def create(w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(), publicKeyToSendChangeTo: String = ""): Try[ArbitTransfer] = Try
   {
 
     val params = parametersForCreate(w, toRecieve, fee, "ArbitTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
@@ -1151,7 +1143,7 @@ object AssetTransfer extends TransferUtil {
              hub: PublicKey25519Proposition,
              assetCode: String,
              data: String,
-             publicKeyToSendFrom: String = "",
+             publicKeyToSendFrom: Vector[String] = Vector(),
              publicKeyToSendChangeTo: String = ""): Try[AssetTransfer] = Try {
 
     val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, hub, assetCode)

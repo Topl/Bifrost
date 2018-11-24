@@ -77,15 +77,17 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
-      var publicKeyToSendFrom: String = ""
+      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeysToSendFrom").headOption match {
+        case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
+        case None => Vector()
+      }
+      println(s">>>>>>> publicKeysToSendFrom: ${publicKeysToSendFrom}")
       var publicKeyToSendChangeTo: String = ""
-      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
-        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
-      }
       if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
-        publicKeyToSendChangeTo = (params \\ "publicKeyToSendFrom").head.asString.get
+        publicKeyToSendChangeTo = (params \\ "publicKeyToSendChangeTo").head.asString.get
       }
-      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeyToSendFrom, publicKeyToSendChangeTo).get
+      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
     }

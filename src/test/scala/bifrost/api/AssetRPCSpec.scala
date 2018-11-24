@@ -149,6 +149,7 @@ class AssetRPCSpec extends WordSpec
            |     "amount": 1,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
+           |     "publicKeysToSendFrom": [],
            |     "data": ""
            |   }]
            |}
@@ -176,7 +177,7 @@ class AssetRPCSpec extends WordSpec
            |   "params": [{
            |      "hub": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("producer")}",
-           |     "publicKeyToSendFrom": "${publicKeys("investor")}",
+           |     "publicKeyToSendFrom": ["${publicKeys("investor")}", "${publicKeys("hub")}"],
            |     "amount": 5,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
@@ -234,7 +235,7 @@ class AssetRPCSpec extends WordSpec
            |   "method": "transferArbits",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
-           |     "publicKeyToSendFrom": "${publicKeys("investor")}",
+           |     "publicKeyToSendFrom": ["${publicKeys("investor")}"],
            |     "amount": 5,
            |     "fee": 0,
            |     "data": ""
@@ -287,7 +288,7 @@ class AssetRPCSpec extends WordSpec
            |   "method": "transferPolys",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
-           |     "publicKeyToSendFrom": "${publicKeys("investor")}",
+           |     "publicKeyToSendFrom": ["${publicKeys("investor")}"],
            |     "amount": 5,
            |     "fee": 0,
            |     "data": ""
