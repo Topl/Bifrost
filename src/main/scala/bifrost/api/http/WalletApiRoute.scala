@@ -31,7 +31,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   override implicit val timeout: Timeout = Timeout(10.seconds)
 
   override val route: Route = pathPrefix("wallet") {
-    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
+    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile ~ lockKeyFile
   }
 
   @Path("/transfer")
