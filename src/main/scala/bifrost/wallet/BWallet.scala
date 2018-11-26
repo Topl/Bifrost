@@ -121,6 +121,28 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     }
   }
 
+  def lockKeyFile(publicKeyString: String, password: String): Unit = {
+    val keyfiles = getListOfFiles(defaultKeyDir)
+      .map(file => KeyFile.readFile(file.getPath))
+      .filter(k => k
+        .pubKeyBytes sameElements Base58
+        .decode(publicKeyString)
+        .get)
+    assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
+    val privKey = keyfiles.head.getPrivateKey(password) match {
+      case Success(priv) => Set(priv)
+      case Failure(e) => throw e
+    }
+    // ensure no duplicate by comparing privKey strings
+    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
+      log.warn(s"$publicKeyString is already locked")
+    } else {
+      secrets -= privKey.head
+    }
+
+
+  }
+
   override def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
     case mn: MofNProposition => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(

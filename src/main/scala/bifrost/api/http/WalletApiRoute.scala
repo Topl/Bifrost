@@ -79,6 +79,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   }
 
 
+
+
   @Path("/balances")
   @ApiOperation(value = "Balances", notes = "Return info about local wallet", httpMethod = "GET")
   @ApiResponses(Array(
@@ -170,6 +172,43 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 wallet.unlockKeyFile(publicKey, password)
                 Map(
                   publicKey -> "unlocked".asJson
+                ).asJson
+              } match {
+                case Success(resp) => SuccessApiResponse(resp)
+                case Failure(e) => ApiException(e)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Path("/lock/")
+  @ApiOperation(value = "lock a Keyfile", notes = "lock a Keyfile", httpMethod = "POST")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "publicKey",
+      value = "Public Key of the keyfile",
+      required = true,
+      dataType = "string",
+      paramType = "body"
+    )
+  ))
+  def lockKeyFile: Route = path("lock") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(json) => Try {
+                val wallet = view.vault
+                val publicKey: String = (json \\ "publicKey").head.asString.get
+                val password: String = (json \\ "password").head.asString.get
+                wallet.lockKeyFile(publicKey, password)
+                Map(
+                  publicKey -> "locked".asJson
                 ).asJson
               } match {
                 case Success(resp) => SuccessApiResponse(resp)
