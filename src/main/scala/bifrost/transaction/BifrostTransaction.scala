@@ -914,32 +914,33 @@ trait TransferUtil {
 
           var to: IndexedSeq[(PublicKey25519Proposition, Long)] = null
 
-          //if(canSend - amount - fee > 0) {
+          //Added fix to prevent zero-value change box from being created when entire
+          //amount is to be transferred
+          if(canSend - amount - fee != 0) {
 
             var updatedBalance: (PublicKey25519Proposition, Long) = null
             if (publicKeyToSendChangeTo == "") {
               updatedBalance = filteredBoxes.head match {
                 case b: BifrostPublic25519NoncedBox =>
                   (b.proposition, canSend - amount - fee)
-                //case _ => ()
+                case _ => null
               }
             }
             else {
               updatedBalance =
                   (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
-                //case _ => ()
               }
             to = IndexedSeq(updatedBalance, (recipient, amount))
 
-//          }
-//          else {
-//            to = IndexedSeq((recipient, amount))
-//
-//          }
+          }
+          else {
+            to = IndexedSeq((recipient, amount))
+          }
 
 //          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
 
           require(from.map(_._3).sum - to.map(_._2).sum == fee)
+
           (a._1 ++ from, a._2 ++ to)
       }
   }
@@ -952,6 +953,7 @@ trait TransferUtil {
     require(tx.from.zip(tx.signatures).forall { case ((prop, _), proof) =>
       proof.isValid(prop, tx.messageToSign)
     })
+
   }
 }
 

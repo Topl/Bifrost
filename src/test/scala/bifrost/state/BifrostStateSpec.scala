@@ -194,6 +194,7 @@ class BifrostStateSpec extends PropSpec
         Seq(poT)
       )
       genesisState.validate(poT) shouldBe a[Failure[_]]
+      println()
     }
   }
 
