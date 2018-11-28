@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     docker:
       # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
+      - image: tuxman/graalvm:1.0.0-rc9
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
