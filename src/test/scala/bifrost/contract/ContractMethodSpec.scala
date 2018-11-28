@@ -6,6 +6,7 @@ import bifrost.transaction.AssetCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
+import org.graalvm.polyglot.management.ExecutionListener
 import org.graalvm.polyglot.{Context, Value}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
@@ -17,7 +18,26 @@ class ContractMethodSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  property("Can call a protocol level function from a contract") {
+  property("Test") {
+    val context: Context = Context.create("js")
+    val listener: ExecutionListener = ExecutionListener.newBuilder()
+      .onEnter((e) => println(e.getLocation().getCharacters()))
+      .roots(true)
+      .attach(context.getEngine)
+    
+
+    context.eval("js", "for (var i = 0; i < 2; i++);")
+    listener.close()
+    /*val jsBindings: Value = context.getBindings("js")
+    class ProtocolFunctions() {
+      val test: String = "test"
+
+    }
+    jsBindings.putMember("test", new ProtocolFunctions())
+    assert(jsBindings.getMember("test.test").asString == "test")*/
+  }
+
+  /*property("Can call a protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
@@ -85,5 +105,5 @@ class ContractMethodSpec extends PropSpec
 
     val result = Contract.execute(contract, "createAsset")(party)(params)
     println(s">>>>>>>> Result: $result")*/
-  }
+  }*/
 }

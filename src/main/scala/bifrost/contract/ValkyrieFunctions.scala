@@ -14,6 +14,8 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import io.circe
+import io.circe.Json
+import org.graalvm.polyglot.Value
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -53,6 +55,18 @@ case class ValkyrieFunctions() {
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
+  class ProtocolFunctions() {
+    val test: String = "test"
+
+
+    def createAsset(body: String): Json = {
+      assetHttpPOST(ByteString(body))
+    }
+  }
+
+  def createBindings(bindings: Value): Unit = {
+    bindings.putMember("test", new ProtocolFunctions)
+  }
 }
 
 object ValkyrieFunctions {
@@ -64,15 +78,11 @@ object ValkyrieFunctions {
        |}
        |
        |this.transferAsset = function(publicKey, asset, amount) {
-       |
+       |  return this;
        |}
        |
        |this.transferPoly = function(publicKey, amount) {
-       |
+       |  return this;
        |}
      """.stripMargin
-
-  def executionListener() = {
-
-  }
 }
