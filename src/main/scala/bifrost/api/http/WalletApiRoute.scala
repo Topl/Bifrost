@@ -31,7 +31,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   override implicit val timeout: Timeout = Timeout(10.seconds)
 
   override val route: Route = pathPrefix("wallet") {
-    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile ~ lockKeyFile
+    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile ~ lockKeyFile ~ openKeyfiles
   }
 
   @Path("/transfer")
@@ -217,6 +217,26 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
             }
           }
         }
+      }
+    }
+  }
+
+  // TODO | write unit tests for this & general manual testing
+  @Path("/openKeyfiles")
+  @ApiOperation(value = "Open Keyfiles", notes = "Return info about current open keyfiles", httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Json with peer list or error")
+  ))
+  def openKeyfiles: Route = path("openKeyfiles") {
+    getJsonRoute {
+      viewAsync().map { view =>
+        val wallet = view.vault
+
+        SuccessApiResponse(
+          wallet.secrets.flatMap(_ match {
+            case pkp: PrivateKey25519 => Some(pkp.publicImage)
+            case _ => None
+          }).asJson)
       }
     }
   }
