@@ -59,9 +59,9 @@ case class ValkyrieFunctions() {
     val test: String = "test"
 
 
-    def createAsset(body: String): Json = {
+    /*def createAsset(body: String): Json = {
       assetHttpPOST(ByteString(body))
-    }
+    }*/
   }
 
   def createBindings(bindings: Value): Unit = {

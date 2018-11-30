@@ -4,12 +4,12 @@ import sbtassembly.MergeStrategy
 name := "project-bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.1",
+  scalaVersion := "2.12.7",
   organization := "co.topl",
   version := "0.1.0-alpha.1.0"
 )
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.7"
 organization := "co.topl"
 version := "0.2.2-alpha"
 
