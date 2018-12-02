@@ -1,12 +1,14 @@
 package bifrost.api.http
 
 import javax.ws.rs.Path
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.history.BifrostSyncInfo
+import bifrost.scorexMod.GenericNodeViewHolder
 import io.circe.syntax._
 import io.swagger.annotations._
 import scorex.core.api.http.SuccessApiResponse
+import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
@@ -108,6 +110,27 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
         SuccessApiResponse(Map(
           "history" -> view.history.toString
         ).asJson)
+      }
+    }
+  }
+
+  @Path("/sync")
+  @ApiOperation(value= "sync", notes = "True if node is synced to canonical chain, false if not", httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Synced with the chain")
+  ))
+  def sync: Route = path("sync") {
+    getJsonRoute{
+      viewAsync().map { view =>
+        val resp = {
+          if (view.history.syncInfo(false) == HistoryComparisonResult.Equal)
+            Map("synced" -> "True").asJson
+          else
+            Map("synced" -> "False").asJson
+        }
+        SuccessApiResponse(
+          resp
+        )
       }
     }
   }
