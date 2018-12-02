@@ -173,10 +173,10 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       viewAsync().map { view =>
         val wallet = view.vault
 
-        // Optionally specify the publickey to get balances for
+        // Optionally specify the publickey to get balances for. If empty string or not specified return all boxes
         val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
-          case Some(key) => wallet.boxesByKey( key.asString.get )
-          case None => wallet.boxes()
+          case Some(key) => if(key.asString.get != "") wallet.boxesByKey( key.asString.get ) else wallet.boxes()
+          case _ => wallet.boxes()
         }
 
         Map("polyBalance" -> boxes.flatMap(_.box match {
