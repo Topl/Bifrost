@@ -114,7 +114,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
      //TODO assetBoxes elsewhere do not subtract fee from box value
      //TODO no check that amount >= fee
      //AssetBox(prop, nonce, value, assetCode, hub)
-     AssetBox(prop, nonce, value - fee, assetCode, hub)
+     AssetBox(prop, nonce, value - fee, assetCode, hub, data)
    }
 
   override lazy val json: Json = Map(
@@ -130,7 +130,8 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
@@ -681,7 +682,7 @@ case class ContractCompletion(contractBox: ContractBox,
     val hub: PublicKey25519Proposition = contract.parties.find(_._2 == "hub").get._1
 
     val partyAssets: IndexedSeq[AssetBox] = contract.parties.map { p =>
-      AssetBox(p._1, assetNonce(p._1, hashNoNonces), 0, assetCode, hub)
+      AssetBox(p._1, assetNonce(p._1, hashNoNonces), 0, assetCode, hub, data)
     }.toIndexedSeq
 
     IndexedSeq(
@@ -1090,7 +1091,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
           hashNoNonces ++
           Ints.toByteArray(idx)
       ))
-      AssetBox(prop, nonce, value, assetCode, hub)
+      AssetBox(prop, nonce, value, assetCode, hub, data)
   }
 
   override lazy val json: Json = Map(
@@ -1394,7 +1395,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
           Ints.toByteArray(i)
         ))
       )
-      AssetBox(r._1, nonce, r._2, assetCode, hub)
+      AssetBox(r._1, nonce, r._2, assetCode, hub, data)
     }
   }
 
@@ -1492,7 +1493,7 @@ object AssetRedemption {
   }
 }
 
-abstract class TestTransaction extends BifrostTransaction
+/*abstract class TestTransaction extends BifrostTransaction
 
 /**
   *
@@ -1503,13 +1504,15 @@ abstract class TestTransaction extends BifrostTransaction
   * @param conversionSignatures
   * @param fee
   * @param timestamp
+  * @param data
   */
 case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]],
                                  assetsToReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]],
                                  assetTokensToRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]],
                                  conversionSignatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]],
                                  override val fee: Long,
-                                 override val timestamp: Long)
+                                 override val timestamp: Long,
+                                 data: String)
   extends TestTransaction {
 
   import ConversionTransaction._
@@ -1578,7 +1581,8 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
       )
     }.asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   /* Creates new AssetBoxes specified by the assetCode and Long from the returnedAssets parameter and
@@ -1594,7 +1598,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
             Longs.toByteArray(propAmount._2),
             Ints.toByteArray(idx)))
         )
-        AssetBox(propAmount._1, nonce, propAmount._2, assetHub._1, assetHub._2)
+        AssetBox(propAmount._1, nonce, propAmount._2, assetHub._1, assetHub._2, data)
       }
     }
 
@@ -1613,7 +1617,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
         val polyAmount = conversionRates.get(assetHub._1)
         polyAmount match {
           //noinspection ScalaStyle
-          case (None) => AssetBox(prop, nonce, amount, assetHub._1, assetHub._2)
+          case (None) => AssetBox(prop, nonce, amount, assetHub._1, assetHub._2, data)
           case (Some(rate)) =>
             val convertedAmount: Long = (amount.toDouble * rate).floor.toLong
             PolyBox(prop, nonce, convertedAmount)
@@ -1665,4 +1669,4 @@ object ConversionTransaction {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
   }
-}
+}*/

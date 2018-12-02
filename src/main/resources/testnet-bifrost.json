@@ -1,22 +1,22 @@
 {
   "p2p": {
-    "name": "local-testnet",
+    "name": "valhalla-1.0",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
-      "18.210.205.156:9584"
+      "142.93.49.90:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "testnet",
-  "keyFileDir": "keyfiles/local-testnet",
-  "walletDir": "/tmp/scorex/testnet/wallet",
-  "dataDir": "/tmp/scorex/testnet/data",
-  "logDir": "/tmp/scorex/testnet/log",
+  "walletSeed": "valhalla",
+  "keyFileDir": "keyfiles/valhalla-1.0",
+  "walletDir": "/topl/bifrost/valhalla-1.0/wallet",
+  "dataDir": "/topl/bifrost/valhalla-1.0/data",
+  "logDir": "/topl/bifrost/valhalla-1.0/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
