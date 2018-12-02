@@ -4,9 +4,10 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.scorexMod.GenericWalletBox
 import bifrost.state.BifrostState
 import bifrost.transaction.{ArbitTransfer, PolyTransfer}
-import bifrost.transaction.box.{ArbitBox, PolyBox}
+import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -52,7 +53,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
                   case "transferPolys" => transferPolys(params.head, id)
                   case "transferArbits" => transferArbits(params.head, id)
                   case "balances" => balances(params.head, id)
-                  case "balancesByKey" => balancesByKey(params.head, id)
+//                  case "balancesByKey" => balancesByKey(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
                   case "generateKeyfile" => generateKeyfile(params.head, id)
                 }
@@ -171,7 +172,12 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
   private def balances(params: Json, id: String): Future[Json] = {
       viewAsync().map { view =>
         val wallet = view.vault
-        val boxes = wallet.boxes()
+
+        // Optionally specify the publickey to get balances for
+        val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
+          case Some(key) => wallet.boxesByKey( key.asString.get )
+          case None => wallet.boxes()
+        }
 
         Map("polyBalance" -> boxes.flatMap(_.box match {
             case pb: PolyBox => Some(pb.value)
@@ -190,29 +196,29 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       }
     }
 
-  private def balancesByKey(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val publicKey: String = (params \\ "publicKey").head.asString.get
-
-      val boxes = wallet.boxesByKey(publicKey)
-
-      Map("polyBalance" -> boxes.flatMap(_.box match {
-        case pb: PolyBox => Some(pb.value)
-        case _ => None
-      }).sum.toString.asJson,
-        "arbitBalance" -> boxes.flatMap(_.box match {
-          case ab: ArbitBox => Some(ab.value)
-          case _ => None
-        }).sum.toString.asJson,
-        "publicKeys" -> wallet.publicKeys.flatMap(_ match {
-          case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
-          case _ => None
-        }).asJson,
-        "boxes" -> boxes.map(_.box.json).asJson
-      ).asJson
-    }
-  }
+//  private def balancesByKey(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val publicKey: String = (params \\ "publicKey").head.asString.get
+//
+//      val boxes = wallet.boxesByKey(publicKey)
+//
+//      Map("polyBalance" -> boxes.flatMap(_.box match {
+//        case pb: PolyBox => Some(pb.value)
+//        case _ => None
+//      }).sum.toString.asJson,
+//        "arbitBalance" -> boxes.flatMap(_.box match {
+//          case ab: ArbitBox => Some(ab.value)
+//          case _ => None
+//        }).sum.toString.asJson,
+//        "publicKeys" -> wallet.publicKeys.flatMap(_ match {
+//          case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
+//          case _ => None
+//        }).asJson,
+//        "boxes" -> boxes.map(_.box.json).asJson
+//      ).asJson
+//    }
+//  }
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
