@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.PolyTransfer
+import bifrost.transaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.{ArbitBox, PolyBox}
 import bifrost.wallet.BWallet
 import io.circe.Json
@@ -49,8 +49,8 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
 
                 (json \\ "method").head.asString.get match {
 
-                  case "transfer" => transfer(params.head, id)
-//                  case "transferByKeys" => transferByKeys(params.head, id)
+                  case "transferPolys" => transferPolys(params.head, id)
+                  case "transferArbits" => transferArbits(params.head, id)
                   case "balances" => balances(params.head, id)
                   case "balancesByKey" => balancesByKey(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
@@ -70,21 +70,74 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
     }
   }}
 
-  private def transfer(params: Json, id: String): Future[Json] = {
+//  private def transfer(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      val data: String = (params \\ "data").head.asString.getOrElse("")
+//      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeysToSendFrom").headOption match {
+//        case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
+//        case None => Vector()
+//      }
+//      println(s">>>>>>> publicKeysToSendFrom: ${publicKeysToSendFrom}")
+//      var publicKeyToSendChangeTo: String = ""
+//      if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
+//        publicKeyToSendChangeTo = (params \\ "publicKeyToSendChangeTo").head.asString.get
+//      }
+//      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+//
+//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
+//      tx.json
+//    }
+//  }
+
+  //  private def transferByKeys(params: Json, id: String): Future[Json] = {
+  //    viewAsync().map { view =>
+  //      val wallet = view.vault
+  //      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+  //      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+  //      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+  //      val data: String = (params \\ "data").head.asString.get
+  //      var publicKeyToSendFrom: String = ""
+  ////      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
+  ////        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
+  ////      }
+  //      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").toSeq
+  //
+  //      val publicKeysToSendFrom2 = (params \\ "publicKeysToSendFrom").head.asInstanceOf[IndexedSeq[String]]
+  //
+  //
+  //      //      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").children
+  //
+  //      println()
+  //      println(publicKeysToSendFrom)
+  //      println()
+  //
+  //      println(publicKeysToSendFrom2)
+  //
+  //      val tx = PolyTransfer.createByKey(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom).get
+  //      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
+  //      tx.json
+  //    }
+  //  }
+
+  private def transferPolys(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
+
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
-      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeysToSendFrom").headOption match {
-        case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
+      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
+        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
       }
-      println(s">>>>>>> publicKeysToSendFrom: ${publicKeysToSendFrom}")
-      var publicKeyToSendChangeTo: String = ""
-      if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
-        publicKeyToSendChangeTo = (params \\ "publicKeyToSendChangeTo").head.asString.get
+      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+        case Some(key) => key.asString.get
+        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
 
@@ -93,35 +146,27 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
     }
   }
 
-//  private def transferByKeys(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val wallet = view.vault
-//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-//      val data: String = (params \\ "data").head.asString.get
-//      var publicKeyToSendFrom: String = ""
-////      if(!(params \\ "publicKeyToSendFrom").isEmpty) {
-////        publicKeyToSendFrom = (params \\ "publicKeyToSendFrom").head.asString.get
-////      }
-//      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").toSeq
-//
-//      val publicKeysToSendFrom2 = (params \\ "publicKeysToSendFrom").head.asInstanceOf[IndexedSeq[String]]
-//
-//
-//      //      val publicKeysToSendFrom = (params \\ "publicKeysToSendFrom").children
-//
-//      println()
-//      println(publicKeysToSendFrom)
-//      println()
-//
-//      println(publicKeysToSendFrom2)
-//
-//      val tx = PolyTransfer.createByKey(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom).get
-//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
-//      tx.json
-//    }
-//  }
+  private def transferArbits(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").head.asString.getOrElse("")
+      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
+        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
+        case None => Vector()
+      }
+      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+        case Some(key) => key.asString.get
+        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
+      }
+      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
+      tx.json
+    }
+  }
 
   private def balances(params: Json, id: String): Future[Json] = {
       viewAsync().map { view =>

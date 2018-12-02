@@ -55,8 +55,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
               (json \\ "method").head.asString.get match {
                 case "redeemAssets" => redeemAssets(params.head, id)
                 case "transferAssets" => transferAssets(params.head, id)
-                case "transferPolys" => transferPolys(params.head, id)
-                case "transferArbits" => transferArbits(params.head, id)
                 case "createAssets" => createAssets(params.head, id)
               }
             }
@@ -109,58 +107,13 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
       }
-      var publicKeyToSendChangeTo: String = ""
-      if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
-        publicKeyToSendChangeTo = (params \\ "publicKeyToSendFrom").head.asString.get
+      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+        case Some(key) => key.asString.get
+        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
 
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
-      tx.json
-    }
-  }
-
-  private def transferPolys(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").head.asString.getOrElse("")
-      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
-        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
-        case None => Vector()
-      }
-      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
-        case Some(key) => key.asString.get
-        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
-      }
-      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
-      tx.json
-    }
-  }
-
-  private def transferArbits(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").head.asString.getOrElse("")
-      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
-        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
-        case None => Vector()
-      }
-      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
-        case Some(key) => key.asString.get
-        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
-      }
-      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
       tx.json
     }
   }
