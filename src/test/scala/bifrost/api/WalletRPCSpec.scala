@@ -40,7 +40,7 @@ class WalletRPCSpec extends WordSpec
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "/wallet/",
+      uri = "/walletrpc/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     )
   }

@@ -29,7 +29,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
-  override val route: Route = pathPrefix("wallet") { walletRoute }
+  override val route: Route = pathPrefix("walletrpc") { walletRoute }
 
   //noinspection ScalaStyle
   def walletRoute: Route = path("") { entity(as[String]) { body =>
