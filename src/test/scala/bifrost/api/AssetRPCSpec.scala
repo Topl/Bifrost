@@ -117,11 +117,11 @@ class AssetRPCSpec extends WordSpec
         val txHash = ((res \\ "result").head \\ "transactionHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 
-//        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
-//          txInstance.newBoxes.toSet,
-//          System.currentTimeMillis())
-//
-//        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
+        //        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+        //          txInstance.newBoxes.toSet,
+        //          System.currentTimeMillis())
+        //
+        //        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
 
         //To update wallet correctly gw.scanPersistent needs to be used to manually add a block as opposed to creating a new state change like above
         val history = view().history
@@ -195,7 +195,8 @@ class AssetRPCSpec extends WordSpec
         view().pool.remove(txInstance)
       }
     }
-    
+  }
+
   object AssetRPCSpec {
     val path: Path = Path("/tmp/scorex/test-data")
     Try(path.deleteRecursively())
