@@ -45,6 +45,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
+    WalletApiRouteRPC(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
@@ -55,6 +56,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
+                                         typeOf[WalletApiRouteRPC],
                                          typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
