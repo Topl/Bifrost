@@ -132,9 +132,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
       }
-      var publicKeyToSendChangeTo: String = ""
-      if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
-        publicKeyToSendChangeTo = (params \\ "publicKeyToSendFrom").head.asString.get
+      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+        case Some(key) => key.asString.get
+        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
 
@@ -155,9 +155,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
       }
-      var publicKeyToSendChangeTo: String = ""
-      if(!(params \\ "publicKeyToSendChangeTo").isEmpty) {
-        publicKeyToSendChangeTo = (params \\ "publicKeyToSendFrom").head.asString.get
+      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+        case Some(key) => key.asString.get
+        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
