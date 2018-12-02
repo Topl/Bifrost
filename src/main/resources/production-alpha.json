@@ -1,22 +1,22 @@
 {
   "p2p": {
-    "name": "valhalla-1.0",
+    "name": "production-alpha",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
-      "142.93.49.90:9584"
+      "188.166.106.33:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "valhalla",
-  "keyFileDir": "keyfiles/valhalla-1.0",
-  "walletDir": "/topl/bifrost/valhalla-1.0/wallet",
-  "dataDir": "/topl/bifrost/valhalla-1.0/data",
-  "logDir": "/topl/bifrost/valhalla-1.0/log",
+  "walletSeed": "production-alpha",
+  "keyFileDir": "keyfiles/production-alpha",
+  "walletDir": "/tmp/bifrost/production-alpha/wallet",
+  "dataDir": "/tmp/bifrost/production-alpha/data",
+  "logDir": "/tmp/bifrost/production-alpha/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,

@@ -132,7 +132,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("testnet-valhalla.json")
-//val settingsFilename = args.headOption.getOrElse("settings.json")
+  val settingsFilename = args.headOption.getOrElse("production-alpha.json")
   new BifrostApp(settingsFilename).run()
 }
