@@ -159,6 +159,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
       }
+      // Look for a specified change address, if not present then try to choose from the list of specified send keys, if no send keys let the wallet decide
       val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
