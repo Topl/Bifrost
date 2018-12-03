@@ -247,7 +247,8 @@ class ContractRPCSpec extends WordSpec
             "${publicKeys("producer")}": []
           },
           "fees": ${fees.asJson},
-          "timestamp": ${System.currentTimeMillis}
+          "timestamp": ${System.currentTimeMillis},
+          "data": ""
         }]
       }
       """
@@ -332,13 +333,13 @@ class ContractRPCSpec extends WordSpec
         val txHash = ((res \\ "result").head.asObject.get.asJson \\ "transactionHash").head.asString.get
         //Changed shouldEqual from 4 to 5 since AssetRPCSpec test was added, which creates
         //a new transaction in the mempool
-        view().pool.take(5).toList.size shouldEqual 4
+        view().pool.take(5).toList.size shouldEqual 5
 
         // manually add contractBox to state
         manuallyApplyChanges(res, 8)
         //Changed shouldEqual from 3 to 4 since AssetRPCSpec test was added, which creates
         //a new transaction in the mempool
-        view().pool.take(5).toList.size shouldEqual 3
+        view().pool.take(5).toList.size shouldEqual 4
       }
     }
 
@@ -368,7 +369,8 @@ class ContractRPCSpec extends WordSpec
            |	   "fees" : {
            |       "${publicKeys("producer")}" : 0
            |    },
-           |    "timestamp": ${contractEffectiveTime + 1}
+           |    "timestamp": ${contractEffectiveTime + 1},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -381,7 +383,7 @@ class ContractRPCSpec extends WordSpec
         // Assertions
         //Changed shouldEqual from 3 to 4 since AssetRPCSpec test was added, which creates
         //a new transaction in the mempool
-        view().pool.take(5).toList.size shouldEqual 3
+        view().pool.take(5).toList.size shouldEqual 4
         val boxContent = ((res \\ "result").head \\ "contractBox").head
         Base58.encode(contractBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
 
@@ -412,7 +414,8 @@ class ContractRPCSpec extends WordSpec
            |    },
            |    "fees" : {
            |    },
-           |    "timestamp": ${contractEffectiveTime + 10000L}
+           |    "timestamp": ${contractEffectiveTime + 10000L},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -458,7 +461,8 @@ class ContractRPCSpec extends WordSpec
             |    },
             |    "fees" : {
             |    },
-            |    "timestamp" : ${contractEffectiveTime + 10000L}
+            |    "timestamp" : ${contractEffectiveTime + 10000L},
+            |    "data": ""
             |  }]
             |}
         """.stripMargin

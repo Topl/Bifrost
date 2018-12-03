@@ -69,6 +69,30 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .map(_.get)
   }
 
+  //Only returns asset arbit and poly boxes by public key
+   def boxesByKey(publicKeyString: String): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
+    log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    boxIds
+      .flatMap(id => store.get(ByteArrayWrapper(id)))
+      .map(_.data)
+      .map(ba => walletBoxSerializer.parseBytes(ba))
+      .filter {
+        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
+          case pb: PolyBox =>
+            pb.value > 0 &&
+            publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
+          case ab: ArbitBox =>
+            ab.value > 0 &&
+              publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
+          case assetB: AssetBox =>
+            assetB.amount > 0 &&
+              publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
+        }
+        case _ => false
+      }
+      .map(_.get)
+  }
+
   override def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))

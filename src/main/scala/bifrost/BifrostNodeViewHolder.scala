@@ -111,11 +111,13 @@ object BifrostNodeViewHolder extends ScorexLogging {
       IndexedSeq(genesisAccountPriv -> 0),
       icoMembers.map(_ -> GenesisBalance),
       0L,
-      0L)) ++ Seq(PolyTransfer(
+      0L,
+      "")) ++ Seq(PolyTransfer(
       IndexedSeq(genesisAccountPriv -> 0),
       icoMembers.map(_ -> GenesisBalance),
       0L,
-      0L))
+      0L,
+      ""))
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
     assert(icoMembers.length == GenesisAccountsNum)
     assert(Base58.encode(genesisTxs.head.id) == "5dJRukdd7sw7cmc8vwSnwbVggWLPV4VHYsZt7AQcFW3B", Base58.encode(genesisTxs.head.id))

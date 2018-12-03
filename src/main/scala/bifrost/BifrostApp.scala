@@ -50,6 +50,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
+    WalletApiRouteRPC(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
@@ -60,6 +61,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
+                                         typeOf[WalletApiRouteRPC],
                                          typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
@@ -130,6 +132,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("testnet-private.json")
+  val settingsFilename = args.headOption.getOrElse("production-alpha.json")
   new BifrostApp(settingsFilename).run()
 }

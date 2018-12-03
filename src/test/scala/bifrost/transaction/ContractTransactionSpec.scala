@@ -38,6 +38,7 @@ class ContractTransactionSpec extends PropSpec
     agreement <- validAgreementGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
+    data <- stringGen
   } yield {
     /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
     if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0)
@@ -98,7 +99,8 @@ class ContractTransactionSpec extends PropSpec
       AgreementCompanion.toBytes(agreement),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
-      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
+      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
+      data.getBytes)
 
     val signatures = allKeyPairs.map {
       keypair =>
@@ -113,7 +115,8 @@ class ContractTransactionSpec extends PropSpec
       signatures.toMap,
       feePreBoxes,
       fees,
-      timestamp)
+      timestamp,
+      data)
   }
 
   //noinspection ScalaStyle
@@ -127,6 +130,7 @@ class ContractTransactionSpec extends PropSpec
     deliveredQuantity <- positiveLongGen
     effDelta <- positiveLongGen.map(_ / 3)
     expDelta <- positiveLongGen.map(_ / 3)
+    data <- stringGen
   } yield {
     /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
     if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0)
@@ -186,7 +190,9 @@ class ContractTransactionSpec extends PropSpec
         ++ Longs.toByteArray(timestamp)
         ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) })
 
-    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = Bytes.concat(
+      FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces),
+        data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     ContractMethodExecution(
@@ -197,7 +203,8 @@ class ContractTransactionSpec extends PropSpec
       Map(sender._2._2 -> signature),
       feePreBoxes,
       fees,
-      timestamp
+      timestamp,
+      data
     )
   }
 
@@ -211,6 +218,7 @@ class ContractTransactionSpec extends PropSpec
     status <- Gen.oneOf(validStatuses)
     deliveredQuantity <- positiveLongGen
     numReputation <- positiveTinyIntGen
+    data <- stringGen
   } yield {
     /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
     if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0) || (maxFeeSum < 3 * minFee && 2 * minFee < 0) || minFeeSum > maxFeeSum || maxFee < minFee) {
@@ -267,12 +275,13 @@ class ContractTransactionSpec extends PropSpec
       prop -> available
     }
 
-    val messageToSign = FastCryptographicHash(
+    val messageToSign = Bytes.concat(FastCryptographicHash(
       contractBox.id ++
         partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
         boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
         Longs.toByteArray(contract.lastUpdated) ++
-        fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
+        fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))),
+        data.getBytes
     )
     val signatures = allKeyPairs.map(
       keypair =>
@@ -286,7 +295,8 @@ class ContractTransactionSpec extends PropSpec
       parties.zip(signatures).toMap,
       feePreBoxes,
       fees,
-      timestamp)
+      timestamp,
+      data)
 
   }
 
