@@ -74,15 +74,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
-  class DeadLetterMonitor extends Actor {
-    def receive = {
-      case msg: AllDeadLetters => log.debug(s"${self.path.name} - dead letter encountered: $msg")
-    }
-  }
-
-  val listener = actorSystem.actorOf(Props(new DeadLetterMonitor))
-  actorSystem.eventStream.subscribe(listener, classOf[AllDeadLetters])
-
   class CheckThreadsRunner extends Thread {
 
     override def run(): Unit =  while(true) {
