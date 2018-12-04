@@ -34,7 +34,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           .flatMap {
             case (assetCode, toRedeem) =>
               toRedeem
-                .map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub, ar.data))
+                .map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.issuer, ar.data))
           }
           .toSet
 
@@ -95,7 +95,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
                                          r._2,
                                          assetRedemption.remainderAllocations(assetCode).map(_._2).sum,
                                          assetCode,
-                                         assetRedemption.hub,
+                                         assetRedemption.issuer,
                                          assetRedemption.data))
           }
           .toSet
@@ -127,7 +127,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
       ar: AssetRedemption =>
 
         val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap {
-          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.hub, ar.data))
+          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.issuer, ar.data))
         }.toSet
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)

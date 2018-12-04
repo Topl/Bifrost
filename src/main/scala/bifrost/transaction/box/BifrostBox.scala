@@ -114,7 +114,7 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
                     amount: Long,
                     assetCode: String,
-                    hub: PublicKey25519Proposition,
+                    issuer: PublicKey25519Proposition,
                     data: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
 
@@ -124,7 +124,7 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
     "value" -> value.toString.asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "data" -> data.asJson,
     "nonce" -> nonce.toString.asJson
   ).asJson
@@ -134,7 +134,7 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
 
   def toBytes(obj: AssetBox): Array[Byte] = {
     noncedBoxToBytes(obj, "AssetBox") ++
-      obj.hub.pubKeyBytes ++
+      obj.issuer.pubKeyBytes ++
       obj.assetCode.getBytes ++
       Ints.toByteArray(obj.assetCode.getBytes.length) ++
       obj.data.getBytes ++
@@ -153,12 +153,12 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
     val asset: String = new String(bytes.slice(bytes.length - (2 * Ints.BYTES) - dataLen - assetLen,
       bytes.length - (2 * Ints.BYTES) - dataLen))
 
-    val hub: PublicKey25519Proposition = PublicKey25519Proposition(
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(
       bytes.slice(bytes.length - (2 * Ints.BYTES) - dataLen - assetLen - Constants25519.PubKeyLength,
                   bytes.length - (2 * Ints.BYTES) - dataLen - assetLen)
     )
 
-    AssetBox(params._1, params._2, params._3, asset, hub, data)
+    AssetBox(params._1, params._2, params._3, asset, issuer, data)
   }
 }
 

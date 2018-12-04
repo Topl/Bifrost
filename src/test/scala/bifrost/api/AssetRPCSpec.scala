@@ -100,7 +100,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "createAssets",
            |   "params": [{
-           |     "hub": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "to": "${publicKeys("investor")}",
            |     "amount": 10,
            |     "assetCode": "etherAssets",
@@ -144,7 +144,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transferAssets",
            |   "params": [{
-           |     "hub": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("producer")}",
            |     "amount": 1,
            |     "assetCode": "etherAssets",
@@ -175,7 +175,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transferAssets",
            |   "params": [{
-           |      "hub": "${publicKeys("hub")}",
+           |      "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("producer")}",
            |     "publicKeyToSendFrom": ["${publicKeys("investor")}", "${publicKeys("hub")}"],
            |     "amount": 5,
@@ -205,7 +205,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transferAssets",
            |   "params": [{
-           |     "hub": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("hub")}",
            |     "publicKeyToSendFrom": ["${publicKeys("investor")}"],
            |     "publicKeyToSendChangeTo": "${publicKeys("producer")}",
@@ -236,7 +236,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transferAssets",
            |   "params": [{
-           |     "hub": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("hub")}",
            |     "publicKeyToSendChangeTo": "${publicKeys("producer")}",
            |     "amount": 5,
