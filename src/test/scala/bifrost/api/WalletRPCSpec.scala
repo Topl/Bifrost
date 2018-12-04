@@ -124,7 +124,7 @@ class WalletRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ContractRPC tests
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
 
@@ -154,7 +154,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -183,7 +183,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -211,7 +211,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -237,7 +237,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -264,7 +264,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -293,7 +293,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -321,7 +321,7 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -348,7 +348,7 @@ class WalletRPCSpec extends WordSpec
 //        val res = parse(responseAs[String]).right.get
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }
@@ -377,7 +377,7 @@ class WalletRPCSpec extends WordSpec
 //        val res = parse(responseAs[String]).right.get
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }
@@ -409,7 +409,7 @@ class WalletRPCSpec extends WordSpec
 //        println(res)
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }

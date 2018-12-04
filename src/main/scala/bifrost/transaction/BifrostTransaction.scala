@@ -118,7 +118,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
    }
 
   override lazy val json: Json = Map(
-    "transactionHash" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { s =>
       Map(
@@ -215,7 +215,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
     }
 
   lazy val commonJson: Json = Map(
-    "transactionHash" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "parties" -> parties.map(kv =>Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson
@@ -773,7 +773,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
   )
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
@@ -1095,7 +1095,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   }
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
@@ -1300,7 +1300,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
   override lazy val messageToSign: Array[Byte] = ProfileTransaction.messageToSign(timestamp, from, keyValues)
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> Base58.encode(from.pubKeyBytes).asJson,
@@ -1408,7 +1408,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
   }
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "availableToRedeem" -> availableToRedeem
@@ -1545,7 +1545,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
   override def toString: String = s"ConversionTransaction(${json.noSpaces})"
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "totalAssetBoxes" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "assetsToReturn" -> assetsToReturn.map { case (assetHub: (String, PublicKey25519Proposition),
