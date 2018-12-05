@@ -18,35 +18,70 @@ class ContractMethodSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  property("Test") {
-    val context: Context = Context.create("js")
-    val listener: ExecutionListener = ExecutionListener.newBuilder()
-      .onEnter((e) => println(e.getLocation().getCharacters()))
-      .roots(true)
-      .attach(context.getEngine)
-    
-
-    context.eval("js", "for (var i = 0; i < 2; i++);")
-    listener.close()
-    /*val jsBindings: Value = context.getBindings("js")
-    class ProtocolFunctions() {
-      val test: String = "test"
-
-    }
-    jsBindings.putMember("test", new ProtocolFunctions())
-    assert(jsBindings.getMember("test.test").asString == "test")*/
-  }
-
-  /*property("Can call a protocol level function from a contract") {
+  property("Can call a function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
-        val params = JsonObject.fromMap(Map("asset" -> stringGen.sample.get.asJson, "amount" -> positiveTinyIntGen.sample.get.asJson))
+        val params = JsonObject.fromMap(Map("changeStatus" -> stringGen.sample.get.asJson))
+
+        val result = Contract.execute(c, "changeStatus")(party)(params)
+        //println(result)
+        assert(result.isSuccess)
+      }
+    }
+  }
+
+  property("Can call createAsset protocol level function from a contract") {
+    forAll(contractGen) {
+      c: Contract => {
+        val party = propositionGen.sample.get
+        val params = JsonObject.fromMap(
+          Map(
+            "publicKey" -> stringGen.sample.get.asJson,
+            "asset" -> stringGen.sample.get.asJson,
+            "amount" -> positiveTinyIntGen.sample.get.asJson))
+
+        val result = Contract.execute(c, "newAsset")(party)(params)
+        //println(result)
+        assert(result.isSuccess)
+      }
+    }
+  }
+
+  property("Can call assetTransfer protocol level function from a contract") {
+    forAll(contractGen) {
+      c: Contract => {
+        val party = propositionGen.sample.get
+        val params = JsonObject.fromMap(
+          Map(
+            "publicKey" -> stringGen.sample.get.asJson,
+            "asset" -> stringGen.sample.get.asJson,
+            "amount" -> positiveTinyIntGen.sample.get.asJson))
 
         val result = Contract.execute(c, "newAsset")(party)(params)
         println(result)
         assert(result.isSuccess)
       }
+    }
+  }
+
+    property("Test") {
+      val context: Context = Context.create("js")
+      val listener: ExecutionListener = ExecutionListener.newBuilder()
+        .onEnter((e) => println(e.getLocation().getCharacters()))
+        .roots(true)
+        .attach(context.getEngine)
+
+
+      context.eval("js", "for (var i = 0; i < 2; i++);")
+      listener.close()
+      val jsBindings: Value = context.getBindings("js")
+      class ProtocolFunctions() {
+        val test: String = "test"
+
+      }
+      jsBindings.putMember("test", "test")
+      assert(jsBindings.getMember("test").asString == "test")
     }
 
     /*val name: String = "assetCreation"
@@ -105,5 +140,4 @@ class ContractMethodSpec extends PropSpec
 
     val result = Contract.execute(contract, "createAsset")(party)(params)
     println(s">>>>>>>> Result: $result")*/
-  }*/
 }

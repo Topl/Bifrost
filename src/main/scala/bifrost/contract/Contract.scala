@@ -51,7 +51,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     jsre.eval("js", agreementObj.core.initjs)
     println(">>>>>>>>> agreement initjs")
     jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
-    println(s">>>>>>>>> agreement name: ${agreementObj.core.name} and state: ${agreementObj.core.state.noSpaces}")
+    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
 
     val parameterString: String = params
       .tail
@@ -76,9 +76,11 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
-    println(s">>>>>>>>>>>>>>>>>>> Before result: ${agreementObj.core.initjs}")
-    //val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
-    val result = parse(jsre.eval("js", update).asString()).right.get
+    println(s">>>>>>>>>>>>>>>>>>> Before result:")
+    ValkyrieFunctions.createExecutionListener(jsre)
+    println(s">>>>>>>>>>> result: ${try{jsre.eval("js", update)} catch{case e: Exception => e.getCause}}")
+    val result = parse(jsre.eval("js",update).execute().asString()).right.get
+    //val result = parse(jsre.eval("js", update).asString()).right.get
     println(s">>>>>>>>>>>>>>>>>>> After result ")
 
     val resultingContract = this.copy(
@@ -111,7 +113,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
 
     val update = s"c.$property"
 
-    val res = jsre.eval("js", s"JSON.stringify($update)").asInstanceOf[String]
+    val res = jsre.eval("js", s"JSON.stringify($update)").asString()
 
     parse(res) match {
       case Right(json: Json) => json

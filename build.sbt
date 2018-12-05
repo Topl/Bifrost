@@ -79,6 +79,8 @@ val consoleDependencies = Seq(
 )
 
 libraryDependencies += "org.graalvm" % "graal-sdk" % "1.0.0+"
+// https://mvnrepository.com/artifact/com.oracle.truffle/truffle-api
+libraryDependencies += "com.oracle.truffle" % "truffle-api" % "1.0.0-rc7"
 
 libraryDependencies ++= consoleDependencies
 
