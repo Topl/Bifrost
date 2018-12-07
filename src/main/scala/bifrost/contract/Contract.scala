@@ -8,7 +8,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
-import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.{Context, Value}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -76,9 +76,17 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
+    val updatee =
+      s"""
+         |"test"
+       """.stripMargin
+
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
     ValkyrieFunctions.createExecutionListener(jsre)
-    println(s">>>>>>>>>>> result: ${try{jsre.eval("js", update)} catch{case e: Exception => e.getCause}}")
+    println(s">>>>>>>>>> can execute: ${jsre.eval("js", updatee)}")
+    //println(s">>>>>>>>>>> result: ${try{jsre.eval("js", updatee).canExecute} catch{case e: IllegalStateException => e.getStackTrace}}")
+    val resulte: Value = jsre.eval("js", updatee)
+    println(s">>>>>>> resulte: ${resulte.asString()}")
     val result = parse(jsre.eval("js",update).execute().asString()).right.get
     //val result = parse(jsre.eval("js", update).asString()).right.get
     println(s">>>>>>>>>>>>>>>>>>> After result ")

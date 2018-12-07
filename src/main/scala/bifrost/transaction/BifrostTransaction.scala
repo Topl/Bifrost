@@ -7,6 +7,7 @@ import bifrost.contract.{Agreement, Contract}
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.ContractCompletion.assetNonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -554,7 +555,38 @@ case class ContractMethodExecution(contractBox: ContractBox,
       case Failure(_) => contractBox
     }
 
-    IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
+    //Handle boxes being sent from the contract to a public key
+    val boxesFromContract: Option[BifrostBox] = methodName match {
+      case "assetTransfer" => {
+        val key = (parameters \\ "publicKey").head.asString.get
+        val asset = (parameters \\ "asset").head.asString.get
+        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
+        if (key != "contract") {
+          Some(AssetBox(PublicKey25519Proposition(key.getBytes),
+            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount, asset, parties.head._1))
+        }
+        else
+          None
+      }
+
+      case "polyTransfer" => {
+        val key = (parameters \\ "publicKey").head.asString.get
+        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
+        if(key != "contract"){
+          Some(PolyBox(PublicKey25519Proposition(key.getBytes),
+            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount))
+        }
+        else
+          None
+      }
+
+      case _ => None
+    }
+
+    if(boxesFromContract.nonEmpty)
+      IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces) :+ boxesFromContract.get
+    else
+      IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

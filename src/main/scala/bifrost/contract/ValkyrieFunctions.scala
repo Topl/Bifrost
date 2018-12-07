@@ -126,7 +126,7 @@ object ValkyrieFunctions {
       override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = {
         val source: String = context.getInstrumentedSourceSection.getCharacters.toString
         source match {
-          case "assetCreated)" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
+          case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
           case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("at")
           case "polyTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("pt")
         }
