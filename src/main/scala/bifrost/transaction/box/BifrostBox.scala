@@ -59,7 +59,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-
+    
     typeStr match {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
       case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
@@ -114,7 +114,8 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
                     amount: Long,
                     assetCode: String,
-                    hub: PublicKey25519Proposition) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
+                    issuer: PublicKey25519Proposition,
+                    data: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
 
   override lazy val json: Json = Map(
@@ -123,7 +124,8 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
     "value" -> value.toString.asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
+    "data" -> data.asJson,
     "nonce" -> nonce.toString.asJson
   ).asJson
 }
@@ -132,23 +134,31 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
 
   def toBytes(obj: AssetBox): Array[Byte] = {
     noncedBoxToBytes(obj, "AssetBox") ++
-      obj.hub.pubKeyBytes ++
+      obj.issuer.pubKeyBytes ++
       obj.assetCode.getBytes ++
-      Ints.toByteArray(obj.assetCode.getBytes.length)
+      Ints.toByteArray(obj.assetCode.getBytes.length) ++
+      obj.data.getBytes ++
+      Ints.toByteArray(obj.data.getBytes.length)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[AssetBox] = Try {
+
     val params = noncedBoxParseBytes(bytes)
 
-    val assetLen = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
-    val asset = new String(bytes.slice(bytes.length - Ints.BYTES - assetLen, bytes.length - Ints.BYTES))
+    val dataLen = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
 
-    val hub = PublicKey25519Proposition(
-      bytes.slice(bytes.length - Ints.BYTES - assetLen - Constants25519.PubKeyLength,
-                  bytes.length - Ints.BYTES - assetLen)
+    val assetLen = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES - Ints.BYTES - dataLen,
+      bytes.length - Ints.BYTES - dataLen))
+    val asset: String = new String(bytes.slice(bytes.length - (2 * Ints.BYTES) - dataLen - assetLen,
+      bytes.length - (2 * Ints.BYTES) - dataLen))
+
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(
+      bytes.slice(bytes.length - (2 * Ints.BYTES) - dataLen - assetLen - Constants25519.PubKeyLength,
+                  bytes.length - (2 * Ints.BYTES) - dataLen - assetLen)
     )
 
-    AssetBox(params._1, params._2, params._3, asset, hub)
+    AssetBox(params._1, params._2, params._3, asset, issuer, data)
   }
 }
 

@@ -10,7 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
-import bifrost.transaction.{ConversionTransaction, _}
+import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -96,7 +96,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = Gen.alphaStr //nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaStr suchThat (!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -212,8 +212,9 @@ trait BifrostGenerators extends CoreGenerators {
     value <- positiveLongGen
     asset <- stringGen
     hub <- propositionGen
+    data <- stringGen
   } yield {
-    AssetBox(proposition, nonce, value, asset, hub)
+    AssetBox(proposition, nonce, value, asset, hub, data)
   }
 
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
@@ -439,10 +440,11 @@ trait BifrostGenerators extends CoreGenerators {
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
-  lazy val conversionTxGen: Gen[ConversionTransaction] = for {
+  /*lazy val conversionTxGen: Gen[ConversionTransaction] = for {
     assetLength <- positiveTinyIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val assetHub = (0 until assetLength).map { _ => sampleUntilNonEmpty(assetHubGen) }
     val totalAssetBoxes = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctFromGen))).toMap
@@ -450,8 +452,8 @@ trait BifrostGenerators extends CoreGenerators {
     val assetTokensToRedeem = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
     val conversionSignatures = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(signatureGen))).toMap
 
-    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp)
-  }
+    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp, data)
+  }*/
 
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen

@@ -45,6 +45,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
+    WalletApiRouteRPC(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
@@ -55,6 +56,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
+                                         typeOf[WalletApiRouteRPC],
                                          typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
@@ -71,15 +73,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           localInterface,
           BifrostSyncInfoMessageSpec)
   )
-
-  class DeadLetterMonitor extends Actor {
-    def receive = {
-      case msg: AllDeadLetters => log.debug(s"${self.path.name} - dead letter encountered: $msg")
-    }
-  }
-
-  val listener = actorSystem.actorOf(Props(new DeadLetterMonitor))
-  actorSystem.eventStream.subscribe(listener, classOf[AllDeadLetters])
 
   class CheckThreadsRunner extends Thread {
 
@@ -130,7 +123,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("testnet-bifrost.json")
-//val settingsFilename = args.headOption.getOrElse("settings.json")
+  val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }

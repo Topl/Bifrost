@@ -26,7 +26,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
-    case ct: ConversionTransaction => ConversionTransactionCompanion.toBytes(ct)
+    //case ct: ConversionTransaction => ConversionTransactionCompanion.toBytes(ct)
     case tex: TokenExchangeTransaction => TokenExchangeTransactionCompanion.toBytes(tex)
     case ac: AssetCreation => AssetCreationCompanion.toBytes(ac)
   }
@@ -40,7 +40,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
-      case "ConversionTransaction" => ConversionTransactionCompanion.parseBytes(bytes).get
+      //case "ConversionTransaction" => ConversionTransactionCompanion.parseBytes(bytes).get
       case "TokenExchangeTransaction" => TokenExchangeTransactionCompanion.parseBytes(bytes).get
       case "AssetCreation" => AssetCreationCompanion.parseBytes(bytes).get
     }
@@ -582,7 +582,7 @@ trait TransferSerializer {
     )
   }
 
-  def conversionToBytes(ct: ConversionTransaction, txType: String): Array[Byte] = {
+  /*def conversionToBytes(ct: ConversionTransaction, txType: String): Array[Byte] = {
     val typeBytes = txType.getBytes
 
     // concatenate map keys to reduce size when assetCodes are the same
@@ -593,6 +593,8 @@ trait TransferSerializer {
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
+      Ints.toByteArray(ct.data.length),
+      ct.data.getBytes,
       Longs.toByteArray(ct.fee),
       Longs.toByteArray(ct.timestamp),
       Ints.toByteArray(ct.totalAssetBoxes.size),
@@ -618,7 +620,7 @@ trait TransferSerializer {
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
       )
     )
-  }
+  }*/
 
   def parametersParseBytes(bytes: Array[Byte]): (IndexedSeq[(PublicKey25519Proposition, Long)],
     IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -700,7 +702,7 @@ object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSer
 
   def toChildBytes(at: AssetTransfer): Array[Byte] = {
     transferToBytes(at, "AssetTransfer") ++
-      at.hub.pubKeyBytes ++
+      at.issuer.pubKeyBytes ++
       at.assetCode.getBytes ++
       Ints.toByteArray(at.assetCode.getBytes.length)++
       at.data.getBytes++
@@ -720,12 +722,12 @@ object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSer
       bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen, bytes.length - Ints.BYTES - dataLen - Ints.BYTES)
     )
 
-    val hub: PublicKey25519Proposition = PublicKey25519Proposition(
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(
       bytes.slice(bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen - Constants25519.PubKeyLength,
         bytes.length - Ints.BYTES - assetCodeLen - Ints.BYTES - dataLen)
     )
 
-    AssetTransfer(params._1, params._2, params._3, hub, assetCode, params._4, params._5, data)
+    AssetTransfer(params._1, params._2, params._3, issuer, assetCode, params._4, params._5, data)
   }
 }
 
@@ -783,7 +785,7 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       Ints.toByteArray(ac.to.size),
       Ints.toByteArray(ac.assetCode.getBytes.length),
       ac.assetCode.getBytes,
-      ac.hub.pubKeyBytes,
+      ac.issuer.pubKeyBytes,
       ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
       ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
       ac.data.getBytes,
@@ -826,7 +828,7 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
 
     numReadBytes += assetCodeLen
 
-    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
+    val issuer = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
       numReadBytes + Constants25519.PubKeyLength))
 
     numReadBytes += Constants25519.PubKeyLength
@@ -854,7 +856,7 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
 //    )
 
 
-    AssetCreation(to, signatures, assetCode, hub, fee, timestamp, data)
+    AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
   }
 }
 
@@ -876,7 +878,7 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
       Ints.toByteArray(ac.availableToRedeem.size),
       Ints.toByteArray(ac.remainderAllocations.size),
       Ints.toByteArray(keyMapping.size),
-      ac.hub.pubKeyBytes,
+      ac.issuer.pubKeyBytes,
       keySeq.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.getBytes.length) ++ b._1.getBytes),
       ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(b._1)) ++
         Ints.toByteArray(b._2.length) ++ b._2.flatMap(_.signature)
@@ -917,7 +919,7 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
 
     numReadBytes += 4 * Ints.BYTES
 
-    val hub = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
+    val issuer = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
       numReadBytes + Constants25519.PubKeyLength))
 
     numReadBytes += Constants25519.PubKeyLength
@@ -1014,11 +1016,11 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
         assetId -> allocationSeq
     }.toMap
 
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, issuer, fee, timestamp, data)
   }
 }
 
-object ConversionTransactionCompanion extends Serializer[ConversionTransaction] with TransferSerializer {
+/*object ConversionTransactionCompanion extends Serializer[ConversionTransaction] with TransferSerializer {
 
   override def toBytes(ct: ConversionTransaction): Array[Byte] = {
     conversionToBytes(ct, "ConversionTransaction")
@@ -1031,12 +1033,17 @@ object ConversionTransactionCompanion extends Serializer[ConversionTransaction] 
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
+    val dataLength = Ints.fromByteArray(bytesWithoutType.take(Ints.BYTES))
+    val data = new String(bytesWithoutType.slice(Ints.BYTES, Ints.BYTES + dataLength))
+
+    numReadBytes = dataLength * Ints.BYTES + Ints.BYTES
+
     //read in byte stream to array for fee and timestamp
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
 
-    numReadBytes = 2 * Longs.BYTES
+    numReadBytes += 2 * Longs.BYTES
 
     val Array(totalAssetLength: Int,
     assetReturnLength: Int,
@@ -1184,6 +1191,6 @@ object ConversionTransactionCompanion extends Serializer[ConversionTransaction] 
         assetHub -> sigs
       }.toMap
 
-    ConversionTransaction(totalAssets, assetReturn, assetRedeem, signatures, fee, timestamp)
+    ConversionTransaction(totalAssets, assetReturn, assetRedeem, signatures, fee, timestamp, data)
   }
-}
+}*/

@@ -530,10 +530,11 @@ trait ValidGenerators extends BifrostGenerators {
     dummyTx.copy(signatures = signatures)
   }
 
-  lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
+  /*lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
     assetLength <- positiveTinyIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
     val assetHubPairs: Map[String, PublicKey25519Proposition] = assets.map(
@@ -578,7 +579,8 @@ trait ValidGenerators extends BifrostGenerators {
       assetTokensToRedeem,
       dummyConversionSignatures,
       fee,
-      timestamp)
+      timestamp,
+      data)
 
     val fromKeyMap = fromKeyPairs.toMap
     val realSignatures = totalAssetBoxes
@@ -590,5 +592,5 @@ trait ValidGenerators extends BifrostGenerators {
     //println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
 
     dummyTx.copy(conversionSignatures = realSignatures)
-  }
+  }*/
 }
