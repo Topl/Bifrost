@@ -234,7 +234,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
 
         SuccessApiResponse(
           wallet.secrets.flatMap(_ match {
-            case pkp: PrivateKey25519 => Some(pkp.publicImage)
+            case pkp: PrivateKey25519 => pkp.publicImage.toString()
             case _ => None
           }).asJson)
       }
