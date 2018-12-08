@@ -165,6 +165,16 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       ).asJson
     }
   }
+
+  private def openKeyfiles(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      wallet.secrets.flatMap(_ match {
+        case pkp: PrivateKey25519 => pkp.publicImage.toString()
+        case _ => None
+      }).asJson
+    }
+  }
 }
 
 //  private def balancesByKey(params: Json, id: String): Future[Json] = {
