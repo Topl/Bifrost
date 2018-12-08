@@ -55,6 +55,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
                   case "balances" => balances(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
                   case "generateKeyfile" => generateKeyfile(params.head, id)
+                  case "openKeyfiles" => openKeyfiles(params.head, id)
                 }
               }
               futureResponse map {
