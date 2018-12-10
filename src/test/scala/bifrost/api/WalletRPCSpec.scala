@@ -16,6 +16,7 @@ import bifrost.transaction.{BifrostTransaction}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
+import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
@@ -332,10 +333,9 @@ class WalletRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res \\ "result")
-        println((res \\ "result").head.asObject.isDefined)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asArray.isDefined shouldBe true
+        (res \\ "result").head.as[List[String]].right.get == publicKeys.values.toList shouldBe true
       }
     }
 
