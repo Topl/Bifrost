@@ -54,8 +54,9 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
                   case "transferArbits" => transferArbits(params.head, id)
                   case "balances" => balances(params.head, id)
                   case "unlockKeyfile" => unlockKeyfile(params.head, id)
+                  case "lockKeyfile" => lockKeyfile(params.head, id)
                   case "generateKeyfile" => generateKeyfile(params.head, id)
-                  case "openKeyfiles" => openKeyfiles(params.head, id)
+                  case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
                 }
               }
               futureResponse map {
@@ -79,6 +80,8 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
+
+      // Optional API parameters
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
@@ -87,8 +90,11 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
+
+      // Call to BifrostTX to create TX
       val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
 
+      // Update nodeView with new TX
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
     }
@@ -102,6 +108,8 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").head.asString.getOrElse("")
+
+      // Optional API parameters
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
@@ -111,7 +119,11 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
+
+      // Call to BifrostTX to create TX
       val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+
+      // Update nodeView with new TX
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
       tx.json
     }
@@ -167,11 +179,25 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
     }
   }
 
-  private def openKeyfiles(params: Json, id: String): Future[Json] = {
+
+  private def lockKeyfile(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val publicKey: String = (params \\ "publicKey").head.asString.get
+      val password: String = (params \\ "password").head.asString.get
+      wallet.lockKeyFile(publicKey, password)
+      Map(
+        publicKey -> "locked".asJson
+      ).asJson
+    }
+  }
+
+
+  private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
       wallet.secrets.flatMap(_ match {
-        case pkp: PrivateKey25519 => pkp.publicImage.toString()
+        case pkp: PrivateKey25519 => Some(Base58.encode(pkp.publicKeyBytes))
         case _ => None
       }).asJson
     }

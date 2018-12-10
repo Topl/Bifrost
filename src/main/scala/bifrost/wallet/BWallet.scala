@@ -116,6 +116,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
       // secrets.empty // should empty the current set of secrets meaning unlock only allows a single key to be unlocked at once
       secrets += privKey.head
+      log.warn(s"$publicKeyString unlocked")
     } else {
       log.warn(s"$publicKeyString is already unlocked")
     }
@@ -138,9 +139,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       log.warn(s"$publicKeyString is already locked")
     } else {
       secrets -= (secrets find (p => Base58.encode(p.privKeyBytes) == Base58.encode(privKey.head.privKeyBytes))).get
+      log.warn(s"$publicKeyString locked")
     }
-
-
   }
 
   override def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
@@ -166,7 +166,6 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   def generateNewSecret(password: String): PublicKey25519Proposition = {
     val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
-    // secrets.empty // when you generate a new keyfile you are basically making a new key and unlocking it so to maintain one key open-ness secrets has to be reset
     secrets += privKey
     privKey.publicImage
   }
