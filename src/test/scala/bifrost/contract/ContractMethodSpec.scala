@@ -22,10 +22,12 @@ class ContractMethodSpec extends PropSpec
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
-        val params = JsonObject.fromMap(Map("changeStatus" -> stringGen.sample.get.asJson))
+        val params = JsonObject.fromMap(
+          Map("newStatus" -> stringGen.sample.get.asJson))
 
+        println(s">>>>>>>>> stringGen: ${params}")
         val result = Contract.execute(c, "changeStatus")(party)(params)
-        //println(result)
+        println(s"test result: $result")
         assert(result.isSuccess)
       }
     }
@@ -42,7 +44,7 @@ class ContractMethodSpec extends PropSpec
             "amount" -> positiveTinyIntGen.sample.get.asJson))
 
         val result = Contract.execute(c, "newAsset")(party)(params)
-        //println(result)
+        println(s"test result: $result")
         assert(result.isSuccess)
       }
     }
@@ -64,25 +66,6 @@ class ContractMethodSpec extends PropSpec
       }
     }
   }
-
-    property("Test") {
-      val context: Context = Context.create("js")
-      val listener: ExecutionListener = ExecutionListener.newBuilder()
-        .onEnter((e) => println(e.getLocation().getCharacters()))
-        .roots(true)
-        .attach(context.getEngine)
-
-
-      context.eval("js", "for (var i = 0; i < 2; i++);")
-      listener.close()
-      val jsBindings: Value = context.getBindings("js")
-      class ProtocolFunctions() {
-        val test: String = "test"
-
-      }
-      jsBindings.putMember("test", "test")
-      assert(jsBindings.getMember("test").asString == "test")
-    }
 
     /*val name: String = "assetCreation"
     val assetCode: String = "Wheat"

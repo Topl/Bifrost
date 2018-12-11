@@ -17,7 +17,8 @@ import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import com.oracle.truffle.api.CompilerDirectives
 import com.oracle.truffle.api.frame.VirtualFrame
-import com.oracle.truffle.api.instrumentation.{EventContext, ExecutionEventListener}
+import com.oracle.truffle.api.instrumentation.StandardTags.CallTag
+import com.oracle.truffle.api.instrumentation._
 import io.circe
 import io.circe.Json
 import org.graalvm.polyglot.management.ExecutionListener
@@ -28,6 +29,10 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 case class ValkyrieFunctions() {
+
+}
+
+object ValkyrieFunctions {
 
   implicit lazy val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(BifrostApp.settingsFilename)
@@ -87,43 +92,41 @@ case class ValkyrieFunctions() {
       case Failure(_) => println("Error completing request")
     }
   }
-}
-
-object ValkyrieFunctions {
 
   val reserved: String =
     s"""
        |var assetCreated, assetTransferred, polyTransferred;
        |
-       |this.createAsset = function(publicKey, asset, amount) {
-       |  return assetcreated;
+     |this.createAsset = function(publicKey, asset, amount) {
+       |  return assetCreated;
        |}
        |
-       |this.transferAsset = function(publicKey, asset, amount) {
+     |this.transferAsset = function(publicKey, asset, amount) {
        |  return assetTransferred;
        |}
        |
-       |this.transferPoly = function(publicKey, amount) {
+     |this.transferPoly = function(publicKey, amount) {
        |  return polyTransferred;
        |}
-     """.stripMargin
+   """.stripMargin
 
-  def createExecutionListener(context: Context): ExecutionEventListener = {
+  //noinspection ScalaStyle
+  def apply(context: Context, params: String) = {
 
-    val listener: ExecutionListener = ExecutionListener.newBuilder()
-      .onEnter({
-        e => val protocolFunction = e.getLocation.getCharacters.toString
-          protocolFunction match {
-            case "createAsset()" => println("success")
-          }
-      })
-      .roots(true)
-      .attach(context.getEngine)
+    println(s">>>>>>>>>>>>>>> createExecutionListener")
+    /*val listener: ExecutionListener = ExecutionListener.newBuilder()
+    .onEnter({
+      e => val protocolFunction = e.getLocation.getCharacters.toString
+        protocolFunction match {
+          case "createAsset()" => println("success")
+        }
+    })
+    .roots(true)
+    .attach(context.getEngine)*/
 
     val truffleListener: ExecutionEventListener = new ExecutionEventListener {
-      override def onEnter(context: EventContext, frame: VirtualFrame): Unit = ???
-
-      override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = {
+      override def onEnter(context: EventContext, frame: VirtualFrame): Unit = {
+        println(s">>>>>>>>> onReturnValue")
         val source: String = context.getInstrumentedSourceSection.getCharacters.toString
         source match {
           case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
@@ -132,18 +135,29 @@ object ValkyrieFunctions {
         }
       }
 
+      override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = ???
+
       override def onReturnExceptional(context: EventContext, frame: VirtualFrame, exception: Throwable): Unit = ???
 
       import com.oracle.truffle.api.frame.VirtualFrame
 
       override def onUnwind(context: EventContext, frame: VirtualFrame, info: Object): Object = {
         info match {
-          case "ac" => "Success"
-          case "at" => "Success"
-          case "pt" => "Success"
+          case "ac" => createAsset(params); ProbeNode.UNWIND_ACTION_REENTER
+          case "at" => transferAsset(params); ProbeNode.UNWIND_ACTION_REENTER
+          case "pt" => transferPoly(params); ProbeNode.UNWIND_ACTION_REENTER
         }
       }
     }
-    truffleListener
+
+    @TruffleInstrument.Registration(id = "Valkyrie", services = Array(classOf[ValkyrieListenerInstrument]))
+    case class ValkyrieListenerInstrument() extends TruffleInstrument {
+      override def onCreate(env: TruffleInstrument.Env): Unit = {
+        println(s">>>>>>>> ValkyrieListenerInstrument")
+        env.registerService(this)
+        env.getInstrumenter.attachExecutionEventListener(SourceSectionFilter.newBuilder().tagIs(classOf[CallTag]).build(), truffleListener)
+      }
+    }
+    new ValkyrieListenerInstrument
   }
 }

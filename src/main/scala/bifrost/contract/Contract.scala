@@ -8,7 +8,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
-import org.graalvm.polyglot.{Context, Value}
+import org.graalvm.polyglot.{Context, PolyglotException, Value}
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -47,11 +47,12 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   //noinspection ScalaStyle
   def applyFunction(methodName: String)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
-    println(s">>>>>>>>>>>>> initjs: ${agreementObj.core}")
     jsre.eval("js", agreementObj.core.initjs)
     println(">>>>>>>>> agreement initjs")
     jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
     println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
+    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
+    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
 
     val parameterString: String = params
       .tail
@@ -76,19 +77,9 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
-    val updatee =
-      s"""
-         |"test"
-       """.stripMargin
-
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
-    ValkyrieFunctions.createExecutionListener(jsre)
-    println(s">>>>>>>>>> can execute: ${jsre.eval("js", updatee)}")
-    //println(s">>>>>>>>>>> result: ${try{jsre.eval("js", updatee).canExecute} catch{case e: IllegalStateException => e.getStackTrace}}")
-    val resulte: Value = jsre.eval("js", updatee)
-    println(s">>>>>>> resulte: ${resulte.asString()}")
-    val result = parse(jsre.eval("js",update).execute().asString()).right.get
-    //val result = parse(jsre.eval("js", update).asString()).right.get
+      ValkyrieFunctions.apply(jsre, parameterString)
+    val result = parse(jsre.eval("js", update).asString()).right.get
     println(s">>>>>>>>>>>>>>>>>>> After result ")
 
     val resultingContract = this.copy(
