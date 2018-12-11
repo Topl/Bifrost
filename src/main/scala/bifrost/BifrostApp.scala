@@ -79,7 +79,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
-<<<<<<< HEAD
   // Am I running on a JDK that supports JVMCI?
          val vm_version = System.getProperty("java.vm.version")
          System.out.printf("java.vm.version = %s%n", vm_version)
@@ -88,9 +87,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   // Is JVMCI enabled?
           val enableJVMCI = bean.getVMOption("EnableJVMCI")
           System.out.println(enableJVMCI)
-=======
-  class CheckThreadsRunner extends Thread {
->>>>>>> chain-reorg
 
   // Is the system using the JVMCI compiler for normal compilations?
           val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
@@ -99,11 +95,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   // What compiler is selected?
          val compiler = System.getProperty("jvmci.Compiler")
          System.out.printf("jvmci.Compiler = %s%n", compiler)
-
-  val polyglot: Context = Context.create()
-  val array = polyglot.eval("js", "[1,2,42,4]")
-  val result = array.getArrayElement(2).asInt()
-  println(s"Polyglot result: $result")
 
   //touching lazy vals
   forger
