@@ -240,8 +240,12 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       val theyAreYounger = comparison == HistoryComparisonResult.Younger
       val notSendingBlocks = extensionOpt.isEmpty
 
-      if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
-      
+      //if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
+
+      if(notSendingBlocks && theyAreYounger) {
+        log.debug(s"Unable to sync without common ancestor")
+      }
+
       sender() ! OtherNodeSyncingStatus(
         remote,
         comparison,

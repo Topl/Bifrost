@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.ConversionTransaction
+//import bifrost.transaction.ConversionTransaction
 import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox, PolyBox}
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
@@ -18,7 +18,7 @@ import scala.util.Failure
   */
 class ConversionTransactionStateSpec extends BifrostStateSpec {
 
-  property("A block with valid ConversionTransaction should result in the correct number of polys being created") {
+  /*property("A block with valid ConversionTransaction should result in the correct number of polys being created") {
     forAll(validConversionTxGen) {
       conversionTransaction: ConversionTransaction =>
         val block = BifrostBlock(
@@ -44,7 +44,8 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
                       .assetTokensToRedeem(assetHub)
                       .map(_._2).sum,
                   assetHub._1,
-                  assetHub._2))
+                  assetHub._2,
+                  conversionTransaction.data))
           }
           .toSet
 
@@ -117,7 +118,8 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
                     .map(_._2)
                     .sum,
                 assetHub._1,
-                assetHub._2))
+                assetHub._2,
+                conversionTransaction.data))
           }
           .toSet
 
@@ -149,7 +151,7 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
         val preExistingAssetBoxes: Set[BifrostBox] = conversionTransaction
           .totalAssetBoxes
           .flatMap {
-            case (assetHub, propNonce) => propNonce.map(r => AssetBox(r._1, r._2, 0, assetHub._1, assetHub._2))
+            case (assetHub, propNonce) => propNonce.map(r => AssetBox(r._1, r._2, 0, assetHub._1, assetHub._2, conversionTransaction.data))
           }
           .toSet
 
@@ -173,5 +175,5 @@ class ConversionTransactionStateSpec extends BifrostStateSpec {
         //newState.failed.get.printStackTrace()
         newState.failed.get.getMessage shouldBe "Not enough assets"
     }
-  }
+  }*/
 }

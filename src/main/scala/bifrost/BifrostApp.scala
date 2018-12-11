@@ -50,6 +50,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     WalletApiRoute(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
+    WalletApiRouteRPC(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
@@ -60,6 +61,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
+                                         typeOf[WalletApiRouteRPC],
                                          typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
@@ -77,6 +79,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
+<<<<<<< HEAD
   // Am I running on a JDK that supports JVMCI?
          val vm_version = System.getProperty("java.vm.version")
          System.out.printf("java.vm.version = %s%n", vm_version)
@@ -85,6 +88,9 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   // Is JVMCI enabled?
           val enableJVMCI = bean.getVMOption("EnableJVMCI")
           System.out.println(enableJVMCI)
+=======
+  class CheckThreadsRunner extends Thread {
+>>>>>>> chain-reorg
 
   // Is the system using the JVMCI compiler for normal compilations?
           val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")

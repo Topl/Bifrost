@@ -208,7 +208,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ConversionTransaction Serialization") {
+  /*property("ConversionTransaction Serialization") {
     forAll(conversionTxGen) {
       ct: ConversionTransaction =>
         val parsed: ConversionTransaction = ConversionTransactionCompanion
@@ -219,7 +219,7 @@ class SerializationTests extends PropSpec
 
         ctToBytes sameElements ConversionTransactionCompanion.toBytes(ct) shouldBe true
     }
-  }
+  }*/
 
 
   property("AssetCreation Serialization") {
@@ -248,7 +248,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("BifrostBlock Serialization") {
+  /*property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb))
@@ -259,7 +259,7 @@ class SerializationTests extends PropSpec
           case Failure(e) => throw e
         }
     }
-  }
+  }*/
 
   property("BifrostSyncInfo Serialization") {
     forAll(bifrostSyncInfoGen) {
