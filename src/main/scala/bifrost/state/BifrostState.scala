@@ -244,7 +244,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
                   .proposition,
                   asT
                     .messageToSign) && (box
-                  .hub equals asT.hub) && (box
+                  .issuer equals asT.issuer) && (box
                   .assetCode equals asT.assetCode)) {
                   Success(partialSum + box.value)
                 } else {
@@ -578,7 +578,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           /* Checks if unlocker is valid and if so adds to current running total */
           closedBox(unlocker.closedBoxId) match {
             case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.hub equals ar.hub)) {
+              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.issuer equals ar.issuer)) {
                 Success(partialMap
                   .get(box.assetCode) match {
                   case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
@@ -702,7 +702,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
               case Some(box: AssetBox) =>
-                val tokenGood = (box.hub equals tokenHub) && (box.assetCode equals tokenCode)
+                val tokenGood = (box.issuer equals tokenHub) && (box.assetCode equals tokenCode)
                 val hasValidUnlocker =
                   unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.sellOrder))
 

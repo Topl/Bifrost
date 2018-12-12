@@ -31,7 +31,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   override implicit val timeout: Timeout = Timeout(10.seconds)
 
   override val route: Route = pathPrefix("wallet") {
-    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile
+    balances ~ transfer ~ generateKeyFile ~ unlockKeyFile ~ lockKeyFile ~ openKeyfiles
   }
 
   @Path("/transfer")
@@ -77,6 +77,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       }
     }
   }
+
+
 
 
   @Path("/balances")
@@ -178,6 +180,63 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
             }
           }
         }
+      }
+    }
+  }
+
+  @Path("/lock/")
+  @ApiOperation(value = "lock a Keyfile", notes = "lock a Keyfile", httpMethod = "POST")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "publicKey",
+      value = "Public Key of the keyfile",
+      required = true,
+      dataType = "string",
+      paramType = "body"
+    )
+  ))
+  def lockKeyFile: Route = path("lock") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(json) => Try {
+                val wallet = view.vault
+                val publicKey: String = (json \\ "publicKey").head.asString.get
+                val password: String = (json \\ "password").head.asString.get
+                wallet.lockKeyFile(publicKey, password)
+                Map(
+                  publicKey -> "locked".asJson
+                ).asJson
+              } match {
+                case Success(resp) => SuccessApiResponse(resp)
+                case Failure(e) => ApiException(e)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // TODO | write unit tests for this & general manual testing
+  @Path("/openKeyfiles")
+  @ApiOperation(value = "Open Keyfiles", notes = "Return info about current open keyfiles", httpMethod = "GET")
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Json with peer list or error")
+  ))
+  def openKeyfiles: Route = path("openKeyfiles") {
+    getJsonRoute {
+      viewAsync().map { view =>
+        val wallet = view.vault
+
+        SuccessApiResponse(
+          wallet.secrets.flatMap(_ match {
+            case pkp: PrivateKey25519 => pkp.publicImage.toString()
+            case _ => None
+          }).asJson)
       }
     }
   }

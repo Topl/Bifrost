@@ -100,7 +100,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
+      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
       val data: String = (params \\ "data").head.asString.getOrElse("")
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
@@ -111,7 +111,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
-      val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, hub, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+      val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
 
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
       tx.json
@@ -122,7 +122,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     viewAsync().map { view =>
       val wallet = view.vault
 
-      val hub = PublicKey25519Proposition(Base58.decode((params \\ "hub").head.asString.get).get)
+      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
       val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
@@ -131,7 +131,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, hub, assetCode, data).get
+      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, issuer, assetCode, data).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
       //    println("----------------------")
       //    println("validating transaction")

@@ -32,7 +32,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         val preExistingAssetBoxes: Set[BifrostBox] =
           assetTransfer
             .from
-            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.hub, assetTransfer.data))
+            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
             .toSet
 
         val assetBoxes: Traversable[AssetBox] = assetTransfer.newBoxes.map {
@@ -82,7 +82,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         val preExistingAssetBoxes: Set[BifrostBox] =
           assetTransfer
             .from
-            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.hub, assetTransfer.data))
+            .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
             .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)
@@ -110,7 +110,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         val preExistingAssetBoxes: Set[BifrostBox] =
           assetTransfer
             .from
-            .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.hub, assetTransfer.data))
+            .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
             .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)

@@ -16,6 +16,7 @@ import bifrost.transaction.{BifrostTransaction}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
+import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
@@ -118,13 +119,12 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ContractRPC tests
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
 
@@ -149,12 +149,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -178,12 +177,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -206,12 +204,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -232,12 +229,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -259,12 +255,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -288,12 +283,11 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
@@ -316,16 +310,115 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
     }
+
+    "Get open keyfiles" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "listOpenKeyfiles",
+           |   "params": [{}]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asArray.isDefined shouldBe true
+        (res \\ "result").head.as[List[String]].right.get == publicKeys.values.toList shouldBe true
+      }
+    }
+
+    "Generate a keyfile" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "generateKeyfile",
+           |   "params": [{
+           |     "password": "testpassword"
+           |   }]
+           |}
+        """.stripMargin)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        newPubKey = ((res \\ "result").head \\ "publicKey").head.asString.get
+      }
+    }
+
+    "Lock a keyfile" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "lockKeyfile",
+           |   "params": [{
+           |     "publicKey": "${newPubKey}",
+           |     "password": "testpassword"
+           |   }]
+           |}
+        """.stripMargin)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "Unlock a keyfile" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "unlockKeyfile",
+           |   "params": [{
+           |     "publicKey": "${newPubKey}",
+           |     "password": "testpassword"
+           |   }]
+           |}
+        """.stripMargin)
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+
+        //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
+        //investor, producer and hub keyfiles
+        var d = new File("keyfiles/node1")
+        d.listFiles.foreach(x =>
+          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
+          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
+            val tempFile = new File(x.toString)
+            tempFile.delete()
+          }
+        )
+      }
+    }
+  }
+
+
+  object WalletRPCSpec {
+    val path: Path = Path("/tmp/scorex/test-data")
+    Try(path.deleteRecursively())
+  }
+}
+
 
 
 //    "Transfer some polys" in {
@@ -348,7 +441,7 @@ class WalletRPCSpec extends WordSpec
 //        val res = parse(responseAs[String]).right.get
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }
@@ -377,7 +470,7 @@ class WalletRPCSpec extends WordSpec
 //        val res = parse(responseAs[String]).right.get
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }
@@ -409,70 +502,8 @@ class WalletRPCSpec extends WordSpec
 //        println(res)
 //        (res \\ "error").isEmpty shouldBe true
 //        (res \\ "result").head.asObject.isDefined shouldBe true
-//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
 //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 //        view().pool.remove(txInstance)
 //      }
 //    }
-
-    "Generate a keyfile" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "30",
-           |   "method": "generateKeyfile",
-           |   "params": [{
-           |     "password": "testpassword"
-           |   }]
-           |}
-        """.stripMargin)
-      //println(requestBody)
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        newPubKey = ((res \\ "result").head \\ "publicKey").head.asString.get
-      }
-    }
-
-    "Unlock a keyfile" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "30",
-           |   "method": "unlockKeyfile",
-           |   "params": [{
-           |     "publicKey": "${newPubKey}",
-           |     "password": "testpassword"
-           |   }]
-           |}
-        """.stripMargin)
-      //println(requestBody)
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-
-        //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
-        //investor, producer and hub keyfiles
-        var d = new File("keyfiles/node1")
-        d.listFiles.foreach(x =>
-          if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
-          x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
-          x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
-            val tempFile = new File(x.toString)
-            tempFile.delete()
-          })
-      }
-    }
-
-  }
-
-
-  object WalletRPCSpec {
-    val path: Path = Path("/tmp/scorex/test-data")
-    Try(path.deleteRecursively())
-  }
-}
