@@ -14,6 +14,7 @@ import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
+import scala.language.existentials
 
 
 case class Contract(parties: Map[PublicKey25519Proposition, String],
@@ -78,7 +79,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     """.stripMargin
 
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
-      ValkyrieFunctions.apply(jsre, parameterString)
+    ValkyrieFunctions(jsre, parameterString)
     val result = parse(jsre.eval("js", update).asString()).right.get
     println(s">>>>>>>>>>>>>>>>>>> After result ")
 

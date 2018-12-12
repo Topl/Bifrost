@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
 import bifrost.{BifrostApp, BifrostNodeViewHolder}
-import bifrost.api.http.{AssetApiRoute, ContractApiRoute, WalletApiRoute}
+import bifrost.api.http.{AssetApiRoute, ContractApiRoute, WalletApiRouteRPC}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -30,9 +30,27 @@ import scala.util.{Failure, Success}
 
 case class ValkyrieFunctions() {
 
+  val reserved: String =
+    s"""
+       |var assetCreated, assetTransferred, polyTransferred;
+       |
+     |this.createAsset = function(publicKey, asset, amount) {
+       |  return assetCreated;
+       |}
+       |
+     |this.transferAsset = function(publicKey, asset, amount) {
+       |  return assetTransferred;
+       |}
+       |
+     |this.transferPoly = function(publicKey, amount) {
+       |  return polyTransferred;
+       |}
+   """.stripMargin
 }
 
 object ValkyrieFunctions {
+
+  println(s">>>>>>>>>> Fenter ValkyrieFunctions")
 
   implicit lazy val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(BifrostApp.settingsFilename)
@@ -46,7 +64,7 @@ object ValkyrieFunctions {
 
   val assetRoute = AssetApiRoute(settings, nodeViewHolderRef)(actorSystem).route
 
-  val walletRoute = WalletApiRoute(settings, nodeViewHolderRef)(actorSystem).route
+  val walletRoute = WalletApiRouteRPC(settings, nodeViewHolderRef)(actorSystem).route
 
   def assetHttpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -59,7 +77,7 @@ object ValkyrieFunctions {
   def walletHttpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "/transfer/",
+      uri = "/walletrpc/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     )
   }
@@ -93,22 +111,6 @@ object ValkyrieFunctions {
     }
   }
 
-  val reserved: String =
-    s"""
-       |var assetCreated, assetTransferred, polyTransferred;
-       |
-     |this.createAsset = function(publicKey, asset, amount) {
-       |  return assetCreated;
-       |}
-       |
-     |this.transferAsset = function(publicKey, asset, amount) {
-       |  return assetTransferred;
-       |}
-       |
-     |this.transferPoly = function(publicKey, amount) {
-       |  return polyTransferred;
-       |}
-   """.stripMargin
 
   //noinspection ScalaStyle
   def apply(context: Context, params: String) = {
@@ -158,6 +160,6 @@ object ValkyrieFunctions {
         env.getInstrumenter.attachExecutionEventListener(SourceSectionFilter.newBuilder().tagIs(classOf[CallTag]).build(), truffleListener)
       }
     }
-    new ValkyrieListenerInstrument
+    ValkyrieListenerInstrument
   }
 }

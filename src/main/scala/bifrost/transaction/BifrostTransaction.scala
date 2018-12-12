@@ -572,7 +572,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
         val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
         if (key != "contract") {
           Some(AssetBox(PublicKey25519Proposition(key.getBytes),
-            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount, asset, parties.head._1))
+            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount, asset, parties.head._1, data))
         }
         else
           None

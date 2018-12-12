@@ -93,7 +93,7 @@ object BaseModuleWrapper {
 
   def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
 
-    val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions.reserved + "\n")
+    val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (registry, cleanModuleState) = deriveFromInit(modifiedInitjs, name)(args)
@@ -109,7 +109,7 @@ object BaseModuleWrapper {
 
     val initjs: String = {
       val cleanInitjs: String = (json \\ "initjs").head.asString.get
-      val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions.reserved + "\n")
+      val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
       println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
       modifiedInitjs
     }
