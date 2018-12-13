@@ -278,7 +278,12 @@ trait BifrostGenerators extends CoreGenerators {
        |    }
        |
        |    this.newAsset = function(publicKey, asset, amount) {
-       |      this.createAsset(publicKey, asset, amount);
+       |      this.createAssets(publicKey, asset, amount);
+       |      return this;
+       |    }
+       |
+       |    this.newAssetTransfer = function(publicKey, asset, amount, data) {
+       |      this.transferAssets(publicKey, asset, amount, data);
        |      return this;
        |    }
        |

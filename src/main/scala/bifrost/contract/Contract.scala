@@ -79,32 +79,32 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     """.stripMargin
 
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
-    ValkyrieFunctions(jsre, parameterString)
-    val result = parse(jsre.eval("js", update).asString()).right.get
-    println(s">>>>>>>>>>>>>>>>>>> After result ")
+      ValkyrieFunctions(jsre, parameterString)
+      val result = parse(jsre.eval("js", update).asString()).right.get
+      println(s">>>>>>>>>>>>>>>>>>> After result ")
 
-    val resultingContract = this.copy(
-      agreement = agreementObj
-        .copy(core = agreementObj
-          .core
-          .copy(state = (result \\ "contract").head))
-        .asJson,
-      lastUpdated = Instant.now.toEpochMilli
-    )
+      val resultingContract = this.copy(
+        agreement = agreementObj
+          .copy(core = agreementObj
+            .core
+            .copy(state = (result \\ "contract").head))
+          .asJson,
+        lastUpdated = Instant.now.toEpochMilli
+      )
 
-    val functionReturnedUpdate = (result \\ "__returnedUpdate")
-      .head
-      .asBoolean
-      .get
+      val functionReturnedUpdate = (result \\ "__returnedUpdate")
+        .head
+        .asBoolean
+        .get
 
-    val functionResult: Option[Json] = if (!functionReturnedUpdate) {
-      Some((result \\ "functionResult").head)
-    } else {
-      None
+      val functionResult: Option[Json] = if (!functionReturnedUpdate) {
+        Some((result \\ "functionResult").head)
+      } else {
+        None
+      }
+
+      (resultingContract, functionResult)
     }
-
-    (resultingContract, functionResult)
-  }
 
   def getFromContract(property: String): Try[Json] = Try {
     val core = agreementObj.core

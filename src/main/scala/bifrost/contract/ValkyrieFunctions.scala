@@ -27,6 +27,7 @@ import org.graalvm.polyglot.{Context, Value}
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scala.language.existentials
 
 case class ValkyrieFunctions() {
 
@@ -34,11 +35,11 @@ case class ValkyrieFunctions() {
     s"""
        |var assetCreated, assetTransferred, polyTransferred;
        |
-     |this.createAsset = function(publicKey, asset, amount) {
+     |this.createAssets = function(publicKey, asset, amount) {
        |  return assetCreated;
        |}
        |
-     |this.transferAsset = function(publicKey, asset, amount) {
+     |this.transferAssets = function(publicKey, asset, amount, data) {
        |  return assetTransferred;
        |}
        |
@@ -50,10 +51,8 @@ case class ValkyrieFunctions() {
 
 object ValkyrieFunctions {
 
-  println(s">>>>>>>>>> Fenter ValkyrieFunctions")
-
   implicit lazy val settings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(BifrostApp.settingsFilename)
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testnet-private.json")
   }
 
   implicit val actorSystem = ActorSystem(settings.agentName)
@@ -111,9 +110,12 @@ object ValkyrieFunctions {
     }
   }
 
+  println(s">>>>>>>>>> before apply")
 
   //noinspection ScalaStyle
   def apply(context: Context, params: String) = {
+
+    val modifiedParams = {}
 
     println(s">>>>>>>>>>>>>>> createExecutionListener")
     /*val listener: ExecutionListener = ExecutionListener.newBuilder()
@@ -126,34 +128,42 @@ object ValkyrieFunctions {
     .roots(true)
     .attach(context.getEngine)*/
 
-    val truffleListener: ExecutionEventListener = new ExecutionEventListener {
-      override def onEnter(context: EventContext, frame: VirtualFrame): Unit = {
-        println(s">>>>>>>>> onReturnValue")
-        val source: String = context.getInstrumentedSourceSection.getCharacters.toString
-        source match {
-          case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
-          case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("at")
-          case "polyTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("pt")
+    val truffleListener: ExecutionEventListener = {
+      println(s">>>>>>> truffleListener")
+      new ExecutionEventListener {
+        println(s">>>>>>>>>> new ExecutionListener")
+        override def onEnter(context: EventContext, frame: VirtualFrame): Unit = try {
+          println(s">>>>>>>>> onReturnValue")
+          val source: String = context.getInstrumentedSourceSection.getCharacters.toString
+          source match {
+            case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
+            case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("at")
+            case "polyTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("pt")
+          }
+        } catch {
+          case e: Exception =>
+            e.getStackTrace
         }
-      }
 
-      override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = ???
+        override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = ???
 
-      override def onReturnExceptional(context: EventContext, frame: VirtualFrame, exception: Throwable): Unit = ???
+        override def onReturnExceptional(context: EventContext, frame: VirtualFrame, exception: Throwable): Unit = ???
 
-      import com.oracle.truffle.api.frame.VirtualFrame
+        import com.oracle.truffle.api.frame.VirtualFrame
 
-      override def onUnwind(context: EventContext, frame: VirtualFrame, info: Object): Object = {
-        info match {
-          case "ac" => createAsset(params); ProbeNode.UNWIND_ACTION_REENTER
-          case "at" => transferAsset(params); ProbeNode.UNWIND_ACTION_REENTER
-          case "pt" => transferPoly(params); ProbeNode.UNWIND_ACTION_REENTER
+        override def onUnwind(context: EventContext, frame: VirtualFrame, info: Object): Object = {
+          info match {
+            case "ac" => createAsset(params); ProbeNode.UNWIND_ACTION_REENTER
+            case "at" => transferAsset(params); ProbeNode.UNWIND_ACTION_REENTER
+            case "pt" => transferPoly(params); ProbeNode.UNWIND_ACTION_REENTER
+          }
         }
       }
     }
 
     @TruffleInstrument.Registration(id = "Valkyrie", services = Array(classOf[ValkyrieListenerInstrument]))
     case class ValkyrieListenerInstrument() extends TruffleInstrument {
+      println(s">>>>>>>>> ValkyrieListenerInstrument")
       override def onCreate(env: TruffleInstrument.Env): Unit = {
         println(s">>>>>>>> ValkyrieListenerInstrument")
         env.registerService(this)

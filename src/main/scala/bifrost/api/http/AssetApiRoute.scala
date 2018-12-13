@@ -94,6 +94,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   }
 
   private def transferAssets(params: Json, id: String): Future[Json] = {
+
+    println(s">>>>>>>> transferAsset: ${params}")
+
     viewAsync().map { view =>
       val wallet = view.vault
 
@@ -102,7 +105,10 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-      val data: String = (params \\ "data").head.asString.getOrElse("")
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
         case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
@@ -119,6 +125,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   }
 
   private def createAssets(params: Json, id: String): Future[Json] = {
+
+    println(s">>>>>>>>> createAssets: ${params}")
+
     viewAsync().map { view =>
       val wallet = view.vault
 

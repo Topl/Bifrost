@@ -43,7 +43,7 @@ class ContractMethodSpec extends PropSpec
             "asset" -> stringGen.sample.get.asJson,
             "amount" -> positiveTinyIntGen.sample.get.asJson))
 
-        val result = Contract.execute(c, "newAsset")(party)(params)
+        val result = Contract.execute(c, "createAsset")(party)(params)
         println(s"test result: $result")
         assert(result.isSuccess)
       }
@@ -58,9 +58,10 @@ class ContractMethodSpec extends PropSpec
           Map(
             "publicKey" -> stringGen.sample.get.asJson,
             "asset" -> stringGen.sample.get.asJson,
-            "amount" -> positiveTinyIntGen.sample.get.asJson))
+            "amount" -> positiveTinyIntGen.sample.get.asJson,
+            "data" -> stringGen.sample.get.asJson))
 
-        val result = Contract.execute(c, "newAsset")(party)(params)
+        val result = Contract.execute(c, "transferAssets")(party)(params)
         println(result)
         assert(result.isSuccess)
       }
