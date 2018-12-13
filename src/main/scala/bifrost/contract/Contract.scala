@@ -61,6 +61,9 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
         .headOption
         .getOrElse(""))((agg, cur) => s"$agg, $cur")
 
+    println(s"params: ${params.asJson}")
+    println(s"parameterString: ${parameterString}")
+
     val update =
       s"""
          |var res = c["$methodName"]($parameterString);

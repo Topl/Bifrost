@@ -3,15 +3,15 @@ package bifrost.contract
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostApp, BifrostNodeViewHolder}
-import bifrost.api.http.{AssetApiRoute, ContractApiRoute, WalletApiRouteRPC}
+import bifrost.BifrostNodeViewHolder
+import bifrost.api.http.{AssetApiRoute, WalletApiRouteRPC}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
@@ -20,11 +20,9 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.instrumentation.StandardTags.CallTag
 import com.oracle.truffle.api.instrumentation._
 import io.circe
-import io.circe.Json
-import org.graalvm.polyglot.management.ExecutionListener
-import org.graalvm.polyglot.{Context, Value}
+import org.graalvm.polyglot.Context
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import scala.language.existentials
@@ -51,19 +49,19 @@ case class ValkyrieFunctions() {
 
 object ValkyrieFunctions {
 
-  implicit lazy val settings = new ForgingSettings {
+  implicit lazy val settings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testnet-private.json")
   }
 
-  implicit val actorSystem = ActorSystem(settings.agentName)
-  implicit val materializer = ActorMaterializer()
-  implicit val executionContext = actorSystem.dispatcher
+  implicit val actorSystem: ActorSystem = ActorSystem(settings.agentName)
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
 
-  val assetRoute = AssetApiRoute(settings, nodeViewHolderRef)(actorSystem).route
+  val assetRoute: Route = AssetApiRoute(settings, nodeViewHolderRef)(actorSystem).route
 
-  val walletRoute = WalletApiRouteRPC(settings, nodeViewHolderRef)(actorSystem).route
+  val walletRoute: Route = WalletApiRouteRPC(settings, nodeViewHolderRef)(actorSystem).route
 
   def assetHttpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -81,7 +79,7 @@ object ValkyrieFunctions {
     )
   }
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)

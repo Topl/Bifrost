@@ -40,8 +40,11 @@ class ContractMethodSpec extends PropSpec
         val params = JsonObject.fromMap(
           Map(
             "publicKey" -> stringGen.sample.get.asJson,
+            "issuer" -> stringGen.sample.get.asJson,
             "asset" -> stringGen.sample.get.asJson,
             "amount" -> positiveTinyIntGen.sample.get.asJson))
+
+        println(s"createAsset params: ${params}")
 
         val result = Contract.execute(c, "createAsset")(party)(params)
         println(s"test result: $result")
@@ -57,11 +60,28 @@ class ContractMethodSpec extends PropSpec
         val params = JsonObject.fromMap(
           Map(
             "publicKey" -> stringGen.sample.get.asJson,
+            "issuer" -> stringGen.sample.get.asJson,
             "asset" -> stringGen.sample.get.asJson,
             "amount" -> positiveTinyIntGen.sample.get.asJson,
             "data" -> stringGen.sample.get.asJson))
 
         val result = Contract.execute(c, "transferAssets")(party)(params)
+        println(result)
+        assert(result.isSuccess)
+      }
+    }
+  }
+
+  property("Can call polyTransfer protocol level function from a contract") {
+    forAll(contractGen) {
+      c: Contract => {
+        val party = propositionGen.sample.get
+        val params = JsonObject.fromMap(
+          Map(
+            "publicKey" -> stringGen.sample.get.asJson,
+            "amount" -> positiveTinyIntGen.sample.get.asJson))
+
+        val result = Contract.execute(c, "transferPolys")(party)(params)
         println(result)
         assert(result.isSuccess)
       }
