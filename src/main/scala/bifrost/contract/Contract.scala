@@ -7,8 +7,7 @@ import bifrost.exceptions.{InvalidProvidedContractArgumentsException, JsonParsin
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
-import org.graalvm.polyglot.{Context, PolyglotException, Value}
+import org.graalvm.polyglot.Context
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -43,10 +42,10 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   }
 
   jsre.eval("js", BaseModuleWrapper.objectAssignPolyfill)
-  println(">>>>>>>>>>>>>>> objectAssignPolyfill eval")
+  println(s">>>>>>>>>>>>>>> objectAssignPolyfill eval")
 
   //noinspection ScalaStyle
-  def applyFunction(methodName: String)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
+  def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
     jsre.eval("js", agreementObj.core.initjs)
     println(">>>>>>>>> agreement initjs")
@@ -61,8 +60,8 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
         .headOption
         .getOrElse(""))((agg, cur) => s"$agg, $cur")
 
-    println(s"params: ${params.asJson}")
-    println(s"parameterString: ${parameterString}")
+    println(s"params: ${args.asJson}")
+    println(s"parameterString: $parameterString")
 
     val update =
       s"""
@@ -82,7 +81,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     """.stripMargin
 
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
-      ValkyrieFunctions(jsre, parameterString)
+      ValkyrieFunctions(jsre, args)
       val result = parse(jsre.eval("js", update).asString()).right.get
       println(s">>>>>>>>>>>>>>>>>>> After result ")
 
@@ -185,7 +184,9 @@ object Contract {
           .toArray
           .map(_.noSpaces)
 
-        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(neededArgs)
+        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
+
+        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)

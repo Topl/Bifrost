@@ -20,6 +20,7 @@ import com.oracle.truffle.api.frame.VirtualFrame
 import com.oracle.truffle.api.instrumentation.StandardTags.CallTag
 import com.oracle.truffle.api.instrumentation._
 import io.circe
+import io.circe.JsonObject
 import org.graalvm.polyglot.Context
 
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
@@ -33,18 +34,45 @@ case class ValkyrieFunctions() {
     s"""
        |var assetCreated, assetTransferred, polyTransferred;
        |
-     |this.createAssets = function(publicKey, asset, amount) {
+       |this.createAssets = function(issuer, to, amount, assetCode, fee = 0, data = "") {
+       |  this.issuer = issuer;
+       |  this.to = to;
+       |  this.amount = amount;
+       |  this.assetCode = assetCode;
+       |  this.fee = fee;
+       |  this.data = data;
+       |
        |  return assetCreated;
        |}
        |
-     |this.transferAssets = function(publicKey, asset, amount, data) {
+       |this.transferAssets = function(amount, recipient, fee = 0, issuer, assetCode, data = "") {
+       |  this.amount = amount;
+       |  this.recipient = recipient;
+       |  this.fee = fee;
+       |  this.issuer = issuer;
+       |  this.assetCode = assetCode;
+       |  this.data = data;
+       |
        |  return assetTransferred;
        |}
        |
-     |this.transferPoly = function(publicKey, amount) {
+       |this.transferPolys = function(amount, recipient, fee = 0, data = "") {
+       |  this.amount = amount;
+       |  this.recipient = recipient;
+       |  this.fee = fee;
+       |  this.data = data;
+       |
        |  return polyTransferred;
        |}
    """.stripMargin
+
+  object reservedFunctions extends Enumeration {
+    val func: Value = Value
+    val createAssets: Value = Value("createAssets")
+    val transferAssets: Value = Value("transferAssets")
+    val transferPolys: Value = Value("transferPolys")
+    val transferArbits: Value = Value("transferArbits")
+  }
 }
 
 object ValkyrieFunctions {
@@ -111,9 +139,7 @@ object ValkyrieFunctions {
   println(s">>>>>>>>>> before apply")
 
   //noinspection ScalaStyle
-  def apply(context: Context, params: String) = {
-
-    val modifiedParams = {}
+  def apply(context: Context, params: JsonObject) = {
 
     println(s">>>>>>>>>>>>>>> createExecutionListener")
     /*val listener: ExecutionListener = ExecutionListener.newBuilder()
@@ -130,20 +156,17 @@ object ValkyrieFunctions {
       println(s">>>>>>> truffleListener")
       new ExecutionEventListener {
         println(s">>>>>>>>>> new ExecutionListener")
-        override def onEnter(context: EventContext, frame: VirtualFrame): Unit = try {
+        override def onEnter(context: EventContext, frame: VirtualFrame): Unit = ???
+
+        override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = {
           println(s">>>>>>>>> onReturnValue")
           val source: String = context.getInstrumentedSourceSection.getCharacters.toString
           source match {
-            case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ac")
-            case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("at")
-            case "polyTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("pt")
+            case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ca")
+            case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ta")
+            case "polyTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("tp")
           }
-        } catch {
-          case e: Exception =>
-            e.getStackTrace
         }
-
-        override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = ???
 
         override def onReturnExceptional(context: EventContext, frame: VirtualFrame, exception: Throwable): Unit = ???
 
@@ -151,9 +174,52 @@ object ValkyrieFunctions {
 
         override def onUnwind(context: EventContext, frame: VirtualFrame, info: Object): Object = {
           info match {
-            case "ac" => createAsset(params); ProbeNode.UNWIND_ACTION_REENTER
-            case "at" => transferAsset(params); ProbeNode.UNWIND_ACTION_REENTER
-            case "pt" => transferPoly(params); ProbeNode.UNWIND_ACTION_REENTER
+            case "ca" => {
+              val jsonrpcParams =
+                s"""
+                   |{
+                   |  "jsonprc": "2.0",
+                   |  "method": "createAssets",
+                   |  "params": $params
+                   |}
+                 """.stripMargin
+
+              println(s">>>>>>> jsonrpcParams: $jsonrpcParams")
+              createAsset(jsonrpcParams)
+              ProbeNode.UNWIND_ACTION_REENTER
+            }
+
+            case "ta" => {
+
+              val jsonrpcParams =
+                s"""
+                   |{
+                   |  "jsonprc": "2.0",
+                   |  "method": "transferAssets",
+                   |  "params": $params
+                   |}
+                 """.stripMargin
+
+              println(s">>>>>>> jsonrpcParams: $jsonrpcParams")
+              transferAsset(jsonrpcParams)
+              ProbeNode.UNWIND_ACTION_REENTER
+            }
+
+            case "tp" => {
+
+              val jsonrpcParams =
+                s"""
+                   |{
+                   |  "jsonprc": "2.0",
+                   |  "method": "transferPolys",
+                   |  "params": $params
+                   |}
+                 """.stripMargin
+
+              println(s">>>>>>> jsonrpcParams: $jsonrpcParams")
+              transferPoly(jsonrpcParams)
+              ProbeNode.UNWIND_ACTION_REENTER
+            }
           }
         }
       }

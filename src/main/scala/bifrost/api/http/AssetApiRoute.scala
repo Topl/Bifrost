@@ -95,7 +95,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   private def transferAssets(params: Json, id: String): Future[Json] = {
 
-    println(s">>>>>>>> transferAsset: ${params}")
+    println(s">>>>>>>> transferAssets: $params")
 
     viewAsync().map { view =>
       val wallet = view.vault
@@ -126,7 +126,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   private def createAssets(params: Json, id: String): Future[Json] = {
 
-    println(s">>>>>>>>> createAssets: ${params}")
+    println(s">>>>>>>>> createAssets: $params")
 
     viewAsync().map { view =>
       val wallet = view.vault

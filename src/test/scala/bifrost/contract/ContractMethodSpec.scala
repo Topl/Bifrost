@@ -33,36 +33,36 @@ class ContractMethodSpec extends PropSpec
     }
   }
 
-  property("Can call createAsset protocol level function from a contract") {
+  property("Can call createAssets protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
         val params = JsonObject.fromMap(
           Map(
-            "publicKey" -> stringGen.sample.get.asJson,
             "issuer" -> stringGen.sample.get.asJson,
-            "asset" -> stringGen.sample.get.asJson,
+            "to" -> stringGen.sample.get.asJson,
+            "assetCode" -> stringGen.sample.get.asJson,
             "amount" -> positiveTinyIntGen.sample.get.asJson))
 
-        println(s"createAsset params: ${params}")
+        println(s"createAssets params: ${params}")
 
-        val result = Contract.execute(c, "createAsset")(party)(params)
+        val result = Contract.execute(c, "createAssets")(party)(params)
         println(s"test result: $result")
         assert(result.isSuccess)
       }
     }
   }
 
-  property("Can call assetTransfer protocol level function from a contract") {
+  property("Can call transferAssets protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
         val params = JsonObject.fromMap(
           Map(
-            "publicKey" -> stringGen.sample.get.asJson,
+            "amount" -> positiveTinyIntGen.sample.get.asJson,
+            "recipient" -> stringGen.sample.get.asJson,
             "issuer" -> stringGen.sample.get.asJson,
             "asset" -> stringGen.sample.get.asJson,
-            "amount" -> positiveTinyIntGen.sample.get.asJson,
             "data" -> stringGen.sample.get.asJson))
 
         val result = Contract.execute(c, "transferAssets")(party)(params)
