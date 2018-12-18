@@ -32,7 +32,7 @@ class BifrostStateSpec extends PropSpec
 
   val initialBalance = 100000000L
   //noinspection ScalaStyle
-  property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {
+  /*property("A block with valid PolyTransfer should result in more funds for receiver, less for transferrer") {
     // Create genesis block, add to state
     // Create new block with PolyTransfer
     // send new block to state
@@ -118,7 +118,7 @@ class BifrostStateSpec extends PropSpec
         .rollback(BifrostStateSpec.genesisBlockId)
         .get
     }
-  }
+  }*/
 
   property("A block with valid ProfileTransaction should result in a ProfileBox") {
     val timestamp = System.currentTimeMillis()
@@ -157,7 +157,7 @@ class BifrostStateSpec extends PropSpec
     box.value shouldBe role.toString
   }
 
-  property("Attempting to validate a PolyTransfer for amount you do not have should error") {
+  /*property("Attempting to validate a PolyTransfer for amount you do not have should error") {
     import bifrost.state.BifrostStateSpec._
     val beforePolyBoxes = gw
       .boxes()
@@ -196,7 +196,7 @@ class BifrostStateSpec extends PropSpec
       genesisState.validate(poT) shouldBe a[Failure[_]]
       println()
     }
-  }
+  }*/
 
   property("Attempting to validate an Arbit for amount you do not have should error") {
     import bifrost.state.BifrostStateSpec._
