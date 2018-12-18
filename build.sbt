@@ -107,6 +107,10 @@ publishArtifact in Test := false
 
 parallelExecution in Test := false
 
+logBuffered in Test := false
+
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-o")
+
 fork := false
 
 pomIncludeRepository := { _ => false }
