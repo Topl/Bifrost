@@ -94,7 +94,7 @@ object BaseModuleWrapper {
   def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
 
     val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
-    println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+    //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (registry, cleanModuleState) = deriveFromInit(modifiedInitjs, name)(args)
 
@@ -110,7 +110,7 @@ object BaseModuleWrapper {
     val initjs: String = {
       val cleanInitjs: String = (json \\ "initjs").head.asString.get
       val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
-      println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+      //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
       modifiedInitjs
     }
 
@@ -162,7 +162,7 @@ object BaseModuleWrapper {
       registryRes.entrySet().asScala.map(entry => entry.getKey -> mutable.LinkedHashSet(entry.getValue.asInstanceOf[Array[String]]:_*)).toMap
     }
 
-    println(s">>>>>>>>>>> Registry: $registry")
+    //println(s">>>>>>>>>>> Registry: $registry")
     (registry, cleanModuleState)
   }
 

@@ -34,7 +34,7 @@ case class ValkyrieFunctions() {
     s"""
        |var assetCreated, assetTransferred, polyTransferred;
        |
-       |this.createAssets = function(issuer, to, amount, assetCode, fee = 0, data = "") {
+       |this.createAssets = function(issuer, to, amount, assetCode, fee, data) {
        |  this.issuer = issuer;
        |  this.to = to;
        |  this.amount = amount;
@@ -45,7 +45,7 @@ case class ValkyrieFunctions() {
        |  return assetCreated;
        |}
        |
-       |this.transferAssets = function(amount, recipient, fee = 0, issuer, assetCode, data = "") {
+       |this.transferAssets = function(amount, recipient, fee, issuer, assetCode, data) {
        |  this.amount = amount;
        |  this.recipient = recipient;
        |  this.fee = fee;
@@ -56,7 +56,7 @@ case class ValkyrieFunctions() {
        |  return assetTransferred;
        |}
        |
-       |this.transferPolys = function(amount, recipient, fee = 0, data = "") {
+       |this.transferPolys = function(amount, recipient, fee, data) {
        |  this.amount = amount;
        |  this.recipient = recipient;
        |  this.fee = fee;

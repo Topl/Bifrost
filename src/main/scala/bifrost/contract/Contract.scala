@@ -42,7 +42,6 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   }
 
   jsre.eval("js", BaseModuleWrapper.objectAssignPolyfill)
-  println(s">>>>>>>>>>>>>>> objectAssignPolyfill eval")
 
   //noinspection ScalaStyle
   def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {

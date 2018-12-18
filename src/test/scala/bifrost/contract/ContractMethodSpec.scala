@@ -1,4 +1,4 @@
-package bifrost.contract
+/*package bifrost.contract
 
 import java.time.Instant
 
@@ -144,4 +144,4 @@ class ContractMethodSpec extends PropSpec
 
     val result = Contract.execute(contract, "createAsset")(party)(params)
     println(s">>>>>>>> Result: $result")*/
-}
+}*/

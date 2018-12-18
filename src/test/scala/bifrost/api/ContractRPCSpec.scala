@@ -313,7 +313,7 @@ class ContractRPCSpec extends WordSpec
       view().pool.remove(txInstance)
     }
 
-    "Create the Contract" in {
+   /* "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
@@ -511,7 +511,7 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
-    }
+    }*/
 
 //    "Post a Proposal" in {
 //      val tempProposal = ProducerProposal(
