@@ -80,7 +80,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     """.stripMargin
 
     println(s">>>>>>>>>>>>>>>>>>> Before result:")
-      ValkyrieFunctions(jsre, args)
+      //ValkyrieFunctions(jsre, args)
       val result = parse(jsre.eval("js", update).asString()).right.get
       println(s">>>>>>>>>>>>>>>>>>> After result ")
 
