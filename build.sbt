@@ -109,7 +109,7 @@ parallelExecution in Test := false
 
 logBuffered in Test := false
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-o")
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
 fork := false
 

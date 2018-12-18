@@ -18,7 +18,8 @@ jobs:
 
     environment:
       # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3600m
+      #JVM_OPTS: -Xmx3600m
+      SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G
       TERM: dumb
     
     steps:
