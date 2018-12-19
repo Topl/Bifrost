@@ -18,7 +18,7 @@ import scala.util.Failure
   */
 class AssetTransferValidationSpec extends BifrostStateSpec {
 
-  property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
+  /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
         val block = BifrostBlock(
@@ -129,5 +129,5 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Not enough assets"
     }
-  }
+  }*/
 }

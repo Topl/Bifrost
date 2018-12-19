@@ -120,7 +120,7 @@ class BifrostStateSpec extends PropSpec
     }
   }*/
 
-  property("A block with valid ProfileTransaction should result in a ProfileBox") {
+  /*property("A block with valid ProfileTransaction should result in a ProfileBox") {
     val timestamp = System.currentTimeMillis()
     val role = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub)).head
     val privateKey = BifrostStateSpec.gw.secrets.head
@@ -155,7 +155,7 @@ class BifrostStateSpec extends PropSpec
 
     box.key shouldBe "role"
     box.value shouldBe role.toString
-  }
+  }*/
 
   /*property("Attempting to validate a PolyTransfer for amount you do not have should error") {
     import bifrost.state.BifrostStateSpec._
@@ -198,7 +198,7 @@ class BifrostStateSpec extends PropSpec
     }
   }*/
 
-  property("Attempting to validate an Arbit for amount you do not have should error") {
+  /*property("Attempting to validate an Arbit for amount you do not have should error") {
     import bifrost.state.BifrostStateSpec._
     val beforeArbitBoxes = gw
       .boxes()
@@ -237,7 +237,7 @@ class BifrostStateSpec extends PropSpec
 
       genesisState.validate(arT) shouldBe a[Failure[_]]
     }
-  }
+  }*/
 
   override def afterAll() {
     BifrostStateSpec.history.storage.storage.close()
