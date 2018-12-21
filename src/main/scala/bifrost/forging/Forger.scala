@@ -2,7 +2,7 @@ package bifrost.forging
 
 import java.time.Instant
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
 import akka.pattern.ask
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
@@ -12,6 +12,7 @@ import bifrost.state.BifrostState
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
+import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
 import scorex.core.LocalInterface.LocallyGeneratedModifier
 import scorex.core.crypto.hash.FastCryptographicHash
@@ -46,11 +47,18 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
+  // get for inflation
+  @throws(classOf[java.io.IOException])
+  private def get(url: String)= scala.io.Source.fromURL(url).mkString
+
   def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] = {
-    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("22222222222222222222222222222222222222222222").get) // TODO | use the person's actual key not this dummy key
+    lazy val to: PublicKey25519Proposition =
+      PublicKey25519Proposition(Base58.decode("22222222222222222222222222222222222222222222").get) // TODO | use the person's actual key not this dummy key
     implicit val timeout: Timeout = 10 seconds
     val view = (viewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
-      lazy val CB = CoinbaseTransaction.createAndApply(Await.ready(view.map {BWallet => BWallet.vault}, Duration.Inf).value.get.get, IndexedSeq((to, 100L))).get
+
+    lazy val CB = CoinbaseTransaction.createAndApply(Await.ready(view.map {BWallet => BWallet.vault}, Duration.Inf).value.get.get, IndexedSeq((to, get("INFLATION SERVER GOES HERE"))).get
+
       CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
         val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
         val txValid = state.validate(tx)
