@@ -1,4 +1,4 @@
-{
+  {
   "p2p": {
     "name": "local-testnet",
     "bindAddress": "0.0.0.0",
