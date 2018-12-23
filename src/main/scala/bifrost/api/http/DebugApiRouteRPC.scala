@@ -10,6 +10,7 @@ import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
 import scorex.core.api.http.{ApiException, SuccessApiResponse}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -45,6 +46,10 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
 
                   (json \\ "method").head.asString.get match {
                     case "info" => infoRoute(params.head, id)
+                    case "delay" => delay(params.head, id)
+                    case "myBlocks" => myBlocks(params.head, id)
+                    case "generators" => generators(params.head, id)
+                    case "chain" => chain(params.head, id)
                   }
 
                 }
@@ -60,14 +65,13 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
       }
     }
   }
-
   }
 
-
+  //TODO check difference between get and post json rpc requests
+  //TODO check returning response as SuccessApiResponse instead of directly Json? Or is that the difference between HTTP and Json RPC?
   private def infoRoute(params: Json, id: String): Future[Json] = {
       viewAsync().map {
         view =>
-          //SuccessApiResponse(
             Map(
               "height" -> view.history.height.toString.asJson,
               "score" -> view.history.score.asJson,
@@ -77,5 +81,51 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
             ).asJson
       }
     }
+
+  private def delay(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val encodedSignature: String = (params \\ "id").head.asString.get
+        val count: Int = (params \\ "blockNum").head.asNumber.get.toInt.get
+        Map(
+          "delay" -> Base58.decode(encodedSignature).flatMap(id => view.history.averageDelay(id, count))
+            .map(_.toString).getOrElse("Undefined").asJson
+        ).asJson
+
+    }
+  }
+
+  private def myBlocks(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val pubkeys: Set[PublicKey25519Proposition] = view.vault.publicKeys.flatMap {
+          case pkp: PublicKey25519Proposition => Some(pkp)
+          case _ => None
+        }
+        val count = view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
+        Map(
+          "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
+          "count" -> count.asJson
+        ).asJson
+    }
+  }
+
+  private def generators(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val map: Map[String, Int] = view.history.forgerDistribution()
+          .map(d => Base58.encode(d._1.pubKeyBytes) -> d._2)
+        map.asJson
+    }
+  }
+
+  private def chain(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        Map(
+          "history" -> view.history.toString
+        ).asJson
+    }
+  }
 
 }
