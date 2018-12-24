@@ -19,7 +19,7 @@ class InflationQuery extends Actor {
   private def getUpdatedVals() = {
     try {
       //print("starting update call\n")
-      val resp = get("http://127.0.0.1:5000") // returns a string "infVal,###,infUpdateVal,###,infUpdateBlock,###"
+      val resp = get("http://167.99.135.150/") // returns a string "infVal,###,infUpdateVal,###,infUpdateBlock,###"
       val parts = resp.split(',')
       //print(resp + "\n")
       if (parts.length == 6 && parts(0) == "infVal" && parts(2) == "infUpdateVal" && parts(4) == "infUpdateBlock") { // TODO | clean this up to be more robust
