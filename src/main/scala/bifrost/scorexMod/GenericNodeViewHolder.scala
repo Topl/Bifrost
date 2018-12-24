@@ -243,7 +243,9 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       //if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
 
       if(notSendingBlocks && theyAreYounger) {
-        log.debug(s"Unable to sync without common ancestor")
+        log.debug(s"Error: Trying to sync local node with remote node. " +
+          s"Failed to find common ancestor within block history. " +
+          s"Check that you are attempting to sync to the correct version of the blockchain.")
       }
 
       sender() ! OtherNodeSyncingStatus(
