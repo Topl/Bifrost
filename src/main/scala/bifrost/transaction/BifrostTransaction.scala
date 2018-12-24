@@ -74,14 +74,6 @@ object BifrostTransaction {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 }
 
-
-//
-// TODO | In progress coinbase tx case class
-// - make serializer
-// - implement functions
-// - implement object
-//
-
 case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                 val signatures: IndexedSeq[Signature25519],
                                 override val timestamp: Long) extends BifrostTransaction {
@@ -101,9 +93,8 @@ case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, L
   lazy val hashNoNonces = FastCryptographicHash(
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) // message that gets hashed
   )
-
-  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, 0L, 100L)) /** the tx always creates a single box cus duh
-                                                                                          TODO | attach the value held in the box to inflation aka not a magic number */
+  // TODO : don't use time stamp as nonce
+  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, timestamp, to.head._2))
 
   override lazy val json: Json = Map( // tx in json form
     "id" -> Base58.encode(id).asJson,

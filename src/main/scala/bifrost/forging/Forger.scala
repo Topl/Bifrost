@@ -2,7 +2,7 @@ package bifrost.forging
 
 import java.time.Instant
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
+import akka.actor._
 import akka.pattern.ask
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
@@ -27,6 +27,7 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.transaction.CoinbaseTransaction
+import scalapb.descriptors.ScalaType.Message
 
 trait ForgerSettings extends Settings {
 }
@@ -38,6 +39,9 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   //should be a part of consensus, but for our app is okay
   val TransactionsInBlock = 100
 
+  // inflation query actor
+  private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
+
   //set to true for initial generator
   private var forging = forgerSettings.offlineGeneration
 
@@ -47,28 +51,26 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  // get for inflation
-  @throws(classOf[java.io.IOException])
-  private def get(url: String)= scala.io.Source.fromURL(url).mkString
-
   def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] = {
-    lazy val to: PublicKey25519Proposition =
-      PublicKey25519Proposition(Base58.decode("22222222222222222222222222222222222222222222").get) // TODO | use the person's actual key not this dummy key
     implicit val timeout: Timeout = 10 seconds
     val view = (viewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
-
-    lazy val CB = CoinbaseTransaction.createAndApply(Await.ready(view.map {BWallet => BWallet.vault}, Duration.Inf).value.get.get, IndexedSeq((to, get("INFLATION SERVER GOES HERE"))).get
-
-      CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
-        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-        val txValid = state.validate(tx)
-        if (txValid.isFailure) {
-          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
-          txValid.failed.get.printStackTrace()
-          memPool.remove(tx)
-        }
-        if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
+    infQ ? "getUpdatedVals"
+    val res = Await.result(view, Duration.Inf)
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(res.vault.secrets.head.publicImage.pubKeyBytes)
+    val infVal = Await.result(infQ ? res.history.height, Duration.Inf).asInstanceOf[Long]
+    print("infVal being used in forger: " + infVal + "\n")
+    lazy val CB = CoinbaseTransaction.createAndApply(res.vault, IndexedSeq((to, infVal))).get
+    print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
+    CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      val txValid = state.validate(tx)
+      if (txValid.isFailure) {
+        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
+        txValid.failed.get.printStackTrace()
+        memPool.remove(tx)
       }
+      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
+    }
   }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =

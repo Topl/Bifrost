@@ -133,6 +133,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case ct: ConversionTransaction => validateConversionTransaction(ct)
       case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
       case ac: AssetCreation => validateAssetCreation(ac)
+      case cb: CoinbaseTransaction => Try[Unit]{} // TODO | implement validity checks for CB
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -685,6 +686,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       })
     }
     statefulValid.flatMap(_ => semanticValidity(ct))
+  }
+
+  def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
+    Try[Unit] {}  // TODO
   }
 
   def validateTokenExchangeTransaction(tex: TokenExchangeTransaction): Try[Unit] = {
