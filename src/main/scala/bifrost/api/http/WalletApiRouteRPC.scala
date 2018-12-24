@@ -79,9 +79,12 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").head.asString.getOrElse("")
 
       // Optional API parameters
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
@@ -107,9 +110,12 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").head.asString.getOrElse("")
 
       // Optional API parameters
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
       val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
         case Some(keys) => keys.asArray.get.map(k => k.asString.get)
         case None => Vector()
