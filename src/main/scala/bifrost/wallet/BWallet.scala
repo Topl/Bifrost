@@ -69,6 +69,30 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .map(_.get)
   }
 
+  //Only returns asset arbit and poly boxes by public key
+   def boxesByKey(publicKeyString: String): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
+    log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    boxIds
+      .flatMap(id => store.get(ByteArrayWrapper(id)))
+      .map(_.data)
+      .map(ba => walletBoxSerializer.parseBytes(ba))
+      .filter {
+        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
+          case pb: PolyBox =>
+            pb.value > 0 &&
+            publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
+          case ab: ArbitBox =>
+            ab.value > 0 &&
+              publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
+          case assetB: AssetBox =>
+            assetB.amount > 0 &&
+              publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
+        }
+        case _ => false
+      }
+      .map(_.get)
+  }
+
   override def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
@@ -90,9 +114,30 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
+      // secrets.empty // should empty the current set of secrets meaning unlock only allows a single key to be unlocked at once
       secrets += privKey.head
     } else {
       log.warn(s"$publicKeyString is already unlocked")
+    }
+  }
+
+  def lockKeyFile(publicKeyString: String, password: String): Unit = {
+    val keyfiles = getListOfFiles(defaultKeyDir)
+      .map(file => KeyFile.readFile(file.getPath))
+      .filter(k => k
+        .pubKeyBytes sameElements Base58
+        .decode(publicKeyString)
+        .get)
+    assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
+    val privKey = keyfiles.head.getPrivateKey(password) match {
+      case Success(priv) => Set(priv)
+      case Failure(e) => throw e
+    }
+    // ensure no duplicate by comparing privKey strings
+    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
+      log.warn(s"$publicKeyString is already locked")
+    } else {
+      secrets -= (secrets find (p => Base58.encode(p.privKeyBytes) == Base58.encode(privKey.head.privKeyBytes))).get
     }
   }
 

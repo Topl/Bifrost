@@ -4,12 +4,12 @@ import sbtassembly.MergeStrategy
 name := "project-bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.1",
+  scalaVersion := "2.12.7",
   organization := "co.topl",
   version := "0.1.0-alpha.1.0"
 )
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.7"
 organization := "co.topl"
 version := "0.2.2-alpha"
 
@@ -78,6 +78,10 @@ val consoleDependencies = Seq(
   "org.apache.commons" % "commons-pool2" % "2.4.2"
 )
 
+libraryDependencies += "org.graalvm" % "graal-sdk" % "1.0.0+"
+// https://mvnrepository.com/artifact/com.oracle.truffle/truffle-api
+libraryDependencies += "com.oracle.truffle" % "truffle-api" % "1.0.0-rc7"
+
 libraryDependencies ++= consoleDependencies
 
 
@@ -89,7 +93,6 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-server",
   "-Dcom.sun.management.jmxremote"
 )
 
@@ -103,6 +106,10 @@ publishMavenStyle := true
 publishArtifact in Test := false
 
 parallelExecution in Test := false
+
+logBuffered in Test := false
+
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
 fork := false
 

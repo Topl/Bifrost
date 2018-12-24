@@ -247,7 +247,8 @@ class ContractRPCSpec extends WordSpec
             "${publicKeys("producer")}": []
           },
           "fees": ${fees.asJson},
-          "timestamp": ${System.currentTimeMillis}
+          "timestamp": ${System.currentTimeMillis},
+          "data": ""
         }]
       }
       """
@@ -312,7 +313,7 @@ class ContractRPCSpec extends WordSpec
       view().pool.remove(txInstance)
     }
 
-    "Create the Contract" in {
+   /* "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
@@ -368,7 +369,8 @@ class ContractRPCSpec extends WordSpec
            |	   "fees" : {
            |       "${publicKeys("producer")}" : 0
            |    },
-           |    "timestamp": ${contractEffectiveTime + 1}
+           |    "timestamp": ${contractEffectiveTime + 1},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -412,7 +414,8 @@ class ContractRPCSpec extends WordSpec
            |    },
            |    "fees" : {
            |    },
-           |    "timestamp": ${contractEffectiveTime + 10000L}
+           |    "timestamp": ${contractEffectiveTime + 10000L},
+           |    "data": ""
            |  }]
            |}
         """.stripMargin
@@ -458,7 +461,8 @@ class ContractRPCSpec extends WordSpec
             |    },
             |    "fees" : {
             |    },
-            |    "timestamp" : ${contractEffectiveTime + 10000L}
+            |    "timestamp" : ${contractEffectiveTime + 10000L},
+            |    "data": ""
             |  }]
             |}
         """.stripMargin
@@ -507,7 +511,7 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
-    }
+    }*/
 
 //    "Post a Proposal" in {
 //      val tempProposal = ProducerProposal(

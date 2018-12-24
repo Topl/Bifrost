@@ -114,6 +114,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     )
 
     val newSt = BifrostState(storage, newVersion, timestamp)
+
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
 
@@ -130,7 +131,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
       case cComp: ContractCompletion => validateContractCompletion(cComp)
       case ar: AssetRedemption => validateAssetRedemption(ar)
-      case ct: ConversionTransaction => validateConversionTransaction(ct)
+      //case ct: ConversionTransaction => validateConversionTransaction(ct)
       case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
       case ac: AssetCreation => validateAssetCreation(ac)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
@@ -243,7 +244,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
                   .proposition,
                   asT
                     .messageToSign) && (box
-                  .hub equals asT.hub) && (box
+                  .issuer equals asT.issuer) && (box
                   .assetCode equals asT.assetCode)) {
                   Success(partialSum + box.value)
                 } else {
@@ -577,7 +578,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           /* Checks if unlocker is valid and if so adds to current running total */
           closedBox(unlocker.closedBoxId) match {
             case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.hub equals ar.hub)) {
+              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.issuer equals ar.issuer)) {
                 Success(partialMap
                   .get(box.assetCode) match {
                   case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
@@ -638,7 +639,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(ar))
   }
 
-  def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
+  /*def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       val initial = Success(Map[(String, PublicKey25519Proposition), Long]())
       val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers
@@ -685,7 +686,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       })
     }
     statefulValid.flatMap(_ => semanticValidity(ct))
-  }
+  }*/
 
   def validateTokenExchangeTransaction(tex: TokenExchangeTransaction): Try[Unit] = {
     val tokenHub = tex.buyOrder.token1.tokenHub.get.toByteArray
@@ -701,7 +702,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
               case Some(box: AssetBox) =>
-                val tokenGood = (box.hub equals tokenHub) && (box.assetCode equals tokenCode)
+                val tokenGood = (box.issuer equals tokenHub) && (box.assetCode equals tokenCode)
                 val hasValidUnlocker =
                   unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.sellOrder))
 
@@ -764,7 +765,7 @@ object BifrostState {
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
-      case ct: ConversionTransaction => ConversionTransaction.validate(ct)
+      //case ct: ConversionTransaction => ConversionTransaction.validate(ct)
       case tex: TokenExchangeTransaction => TokenExchangeTransaction.validate(tex)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
