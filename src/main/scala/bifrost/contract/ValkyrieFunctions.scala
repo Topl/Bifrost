@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostNodeViewHolder
-import bifrost.api.http.{AssetApiRoute, WalletApiRouteRPC}
+import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -89,7 +89,7 @@ object ValkyrieFunctions {
 
   val assetRoute: Route = AssetApiRoute(settings, nodeViewHolderRef)(actorSystem).route
 
-  val walletRoute: Route = WalletApiRouteRPC(settings, nodeViewHolderRef)(actorSystem).route
+  val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef)(actorSystem).route
 
   def assetHttpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

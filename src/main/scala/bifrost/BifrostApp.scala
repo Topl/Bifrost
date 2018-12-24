@@ -47,10 +47,10 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
-    WalletApiRoute(settings, nodeViewHolderRef),
+    WalletApiRouteHttp(settings, nodeViewHolderRef),
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
-    WalletApiRouteRPC(settings, nodeViewHolderRef),
+    WalletApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
@@ -58,10 +58,10 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
                                          typeOf[DebugApiRoute],
-                                         typeOf[WalletApiRoute],
+                                         typeOf[WalletApiRouteHttp],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
-                                         typeOf[WalletApiRouteRPC],
+                                         typeOf[WalletApiRoute],
                                          typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
