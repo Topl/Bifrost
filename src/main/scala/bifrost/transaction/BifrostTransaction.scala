@@ -78,7 +78,7 @@ case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, L
                                 val signatures: IndexedSeq[Signature25519],
                                 override val timestamp: Long) extends BifrostTransaction {
 
-  override type M = CoinbaseTransaction // just short hand so I don't have to type CoinbaseTransaction
+  override type M = CoinbaseTransaction
 
   lazy val serializer = CoinbaseTransactionCompanion
 
@@ -122,13 +122,12 @@ object CoinbaseTransaction {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
 
   def validate(tx: CoinbaseTransaction): Try[Unit] = Try {
-    /** TODO | no validation checks rn for testing !!!!DO NOT MERGE!!!! without turing these on */
-//    require(tx.to._2 >= 0L) // can't create an empty box
-//    require(tx.fee == 0)
-//    require(tx.timestamp >= 0)
-//    require(tx.signatures.forall({ signature => // should be only one sig
-//      signature.isValid(tx.to._1, tx.messageToSign) // because this is set to self the signer is also the reciever
-//    }), "Invalid signature")
+    require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
+    require(tx.fee == 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.forall({ signature => // should be only one sig
+      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+    }), "Invalid signature")
   }
 
   def createAndApply(w: BWallet,
