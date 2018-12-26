@@ -426,8 +426,12 @@ class BifrostHistory(val storage: BifrostStorage,
     * Debug only
     */
   def averageDelay(id: ModifierId, blockNum: Int): Try[Long] = Try {
+    println("Entered averageDelay in BifrostHistory")
     val block = modifierById(id).get
+    println("Got block by Id")
     val c = chainBack(block, isGenesis, blockNum).get.map(_._2)
+    println("Chained back from " +
+      "")
     (block.timestamp - modifierById(c.head).get.timestamp) / c.length
   }
 

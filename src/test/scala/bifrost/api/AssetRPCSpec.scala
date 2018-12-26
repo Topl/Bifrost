@@ -159,7 +159,7 @@ class AssetRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        //Removing transaction from mempool so as not to affect ContractRPC tests
+        //Removing transaction from mempool so as not to affect other RPC tests
         val txHash = ((res \\ "result").head \\ "id").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)

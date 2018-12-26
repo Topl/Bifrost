@@ -9,11 +9,10 @@ import scorex.core.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
+import scorex.core.api.http.ApiException
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
@@ -67,7 +66,6 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
   }
   }
 
-  //TODO check difference between get and post json rpc requests
   //TODO check returning response as SuccessApiResponse instead of directly Json? Or is that the difference between HTTP and Json RPC?
   private def infoRoute(params: Json, id: String): Future[Json] = {
       viewAsync().map {
@@ -85,13 +83,12 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
   private def delay(params: Json, id: String): Future[Json] = {
     viewAsync().map {
       view =>
-        val encodedSignature: String = (params \\ "id").head.asString.get
-        val count: Int = (params \\ "blockNum").head.asNumber.get.toInt.get
+        val encodedSignature: String = (params \\ "blockId").head.asString.get
+        val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
         Map(
           "delay" -> Base58.decode(encodedSignature).flatMap(id => view.history.averageDelay(id, count))
             .map(_.toString).getOrElse("Undefined").asJson
         ).asJson
-
     }
   }
 

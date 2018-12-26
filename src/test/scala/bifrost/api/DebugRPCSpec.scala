@@ -14,6 +14,7 @@ import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -39,12 +40,9 @@ class DebugRPCSpec extends WordSpec
   }
 
   implicit val timeout = Timeout(10.seconds)
-//
-//  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-//    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
-
-
+  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
   "Debug RPC" should {
     "Get information" in {
@@ -74,15 +72,15 @@ class DebugRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "delay",
            |   "params": [{
-           |      "id": "",
-           |      "blockNum": ""
+           |      "blockId": "${Base58.encode(view.history.bestBlockId)}",
+           |      "numBlocks": 1
            |   }]
            |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-//        println(res)
+        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -147,7 +145,7 @@ class DebugRPCSpec extends WordSpec
 
   }
 
-
+//TODO figure out why when uncommenting below code yields versionID already in use error
 //  object DebugRPCSpec {
 //    val path: Path = Path("/tmp/scorex/test-data")
 //    Try(path.deleteRecursively())
