@@ -376,6 +376,20 @@ trait ValidGenerators extends BifrostGenerators {
     ArbitTransfer(from, to, fee, timestamp)
   }
 
+  // TODO : implement less general checks (EX: coinbases should only have a single to key/amount pair)
+  lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
+    _ <- toSeqGen
+    timestamp <- positiveLongGen
+  } yield {
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+    val fakeSigs = IndexedSeq(Signature25519(Array()))
+    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp).messageToSign
+    // sign with own key because coinbase is literally giving yourself money
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
+    CoinbaseTransaction(to, signatures, timestamp)
+  }
+
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
