@@ -10,10 +10,10 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 import io.circe.syntax._
 import scorex.crypto.encode.Base58

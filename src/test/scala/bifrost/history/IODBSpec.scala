@@ -8,7 +8,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.NodeViewModifier._
+import bifrost.NodeViewModifier._
 import scorex.crypto.encode.Base58
 
 import scala.util.Random

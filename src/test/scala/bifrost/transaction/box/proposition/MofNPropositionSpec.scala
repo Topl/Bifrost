@@ -3,7 +3,7 @@ package bifrost.transaction.box.proposition
 import bifrost.BifrostGenerators
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 
 class MofNPropositionSpec extends PropSpec
   with PropertyChecks

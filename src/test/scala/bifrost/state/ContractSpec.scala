@@ -9,7 +9,7 @@ import bifrost.transaction.box.ProfileBox
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 
 class ContractSpec extends PropSpec
   with PropertyChecks
