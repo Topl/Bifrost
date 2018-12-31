@@ -12,7 +12,7 @@ class ArbitTransferSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  property("Generated ArbitTransfer Tx should be valid") {
+  property("Randomly generated ArbitTransfer Tx should be valid") {
     forAll(validArbitTransferGen) {
       at: ArbitTransfer => BifrostState.semanticValidity(at).isSuccess shouldBe true
     }

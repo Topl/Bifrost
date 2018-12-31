@@ -20,7 +20,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging{
+  extends Actor with ScorexLogging {
 
   import GenericNodeViewHolder._
 
@@ -242,7 +242,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
       //if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
 
-      if(notSendingBlocks && theyAreYounger) {
+      if (notSendingBlocks && theyAreYounger) {
         log.debug(s"Error: Trying to sync local node with remote node. " +
           s"Failed to find common ancestor within block history. " +
           s"Check that you are attempting to sync to the correct version of the blockchain.")
@@ -264,13 +264,13 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   override def receive: Receive =
     handleSubscribe orElse
-    compareViews orElse
-    readLocalObjects orElse
-    processRemoteModifiers orElse
-    processLocallyGeneratedModifiers orElse
-    getCurrentInfo orElse
-    getSyncInfo orElse
-    compareSyncInfo orElse {
+      compareViews orElse
+      readLocalObjects orElse
+      processRemoteModifiers orElse
+      processLocallyGeneratedModifiers orElse
+      getCurrentInfo orElse
+      getSyncInfo orElse
+      compareSyncInfo orElse {
       case a: Any => log.error(s">>>>>>>Strange input: $a :: ${a.getClass}")
     }
 }
