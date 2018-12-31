@@ -13,11 +13,11 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.parser._
 import io.circe.syntax._
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.{ApiException, SuccessApiResponse}
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

@@ -1,9 +1,9 @@
-package scorex.core.transaction.account
+package bifrost.transaction.account
 
 import com.google.common.primitives.Longs
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.box.Box
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 
 trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends Box[PKP] {
   val nonce: Long

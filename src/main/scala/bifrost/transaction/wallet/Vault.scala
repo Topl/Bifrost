@@ -1,8 +1,8 @@
-package scorex.core.transaction.wallet
+package bifrost.transaction.wallet
 
-import scorex.core.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
 
 import scala.util.Try
 

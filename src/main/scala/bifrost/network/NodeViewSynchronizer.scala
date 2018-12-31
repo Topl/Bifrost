@@ -1,18 +1,18 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import scorex.core.{LocalInterface, NodeViewHolder, NodeViewModifier}
-import scorex.core.NodeViewHolder._
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.consensus.{History, SyncInfo}
-import scorex.core.network.NetworkController.{DataFromPeer, SendToNetwork}
-import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.{LocalInterface, NodeViewHolder, NodeViewModifier}
+import bifrost.NodeViewHolder._
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.consensus.{History, SyncInfo}
+import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
 
 import scala.collection.mutable
-import scorex.core.network.message.BasicMsgDataTypes._
-import scorex.core.utils.ScorexLogging
+import bifrost.network.message.BasicMsgDataTypes._
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._
@@ -36,7 +36,7 @@ class NodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: SyncInf
  syncInfoSpec: SIS) extends Actor with ScorexLogging {
 
   import NodeViewSynchronizer._
-  import scorex.core.NodeViewModifier._
+  import bifrost.NodeViewModifier._
   import History.HistoryComparisonResult._
 
   //modifier ids asked from other nodes are kept in order to check then

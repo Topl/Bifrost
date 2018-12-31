@@ -1,13 +1,13 @@
-package scorex.core.settings
+package bifrost.settings
 
 import java.io.File
 import java.net.InetSocketAddress
 
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.core.app.ApplicationVersion
-import scorex.core.transaction.box.proposition.Constants25519._
-import scorex.core.utils.ScorexLogging
+import bifrost.app.ApplicationVersion
+import bifrost.transaction.box.proposition.Constants25519._
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._

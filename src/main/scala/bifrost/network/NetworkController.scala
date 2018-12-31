@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import java.net.{InetAddress, InetSocketAddress, NetworkInterface, URI}
 
@@ -7,10 +7,10 @@ import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import scorex.core.network.message.{Message, MessageHandler, MessageSpec}
-import scorex.core.network.peer.PeerManager
-import scorex.core.settings.Settings
-import scorex.core.utils.ScorexLogging
+import bifrost.network.message.{Message, MessageHandler, MessageSpec}
+import bifrost.network.peer.PeerManager
+import bifrost.settings.Settings
+import bifrost.utils.ScorexLogging
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

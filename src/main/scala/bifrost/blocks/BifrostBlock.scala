@@ -5,14 +5,14 @@ import bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.core.NodeViewModifier.ModifierTypeId
-import scorex.core.block.Block
-import scorex.core.block.Block._
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.block.Block
+import bifrost.block.Block._
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics

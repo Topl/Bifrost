@@ -12,12 +12,12 @@ import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
-import scorex.core.LocalInterface.LocallyGeneratedModifier
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.LocalInterface.LocallyGeneratedModifier
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

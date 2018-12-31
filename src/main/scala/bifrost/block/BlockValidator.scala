@@ -1,4 +1,4 @@
-package scorex.core.block
+package bifrost.block
 
 import scala.util.Try
 

@@ -1,4 +1,4 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import javax.ws.rs.Path
 
@@ -7,14 +7,14 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.NodeViewHolder.{CurrentView, GetCurrentView}
-import scorex.core.consensus.History
-import scorex.core.network.ConnectedPeer
-import scorex.core.network.NodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
-import scorex.core.settings.Settings
-import scorex.core.transaction.{MemoryPool, Transaction}
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.NodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.consensus.History
+import bifrost.network.ConnectedPeer
+import bifrost.network.NodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
+import bifrost.settings.Settings
+import bifrost.transaction.{MemoryPool, Transaction}
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

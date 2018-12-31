@@ -1,4 +1,4 @@
-package scorex.core.crypto.hash
+package bifrost.crypto.hash
 
 import scorex.crypto.hash.{Blake2b256, CryptographicHash32}
 

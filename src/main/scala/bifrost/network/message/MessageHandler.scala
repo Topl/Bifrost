@@ -1,9 +1,9 @@
-package scorex.core.network.message
+package bifrost.network.message
 
 import java.nio.ByteBuffer
 
-import scorex.core.crypto.hash.FastCryptographicHash._
-import scorex.core.network.ConnectedPeer
+import bifrost.crypto.hash.FastCryptographicHash._
+import bifrost.network.ConnectedPeer
 
 import scala.language.existentials
 import scala.util.Try

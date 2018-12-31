@@ -1,15 +1,15 @@
-package scorex.core.network
+package bifrost.network
 
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
-import scorex.core.network.NetworkController.{DataFromPeer, SendToNetwork}
-import scorex.core.network.message.{GetPeersSpec, Message, PeersSpec}
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.peer.PeerManager.RandomPeers
-import scorex.core.utils.ScorexLogging
+import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
+import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
+import bifrost.network.peer.PeerManager
+import bifrost.network.peer.PeerManager.RandomPeers
+import bifrost.utils.ScorexLogging
 import shapeless.syntax.typeable._
 
 import scala.concurrent.ExecutionContext.Implicits.global

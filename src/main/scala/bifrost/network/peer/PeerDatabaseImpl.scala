@@ -1,8 +1,8 @@
-package scorex.core.network.peer
+package bifrost.network.peer
 
 import java.net.InetSocketAddress
 
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 
 import scala.collection.mutable
 

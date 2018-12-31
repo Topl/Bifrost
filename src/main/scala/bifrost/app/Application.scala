@@ -1,17 +1,17 @@
-package scorex.core.app
+package bifrost.app
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import scorex.core.{NodeViewHolder, PersistentNodeViewModifier}
-import scorex.core.api.http.{ApiRoute, CompositeHttpService}
-import scorex.core.network._
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.Transaction
-import scorex.core.utils.ScorexLogging
+import bifrost.{NodeViewHolder, PersistentNodeViewModifier}
+import bifrost.api.http.{ApiRoute, CompositeHttpService}
+import bifrost.network._
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.Transaction
+import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.runtime.universe.Type

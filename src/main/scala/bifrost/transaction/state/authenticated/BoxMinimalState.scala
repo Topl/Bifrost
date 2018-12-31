@@ -1,10 +1,10 @@
-package scorex.core.transaction.state.authenticated
+package bifrost.transaction.state.authenticated
 
-import scorex.core.PersistentNodeViewModifier
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.BoxTransaction
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.state.MinimalState
+import bifrost.PersistentNodeViewModifier
+import bifrost.transaction.box.Box
+import bifrost.transaction.BoxTransaction
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.state.MinimalState
 import scorex.utils._
 
 import scala.util.{Failure, Success, Try}

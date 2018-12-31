@@ -1,6 +1,6 @@
-package scorex.core.transaction.account
+package bifrost.transaction.account
 
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.transaction.box.proposition.Proposition
 
 
 trait BalanceSheet[P <: Proposition] {

@@ -1,6 +1,6 @@
-package scorex.core.consensus
+package bifrost.consensus
 
-import scorex.core.serialization.BytesSerializable
+import bifrost.serialization.BytesSerializable
 
 /**
   * Syncing info provides information about starting points this node recommends another to start

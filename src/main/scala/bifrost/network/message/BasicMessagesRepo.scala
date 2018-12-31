@@ -1,14 +1,14 @@
-package scorex.core.network.message
+package bifrost.network.message
 
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 
 import com.google.common.primitives.{Bytes, Ints}
-import scorex.core.NodeViewModifier
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.consensus.SyncInfo
-import scorex.core.network.message.Message._
+import bifrost.NodeViewModifier
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.consensus.SyncInfo
+import bifrost.network.message.Message._
 
 import scala.util.Try
 
@@ -18,7 +18,7 @@ object BasicMsgDataTypes {
   type ModifiersData = (NodeViewModifier.ModifierTypeId, Map[ModifierId, Array[Byte]])
 }
 
-import scorex.core.network.message.BasicMsgDataTypes._
+import bifrost.network.message.BasicMsgDataTypes._
 
 class SyncInfoMessageSpec[SI <: SyncInfo](deserializer: Array[Byte] => Try[SI]) extends MessageSpec[SI] {
 

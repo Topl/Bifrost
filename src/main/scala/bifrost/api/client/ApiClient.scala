@@ -1,9 +1,9 @@
-package scorex.core.api.client
+package bifrost.api.client
 
 import java.net.{HttpURLConnection, URL}
 
 import io.circe
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 
 import scala.io.{Source, StdIn}
 import scala.util.{Failure, Success, Try}

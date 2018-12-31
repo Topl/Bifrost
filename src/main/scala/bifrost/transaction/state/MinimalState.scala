@@ -1,10 +1,10 @@
-package scorex.core.transaction.state
+package bifrost.transaction.state
 
-import scorex.core.transaction._
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.transaction._
+import bifrost.transaction.box.Box
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.state.MinimalState.VersionTag
+import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 
 import scala.util.Try
 

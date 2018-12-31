@@ -1,4 +1,4 @@
-package scorex.core.serialization
+package bifrost.serialization
 
 trait BytesSerializable extends Serializable {
 

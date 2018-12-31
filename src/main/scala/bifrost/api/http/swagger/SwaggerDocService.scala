@@ -1,11 +1,11 @@
-package scorex.core.api.http.swagger
+package bifrost.api.http.swagger
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.github.swagger.akka.model.{Contact, Info, License}
 import com.github.swagger.akka.{HasActorSystem, SwaggerHttpService}
 import io.swagger.models.Swagger
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 
 import scala.reflect.runtime.universe.Type
 

@@ -1,12 +1,12 @@
-package scorex.core.transaction.wallet
+package bifrost.transaction.wallet
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import scorex.core.serialization.{BytesSerializable, Serializer}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
-import scorex.core.transaction.state.Secret
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.Box
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import bifrost.transaction.state.Secret
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

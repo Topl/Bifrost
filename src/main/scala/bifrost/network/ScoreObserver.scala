@@ -1,7 +1,7 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import scorex.core.utils.ScorexLogging
+import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

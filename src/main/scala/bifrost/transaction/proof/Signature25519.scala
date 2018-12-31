@@ -1,8 +1,8 @@
-package scorex.core.transaction.proof
+package bifrost.transaction.proof
 
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.{Proposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.{Proposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

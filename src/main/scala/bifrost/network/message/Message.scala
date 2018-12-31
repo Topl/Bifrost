@@ -1,9 +1,9 @@
-package scorex.core.network.message
+package bifrost.network.message
 
 import com.google.common.primitives.{Bytes, Ints}
-import scorex.core.crypto.hash.FastCryptographicHash._
-import scorex.core.network.ConnectedPeer
-import scorex.core.serialization.{BytesSerializable, Serializer}
+import bifrost.crypto.hash.FastCryptographicHash._
+import bifrost.network.ConnectedPeer
+import bifrost.serialization.{BytesSerializable, Serializer}
 
 import scala.util.{Success, Try}
 

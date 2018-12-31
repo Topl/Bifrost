@@ -18,13 +18,13 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.proof.{Proof, Signature25519}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.BoxUnlocker
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.proof.{Proof, Signature25519}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BuySellOrder

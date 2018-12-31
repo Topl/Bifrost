@@ -1,6 +1,6 @@
-package scorex.core.network.message
+package bifrost.network.message
 
-import scorex.core.serialization.Serializer
+import bifrost.serialization.Serializer
 
 trait MessageSpec[Content] extends Serializer[Content] {
   val messageCode: Message.MessageCode

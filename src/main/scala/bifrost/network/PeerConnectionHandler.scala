@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import java.net.InetSocketAddress
 
@@ -7,11 +7,11 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.google.common.primitives.Ints
-import scorex.core.network.message.MessageHandler
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.peer.PeerManager.{AddToBlacklist, Handshaked}
-import scorex.core.settings.Settings
-import scorex.core.utils.ScorexLogging
+import bifrost.network.message.MessageHandler
+import bifrost.network.peer.PeerManager
+import bifrost.network.peer.PeerManager.{AddToBlacklist, Handshaked}
+import bifrost.settings.Settings
+import bifrost.utils.ScorexLogging
 
 import scala.util.{Failure, Random, Success}
 import scala.concurrent.ExecutionContext.Implicits.global

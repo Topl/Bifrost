@@ -1,4 +1,4 @@
-package scorex.core.consensus
+package bifrost.consensus
 
 import io.circe.Json
 

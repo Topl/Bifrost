@@ -1,7 +1,7 @@
-package scorex.core.transaction.box
+package bifrost.transaction.box
 
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.proof.Proof
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.proof.Proof
 import scorex.crypto.encode.Base58
 
 trait BoxUnlocker[+P <: Proposition] {

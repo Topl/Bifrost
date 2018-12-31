@@ -10,9 +10,9 @@ import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.{HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
-import scorex.core.transaction.proof.Signature25519
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.TokenExchangeTxData

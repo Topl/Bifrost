@@ -6,10 +6,10 @@ import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSeri
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

@@ -1,11 +1,11 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import scorex.core.api.http.swagger.{CorsSupport, SwaggerDocService}
-import scorex.core.settings.Settings
+import bifrost.api.http.swagger.{CorsSupport, SwaggerDocService}
+import bifrost.settings.Settings
 
 import scala.reflect.runtime.universe.Type
 

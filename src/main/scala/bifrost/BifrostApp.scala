@@ -12,10 +12,10 @@ import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
-import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.network.message.MessageSpec
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
+import bifrost.network.message.MessageSpec
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
 
 import org.graalvm.polyglot.Context
 import java.lang.management.ManagementFactory

@@ -1,12 +1,12 @@
-package scorex.core.transaction.state
+package bifrost.transaction.state
 
 import com.google.common.primitives.Bytes
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import scorex.core.serialization.{BytesSerializable, Serializer}
-import scorex.core.transaction.box._
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.proof.{ProofOfKnowledge, Signature25519}
+import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.transaction.box._
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.proof.{ProofOfKnowledge, Signature25519}
 
 import scala.util.Try
 

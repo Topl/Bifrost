@@ -1,10 +1,10 @@
-package scorex.core.consensus
+package bifrost.consensus
 
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.{NodeViewComponent, NodeViewModifier}
-import scorex.core.PersistentNodeViewModifier
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.{NodeViewComponent, NodeViewModifier}
+import bifrost.PersistentNodeViewModifier
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

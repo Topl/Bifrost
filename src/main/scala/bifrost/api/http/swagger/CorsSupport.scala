@@ -1,4 +1,4 @@
-package scorex.core.api.http.swagger
+package bifrost.api.http.swagger
 
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpMethods._

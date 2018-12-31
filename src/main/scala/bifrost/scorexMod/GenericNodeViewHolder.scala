@@ -2,18 +2,18 @@ package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.history.BifrostHistory
-import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.consensus.History.HistoryComparisonResult
-import scorex.core.consensus.{History, SyncInfo}
+import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.consensus.History.HistoryComparisonResult
+import bifrost.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import scorex.core.network.ConnectedPeer
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.wallet.Vault
-import scorex.core.transaction.{MemoryPool, Transaction}
-import scorex.core.utils.ScorexLogging
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.network.ConnectedPeer
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.wallet.Vault
+import bifrost.transaction.{MemoryPool, Transaction}
+import bifrost.utils.ScorexLogging
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable

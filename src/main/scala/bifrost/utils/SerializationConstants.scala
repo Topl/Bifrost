@@ -1,4 +1,4 @@
-package scorex.core.utils
+package bifrost.utils
 
 object SerializationConstants {
   val IntSize = 4

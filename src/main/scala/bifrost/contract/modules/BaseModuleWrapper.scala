@@ -15,9 +15,9 @@ import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
 import jdk.nashorn.api.scripting.{JSObject, NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
-import scorex.core.serialization.JsonSerializable
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.serialization.JsonSerializable
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable

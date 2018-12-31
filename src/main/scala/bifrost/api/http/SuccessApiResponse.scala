@@ -1,4 +1,4 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import io.circe.Json
 

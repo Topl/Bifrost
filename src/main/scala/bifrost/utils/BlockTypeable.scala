@@ -1,8 +1,8 @@
-package scorex.core.utils
+package bifrost.utils
 
-import scorex.core.block.Block
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.block.Block
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
 import shapeless.Typeable
 
 class BlockTypeable[P <: Proposition, TX <: Transaction[P]]

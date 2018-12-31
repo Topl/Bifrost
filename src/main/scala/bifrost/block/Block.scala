@@ -1,13 +1,13 @@
-package scorex.core.block
+package bifrost.block
 
 import io.circe.Json
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
-import scorex.core.block.Block.{Timestamp, Version}
-import scorex.core.consensus.History
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.block.Block.{Timestamp, Version}
+import bifrost.consensus.History
 import scorex.crypto.encode.Base58
-import scorex.core.serialization.{JsonSerializable, Serializer}
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction._
+import bifrost.serialization.{JsonSerializable, Serializer}
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction._
 
 /**
   * A block is an atomic piece of data network participates are agreed on.

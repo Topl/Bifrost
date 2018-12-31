@@ -1,9 +1,9 @@
-package scorex.core.transaction
+package bifrost.transaction
 
-import scorex.core.NodeViewModifier
-import scorex.core.NodeViewModifier._
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.NodeViewModifier
+import bifrost.NodeViewModifier._
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.box.proposition.Proposition
 
 
 /**

@@ -1,11 +1,11 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 import scorex.crypto.hash.{Blake2b256, CryptographicHash}
 
 import scala.concurrent.duration._

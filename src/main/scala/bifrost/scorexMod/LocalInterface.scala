@@ -1,11 +1,11 @@
-package scorex.core
+package bifrost
 
 import akka.actor.{Actor, ActorRef}
-import scorex.core.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
-import scorex.core.NodeViewHolder._
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.utils.ScorexLogging
+import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
+import bifrost.NodeViewHolder._
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.utils.ScorexLogging
 
 /**
   *

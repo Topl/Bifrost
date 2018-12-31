@@ -1,4 +1,4 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import java.security.SecureRandom
 import javax.ws.rs.Path
@@ -8,9 +8,9 @@ import akka.http.scaladsl.server.Route
 import io.circe._
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.crypto.hash.{FastCryptographicHash}
+import bifrost.crypto.hash.{FastCryptographicHash}
 import scorex.crypto.encode.Base58
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 
 
 @Path("/utils")

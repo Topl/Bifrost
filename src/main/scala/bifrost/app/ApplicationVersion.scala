@@ -1,7 +1,7 @@
-package scorex.core.app
+package bifrost.app
 
 import com.google.common.primitives.Ints
-import scorex.core.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
 

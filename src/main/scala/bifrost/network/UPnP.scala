@@ -1,10 +1,10 @@
-package scorex.core.network
+package bifrost.network
 
 import java.net.InetAddress
 
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover}
-import scorex.core.settings.Settings
-import scorex.core.utils.ScorexLogging
+import bifrost.settings.Settings
+import bifrost.utils.ScorexLogging
 
 import scala.collection.JavaConversions._
 import scala.util.Try

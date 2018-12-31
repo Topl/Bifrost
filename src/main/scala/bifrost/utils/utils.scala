@@ -1,4 +1,4 @@
-package scorex.core
+package bifrost
 
 import java.security.SecureRandom
 

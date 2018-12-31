@@ -1,11 +1,11 @@
-package scorex.core.network.peer
+package bifrost.network.peer
 
 import java.net.InetSocketAddress
 
 import akka.actor.Actor
-import scorex.core.network._
-import scorex.core.settings.Settings
-import scorex.core.utils.ScorexLogging
+import bifrost.network._
+import bifrost.settings.Settings
+import bifrost.utils.ScorexLogging
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

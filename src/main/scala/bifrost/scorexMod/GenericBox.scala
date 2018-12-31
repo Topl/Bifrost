@@ -1,7 +1,7 @@
 package bifrost.scorexMod
 
-import scorex.core.serialization.BytesSerializable
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.serialization.BytesSerializable
+import bifrost.transaction.box.proposition.Proposition
 
 /**
   * Created by cykoz on 4/13/17.

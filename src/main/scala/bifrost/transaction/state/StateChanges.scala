@@ -1,6 +1,6 @@
-package scorex.core.transaction.state
+package bifrost.transaction.state
 
-import scorex.core.transaction.box.Box
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.transaction.box.Box
+import bifrost.transaction.box.proposition.Proposition
 
 case class StateChanges[P <: Proposition, BX <: Box[P]] (boxIdsToRemove: Set[Array[Byte]], toAppend: Set[BX])

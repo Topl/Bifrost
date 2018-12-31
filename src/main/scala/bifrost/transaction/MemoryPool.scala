@@ -1,6 +1,6 @@
-package scorex.core.transaction
+package bifrost.transaction
 
-import scorex.core.NodeViewComponent
+import bifrost.NodeViewComponent
 
 import scala.util.Try
 
@@ -11,7 +11,7 @@ import scala.util.Try
   */
 trait MemoryPool[TX <: Transaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
 
-  import scorex.core.NodeViewModifier.ModifierId
+  import bifrost.NodeViewModifier.ModifierId
 
   //getters
   def getById(id: ModifierId): Option[TX]

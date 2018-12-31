@@ -4,10 +4,10 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.NodeViewModifier._
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.Transaction
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier._
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.Transaction
+import bifrost.utils.ScorexLogging
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 

@@ -1,4 +1,4 @@
-package scorex.core
+package bifrost
 
 trait NodeViewComponent {
   self =>

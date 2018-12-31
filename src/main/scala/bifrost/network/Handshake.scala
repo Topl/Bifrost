@@ -1,10 +1,10 @@
-package scorex.core.network
+package bifrost.network
 
 import java.net.{InetAddress, InetSocketAddress}
 
 import com.google.common.primitives.{Ints, Longs}
-import scorex.core.app.{ApplicationVersion, ApplicationVersionSerializer}
-import scorex.core.serialization.{BytesSerializable, Serializer}
+import bifrost.app.{ApplicationVersion, ApplicationVersionSerializer}
+import bifrost.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
 

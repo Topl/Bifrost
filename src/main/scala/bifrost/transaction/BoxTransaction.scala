@@ -1,8 +1,8 @@
-package scorex.core.transaction
+package bifrost.transaction
 
 import com.google.common.primitives.Longs
-import scorex.core.transaction.box.{Box, BoxUnlocker}
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.transaction.box.{Box, BoxUnlocker}
+import bifrost.transaction.box.proposition.Proposition
 
 
 abstract class BoxTransaction[P <: Proposition, BX <: Box[P]] extends Transaction[P] {

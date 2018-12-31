@@ -1,4 +1,4 @@
-package scorex.core.api.http
+package bifrost.api.http
 
 import java.net.{InetAddress, InetSocketAddress}
 import javax.ws.rs.Path
@@ -10,10 +10,10 @@ import io.circe.generic.auto._
 import io.circe.parser._
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.network.Handshake
-import scorex.core.network.NetworkController.ConnectTo
-import scorex.core.network.peer.{PeerInfo, PeerManager}
-import scorex.core.settings.Settings
+import bifrost.network.Handshake
+import bifrost.network.NetworkController.ConnectTo
+import bifrost.network.peer.{PeerInfo, PeerManager}
+import bifrost.settings.Settings
 
 import scala.concurrent.ExecutionContext.Implicits.global
 

@@ -1,7 +1,7 @@
-package scorex.core.transaction.box.proposition
+package bifrost.transaction.box.proposition
 
-import scorex.core.serialization.BytesSerializable
-import scorex.core.transaction.state.Secret
+import bifrost.serialization.BytesSerializable
+import bifrost.transaction.state.Secret
 
 trait Proposition extends BytesSerializable
 
