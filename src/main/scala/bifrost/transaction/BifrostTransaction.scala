@@ -100,7 +100,7 @@ case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, L
     "id" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> Map(
-        "proposition" -> to.head._1.pubKeyBytes.asJson,
+        "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
         "value" -> to.head._2.asJson
       ).asJson,
     "fee" -> fee.asJson,
