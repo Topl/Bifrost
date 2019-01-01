@@ -138,6 +138,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
   }
 
+  def validateCoinbaseTransfer(cb: CoinbaseTransaction): Try[Unit] = {
+    val validConstruction: Try[Unit] = {
+      assert(cb.fee == 0L)  // no fee for a coinbase tx
+      assert(cb.newBoxes.size == 1)  // one one new box
+      assert(cb.newBoxes.head.isInstanceOf[ArbitBox])  // the new box is an arbit box
+      semanticValidity(cb)
+      // TODO | add inflation value check *** DO NOT MERGE TO MASTER WITHOUT THIS ***
+    }
+    validConstruction
+  }
+
   /**
     *
     * @param poT : the PolyTransfer to validate
@@ -771,6 +782,7 @@ object BifrostState {
       case ar: AssetRedemption => AssetRedemption.validate(ar)
       case ct: ConversionTransaction => ConversionTransaction.validate(ct)
       case tex: TokenExchangeTransaction => TokenExchangeTransaction.validate(tex)
+      case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
     }

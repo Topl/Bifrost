@@ -74,8 +74,8 @@ object BifrostTransaction {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 }
 
-case class CoinbaseTransaction (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                                val signatures: IndexedSeq[Signature25519],
+case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                                signatures: IndexedSeq[Signature25519],
                                 override val timestamp: Long) extends BifrostTransaction {
 
   override type M = CoinbaseTransaction
