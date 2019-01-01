@@ -93,8 +93,14 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   lazy val hashNoNonces = FastCryptographicHash(
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) // message that gets hashed
   )
-  // TODO : don't use time stamp as nonce (insecure crypto) *** DO NOT MERGE TO MASTER W/O FIXING ***
-  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, timestamp, to.head._2))
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  val nonce = nonceFromDigest(FastCryptographicHash(
+    "AssetCreation".getBytes ++ hashNoNonces
+  ))
+
+  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, nonce, to.head._2))
 
   override lazy val json: Json = Map( // tx in json form
     "id" -> Base58.encode(id).asJson,
