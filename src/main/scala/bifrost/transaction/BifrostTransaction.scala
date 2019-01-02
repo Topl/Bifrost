@@ -76,7 +76,8 @@ object BifrostTransaction {
 
 case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                 signatures: IndexedSeq[Signature25519],
-                                override val timestamp: Long) extends BifrostTransaction {
+                                override val timestamp: Long,
+                                blockID: Array[Byte]) extends BifrostTransaction {
 
   override type M = CoinbaseTransaction
 
@@ -91,13 +92,13 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
   lazy val hashNoNonces = FastCryptographicHash(
-    to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) // message that gets hashed
+    to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed
   )
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   val nonce = nonceFromDigest(FastCryptographicHash(
-    "AssetCreation".getBytes ++ hashNoNonces
+    "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
   lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, nonce, to.head._2))
@@ -109,13 +110,15 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
         "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
         "value" -> to.head._2.asJson
       ).asJson,
+    "blockID" -> Base58.encode(blockID).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
   def commonMessageToSign: Array[Byte] = newBoxes.head.bytes ++ // is the new box + the timestamp + the fee,
     Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee)
+    Longs.toByteArray(fee) ++
+    blockID
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
     "CoinbaseTransaction".getBytes(),
@@ -137,14 +140,15 @@ object CoinbaseTransaction {
   }
 
   def createAndApply(w: BWallet,
-                     to: IndexedSeq[(PublicKey25519Proposition, Long)]
+                     to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                     blockID: Array[Byte]  // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
                     ): Try[CoinbaseTransaction] = Try {
     val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
     val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
     val timestamp = Instant.now.toEpochMilli // generate timestamp
-    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
+    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated
-    CoinbaseTransaction(to, signatures, timestamp) // use the sigs you just generated to make the real CB tx
+    CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
   }
 
 
@@ -155,10 +159,10 @@ object CoinbaseTransaction {
 
 
 
-case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                          val signatures: IndexedSeq[Signature25519],
-                          val assetCode: String,
-                          val hub: PublicKey25519Proposition,
+case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                          signatures: IndexedSeq[Signature25519],
+                          assetCode: String,
+                          hub: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long) extends BifrostTransaction {
 

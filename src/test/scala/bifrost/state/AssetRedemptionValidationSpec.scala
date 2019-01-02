@@ -26,7 +26,8 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(ar)
+          Seq(ar),
+          10L
         )
 
         val preExistingAssetBoxes: Set[BifrostBox] = ar

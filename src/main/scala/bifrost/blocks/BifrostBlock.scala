@@ -67,7 +67,6 @@ object BifrostBlock {
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
              inflation: Long): BifrostBlock = {
-
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
     val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation)
     if (parentId sameElements Array.fill(32)(1: Byte)) {

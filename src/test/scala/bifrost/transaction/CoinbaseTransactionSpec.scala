@@ -14,7 +14,6 @@ class CoinbaseTransactionSpec extends PropSpec
 
   property("Generated Coinbase Tx should be valid") {
     forAll(validCoinbaseTransactionGen) {
-      // TODO : implement semanticValidity for CB TXs
       cb: CoinbaseTransaction => BifrostState.semanticValidity(cb).isSuccess shouldBe true
     }
   }

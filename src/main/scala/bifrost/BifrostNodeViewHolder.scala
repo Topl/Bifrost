@@ -44,10 +44,11 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     */
   override def restoreState(): Option[NodeView] = {
     if (BWallet.exists(settings)) {
+      val x = BifrostHistory.readOrGenerate(settings)
       Some(
         (
-          BifrostHistory.readOrGenerate(settings),
-          BifrostState.readOrGenerate(settings),
+          x,
+          BifrostState.readOrGenerate(settings, true, x),
           BWallet.readOrGenerate(settings, 1),
           BifrostMemPool.emptyPool
         )
@@ -126,7 +127,7 @@ object BifrostNodeViewHolder extends ScorexLogging {
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
 
-    val gs = BifrostState.genesisState(settings, Seq(genesisBlock))
+    val gs = BifrostState.genesisState(settings, Seq(genesisBlock), history)
     val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
 
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {

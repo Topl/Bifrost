@@ -757,6 +757,7 @@ object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
       typeBytes,
       Longs.toByteArray(obj.fee),
       Longs.toByteArray(obj.timestamp),
+      obj.blockID,
       Ints.toByteArray(obj.signatures.length),
       Ints.toByteArray(obj.to.size),
       obj.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
@@ -776,6 +777,10 @@ object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
     }.toArray
 
     numReadBytes = 2 * Longs.BYTES
+
+    val blockID = bytesWithoutType.slice(numReadBytes, numReadBytes + 32)
+
+    numReadBytes += 32
 
     val sigLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
@@ -803,7 +808,7 @@ object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
     }
 
 
-    CoinbaseTransaction(to, signatures, timestamp)
+    CoinbaseTransaction(to, signatures, timestamp, blockID)
   }
 }
 
