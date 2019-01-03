@@ -380,15 +380,19 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
     _ <- toSeqGen
     timestamp <- positiveLongGen
+    id <- modifierIdGen
   } yield {
-    val fakeParentBlock = bifrostBlockGen.asInstanceOf[BifrostBlock]
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
     val fakeSigs = IndexedSeq(Signature25519(Array()))
-    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, fakeParentBlock.id).messageToSign
+    val messageToSign = CoinbaseTransaction(
+      to,
+      fakeSigs,
+      timestamp,
+      id).messageToSign
     // sign with own key because coinbase is literally giving yourself money
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
-    CoinbaseTransaction(to, signatures, timestamp, fakeParentBlock.id)
+    CoinbaseTransaction(to, signatures, timestamp, id)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
