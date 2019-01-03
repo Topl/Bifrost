@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.{WalletApiRouteRPC}
+import bifrost.api.http.{WalletApiRoute}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -36,7 +36,7 @@ class WalletRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  val route = WalletApiRouteRPC(settings, nodeViewHolderRef).route
+  val route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
