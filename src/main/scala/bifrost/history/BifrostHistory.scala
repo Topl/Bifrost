@@ -374,7 +374,7 @@ class BifrostHistory(val storage: BifrostStorage,
     *         (None only if the parent for a block was not found) starting from the original `m`
     */
   @tailrec
-  private def chainBack(m: BifrostBlock,
+  final def chainBack(m: BifrostBlock,
                         until: BifrostBlock => Boolean,
                         limit: Int = Int.MaxValue,
                         acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {

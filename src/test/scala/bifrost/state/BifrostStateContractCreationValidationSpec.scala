@@ -104,7 +104,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(contractCreation)
+          Seq(contractCreation),
+          10L
         )
 
         // TODO(balinskia): Which party is the investor
@@ -357,7 +358,9 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cc))
+          Seq(cc),
+          10L
+        )
 
         val necessaryState = BifrostStateSpec
           .genesisState
