@@ -2,7 +2,9 @@ package bifrost
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
-import bifrost.NodeViewHolder._
+// import bifrost.NodeViewHolder._
+import bifrost.scorexMod.GenericNodeViewHolder
+import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.utils.ScorexLogging
@@ -17,12 +19,12 @@ trait LocalInterface[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentN
 
   override def preStart(): Unit = {
     val events = Seq(
-      NodeViewHolder.EventType.StartingPersistentModifierApplication,
+      GenericNodeViewHolder.EventType.StartingPersistentModifierApplication,
 
-      NodeViewHolder.EventType.FailedTransaction,
-      NodeViewHolder.EventType.FailedPersistentModifier,
-      NodeViewHolder.EventType.SuccessfulTransaction,
-      NodeViewHolder.EventType.SuccessfulPersistentModifier
+      GenericNodeViewHolder.EventType.FailedTransaction,
+      GenericNodeViewHolder.EventType.FailedPersistentModifier,
+      GenericNodeViewHolder.EventType.SuccessfulTransaction,
+      GenericNodeViewHolder.EventType.SuccessfulPersistentModifier
     )
     viewHolderRef ! Subscribe(events)
   }

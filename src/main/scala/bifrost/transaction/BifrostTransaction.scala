@@ -1041,6 +1041,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
 }
 
+//noinspection ScalaStyle
 object ArbitTransfer extends TransferUtil {
 
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],

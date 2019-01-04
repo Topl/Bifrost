@@ -7,10 +7,10 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import io.circe.syntax._
 import io.swagger.annotations._
-import bifrost.NodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.consensus.History
 import bifrost.network.ConnectedPeer
-import bifrost.network.NodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
+import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.settings.Settings
 import bifrost.transaction.{MemoryPool, Transaction}
 import bifrost.transaction.box.proposition.Proposition

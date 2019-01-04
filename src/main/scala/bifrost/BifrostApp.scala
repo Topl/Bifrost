@@ -1,5 +1,15 @@
 package bifrost
 
+/*
+
+* @startuml
+
+* car --|> wheel
+
+* @enduml
+
+*/
+
 import akka.actor.{Actor, ActorRef, AllDeadLetters, DeadLetter, Props}
 import akka.event.Logging
 import bifrost.api.http._
