@@ -879,7 +879,7 @@ trait TransferUtil {
             if (publicKeysToSendFrom.isEmpty) w.boxes() else publicKeysToSendFrom.flatMap(p => w.boxesByKey(p))
 
           // Match only the type of boxes specified by txType
-          val typeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
             case "PolyTransfer" =>
               keyFilteredBoxes.flatMap(_.box match {
                 case p: PolyBox => Some(p)
@@ -901,7 +901,8 @@ trait TransferUtil {
               })
             }
 
-          val from: IndexedSeq[(PrivateKey25519, Long, Long)] = typeFilteredBoxes
+          // Check if the keys currently unlocked in wallet match the proposition of any of the found boxes
+          val senderInputBoxes: IndexedSeq[(PrivateKey25519, Long, Long)] = keyAndTypeFilteredBoxes
             .flatMap {
               b: BifrostPublic25519NoncedBox =>
                 w.secretByPublicImage(b.proposition)
@@ -909,9 +910,11 @@ trait TransferUtil {
             }
             .toIndexedSeq
 
-          val canSend = from.map(_._3).sum
+          // amount available to send in tx
+          val canSend = senderInputBoxes.map(_._3).sum
 
-          val updatedBalance: (PublicKey25519Proposition, Long) = typeFilteredBoxes.head match {
+          // Updated sender balance for specified box type (this is the change calculation for sender)
+          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = keyAndTypeFilteredBoxes.head match {
             case b: BifrostPublic25519NoncedBox =>
               publicKeyToSendChangeTo match {
                 case "" => (b.proposition, canSend - amount - fee)
@@ -920,10 +923,11 @@ trait TransferUtil {
             case _ => null
           }
 
-          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
+          // create the list of outputs (senderChangeOut & recipientOut)
+          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
 
-          require(from.map(_._3).sum - to.map(_._2).sum == fee)
-          (a._1 ++ from, a._2 ++ to)
+          require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
+          (a._1 ++ senderInputBoxes, a._2 ++ to)
       }
   }
 
