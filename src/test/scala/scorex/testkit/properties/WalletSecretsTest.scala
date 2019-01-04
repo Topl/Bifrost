@@ -5,14 +5,14 @@ import org.scalatest.{Matchers, PropSpec}
 import bifrost.PersistentNodeViewModifier
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.wallet.Wallet
+import bifrost.scorexMod.Wallet
 
 trait WalletSecretsTest[P <: Proposition,
 TX <: Transaction[P],
 PM <: PersistentNodeViewModifier[P, TX]]
   extends PropSpec with GeneratorDrivenPropertyChecks with Matchers with PropertyChecks {
 
-  val wallet: Wallet[P, TX, PM, _]
+  val wallet: Wallet[_, P, TX, PM, _]
 
   property("Wallet should contain secrets for all it's public propositions") {
     val publicImages = wallet.publicKeys
