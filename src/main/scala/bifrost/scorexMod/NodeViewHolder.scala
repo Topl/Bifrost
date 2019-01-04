@@ -1,6 +1,6 @@
 package bifrost
 
-import akka.actor.{Actor, ActorRef}
+ import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.History.HistoryComparisonResult

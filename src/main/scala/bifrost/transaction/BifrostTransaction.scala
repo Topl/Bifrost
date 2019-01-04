@@ -1009,6 +1009,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   override type M = AssetTransfer
 
   override lazy val serializer = AssetTransferCompanion
+
   override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
     case ((prop, value), idx) =>
       val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
@@ -1021,6 +1022,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       ))
       AssetBox(prop, nonce, value, assetCode, issuer, data)
   }
+
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
@@ -1044,6 +1046,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "timestamp" -> timestamp.asJson,
     "data" -> data.asJson
   ).asJson
+
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,

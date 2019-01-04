@@ -49,6 +49,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                   reqId = id
                   require((json \\ "jsonrpc").head.asString.get == "2.0")
                   val params = (json \\ "params").head.asArray.get
+                  //todo: why is there an enforcement on the size of params?
                   require(params.size <= 5, s"size of params is ${params.size}")
 
                   (json \\ "method").head.asString.get match {
