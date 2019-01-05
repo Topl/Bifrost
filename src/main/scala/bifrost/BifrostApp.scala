@@ -18,7 +18,6 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
-import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
@@ -62,7 +61,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     AssetApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
-    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
+    NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
@@ -72,7 +71,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
                                          typeOf[WalletApiRoute],
-                                         typeOf[GenericNodeViewApiRoute[P, TX]],
+                                         typeOf[NodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
