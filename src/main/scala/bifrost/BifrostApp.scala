@@ -54,6 +54,20 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
+  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
+
+  override val localInterface: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+  )
+
+  override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostNodeViewSynchronizer],
+      networkController,
+      nodeViewHolderRef,
+      localInterface,
+      BifrostSyncInfoMessageSpec)
+  )
+
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRouteHttp(settings, nodeViewHolderRef),
@@ -74,19 +88,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[NodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
-  override val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
-  )
-
-  override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
-  )
 
   // Am I running on a JDK that supports JVMCI?
          val vm_version = System.getProperty("java.vm.version")

@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
-import bifrost.BifrostNodeViewHolder
+import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory

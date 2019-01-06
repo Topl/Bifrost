@@ -688,6 +688,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(ct))
   }*/
 
+  //noinspection ScalaStyle
   def validateTokenExchangeTransaction(tex: TokenExchangeTransaction): Try[Unit] = {
     val tokenHub = tex.buyOrder.token1.tokenHub.get.toByteArray
     val tokenCode = tex.buyOrder.token1.tokenCode
