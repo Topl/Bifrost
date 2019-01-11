@@ -22,10 +22,11 @@ import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.transaction.CoinbaseTransaction
+
+import scala.util.Try
 
 trait ForgerSettings extends Settings {
 }
@@ -54,10 +55,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                         state: BifrostState,
                         parent: BifrostBlock,
                         view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
-                      ): Seq[BifrostTransaction] = {
+                      ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
-    val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+    val infVal = (infQ ? view._1.height).value.get.get.asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
     print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
@@ -106,7 +107,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
         val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
 
-        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)), adjustedTarget) match {
+        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget) match {
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
