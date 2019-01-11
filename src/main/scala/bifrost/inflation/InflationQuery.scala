@@ -1,10 +1,12 @@
 package bifrost.inflation
 
 import akka.actor.Actor
-import akka.event.Logging
-import scalapb.descriptors.ScalaType.Message
 
-case object InflationQuery
+import scala.concurrent.duration._
+import akka.event.Logging
+import org.apache.commons.lang3.exception.ExceptionContext
+
+import scala.concurrent.ExecutionContext
 
 class InflationQuery extends Actor {
 
@@ -12,6 +14,8 @@ class InflationQuery extends Actor {
   var infVal = 1L
   var infUpdateVal = 1L
   var infUpdateBlock = 1L
+  implicit val ec = ExecutionContext.global // gives the actor a context so we can use the scheduler
+  self ! constantQuery() // starts the scheduled updater
 
   @throws(classOf[java.io.IOException])
   private def get(url: String)= scala.io.Source.fromURL(url).mkString
@@ -33,7 +37,14 @@ class InflationQuery extends Actor {
     }
   }
 
+  private def constantQuery() = {
+    getUpdatedVals()
+    context.system.scheduler.scheduleOnce(60 seconds, self, "constantQuery") // calls self after 1 minute delay
+  }
+
   override def receive: Receive = {
+    case "constantQuery" => // prompts actor to endlessly update
+      constantQuery()
     case "getUpdatedVals" => // prompting val update
       getUpdatedVals()
     case x: Long =>
@@ -46,7 +57,6 @@ class InflationQuery extends Actor {
         print("returning infVal : " + infVal + "\n")
         sender() ! infVal
       }
-      getUpdatedVals()
   }
 
 }

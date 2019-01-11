@@ -20,14 +20,12 @@ import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
-import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.transaction.CoinbaseTransaction
-import scalapb.descriptors.ScalaType.Message
 
 trait ForgerSettings extends Settings {
 }
@@ -54,7 +52,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   def pickTransactions(memPool: BifrostMemPool, state: BifrostState, parent: BifrostBlock): Seq[BifrostTransaction] = {
     implicit val timeout: Timeout = 10 seconds
     val view = (viewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
-    infQ ? "getUpdatedVals"
     val res = Await.result(view, Duration.Inf)
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(res.vault.secrets.head.publicImage.pubKeyBytes)
     val infVal = Await.result(infQ ? res.history.height, Duration.Inf).asInstanceOf[Long]
