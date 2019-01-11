@@ -22,6 +22,7 @@ import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.transaction.CoinbaseTransaction
@@ -58,11 +59,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                       ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
-    val infVal = (infQ ? view._1.height).value.get.get.asInstanceOf[Long]
+    val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
     print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
-    CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
       if (txValid.isFailure) {
@@ -72,6 +73,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
       }
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
+    CB +: regTxs
   }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
