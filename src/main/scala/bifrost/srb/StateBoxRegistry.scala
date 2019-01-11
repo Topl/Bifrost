@@ -1,24 +1,33 @@
 package bifrost.srb
 
+import java.io.File
 import java.util.UUID
 
-import bifrost.history.SRBStorage
+import bifrost.forging.ForgingSettings
+import bifrost.transaction.BifrostTransaction
 import com.google.common.primitives.Longs
-import io.iohk.iodb.ByteArrayWrapper
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier.ModifierId
+import scorex.core.utils.ScorexLogging
 
 import scala.util.Try
 
-case class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: SRBStorage)  {
+class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: SBRStorage) extends ScorexLogging {
 
-  private val UUID2BoxID = initialMap
+  private var UUID2BoxID = initialMap
+
+  def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
+    tx match { // TODO | update to match with any TX types that can effect state boxes (currently none)
+      case _ => log.info("non-StateBox tx given to SBR")
+    }
+  }
 
   def update(k: UUID, v: Array[Byte]) : Unit = {
     val k_baw = StateBoxRegistry.uuid2baw(k)
     val v_baw = ByteArrayWrapper(v)
     val version = StateBoxRegistry.uuid2baw(UUID.randomUUID())
     storage.update(version, Seq((k_baw, v_baw)))
-    UUID2BoxID(k) = v
+    UUID2BoxID += (k_baw -> v_baw)
   }
 
   def get(k: UUID) : Try[(UUID, Array[Byte])] = {
@@ -32,12 +41,12 @@ case class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper]
 
 }
 
-object StateBoxRegistry {
+object StateBoxRegistry extends ScorexLogging {
 
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32
 
-  def apply(s: SRBStorage) : Try[StateBoxRegistry] = Try {
+  def apply(s: SBRStorage) : Try[StateBoxRegistry] = Try {
     new StateBoxRegistry(Map[ByteArrayWrapper, ByteArrayWrapper](), s)
   }
 
@@ -55,5 +64,28 @@ object StateBoxRegistry {
   def uuid2baw(v: UUID) : ByteArrayWrapper = ByteArrayWrapper(ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data
     ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data)
 
+  def readOrGenerate(settings: ForgingSettings): StateBoxRegistry = {
+    val dataDirOpt = settings.sbrDirOpt.ensuring(_.isDefined, "sbr dir must be specified")
+    val dataDir = dataDirOpt.get
+    val logDirOpt = settings.logDirOpt
+    readOrGenerate(dataDir, logDirOpt, settings)
+  }
+
+  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): StateBoxRegistry = {
+    val iFile = new File(s"$dataDir/map")
+    iFile.mkdirs()
+    val sbrStorage = new LSMStore(iFile)
+
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        log.info("Closing sbr storage...")
+        sbrStorage.close()
+      }
+    })
+
+    val storage = new SBRStorage(sbrStorage)
+
+    StateBoxRegistry(storage).get
+  }
 
 }

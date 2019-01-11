@@ -16,9 +16,10 @@ import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
 import scorex.core.network.message.MessageSpec
 import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
 import scorex.core.transaction.state.PrivateKey25519
-
 import org.graalvm.polyglot.Context
 import java.lang.management.ManagementFactory
+
+import bifrost.srb.StateBoxRegistry
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.sun.management.VMOption
 

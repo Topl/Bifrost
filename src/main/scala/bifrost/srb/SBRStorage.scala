@@ -1,12 +1,11 @@
-package bifrost.history
-
-import java.util.UUID
+package bifrost.srb
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.utils.ScorexLogging
+
 import scala.util.Try
 
-class SRBStorage(val storage: LSMStore) extends ScorexLogging {
+class SBRStorage(val storage: LSMStore) extends ScorexLogging {
 
   def rollback(versionID: ByteArrayWrapper): Try[Unit] = Try { storage.rollback(versionID) }
 

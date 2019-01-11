@@ -16,6 +16,7 @@
   "keyFileDir": "keyfiles/node1",
   "walletDir": "/tmp/scorex/test-data/wallet",
   "dataDir": "/tmp/scorex/test-data/blockchain",
+  "sbrDir": "/tmp/scorex/test-sbr/sbr",
   "logDir": "/tmp/scorex/test-data/log",
   "rpcPort": 9085,
   "rpcAllowed": [],
