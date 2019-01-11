@@ -3,7 +3,7 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
-import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.exceptions.TransactionValidationException
@@ -13,12 +13,10 @@ import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.proof.MultiSignature25519
-import bifrost.validation.DifficultyBlockValidator
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.MinimalState.VersionTag
 import scorex.core.transaction.state.PrivateKey25519
@@ -42,7 +40,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param version   : blockId used to identify each block. Also used for rollback
   * @param timestamp : timestamp of the block that results in this state
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -698,9 +696,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       assert(cb.fee == 0L) // no fee for a coinbase tx
       assert(cb.newBoxes.size == 1) // one one new box
       assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
+      // This will be implemented at a consensus level
       Try {
-        assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value
-          == history.modifierById(history.chainBack(history.bestBlock, helper).get.last._2).get.inflation) // inflation amount is correct
+        // assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value == history.modifierById(history.chainBack(history.bestBlock, helper).get.reverse(1)._2).get.inflation)
       }
     }
     validConstruction
