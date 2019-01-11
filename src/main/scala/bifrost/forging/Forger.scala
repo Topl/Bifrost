@@ -49,14 +49,17 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(memPool: BifrostMemPool, state: BifrostState, parent: BifrostBlock): Seq[BifrostTransaction] = {
+  def pickTransactions(
+                        memPool: BifrostMemPool,
+                        state: BifrostState,
+                        parent: BifrostBlock,
+                        view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
+                      ): Seq[BifrostTransaction] = {
     implicit val timeout: Timeout = 10 seconds
-    val view = (viewHolderRef ? GetCurrentView).mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]]
-    val res = Await.result(view, Duration.Inf)
-    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(res.vault.secrets.head.publicImage.pubKeyBytes)
-    val infVal = Await.result(infQ ? res.history.height, Duration.Inf).asInstanceOf[Long]
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
+    val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
-    lazy val CB = CoinbaseTransaction.createAndApply(res.vault, IndexedSeq((to, infVal)), parent.id).get
+    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
     print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
     CB +: memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
@@ -103,7 +106,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
         val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
 
-        iteration(parent, boxKeys, pickTransactions(m, s, parent), adjustedTarget) match {
+        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)), adjustedTarget) match {
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
