@@ -8,6 +8,7 @@ import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
 import bifrost.transaction._
@@ -652,7 +653,8 @@ trait BifrostGenerators extends CoreGenerators {
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new BifrostHistory(storage, settings, validators)
+    val sbr = StateBoxRegistry.readOrGenerate(settings)
+    var history = new BifrostHistory(storage, settings, validators, sbr)
 
     val keyPair = sampleUntilNonEmpty(key25519Gen)
     val genesisBlock = BifrostBlock.create(

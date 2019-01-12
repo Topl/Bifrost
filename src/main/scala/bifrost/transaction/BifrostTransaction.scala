@@ -76,13 +76,13 @@ object BifrostTransaction {
 }
 
 
-case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                          val signatures: IndexedSeq[Signature25519],
-                          val assetCode: String,
-                          val issuer: PublicKey25519Proposition,
+case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                          signatures: IndexedSeq[Signature25519],
+                          assetCode: String,
+                          issuer: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long,
-                          val data: String) extends BifrostTransaction {
+                          data: String) extends BifrostTransaction {
 
 
   override type M = AssetCreation

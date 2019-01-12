@@ -4,7 +4,7 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.forging.ForgingSettings
-import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.{BifrostTransaction, ContractCreation}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.core.NodeViewModifier.ModifierId
@@ -17,9 +17,7 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
   private var UUID2BoxID = initialMap
 
   def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
-    tx match { // TODO | update to match with any TX types that can effect state boxes (currently none)
-      case _ => log.info("non-StateBox tx given to SBR")
-    }
+
   }
 
   def update(k: UUID, v: Array[Byte]) : Unit = {
