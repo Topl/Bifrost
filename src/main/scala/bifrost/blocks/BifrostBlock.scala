@@ -24,7 +24,8 @@ case class BifrostBlock(override val parentId: BlockId,
                         override val timestamp: Block.Timestamp,
                         forgerBox: ArbitBox,
                         signature: Signature25519,
-                        txs: Seq[BifrostTransaction])
+                        txs: Seq[BifrostTransaction],
+                        inflation: Long)
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
   override type M = BifrostBlock
@@ -45,7 +46,8 @@ case class BifrostBlock(override val parentId: BlockId,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
-    "txs" -> txs.map(_.json).asJson
+    "txs" -> txs.map(_.json).asJson,
+    "inflation" -> inflation.asJson
   ).asJson
 }
 
@@ -63,10 +65,10 @@ object BifrostBlock {
              txs: Seq[BifrostTransaction],
              box: ArbitBox,
              //attachment: Array[Byte],
-             privateKey: PrivateKey25519): BifrostBlock = {
-
+             privateKey: PrivateKey25519,
+             inflation: Long): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
-    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs)
+    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation)
     if (parentId sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
@@ -101,6 +103,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       Longs.toByteArray(generatorBoxBytes.length),
       Array(block.version),
       generatorBoxBytes,
+      Longs.toByteArray(block.inflation),
       block.signature.signature,
       numTx // writes number of transactions, then adds <tx as bytes>| <number of bytes for tx as bytes> for each tx
     )
@@ -127,6 +130,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
 
     val parentId = bytes.slice(0, Block.BlockIdLength)
+
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.BlockIdLength + i*Longs.BYTES, Block.BlockIdLength + (i + 1)*Longs.BYTES))
     }.toArray
@@ -136,9 +140,13 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     var numBytesRead = Block.BlockIdLength + Longs.BYTES*2 + 1
 
     val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
-    val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Signature25519.SignatureSize))
 
-    numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize
+    val inflation = bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Longs.BYTES)
+
+    val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt + Longs.BYTES,
+      numBytesRead + generatorBoxLen.toInt + Longs.BYTES + Signature25519.SignatureSize))
+
+    numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize + Longs.BYTES
 
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES
@@ -167,6 +175,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
-    BifrostBlock(parentId, timestamp, generatorBox, signature, tx)
+    BifrostBlock(parentId, timestamp, generatorBox, signature, tx, Longs.fromByteArray(inflation))
   }
 }

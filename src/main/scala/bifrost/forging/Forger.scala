@@ -2,7 +2,8 @@ package bifrost.forging
 
 import java.time.Instant
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor._
+import akka.pattern.ask
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -11,16 +12,22 @@ import bifrost.state.BifrostState
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
+import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
 import scorex.core.LocalInterface.LocallyGeneratedModifier
 import scorex.core.crypto.hash.FastCryptographicHash
 import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
+import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.core.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
 import scala.concurrent.duration._
+import akka.util.Timeout
+import bifrost.transaction.CoinbaseTransaction
+
+import scala.util.Try
 
 trait ForgerSettings extends Settings {
 }
@@ -32,6 +39,9 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   //should be a part of consensus, but for our app is okay
   val TransactionsInBlock = 100
 
+  // inflation query actor
+  private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
+
   //set to true for initial generator
   private var forging = forgerSettings.offlineGeneration
 
@@ -41,8 +51,19 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(memPool: BifrostMemPool, state: BifrostState): Seq[BifrostTransaction] =
-    memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+  def pickTransactions(
+                        memPool: BifrostMemPool,
+                        state: BifrostState,
+                        parent: BifrostBlock,
+                        view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
+                      ): Try[Seq[BifrostTransaction]] = Try {
+    implicit val timeout: Timeout = 10 seconds
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
+    val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+    print("infVal being used in forger: " + infVal + "\n")
+    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
+    print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
+    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
       if (txValid.isFailure) {
@@ -50,9 +71,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
         txValid.failed.get.printStackTrace()
         memPool.remove(tx)
       }
-      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx
-      else txSoFar
+      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
+    CB +: regTxs
+  }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
     if (value < min) min else if (value > max) max else value
@@ -87,7 +109,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
         val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
 
-        iteration(parent, boxKeys, pickTransactions(m, s), adjustedTarget) match {
+        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget) match {
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
@@ -130,7 +152,8 @@ object Forger extends ScorexLogging {
 
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
-      BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2)
+      BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
+        txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value)  // inflation val
     }
   }
 

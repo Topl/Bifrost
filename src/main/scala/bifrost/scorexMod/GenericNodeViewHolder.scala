@@ -1,12 +1,12 @@
 package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.history.BifrostHistory
 import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
 import scorex.core.consensus.History.HistoryComparisonResult
 import scorex.core.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
+import bifrost.transaction.CoinbaseTransaction
 import scorex.core.network.ConnectedPeer
 import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.Proposition
@@ -112,8 +112,10 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
               val appliedTxs = appliedMods.flatMap(_.transactions).flatten
               var newMemPool = memoryPool()
               log.debug(s"${Console.GREEN}before newMemPool Size: ${newMemPool.size}${Console.RESET}")
-              newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
-                !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
+
+              newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter {
+                    // we assume CB validation is handled by consensus
+                tx => !appliedTxs.exists(t => t.id sameElements tx.id) && (if (!tx.isInstanceOf[CoinbaseTransaction]) { newMinState.validate(tx).isSuccess } else true)
               }
               val validUnconfirmed = newMemPool.take(100)
               log.debug(s"${Console.GREEN}Re-Broadcast unconfirmed TXs: ${validUnconfirmed.map(tx => Base58.encode(tx.id)).toList}${Console.RESET}")

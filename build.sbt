@@ -20,7 +20,7 @@ test in assembly := {}
 val circeVersion = "0.7+"
 
 val networkDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.4.17",
+  "com.typesafe.akka" %% "akka-actor" % "2.5.19",
   "org.bitlet" % "weupnp" % "0.1.+",
   "commons-net" % "commons-net" % "3.+"
 )
@@ -65,6 +65,9 @@ libraryDependencies ++= Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
+
+libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
+
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"

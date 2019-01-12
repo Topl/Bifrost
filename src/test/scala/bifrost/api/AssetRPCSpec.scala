@@ -129,7 +129,8 @@ class AssetRPCSpec extends WordSpec
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(txInstance)
+          Seq(txInstance),
+          10L
         )
         gw.scanPersistent(tempBlock)
 
