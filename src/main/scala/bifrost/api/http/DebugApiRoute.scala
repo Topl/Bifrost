@@ -99,6 +99,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     }
   }
 
+  // List size limited to Int.MaxValue (=2147483647) set in chainBack which is defined in BifrostHistory.
   @Path("/chain")
   @ApiOperation(value = "Chain", notes = "Print full chain", httpMethod = "GET")
   @ApiResponses(Array(

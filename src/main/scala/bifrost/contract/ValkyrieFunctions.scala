@@ -102,7 +102,7 @@ object ValkyrieFunctions {
   def walletHttpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "/walletrpc/",
+      uri = "/wallet/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     )
   }
