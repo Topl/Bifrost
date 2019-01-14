@@ -1,7 +1,6 @@
 package bifrost.transaction
 
-import bifrost.contract._
-import bifrost.contract.modules.BaseModuleWrapper
+import bifrost.contract.{BaseModuleWrapper, _}
 import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ContractBoxSerializer, ReputationBox}

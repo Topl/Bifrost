@@ -4,6 +4,7 @@ package bifrost.contract.modules
 import java.net.URLDecoder
 import java.nio.file.{Path, Paths}
 
+import bifrost.contract.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._

@@ -2,7 +2,6 @@ package bifrost.contract
 
 import java.time.Instant
 
-import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.exceptions.{InvalidProvidedContractArgumentsException, JsonParsingException}
 import io.circe._
 import io.circe.parser._

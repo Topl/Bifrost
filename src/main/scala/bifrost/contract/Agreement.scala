@@ -1,6 +1,5 @@
 package bifrost.contract
 
-import bifrost.contract.modules.BaseModuleWrapper
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 

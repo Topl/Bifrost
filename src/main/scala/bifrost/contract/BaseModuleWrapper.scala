@@ -1,29 +1,25 @@
-package bifrost.contract.modules
+package bifrost.contract
 
 import java.io.{InputStream, InputStreamReader}
 import java.nio.file.{Files, Path}
 
-import javax.script.{Bindings, ScriptContext}
 import akka.actor.ActorSystem
-
-import collection.JavaConverters._
 import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import bifrost.contract.{Contract, ValkyrieFunctions}
 import io.circe._
-import io.circe.syntax._
 import io.circe.parser._
-import jdk.nashorn.api.scripting.{JSObject, NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
+import io.circe.syntax._
+import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
 import scorex.core.serialization.JsonSerializable
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.core.transaction.proof.Signature25519
 import scorex.crypto.encode.{Base58, Base64}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 /**
   * Created by Matt Kindy on 7/27/2017.

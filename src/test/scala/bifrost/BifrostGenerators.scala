@@ -4,8 +4,7 @@ import java.io.File
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.modules.BaseModuleWrapper
-import bifrost.contract.{Contract, _}
+import bifrost.contract.{BaseModuleWrapper, Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}

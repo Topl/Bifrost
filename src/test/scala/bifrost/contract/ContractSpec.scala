@@ -2,7 +2,6 @@ package bifrost.contract
 
 import java.time.Instant
 
-import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen

@@ -7,8 +7,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.Agreement
-import bifrost.contract.modules.BaseModuleWrapper
+import bifrost.contract.{Agreement, BaseModuleWrapper}
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
@@ -25,7 +24,6 @@ import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
-
 import scalapb.json4s.JsonFormat
 import scorex.core.network.message._
 import scorex.core.network.peer.PeerManager
