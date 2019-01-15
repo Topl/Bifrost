@@ -7,12 +7,11 @@
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
-      "188.166.106.33:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "production-alpha",
+  "walletSeed": "genesisoo",
   "keyFileDir": "keyfiles/production-alpha",
   "walletDir": "/tmp/bifrost/production-alpha/wallet",
   "dataDir": "/tmp/bifrost/production-alpha/data",
@@ -21,7 +20,7 @@
   "rpcAllowed": [],
   "maxRollback": 100,
   "targetBlockTime": 15000,
-  "offlineGeneration": false,
+  "offlineGeneration": true,
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,
