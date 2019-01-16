@@ -24,7 +24,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   override val route: Route = pathPrefix("debug") {
-    infoRoute ~ chain ~ delay ~ myblocks ~ generators
+    infoRoute ~ chain ~ delay ~ myblocks ~ generators ~ chainFromRange
   }
 
   @Path("/delay/{id}/{blockNum}")
@@ -55,6 +55,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
   def infoRoute: Route = path("info") {
     getJsonRoute {
       viewAsync().map { view =>
+        println(s">>>>>>>>>>>>>>>>>> SUCCESS")
         SuccessApiResponse( Map(
           "height" -> view.history.height.toString.asJson,
           "score" -> view.history.score.asJson,
@@ -132,9 +133,9 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
           viewAsync().map {
             view =>
               val startingBlock = view.history.modifierById(id).get
-              val blocks = view.history.chainBack(startingBlock, view.history.isGenesis ,count)
+              val blocks = view.history.chainBack(startingBlock, view.history.isGenesis, count)
               SuccessApiResponse(Map(
-                "history" -> blocks.get.map(b => b._2).asJson
+                "history" -> blocks.get.map(_._2).map(Base58.encode).mkString(",").asJson
               ).asJson)
           }
         }
