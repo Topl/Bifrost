@@ -489,7 +489,8 @@ class ContractRPCSpec extends WordSpec
                                      System.currentTimeMillis(),
                                      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
                                      Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-                                     Seq(txInstance)
+                                     Seq(txInstance),
+                                     10L
         )
         history.append(tempBlock)
       }
