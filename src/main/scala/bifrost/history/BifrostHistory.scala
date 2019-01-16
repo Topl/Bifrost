@@ -276,7 +276,7 @@ class BifrostHistory(val storage: BifrostStorage,
 
   }
 
-  private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
+  def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
 
   def blockForger(m: BifrostBlock): PublicKey25519Proposition = m.forgerBox.proposition
 

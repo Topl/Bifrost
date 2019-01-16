@@ -3,6 +3,7 @@ package bifrost.api.http
 import javax.ws.rs.Path
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostSyncInfo
 import bifrost.scorexMod.GenericNodeViewHolder
 import io.circe.syntax._
@@ -14,6 +15,7 @@ import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Success
 
 
 @Path("/debug")
@@ -111,6 +113,32 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
         SuccessApiResponse(Map(
           "history" -> view.history.toString
         ).asJson)
+      }
+    }
+  }
+
+  @Path("/chainFromRange/{id}/{maxValue}")
+  @ApiOperation(value = "ChainFromRange", notes = "Print chain by length specified", httpMethod = "GET")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(name = "id", value = "block id ", required = true, dataType = "string", paramType = "path"),
+    new ApiImplicitParam(name = "maxValue", value = "number of blocks to reach back ", required = true, dataType = "string", paramType = "path")
+  ))
+  @ApiResponses(Array(
+    new ApiResponse(code = 200, message = "Json chain with range specified")
+  ))
+  def chainFromRange: Route = path("chainFromRange" / Segment / IntNumber) { case (encodedId, count) =>
+    getJsonRoute {
+      Base58.decode(encodedId) match {
+        case Success(id) => {
+          viewAsync().map {
+            view =>
+              val startingBlock = view.history.modifierById(id).get
+              val blocks = view.history.chainBack(startingBlock, view.history.isGenesis ,count)
+              SuccessApiResponse(Map(
+                "history" -> blocks.get.map(b => b._2).asJson
+              ).asJson)
+          }
+        }
       }
     }
   }
