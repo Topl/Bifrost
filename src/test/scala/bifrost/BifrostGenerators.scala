@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.{BaseModuleWrapper, Contract, _}
+import bifrost.contract.{ProgramPreprocessor, Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
@@ -312,7 +312,7 @@ trait BifrostGenerators extends CoreGenerators {
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
     initjs <- validInitJsGen(name, assetCode, effectiveTimestamp, expirationTimestamp)
   } yield {
-    Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+    Agreement(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))

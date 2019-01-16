@@ -40,7 +40,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
     case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
   }
 
-  jsre.eval("js", BaseModuleWrapper.objectAssignPolyfill)
+  jsre.eval("js", ProgramPreprocessor.objectAssignPolyfill)
 
   //noinspection ScalaStyle
   def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {

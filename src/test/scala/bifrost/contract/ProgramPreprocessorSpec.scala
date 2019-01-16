@@ -1,10 +1,8 @@
-package bifrost.contract.modules
-
+package bifrost.contract
 
 import java.net.URLDecoder
 import java.nio.file.{Path, Paths}
 
-import bifrost.contract.BaseModuleWrapper
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
@@ -12,7 +10,7 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
 
-class BaseModuleWrapperSpec extends PropSpec
+class ProgramPreprocessorSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -37,8 +35,8 @@ class BaseModuleWrapperSpec extends PropSpec
   )
 
   property("Json encoding and decoding should work") {
-    val wrapper = BaseModuleWrapper(osAppropriatePath)(args)
-    wrapper.json.as[BaseModuleWrapper].right.get shouldEqual wrapper
+    val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
+    wrapper.json.as[ProgramPreprocessor].right.get shouldEqual wrapper
   }
 
 }

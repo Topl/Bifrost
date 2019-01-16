@@ -58,7 +58,7 @@ class ContractSpec extends PropSpec
     Agreement(
       AgreementTerms("testing"),
       "myAssetCode",
-      BaseModuleWrapper(
+      ProgramPreprocessor(
         "test",
         validInitJsGen(
           "test",

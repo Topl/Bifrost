@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.{Agreement, BaseModuleWrapper}
+import bifrost.contract.{Agreement, ProgramPreprocessor}
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool

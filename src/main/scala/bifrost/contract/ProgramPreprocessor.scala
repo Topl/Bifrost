@@ -24,11 +24,11 @@ import scala.concurrent.{Await, Future}
 /**
   * Created by Matt Kindy on 7/27/2017.
   */
-case class BaseModuleWrapper(name: String,
-                             initjs: String,
-                             registry: Map[String, mutable.LinkedHashSet[String]],
-                             state: Json,
-                             signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
+case class ProgramPreprocessor(name: String,
+                               initjs: String,
+                               registry: Map[String, mutable.LinkedHashSet[String]],
+                               state: Json,
+                               signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
   lazy val json: Json = Map(
     "state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
@@ -39,7 +39,7 @@ case class BaseModuleWrapper(name: String,
   ).asJson
 }
 
-object BaseModuleWrapper {
+object ProgramPreprocessor {
 
   val objectAssignPolyfill: String =
     s"""
@@ -76,7 +76,7 @@ object BaseModuleWrapper {
 
   /* TODO sanitise inputs!! */
 
-  def apply(modulePath: Path)(args: JsonObject): BaseModuleWrapper = {
+  def apply(modulePath: Path)(args: JsonObject): ProgramPreprocessor = {
 
     /* Read file from path, expect JSON */
     val parsed = parse(new String(Files.readAllBytes(modulePath)))
@@ -87,17 +87,17 @@ object BaseModuleWrapper {
     }
   }
 
-  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
+  def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): ProgramPreprocessor = {
 
     val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (registry, cleanModuleState) = deriveFromInit(modifiedInitjs, name)(args)
 
-    BaseModuleWrapper(name, modifiedInitjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
+    ProgramPreprocessor(name, modifiedInitjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
   }
 
-  private def wrapperFromJson(json: Json, args: JsonObject): BaseModuleWrapper = {
+  private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
     /* Expect name to be top level */
     val name: String = (json \\ "module_name").head.asString.get
 
@@ -120,7 +120,7 @@ object BaseModuleWrapper {
 
     val (registry, cleanModuleState) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.get, signed)
+    ProgramPreprocessor(name, initjs, registry, parse(cleanModuleState).right.get, signed)
   }
 
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
@@ -135,7 +135,7 @@ object BaseModuleWrapper {
     val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
 
     /* Interpret registry from object */
-    val esprimajs: InputStream = classOf[BaseModuleWrapper].getResourceAsStream("/esprima.js")
+    val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
     jsre.eval(new InputStreamReader(esprimajs))
 
     val defineEsprimaFnParamParser =
@@ -194,9 +194,9 @@ object BaseModuleWrapper {
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer = ActorMaterializer()
 
-  implicit val encodeTerms: Encoder[BaseModuleWrapper] = (b: BaseModuleWrapper) => b.json
+  implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 
-  implicit val decodeTerms: Decoder[BaseModuleWrapper] = (c: HCursor) => for {
+  implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
     state <- c.downField("state").as[String]
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
@@ -213,7 +213,7 @@ object BaseModuleWrapper {
       for {
         decodedInitjs <- decodeGzip(initjs)
         decodedState <- decodeGzip(state)
-      } yield BaseModuleWrapper(
+      } yield ProgramPreprocessor(
         name,
         new String(decodedInitjs.toArray[Byte]),
         registry,

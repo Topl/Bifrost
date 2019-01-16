@@ -10,7 +10,7 @@ import scala.util.Try
   * @param terms                    an AgreementTerms object that specifies the specific compensation terms
   * @param assetCode                the string identifier for this specific asset to be produced
   */
-case class Agreement(terms: AgreementTerms, assetCode: String, core: BaseModuleWrapper) {
+case class Agreement(terms: AgreementTerms, assetCode: String, core: ProgramPreprocessor) {
 
   lazy val json: Json = Map(
     "terms" -> terms.json,
@@ -29,7 +29,7 @@ object Agreement {
   implicit val decodeAgreement: Decoder[Agreement] = (c: HCursor) => for {
     terms <- c.downField("terms").as[AgreementTerms]
     assetCode <- c.downField("assetCode").as[String]
-    core <- c.downField("core").as[BaseModuleWrapper]
+    core <- c.downField("core").as[ProgramPreprocessor]
   } yield {
     Agreement(terms, assetCode, core)
   }
