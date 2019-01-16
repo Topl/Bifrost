@@ -11,6 +11,7 @@ import scorex.core.serialization.Serializer
 import scorex.core.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
+import scorex.utils.Booleans
 
 import scala.util.Try
 
@@ -406,4 +407,177 @@ object ReputationBoxSerializer extends Serializer[ReputationBox] {
 
     ReputationBox(proposition, nonce, (alpha, beta))
   }
+}
+
+case class StateBox(override val proposition: PublicKey25519Proposition,
+                    override val nonce: Long,
+                    value: Seq[String], // Sequence of JS Variable Declarations
+                    mutabilityFlag: Boolean,
+                   ) extends BifrostBox(proposition, nonce, value) {
+
+  val typeOfBox: String = "State"
+
+  val id = StateBox.idFromBox(proposition, nonce)
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "type" -> "State".asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "nonce" -> nonce.toString.asJson,
+    "mutabilityFlag" -> mutabilityFlag.asJson
+  ).asJson
+
+}
+
+object StateBox {
+
+  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
+    FastCryptographicHash(prop.pubKeyBytes ++ "state".getBytes ++ Longs.toByteArray(nonce))
+
+  implicit val decodeStateBox: Decoder[StateBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[String]
+    value <- c.downField("value").as[Seq[String]]
+    nonce <- c.downField("nonce").as[Long]
+    mutabilityFlag <- c.downField("mutabilityFlag").as[Boolean]
+  } yield {
+    val preparedPubKey = Base58.decode(proposition).get
+    val prop = PublicKey25519Proposition(preparedPubKey)
+    StateBox(prop, nonce, value, mutabilityFlag)
+  }
+
+}
+
+object StateBoxSerializer {
+
+  def toBytes(obj: StateBox): Array[Byte] = {
+    val boxType = "StateBox"
+    Bytes.concat(
+      Ints.toByteArray(boxType.getBytes.length),
+      boxType.getBytes,
+      Longs.toByteArray(obj.nonce),
+      Booleans.toByteArray(obj.mutabilityFlag),
+      Ints.toByteArray(obj.value.length),
+      obj.value.foldLeft(Array[Byte]()) {
+        (arr, x) => arr ++ Bytes.concat(
+          Ints.toByteArray(x.getBytes().length),
+          x.getBytes()
+        )
+      },
+      obj.proposition.pubKeyBytes
+    )
+  }
+
+  def parseBytes(obj: Array[Byte]): Try[StateBox] = Try {
+    var takenBytes = 0
+
+    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
+    takenBytes += boxTypeLength
+
+    assert(boxType == "StateBox") // no need to continue decoding if it's gibberish
+
+    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
+    takenBytes += Longs.BYTES
+
+    val mutabilityFlag = Booleans.fromByteArray(obj.slice(takenBytes, takenBytes + 1))
+    takenBytes += 1
+
+    val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val value = Seq[String]()
+    for (_ <- 1 to valueLength) {
+      val l = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+      takenBytes += Ints.BYTES
+      value :+ new String(obj.slice(takenBytes, takenBytes + l))
+      takenBytes += l
+    }
+
+    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
+    takenBytes += Constants25519.PubKeyLength
+
+    StateBox(prop, nonce, value, mutabilityFlag)
+  }
+
+}
+
+case class CodeBox(override val proposition: PublicKey25519Proposition,
+                   override val nonce: Long,
+                   value: String, // Sequence of JS Variable Declarations
+                  ) extends BifrostBox(proposition, nonce, value) {
+
+  val typeOfBox: String = "Code"
+
+  val id = CodeBox.idFromBox(proposition, nonce)
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "type" -> "Code".asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "nonce" -> nonce.toString.asJson,
+  ).asJson
+
+}
+
+object CodeBox {
+
+  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
+    FastCryptographicHash(prop.pubKeyBytes ++ "code".getBytes ++ Longs.toByteArray(nonce))
+
+  implicit val decodeCodeBox: Decoder[CodeBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[String]
+    value <- c.downField("value").as[String]
+    nonce <- c.downField("nonce").as[Long]
+  } yield {
+    val preparedPubKey = Base58.decode(proposition).get
+    val prop = PublicKey25519Proposition(preparedPubKey)
+    CodeBox(prop, nonce, value)
+  }
+
+}
+
+object CodeBoxSerializer {
+
+  def toBytes(obj: CodeBox): Array[Byte] = {
+    val boxType = "CodeBox"
+    Bytes.concat(
+      Ints.toByteArray(boxType.getBytes.length),
+      boxType.getBytes,
+      Longs.toByteArray(obj.nonce),
+      Ints.toByteArray(obj.value.length),
+      obj.value.getBytes(),
+      obj.proposition.pubKeyBytes
+    )
+  }
+
+  def parseBytes(obj: Array[Byte]): Try[CodeBox] = Try {
+    var takenBytes = 0
+
+    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
+    takenBytes += boxTypeLength
+
+    assert(boxType == "CodeBox") // no need to continue decoding if it's gibberish
+
+    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
+    takenBytes += Longs.BYTES
+
+    val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val value = new String(obj.slice(takenBytes, takenBytes + valueLength))
+    takenBytes += valueLength
+
+    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
+    takenBytes += Constants25519.PubKeyLength
+
+    CodeBox(prop, nonce, value)
+  }
+
 }

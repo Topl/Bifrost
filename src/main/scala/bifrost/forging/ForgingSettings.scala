@@ -1,5 +1,7 @@
 package bifrost.forging
 
+import java.io.File
+
 import io.circe.syntax._
 import scorex.core.settings.Settings
 
@@ -28,7 +30,16 @@ trait ForgingSettings extends Settings with ForgingConstants {
     .map(x => FiniteDuration(x, MILLISECONDS))
     .getOrElse(30.second)
 
+  lazy val sbrDirOpt = folderOpt("sbrDir")
+
   val DefaultPosAttachmentSize = 1024
+
+  private def folderOpt(settingName: String) = {
+    val res = settingsJSON.get(settingName).flatMap(_.asString)
+    res.foreach(folder => new File(folder).mkdirs())
+    require(res.isEmpty || new File(res.get).exists())
+    res
+  }
 
   override def toString: String = (Map("BlockGenerationDelay" -> blockGenerationDelay.length.asJson) ++
     settingsJSON.map(s => s._1 -> s._2)).asJson.spaces2
