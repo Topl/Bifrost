@@ -1,7 +1,7 @@
 package bifrost.forging
 
 import io.circe.syntax._
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 
 import scala.concurrent.duration._
 

@@ -5,7 +5,7 @@ import java.time.Instant
 import bifrost.BifrostApp
 import bifrost.contract.{Agreement, Contract}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.GenericBoxTransaction
+import bifrost.scorexMod.{GenericBoxTransaction, GenericWalletBox}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.ContractCompletion.assetNonce
 import bifrost.transaction.Role.Role
@@ -18,13 +18,13 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.proof.{Proof, Signature25519}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.BoxUnlocker
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.proof.{Proof, Signature25519}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BuySellOrder
@@ -964,56 +964,36 @@ trait TransferUtil {
     toReceive
       .foldLeft((IndexedSeq[(PrivateKey25519, Long, Long)](), IndexedSeq[(PublicKey25519Proposition, Long)]())) {
         case (a, (recipient, amount)) =>
+
+          // Restrict box search to specified public keys if provided
+          val keyFilteredBoxes: Seq[GenericWalletBox[Any, w.PI, BifrostBox]] =
+            if (publicKeysToSendFrom.isEmpty) w.boxes() else publicKeysToSendFrom.flatMap(p => w.boxesByKey(p))
+
           // Match only the type of boxes specified by txType
-          val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
             case "PolyTransfer" =>
-              if(publicKeysToSendFrom.isEmpty){
-              w.boxes().flatMap(_.box match {
-              case p: PolyBox => Some(p)
-              case _ => None
-            })}
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case p: PolyBox => Some(p)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case p: PolyBox => Some(p)
+                case _ => None
+              })
             case "ArbitTransfer" =>
-              if(publicKeysToSendFrom.isEmpty){
-                w.boxes().flatMap(_.box match {
-                  case a: ArbitBox => Some(a)
-                  case _ => None
-                })}
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case a: ArbitBox => Some(a)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case a: ArbitBox => Some(a)
+                case _ => None
+              })
             case "AssetTransfer" =>
-              if(publicKeysToSendFrom.isEmpty) {
-                w.boxes().flatMap(_.box match {
-                  case a: AssetBox
-                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                      (a.issuer equals extraArgs(0)
-                        .asInstanceOf[PublicKey25519Proposition]) =>
-                    Some(a)
-                  case _ => None
-                })
-              }
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case a: AssetBox
-                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                      (a.issuer equals extraArgs(0)
-                        .asInstanceOf[PublicKey25519Proposition]) =>
-                    Some(a)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case a: AssetBox
+                  if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
+                    (a.issuer equals extraArgs(0)
+                      .asInstanceOf[PublicKey25519Proposition]) =>
+                  Some(a)
+                case _ => None
+              })
           }
 
-          val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes
+          // Check if the keys currently unlocked in wallet match the proposition of any of the found boxes
+          val senderInputBoxes: IndexedSeq[(PrivateKey25519, Long, Long)] = keyAndTypeFilteredBoxes
             .flatMap {
               b: BifrostPublic25519NoncedBox =>
                 w.secretByPublicImage(b.proposition)
@@ -1021,38 +1001,24 @@ trait TransferUtil {
             }
             .toIndexedSeq
 
-          val canSend = from.map(_._3).sum
+          // amount available to send in tx
+          val canSend = senderInputBoxes.map(_._3).sum
 
-          var to: IndexedSeq[(PublicKey25519Proposition, Long)] = null
-
-          //Added fix to prevent zero-value change box from being created when entire
-          //amount is to be transferred
-          if(canSend - amount - fee != 0) {
-
-            var updatedBalance: (PublicKey25519Proposition, Long) = null
-            if (publicKeyToSendChangeTo == "") {
-              updatedBalance = filteredBoxes.head match {
-                case b: BifrostPublic25519NoncedBox =>
-                  (b.proposition, canSend - amount - fee)
-                case _ => null
+          // Updated sender balance for specified box type (this is the change calculation for sender)
+          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = keyAndTypeFilteredBoxes.head match {
+            case b: BifrostPublic25519NoncedBox =>
+              publicKeyToSendChangeTo match {
+                case "" => (b.proposition, canSend - amount - fee)
+                case _ => (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
               }
-            }
-            else {
-              updatedBalance =
-                  (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
-              }
-            to = IndexedSeq(updatedBalance, (recipient, amount))
-
-          }
-          else {
-            to = IndexedSeq((recipient, amount))
+            case _ => null
           }
 
-//          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
+          // create the list of outputs (senderChangeOut & recipientOut)
+          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
 
-          require(from.map(_._3).sum - to.map(_._2).sum == fee)
-
-          (a._1 ++ from, a._2 ++ to)
+          require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
+          (a._1 ++ senderInputBoxes, a._2 ++ to)
       }
   }
 
@@ -1153,6 +1119,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
 }
 
+//noinspection ScalaStyle
 object ArbitTransfer extends TransferUtil {
 
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],

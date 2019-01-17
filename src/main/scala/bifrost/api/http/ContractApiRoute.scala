@@ -21,12 +21,12 @@ import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 import io.swagger.annotations._
 import javax.ws.rs.Path
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.ApiException
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.ScorexLogging
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.ApiException
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import scalapb.json4s.JsonFormat

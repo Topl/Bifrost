@@ -27,11 +27,11 @@ import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
 import scalapb.json4s.JsonFormat
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network.{NetworkController, UPnP}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.ProducerProposal

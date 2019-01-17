@@ -7,10 +7,10 @@ import bifrost.history.BifrostSyncInfo
 import bifrost.scorexMod.GenericNodeViewHolder
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.api.http.SuccessApiResponse
-import scorex.core.consensus.History.HistoryComparisonResult
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.api.http.SuccessApiResponse
+import bifrost.consensus.History.HistoryComparisonResult
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -99,6 +99,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     }
   }
 
+  // List size limited to Int.MaxValue (=2147483647) set in chainBack which is defined in BifrostHistory.
   @Path("/chain")
   @ApiOperation(value = "Chain", notes = "Print full chain", httpMethod = "GET")
   @ApiResponses(Array(

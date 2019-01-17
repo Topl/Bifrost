@@ -16,11 +16,12 @@ import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.MinimalState.VersionTag
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}

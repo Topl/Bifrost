@@ -13,10 +13,10 @@ import io.circe
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
@@ -250,7 +250,7 @@ class BifrostStateSpec extends PropSpec
 object BifrostStateSpec {
 
   import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-  import scorex.core.transaction.state.MinimalState.VersionTag
+  import bifrost.transaction.state.MinimalState.VersionTag
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {

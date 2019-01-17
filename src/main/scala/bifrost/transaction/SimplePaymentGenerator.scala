@@ -2,10 +2,10 @@
 package bifrost.transaction
 
 import akka.actor.ActorRef
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.NodeViewHolder
-import scorex.core.NodeViewHolder.CurrentView
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.NodeViewHolder
+import bifrost.NodeViewHolder.CurrentView
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import akka.pattern.ask
 import akka.util.Timeout
 import examples.curvepos.SimpleBlockchain

@@ -2,11 +2,11 @@ package bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.transaction.{PolyTransfer}
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
+import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

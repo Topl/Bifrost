@@ -8,7 +8,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable

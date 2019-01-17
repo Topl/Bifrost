@@ -1,5 +1,15 @@
 package bifrost
 
+/*
+
+* @startuml
+
+* car --|> wheel
+
+* @enduml
+
+*/
+
 import akka.actor.{Actor, ActorRef, AllDeadLetters, DeadLetter, Props}
 import akka.event.Logging
 import bifrost.api.http._
@@ -8,14 +18,13 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
-import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
-import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.network.message.MessageSpec
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
+import bifrost.network.message.MessageSpec
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
 
 import org.graalvm.polyglot.Context
 import java.lang.management.ManagementFactory
@@ -45,26 +54,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
-  override val apiRoutes: Seq[ApiRoute] = Seq(
-    DebugApiRoute(settings, nodeViewHolderRef),
-    WalletApiRouteHttp(settings, nodeViewHolderRef),
-    ContractApiRoute(settings, nodeViewHolderRef, networkController),
-    AssetApiRoute(settings, nodeViewHolderRef),
-    WalletApiRoute(settings, nodeViewHolderRef),
-    UtilsApiRoute(settings),
-    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
-    PeersApiRoute(peerManagerRef, networkController, settings)
-  )
-
-  override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
-                                         typeOf[DebugApiRoute],
-                                         typeOf[WalletApiRouteHttp],
-                                         typeOf[ContractApiRoute],
-                                         typeOf[AssetApiRoute],
-                                         typeOf[WalletApiRoute],
-                                         typeOf[GenericNodeViewApiRoute[P, TX]],
-                                         typeOf[PeersApiRoute])
-
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
   override val localInterface: ActorRef = actorSystem.actorOf(
@@ -73,11 +62,31 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
     Props(classOf[BifrostNodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
+      networkController,
+      nodeViewHolderRef,
+      localInterface,
+      BifrostSyncInfoMessageSpec)
   )
+
+  override val apiRoutes: Seq[ApiRoute] = Seq(
+    DebugApiRoute(settings, nodeViewHolderRef),
+    WalletApiRoute(settings, nodeViewHolderRef),
+    ContractApiRoute(settings, nodeViewHolderRef, networkController),
+    AssetApiRoute(settings, nodeViewHolderRef),
+    UtilsApiRoute(settings),
+    NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
+    PeersApiRoute(peerManagerRef, networkController, settings)
+  )
+
+  override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
+                                         typeOf[DebugApiRoute],
+                                         typeOf[ContractApiRoute],
+                                         typeOf[AssetApiRoute],
+                                         typeOf[WalletApiRoute],
+                                         typeOf[NodeViewApiRoute[P, TX]],
+                                         typeOf[PeersApiRoute])
+
+
 
   // Am I running on a JDK that supports JVMCI?
          val vm_version = System.getProperty("java.vm.version")

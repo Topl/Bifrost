@@ -13,11 +13,11 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.parser._
 import io.circe.syntax._
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.{ApiException, SuccessApiResponse}
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -30,47 +30,52 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
-  override val route: Route = pathPrefix("walletrpc") { walletRoute }
+  override val route: Route = pathPrefix("wallet") {
+    walletRoute
+  }
 
   //noinspection ScalaStyle
-  def walletRoute: Route = path("") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(json) =>
-              val futureResponse: Try[Future[Json]] = Try {
-                val id = (json \\ "id").head.asString.get
-                reqId = id
-                require((json \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (json \\ "params").head.asArray.get
-                require(params.size <= 5, s"size of params is ${params.size}")
+  def walletRoute: Route = path("") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(json) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (json \\ "id").head.asString.get
+                  reqId = id
+                  require((json \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (json \\ "params").head.asArray.get
+                  //todo: why is there an enforcement on the size of params?
+                  require(params.size <= 5, s"size of params is ${params.size}")
 
-                (json \\ "method").head.asString.get match {
+                  (json \\ "method").head.asString.get match {
 
-                  case "transferPolys" => transferPolys(params.head, id)
-                  case "transferArbits" => transferArbits(params.head, id)
-                  case "balances" => balances(params.head, id)
-                  case "unlockKeyfile" => unlockKeyfile(params.head, id)
-                  case "lockKeyfile" => lockKeyfile(params.head, id)
-                  case "generateKeyfile" => generateKeyfile(params.head, id)
-                  case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+                    case "transferPolys" => transferPolys(params.head, id)
+                    case "transferArbits" => transferArbits(params.head, id)
+                    case "balances" => balances(params.head, id)
+                    case "unlockKeyfile" => unlockKeyfile(params.head, id)
+                    case "lockKeyfile" => lockKeyfile(params.head, id)
+                    case "generateKeyfile" => generateKeyfile(params.head, id)
+                    case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+                  }
                 }
-              }
-              futureResponse map {
-                response => Await.result(response, timeout.duration)
-              }
-              match {
-                case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-              }
+                futureResponse map {
+                  response => Await.result(response, timeout.duration)
+                }
+                match {
+                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                }
+            }
           }
         }
       }
     }
-  }}
+  }
 
   private def transferPolys(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
@@ -136,31 +141,31 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   }
 
   private def balances(params: Json, id: String): Future[Json] = {
-      viewAsync().map { view =>
-        val wallet = view.vault
+    viewAsync().map { view =>
+      val wallet = view.vault
 
-        // Optionally specify the publickey to get balances for. If empty string or not specified return all boxes
-        val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
-          case Some(key) => if(key.asString.get != "") wallet.boxesByKey( key.asString.get ) else wallet.boxes()
-          case _ => wallet.boxes()
-        }
-
-        Map("polyBalance" -> boxes.flatMap(_.box match {
-            case pb: PolyBox => Some(pb.value)
-            case _ => None
-          }).sum.toString.asJson,
-          "arbitBalance" -> boxes.flatMap(_.box match {
-            case ab: ArbitBox => Some(ab.value)
-            case _ => None
-          }).sum.toString.asJson,
-          "publicKeys" -> wallet.publicKeys.flatMap(_ match {
-            case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
-            case _ => None
-          }).asJson,
-          "boxes" -> boxes.map(_.box.json).asJson
-        ).asJson
+      // Optionally specify the publickey to get balances for. If empty string or not specified return all boxes
+      val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
+        case Some(key) => if (key.asString.get != "") wallet.boxesByKey(key.asString.get) else wallet.boxes()
+        case _ => wallet.boxes()
       }
+
+      Map("polyBalance" -> boxes.flatMap(_.box match {
+        case pb: PolyBox => Some(pb.value)
+        case _ => None
+      }).sum.toString.asJson,
+        "arbitBalance" -> boxes.flatMap(_.box match {
+          case ab: ArbitBox => Some(ab.value)
+          case _ => None
+        }).sum.toString.asJson,
+        "publicKeys" -> wallet.publicKeys.flatMap(_ match {
+          case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
+          case _ => None
+        }).asJson,
+        "boxes" -> boxes.map(_.box.json).asJson
+      ).asJson
     }
+  }
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

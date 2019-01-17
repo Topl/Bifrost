@@ -5,7 +5,7 @@ import bifrost.blocks.BifrostBlock
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.NodeViewModifier.ModifierId
+import bifrost.NodeViewModifier.ModifierId
 import scorex.crypto.encode.Base58
 
 class BifrostHistorySpec extends PropSpec

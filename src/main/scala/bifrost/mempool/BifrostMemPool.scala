@@ -2,9 +2,9 @@ package bifrost.mempool
 
 import bifrost.transaction.BifrostTransaction
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.NodeViewModifier.ModifierId
-import scorex.core.transaction.MemoryPool
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier.ModifierId
+import bifrost.transaction.MemoryPool
+import bifrost.utils.ScorexLogging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try

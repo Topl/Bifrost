@@ -13,11 +13,11 @@ import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.ApiException
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.ApiException
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
