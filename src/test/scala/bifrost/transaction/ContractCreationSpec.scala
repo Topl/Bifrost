@@ -4,6 +4,7 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}

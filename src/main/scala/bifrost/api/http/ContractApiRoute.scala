@@ -24,6 +24,7 @@ import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.api.http.ApiException
 import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging

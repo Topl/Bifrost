@@ -5,11 +5,12 @@ import java.time.Instant
 import bifrost.blocks.BifrostBlock
 import bifrost.transaction.BifrostTransaction.Nonce
 import bifrost.transaction.box._
-import bifrost.transaction.{AgreementCompanion, ContractCreation, Role}
+import bifrost.transaction.{AgreementCompanion, Role}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
 import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519Companion
