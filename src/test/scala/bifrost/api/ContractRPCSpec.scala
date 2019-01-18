@@ -34,8 +34,6 @@ import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import serializer.ProducerProposal
-import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

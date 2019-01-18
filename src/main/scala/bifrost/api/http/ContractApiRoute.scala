@@ -8,7 +8,6 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
 import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet

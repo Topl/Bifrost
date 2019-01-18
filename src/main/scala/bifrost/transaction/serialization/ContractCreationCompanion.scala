@@ -1,4 +1,4 @@
-package bifrost.transaction.serializer
+package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.BifrostTransaction.Nonce

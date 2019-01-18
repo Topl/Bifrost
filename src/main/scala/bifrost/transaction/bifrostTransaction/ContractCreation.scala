@@ -8,7 +8,7 @@ import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ContractBox, PolyBox}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serializer.ContractCreationCompanion
+import bifrost.transaction.serialization.ContractCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.transaction.{AgreementCompanion, ContractTransaction}
 import com.google.common.primitives.{Bytes, Ints, Longs}
