@@ -26,7 +26,7 @@ class InflationQuery extends Actor {
       if (parts.length == 6 && parts(0) == "infVal" && parts(2) == "infUpdateVal" && parts(4) == "infUpdateBlock") {
         infVal = parts(1).toLong
         infUpdateVal = parts(3).toLong
-        infUpdateBlock = parts(5).toLong
+        infUpdateBlock = parts(5).trim.toLong
       }
     } catch {
       case e: Exception => print(e + "\n")
