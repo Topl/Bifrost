@@ -10,7 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
-import bifrost.transaction._
+import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -20,7 +20,7 @@ import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import bifrost.block.Block
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractMethodExecution}
+import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519
@@ -408,7 +408,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ContractCompletion(
+    bifrostTransaction.ContractCompletion(
       contract,
       IndexedSeq(reputation),
       parties,

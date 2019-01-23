@@ -3,7 +3,7 @@ package bifrost.transaction.bifrostTransaction
 import bifrost.contract.Contract
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.ContractCompletion.assetNonce
+import bifrost.transaction.bifrostTransaction.ContractCompletion.assetNonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
