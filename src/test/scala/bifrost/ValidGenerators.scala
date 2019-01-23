@@ -13,7 +13,7 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution}
+import bifrost.transaction.bifrostTransaction.{CoinbaseTransaction, ContractCompletion, ContractCreation, ContractMethodExecution}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}

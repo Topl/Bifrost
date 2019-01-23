@@ -20,11 +20,12 @@ import bifrost.settings.Settings
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.utils.ScorexLogging
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
-import bifrost.transaction.CoinbaseTransaction
+import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
 
 import scala.util.Try
 
