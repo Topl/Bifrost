@@ -18,7 +18,7 @@ import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction._
+import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
 import bifrost.transaction.state.PrivateKey25519
