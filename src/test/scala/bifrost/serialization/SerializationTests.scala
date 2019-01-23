@@ -210,20 +210,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  /*property("ConversionTransaction Serialization") {
-    forAll(conversionTxGen) {
-      ct: ConversionTransaction =>
-        val parsed: ConversionTransaction = ConversionTransactionCompanion
-          .parseBytes(ConversionTransactionCompanion.toBytes(ct))
-          .get
-
-        val ctToBytes = ConversionTransactionCompanion.toBytes(parsed)
-
-        ctToBytes sameElements ConversionTransactionCompanion.toBytes(ct) shouldBe true
-    }
-  }*/
-
-
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
       ac: AssetCreation =>

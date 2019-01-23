@@ -1,7 +1,6 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.TransferSerializer
 import bifrost.transaction.bifrostTransaction.PolyTransfer
 import com.google.common.primitives.Ints
 

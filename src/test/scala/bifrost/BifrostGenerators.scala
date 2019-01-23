@@ -453,21 +453,6 @@ trait BifrostGenerators extends CoreGenerators {
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
-  /*lazy val conversionTxGen: Gen[ConversionTransaction] = for {
-    assetLength <- positiveTinyIntGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    val assetHub = (0 until assetLength).map { _ => sampleUntilNonEmpty(assetHubGen) }
-    val totalAssetBoxes = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctFromGen))).toMap
-    val assetsToReturn = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
-    val assetTokensToRedeem = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
-    val conversionSignatures = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(signatureGen))).toMap
-
-    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp, data)
-  }*/
-
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen
     hub <- propositionGen
