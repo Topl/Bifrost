@@ -6,7 +6,6 @@ import bifrost.transaction.Role.Role
 import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.AgreementCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try

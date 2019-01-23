@@ -10,7 +10,7 @@ import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ContractBox, PolyBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ContractCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.transaction.AgreementCompanion
+import bifrost.transaction.serialization.AgreementCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, HCursor, Json}
