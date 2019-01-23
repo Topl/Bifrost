@@ -2,6 +2,7 @@ package bifrost.transaction
 
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.PolyTransfer
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
