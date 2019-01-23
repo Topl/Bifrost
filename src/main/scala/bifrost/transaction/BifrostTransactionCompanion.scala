@@ -16,7 +16,7 @@ import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Propos
 import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import serialization.{AssetCreationCompanion, CoinbaseTransactionCompanion, ContractCreationCompanion, ContractTransactionCompanion}
+import serialization._
 
 import scala.util.Try
 
@@ -51,37 +51,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
 
 
-object TransferTransactionCompanion extends Serializer[TransferTransaction] {
-  val typeBytes = "TransferTransaction".getBytes
 
-  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
-
-  override def toBytes(m: TransferTransaction): Array[Byte] = {
-    prefixBytes ++
-      (m match {
-        case sc: PolyTransfer => PolyTransferCompanion.toChildBytes(sc)
-        case ac: ArbitTransfer => ArbitTransferCompanion.toChildBytes(ac)
-        case at: AssetTransfer => AssetTransferCompanion.toChildBytes(at)
-      })
-  }
-
-  override def parseBytes(bytes: Array[Byte]): Try[TransferTransaction] = Try {
-
-    val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
-
-    val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
-
-    val newTypeLength = Ints.fromByteArray(newBytes.slice(0, Ints.BYTES))
-    val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
-
-    newTypeStr match {
-      case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get
-      case "ArbitTransfer" => ArbitTransferCompanion.parseBytes(newBytes).get
-      case "AssetTransfer" => AssetTransferCompanion.parseBytes(newBytes).get
-    }
-  }
-}
 
 object ProfileTransactionCompanion extends Serializer[ProfileTransaction] {
   override def toBytes(m: ProfileTransaction): Array[Byte] = {
