@@ -7,7 +7,7 @@ import bifrost.transaction._
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.serialization.{AssetCreationCompanion, AssetRedemptionCompanion, ContractTransactionCompanion, TransferTransactionCompanion}
+import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
