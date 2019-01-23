@@ -11,7 +11,8 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges, BifrostStateSpec}
-import bifrost.transaction.{BifrostTransaction, Role}
+import bifrost.transaction.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox, ProfileBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}

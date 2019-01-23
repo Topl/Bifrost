@@ -3,7 +3,7 @@ package bifrost.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
+import BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519

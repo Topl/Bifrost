@@ -2,9 +2,9 @@ package bifrost.transaction.bifrostTransaction
 
 import bifrost.contract.Contract
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.BifrostTransaction.Nonce
+import BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.ContractCompletion.assetNonce
-import bifrost.transaction.Role.Role
+import Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}

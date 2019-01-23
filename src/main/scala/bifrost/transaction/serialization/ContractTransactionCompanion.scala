@@ -1,10 +1,10 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction._
-import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution, ContractTransaction}
+import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Bytes, Ints, Longs}

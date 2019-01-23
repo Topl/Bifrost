@@ -1,7 +1,7 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.AssetRedemption
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519

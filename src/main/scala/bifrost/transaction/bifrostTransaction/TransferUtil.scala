@@ -1,7 +1,7 @@
 package bifrost.transaction.bifrostTransaction
 
 import bifrost.scorexMod.GenericWalletBox
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
+import BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519

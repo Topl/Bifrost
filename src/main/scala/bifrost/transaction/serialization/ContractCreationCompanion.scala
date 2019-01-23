@@ -1,8 +1,8 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519

@@ -2,8 +2,8 @@ package bifrost.transaction.bifrostTransaction
 
 import bifrost.contract.Agreement
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.Role.Role
+import BifrostTransaction.Nonce
+import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ContractBox, PolyBox}

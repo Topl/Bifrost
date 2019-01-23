@@ -1,7 +1,7 @@
 package bifrost.state
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.BifrostBox
 import bifrost.transaction.box.PolyBox

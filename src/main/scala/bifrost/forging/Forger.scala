@@ -9,7 +9,6 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
 import bifrost.inflation.InflationQuery
@@ -25,7 +24,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
-import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
+import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try
 

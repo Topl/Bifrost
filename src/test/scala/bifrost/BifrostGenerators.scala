@@ -8,8 +8,8 @@ import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.contract.{Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition

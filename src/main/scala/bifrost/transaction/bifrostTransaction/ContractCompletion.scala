@@ -3,13 +3,12 @@ package bifrost.transaction.bifrostTransaction
 import bifrost.contract.Contract
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.TransactionValidationException
-import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.Role.Role
+import BifrostTransaction.Nonce
+import Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.transaction.Role
 import bifrost.transaction.serialization.ContractCompletionCompanion
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Decoder, HCursor, Json}

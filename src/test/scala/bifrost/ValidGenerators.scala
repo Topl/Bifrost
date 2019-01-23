@@ -3,8 +3,8 @@ package bifrost
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box._

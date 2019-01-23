@@ -3,12 +3,11 @@ package bifrost.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.box.{ArbitBox, BifrostBox, BoxUnlocker}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}

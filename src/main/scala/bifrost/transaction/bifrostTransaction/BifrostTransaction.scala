@@ -1,36 +1,20 @@
-package bifrost.transaction
-
-import java.time.Instant
+package bifrost.transaction.bifrostTransaction
 
 import bifrost.BifrostApp
-import bifrost.contract.{Agreement, Contract}
-import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxTransaction, GenericWalletBox}
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.bifrostTransaction.ContractCompletion.assetNonce
-import bifrost.transaction.Role.Role
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.proof.MultiSignature25519
-import bifrost.wallet.BWallet
-import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, HCursor, Json}
-import io.iohk.iodb.ByteArrayWrapper
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.settings.Settings
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction._
-import bifrost.transaction.box.BoxUnlocker
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.proof.{Proof, Signature25519}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519
+import com.google.common.primitives.Longs
+import io.circe.Json
+import io.circe.parser.parse
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 trait TransactionSettings extends Settings
 

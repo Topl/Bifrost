@@ -6,8 +6,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.exceptions.JsonParsingException
 import bifrost.transaction.box._
-import bifrost.transaction.Role
-import bifrost.transaction.bifrostTransaction.ContractMethodExecution
+import bifrost.transaction.bifrostTransaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen

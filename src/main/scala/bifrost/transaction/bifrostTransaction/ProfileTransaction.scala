@@ -4,7 +4,6 @@ import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BifrostBox, BoxUnlocker, PolyBox, ProfileBox}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.serialization.ProfileTransactionCompanion
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
