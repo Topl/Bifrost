@@ -7,13 +7,13 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
-import bifrost.transaction.{ArbitTransfer, BifrostTransaction, BifrostTransactionCompanion}
+import bifrost.transaction.{BifrostTransaction, BifrostTransactionCompanion}
 import bifrost.wallet.BWallet
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.serialization.Serializer
 import bifrost.transaction.Transaction
-import bifrost.transaction.bifrostTransaction.PolyTransfer
+import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
