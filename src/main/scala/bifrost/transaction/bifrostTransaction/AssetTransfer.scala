@@ -4,7 +4,6 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.TransferUtil
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{AssetBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
