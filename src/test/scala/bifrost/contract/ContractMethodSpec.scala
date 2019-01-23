@@ -2,7 +2,7 @@
 
 import java.time.Instant
 
-import bifrost.transaction.AssetCreation
+import bifrost.transaction.bifrostTransaction.AssetCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._

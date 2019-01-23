@@ -4,10 +4,10 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction._
-import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution}
+import bifrost.transaction.bifrostTransaction.{AssetCreation, ContractCompletion, ContractCreation, ContractMethodExecution}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.serialization.ContractTransactionCompanion
+import bifrost.transaction.serialization.{AssetCreationCompanion, ContractTransactionCompanion}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
