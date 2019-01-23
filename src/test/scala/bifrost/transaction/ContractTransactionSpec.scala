@@ -16,7 +16,7 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractTransaction}
+import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractMethodExecution, ContractTransaction}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
@@ -196,7 +196,7 @@ class ContractTransactionSpec extends PropSpec
         data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
-    ContractMethodExecution(
+    bifrostTransaction.ContractMethodExecution(
       contractBox,
       methodName,
       parameters,

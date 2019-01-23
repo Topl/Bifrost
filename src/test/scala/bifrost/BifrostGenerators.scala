@@ -20,7 +20,7 @@ import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import bifrost.block.Block
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.ContractCreation
+import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractMethodExecution}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519

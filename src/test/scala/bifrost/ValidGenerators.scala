@@ -5,7 +5,7 @@ import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
-import bifrost.transaction._
+import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -13,7 +13,7 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.ContractCreation
+import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractMethodExecution}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
@@ -238,7 +238,7 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = Bytes.concat(FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
-    ContractMethodExecution(
+    bifrostTransaction.ContractMethodExecution(
       contractBox,
       methodName,
       parameters,
