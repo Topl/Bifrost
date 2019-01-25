@@ -1,16 +1,17 @@
 package bifrost.api.http
+
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-import scorex.core.settings.Settings
+import bifrost.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
-import scorex.core.api.http.ApiException
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.api.http.ApiException
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
