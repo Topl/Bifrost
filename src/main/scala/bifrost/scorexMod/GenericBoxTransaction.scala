@@ -1,9 +1,9 @@
 package bifrost.scorexMod
 
 import com.google.common.primitives.Longs
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.BoxUnlocker
+import bifrost.transaction.box.proposition.Proposition
 
 /**
   * Created by cykoz on 4/13/17.

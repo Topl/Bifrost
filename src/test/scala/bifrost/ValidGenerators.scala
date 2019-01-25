@@ -1,5 +1,6 @@
 package bifrost
 
+import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
@@ -10,11 +11,11 @@ import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -386,6 +387,24 @@ trait ValidGenerators extends BifrostGenerators {
     ArbitTransfer(from, to, fee, timestamp, data)
   }
 
+  lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
+    _ <- toSeqGen
+    timestamp <- positiveLongGen
+    id <- modifierIdGen
+  } yield {
+    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
+    val to = IndexedSeq((toKeyPairs._2, 4L))
+    val fakeSigs = IndexedSeq(Signature25519(Array()))
+    val messageToSign = CoinbaseTransaction(
+      to,
+      fakeSigs,
+      timestamp,
+      id).messageToSign
+    // sign with own key because coinbase is literally giving yourself money
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
+    CoinbaseTransaction(to, signatures, timestamp, id)
+  }
+
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
     _ <- fromSeqGen
     _ <- toSeqGen
@@ -530,10 +549,11 @@ trait ValidGenerators extends BifrostGenerators {
     dummyTx.copy(signatures = signatures)
   }
 
-  lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
+  /*lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
     assetLength <- positiveTinyIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
     val assetHubPairs: Map[String, PublicKey25519Proposition] = assets.map(
@@ -578,7 +598,8 @@ trait ValidGenerators extends BifrostGenerators {
       assetTokensToRedeem,
       dummyConversionSignatures,
       fee,
-      timestamp)
+      timestamp,
+      data)
 
     val fromKeyMap = fromKeyPairs.toMap
     val realSignatures = totalAssetBoxes
@@ -590,5 +611,5 @@ trait ValidGenerators extends BifrostGenerators {
     //println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
 
     dummyTx.copy(conversionSignatures = realSignatures)
-  }
+  }*/
 }

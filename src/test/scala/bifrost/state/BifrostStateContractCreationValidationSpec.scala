@@ -9,10 +9,10 @@ import bifrost.transaction.{AgreementCompanion, ContractCreation, Role}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}
@@ -104,7 +104,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(contractCreation)
+          Seq(contractCreation),
+          10L
         )
 
         // TODO(balinskia): Which party is the investor
@@ -357,7 +358,9 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(cc))
+          Seq(cc),
+          10L
+        )
 
         val necessaryState = BifrostStateSpec
           .genesisState

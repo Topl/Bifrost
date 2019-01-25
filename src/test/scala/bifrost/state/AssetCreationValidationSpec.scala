@@ -7,8 +7,8 @@ import bifrost.transaction.AssetCreation
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
@@ -26,7 +26,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(assetCreation)
+          Seq(assetCreation),
+          10L
         )
 
         val assetBoxes: Traversable[AssetBox] = assetCreation.newBoxes.map {

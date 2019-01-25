@@ -10,7 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.Role.Role
-import bifrost.transaction.{ConversionTransaction, _}
+import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -18,11 +18,11 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.core.block.Block
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.block.Block
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
@@ -96,7 +96,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = Gen.alphaStr //nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaStr suchThat (!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -212,8 +212,9 @@ trait BifrostGenerators extends CoreGenerators {
     value <- positiveLongGen
     asset <- stringGen
     hub <- propositionGen
+    data <- stringGen
   } yield {
-    AssetBox(proposition, nonce, value, asset, hub)
+    AssetBox(proposition, nonce, value, asset, hub, data)
   }
 
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
@@ -266,14 +267,26 @@ trait BifrostGenerators extends CoreGenerators {
        |this.$name = function(){
        |    this.contractEffectiveTime = $effectiveTimestamp;
        |    this.contractExpirationTime = $expirationTimestamp;
-       |    this.status = "initialized"
-       |    this.assetCode = "$assetCode"
+       |    this.status = "initialized";
+       |    this.assetCode = "$assetCode";
        |    this.initialCapital = "0";
+       |    _this = this;
        |
        |    this.changeStatus = function(newStatus) {
        |      this.status = newStatus;
        |      return this;
        |    }
+       |
+       |    this.newAsset = function(publicKey, asset, amount) {
+       |      this.createAssets(publicKey, asset, amount);
+       |      return this;
+       |    }
+       |
+       |    this.newAssetTransfer = function(publicKey, asset, amount, data) {
+       |      this.transferAssets(publicKey, asset, amount, data);
+       |      return this;
+       |    }
+       |
        |}
        |
        |this.$name.fromJSON = function(str) {
@@ -439,10 +452,11 @@ trait BifrostGenerators extends CoreGenerators {
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
-  lazy val conversionTxGen: Gen[ConversionTransaction] = for {
+  /*lazy val conversionTxGen: Gen[ConversionTransaction] = for {
     assetLength <- positiveTinyIntGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
+    data <- stringGen
   } yield {
     val assetHub = (0 until assetLength).map { _ => sampleUntilNonEmpty(assetHubGen) }
     val totalAssetBoxes = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctFromGen))).toMap
@@ -450,8 +464,8 @@ trait BifrostGenerators extends CoreGenerators {
     val assetTokensToRedeem = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
     val conversionSignatures = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(signatureGen))).toMap
 
-    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp)
-  }
+    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp, data)
+  }*/
 
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen
@@ -615,7 +629,7 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    BifrostBlock(parentId, timestamp, generatorBox, signature, txs)
+    BifrostBlock(parentId, timestamp, generatorBox, signature, txs, 10L)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
@@ -646,7 +660,7 @@ trait BifrostGenerators extends CoreGenerators {
       1478164225796L,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
-      keyPair._1)
+      keyPair._1, 10L)  // genesis block has 10 Arbits of inflation
 
     history = history.append(genesisBlock).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)

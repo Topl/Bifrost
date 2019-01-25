@@ -2,22 +2,22 @@ package bifrost.contract.modules
 
 import java.io.{InputStream, InputStreamReader}
 import java.nio.file.{Files, Path}
-import javax.script.{Bindings, ScriptContext}
 
+import javax.script.{Bindings, ScriptContext}
 import akka.actor.ActorSystem
 
 import collection.JavaConverters._
 import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import bifrost.contract.Contract
+import bifrost.contract.{Contract, ValkyrieFunctions}
 import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
 import jdk.nashorn.api.scripting.{JSObject, NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
-import scorex.core.serialization.JsonSerializable
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.serialization.JsonSerializable
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable
@@ -92,9 +92,13 @@ object BaseModuleWrapper {
   }
 
   def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): BaseModuleWrapper = {
-    val (registry, cleanModuleState) = deriveFromInit(initjs, name)(args)
 
-    BaseModuleWrapper(name, initjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
+    val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+    //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+
+    val (registry, cleanModuleState) = deriveFromInit(modifiedInitjs, name)(args)
+
+    BaseModuleWrapper(name, modifiedInitjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): BaseModuleWrapper = {
@@ -102,7 +106,13 @@ object BaseModuleWrapper {
     val name: String = (json \\ "module_name").head.asString.get
 
     /* Expect initjs to be top level and load it up */
-    val initjs: String = (json \\ "initjs").head.asString.get
+
+    val initjs: String = {
+      val cleanInitjs: String = (json \\ "initjs").head.asString.get
+      val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+      //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+      modifiedInitjs
+    }
 
     val announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] =
       (json \\ "registry").headOption.map(_.as[Map[String, mutable.LinkedHashSet[String]]].right.get)
@@ -124,7 +134,6 @@ object BaseModuleWrapper {
     val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
 
     jsre.eval(objectAssignPolyfill)
-
     jsre.eval(initjs)
     jsre.eval(s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
     val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
@@ -153,6 +162,7 @@ object BaseModuleWrapper {
       registryRes.entrySet().asScala.map(entry => entry.getKey -> mutable.LinkedHashSet(entry.getValue.asInstanceOf[Array[String]]:_*)).toMap
     }
 
+    //println(s">>>>>>>>>>> Registry: $registry")
     (registry, cleanModuleState)
   }
 

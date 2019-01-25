@@ -3,9 +3,11 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
+import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.exceptions.TransactionValidationException
+import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction._
 import bifrost.transaction.box._
@@ -14,12 +16,12 @@ import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.MinimalState.VersionTag
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.MinimalState.VersionTag
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -39,7 +41,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param version   : blockId used to identify each block. Also used for rollback
   * @param timestamp : timestamp of the block that results in this state
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -83,7 +85,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp)
+      BifrostState(storage, version, timestamp, history)
     }
   }
 
@@ -113,8 +115,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp)
-
+    val newSt = BifrostState(storage, newVersion, timestamp, history)
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
 
@@ -131,9 +132,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
       case cComp: ContractCompletion => validateContractCompletion(cComp)
       case ar: AssetRedemption => validateAssetRedemption(ar)
-      case ct: ConversionTransaction => validateConversionTransaction(ct)
+      //case ct: ConversionTransaction => validateConversionTransaction(ct)
       case tex: TokenExchangeTransaction => validateTokenExchangeTransaction(tex)
       case ac: AssetCreation => validateAssetCreation(ac)
+      case cb: CoinbaseTransaction => validateCoinbaseTransaction(cb)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
@@ -244,7 +246,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
                   .proposition,
                   asT
                     .messageToSign) && (box
-                  .hub equals asT.hub) && (box
+                  .issuer equals asT.issuer) && (box
                   .assetCode equals asT.assetCode)) {
                   Success(partialSum + box.value)
                 } else {
@@ -578,7 +580,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           /* Checks if unlocker is valid and if so adds to current running total */
           closedBox(unlocker.closedBoxId) match {
             case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.hub equals ar.hub)) {
+              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.issuer equals ar.issuer)) {
                 Success(partialMap
                   .get(box.assetCode) match {
                   case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
@@ -639,7 +641,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(ar))
   }
 
-  def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
+  /*def validateConversionTransaction(ct: ConversionTransaction): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       val initial = Success(Map[(String, PublicKey25519Proposition), Long]())
       val availableAssetsTry: Try[Map[(String, PublicKey25519Proposition), Long]] = ct.unlockers
@@ -686,6 +688,21 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       })
     }
     statefulValid.flatMap(_ => semanticValidity(ct))
+  }*/
+
+  def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
+    val t = history.modifierById(cb.blockID).get
+    def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
+    val validConstruction: Try[Unit] = {
+      assert(cb.fee == 0L) // no fee for a coinbase tx
+      assert(cb.newBoxes.size == 1) // one one new box
+      assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
+      // This will be implemented at a consensus level
+      Try {
+        // assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value == history.modifierById(history.chainBack(history.bestBlock, helper).get.reverse(1)._2).get.inflation)
+      }
+    }
+    validConstruction
   }
 
   def validateTokenExchangeTransaction(tex: TokenExchangeTransaction): Try[Unit] = {
@@ -702,7 +719,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
               case Some(box: AssetBox) =>
-                val tokenGood = (box.hub equals tokenHub) && (box.assetCode equals tokenCode)
+                val tokenGood = (box.issuer equals tokenHub) && (box.assetCode equals tokenCode)
                 val hasValidUnlocker =
                   unlocker.boxKey.isValid(box.proposition, TokenExchangeTransaction.messageToSign(tex.sellOrder))
 
@@ -765,8 +782,9 @@ object BifrostState {
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
-      case ct: ConversionTransaction => ConversionTransaction.validate(ct)
+      //case ct: ConversionTransaction => ConversionTransaction.validate(ct)
       case tex: TokenExchangeTransaction => TokenExchangeTransaction.validate(tex)
+      case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
     }
@@ -798,7 +816,7 @@ object BifrostState {
     }
   }
 
-  def readOrGenerate(settings: Settings, callFromGenesis: Boolean = false): BifrostState = {
+  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
@@ -827,12 +845,21 @@ object BifrostState {
         .data)
     }
 
-    BifrostState(stateStorage, version, timestamp)
+//    val blockStorage = new LSMStore(iFile)
+//    val storage = new BifrostStorage(blockStorage, settings)
+//
+//    val validators = Seq(
+//      new DifficultyBlockValidator(storage)
+//      //new ParentBlockValidator(storage),
+//      //new SemanticBlockValidator(FastCryptographicHash)
+//    )
+
+    BifrostState(stateStorage, version, timestamp, history)
   }
 
-  def genesisState(settings: Settings, initialBlocks: Seq[BPMOD]): BifrostState = {
+  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {
     initialBlocks
-      .foldLeft(readOrGenerate(settings, callFromGenesis = true)) {
+      .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
         (state, mod) => state
           .changes(mod)
           .flatMap(cs => state.applyChanges(cs, mod.id))

@@ -7,14 +7,14 @@ import bifrost.forging.ForgingSettings
 import bifrost.transaction.BifrostTransaction
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.NodeViewModifier
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.block.BlockValidator
-import scorex.core.consensus.History
-import scorex.core.consensus.History.{HistoryComparisonResult, ProgressInfo}
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.block.BlockValidator
+import bifrost.consensus.History
+import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
@@ -374,7 +374,7 @@ class BifrostHistory(val storage: BifrostStorage,
     *         (None only if the parent for a block was not found) starting from the original `m`
     */
   @tailrec
-  private def chainBack(m: BifrostBlock,
+  final def chainBack(m: BifrostBlock,
                         until: BifrostBlock => Boolean,
                         limit: Int = Int.MaxValue,
                         acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {

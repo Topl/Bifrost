@@ -14,10 +14,10 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
 import scala.collection.immutable.Seq
