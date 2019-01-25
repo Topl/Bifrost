@@ -27,11 +27,11 @@ import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
 import scalapb.json4s.JsonFormat
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network.{NetworkController, UPnP}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.ProducerProposal
@@ -313,7 +313,7 @@ class ContractRPCSpec extends WordSpec
       view().pool.remove(txInstance)
     }
 
-    "Create the Contract" in {
+   /* "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)
 
       val cursor: HCursor = requestBodyJson.hcursor
@@ -489,7 +489,8 @@ class ContractRPCSpec extends WordSpec
                                      System.currentTimeMillis(),
                                      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
                                      Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-                                     Seq(txInstance)
+                                     Seq(txInstance),
+                                     10L
         )
         history.append(tempBlock)
       }
@@ -511,7 +512,7 @@ class ContractRPCSpec extends WordSpec
         (res \\ "result").head.asArray.get.nonEmpty shouldEqual true
         ((res \\ "result").head \\ "transactionHash").head.asString.get shouldEqual Base58.encode(completionTx.get.id)
       }
-    }
+    }*/
 
 //    "Post a Proposal" in {
 //      val tempProposal = ProducerProposal(

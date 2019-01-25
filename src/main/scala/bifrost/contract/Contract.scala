@@ -7,12 +7,13 @@ import bifrost.exceptions.{InvalidProvidedContractArgumentsException, JsonParsin
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import org.graalvm.polyglot.Context
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
+import scala.language.existentials
 
 
 case class Contract(parties: Map[PublicKey25519Proposition, String],
@@ -28,28 +29,38 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
       "(must be between 2 and 1024).")
   }
 
-  lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
+  /*lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
     .getScriptEngine
-    .asInstanceOf[NashornScriptEngine]
+    .asInstanceOf[NashornScriptEngine]*/
+
+  val jsre: Context = Context.create("js")
+
 
   val agreementObj: Agreement = agreement.as[Agreement] match {
     case Right(a) => a
     case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
   }
 
-  jsre.eval(BaseModuleWrapper.objectAssignPolyfill)
+  jsre.eval("js", BaseModuleWrapper.objectAssignPolyfill)
 
   //noinspection ScalaStyle
-  def applyFunction(methodName: String)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
+  def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
-    jsre.eval(agreementObj.core.initjs)
-    jsre.eval(s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
+    jsre.eval("js", agreementObj.core.initjs)
+    println(">>>>>>>>> agreement initjs")
+    jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
+    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
+    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
+    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
 
     val parameterString: String = params
       .tail
       .foldLeft(params
         .headOption
         .getOrElse(""))((agg, cur) => s"$agg, $cur")
+
+    println(s"params: ${args.asJson}")
+    println(s"parameterString: $parameterString")
 
     val update =
       s"""
@@ -68,39 +79,42 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
-    val result = parse(jsre.eval(update).asInstanceOf[String]).right.get
+    println(s">>>>>>>>>>>>>>>>>>> Before result:")
+      //ValkyrieFunctions(jsre, args)
+      val result = parse(jsre.eval("js", update).asString()).right.get
+      println(s">>>>>>>>>>>>>>>>>>> After result ")
 
-    val resultingContract = this.copy(
-      agreement = agreementObj
-        .copy(core = agreementObj
-          .core
-          .copy(state = (result \\ "contract").head))
-        .asJson,
-      lastUpdated = Instant.now.toEpochMilli
-    )
+      val resultingContract = this.copy(
+        agreement = agreementObj
+          .copy(core = agreementObj
+            .core
+            .copy(state = (result \\ "contract").head))
+          .asJson,
+        lastUpdated = Instant.now.toEpochMilli
+      )
 
-    val functionReturnedUpdate = (result \\ "__returnedUpdate")
-      .head
-      .asBoolean
-      .get
+      val functionReturnedUpdate = (result \\ "__returnedUpdate")
+        .head
+        .asBoolean
+        .get
 
-    val functionResult: Option[Json] = if (!functionReturnedUpdate) {
-      Some((result \\ "functionResult").head)
-    } else {
-      None
+      val functionResult: Option[Json] = if (!functionReturnedUpdate) {
+        Some((result \\ "functionResult").head)
+      } else {
+        None
+      }
+
+      (resultingContract, functionResult)
     }
-
-    (resultingContract, functionResult)
-  }
 
   def getFromContract(property: String): Try[Json] = Try {
     val core = agreementObj.core
-    jsre.eval(core.initjs)
-    jsre.eval(s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
+    jsre.eval("js", core.initjs)
+    jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
     val update = s"c.$property"
 
-    val res = jsre.eval(s"JSON.stringify($update)").asInstanceOf[String]
+    val res = jsre.eval("js", s"JSON.stringify($update)").asString()
 
     parse(res) match {
       case Right(json: Json) => json
@@ -169,7 +183,9 @@ object Contract {
           .toArray
           .map(_.noSpaces)
 
-        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(neededArgs)
+        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
+
+        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)

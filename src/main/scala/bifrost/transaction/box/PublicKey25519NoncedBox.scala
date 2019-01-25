@@ -3,9 +3,9 @@ package bifrost.transaction.box
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._
-import scorex.core.serialization.{JsonSerializable, Serializer}
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.serialization.{JsonSerializable, Serializer}
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

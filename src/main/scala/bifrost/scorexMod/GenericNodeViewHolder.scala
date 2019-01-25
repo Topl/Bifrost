@@ -2,25 +2,25 @@ package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.history.BifrostHistory
-import scorex.core.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.consensus.History.HistoryComparisonResult
-import scorex.core.consensus.{History, SyncInfo}
+import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.consensus.History.HistoryComparisonResult
+import bifrost.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import scorex.core.network.ConnectedPeer
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.transaction.wallet.Vault
-import scorex.core.transaction.{MemoryPool, Transaction}
-import scorex.core.utils.ScorexLogging
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.network.ConnectedPeer
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.transaction.wallet.Vault
+import bifrost.transaction.{MemoryPool, Transaction}
+import bifrost.utils.ScorexLogging
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging{
+  extends Actor with ScorexLogging {
 
   import GenericNodeViewHolder._
 
@@ -240,8 +240,14 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
       val theyAreYounger = comparison == HistoryComparisonResult.Younger
       val notSendingBlocks = extensionOpt.isEmpty
 
-      if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
-      
+      //if(notSendingBlocks && theyAreYounger) throw new Exception("Other node was younger but we didn't have blocks to send")
+
+      if (notSendingBlocks && theyAreYounger) {
+        log.debug(s"Error: Trying to sync local node with remote node. " +
+          s"Failed to find common ancestor within block history. " +
+          s"Check that you are attempting to sync to the correct version of the blockchain.")
+      }
+
       sender() ! OtherNodeSyncingStatus(
         remote,
         comparison,
@@ -258,13 +264,13 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   override def receive: Receive =
     handleSubscribe orElse
-    compareViews orElse
-    readLocalObjects orElse
-    processRemoteModifiers orElse
-    processLocallyGeneratedModifiers orElse
-    getCurrentInfo orElse
-    getSyncInfo orElse
-    compareSyncInfo orElse {
+      compareViews orElse
+      readLocalObjects orElse
+      processRemoteModifiers orElse
+      processLocallyGeneratedModifiers orElse
+      getCurrentInfo orElse
+      getSyncInfo orElse
+      compareSyncInfo orElse {
       case a: Any => log.error(s">>>>>>>Strange input: $a :: ${a.getClass}")
     }
 }

@@ -9,13 +9,13 @@ import bifrost.state.BifrostState
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.{ArbitTransfer, BifrostTransaction, BifrostTransactionCompanion, PolyTransfer}
 import bifrost.wallet.BWallet
-import scorex.core.NodeViewModifier
-import scorex.core.NodeViewModifier.ModifierTypeId
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier
+import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.serialization.Serializer
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 class BifrostNodeViewHolder(settings: ForgingSettings)
@@ -44,10 +44,11 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     */
   override def restoreState(): Option[NodeView] = {
     if (BWallet.exists(settings)) {
+      val x = BifrostHistory.readOrGenerate(settings)
       Some(
         (
-          BifrostHistory.readOrGenerate(settings),
-          BifrostState.readOrGenerate(settings),
+          x,
+          BifrostState.readOrGenerate(settings, true, x),
           BWallet.readOrGenerate(settings, 1),
           BifrostMemPool.emptyPool
         )
@@ -123,12 +124,12 @@ object BifrostNodeViewHolder extends ScorexLogging {
     assert(Base58.encode(genesisTxs.head.id) == "5dJRukdd7sw7cmc8vwSnwbVggWLPV4VHYsZt7AQcFW3B", Base58.encode(genesisTxs.head.id))
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
-    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv)
+    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L) // arbitrary inflation for first block of 10 Arbits
 
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
 
-    val gs = BifrostState.genesisState(settings, Seq(genesisBlock))
+    val gs = BifrostState.genesisState(settings, Seq(genesisBlock), history)
     val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
 
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {

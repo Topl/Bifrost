@@ -34,7 +34,9 @@ class BloomFilterSpec extends PropSpec
                                System.currentTimeMillis(),
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,
-                               txs)
+                               txs,
+                               10L
+      )
 
       history = history.append(block).get._1
 

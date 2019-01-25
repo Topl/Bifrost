@@ -1,5 +1,15 @@
 package bifrost
 
+/*
+
+* @startuml
+
+* car --|> wheel
+
+* @enduml
+
+*/
+
 import akka.actor.{Actor, ActorRef, AllDeadLetters, DeadLetter, Props}
 import akka.event.Logging
 import bifrost.api.http._
@@ -8,14 +18,18 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
-import bifrost.scorexMod.api.http.GenericNodeViewApiRoute
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
-import scorex.core.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
-import scorex.core.network.message.MessageSpec
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
+import bifrost.network.message.MessageSpec
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
+
+import org.graalvm.polyglot.Context
+import java.lang.management.ManagementFactory
+import com.sun.management.HotSpotDiagnosticMXBean
+import com.sun.management.VMOption
 
 import scala.reflect.runtime.universe._
 
@@ -40,6 +54,20 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
   override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
 
+  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
+
+  override val localInterface: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+  )
+
+  override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
+    Props(classOf[BifrostNodeViewSynchronizer],
+      networkController,
+      nodeViewHolderRef,
+      localInterface,
+      BifrostSyncInfoMessageSpec)
+  )
+
   override val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     DebugApiRouteRPC(settings, nodeViewHolderRef),
@@ -47,7 +75,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
-    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
+    NodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings)
   )
 
@@ -57,49 +85,28 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
-                                         typeOf[GenericNodeViewApiRoute[P, TX]],
+                                         typeOf[WalletApiRoute],
+                                         typeOf[NodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute])
 
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
-  override val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
-  )
 
-  override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
-  )
+  // Am I running on a JDK that supports JVMCI?
+         val vm_version = System.getProperty("java.vm.version")
+         System.out.printf("java.vm.version = %s%n", vm_version)
 
-  class DeadLetterMonitor extends Actor {
-    def receive = {
-      case msg: AllDeadLetters => log.debug(s"${self.path.name} - dead letter encountered: $msg")
-    }
-  }
+         val bean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
+  // Is JVMCI enabled?
+          val enableJVMCI = bean.getVMOption("EnableJVMCI")
+          System.out.println(enableJVMCI)
 
-  val listener = actorSystem.actorOf(Props(new DeadLetterMonitor))
-  actorSystem.eventStream.subscribe(listener, classOf[AllDeadLetters])
+  // Is the system using the JVMCI compiler for normal compilations?
+          val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
+          System.out.println(useJVMCICompiler)
 
-  class CheckThreadsRunner extends Thread {
-
-    override def run(): Unit =  while(true) {
-      import scala.collection.JavaConverters._
-      val dispThreads =
-        Thread.getAllStackTraces.keySet.asScala.filter(_.getName startsWith "default-akka.actor.default-dispatcher")
-
-      dispThreads.toVector.map(_.getName).sorted.foreach(log.debug)
-      log.debug(s"\nCurrently ${dispThreads.size} threads")
-
-      Thread.sleep(10000)
-    }
-  }
-
-  val checker = new CheckThreadsRunner
-  checker.setDaemon(true)
-  checker.start()
+  // What compiler is selected?
+         val compiler = System.getProperty("jvmci.Compiler")
+         System.out.printf("jvmci.Compiler = %s%n", compiler)
 
   //touching lazy vals
   forger
@@ -132,7 +139,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-  val settingsFilename = args.headOption.getOrElse("testnet-bifrost.json")
-//val settingsFilename = args.headOption.getOrElse("settings.json")
+  val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }

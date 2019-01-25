@@ -1,10 +1,10 @@
 package bifrost
 
 import bifrost.blocks.BifrostBlock
-import scorex.core.NodeViewModifier
-import scorex.core.consensus.{BlockChain, SyncInfo}
-import scorex.core.serialization.Serializer
-import scorex.core.network.message.SyncInfoMessageSpec
+import bifrost.NodeViewModifier
+import bifrost.consensus.{BlockChain, SyncInfo}
+import bifrost.serialization.Serializer
+import bifrost.network.message.SyncInfoMessageSpec
 
 import scala.util.Try
 

@@ -5,8 +5,9 @@ import java.time.Instant
 import bifrost.BifrostApp
 import bifrost.contract.{Agreement, Contract}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.GenericBoxTransaction
+import bifrost.scorexMod.{GenericBoxTransaction, GenericWalletBox}
 import bifrost.transaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.ContractCompletion.assetNonce
 import bifrost.transaction.Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -17,13 +18,13 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.BoxUnlocker
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.proof.{Proof, Signature25519}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.BoxUnlocker
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.proof.{Proof, Signature25519}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BuySellOrder
@@ -74,11 +75,89 @@ object BifrostTransaction {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 }
 
+case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                                signatures: IndexedSeq[Signature25519],
+                                override val timestamp: Long,
+                                blockID: Array[Byte]) extends BifrostTransaction {
+  override type M = CoinbaseTransaction
 
-case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                          val signatures: IndexedSeq[Signature25519],
-                          val assetCode: String,
-                          val hub: PublicKey25519Proposition,
+  lazy val serializer = CoinbaseTransactionCompanion
+
+  override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
+
+  lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
+
+  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
+
+  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
+
+  lazy val hashNoNonces = FastCryptographicHash(
+    to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed
+  )
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  val nonce = nonceFromDigest(FastCryptographicHash(
+    "CoinbaseTransaction".getBytes ++ hashNoNonces
+  ))
+
+  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, nonce, to.head._2))
+
+  override lazy val json: Json = Map( // tx in json form
+    "id" -> Base58.encode(id).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "to" -> Map(
+        "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
+        "value" -> to.head._2.asJson
+      ).asJson,
+    "blockID" -> Base58.encode(blockID).asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson
+  ).asJson
+
+  def commonMessageToSign: Array[Byte] = newBoxes.head.bytes ++ // is the new box + the timestamp + the fee,
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee) ++
+    blockID
+
+  override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
+    "CoinbaseTransaction".getBytes(),
+    commonMessageToSign
+  )
+}
+
+object CoinbaseTransaction {
+
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
+
+  def validate(tx: CoinbaseTransaction): Try[Unit] = Try {
+    require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
+    require(tx.fee == 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.forall({ signature => // should be only one sig
+      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+    }), "Invalid signature")
+  }
+
+  def createAndApply(w: BWallet,
+                     to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                     blockID: Array[Byte]  // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
+                    ): Try[CoinbaseTransaction] = Try {
+    val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
+    val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
+    val timestamp = Instant.now.toEpochMilli // generate timestamp
+    val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
+    val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated
+    CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
+  }
+
+
+}
+
+case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                          signatures: IndexedSeq[Signature25519],
+                          assetCode: String,
+                          val issuer: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long,
                           val data: String) extends BifrostTransaction {
@@ -105,7 +184,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
      val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
        "AssetCreation".getBytes ++
          prop.pubKeyBytes ++
-         hub.pubKeyBytes ++
+         issuer.pubKeyBytes ++
          assetCode.getBytes ++
          hashNoNonces ++
          Ints.toByteArray(idx)
@@ -114,11 +193,11 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
      //TODO assetBoxes elsewhere do not subtract fee from box value
      //TODO no check that amount >= fee
      //AssetBox(prop, nonce, value, assetCode, hub)
-     AssetBox(prop, nonce, value - fee, assetCode, hub)
+     AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
    }
 
   override lazy val json: Json = Map(
-    "transactionHash" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { s =>
       Map(
@@ -126,11 +205,12 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
         "value" -> s._2.asJson
       ).asJson
     }.asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
@@ -146,7 +226,7 @@ case class AssetCreation (val to: IndexedSeq[(PublicKey25519Proposition, Long)],
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
   "AssetCreation".getBytes(),
   commonMessageToSign,
-  hub.pubKeyBytes,
+  issuer.pubKeyBytes,
   assetCode.getBytes,
   data.getBytes
   )
@@ -164,31 +244,31 @@ object AssetCreation {
     require(tx.timestamp >= 0)
     require(tx.signatures.forall({ case (signature) =>
       //println(signature.isValid(tx.hub, tx.messageToSign))
-      signature.isValid(tx.hub, tx.messageToSign)
+      signature.isValid(tx.issuer, tx.messageToSign)
     }), "Invalid signatures")
   }
 
   /**
     * Route here from AssetApiRoute
-    * Assumes that the Wallet contains the hub's key information
-    * Takes Wallet from current view, and generates signature from hub's public key
+    * Assumes that the Wallet contains the issuer's key information
+    * Takes Wallet from current view, and generates signature from issuer's public key
     * Forms corresponding AssetCreation transaction
     */
   def createAndApply(w: BWallet,
-             to: IndexedSeq[(PublicKey25519Proposition, Long)],
-             fee: Long,
-             hub: PublicKey25519Proposition,
-             assetCode: String,
-             data: String): Try[AssetCreation] = Try {
+                     to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                     fee: Long,
+                     issuer: PublicKey25519Proposition,
+                     assetCode: String,
+                     data: String): Try[AssetCreation] = Try {
 
-    val selectedSecret = w.secretByPublicImage(hub).get
+    val selectedSecret = w.secretByPublicImage(issuer).get
     val fakeSigs = IndexedSeq(Signature25519(Array()))
     val timestamp = Instant.now.toEpochMilli
-    val messageToSign = AssetCreation(to, fakeSigs, assetCode, hub, fee, timestamp, data).messageToSign
+    val messageToSign = AssetCreation(to, fakeSigs, assetCode, issuer, fee, timestamp, data).messageToSign
 
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign))
 
-    AssetCreation(to, signatures, assetCode, hub, fee, timestamp, data)
+    AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
   }
 }
 
@@ -214,7 +294,7 @@ sealed abstract class ContractTransaction extends BifrostTransaction {
     }
 
   lazy val commonJson: Json = Map(
-    "transactionHash" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "parties" -> parties.map(kv =>Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson
@@ -562,7 +642,38 @@ case class ContractMethodExecution(contractBox: ContractBox,
       case Failure(_) => contractBox
     }
 
-    IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
+    //Handle boxes being sent from the contract to a public key
+    val boxesFromContract: Option[BifrostBox] = methodName match {
+      case "assetTransfer" => {
+        val key = (parameters \\ "publicKey").head.asString.get
+        val asset = (parameters \\ "asset").head.asString.get
+        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
+        if (key != "contract") {
+          Some(AssetBox(PublicKey25519Proposition(key.getBytes),
+            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount, asset, parties.head._1, data))
+        }
+        else
+          None
+      }
+
+      case "polyTransfer" => {
+        val key = (parameters \\ "publicKey").head.asString.get
+        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
+        if(key != "contract"){
+          Some(PolyBox(PublicKey25519Proposition(key.getBytes),
+            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount))
+        }
+        else
+          None
+      }
+
+      case _ => None
+    }
+
+    if(boxesFromContract.nonEmpty)
+      IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces) :+ boxesFromContract.get
+    else
+      IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -678,10 +789,10 @@ case class ContractCompletion(contractBox: ContractBox,
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
     val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
-    val hub: PublicKey25519Proposition = contract.parties.find(_._2 == "hub").get._1
+    val issuer: PublicKey25519Proposition = contract.parties.find(_._2 == "issuer").get._1
 
     val partyAssets: IndexedSeq[AssetBox] = contract.parties.map { p =>
-      AssetBox(p._1, assetNonce(p._1, hashNoNonces), 0, assetCode, hub)
+      AssetBox(p._1, assetNonce(p._1, hashNoNonces), 0, assetCode, issuer, data)
     }.toIndexedSeq
 
     IndexedSeq(
@@ -772,7 +883,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
   )
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
@@ -853,56 +964,36 @@ trait TransferUtil {
     toReceive
       .foldLeft((IndexedSeq[(PrivateKey25519, Long, Long)](), IndexedSeq[(PublicKey25519Proposition, Long)]())) {
         case (a, (recipient, amount)) =>
+
+          // Restrict box search to specified public keys if provided
+          val keyFilteredBoxes: Seq[GenericWalletBox[Any, w.PI, BifrostBox]] =
+            if (publicKeysToSendFrom.isEmpty) w.boxes() else publicKeysToSendFrom.flatMap(p => w.boxesByKey(p))
+
           // Match only the type of boxes specified by txType
-          val filteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
             case "PolyTransfer" =>
-              if(publicKeysToSendFrom.isEmpty){
-              w.boxes().flatMap(_.box match {
-              case p: PolyBox => Some(p)
-              case _ => None
-            })}
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case p: PolyBox => Some(p)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case p: PolyBox => Some(p)
+                case _ => None
+              })
             case "ArbitTransfer" =>
-              if(publicKeysToSendFrom.isEmpty){
-                w.boxes().flatMap(_.box match {
-                  case a: ArbitBox => Some(a)
-                  case _ => None
-                })}
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case a: ArbitBox => Some(a)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case a: ArbitBox => Some(a)
+                case _ => None
+              })
             case "AssetTransfer" =>
-              if(publicKeysToSendFrom.isEmpty) {
-                w.boxes().flatMap(_.box match {
-                  case a: AssetBox
-                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                      (a.hub equals extraArgs(0)
-                        .asInstanceOf[PublicKey25519Proposition]) =>
-                    Some(a)
-                  case _ => None
-                })
-              }
-              else {
-                publicKeysToSendFrom.flatMap(p => w.boxesByKey(p).flatMap(_.box match {
-                  case a: AssetBox
-                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                      (a.hub equals extraArgs(0)
-                        .asInstanceOf[PublicKey25519Proposition]) =>
-                    Some(a)
-                  case _ => None
-                }))
-              }
+              keyFilteredBoxes.flatMap(_.box match {
+                case a: AssetBox
+                  if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
+                    (a.issuer equals extraArgs(0)
+                      .asInstanceOf[PublicKey25519Proposition]) =>
+                  Some(a)
+                case _ => None
+              })
           }
 
-          val from: IndexedSeq[(PrivateKey25519, Long, Long)] = filteredBoxes
+          // Check if the keys currently unlocked in wallet match the proposition of any of the found boxes
+          val senderInputBoxes: IndexedSeq[(PrivateKey25519, Long, Long)] = keyAndTypeFilteredBoxes
             .flatMap {
               b: BifrostPublic25519NoncedBox =>
                 w.secretByPublicImage(b.proposition)
@@ -910,38 +1001,24 @@ trait TransferUtil {
             }
             .toIndexedSeq
 
-          val canSend = from.map(_._3).sum
+          // amount available to send in tx
+          val canSend = senderInputBoxes.map(_._3).sum
 
-          var to: IndexedSeq[(PublicKey25519Proposition, Long)] = null
-
-          //Added fix to prevent zero-value change box from being created when entire
-          //amount is to be transferred
-          if(canSend - amount - fee != 0) {
-
-            var updatedBalance: (PublicKey25519Proposition, Long) = null
-            if (publicKeyToSendChangeTo == "") {
-              updatedBalance = filteredBoxes.head match {
-                case b: BifrostPublic25519NoncedBox =>
-                  (b.proposition, canSend - amount - fee)
-                case _ => null
+          // Updated sender balance for specified box type (this is the change calculation for sender)
+          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = keyAndTypeFilteredBoxes.head match {
+            case b: BifrostPublic25519NoncedBox =>
+              publicKeyToSendChangeTo match {
+                case "" => (b.proposition, canSend - amount - fee)
+                case _ => (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
               }
-            }
-            else {
-              updatedBalance =
-                  (PublicKey25519Proposition(Base58.decode(publicKeyToSendChangeTo).get), canSend - amount - fee)
-              }
-            to = IndexedSeq(updatedBalance, (recipient, amount))
-
-          }
-          else {
-            to = IndexedSeq((recipient, amount))
+            case _ => null
           }
 
-//          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(updatedBalance, (recipient, amount))
+          // create the list of outputs (senderChangeOut & recipientOut)
+          val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
 
-          require(from.map(_._3).sum - to.map(_._2).sum == fee)
-
-          (a._1 ++ from, a._2 ++ to)
+          require(senderInputBoxes.map(_._3).sum - to.map(_._2).sum == fee)
+          (a._1 ++ senderInputBoxes, a._2 ++ to)
       }
   }
 
@@ -1042,6 +1119,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
 }
 
+//noinspection ScalaStyle
 object ArbitTransfer extends TransferUtil {
 
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
@@ -1067,7 +1145,7 @@ object ArbitTransfer extends TransferUtil {
 case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
                          override val signatures: IndexedSeq[Signature25519],
-                         hub: PublicKey25519Proposition,
+                         issuer: PublicKey25519Proposition,
                          assetCode: String,
                          override val fee: Long,
                          override val timestamp: Long,
@@ -1085,16 +1163,16 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
         "AssetTransfer".getBytes ++
           prop.pubKeyBytes ++
-          hub.pubKeyBytes ++
+          issuer.pubKeyBytes ++
           assetCode.getBytes ++
           hashNoNonces ++
           Ints.toByteArray(idx)
       ))
-      AssetBox(prop, nonce, value, assetCode, hub)
+      AssetBox(prop, nonce, value, assetCode, issuer, data)
   }
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
@@ -1109,7 +1187,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
         "value" -> s._2.asJson
       ).asJson
     }.asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
@@ -1120,7 +1198,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,
-    hub.pubKeyBytes,
+    issuer.pubKeyBytes,
     assetCode.getBytes,
     data.getBytes
   )
@@ -1130,27 +1208,27 @@ object AssetTransfer extends TransferUtil {
 
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
             to: IndexedSeq[(PublicKey25519Proposition, Value)],
-            hub: PublicKey25519Proposition,
+            issuer: PublicKey25519Proposition,
             assetCode: String,
             fee: Long,
             timestamp: Long,
             data: String): AssetTransfer = {
-    val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", hub, assetCode, data).get
-    AssetTransfer(params._1, to, params._2, hub, assetCode, fee, timestamp, data)
+    val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", issuer, assetCode, data).get
+    AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
   def create(w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              fee: Long,
-             hub: PublicKey25519Proposition,
+             issuer: PublicKey25519Proposition,
              assetCode: String,
              data: String,
              publicKeyToSendFrom: Vector[String] = Vector(),
              publicKeyToSendChangeTo: String = ""): Try[AssetTransfer] = Try {
 
-    val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, hub, assetCode)
+    val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, issuer, assetCode)
     val timestamp = Instant.now.toEpochMilli
-    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
 
 
@@ -1175,20 +1253,20 @@ case class TokenExchangeTransaction(buyOrder: BuySellOrder,
         .nonce)).toIndexedSeq
     val toBuyer = IndexedSeq((PublicKey25519Proposition(buyOrder.publicKey.toByteArray), sellOrder.token1.quantity))
       .toIndexedSeq
-    val hub = PublicKey25519Proposition(sellOrder.token1.tokenHub.get.toByteArray)
+    val issuer = PublicKey25519Proposition(sellOrder.token1.tokenHub.get.toByteArray)
     val assetCode = sellOrder.token1.tokenCode
 
     AssetTransfer(fromSeller,
       toBuyer,
       sellOrder.signatures.map(s => Signature25519(s.toByteArray)).toIndexedSeq,
-      hub,
+      issuer,
       assetCode,
       0L,
       sellOrder.timestamp,
       "")
   }
 
-  lazy val token2Tx: PolyTransfer = {
+  lazy val token2Tx: PolyTransfer = { /** STANDUP | Is this supposed to be here? */
     val fromBuyer = buyOrder
       .inputBoxes
       .map(noncedBox => (PublicKey25519Proposition(noncedBox.publicKey.toByteArray), noncedBox.nonce))
@@ -1198,7 +1276,7 @@ case class TokenExchangeTransaction(buyOrder: BuySellOrder,
       (PublicKey25519Proposition(sellOrder.publicKey.toByteArray), buyOrder.token2.quantity - fee)
     ).toIndexedSeq
 
-    // TODO: Assume token2 is always Poly for now
+    // TODO: Assume token2 is always Poly for now LOL
     PolyTransfer(fromBuyer,
       toSeller,
       buyOrder.signatures.map(s => Signature25519(s.toByteArray)).toIndexedSeq,
@@ -1299,7 +1377,7 @@ case class ProfileTransaction(from: PublicKey25519Proposition,
   override lazy val messageToSign: Array[Byte] = ProfileTransaction.messageToSign(timestamp, from, keyValues)
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> Base58.encode(from.pubKeyBytes).asJson,
@@ -1335,7 +1413,7 @@ object ProfileTransaction {
 case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]],
                            remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]],
                            signatures: Map[String, IndexedSeq[Signature25519]],
-                           hub: PublicKey25519Proposition,
+                           issuer: PublicKey25519Proposition,
                            fee: Long,
                            timestamp: Long,
                            data: String) extends BifrostTransaction {
@@ -1347,7 +1425,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
       case (_, value) =>
         value.map(t => t._1.pubKeyBytes)
     }
-    Option(IndexedSeq("AssetRedemption".getBytes ++ hub.pubKeyBytes) ++ remainderKeys.toSet.take(3).toSeq)
+    Option(IndexedSeq("AssetRedemption".getBytes ++ issuer.pubKeyBytes) ++ remainderKeys.toSet.take(3).toSeq)
   }
 
   val redemptionGroup: Map[ByteArrayWrapper, Signature25519] = availableToRedeem.flatMap(entry =>
@@ -1377,7 +1455,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
   lazy val hashNoNonces = FastCryptographicHash(
     remainderAllocations.values.foldLeft(Array[Byte]())((a, b) => a ++ b.flatMap(_._1.pubKeyBytes)) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
-      hub.pubKeyBytes ++
+      issuer.pubKeyBytes ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
   )
@@ -1394,7 +1472,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
           Ints.toByteArray(i)
         ))
       )
-      AssetBox(r._1, nonce, r._2, assetCode, hub)
+      AssetBox(r._1, nonce, r._2, assetCode, issuer, data)
     }
   }
 
@@ -1407,7 +1485,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
   }
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "availableToRedeem" -> availableToRedeem
@@ -1431,7 +1509,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     "signatures" -> signatures.map { case (assetCode: String, signatures: IndexedSeq[Signature25519]) =>
       assetCode -> signatures.map(s => Base58.encode(s.signature).asJson).asJson
     }.asJson,
-    "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
@@ -1464,7 +1542,7 @@ object AssetRedemption {
     availableToRedeemRaw <- c.downField("availableToRedeem").as[Map[String, IndexedSeq[(String, Long)]]]
     remainderAllocationsRaw <- c.downField("remainderAllocations").as[Map[String, IndexedSeq[(String, Long)]]]
     signaturesRaw <- c.downField("signatures").as[Map[String, IndexedSeq[String]]]
-    hubRaw <- c.downField("hub").as[String]
+    issuerRaw <- c.downField("issuer").as[String]
     fee <- c.downField("fee").as[Long]
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
@@ -1487,12 +1565,12 @@ object AssetRedemption {
       )
       (key, newValues)
     }
-    val hub = PublicKey25519Proposition(Base58.decode(hubRaw).get)
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
+    val issuer = PublicKey25519Proposition(Base58.decode(issuerRaw).get)
+    AssetRedemption(availableToRedeem, remainderAllocations, signatures, issuer, fee, timestamp, data)
   }
 }
 
-abstract class TestTransaction extends BifrostTransaction
+/*abstract class TestTransaction extends BifrostTransaction
 
 /**
   *
@@ -1503,13 +1581,15 @@ abstract class TestTransaction extends BifrostTransaction
   * @param conversionSignatures
   * @param fee
   * @param timestamp
+  * @param data
   */
 case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]],
                                  assetsToReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]],
                                  assetTokensToRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]],
                                  conversionSignatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]],
                                  override val fee: Long,
-                                 override val timestamp: Long)
+                                 override val timestamp: Long,
+                                 data: String)
   extends TestTransaction {
 
   import ConversionTransaction._
@@ -1542,7 +1622,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
   override def toString: String = s"ConversionTransaction(${json.noSpaces})"
 
   override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "totalAssetBoxes" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "assetsToReturn" -> assetsToReturn.map { case (assetHub: (String, PublicKey25519Proposition),
@@ -1550,7 +1630,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
       returned.map(prop =>
         Map(
           "assetCode" -> assetHub._1.asJson,
-          "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+          "issuer" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
           "proposition" -> Base58.encode(prop._1.pubKeyBytes).asJson,
           "amount" -> prop._2.asJson
         ).asJson
@@ -1561,7 +1641,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
       redeem.map(prop =>
         Map(
           "assetCode" -> assetHub._1.asJson,
-          "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+          "issuer" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
           "proposition" -> Base58.encode(prop._1.pubKeyBytes).asJson,
           "amount" -> prop._2.asJson
         ).asJson
@@ -1572,13 +1652,14 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
       signatures.map(sig =>
         Map(
           "assetCode" -> assetHub._1.asJson,
-          "hub" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
+          "issuer" -> Base58.encode(assetHub._2.pubKeyBytes).asJson,
           "signature" -> Base58.encode(sig.signature).asJson
         ).asJson
       )
     }.asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   /* Creates new AssetBoxes specified by the assetCode and Long from the returnedAssets parameter and
@@ -1594,7 +1675,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
             Longs.toByteArray(propAmount._2),
             Ints.toByteArray(idx)))
         )
-        AssetBox(propAmount._1, nonce, propAmount._2, assetHub._1, assetHub._2)
+        AssetBox(propAmount._1, nonce, propAmount._2, assetHub._1, assetHub._2, data)
       }
     }
 
@@ -1613,7 +1694,7 @@ case class ConversionTransaction(totalAssetBoxes: Map[(String, PublicKey25519Pro
         val polyAmount = conversionRates.get(assetHub._1)
         polyAmount match {
           //noinspection ScalaStyle
-          case (None) => AssetBox(prop, nonce, amount, assetHub._1, assetHub._2)
+          case (None) => AssetBox(prop, nonce, amount, assetHub._1, assetHub._2, data)
           case (Some(rate)) =>
             val convertedAmount: Long = (amount.toDouble * rate).floor.toLong
             PolyBox(prop, nonce, convertedAmount)
@@ -1665,4 +1746,4 @@ object ConversionTransaction {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
   }
-}
+}*/

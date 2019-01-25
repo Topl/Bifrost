@@ -7,8 +7,8 @@ import bifrost.transaction.AssetRedemption
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
@@ -26,7 +26,8 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(ar)
+          Seq(ar),
+          10L
         )
 
         val preExistingAssetBoxes: Set[BifrostBox] = ar
@@ -34,7 +35,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
           .flatMap {
             case (assetCode, toRedeem) =>
               toRedeem
-                .map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.hub))
+                .map(r => AssetBox(r._1, r._2, ar.remainderAllocations(assetCode).map(_._2).sum, assetCode, ar.issuer, ar.data))
           }
           .toSet
 
@@ -95,7 +96,8 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
                                          r._2,
                                          assetRedemption.remainderAllocations(assetCode).map(_._2).sum,
                                          assetCode,
-                                         assetRedemption.hub))
+                                         assetRedemption.issuer,
+                                         assetRedemption.data))
           }
           .toSet
 
@@ -126,7 +128,7 @@ class AssetRedemptionValidationSpec extends BifrostStateSpec {
       ar: AssetRedemption =>
 
         val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap {
-          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.hub))
+          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.issuer, ar.data))
         }.toSet
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)
