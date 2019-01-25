@@ -66,7 +66,6 @@ case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef:
   }
   }
 
-  //TODO check returning response as SuccessApiResponse instead of directly Json? Or is that the difference between HTTP and Json RPC?
   private def infoRoute(params: Json, id: String): Future[Json] = {
       viewAsync().map {
         view =>
