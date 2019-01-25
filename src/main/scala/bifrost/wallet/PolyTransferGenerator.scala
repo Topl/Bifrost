@@ -1,10 +1,10 @@
 package bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.transaction.{PolyTransfer}
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.PolyTransfer
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58

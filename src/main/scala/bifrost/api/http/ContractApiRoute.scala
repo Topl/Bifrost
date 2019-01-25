@@ -8,7 +8,6 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
 import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
@@ -24,6 +23,7 @@ import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.api.http.ApiException
 import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution, ProfileTransaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging

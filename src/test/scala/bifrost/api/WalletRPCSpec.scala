@@ -7,12 +7,12 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.{WalletApiRoute}
+import bifrost.api.http.WalletApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState}
-import bifrost.transaction.{BifrostTransaction}
+import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
