@@ -9,16 +9,11 @@ import bifrost.state.BifrostState
 import bifrost.transaction.PolyTransfer
 import bifrost.transaction.box.{ArbitBox, PolyBox}
 import bifrost.wallet.BWallet
-import io.circe.Json
+import io.circe.{Json, JsonObject}
 import io.circe.parser.parse
 import io.circe.parser._
 import io.circe.syntax._
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.NodeViewHolder.{CurrentView, GetCurrentView}
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,13 +28,11 @@ import javax.ws.rs.Path
 import akka.pattern.ask
 import io.circe.syntax._
 import io.swagger.annotations._
-import scorex.core.consensus.History
-import scorex.core.network.ConnectedPeer
-import scorex.core.network.NodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
-import scorex.core.settings.Settings
-import scorex.core.transaction.{MemoryPool, Transaction}
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.consensus.History
+import bifrost.network.ConnectedPeer
+import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
+import bifrost.settings.Settings
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 
 import scala.concurrent.duration._
 
@@ -79,7 +72,7 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
               }
               match {
                 case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", flase.asJson).asBoolean.get)
+                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
               }
           }
 
@@ -89,6 +82,7 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
   }
   }
 
+  private val source: ConnectedPeer = null
 
   private def getHistory(): Try[HIS] = Try {
     Await.result((nodeViewHolderRef ? GetCurrentView).mapTo[CurrentView[_, _ <: HIS, _, _]].map(_.history), 5.seconds)
@@ -120,23 +114,41 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
         val transactionId: String = (params \\ "transactionId").head.asString.get
         Base58.decode(transactionId) match {
           case Success(id) =>
-            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
-            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-            .map(_.localObjects.headOption.map(_.json)).asJson
+            val storage = view.history.storage
+            val blockIdWithPrefix = storage.blockIdOf(id).get
+//            require(blockIdWithPrefix.head == Transaction.ModifierTypeId)
+            val blockId = blockIdWithPrefix.tail
+            val blockNumber = storage.heightOf(blockId)
+            val tx = storage.modifierById(blockId).get.txs.filter(_.id sameElements id).head
+            tx.json.asObject.get.add("blockNumber", blockNumber.asJson)
+              .add("blockHash", Base58.encode(blockId).asJson).asJson
+
+          //            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
+//            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+//            .map(_.localObjects.headOption.map(_.json)).asJson
           }
 
-//        (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(Base58.decode(transactionId))))
-//          .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-//          .map(_.localObjects.headOption.map(_.json).asJson)
     }
   }
 
   private def persistentModifierById(params: Json, id: String): Future[Json] = {
     viewAsync().map {
       view =>
-
+        val modifierId: String = (params \\ "modifierId").head.asString.get
+        Base58.decode(modifierId) match {
+          case Success(id) =>
+            var modifierId: JsonObject = JsonObject.empty
+            val blockNumber = view.history.storage.heightOf(id)
+            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
+              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+              .map(_.localObjects.headOption.map(_.json).map(j => {
+                modifierId =
+                  j.asObject.get.add("blockNumber", blockNumber.asJson)
+              }))
+            modifierId.asJson
+        }
+      }
     }
-  }
 
 
 }
