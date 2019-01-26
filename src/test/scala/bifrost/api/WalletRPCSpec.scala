@@ -263,7 +263,6 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
-
     "Transfer some polys from a specified public key and specify a change address" in {
       val requestBody = ByteString(
         s"""
@@ -338,7 +337,6 @@ class WalletRPCSpec extends WordSpec
       }
     }
 
-
     "Generate a keyfile" in {
       val requestBody = ByteString(
         s"""
@@ -411,40 +409,6 @@ class WalletRPCSpec extends WordSpec
         )
       }
     }
-
-
-    //    "Transfer some polys from a list of specified public keys in wallet" in {
-    //      val requestBody = ByteString(
-    //        s"""
-    //           |{
-    //           |
-    //           |   "jsonrpc": "2.0",
-    //           |   "id": "30",
-    //           |   "method": "transferByKeys",
-    //           |   "params": [{
-    //           |     "recipient": "${publicKeys("hub")}",
-    //           |     "publicKeysToSendFrom": [
-    //           |         "${publicKeys("investor")}",
-    //           |        "${publicKeys("hub")}"
-    //           |     ],
-    //           |     "amount": 5,
-    //           |     "fee": 0,
-    //           |     "data": ""
-    //           |   }]
-    //           |}
-    //        """.stripMargin)
-    //      //println(requestBody)
-    //      httpPOST(requestBody) ~> route ~> check {
-    //        val res = parse(responseAs[String]).right.get
-    //        println(res)
-    //        (res \\ "error").isEmpty shouldBe true
-    //        (res \\ "result").head.asObject.isDefined shouldBe true
-    //        val txHash = ((res \\ "result").head \\ "id").head.asString.get
-    //        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-    //        view().pool.remove(txInstance)
-    //      }
-    //    }
-
   }
 
 
@@ -454,3 +418,34 @@ class WalletRPCSpec extends WordSpec
   }
 }
 
+//    "Transfer some polys from a list of specified public keys in wallet" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |
+//           |   "jsonrpc": "2.0",
+//           |   "id": "30",
+//           |   "method": "transferByKeys",
+//           |   "params": [{
+//           |     "recipient": "${publicKeys("hub")}",
+//           |     "publicKeysToSendFrom": [
+//           |         "${publicKeys("investor")}",
+//           |        "${publicKeys("hub")}"
+//           |     ],
+//           |     "amount": 5,
+//           |     "fee": 0,
+//           |     "data": ""
+//           |   }]
+//           |}
+//        """.stripMargin)
+//      //println(requestBody)
+//      httpPOST(requestBody) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        println(res)
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//        val txHash = ((res \\ "result").head \\ "id").head.asString.get
+//        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+//        view().pool.remove(txInstance)
+//      }
+//    }
