@@ -25,9 +25,7 @@ import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
-/**
-  * Created by cykoz on 7/3/2017.
-  */
+
 class WalletRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest

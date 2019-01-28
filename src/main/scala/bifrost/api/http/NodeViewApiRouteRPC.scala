@@ -37,7 +37,6 @@ import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scala.concurrent.duration._
 
 
-
 case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRef: ActorRef)
                    (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
@@ -101,12 +100,9 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
         getMempool() match {
           case Success(pool: MP) => pool.take(1000).map(_.json).asJson
             //Failure is caught by BifrostErrorResponse in the nodeViewRoute function when the Await does not receive a response
-
         }
     }
   }
-
-  //openSurface function is unimplemented in History
 
   private def transactionById(params: Json, id: String): Future[Json] = {
     viewAsync().map {
@@ -123,11 +119,10 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
             tx.json.asObject.get.add("blockNumber", blockNumber.asJson)
               .add("blockHash", Base58.encode(blockId).asJson).asJson
 
-          //            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
+//            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
 //            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
 //            .map(_.localObjects.headOption.map(_.json)).asJson
           }
-
     }
   }
 

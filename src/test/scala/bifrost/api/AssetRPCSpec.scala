@@ -62,7 +62,6 @@ class AssetRPCSpec extends WordSpec
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
-
   // Unlock Secrets
   val gw: BWallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
