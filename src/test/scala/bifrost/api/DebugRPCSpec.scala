@@ -6,7 +6,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import bifrost.api.http.DebugApiRouteRPC
+import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -29,12 +29,12 @@ class DebugRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  val route = DebugApiRouteRPC(settings, nodeViewHolderRef).route
+  val route = DebugApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "/debugRPC/",
+      uri = "/debug/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     )
   }
@@ -80,7 +80,6 @@ class DebugRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -99,7 +98,6 @@ class DebugRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-//        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -118,7 +116,6 @@ class DebugRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-//        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -137,7 +134,24 @@ class DebugRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-//        println(res)
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "Check if node is synced to canonical chain" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "30",
+           |   "method": "sync",
+           |   "params": [{}]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }

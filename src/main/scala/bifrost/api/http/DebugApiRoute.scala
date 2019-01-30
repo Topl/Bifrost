@@ -19,14 +19,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-case class DebugApiRouteRPC (override val settings: Settings, nodeViewHolderRef: ActorRef)
-                       (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
   type MP = BifrostMemPool
-  override val route: Route = pathPrefix("debugRPC") { debugRoute }
+  override val route: Route = pathPrefix("debug") { debugRoute }
 
   //noinspection ScalaStyle
   def debugRoute: Route = path("") { entity(as[String]) { body =>

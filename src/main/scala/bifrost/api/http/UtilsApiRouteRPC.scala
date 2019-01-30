@@ -4,6 +4,7 @@ import java.security.SecureRandom
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.settings.Settings
@@ -14,11 +15,10 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-abstract class UtilsApiRouteRPC(override val settings: Settings)
-                              (implicit val context: ActorRefFactory) extends ApiRoute {
+case class UtilsApiRouteRPC(override val settings: Settings)
+                           (implicit val context: ActorRefFactory) extends ApiRoute {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -34,34 +34,28 @@ abstract class UtilsApiRouteRPC(override val settings: Settings)
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-//          viewAsync().map { view =>
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
-              case Right(json) =>
-                val futureResponse: Try[Json] = Try {
-                  val id = (json \\ "id").head.asString.get
-                  reqId = id
-                  require((json \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (json \\ "params").head.asArray.get
-                  require(params.size <= 5, s"size of params is ${params.size}")
+          var reqId = ""
+          parse(body) match {
+            case Left(failure) => ApiException(failure.getCause)
+            case Right(json) =>
+              val response: Try[Json] = Try {
+                val id = (json \\ "id").head.asString.get
+                reqId = id
+                require((json \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (json \\ "params").head.asArray.get
+                require(params.size <= 5, s"size of params is ${params.size}")
 
-                  (json \\ "method").head.asString.get match {
-                    case "seed" => seedRoute(params.head, id)
-//                    case "seedOfLength" => seedOfLength(params.head, id)
-                  }
+                (json \\ "method").head.asString.get match {
+                  case "seed" => seedRoute(params.head, id)
+                  case "seedOfLength" => seedOfLength(params.head, id)
+                  case "hashBlake2b" => hashBlake2b(params.head, id)
                 }
-                futureResponse
-                  // map {
-//                  response => Await.result(response, timeout.duration)
-//                }
-                match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-                }
-            }
-
-//          }
+              }
+              response match {
+                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+              }
+          }
         }
       }
     }
@@ -73,16 +67,21 @@ abstract class UtilsApiRouteRPC(override val settings: Settings)
     Map("seed" -> Base58.encode(seed)).asJson
   }
 
+  //Generates random seed
   private def seedRoute(params: Json, id: String): Json = {
-        seed(SeedSize)
+    seed(SeedSize)
   }
 
-//  private def seedOfLength(params: Json, id: String): Future[Json] = {
-//    viewAsync().map {
-//      view =>
-//        val length: Int = (params \\ "length").head.asNumber.get.toInt.get
-//        seed(length)
-//    }
-//  }
+  //Generates random seed of specified length
+  private def seedOfLength(params: Json, id: String): Json = {
+    val length: Int = (params \\ "length").head.asNumber.get.toInt.get
+    seed(length)
+  }
 
+  //Returns Blake2b hash of specified message
+  private def hashBlake2b(params: Json, id: String): Json = {
+    val message: String = (params \\ "message").head.asString.get
+    Map("message" -> message,
+        "hash" -> Base58.encode(FastCryptographicHash(message))).asJson
+  }
 }

@@ -132,15 +132,22 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
         val modifierId: String = (params \\ "modifierId").head.asString.get
         Base58.decode(modifierId) match {
           case Success(id) =>
-            var modifierId: JsonObject = JsonObject.empty
+//            var modifierId: JsonObject = JsonObject.empty
             val blockNumber = view.history.storage.heightOf(id)
-            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
-              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-              .map(_.localObjects.headOption.map(_.json).map(j => {
-                modifierId =
-                  j.asObject.get.add("blockNumber", blockNumber.asJson)
-              }))
-            modifierId.asJson
+            Map(
+              "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
+              "blockInfo" -> view.history.modifierById(id).get.json
+            ).asJson
+            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).asJson
+
+//            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
+//              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+//              .map(_.localObjects.headOption.map(_.json).map(j => {
+//                modifierId =
+//                  j.asObject.get.add("blockNumber", blockNumber.asJson)
+//              }))
+
+//            modifierId.asJson
         }
       }
     }

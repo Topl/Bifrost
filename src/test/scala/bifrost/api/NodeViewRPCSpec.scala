@@ -9,19 +9,18 @@ import bifrost.api.http.NodeViewApiRouteRPC
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges}
+import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.api.AssetRPCSpec
+import bifrost.block.Block
 import bifrost.blocks.BifrostBlock
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -66,6 +65,8 @@ class NodeViewRPCSpec extends WordSpec
 
   var txHash: String = ""
 
+  var blockId: Block.BlockId = Array[Byte]()
+
   "NodeView RPC" should {
     "Get mempool" in {
 
@@ -95,15 +96,11 @@ class NodeViewRPCSpec extends WordSpec
           Seq(txInstance),
           10L
         )
-        gw.scanPersistent(tempBlock)
         history.append(tempBlock)
-
+        blockId = tempBlock.id
         view().pool.remove(txInstance)
-
-
       }
     }
-
 
     "Get transaction by id" in {
 
@@ -125,6 +122,30 @@ class NodeViewRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
+      }
+    }
+
+    "Get block by id" in {
+
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |
+           |   "id": "30",
+           |   "method": "persistentModifierById",
+           |   "params": [{
+           |      "modifierId": "${Base58.encode(blockId)}"
+           |   }]
+           |}
+           |
+          """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
+        ((res \\ "result").head \\ "blockNumber").head.asNumber.get.toInt.get shouldEqual 2
       }
     }
   }
