@@ -6,9 +6,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
-import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
-import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
@@ -16,26 +14,20 @@ import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.{AgreementCompanion, BifrostTransaction, ContractCompletion, Role}
+import bifrost.transaction.{BifrostTransaction, Role}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
 import io.circe._
-import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
-import scalapb.json4s.JsonFormat
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
-import serializer.ProducerProposal
-import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

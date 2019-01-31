@@ -10,7 +10,6 @@ import bifrost.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
-import bifrost.api.http.ApiException
 import bifrost.consensus.History.HistoryComparisonResult
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58

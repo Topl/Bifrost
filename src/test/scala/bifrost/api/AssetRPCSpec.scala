@@ -10,12 +10,11 @@ import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges, BifrostStateSpec}
-import bifrost.transaction.{BifrostTransaction, Role}
-import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox, ProfileBox}
+import bifrost.state.BifrostState
+import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import com.google.common.primitives.Ints
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -154,7 +153,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -168,6 +167,7 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some assets from a specified public key in wallet" in {
+
       val requestBody = ByteString(
         s"""
            |{
@@ -186,7 +186,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -198,6 +198,7 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some asset from a specified public key and specify a change address" in {
+
       val requestBody = ByteString(
         s"""
            |{
@@ -217,7 +218,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -229,6 +230,7 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some assets and specify a change address but no sender" in {
+
       val requestBody = ByteString(
         s"""
            |{
@@ -247,7 +249,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true

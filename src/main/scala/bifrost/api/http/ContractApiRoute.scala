@@ -1,7 +1,5 @@
 package bifrost.api.http
 
-import java.time.Instant
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
@@ -12,24 +10,19 @@ import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
 import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
-import com.google.common.primitives.Longs
-import com.google.protobuf.ByteString
-import io.circe.Decoder.Result
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{HCursor, Json}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.api.http.ApiException
 import bifrost.settings.Settings
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import scalapb.json4s.JsonFormat
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}

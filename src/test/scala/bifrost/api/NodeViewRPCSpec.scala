@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.{AssetApiRoute, NodeViewApiRouteRPC}
+import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -36,7 +36,7 @@ class NodeViewRPCSpec extends WordSpec
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
-  val route = NodeViewApiRouteRPC(settings, nodeViewHolderRef).route
+  val route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
   val routeAsset = AssetApiRoute(settings, nodeViewHolderRef).route
 

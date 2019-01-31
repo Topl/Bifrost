@@ -10,8 +10,7 @@ package bifrost
 
 */
 
-import akka.actor.{Actor, ActorRef, AllDeadLetters, DeadLetter, Props}
-import akka.event.Logging
+import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
@@ -21,15 +20,12 @@ import bifrost.scorexMod.GenericApplication
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
-import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute, UtilsApiRouteRPC}
+import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
 import bifrost.network.message.MessageSpec
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.state.PrivateKey25519
-
-import org.graalvm.polyglot.Context
 import java.lang.management.ManagementFactory
 import com.sun.management.HotSpotDiagnosticMXBean
-import com.sun.management.VMOption
 
 import scala.reflect.runtime.universe._
 
@@ -74,23 +70,19 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     ContractApiRoute(settings, nodeViewHolderRef, networkController),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
-    UtilsApiRouteRPC(settings),
 //    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
     PeersApiRoute(peerManagerRef, networkController, settings),
-    NodeViewApiRouteRPC(settings, nodeViewHolderRef),
-    NodeViewApiRoute[P, TX](settings, nodeViewHolderRef)
+    NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
   override val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
-                                         typeOf[UtilsApiRouteRPC],
                                          typeOf[DebugApiRoute],
                                          typeOf[WalletApiRoute],
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
 //                                         typeOf[GenericNodeViewApiRoute[P, TX]],
                                          typeOf[PeersApiRoute],
-                                         typeOf[NodeViewApiRouteRPC],
-                                         typeOf[NodeViewApiRoute[P, TX]],
+                                         typeOf[NodeViewApiRoute],
                                          typeOf[PeersApiRoute])
 
 

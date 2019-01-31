@@ -18,8 +18,6 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.reflect.io.Path
-import scala.util.Try
 
 class DebugRPCSpec extends WordSpec
   with Matchers
@@ -45,7 +43,7 @@ class DebugRPCSpec extends WordSpec
     .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
 
   "Debug RPC" should {
-    "Get information" in {
+    "Get chain information" in {
       val requestBody = ByteString(
         s"""
            |{
