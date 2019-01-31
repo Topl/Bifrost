@@ -30,7 +30,6 @@ class UtilsRPCSpec extends WordSpec
   val seedLength: Int = 10
 
   "Utils RPC" should {
-
     "Generate random seed" in {
       val requestBody = ByteString(
         s"""
@@ -41,6 +40,7 @@ class UtilsRPCSpec extends WordSpec
            |   "params": [{}]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -64,6 +64,7 @@ class UtilsRPCSpec extends WordSpec
            |   }]
            |}
       """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -87,6 +88,7 @@ class UtilsRPCSpec extends WordSpec
            |   }]
            |}
       """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true

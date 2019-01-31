@@ -121,7 +121,8 @@ class AssetRPCSpec extends WordSpec
         //
         //        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
 
-        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block as opposed to creating a new state change like above
+        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block
+        // as opposed to creating a new state change like above
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,
           System.currentTimeMillis(),
@@ -131,7 +132,7 @@ class AssetRPCSpec extends WordSpec
           10L
         )
         gw.scanPersistent(tempBlock)
-
+        //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }
 
@@ -167,7 +168,6 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some assets from a specified public key in wallet" in {
-
       val requestBody = ByteString(
         s"""
            |{
@@ -176,7 +176,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "30",
            |   "method": "transferAssets",
            |   "params": [{
-           |      "issuer": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("producer")}",
            |     "publicKeyToSendFrom": ["${publicKeys("investor")}", "${publicKeys("hub")}"],
            |     "amount": 5,
@@ -198,7 +198,6 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some asset from a specified public key and specify a change address" in {
-
       val requestBody = ByteString(
         s"""
            |{
@@ -230,7 +229,6 @@ class AssetRPCSpec extends WordSpec
     }
 
     "Transfer some assets and specify a change address but no sender" in {
-
       val requestBody = ByteString(
         s"""
            |{
@@ -259,7 +257,6 @@ class AssetRPCSpec extends WordSpec
         view().pool.remove(txInstance)
       }
     }
-
   }
 
   object AssetRPCSpec {

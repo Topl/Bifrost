@@ -117,6 +117,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -145,6 +146,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -173,6 +175,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -200,6 +203,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -225,6 +229,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -251,6 +256,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -279,6 +285,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -306,6 +313,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -347,6 +355,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -368,6 +377,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -388,6 +398,7 @@ class WalletRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true

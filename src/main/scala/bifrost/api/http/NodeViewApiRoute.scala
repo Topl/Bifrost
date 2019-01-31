@@ -36,15 +36,15 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
           var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
-            case Right(json) =>
+            case Right(request) =>
               val futureResponse: Try[Future[Json]] = Try {
-                val id = (json \\ "id").head.asString.get
+                val id = (request \\ "id").head.asString.get
                 reqId = id
-                require((json \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (json \\ "params").head.asArray.get
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
                 require(params.size <= 5, s"size of params is ${params.size}")
 
-                (json \\ "method").head.asString.get match {
+                (request \\ "method").head.asString.get match {
                   case "pool" => pool(params.head, id)
                   case "transactionById" => transactionById(params.head, id)
                   case "persistentModifierById" => persistentModifierById(params.head, id)

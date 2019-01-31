@@ -37,15 +37,15 @@ case class UtilsApiRoute(override val settings: Settings)
           var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
-            case Right(json) =>
+            case Right(request) =>
               val response: Try[Json] = Try {
-                val id = (json \\ "id").head.asString.get
+                val id = (request \\ "id").head.asString.get
                 reqId = id
-                require((json \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (json \\ "params").head.asArray.get
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
                 require(params.size <= 5, s"size of params is ${params.size}")
 
-                (json \\ "method").head.asString.get match {
+                (request \\ "method").head.asString.get match {
                   case "seed" => seedRoute(params.head, id)
                   case "seedOfLength" => seedOfLength(params.head, id)
                   case "hashBlake2b" => hashBlake2b(params.head, id)

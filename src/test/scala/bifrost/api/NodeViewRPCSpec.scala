@@ -27,7 +27,6 @@ import scorex.crypto.signatures.Curve25519
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-
 class NodeViewRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
@@ -103,7 +102,6 @@ class NodeViewRPCSpec extends WordSpec
 
   "NodeView RPC" should {
     "Get mempool" in {
-
       val requestBody = ByteString(
         s"""
            |{
@@ -143,7 +141,6 @@ class NodeViewRPCSpec extends WordSpec
     }
 
     "Get transaction by id" in {
-
       val requestBody = ByteString(
         s"""
            |{
@@ -166,7 +163,6 @@ class NodeViewRPCSpec extends WordSpec
     }
 
     "Get block by id" in {
-
       val requestBody = ByteString(
         s"""
            |{

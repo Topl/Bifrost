@@ -41,17 +41,16 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
             var reqId = ""
             parse(body) match {
               case Left(failure) => ApiException(failure.getCause)
-              case Right(json) =>
+              case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
-                  val id = (json \\ "id").head.asString.get
+                  val id = (request \\ "id").head.asString.get
                   reqId = id
-                  require((json \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (json \\ "params").head.asArray.get
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
                   //todo: why is there an enforcement on the size of params?
                   require(params.size <= 5, s"size of params is ${params.size}")
 
-                  (json \\ "method").head.asString.get match {
-
+                  (request \\ "method").head.asString.get match {
                     case "transferPolys" => transferPolys(params.head, id)
                     case "transferArbits" => transferArbits(params.head, id)
                     case "balances" => balances(params.head, id)
@@ -78,11 +77,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   private def transferPolys(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
@@ -96,10 +93,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
-
       // Call to BifrostTX to create TX
       val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
       // Update nodeView with new TX
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
       tx.json
@@ -109,11 +104,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   private def transferArbits(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
@@ -128,10 +121,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Some(key) => key.asString.get
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
-
       // Call to BifrostTX to create TX
       val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
       // Update nodeView with new TX
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
       tx.json
@@ -141,13 +132,11 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   private def balances(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-
       // Optionally specify the publickey to get balances for. If empty string or not specified return all boxes
       val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
         case Some(key) => if (key.asString.get != "") wallet.boxesByKey(key.asString.get) else wallet.boxes()
         case _ => wallet.boxes()
       }
-
       Map("polyBalance" -> boxes.flatMap(_.box match {
         case pb: PolyBox => Some(pb.value)
         case _ => None
