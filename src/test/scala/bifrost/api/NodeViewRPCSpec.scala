@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.NodeViewApiRouteRPC
+import bifrost.api.http.{AssetApiRoute, NodeViewApiRouteRPC}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -38,10 +38,20 @@ class NodeViewRPCSpec extends WordSpec
   nodeViewHolderRef
   val route = NodeViewApiRouteRPC(settings, nodeViewHolderRef).route
 
+  val routeAsset = AssetApiRoute(settings, nodeViewHolderRef).route
+
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
       uri = "/nodeView/",
+      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
+    )
+  }
+
+  def httpPOSTAsset(jsonRequest: ByteString): HttpRequest = {
+    HttpRequest(
+      HttpMethods.POST,
+      uri = "/asset/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     )
   }
@@ -64,8 +74,32 @@ class NodeViewRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var txHash: String = ""
-
+  var assetTxHash: String = ""
   var blockId: Block.BlockId = Array[Byte]()
+
+  val requestBody = ByteString(
+    s"""
+       |{
+       |   "jsonrpc": "2.0",
+       |   "id": "30",
+       |   "method": "createAssets",
+       |   "params": [{
+       |     "issuer": "${publicKeys("hub")}",
+       |     "to": "${publicKeys("investor")}",
+       |     "amount": 10,
+       |     "assetCode": "x",
+       |     "fee": 0,
+       |     "data": ""
+       |   }]
+       |}
+        """.stripMargin)
+
+  httpPOSTAsset(requestBody) ~> routeAsset ~> check {
+    val res = parse(responseAs[String]).right.get
+    (res \\ "error").isEmpty shouldBe true
+    (res \\ "result").head.asObject.isDefined shouldBe true
+    assetTxHash = ((res \\ "result").head \\ "txHash").head.asString.get
+  }
 
   "NodeView RPC" should {
     "Get mempool" in {
@@ -84,11 +118,16 @@ class NodeViewRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        val txsJsonArray = (res \\ "result")(0)
-        val txHashes = (txsJsonArray \\ "txHash")
-        txHash = txHashes(0).asString.get
+        var txHashesArray = ((res \\ "result").head \\ "txHash")
+        txHashesArray.find(tx => tx.asString.get == assetTxHash) match {
+          case Some (tx) =>
+            txHash = tx.asString.get
+          case None =>
+        }
+        txHash shouldEqual assetTxHash
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
         val history = view().history
+        //Create a block with the above created createAssets transaction
         val tempBlock = BifrostBlock(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
@@ -98,6 +137,7 @@ class NodeViewRPCSpec extends WordSpec
         )
         history.append(tempBlock)
         blockId = tempBlock.id
+        //Removing the createAssets transaction from the mempool
         view().pool.remove(txInstance)
       }
     }
@@ -145,9 +185,12 @@ class NodeViewRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        ((res \\ "result").head \\ "blockNumber").head.asNumber.get.toInt.get shouldEqual 2
+        val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get
+        txsArray.filter(tx => {tx \\"txHash"} == txHash)
+        //Checking that the block found contains the above createAssets transaction
+        //since that block's id was used as the search parameter
+        txsArray.size shouldEqual 1
       }
     }
   }
-
 }

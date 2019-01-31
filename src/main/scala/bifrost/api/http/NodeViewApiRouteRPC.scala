@@ -1,38 +1,21 @@
 package bifrost.api.http
 
-//WalletRPCRoute imports
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.PolyTransfer
-import bifrost.transaction.box.{ArbitBox, PolyBox}
 import bifrost.wallet.BWallet
-import io.circe.{Json, JsonObject}
+import io.circe.Json
 import io.circe.parser.parse
-import io.circe.parser._
-import io.circe.syntax._
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.crypto.encode.Base58
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
-
-
-
-//NodeViewApiRoute imports
-import javax.ws.rs.Path
-
 import akka.pattern.ask
 import io.circe.syntax._
-import io.swagger.annotations._
-import bifrost.consensus.History
-import bifrost.network.ConnectedPeer
-import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
 import bifrost.settings.Settings
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 
 import scala.concurrent.duration._
 
@@ -74,14 +57,13 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
                 case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
               }
           }
-
         }
       }
     }
   }
   }
 
-  private val source: ConnectedPeer = null
+//  private val source: ConnectedPeer = null
 
   private def getHistory(): Try[HIS] = Try {
     Await.result((nodeViewHolderRef ? GetCurrentView).mapTo[CurrentView[_, _ <: HIS, _, _]].map(_.history), 5.seconds)
@@ -122,7 +104,7 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
 //            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
 //            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
 //            .map(_.localObjects.headOption.map(_.json)).asJson
-          }
+        }
     }
   }
 
@@ -132,7 +114,6 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
         val modifierId: String = (params \\ "modifierId").head.asString.get
         Base58.decode(modifierId) match {
           case Success(id) =>
-//            var modifierId: JsonObject = JsonObject.empty
             val blockNumber = view.history.storage.heightOf(id)
             Map(
               "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
@@ -146,11 +127,9 @@ case class NodeViewApiRouteRPC(override val settings: Settings, nodeViewHolderRe
 //                modifierId =
 //                  j.asObject.get.add("blockNumber", blockNumber.asJson)
 //              }))
-
-//            modifierId.asJson
         }
-      }
     }
+  }
 
 
 }

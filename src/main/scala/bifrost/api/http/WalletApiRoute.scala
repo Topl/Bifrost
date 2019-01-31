@@ -190,7 +190,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
-
   private def lockKeyfile(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
@@ -202,7 +201,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       ).asJson
     }
   }
-
 
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
