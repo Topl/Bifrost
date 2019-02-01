@@ -543,7 +543,6 @@ class ContractRPCSpec extends WordSpec
 //
 //      httpPOST(ByteString(requestBody)) ~> route ~> check {
 //        val res = parse(responseAs[String]).right.get
-//        println(res)
 //        (res \\ "result").head.asObject.isDefined shouldEqual true
 //        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
 //      }
