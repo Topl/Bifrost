@@ -412,7 +412,6 @@ class WalletRPCSpec extends WordSpec
           x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-33Z-A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb.json") {
             val tempFile = new File(x.toString)
-            println(s"cleanup: deleting keyfiles")
             tempFile.delete()
           }
         )
