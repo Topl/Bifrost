@@ -71,7 +71,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
 //    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
-//    PeersApiRoute(peerManagerRef, networkController, settings),
+    PeersApiRoute(peerManagerRef, networkController, settings),
     NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
@@ -81,7 +81,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
 //                                         typeOf[GenericNodeViewApiRoute[P, TX]],
-//                                         typeOf[PeersApiRoute],
+                                         typeOf[PeersApiRoute],
                                          typeOf[NodeViewApiRoute])
 
 
