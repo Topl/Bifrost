@@ -20,7 +20,7 @@ import bifrost.scorexMod.GenericApplication
 import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
-import bifrost.api.http.{ApiRoute, PeersApiRoute, UtilsApiRoute}
+import bifrost.api.http.{ApiRoute, UtilsApiRoute}
 import bifrost.network.message.MessageSpec
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.state.PrivateKey25519
@@ -71,7 +71,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
 //    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
-    PeersApiRoute(peerManagerRef, networkController, settings),
+//    PeersApiRoute(peerManagerRef, networkController, settings),
     NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
@@ -81,9 +81,8 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
                                          typeOf[ContractApiRoute],
                                          typeOf[AssetApiRoute],
 //                                         typeOf[GenericNodeViewApiRoute[P, TX]],
-                                         typeOf[PeersApiRoute],
-                                         typeOf[NodeViewApiRoute],
-                                         typeOf[PeersApiRoute])
+//                                         typeOf[PeersApiRoute],
+                                         typeOf[NodeViewApiRoute])
 
 
 
