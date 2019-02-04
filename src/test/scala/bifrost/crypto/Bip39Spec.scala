@@ -18,7 +18,7 @@ class Bip39Spec extends FlatSpec with Matchers {
   // language for phrase words
   val lang = "english.txt"
   //phrase translator
-  val pt = new Bip39(lang)
+  val pt = Bip39(lang)
 
   val preMD5 = "3d7914c7810cb343a5db65548cb5d66a"
 

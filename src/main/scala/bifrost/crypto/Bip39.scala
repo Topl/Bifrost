@@ -23,8 +23,7 @@ import java.security.{DigestInputStream, MessageDigest}
  * https://github.com/bitcoin/bips/tree/master/bip-0039
  */
 
-class Bip39 (phraseLanguage: String) {
-
+case class Bip39 (phraseLanguage: String) {
   /*
    * Calculates the MD5 checksum of an entire directory recursively, taken from:
    * http://www.michaelpollmeier.com/2018/12/10/checksum-files-scala
@@ -71,7 +70,7 @@ class Bip39 (phraseLanguage: String) {
     val phraseHashBin: Array[String] = phraseHash.map(toBinaryByte(_))
     if (chksum != phraseHashBin(0).slice(0,4)) throw new Exception("Seed phrase doesn't pass checksum")
     val phraseHex = phraseBytes.map("%02x" format _).mkString
-    return phraseHex
+    phraseHex
   }
 
   def seedPhrase(inputUuid: String): (String,String) = {
@@ -85,6 +84,6 @@ class Bip39 (phraseLanguage: String) {
     val seedPhraseBin = seedBin.mkString("") + chksum
     val phraseBin: Array[String] = seedPhraseBin.grouped(11).toArray
     val phrase = phraseBin.map(Integer.parseInt(_,2)).map(wordList(_)).mkString(" ")
-    return (seed,phrase)
+    (seed,phrase)
   }
 }
