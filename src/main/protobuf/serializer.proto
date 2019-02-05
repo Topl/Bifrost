@@ -4,68 +4,8 @@ message BloomTopics {
     repeated int32 topics = 1;
 }
 
-message ProducerProposal {
-
-    message ProposalDetails {
-
-        message ProjectDescription {
-            optional Range projectedDates = 1;
-            optional string info = 2;
-            required Location loc = 3;
-        }
-
-        message Range {
-            required uint64 min = 1;
-            required uint64 max = 2;
-        }
-
-        message Location {
-            optional float lat = 1;
-            optional float long = 2;
-            optional string city = 3;
-            required string country = 4;
-            required uint32 isoNumeric3countryCode = 5;
-        }
-
-        optional Range fundingNeeds = 1;
-        optional ProjectDescription description = 2;
-        required string assetCode = 3;
-    }
-
-    required bytes producer = 1;
-    required ProposalDetails details = 2;
-}
-
 message NoncedBox {
     required string typeOfBox = 1;
     required bytes publicKey = 2;
     required int64 nonce = 3;
-}
-
-
-message BuySellOrder {
-    message TradeData {
-        required string tokenCode = 1;
-        required uint64 quantity = 2;
-        optional bytes tokenHub = 3;
-    }
-
-    required TradeData token1 = 1;
-    required TradeData token2 = 2;
-
-    repeated NoncedBox inputBoxes = 5;
-    repeated bytes signatures = 6;
-
-    required bool isBuyOrder = 7;
-    required bytes id = 8;
-    required uint64 timestamp = 9;
-    required bytes publicKey = 10;
-
-}
-
-message TokenExchangeTxData {
-    required BuySellOrder buyOrder = 1;
-    required BuySellOrder sellOrder = 2;
-    required uint64 fee = 3;
-    required uint64 timestamp = 4;
 }

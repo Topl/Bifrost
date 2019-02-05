@@ -17,14 +17,16 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.BifrostBox
 import io.circe
 import bifrost.api.http.{ApiRoute, UtilsApiRoute}
 import bifrost.network.message.MessageSpec
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.state.PrivateKey25519
+import org.graalvm.polyglot.Context
 import java.lang.management.ManagementFactory
+
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import com.sun.management.HotSpotDiagnosticMXBean
 
 import scala.reflect.runtime.universe._

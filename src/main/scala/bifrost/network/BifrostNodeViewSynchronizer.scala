@@ -6,10 +6,10 @@ import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo
 import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}
-import bifrost.transaction.BifrostTransaction
 import bifrost.network.NetworkController.DataFromPeer
 import bifrost.network._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.state.PrivateKey25519
 
