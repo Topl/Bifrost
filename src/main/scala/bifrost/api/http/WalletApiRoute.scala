@@ -6,7 +6,6 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericWalletBox
 import bifrost.state.BifrostState
-import bifrost.transaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
 import bifrost.wallet.BWallet
 import io.circe.Json
@@ -14,6 +13,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58

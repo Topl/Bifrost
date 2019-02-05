@@ -4,7 +4,6 @@ import java.io.File
 
 import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.ForgingSettings
-import bifrost.transaction.BifrostTransaction
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier
@@ -12,6 +11,7 @@ import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.block.BlockValidator
 import bifrost.consensus.History
 import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.utils.ScorexLogging

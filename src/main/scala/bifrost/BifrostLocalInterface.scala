@@ -4,8 +4,8 @@ import akka.actor.ActorRef
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.scorexMod.GenericNodeViewHolder
-import bifrost.transaction.BifrostTransaction
 import bifrost.LocalInterface
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.state.PrivateKey25519
 

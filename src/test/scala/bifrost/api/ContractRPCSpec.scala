@@ -22,12 +22,14 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
-
+import scalapb.json4s.JsonFormat
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
+import bifrost.transaction.bifrostTransaction.{BifrostTransaction, Role}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

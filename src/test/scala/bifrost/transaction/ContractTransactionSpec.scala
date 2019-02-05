@@ -5,8 +5,8 @@ package bifrost.transaction
   */
 
 import bifrost.contract.{Agreement, Contract}
-import bifrost.transaction.BifrostTransaction.Nonce
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ReputationBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
@@ -16,7 +16,9 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.serialization.AgreementCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
@@ -195,7 +197,7 @@ class ContractTransactionSpec extends PropSpec
         data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
-    ContractMethodExecution(
+    bifrostTransaction.ContractMethodExecution(
       contractBox,
       methodName,
       parameters,
@@ -288,7 +290,7 @@ class ContractTransactionSpec extends PropSpec
         PrivateKey25519Companion.sign(keypair._1, messageToSign)
     )
 
-    ContractCompletion(
+    bifrostTransaction.ContractCompletion(
       contractBox,
       reputation,
       partiesWithRoles.toMap,
