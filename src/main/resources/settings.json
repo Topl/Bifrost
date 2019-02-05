@@ -14,10 +14,10 @@
     "handshakeTimeout": 2000
   },
   "walletSeed": "genesisoo",
-  "walletDir": "/tmp/scorex/data/wallet",
+  "walletDir": "/tmp/bifrost/data/wallet",
   "keyFileDir": "keyfiles/node1",
-  "dataDir": "/tmp/scorex/data/blockchain",
-  "logDir": "/tmp/scorex/data/log",
+  "dataDir": "/tmp/bifrost/data/blockchain",
+  "logDir": "/tmp/bifrost/data/log",
   "rpcPort": 9085,
   "rpcAllowed": [],
   "maxRollback": 100,
