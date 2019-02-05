@@ -98,7 +98,7 @@ class AssetRPCSpec extends WordSpec
            |   "method": "createAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
-           |     "to": "${publicKeys("investor")}",
+           |     "recipient": "${publicKeys("investor")}",
            |     "amount": 10,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
@@ -148,7 +148,6 @@ class AssetRPCSpec extends WordSpec
            |     "amount": 1,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
-           |     "publicKeysToSendFrom": [],
            |     "data": ""
            |   }]
            |}

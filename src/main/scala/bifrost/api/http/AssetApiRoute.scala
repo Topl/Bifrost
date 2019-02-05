@@ -120,7 +120,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     viewAsync().map { view =>
       val wallet = view.vault
       val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -128,7 +128,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, issuer, assetCode, data).get
+      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
       tx.json
     }
