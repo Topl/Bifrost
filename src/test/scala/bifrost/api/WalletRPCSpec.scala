@@ -1,7 +1,6 @@
 package bifrost.api
 
 import java.io.File
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -16,7 +15,6 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
-import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
