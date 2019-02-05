@@ -1,6 +1,6 @@
 {
   "p2p": {
-    "name": "production-alpha",
+    "name": "monon",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
@@ -12,11 +12,11 @@
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "production-alpha",
-  "keyFileDir": "keyfiles/production-alpha",
-  "walletDir": "~/.bifrost/production-alpha/wallet",
-  "dataDir": "~/.bifrost/production-alpha/data",
-  "logDir": "~/.bifrost/production-alpha/log",
+  "walletSeed": "monon",
+  "keyFileDir": "keyfiles/monon",
+  "walletDir": "~/.bifrost/monon/wallet",
+  "dataDir": "~/.bifrost/monon/data",
+  "logDir": "~/.bifrost/monon/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
