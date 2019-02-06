@@ -84,7 +84,7 @@ class NodeViewRPCSpec extends WordSpec
        |   "method": "createAssets",
        |   "params": [{
        |     "issuer": "${publicKeys("hub")}",
-       |     "to": "${publicKeys("investor")}",
+       |     "recipient": "${publicKeys("investor")}",
        |     "amount": 10,
        |     "assetCode": "x",
        |     "fee": 0,
