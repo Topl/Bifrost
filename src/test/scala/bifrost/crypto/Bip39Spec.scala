@@ -60,7 +60,7 @@ class Bip39Spec extends FlatSpec with Matchers {
         outString += "Failed Word Check\n"
       }
       if (passCheckSum && passCheckWord) {
-        outString += "Hex Value:" + pt.phraseToHex(arg) + "\n\n"
+        outString += "Hex Value: " + pt.phraseToHex(arg) + "\n\n"
       } else {
         outString += "Not a valid Seed Phrase\n\n"
       }

@@ -16,8 +16,10 @@ import java.security.{DigestInputStream, MessageDigest}
  * Bitcoin Improvement Project 39 (BIP39) specification:
  * https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
  *
- * Expected input phrase length is 12 words corresponding to 128 bit UUID
- * and implementation corresponds to 128 bits of entropy
+ * Expected input phrase length is 12, 15, 18, 21, or 24 words
+ * corresponding to 128, 160, 192, 224, and 256 bits of entropy respectively
+ *
+ * Output is 12 word seed phrase produced by 128 bit entropy of a random UUID string
  *
  * Phrase list directory given by:
  * https://github.com/bitcoin/bips/tree/master/bip-0039
