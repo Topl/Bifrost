@@ -20,15 +20,12 @@ class Bip39Spec extends FlatSpec with Matchers {
   //phrase translator
   val pt = Bip39(lang)
 
-  val preMD5 = "3d7914c7810cb343a5db65548cb5d66a"
-
   "The wordlists" should "pass MD5 checksum" in {
-    assert(preMD5 == pt.phraseListMD5)
-    pt.verify
+    assert(pt.verifyPhraseList)
   }
 
   "A seed phrase" should "be generated" in {
-    val (seedHex,phrase) = pt.seedPhrase(uuidString)
+    val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     println("seed hex: "+seedHex)
     println("seed phrase: "+phrase)
   }
@@ -40,13 +37,49 @@ class Bip39Spec extends FlatSpec with Matchers {
     val phraseMixed = "excite news upon nothing begin candy oblige situate figure method over tomato"
     val phraseColeman = "exercise crop sorry shiver jealous glue oblige evoke enrich cram air fringe"
     val hexColeman = "4f467f3de31778c7e60a704b064415ae"
-    val (seedHex,phrase) = pt.seedPhrase(uuidString)
+    val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
 
-    Try(println(pt.phraseToHex(phraseGood)))
-    Try(println(pt.phraseToHex(phraseBad)))
-    Try(println(pt.phraseToHex(phraseMixed)))
-    Try(println(pt.phraseToHex(phraseShort)))
+    val phraseGood15 = "secret portion force rebuild often grow fall carbon zebra van palm bar typical enter robot"
+    val phraseGood18 = "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor surface omit guilt model rule"
+    val phraseGood21 = "seven army trash viable rude ignore other arena dove wood dynamic gift broken lunch glue yellow isolate crawl damage old ripple"
+    val phraseGood24 = "siege earth jaguar gallery mom fuel unlock mimic flush develop tragic cross sense inner damp drop resist pretty example october chef energy knee cable"
+
+    def checkPT(arg: String): String ={
+      val passCheckSum = pt.phraseCheckSum(arg)
+      val passCheckWord = pt.phraseWordCheck(arg)
+      var outString = ""
+      outString += "Seed Phrase:\n" + arg + "\n"
+      if (passCheckSum) {
+        outString += "Passed Checksum\n"
+      } else {
+        outString += "Failed Checksum\n"
+      }
+      if (passCheckWord) {
+        outString += "Passed Word Check\n"
+      } else {
+        outString += "Failed Word Check\n"
+      }
+      if (passCheckSum && passCheckWord) {
+        outString += "Hex Value:" + pt.phraseToHex(arg) + "\n\n"
+      } else {
+        outString += "Not a valid Seed Phrase\n\n"
+      }
+      outString
+    }
+
+    println(checkPT(phraseGood))
+    println(checkPT(phraseBad))
+    println(checkPT(phraseShort))
+    println(checkPT(phraseMixed))
+
+    println(checkPT(phraseGood15))
+    println(checkPT(phraseGood18))
+    println(checkPT(phraseGood21))
+    println(checkPT(phraseGood24))
+
+
     assert(pt.phraseToHex(phraseColeman) == hexColeman)
+
     assert(pt.phraseToHex(phrase) == seedHex)
   }
 
@@ -56,7 +89,7 @@ class Bip39Spec extends FlatSpec with Matchers {
     Try(path.deleteRecursively())
     Try(path.createDirectory())
     val password = "password"
-    val (seedHex,phrase) = pt.seedPhrase(uuidString)
+    val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     val seed1 = pt.hexToUuid(seedHex)
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
     val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)

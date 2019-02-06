@@ -28,7 +28,7 @@ case class Bip39 (phraseLanguage: String) {
    * Calculates the MD5 checksum of an entire directory recursively, taken from:
    * http://www.michaelpollmeier.com/2018/12/10/checksum-files-scala
    */
-  def md5(roots: File*): String = {
+  def directoryMD5(roots: File*): String = {
     val md = MessageDigest.getInstance("MD5")
     roots.foreach { root =>
       Files.walk(root.toPath).filter(!_.toFile.isDirectory).forEach { path =>
@@ -44,45 +44,84 @@ case class Bip39 (phraseLanguage: String) {
   }
 
   val phraseListDir = "src/main/resources/bip-0039/"
-  val phraseListMD5 = md5(new File(phraseListDir))
   val preMD5 = "3d7914c7810cb343a5db65548cb5d66a"
   val wordList = Source.fromFile(phraseListDir + phraseLanguage).getLines.toList
 
-  def verify: Unit = {
-    if (preMD5 != phraseListMD5) throw new Exception("BIP39 phrase list directory didn't pass checksum")
-  }
+  /*
+   *  CS = ENT / 32
+   *  MS = (ENT + CS) / 11
+   *
+   * |  ENT  | CS | ENT+CS |  MS  |
+   * +-------+----+--------+------+
+   * |  128  |  4 |   132  |  12  |
+   * |  160  |  5 |   165  |  15  |
+   * |  192  |  6 |   198  |  18  |
+   * |  224  |  7 |   231  |  21  |
+   * |  256  |  8 |   264  |  24  |
+   *
+   */
+
+  val entMap = Map(12->128,15->160,18->192,21->224,24->256)
+  val chkMap = Map(12->4,15->5,18->6,21->7,24->8)
+  val endCSMap = Map(128->4,160->5,192->6,224->7,256->8)
+  val byteLen = 8
+  val indexLen = 11
+
+
+  def verifyPhraseList: Boolean = preMD5 == directoryMD5(new File(phraseListDir))
 
   def toBinaryIndex(i: Int): String = String.format("%11s", BigInt(i).toString(2) ).replace(' ', '0')
 
   def toBinaryByte(b: Byte): String = String.format("%8s", BigInt(b & 0xff).toString(2) ).replace(' ', '0')
 
-  def hexToUuid(s: String) : String = s.slice(0,8)+"-"+s.slice(8,12)+"-"+s.slice(12,16)+"-"+s.slice(16,20)+"-"+s.substring(20)
+  def hexToUuid(s: String) : String = s.slice(0, 8) + "-" + s.slice(8, 12) + "-" + s.slice(12, 16) + "-" + s.slice(16, 20) + "-" + s.substring(20)
+
+  def phraseWordCheck(phrase: String): Boolean = {
+    val phraseWords: Array[String] = phrase.split(" ")
+    val pl = phraseWords.length
+    phraseWords.map(wordList.contains(_)).foldLeft(true)(_ && _) && (pl == 12 || pl == 15 || pl == 18 || pl == 21 || pl == 24)
+  }
+
+  def phraseCheckSum(phrase: String): Boolean = {
+    var outBool = false
+    if (phraseWordCheck(phrase)) {
+      val phraseWords: Array[String] = phrase.split(" ")
+      val pl = phraseWords.length
+      val entLen = entMap(pl)
+      val chkLen = chkMap(pl)
+      val phraseIndex: Array[Int] = phraseWords.map(wordList.indexOf(_))
+      val phraseBin = phraseIndex.map(toBinaryIndex(_)).mkString
+      val phraseBytes: Array[Byte] = phraseBin.slice(0,entLen).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
+      val checksum = phraseBin.substring(entLen)
+      val phraseHash: Array[Byte] = Sha256.hash(phraseBytes)
+      val phraseHashBin: Array[String] = phraseHash.map(toBinaryByte(_))
+      outBool = checksum == phraseHashBin(0).slice(0,chkLen)
+    }
+    outBool
+  }
 
   def phraseToHex(phrase: String): String = {
     val phraseWords: Array[String] = phrase.split(" ")
-    val wordChk: Boolean = phraseWords.map(wordList.contains(_)).foldLeft(true)(_ && _) && phraseWords.length == 12
-    if (!wordChk) throw new Exception("Seed phrase doesn't adhere to BIP39")
+    val pl = phraseWords.length
+    val entLen = entMap(pl)
     val phraseIndex: Array[Int] = phraseWords.map(wordList.indexOf(_))
     val phraseBin = phraseIndex.map(toBinaryIndex(_)).mkString
-    val phraseBytes: Array[Byte] = phraseBin.slice(0,128).grouped(8).toArray map {Integer.parseInt(_, 2).toByte}
-    val chksum = phraseBin.substring(128)
-    val phraseHash: Array[Byte] = Sha256.hash(phraseBytes)
-    val phraseHashBin: Array[String] = phraseHash.map(toBinaryByte(_))
-    if (chksum != phraseHashBin(0).slice(0,4)) throw new Exception("Seed phrase doesn't pass checksum")
+    val phraseBytes: Array[Byte] = phraseBin.slice(0,entLen).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
     val phraseHex = phraseBytes.map("%02x" format _).mkString
     phraseHex
   }
 
-  def seedPhrase(inputUuid: String): (String,String) = {
+  def uuidSeedPhrase(inputUuid: String): (String,String) = {
     val toRemove = "-".toSet
     val seed = inputUuid.filterNot(toRemove)
     val seedBytes: Array[Byte] = seed.grouped(2).toArray map {Integer.parseInt(_, 16).toByte}
     val seedHash: Array[Byte] = Sha256.hash(seedBytes)
     val seedBin: Array[String] = seedBytes.map(toBinaryByte(_))
+    val entLen = seedBin.mkString("").length
     val seedHashBin: Array[String] = seedHash.map(toBinaryByte(_))
-    val chksum = seedHashBin(0).slice(0,4)
-    val seedPhraseBin = seedBin.mkString("") + chksum
-    val phraseBin: Array[String] = seedPhraseBin.grouped(11).toArray
+    val checksum = seedHashBin(0).slice(0,endCSMap(entLen))
+    val seedPhraseBin = seedBin.mkString("") + checksum
+    val phraseBin: Array[String] = seedPhraseBin.grouped(indexLen).toArray
     val phrase = phraseBin.map(Integer.parseInt(_,2)).map(wordList(_)).mkString(" ")
     (seed,phrase)
   }
