@@ -18,6 +18,8 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.Try
 
 class DebugRPCSpec extends WordSpec
   with Matchers
@@ -158,8 +160,8 @@ class DebugRPCSpec extends WordSpec
   }
 
 //TODO figure out why when uncommenting below code yields versionID already in use error
-//  object DebugRPCSpec {
-//    val path: Path = Path("/tmp/scorex/test-data")
-//    Try(path.deleteRecursively())
-//  }
+  object DebugRPCSpec {
+    val path: Path = Path("/tmp/scorex/test-data")
+    Try(path.deleteRecursively())
+  }
 }
