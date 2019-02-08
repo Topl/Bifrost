@@ -74,24 +74,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
           BifrostSyncInfoMessageSpec)
   )
 
-  class CheckThreadsRunner extends Thread {
-
-    override def run(): Unit =  while(true) {
-      import scala.collection.JavaConverters._
-      val dispThreads =
-        Thread.getAllStackTraces.keySet.asScala.filter(_.getName startsWith "default-akka.actor.default-dispatcher")
-
-      dispThreads.toVector.map(_.getName).sorted.foreach(log.debug)
-      log.debug(s"\nCurrently ${dispThreads.size} threads")
-
-      Thread.sleep(10000)
-    }
-  }
-
-  val checker = new CheckThreadsRunner
-  checker.setDaemon(true)
-  checker.start()
-
   //touching lazy vals
   forger
   localInterface

@@ -224,7 +224,7 @@ object BWallet {
 
   def walletFile(settings: Settings): File = {
     val walletDirOpt = settings.walletDirOpt.ensuring(_.isDefined, "wallet dir must be specified")
-    val walletDir = walletDirOpt.get
+    val walletDir = System.getProperty("user.home") + File.separator + walletDirOpt.get
     new File(walletDir).mkdirs()
 
     new File(s"$walletDir/wallet.dat")
