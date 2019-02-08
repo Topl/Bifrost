@@ -18,9 +18,9 @@ class Bip39Spec extends FlatSpec with Matchers {
   // language for phrase words
   val lang = "english.txt"
   //phrase translator
-  val pt = Bip39(lang)
+  val pt = Bip39.apply(lang)
 
-  "The wordlists" should "pass MD5 checksum" in {
+  "The wordlists" should "pass checksum" in {
     assert(pt.verifyPhraseList)
   }
 

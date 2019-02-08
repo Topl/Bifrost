@@ -19,6 +19,7 @@ import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -26,7 +27,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
-                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+                         (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -180,9 +181,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val (pubKey,seedUuid) = wallet.generateNewSecret(password)
       val pt = Bip39(seedPhraseLang)
       val (seed,phrase) = pt.uuidSeedPhrase(seedUuid)
+      //log.warn(s"Generated Seed Phrase is <<$phrase>>. Make sure to record this since this will never appear again!")
       Map(
-        "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson,
-        "seedPhrase"-> phrase.asJson
+        "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
       ).asJson
     }
   }
