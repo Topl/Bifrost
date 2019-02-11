@@ -63,7 +63,6 @@ class BifrostHistorySpec extends PropSpec
       continuation.tail.foreach { c =>
         startList.exists(sl => sl._2 sameElements c._2) shouldBe false
       }
-
     }
   }
 
