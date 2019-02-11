@@ -67,7 +67,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "balances",
            |   "params": [{}]
            |}
@@ -85,7 +85,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "balances",
            |   "params": [{"publicKey": "${publicKeys("hub")}"}]
            |}
@@ -105,7 +105,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferArbits",
            |   "params": [{
            |     "recipient": "${publicKeys("producer")}",
@@ -133,7 +133,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferArbits",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -161,7 +161,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferArbits",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -190,7 +190,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferArbits",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -217,7 +217,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferPolys",
            |   "params": [{
            |     "recipient": "${publicKeys("investor")}",
@@ -243,7 +243,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferPolys",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -271,7 +271,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferPolys",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -300,7 +300,7 @@ class WalletRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferPolys",
            |   "params": [{
            |     "recipient": "${publicKeys("hub")}",
@@ -327,7 +327,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "listOpenKeyfiles",
            |   "params": [{}]
            |}
@@ -346,7 +346,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "generateKeyfile",
            |   "params": [{
            |     "password": "testpassword"
@@ -367,7 +367,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "lockKeyfile",
            |   "params": [{
            |     "publicKey": "${newPubKey}",
@@ -388,7 +388,7 @@ class WalletRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "unlockKeyfile",
            |   "params": [{
            |     "publicKey": "${newPubKey}",

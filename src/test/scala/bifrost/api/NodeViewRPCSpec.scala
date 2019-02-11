@@ -74,13 +74,14 @@ class NodeViewRPCSpec extends WordSpec
 
   var txHash: String = ""
   var assetTxHash: String = ""
+  var assetTxInstance: BifrostTransaction = null
   var blockId: Block.BlockId = Array[Byte]()
 
   val requestBody = ByteString(
     s"""
        |{
        |   "jsonrpc": "2.0",
-       |   "id": "30",
+       |   "id": "1",
        |   "method": "createAssets",
        |   "params": [{
        |     "issuer": "${publicKeys("hub")}",
@@ -101,13 +102,13 @@ class NodeViewRPCSpec extends WordSpec
   }
 
   "NodeView RPC" should {
-    "Get mempool" in {
+    "Get first 100 transactions in mempool" in {
       val requestBody = ByteString(
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
-           |   "method": "pool",
+           |   "id": "1",
+           |   "method": "mempool",
            |   "params": [{}]
            |}
           """.stripMargin)
@@ -123,29 +124,53 @@ class NodeViewRPCSpec extends WordSpec
           case None =>
         }
         txHash shouldEqual assetTxHash
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        assert(txHashesArray.size <= 100)
+        assetTxInstance = view().pool.getById(Base58.decode(txHash).get).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = BifrostBlock(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(txInstance),
+          Seq(assetTxInstance),
           10L
         )
         history.append(tempBlock)
         blockId = tempBlock.id
-        //Removing the createAssets transaction from the mempool
-        view().pool.remove(txInstance)
       }
     }
 
-    "Get transaction by id" in {
+    "Get transaction from the mepool by id" in {
       val requestBody = ByteString(
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
+           |   "method": "transactionFromMempool",
+           |   "params": [{
+           |      "transactionId": "${txHash}"
+           |   }]
+           |}
+           |
+          """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
+        ((res \\ "result").head \\ "txHash").head.asString.get shouldEqual txHash
+
+        //Removing the createAssets transaction from the mempool
+        view().pool.remove(assetTxInstance)
+      }
+    }
+
+    "Get a confirmed transaction by id" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
            |   "method": "transactionById",
            |   "params": [{
            |      "transactionId": "${txHash}"
@@ -168,10 +193,10 @@ class NodeViewRPCSpec extends WordSpec
            |{
            |   "jsonrpc": "2.0",
            |
-           |   "id": "30",
-           |   "method": "persistentModifierById",
+           |   "id": "1",
+           |   "method": "blockById",
            |   "params": [{
-           |      "modifierId": "${Base58.encode(blockId)}"
+           |      "blockId": "${Base58.encode(blockId)}"
            |   }]
            |}
            |

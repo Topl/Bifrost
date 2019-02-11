@@ -50,7 +50,7 @@ class DebugRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "info",
            |   "params": [{}]
            |}
@@ -69,7 +69,7 @@ class DebugRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "delay",
            |   "params": [{
            |      "blockId": "${Base58.encode(view.history.bestBlockId)}",
@@ -90,7 +90,7 @@ class DebugRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "myBlocks",
            |   "params": [{}]
            |}
@@ -108,7 +108,7 @@ class DebugRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "generators",
            |   "params": [{}]
            |}
@@ -126,7 +126,7 @@ class DebugRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "chain",
            |   "params": [{}]
            |}
@@ -139,27 +139,27 @@ class DebugRPCSpec extends WordSpec
       }
     }
 
-    "Check if node is synced to canonical chain" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "30",
-           |   "method": "sync",
-           |   "params": [{}]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
+    //Currently not implemented
+//    "Check if node is synced to canonical chain" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |   "jsonrpc": "2.0",
+//           |   "id": "1",
+//           |   "method": "sync",
+//           |   "params": [{}]
+//           |}
+//        """.stripMargin)
+//
+//      httpPOST(requestBody) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//      }
+//    }
 
   }
 
-//TODO figure out why when uncommenting below code yields versionID already in use error
   object DebugRPCSpec {
     val path: Path = Path("/tmp/scorex/test-data")
     Try(path.deleteRecursively())

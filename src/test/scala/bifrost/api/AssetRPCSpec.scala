@@ -74,7 +74,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "redeemAssets",
            |   "params": [{
            |     "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
@@ -94,7 +94,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "createAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -140,7 +140,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -171,7 +171,7 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -201,7 +201,7 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -232,7 +232,7 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",

@@ -50,7 +50,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                     case "myBlocks" => myBlocks(params.head, id)
                     case "generators" => generators(params.head, id)
                     case "chain" => chain(params.head, id)
-                    case "sync" => sync(params.head, id)
+//                    case "sync" => sync(params.head, id)
                   }
 
                 }
@@ -126,14 +126,15 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     }
   }
 
-  private def sync(params: Json, id: String): Future[Json] = {
-    viewAsync.map {
-      view =>
-        if(view.history.syncInfo(false) == HistoryComparisonResult.Equal)
-          Map("synced" -> "True").asJson
-        else
-          Map("synced" -> "False").asJson
-    }
-  }
+  //TODO unimplemented
+//  private def sync(params: Json, id: String): Future[Json] = {
+//    viewAsync.map {
+//      view =>
+//        if(view.history.syncInfo(false) == HistoryComparisonResult.Equal)
+//          Map("synced" -> "True").asJson
+//        else
+//          Map("synced" -> "False").asJson
+//    }
+//  }
 
 }

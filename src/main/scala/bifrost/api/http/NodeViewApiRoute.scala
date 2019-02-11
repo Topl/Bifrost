@@ -45,9 +45,10 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
                 require(params.size <= 5, s"size of params is ${params.size}")
 
                 (request \\ "method").head.asString.get match {
-                  case "pool" => pool(params.head, id)
+                  case "mempool" => mempool(params.head, id)
                   case "transactionById" => transactionById(params.head, id)
-                  case "persistentModifierById" => persistentModifierById(params.head, id)
+                  case "blockById" => blockById(params.head, id)
+                  case "transactionFromMempool" => transactionFromMempool(params.head, id)
                 }
               }
               futureResponse map {
@@ -76,12 +77,12 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
       .asInstanceOf[MP]
   }
 
-  //First 1000 unconfirmed transactions in memPool
-  private def pool(params:Json, id: String): Future[Json] = {
+  //First 100 unconfirmed transactions in mempool
+  private def mempool(params:Json, id: String): Future[Json] = {
     viewAsync().map {
       view =>
         getMempool() match {
-          case Success(pool: MP) => pool.take(1000).map(_.json).asJson
+          case Success(pool: MP) => pool.take(100).map(_.json).asJson
             //Failure is caught by BifrostErrorResponse in the nodeViewRoute function when the Await does not receive a response
         }
     }
@@ -108,10 +109,22 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  private def persistentModifierById(params: Json, id: String): Future[Json] = {
+  private def transactionFromMempool(params: Json, id:String): Future[Json] = {
     viewAsync().map {
       view =>
-        val modifierId: String = (params \\ "modifierId").head.asString.get
+        val transactionId: String = (params \\ "transactionId").head.asString.get
+        Base58.decode(transactionId) match {
+          case Success(id) => getMempool() match {
+            case Success(pool: MP) => pool.getById(id).get.json.asJson
+          }
+        }
+    }
+  }
+
+  private def blockById(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val modifierId: String = (params \\ "blockId").head.asString.get
         Base58.decode(modifierId) match {
           case Success(id) =>
             val blockNumber = view.history.storage.heightOf(id)
@@ -132,7 +145,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  //Open surface was written in the REST api route but the openSurface method remains unimplemented
+  //TODO Open surface was written in the REST api route but the openSurface method remains unimplemented
 //  @Path("/openSurface")
 //  @ApiOperation(value = "Ids of open surface", notes = "Ids of open surface in history", httpMethod = "GET")
 //  def openSurface: Route = path("openSurface") {

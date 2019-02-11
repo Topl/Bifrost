@@ -117,7 +117,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("hub")}"
@@ -136,7 +136,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "declareRole",
            |  "params": [{
            |        "publicKey": "${publicKeys("investor")}",
@@ -180,7 +180,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("investor")}"
@@ -224,7 +224,7 @@ class ContractRPCSpec extends WordSpec
       s"""
       {
         "jsonrpc": "2.0",
-        "id": "16",
+        "id": "1",
         "method": "getContractSignature",
         "params": [{
           "signingPublicKey": "${publicKeys("investor")}",

@@ -35,7 +35,7 @@ class UtilsRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "seed",
            |   "params": [{}]
            |}
@@ -57,7 +57,7 @@ class UtilsRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "seedOfLength",
            |   "params": [{
            |      "length": ${seedLength}
@@ -81,7 +81,7 @@ class UtilsRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "hashBlake2b",
            |   "params": [{
            |      "message": "Hello World"
