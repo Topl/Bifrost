@@ -16,7 +16,7 @@ class Bip39Spec extends FlatSpec with Matchers {
   // sample uuid string
   val uuidString = uuid
   // language for phrase words
-  val lang = "english.txt"
+  val lang = "en"
   //phrase translator
   val pt = Bip39.apply(lang)
 

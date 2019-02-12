@@ -5,7 +5,6 @@ import java.security.SecureRandom
 
 import bifrost.blocks.BifrostBlock
 import bifrost.keygen.KeyFile
-import bifrost.keygen.KeyFile.uuid
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
 import bifrost.transaction.box._
@@ -163,11 +162,10 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     BWallet(secrets + privKey, store, defaultKeyDir)
   }
 
-  def generateNewSecret(password: String): (PublicKey25519Proposition, String) = {
-    val seedString = uuid
-    val privKey = KeyFile(password, FastCryptographicHash(seedString), defaultKeyDir).getPrivateKey(password).get
+  def generateNewSecret(password: String): PublicKey25519Proposition = {
+    val privKey = KeyFile(password = password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
     secrets += privKey
-    (privKey.publicImage,seedString)
+    privKey.publicImage
   }
 
   def generateNewSecret(password: String, importSeed: String): PublicKey25519Proposition = {

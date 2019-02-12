@@ -24,14 +24,23 @@ import scala.math.BigInt
 
 case class Bip39 (phraseLanguage: String) {
 
+  val iso639_1_toFile: Map[String,String] = Map(
+    "zh-hans"->"chinese_simplified.txt",
+    "zh-hant"->"chinese_traditional.txt",
+    "en"->"english.txt",
+    "fr"->"french.txt",
+    "it"->"italian.txt",
+    "ja"->"japanese.txt",
+    "ko"->"korean.txt",
+    "es"->"spanish.txt"
+  )
   val phraseListDir = "src/main/resources/bip-0039/"
   var wordList: List[String] = List.fill(2048)("")
   try {
-    wordList = Source.fromFile(phraseListDir + phraseLanguage).getLines.toList
+    wordList = Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase)).getLines.toList
   } catch {
     case _: Throwable => println("e: file not found or data corrupted")
   }
-
 
   /*
    *  CS = ENT / 32
@@ -68,8 +77,9 @@ case class Bip39 (phraseLanguage: String) {
       "korean.txt"->"f04f70b26cfef84474ff56582e798bcbc1a5572877d14c88ec66551272688c73",
       "spanish.txt"->"a556a26c6a5bb36db0fb7d8bf579cb7465fcaeec03957c0dda61b569962d9da5"
     )
-    phraseLanguagesHash(phraseLanguage) == Sha256.hash(Source.fromFile(phraseListDir + phraseLanguage).getLines.toList.mkString)
-      .map("%02x" format _).mkString
+    (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
+      == Sha256.hash(Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase))
+        .getLines.toList.mkString).map("%02x" format _).mkString)
   }
 
   def toBinaryIndex(i: Int): String = String.format("%11s", BigInt(i).toString(2) ).replace(' ', '0')
@@ -92,17 +102,20 @@ case class Bip39 (phraseLanguage: String) {
     * @return true if seedphrase is valid, false if seedphrase invalid
     */
   def phraseCheckSum(phrase: String): Boolean = {
-    var checkSum = false
-    if (phraseWordCheck(phrase)) {
-      val phraseWords: Array[String] = phrase.split(" ")
-      val pl = phraseWords.length
-      val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex(_)).mkString
-      val phraseHashBin: Array[String] = Sha256.hash(
-        phraseBin.slice(0,entMap(pl)).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
-      ).map(toBinaryByte(_))
-      checkSum = phraseBin.substring(entMap(pl)) == phraseHashBin(0).slice(0,chkMap(pl))
+    phraseWordCheck(phrase) match {
+      case true => {
+        val phraseWords: Array[String] = phrase.split(" ")
+        val pl = phraseWords.length
+        val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex(_)).mkString
+        val phraseHashBin: Array[String] = Sha256.hash(
+          phraseBin.slice(0,entMap(pl)).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
+        ).map(toBinaryByte(_))
+        phraseBin.substring(entMap(pl)) == phraseHashBin(0).slice(0,chkMap(pl))
+      }
+      case false => {
+        false
+      }
     }
-    checkSum
   }
 
   /**
@@ -138,10 +151,9 @@ case class Bip39 (phraseLanguage: String) {
 object Bip39 {
   def apply(phraseLanguage: String): Bip39 = {
     val pt = new Bip39(phraseLanguage)
-    if(pt.verifyPhraseList) {
-      pt
-    } else {
-      new Bip39("")
+    pt.verifyPhraseList match {
+      case true => pt
+      case false => new Bip39("")
     }
   }
 }

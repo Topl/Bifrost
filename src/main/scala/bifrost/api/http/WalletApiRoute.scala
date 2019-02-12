@@ -19,7 +19,6 @@ import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,7 +26,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
-                         (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
+                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -174,14 +173,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     viewAsync().map { view =>
       val wallet = view.vault
       val password: String = (params \\ "password").head.asString.get
-      val seedPhraseLang: String = (params \\ "seedPhraseLang").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => "english.txt"
-      }
-      val (pubKey,seedUuid) = wallet.generateNewSecret(password)
-      val pt = Bip39(seedPhraseLang)
-      val (seed,phrase) = pt.uuidSeedPhrase(seedUuid)
-      //log.warn(s"Generated Seed Phrase is <<$phrase>>. Make sure to record this since this will never appear again!")
+      val pubKey = wallet.generateNewSecret(password)
       Map(
         "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
       ).asJson
@@ -195,21 +187,21 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
       val seedPhraseLang: String = (params \\ "seedPhraseLang").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => "english.txt"
+        case None => "en"
       }
-
-      val pt = Bip39(seedPhraseLang)
-      if (!pt.phraseCheckSum(seedPhrase)) {
-        Map(
-          "error:" ->  "not a valid input phrase"
-        ).asJson
-      } else {
-        val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
-        val pubKey = wallet.generateNewSecret(password, seed)
-        Map(
+      val pt = Bip39.apply(seedPhraseLang)
+      Map(
+      pt.phraseCheckSum(seedPhrase) match {
+        case false =>"error:" ->  "not a valid input phrase".asJson
+        case true =>
+        {
+          val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
+          val pubKey = wallet.generateNewSecret(password, seed)
           "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
-        ).asJson
+        }
+
       }
+      ).asJson
     }
   }
 
