@@ -1,6 +1,8 @@
 package bifrost.crypto
 
+import bifrost.utils.ScorexLogging
 import scorex.crypto.hash.Sha256
+
 import scala.io.Source
 import scala.math.BigInt
 
@@ -22,7 +24,7 @@ import scala.math.BigInt
  * https://github.com/bitcoin/bips/tree/master/bip-0039
  */
 
-case class Bip39 (phraseLanguage: String) {
+case class Bip39 (phraseLanguage: String) extends ScorexLogging {
 
   val iso639_1_toFile: Map[String,String] = Map(
     "zh-hans"->"chinese_simplified.txt",
@@ -39,7 +41,7 @@ case class Bip39 (phraseLanguage: String) {
   try {
     wordList = Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase)).getLines.toList
   } catch {
-    case _: Throwable => println("e: file not found or data corrupted")
+    case _: Exception => log.error("File not found or data corrupted")
   }
 
   /*
@@ -56,6 +58,7 @@ case class Bip39 (phraseLanguage: String) {
    *
    */
 
+  val validPhraseLengths: List[Int] = List(12, 15, 18, 21, 24)
   val entMap: Map[Int,Int] = Map(12->128,15->160,18->192,21->224,24->256)
   val chkMap: Map[Int,Int] = Map(12->4,15->5,18->6,21->7,24->8)
   val endCSMap: Map[Int,Int] = Map(128->4,160->5,192->6,224->7,256->8)
@@ -90,31 +93,24 @@ case class Bip39 (phraseLanguage: String) {
     s.slice(0, 8) + "-" + s.slice(8, 12) + "-" + s.slice(12, 16) + "-" + s.slice(16, 20) + "-" + s.substring(20)
   }
 
-  def phraseWordCheck(phrase: String): Boolean = {
-    val phraseWords: Array[String] = phrase.split(" ")
-    val pl = phraseWords.length
-    phraseWords.map(wordList.contains(_)).foldLeft(true)(_ && _) && (pl == 12 || pl == 15 || pl == 18 || pl == 21 || pl == 24)
-  }
-
   /**
     * Checks if user input seedphrase is valid
     * @param phrase user input seedphrase
     * @return true if seedphrase is valid, false if seedphrase invalid
     */
   def phraseCheckSum(phrase: String): Boolean = {
-    phraseWordCheck(phrase) match {
-      case true => {
-        val phraseWords: Array[String] = phrase.split(" ")
-        val pl = phraseWords.length
-        val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex(_)).mkString
-        val phraseHashBin: Array[String] = Sha256.hash(
-          phraseBin.slice(0,entMap(pl)).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
-        ).map(toBinaryByte(_))
-        phraseBin.substring(entMap(pl)) == phraseHashBin(0).slice(0,chkMap(pl))
-      }
-      case false => {
-        false
-      }
+    val phraseWords: List[String] = phrase.split(" ").toList
+    val pl = phraseWords.length
+    if (phraseWords.forall(word => wordList.contains(word)) && validPhraseLengths.contains(pl)) {
+      val phraseBin = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex).mkString
+      val phraseHashBin: List[String] = Sha256.hash(
+        phraseBin.slice(0, entMap(pl)).grouped(byteLen).toArray map {
+          Integer.parseInt(_, 2).toByte
+        }
+      ).map(toBinaryByte).toList
+      phraseBin.substring(entMap(pl)) == phraseHashBin(0).slice(0, chkMap(pl))
+    } else {
+      false
     }
   }
 
@@ -124,12 +120,10 @@ case class Bip39 (phraseLanguage: String) {
     * @return hex string
     */
   def phraseToHex(phrase: String): String = {
-    val phraseWords: Array[String] = phrase.split(" ")
-    val pl = phraseWords.length
-    val phraseBytes: Array[Byte] = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex(_)).mkString
-      .slice(0,entMap(pl)).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
-    val phraseHex = phraseBytes.map("%02x" format _).mkString
-    phraseHex
+    val phraseWords: List[String] = phrase.split(" ").toList
+    val phraseBytes: Array[Byte] = phraseWords.map(wordList.indexOf(_)).map(toBinaryIndex).mkString
+      .slice(0,entMap(phraseWords.length)).grouped(byteLen).toArray map {Integer.parseInt(_, 2).toByte}
+    phraseBytes.map("%02x" format _).mkString
   }
 
   /**

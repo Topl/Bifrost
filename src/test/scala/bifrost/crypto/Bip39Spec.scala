@@ -13,6 +13,9 @@ import org.scalatest._
 
 class Bip39Spec extends FlatSpec with Matchers {
 
+  val keyFileDir = "/tmp/scorex/test-data/keyfiles/bip39test"
+  val path: Path = Path(keyFileDir)
+
   // sample uuid string
   val uuidString = uuid
   // language for phrase words
@@ -46,7 +49,6 @@ class Bip39Spec extends FlatSpec with Matchers {
 
     def checkPT(arg: String): String ={
       val passCheckSum = pt.phraseCheckSum(arg)
-      val passCheckWord = pt.phraseWordCheck(arg)
       var outString = ""
       outString += "Seed Phrase:\n" + arg + "\n"
       if (passCheckSum) {
@@ -54,12 +56,7 @@ class Bip39Spec extends FlatSpec with Matchers {
       } else {
         outString += "Failed Checksum\n"
       }
-      if (passCheckWord) {
-        outString += "Passed Word Check\n"
-      } else {
-        outString += "Failed Word Check\n"
-      }
-      if (passCheckSum && passCheckWord) {
+      if (passCheckSum) {
         outString += "Hex Value: " + pt.phraseToHex(arg) + "\n\n"
       } else {
         outString += "Not a valid Seed Phrase\n\n"
@@ -84,8 +81,6 @@ class Bip39Spec extends FlatSpec with Matchers {
   }
 
   "A key file" should "be generated" in {
-    val keyFileDir = "/tmp/scorex/test-data/keyfiles/bip39test"
-    val path: Path = Path(keyFileDir)
     Try(path.deleteRecursively())
     Try(path.createDirectory())
     val password = "password"
@@ -105,4 +100,5 @@ class Bip39Spec extends FlatSpec with Matchers {
         == key1.getPrivateKey(password).get.privKeyBytes.mkString(""))
   }
 
+  Try(path.deleteRecursively())
 }
