@@ -24,7 +24,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   override val route: Route = pathPrefix("debug") {
-    infoRoute ~ chain ~ delay ~ myblocks ~ generators ~ chainFromRange
+    infoRoute ~ chain ~ delay ~ myblocks ~ generators //~ chainFromRange
   }
 
   @Path("/delay/{id}/{blockNum}")
@@ -117,7 +117,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     }
   }
 
-  @Path("/chainFromRange/{id}/{maxValue}")
+  /*@Path("/chainFromRange/{id}/{maxValue}")
   @ApiOperation(value = "ChainFromRange", notes = "Print chain by length specified", httpMethod = "GET")
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "id", value = "block id ", required = true, dataType = "string", paramType = "path"),
@@ -141,7 +141,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
         }
       }
     }
-  }
+  }*/
 
   @Path("/sync")
   @ApiOperation(value= "sync", notes = "True if node is synced to canonical chain, false if not", httpMethod = "GET")
