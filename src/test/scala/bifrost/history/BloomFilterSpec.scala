@@ -5,12 +5,16 @@ package bifrost.history
   */
 
 import bifrost.blocks.{BifrostBlock, Bloom}
-import bifrost.transaction.ContractCompletion
+import bifrost.state.BifrostStateSpec
+import bifrost.transaction.{AssetCreation, BifrostTransaction, ContractCompletion}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
+import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import scorex.crypto.encode.Base58
 
 import scala.collection.BitSet
+import scala.util.Try
 
 class BloomFilterSpec extends PropSpec
   with PropertyChecks
@@ -60,5 +64,40 @@ class BloomFilterSpec extends PropSpec
       txs.length shouldBe 1
       txs.head.bytes sameElements tx.bytes shouldBe true
     }
+  }
+
+  property("Checking bloom filter for specific transactions") {
+    val tx: AssetCreation = AssetCreation.createAndApply(BifrostStateSpec.gw,
+    IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 10L)),
+    0L,
+    PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get),
+    "test_2",
+    ""
+    ).get
+    val block = BifrostBlock(history.bestBlockId,
+    System.currentTimeMillis(),
+    arbitBoxGen.sample.get,
+    signatureGen.sample.get,
+    Seq(tx),
+    10L
+
+    )
+    println("bloom")
+
+    println(tx.bloomTopics.get(1).mkString(""))
+    println(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get.mkString(""))
+
+    println()
+    println(tx.bloomTopics.get(0).mkString(""))
+    println("AssetCreation".getBytes.mkString(""))
+    println()
+    history = history.append(block).get._1
+//    val txs = history.bloomFilter(tx.bloomTopics.get)
+
+    val txs = history.bloomFilter(IndexedSeq("AssetCreation".getBytes))
+    txs.foreach(tx => println(tx.json))
+    txs.head.bytes sameElements tx.bytes shouldBe true
+
+
   }
 }

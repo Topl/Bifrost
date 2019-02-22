@@ -273,7 +273,6 @@ class BifrostHistory(val storage: BifrostStorage,
     } else {
       HistoryComparisonResult.Younger
     }
-
   }
 
   private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
@@ -344,20 +343,17 @@ class BifrostHistory(val storage: BifrostStorage,
         queryBloom equals andRes
     }
     // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
-                                                                        tx.bloomTopics match {
-                                                                          case Some(txBlooms) =>
-                                                                            var res = false
-                                                                            val txBloomsWrapper = txBlooms.map(
-                                                                              ByteArrayWrapper(_))
-                                                                            val queryBloomsWrapper = queryBloomTopics
-                                                                              .map(ByteArrayWrapper(_))
-                                                                            res = txBloomsWrapper.intersect(
-                                                                              queryBloomsWrapper)
-                                                                              .length == queryBloomsWrapper.length
-                                                                            res
-                                                                          case None => false
-                                                                        }
+    getBlockIdsByBloom(f).flatMap(b =>
+      modifierById(b).get.txs.filter(tx =>
+        tx.bloomTopics match {
+          case Some(txBlooms) =>
+            var res = false
+            val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+            val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+            res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+            res
+          case None => false
+        }
     ))
   }
 

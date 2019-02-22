@@ -196,6 +196,10 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
      AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
    }
 
+  override lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = Option(
+    IndexedSeq("AssetCreation".getBytes) ++ to.map(_._1.pubKeyBytes)
+  )
+
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
