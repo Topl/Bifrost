@@ -90,7 +90,12 @@ scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
   "-server",
-  "-Dcom.sun.management.jmxremote"
+  "-Dcom.sun.management.jmxremote",
+  "-Xms128m",
+  "-Xmx2g",
+  "-XX:+UseG1GC",
+  "-XX:+UseNUMA",
+  "-XX:+AlwaysPreTouch"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
