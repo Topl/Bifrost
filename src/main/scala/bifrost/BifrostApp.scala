@@ -33,8 +33,8 @@ import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
   // use for debug only
-  //  val path: Path = Path ("/tmp")
-  //  Try(path.deleteRecursively())
+  // val path: Path = Path ("/tmp")
+  // Try(path.deleteRecursively())
 
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox

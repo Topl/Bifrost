@@ -52,7 +52,6 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                     case "chain" => chain(params.head, id)
 //                    case "sync" => sync(params.head, id)
                   }
-
                 }
                 futureResponse map {
                   response => Await.result(response, timeout.duration)

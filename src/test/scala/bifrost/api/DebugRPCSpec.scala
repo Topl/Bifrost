@@ -1,7 +1,8 @@
 package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -36,7 +37,7 @@ class DebugRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/debug/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    )
+    ).withHeaders(RawHeader("api_key", "test_key"))
   }
 
   implicit val timeout = Timeout(10.seconds)
@@ -58,7 +59,6 @@ class DebugRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
