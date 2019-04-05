@@ -24,6 +24,5 @@
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,
-  "verboseAPI": true,
-
+  "verboseAPI": true
 }

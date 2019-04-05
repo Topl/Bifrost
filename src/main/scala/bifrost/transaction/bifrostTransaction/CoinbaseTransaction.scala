@@ -46,14 +46,16 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, nonce, to.head._2))
 
   override lazy val json: Json = Map( // tx in json form
-    "id" -> Base58.encode(id).asJson,
+    "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> Map(
         "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
         "value" -> to.head._2.asJson
       ).asJson,
-    "blockID" -> Base58.encode(blockID).asJson,
-    "fee" -> fee.asJson,
+     "fee" -> fee.asJson,
+    "signatures" -> signatures
+      .map(s => Base58.encode(s.signature).asJson)
+      .asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
 
