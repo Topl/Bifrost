@@ -48,10 +48,12 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   override lazy val json: Json = Map( // tx in json form
     "txHash" -> Base58.encode(id).asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "to" -> Map(
+    "to" -> to.map { s =>
+      Map(
         "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
         "value" -> to.head._2.asJson
-      ).asJson,
+      ).asJson
+    }.asJson,
      "fee" -> fee.asJson,
     "signatures" -> signatures
       .map(s => Base58.encode(s.signature).asJson)
