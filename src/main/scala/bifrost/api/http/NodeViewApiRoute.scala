@@ -2,131 +2,163 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
-import bifrost.consensus.History
-import bifrost.network.ConnectedPeer
+import bifrost.history.BifrostHistory
+import bifrost.mempool.BifrostMemPool
+import bifrost.state.BifrostState
+import bifrost.wallet.BWallet
+import io.circe.Json
+import io.circe.parser.parse
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.scorexMod.GenericNodeViewSynchronizer.{GetLocalObjects, ResponseFromLocal}
-import bifrost.settings.Settings
-import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.{MemoryPool, Transaction}
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
-import io.circe.syntax._
-import io.swagger.annotations._
-import javax.ws.rs.Path
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
+import akka.pattern.ask
+import io.circe.syntax._
+import bifrost.settings.Settings
+
+import scala.concurrent.duration._
 
 
-@Path("/nodeView")
-@Api(value = "/nodeView", produces = "application/json")
-case class NodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
-(override val settings: Settings, nodeViewHolderRef: ActorRef)
-(implicit val context: ActorRefFactory) extends ApiRouteWithView {
+case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+  type HIS = BifrostHistory
+  type MS = BifrostState
+  type VL = BWallet
+  type MP = BifrostMemPool
+  override val route: Route = pathPrefix("nodeView") { nodeViewRoute }
 
-  override val route: Route = pathPrefix("nodeView") {
-    openSurface ~ persistentModifierById ~ pool ~ transactionById
+  def nodeViewRoute: Route = path("") { entity(as[String]) { body =>
+    withAuth {
+      postJsonRoute {
+        viewAsync().map { view =>
+          var reqId = ""
+          parse(body) match {
+            case Left(failure) => ApiException(failure.getCause)
+            case Right(request) =>
+              val futureResponse: Try[Future[Json]] = Try {
+                val id = (request \\ "id").head.asString.get
+                reqId = id
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
+                require(params.size <= 5, s"size of params is ${params.size}")
+
+                (request \\ "method").head.asString.get match {
+                  case "mempool" => mempool(params.head, id)
+                  case "transactionById" => transactionById(params.head, id)
+                  case "blockById" => blockById(params.head, id)
+                  case "transactionFromMempool" => transactionFromMempool(params.head, id)
+                }
+              }
+              futureResponse map {
+                response => Await.result(response, timeout.duration)
+              }
+              match {
+                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+              }
+          }
+        }
+      }
+    }
+  }
   }
 
-  type PM <: PersistentNodeViewModifier[P, TX]
-  type HIS <: History[P, TX, PM, _, _ <: History[P, TX, PM, _, _]]
-  type MP <: MemoryPool[TX, _ <: MemoryPool[TX, _]]
+//  private val source: ConnectedPeer = null
 
-  //TODO null?
-  private val source: ConnectedPeer = null
-
-  def getHistory(): Try[HIS] = Try {
+  private def getHistory(): Try[HIS] = Try {
     Await.result((nodeViewHolderRef ? GetCurrentView).mapTo[CurrentView[_, _ <: HIS, _, _]].map(_.history), 5.seconds)
       .asInstanceOf[HIS]
   }
 
-  def getMempool(): Try[MP] = Try {
+  private def getMempool(): Try[MP] = Try {
     Await.result((nodeViewHolderRef ? GetCurrentView).mapTo[CurrentView[_, _, _, _ <: MP]].map(_.pool), 5.seconds)
       .asInstanceOf[MP]
   }
 
-  @Path("/pool")
-  @ApiOperation(value = "Pool", notes = "Pool of unconfirmed transactions", httpMethod = "GET")
-  def pool: Route = path("pool") {
-    getJsonRoute {
-      getMempool() match {
-        case Success(pool: MP) => SuccessApiResponse(pool.take(1000).map(_.json).asJson)
-        case Failure(e) => ApiException(e)
-      }
-    }
-  }
-
-  @Path("/openSurface")
-  @ApiOperation(value = "Ids of open surface", notes = "Ids of open surface in history", httpMethod = "GET")
-  def openSurface: Route = path("openSurface") {
-    getJsonRoute {
-      getHistory() match {
-        case Success(history: HIS) => SuccessApiResponse(history
-                                                           .openSurfaceIds()
-                                                           .map(Base58.encode)
-                                                           .asJson)
-        case Failure(e) => ApiException(e)
-      }
-    }
-  }
-
-
-  @Path("/persistentModifier/{id}")
-  @ApiOperation(value = "Persistent modifier by id", notes = "Persistent modifier by id", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "id", value = "block id ", required = true, dataType = "string", paramType = "path")
-  ))
-  def persistentModifierById: Route = path("persistentModifier" / Segment) { case encodedId =>
-    getJsonRoute {
-      viewAsync().flatMap { view =>
-        Base58.decode(encodedId) match {
-          case Success(id) =>
-            val blockNumber = view.history.storage.heightOf(id)
-            //TODO 1: Byte
-            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
-              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
-              .map(_.localObjects.headOption.map(_.json).map(j => {
-                val modifiedJson = j.asObject.get.add("blockNumber", blockNumber.asJson).asJson
-                SuccessApiResponse(modifiedJson)
-              })
-                     .getOrElse(ApiError.blockNotExists))
-          case _ => Future(ApiError.blockNotExists)
+  //First 100 unconfirmed transactions in mempool
+  private def mempool(params:Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        getMempool() match {
+          case Success(pool: MP) => pool.take(100).map(_.json).asJson
+            //Failure is caught by BifrostErrorResponse in the nodeViewRoute function when the Await does not receive a response
         }
-      }
     }
   }
 
-  @Path("/transaction/{id}")
-  @ApiOperation(value = "Transaction by id", notes = "Transaction by id", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "id",
-                         value = "Transaction id ",
-                         required = true,
-                         dataType = "string",
-                         paramType = "path")
-  ))
-  def transactionById: Route = path("transaction" / Segment) { case encodedId =>
-    getJsonRoute {
-      viewAsync().flatMap { view =>
-        Base58.decode(encodedId) match {
+  private def transactionById(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val transactionId: String = (params \\ "transactionId").head.asString.get
+        Base58.decode(transactionId) match {
           case Success(id) =>
             val storage = view.history.storage
             val blockIdWithPrefix = storage.blockIdOf(id).get
-            require(blockIdWithPrefix.head == Transaction.ModifierTypeId)
             val blockId = blockIdWithPrefix.tail
             val blockNumber = storage.heightOf(blockId)
             val tx = storage.modifierById(blockId).get.txs.filter(_.id sameElements id).head
-
-            val modifiedJson = tx.json.asObject.get.add("blockNumber", blockNumber.asJson)
+            tx.json.asObject.get.add("blockNumber", blockNumber.asJson)
               .add("blockHash", Base58.encode(blockId).asJson).asJson
-            Future(SuccessApiResponse(data = modifiedJson))
-          case _ => Future(ApiError.transactionNotExists)
+
+//            (nodeViewHolderRef ? GetLocalObjects(null, Transaction.ModifierTypeId, Seq(id)))
+//            .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+//            .map(_.localObjects.headOption.map(_.json)).asJson
         }
-      }
     }
   }
+
+  private def transactionFromMempool(params: Json, id:String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val transactionId: String = (params \\ "transactionId").head.asString.get
+        Base58.decode(transactionId) match {
+          case Success(id) => getMempool() match {
+            case Success(pool: MP) => pool.getById(id).get.json.asJson
+          }
+        }
+    }
+  }
+
+  private def blockById(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val modifierId: String = (params \\ "blockId").head.asString.get
+        Base58.decode(modifierId) match {
+          case Success(id) =>
+            val blockNumber = view.history.storage.heightOf(id)
+            Map(
+              "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
+              "blockInfo" -> view.history.modifierById(id).get.json
+            ).asJson
+            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).asJson
+
+            //Old implementation in REST route
+//            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
+//              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
+//              .map(_.localObjects.headOption.map(_.json).map(j => {
+//                modifierId =
+//                  j.asObject.get.add("blockNumber", blockNumber.asJson)
+//              }))
+        }
+    }
+  }
+
+  //TODO Open surface was written in the REST api route but the openSurface method remains unimplemented
+//  @Path("/openSurface")
+//  @ApiOperation(value = "Ids of open surface", notes = "Ids of open surface in history", httpMethod = "GET")
+//  def openSurface: Route = path("openSurface") {
+//    getJsonRoute {
+//      getHistory() match {
+//        case Success(history: HIS) => SuccessApiResponse(history
+//          .openSurfaceIds()
+//          .map(Base58.encode)
+//          .asJson)
+//        case Failure(e) => ApiException(e)
+//      }
+//    }
+//  }
+
+
 }

@@ -6,9 +6,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
-import bifrost.blocks.BifrostBlock
 import bifrost.contract.Agreement
-import bifrost.contract.modules.BaseModuleWrapper
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
@@ -20,19 +18,15 @@ import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
 import io.circe._
-import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
-import scalapb.json4s.JsonFormat
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.transaction.bifrostTransaction.{BifrostTransaction, Role}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -123,7 +117,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("hub")}"
@@ -142,7 +136,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "declareRole",
            |  "params": [{
            |        "publicKey": "${publicKeys("investor")}",
@@ -186,7 +180,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("investor")}"
@@ -230,7 +224,7 @@ class ContractRPCSpec extends WordSpec
       s"""
       {
         "jsonrpc": "2.0",
-        "id": "16",
+        "id": "1",
         "method": "getContractSignature",
         "params": [{
           "signingPublicKey": "${publicKeys("investor")}",
@@ -548,7 +542,6 @@ class ContractRPCSpec extends WordSpec
 //
 //      httpPOST(ByteString(requestBody)) ~> route ~> check {
 //        val res = parse(responseAs[String]).right.get
-//        println(res)
 //        (res \\ "result").head.asObject.isDefined shouldEqual true
 //        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
 //      }

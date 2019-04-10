@@ -1,73 +1,87 @@
 package bifrost.api.http
 
 import java.security.SecureRandom
-import javax.ws.rs.Path
 
-import akka.actor.ActorRefFactory
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import io.circe._
-import io.circe.syntax._
-import io.swagger.annotations._
-import bifrost.crypto.hash.{FastCryptographicHash}
-import scorex.crypto.encode.Base58
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.history.BifrostHistory
+import bifrost.mempool.BifrostMemPool
 import bifrost.settings.Settings
+import bifrost.state.BifrostState
+import bifrost.wallet.BWallet
+import io.circe.Json
+import io.circe.parser.parse
+import io.circe.syntax._
+import scorex.crypto.encode.Base58
 
+import scala.util.{Failure, Success, Try}
 
-@Path("/utils")
-@Api(value = "/utils", description = "Useful functions", position = 3, produces = "application/json")
-case class UtilsApiRoute(override val settings: Settings)(implicit val context: ActorRefFactory) extends ApiRoute {
+case class UtilsApiRoute(override val settings: Settings)
+                        (implicit val context: ActorRefFactory) extends ApiRoute {
+  type HIS = BifrostHistory
+  type MS = BifrostState
+  type VL = BWallet
+  type MP = BifrostMemPool
+
   val SeedSize = 32
 
-  private def seed(length: Int): SuccessApiResponse = {
-    val seed = new Array[Byte](length)
-    new SecureRandom().nextBytes(seed) //seed mutated here!
-    SuccessApiResponse(Map("seed" -> Base58.encode(seed)).asJson)
+  override val route: Route = pathPrefix("utils") {
+    utilsRoute
   }
 
-  override val route = pathPrefix("utils") {
-    seedRoute ~ length ~ hashBlake2b
-  }
+  def utilsRoute: Route = path("") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          var reqId = ""
+          parse(body) match {
+            case Left(failure) => ApiException(failure.getCause)
+            case Right(request) =>
+              val response: Try[Json] = Try {
+                val id = (request \\ "id").head.asString.get
+                reqId = id
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
+                require(params.size <= 5, s"size of params is ${params.size}")
 
-  @Path("/seed")
-  @ApiOperation(value = "Seed", notes = "Generate random seed", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with peer list or error")
-  ))
-  def seedRoute: Route = path("seed") {
-    getJsonRoute {
-      seed(SeedSize)
-    }
-  }
-
-  @Path("/seed/{length}")
-  @ApiOperation(value = "Seed of specified length", notes = "Generate random seed of specified length", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "length", value = "Seed length ", required = true, dataType = "long", paramType = "path")
-  ))
-  @ApiResponse(code = 200, message = "Json with peer list or error")
-  def length: Route = path("seed" / IntNumber) { case length =>
-    getJsonRoute {
-      seed(length)
-    }
-  }
-
-  @Path("/hash/blake2b")
-  @ApiOperation(value = "Hash", notes = "Return Blake2b hash of specified message", httpMethod = "POST")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "message", value = "Message to hash", required = true, paramType = "body", dataType = "String")
-  ))
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with error or json like {\"message\": \"your message\",\"hash\": \"your message hash\"}")
-  ))
-  def hashBlake2b: Route = {
-    path("hash" / "blake2b") {
-      entity(as[String]) { message =>
-        withAuth {
-          postJsonRoute {
-            SuccessApiResponse(Map("message" -> message, "hash" -> Base58.encode(FastCryptographicHash(message))).asJson)
+                (request \\ "method").head.asString.get match {
+                  case "seed" => seedRoute(params.head, id)
+                  case "seedOfLength" => seedOfLength(params.head, id)
+                  case "hashBlake2b" => hashBlake2b(params.head, id)
+                }
+              }
+              response match {
+                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+              }
           }
         }
       }
     }
+  }
+
+  private def seed(length: Int): Json = {
+    val seed = new Array[Byte](length)
+    new SecureRandom().nextBytes(seed) //seed mutated here!
+    Map("seed" -> Base58.encode(seed)).asJson
+  }
+
+  //Generates random seed
+  private def seedRoute(params: Json, id: String): Json = {
+    seed(SeedSize)
+  }
+
+  //Generates random seed of specified length
+  private def seedOfLength(params: Json, id: String): Json = {
+    val length: Int = (params \\ "length").head.asNumber.get.toInt.get
+    seed(length)
+  }
+
+  //Returns Blake2b hash of specified message
+  private def hashBlake2b(params: Json, id: String): Json = {
+    val message: String = (params \\ "message").head.asString.get
+    Map("message" -> message,
+        "hash" -> Base58.encode(FastCryptographicHash(message))).asJson
   }
 }

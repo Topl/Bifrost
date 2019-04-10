@@ -10,12 +10,11 @@ import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges, BifrostStateSpec}
+import bifrost.state.BifrostState
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.{ArbitBox, AssetBox, ContractBox, ProfileBox}
+import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import com.google.common.primitives.Ints
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -62,7 +61,6 @@ class AssetRPCSpec extends WordSpec
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
-
   // Unlock Secrets
   val gw: BWallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
@@ -76,7 +74,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "redeemAssets",
            |   "params": [{
            |     "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
@@ -85,7 +83,6 @@ class AssetRPCSpec extends WordSpec
         """.stripMargin)
       //      httpPOST(requestBody) ~> route ~> check {
       //        val res = parse(responseAs[String]).right.get
-      //        println(res)
       //        (res \\ "error").head.asObject.isDefined shouldBe true
       //        (res \\ "result").isEmpty shouldBe true
       //      }
@@ -97,11 +94,11 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "createAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
-           |     "to": "${publicKeys("investor")}",
+           |     "recipient": "${publicKeys("investor")}",
            |     "amount": 10,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
@@ -123,7 +120,8 @@ class AssetRPCSpec extends WordSpec
         //
         //        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
 
-        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block as opposed to creating a new state change like above
+        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block
+        // as opposed to creating a new state change like above
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,
           System.currentTimeMillis(),
@@ -133,7 +131,7 @@ class AssetRPCSpec extends WordSpec
           10L
         )
         gw.scanPersistent(tempBlock)
-
+        //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }
 
@@ -142,7 +140,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -150,16 +148,16 @@ class AssetRPCSpec extends WordSpec
            |     "amount": 1,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
-           |     "publicKeysToSendFrom": [],
            |     "data": ""
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
+
         //Removing transaction from mempool so as not to affect ContractRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
@@ -173,10 +171,10 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
-           |      "issuer": "${publicKeys("hub")}",
+           |     "issuer": "${publicKeys("hub")}",
            |     "recipient": "${publicKeys("producer")}",
            |     "publicKeyToSendFrom": ["${publicKeys("investor")}", "${publicKeys("hub")}"],
            |     "amount": 5,
@@ -186,7 +184,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -203,7 +201,7 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -217,7 +215,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -234,7 +232,7 @@ class AssetRPCSpec extends WordSpec
            |{
            |
            |   "jsonrpc": "2.0",
-           |   "id": "30",
+           |   "id": "1",
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -247,7 +245,7 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //println(requestBody)
+
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
@@ -257,7 +255,6 @@ class AssetRPCSpec extends WordSpec
         view().pool.remove(txInstance)
       }
     }
-
   }
 
   object AssetRPCSpec {
