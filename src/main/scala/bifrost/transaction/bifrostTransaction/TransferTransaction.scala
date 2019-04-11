@@ -15,7 +15,8 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
                                    val to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                    val signatures: IndexedSeq[Signature25519],
                                    override val fee: Long,
-                                   override val timestamp: Long) extends BifrostTransaction {
+                                   override val timestamp: Long,
+                                   val data: String) extends BifrostTransaction {
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = from.map { case (prop, nonce) =>
     PublicKeyNoncedBox.idFromBox(prop, nonce)
@@ -56,7 +57,8 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
       .map(s => Base58.encode(s.signature).asJson)
       .asJson,
     "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
   ).asJson
 
   def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {

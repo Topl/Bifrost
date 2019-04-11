@@ -19,8 +19,8 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
                         override val signatures: IndexedSeq[Signature25519],
                         override val fee: Long,
                         override val timestamp: Long,
-                        val data: String)
-  extends TransferTransaction(from, to, signatures, fee, timestamp) {
+                        override val data: String)
+  extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override type M = PolyTransfer
 

@@ -24,8 +24,8 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
                          assetCode: String,
                          override val fee: Long,
                          override val timestamp: Long,
-                         val data: String)
-  extends TransferTransaction(from, to, signatures, fee, timestamp) {
+                         override val data: String)
+  extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override type M = AssetTransfer
 

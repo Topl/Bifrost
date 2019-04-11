@@ -1,6 +1,7 @@
 package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
@@ -48,7 +49,7 @@ class AssetRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/asset/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    )
+    ).withHeaders(RawHeader("api_key", "test_key"))
   }
 
   implicit val timeout = Timeout(10.seconds)
