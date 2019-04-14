@@ -11,6 +11,9 @@ import bifrost.transaction.serialization.PolyTransferCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
+import io.circe.Json
+import io.circe.syntax._
+import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -40,6 +43,31 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
   }
 
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
+
+  override lazy val json: Json = Map(
+    "txHash" -> Base58.encode(id).asJson,
+    "txType" -> "PolyTransfer".asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+    "from" -> from.map { s =>
+      Map(
+        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+        "nonce" -> s._2.toString.asJson
+      ).asJson
+    }.asJson,
+    "to" -> to.map { s =>
+      Map(
+        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+        "value" -> s._2.toString.asJson
+      ).asJson
+    }.asJson,
+    "signatures" -> signatures
+      .map(s => Base58.encode(s.signature).asJson)
+      .asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
+  ).asJson
 }
 
 object PolyTransfer extends TransferUtil {
