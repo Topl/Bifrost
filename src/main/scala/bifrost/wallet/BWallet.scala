@@ -163,7 +163,13 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   def generateNewSecret(password: String): PublicKey25519Proposition = {
-    val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    val privKey = KeyFile(password = password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    secrets += privKey
+    privKey.publicImage
+  }
+
+  def generateNewSecret(password: String, importSeed: String): PublicKey25519Proposition = {
+    val privKey = KeyFile(password,seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
     secrets += privKey
     privKey.publicImage
   }

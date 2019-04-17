@@ -12,6 +12,8 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.{ApiException, SuccessApiResponse}
+import bifrost.crypto.Bip39
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -58,6 +60,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                     case "lockKeyfile" => lockKeyfile(params.head, id)
                     case "generateKeyfile" => generateKeyfile(params.head, id)
                     case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+                    case "importSeedPhrase" => importKeyfile(params.head, id)
                   }
                 }
                 futureResponse map {
@@ -161,6 +164,31 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val pubKey = wallet.generateNewSecret(password)
       Map(
         "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
+      ).asJson
+    }
+  }
+
+  private def importKeyfile(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val password: String = (params \\ "password").head.asString.get
+      val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
+      val seedPhraseLang: String = (params \\ "seedPhraseLang").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => "en"
+      }
+      val pt = Bip39.apply(seedPhraseLang)
+      Map(
+      pt.phraseCheckSum(seedPhrase) match {
+        case false =>"error:" ->  "not a valid input phrase".asJson
+        case true =>
+        {
+          val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
+          val pubKey = wallet.generateNewSecret(password, seed)
+          "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
+        }
+
+      }
       ).asJson
     }
   }
