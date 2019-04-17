@@ -61,6 +61,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
+    "txType" -> "AssetCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { s =>
       Map(
