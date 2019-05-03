@@ -7,7 +7,7 @@ import BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.{ArbitTransferCompanion, TransferTransactionCompanion}
+import bifrost.transaction.serialization.ArbitTransferCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints

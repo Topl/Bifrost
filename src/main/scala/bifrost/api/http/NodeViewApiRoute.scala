@@ -128,12 +128,14 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
         Base58.decode(modifierId) match {
           case Success(id) =>
             val blockNumber = view.history.storage.heightOf(id)
-            Map(
-              "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
-              "blockInfo" -> view.history.modifierById(id).get.json
-            ).asJson
-            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).asJson
-
+            val storage = view.history.storage
+//            Map(
+//              "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
+//              "blockInfo" -> view.history.modifierById(id).get.json
+//            ).asJson
+//            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).asJson
+            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).add("blockDifficulty",
+            storage.difficultyOf(id).asJson).asJson
             //Old implementation in REST route
 //            (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
 //              .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
