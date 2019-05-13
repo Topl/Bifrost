@@ -163,3 +163,8 @@ outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "project-bifrost", base = file("."))
   .settings(commonSettings: _*)
+
+lazy val benchmarking = Project(id = "benchmarking", base = file("benchmarking"))
+  .settings(commonSettings: _*)
+  .enablePlugins(JmhPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
