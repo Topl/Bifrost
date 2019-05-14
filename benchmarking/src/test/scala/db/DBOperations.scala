@@ -1,12 +1,9 @@
-package test.scala.DBOperations
+package db
 
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.TimeUnit
 //import bifrost.history._
 //import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)

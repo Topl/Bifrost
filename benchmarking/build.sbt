@@ -3,7 +3,7 @@ name := "benchmarking"
 
 scalaVersion := "2.12.8"
 
-//enablePlugins(JmhPlugin)
+enablePlugins(JmhPlugin)
 
 sourceDirectory in Jmh := (sourceDirectory in Test).value
 classDirectory in Jmh := (classDirectory in Test).value
