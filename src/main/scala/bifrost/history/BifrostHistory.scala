@@ -119,7 +119,6 @@ class BifrostHistory(val storage: BifrostStorage,
 
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
                s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
-
     res
   }
 
@@ -449,8 +448,6 @@ object BifrostHistory extends ScorexLogging {
   }
 
   def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): BifrostHistory = {
-    println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-    println("Entered")
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
@@ -470,8 +467,6 @@ object BifrostHistory extends ScorexLogging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    println("Done")
     new BifrostHistory(storage, settings, validators)
   }
 }
