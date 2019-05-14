@@ -449,6 +449,8 @@ object BifrostHistory extends ScorexLogging {
   }
 
   def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): BifrostHistory = {
+    println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+    println("Entered")
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
@@ -468,6 +470,8 @@ object BifrostHistory extends ScorexLogging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
+    println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    println("Done")
     new BifrostHistory(storage, settings, validators)
   }
 }

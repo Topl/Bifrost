@@ -146,6 +146,7 @@ trait Settings extends ScorexLogging {
     .map(_.flatMap(_.asNumber.flatMap(_.toInt))).map(_.toArray)
     .map(ints => ApplicationVersion(ints(0), ints(1), ints(2)))
     .getOrElse(ApplicationVersion(0, 0, 1))
+
 }
 
 object Settings {

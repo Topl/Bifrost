@@ -8,6 +8,7 @@ import bifrost.NodeViewModifier._
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
@@ -30,15 +31,59 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     require(height > 0, "History is empty")
     modifierById(bestBlockId).get
   }
+//
+//  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
+//    println()
+//    println("Entered modifierById")
+//    println(Base58.encode(blockId))
+//
+//    storage
+//      .get(ByteArrayWrapper(blockId))
+//      .flatMap { bw =>
+//        val bytes = bw.data
+//        bytes.head match {
+//          case BifrostBlock.ModifierTypeId =>
+//            val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
+//            println("Parsed1 result")
+//            parsed match {
+//              case Failure(e) => log.warn("Failed to parse bytes from db", e)
+//                val parsed2x = BifrostBlockCompanion.parseBytes2x(bytes.tail)
+//                println("Parsed2 result")
+//                println(Base58.encode(parsed2x.get.id))
+//                parsed2x match {
+//                  case Failure(e) => println("Parsed2 failed as well", e)
+//                  case _ =>
+//                }
+//                println("Returning parsed Object")
+//                return parsed2x.toOption
+//              case _ =>
+//            }
+//            parsed.toOption
+//          case _ => None
+//        }
+//      }
+//  }
 
   def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
+    println()
+    println("Entered modifierById")
+    println(Base58.encode(blockId))
+
     storage
       .get(ByteArrayWrapper(blockId))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
-            val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
+            val parsed = {
+              heightOf(blockId) match {
+//                case Some(x) if (x > 6) =>
+//                  BifrostBlockCompanion.parseBytes(bytes.tail)
+                case Some(x) if (x <= 6) =>
+                  BifrostBlockCompanion.parseBytes2x(bytes.tail)
+                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+              }
+            }
             parsed match {
               case Failure(e) => log.warn("Failed to parse bytes from db", e)
               case _ =>
