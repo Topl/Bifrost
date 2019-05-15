@@ -1,10 +1,12 @@
 package db
 
 import java.util.concurrent.atomic.AtomicLong
-//import bifrost.history._
-//import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import org.openjdk.jmh.annotations._
+
+import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.openjdk.jmh.infra.Blackhole
+import bifrost.history._
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
@@ -16,11 +18,12 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Thread)
 class DBOperations {
 
-  private val value = new AtomicLong()
+  //private val value = new AtomicLong()
 
   @Benchmark
   def test(bh: Blackhole): Unit = {
-    bh.consume(value.addAndGet(42))
+    //bh.consume(value.addAndGet(42))
+    val sum = 3
   }
 
   @Benchmark
@@ -29,7 +32,7 @@ class DBOperations {
   }
 }
 
-object DBOperations {
+/*object DBOperations {
 
 
 
@@ -39,4 +42,4 @@ object DBOperations {
     val dataDir: File = new File("/work/Documents/Bifrost/chain-backup/Monon-2019-04-28")
     val blockStorage: LSMStore = new LSMStore(dataDir)
   }*/
-}
+}*/
