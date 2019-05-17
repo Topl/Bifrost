@@ -60,7 +60,13 @@ class BifrostHistory(val storage: BifrostStorage,
     contains(block.parentId)
   }
 
-  override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
+  override def modifierById(id: ModifierId): Option[BifrostBlock] = //storage.modifierById(id)
+  {
+    storage.heightOf(id) match {
+      case Some(x) if (x <= storage.settings.forkHeight) => storage.modifierById(id, 0: Byte)
+      case _ => storage.modifierById(id, storage.settings.version)
+    }
+  }
 
   override def contains(id: ModifierId): Boolean =
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined
@@ -81,7 +87,6 @@ class BifrostHistory(val storage: BifrostStorage,
       case Failure(e) => log.warn(s"Block validation failed", e)
       case _ =>
     }
-
     validationResults.foreach(_.get)
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
@@ -93,7 +98,6 @@ class BifrostHistory(val storage: BifrostStorage,
 
       } else {
         val parent = modifierById(block.parentId).get
-
         val oldDifficulty = storage.difficultyOf(block.parentId).get
         var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
 
@@ -116,7 +120,6 @@ class BifrostHistory(val storage: BifrostStorage,
         (new BifrostHistory(storage, settings, validators), mod)
       }
     }
-
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
                s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
     res

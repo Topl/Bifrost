@@ -5,6 +5,7 @@ import bifrost.forging.ForgingSettings
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
+import bifrost.block.Block.Version
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
@@ -29,7 +30,11 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
   def bestBlock: BifrostBlock = {
     require(height > 0, "History is empty")
-    modifierById(bestBlockId).get
+    heightOf(bestBlockId) match {
+      case Some(x) if (x <= settings.forkHeight) => modifierById(bestBlockId, 0: Byte).get
+      case _ => modifierById(bestBlockId, settings.version).get
+    }
+//    modifierById(bestBlockId).get
   }
 //
 //  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
@@ -64,24 +69,24 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 //      }
 //  }
 
-  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
-    println()
-    println("Entered modifierById")
-    println(Base58.encode(blockId))
-
+  def modifierById(blockId: ModifierId, version: Version = settings.version): Option[BifrostBlock] = {
     storage
       .get(ByteArrayWrapper(blockId))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
+//            val parsed = {
+//              heightOf(blockId) match {
+//                case Some(x) if (x <= forkHeight) =>
+//                  BifrostBlockCompanion.parseBytes2x(bytes.tail)
+//                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+//              }
+//            }
             val parsed = {
-              heightOf(blockId) match {
-//                case Some(x) if (x > 6) =>
-//                  BifrostBlockCompanion.parseBytes(bytes.tail)
-                case Some(x) if (x <= 6) =>
-                  BifrostBlockCompanion.parseBytes2x(bytes.tail)
-                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+              version.toInt match {
+                case 0 => BifrostBlockCompanion.parseBytes2x(bytes.tail)
+                case 3 => BifrostBlockCompanion.parseBytes(bytes.tail)
               }
             }
             parsed match {

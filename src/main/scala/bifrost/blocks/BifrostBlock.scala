@@ -17,17 +17,17 @@ import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics
-import bifrost.settings.Settings
 
 import scala.collection.BitSet
 import scala.util.Try
+
 
 case class BifrostBlock(override val parentId: BlockId,
                         override val timestamp: Block.Timestamp,
                         forgerBox: ArbitBox,
                         signature: Signature25519,
                         txs: Seq[BifrostTransaction],
-                        inflation: Long,
+                        inflation: Long = 0,
                         protocolVersion: Version = 3: Byte)
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
@@ -67,15 +67,37 @@ object BifrostBlock {
 
   type BaseTarget = Long
 
+//  def create(parentId: BlockId,
+//             timestamp: Block.Timestamp,
+//             txs: Seq[BifrostTransaction],
+//             box: ArbitBox,
+//             //attachment: Array[Byte],
+//             privateKey: PrivateKey25519,
+//             inflation: Long): BifrostBlock = {
+//    assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
+//
+//    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation)
+//    if (parentId sameElements Array.fill(32)(1: Byte)) {
+//      // genesis block will skip signature check
+//      val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
+//      unsigned.copy(signature = Signature25519(genesisSignature))
+//    } else {
+//      val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
+//      unsigned.copy(signature = Signature25519(signature))
+//    }
+//  }
+
   def create(parentId: BlockId,
              timestamp: Block.Timestamp,
              txs: Seq[BifrostTransaction],
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
-             inflation: Long): BifrostBlock = {
+             inflation: Long,
+             version: Version = 3: Byte): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
-    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation)
+
+    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
     if (parentId sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
@@ -249,6 +271,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
-    BifrostBlock(parentId, timestamp, generatorBox, signature, tx, 0, version)
+    BifrostBlock(parentId, timestamp, generatorBox, signature, tx, protocolVersion = version)
   }
 }
