@@ -136,25 +136,6 @@ object Forger extends ScorexLogging {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
-//
-//  def iteration(parent: BifrostBlock,
-//                boxKeys: Seq[(ArbitBox, PrivateKey25519)],
-//                txsToInclude: Seq[BifrostTransaction],
-//                target: BigInt): Option[BifrostBlock] = {
-//
-//    log.debug("in the iteration function")
-//    val successfulHits = boxKeys.map { boxKey =>
-//      val h = hit(parent)(boxKey._1)
-//      log.debug(s"Hit value: $h")
-//      (boxKey, h)
-//    }.filter(t => BigInt(t._2) < BigInt(t._1._1.value) * target)
-//
-//    log.debug(s"Successful hits: ${successfulHits.size}")
-//    successfulHits.headOption.map { case (boxKey, _) =>
-//      BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
-//        txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value)  // inflation val
-//    }
-//  }
 
 
   def iteration(parent: BifrostBlock,

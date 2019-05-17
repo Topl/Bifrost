@@ -27,8 +27,8 @@ case class BifrostBlock(override val parentId: BlockId,
                         forgerBox: ArbitBox,
                         signature: Signature25519,
                         txs: Seq[BifrostTransaction],
-                        inflation: Long = 0,
-                        protocolVersion: Version = 3: Byte)
+                        inflation: Long = 0L,
+                        protocolVersion: Version)
   extends Block[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
 
   override type M = BifrostBlock
@@ -67,25 +67,6 @@ object BifrostBlock {
 
   type BaseTarget = Long
 
-//  def create(parentId: BlockId,
-//             timestamp: Block.Timestamp,
-//             txs: Seq[BifrostTransaction],
-//             box: ArbitBox,
-//             //attachment: Array[Byte],
-//             privateKey: PrivateKey25519,
-//             inflation: Long): BifrostBlock = {
-//    assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
-//
-//    val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation)
-//    if (parentId sameElements Array.fill(32)(1: Byte)) {
-//      // genesis block will skip signature check
-//      val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
-//      unsigned.copy(signature = Signature25519(genesisSignature))
-//    } else {
-//      val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
-//      unsigned.copy(signature = Signature25519(signature))
-//    }
-//  }
 
   def create(parentId: BlockId,
              timestamp: Block.Timestamp,
@@ -94,7 +75,7 @@ object BifrostBlock {
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
              inflation: Long,
-             version: Version = 3: Byte): BifrostBlock = {
+             version: Version): BifrostBlock = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
     val unsigned = BifrostBlock(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
@@ -138,7 +119,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     )
   }
 
-  def commonMessage2x(block: BifrostBlock): Array[Byte] = {
+  def commonMessage2xAndBefore(block: BifrostBlock): Array[Byte] = {
     val numTx = Ints.toByteArray(block.txs.length)
     val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.forgerBox)
 
@@ -156,7 +137,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   def messageToSign(block: BifrostBlock): Array[Byte] = {
     val commonBytes: Array[Byte] = {
       block.version match {
-        case 0 => commonMessage2x(block)
+        case 0 => commonMessage2xAndBefore(block)
         case _ => commonMessage(block)
       }
 
@@ -229,7 +210,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   }
 
 
-  def parseBytes2x(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
+  def parseBytes2xAndBefore(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
     val parentId = bytes.slice(0, Block.BlockIdLength)
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.BlockIdLength + i * Longs.BYTES, Block.BlockIdLength + (i + 1) * Longs.BYTES))

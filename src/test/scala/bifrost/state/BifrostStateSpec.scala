@@ -68,7 +68,7 @@ class BifrostStateSpec extends PropSpec
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
         Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-        Seq(poT), 10L)
+        Seq(poT), 10L, settings.version)
 
       require(BifrostStateSpec.genesisState.validate(poT).isSuccess)
 
@@ -136,7 +136,8 @@ class BifrostStateSpec extends PropSpec
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
       Seq(tx),
-      10L)
+      10L,
+      settings.version)
 
     require(BifrostStateSpec.genesisState.validate(tx).isSuccess)
 
@@ -193,7 +194,8 @@ class BifrostStateSpec extends PropSpec
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
         Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
         Seq(poT),
-        10L
+        10L,
+        settings.version
       )
       genesisState.validate(poT) shouldBe a[Failure[_]]
       println()
@@ -235,7 +237,8 @@ class BifrostStateSpec extends PropSpec
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
         Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
         Seq(arT),
-        10L
+        10L,
+        settings.version
       )
 
       genesisState.validate(arT) shouldBe a[Failure[_]]

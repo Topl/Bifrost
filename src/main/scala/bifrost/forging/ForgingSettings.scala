@@ -30,27 +30,19 @@ trait ForgingSettings extends Settings with ForgingConstants {
 
   val DefaultPosAttachmentSize = 1024
 
-//  lazy val version = settingsJSON
-//    .get("version")
-//    .flatMap(_.asNumber)
-//    .getOrElse(0)
 
   lazy val version = settingsJSON
     .get("version")
     .flatMap(_.asNumber)
     .flatMap(_.toByte)
-    .get
+    .getOrElse(0.toByte)
 
-//  lazy val forkHeight = settingsJSON
-//    .get("forkHeight")
-//    .flatMap(_.asNumber)
-//    .getOrElse(0)
 
   lazy val forkHeight = settingsJSON
     .get("forkHeight")
     .flatMap(_.asNumber)
-    .flatMap(_.toBigInt)
-    .get
+    .flatMap(_.toLong)
+    .getOrElse(0L)
 
   override def toString: String = (Map("BlockGenerationDelay" -> blockGenerationDelay.length.asJson) ++
     settingsJSON.map(s => s._1 -> s._2)).asJson.spaces2

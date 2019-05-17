@@ -60,13 +60,7 @@ class BifrostHistory(val storage: BifrostStorage,
     contains(block.parentId)
   }
 
-  override def modifierById(id: ModifierId): Option[BifrostBlock] = //storage.modifierById(id)
-  {
-    storage.heightOf(id) match {
-      case Some(x) if (x <= storage.settings.forkHeight) => storage.modifierById(id, 0: Byte)
-      case _ => storage.modifierById(id, storage.settings.version)
-    }
-  }
+  override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined

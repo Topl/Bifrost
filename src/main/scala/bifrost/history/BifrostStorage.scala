@@ -5,11 +5,9 @@ import bifrost.forging.ForgingSettings
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
-import bifrost.block.Block.Version
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
-import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
@@ -30,63 +28,21 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
   def bestBlock: BifrostBlock = {
     require(height > 0, "History is empty")
-    heightOf(bestBlockId) match {
-      case Some(x) if (x <= settings.forkHeight) => modifierById(bestBlockId, 0: Byte).get
-      case _ => modifierById(bestBlockId, settings.version).get
-    }
-//    modifierById(bestBlockId).get
+    modifierById(bestBlockId).get
   }
-//
-//  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
-//    println()
-//    println("Entered modifierById")
-//    println(Base58.encode(blockId))
-//
-//    storage
-//      .get(ByteArrayWrapper(blockId))
-//      .flatMap { bw =>
-//        val bytes = bw.data
-//        bytes.head match {
-//          case BifrostBlock.ModifierTypeId =>
-//            val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
-//            println("Parsed1 result")
-//            parsed match {
-//              case Failure(e) => log.warn("Failed to parse bytes from db", e)
-//                val parsed2x = BifrostBlockCompanion.parseBytes2x(bytes.tail)
-//                println("Parsed2 result")
-//                println(Base58.encode(parsed2x.get.id))
-//                parsed2x match {
-//                  case Failure(e) => println("Parsed2 failed as well", e)
-//                  case _ =>
-//                }
-//                println("Returning parsed Object")
-//                return parsed2x.toOption
-//              case _ =>
-//            }
-//            parsed.toOption
-//          case _ => None
-//        }
-//      }
-//  }
 
-  def modifierById(blockId: ModifierId, version: Version = settings.version): Option[BifrostBlock] = {
+  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
     storage
       .get(ByteArrayWrapper(blockId))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
-//            val parsed = {
-//              heightOf(blockId) match {
-//                case Some(x) if (x <= forkHeight) =>
-//                  BifrostBlockCompanion.parseBytes2x(bytes.tail)
-//                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
-//              }
-//            }
             val parsed = {
-              version.toInt match {
-                case 0 => BifrostBlockCompanion.parseBytes2x(bytes.tail)
-                case 3 => BifrostBlockCompanion.parseBytes(bytes.tail)
+              heightOf(blockId) match {
+                case Some(x) if (x <= settings.forkHeight) =>
+                  BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
               }
             }
             parsed match {
