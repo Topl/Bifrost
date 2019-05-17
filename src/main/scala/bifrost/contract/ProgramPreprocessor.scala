@@ -20,6 +20,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 /**
   * Created by Matt Kindy on 7/27/2017.
@@ -28,6 +29,8 @@ case class ProgramPreprocessor(name: String,
                                initjs: String,
                                registry: Map[String, mutable.LinkedHashSet[String]],
                                state: Json,
+                               variables: List[String],
+                               code: List[String],
                                signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
   lazy val json: Json = Map(
@@ -35,6 +38,8 @@ case class ProgramPreprocessor(name: String,
     "name" -> name.asJson,
     "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
     "registry" -> registry.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
+    "variables" -> variables.asJson,
+    "code" -> code.asJson,
     "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
   ).asJson
 }
@@ -89,12 +94,12 @@ object ProgramPreprocessor {
 
   def apply(name: String, initjs: String, signed: Option[(PublicKey25519Proposition, Signature25519)] = None)(args: JsonObject): ProgramPreprocessor = {
 
-    val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+    //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
-    val (registry, cleanModuleState) = deriveFromInit(modifiedInitjs, name)(args)
+    val (registry, cleanModuleState, variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    ProgramPreprocessor(name, modifiedInitjs, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), signed)
+    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), variables, code, signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
@@ -105,9 +110,10 @@ object ProgramPreprocessor {
 
     val initjs: String = {
       val cleanInitjs: String = (json \\ "initjs").head.asString.get
-      val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+      //val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
       //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
-      modifiedInitjs
+      //modifiedInitjs
+      cleanInitjs
     }
 
     val announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] =
@@ -118,13 +124,14 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)].right.get)
       .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
 
-    val (registry, cleanModuleState) = deriveFromInit(initjs, name, announcedRegistry)(args)
+    val (registry, cleanModuleState, variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    ProgramPreprocessor(name, initjs, registry, parse(cleanModuleState).right.get, signed)
+    ProgramPreprocessor(name, initjs, registry, parse(cleanModuleState).right.get, variables, code, signed)
   }
 
+  //noinspection ScalaStyle
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
-    (Map[String, mutable.LinkedHashSet[String]], String) = {
+    (Map[String, mutable.LinkedHashSet[String]], String, List[String], List[String]) = {
 
     /* Construct base module from params */
     val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
@@ -132,6 +139,8 @@ object ProgramPreprocessor {
     jsre.eval(objectAssignPolyfill)
     jsre.eval(initjs)
     jsre.eval(s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
+    println(s">>>>>>>> var c: ")
+    jsre.eval("for(property in c) { print(property) }")
     val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
 
     /* Interpret registry from object */
@@ -158,8 +167,15 @@ object ProgramPreprocessor {
       registryRes.entrySet().asScala.map(entry => entry.getKey -> mutable.LinkedHashSet(entry.getValue.asInstanceOf[Array[String]]:_*)).toMap
     }
 
-    //println(s">>>>>>>>>>> Registry: $registry")
-    (registry, cleanModuleState)
+    println(s">>>>>>>>>>> Registry: $registry")
+
+    val variables: List[String] = deriveState(jsre, initjs).entrySet().asScala.flatMap(entry => entry.getValue.asInstanceOf[Array[String]]).toList
+    //val code: String = deriveFunctions(jsre, name).entrySet().asScala.map(entry => entry.getValue.asInstanceOf[Array[String]]).mkString("")
+
+    //val variables: List[String] = List("")
+    val code: List[String] = List("")
+
+    (registry, cleanModuleState, variables, code)
   }
 
   private def checkRegistry(jsre: NashornScriptEngine, announcedRegistry: Map[String, mutable.LinkedHashSet[String]]): Boolean = {
@@ -191,6 +207,71 @@ object ProgramPreprocessor {
     jsre.eval(getProperties).asInstanceOf[ScriptObjectMirror]
   }
 
+  private def deriveState(jsre: NashornScriptEngine, initjs: String): ScriptObjectMirror = {
+    val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
+    println(s"initjs deriveState: $initjsStr")
+    val getVariables =
+      s"""
+         |var script = $initjsStr;
+         |print("script: " + script);
+         |var strType = Java.type("java.lang.String");
+         |var parsedState = esprima.parseScript(script, { range: true });
+         |print("parsedState: " + JSON.stringify(parsedState));
+         |
+         |isVariable = function(node) {
+         |  if(node.type === 'VariableDeclaration')
+         |    print(node);
+         |    return true;
+         |}
+         |
+         |//var state = parsedState.body.foreach(function(node) {
+         |  //if(isVariable(node)) {
+         |    //stateOutput += script.substring(node.range[0], node.range[1])
+         |  //}
+         |//});
+         |
+         |parsedState.body.reduce(function(variables, node) {
+         |  if(isVariable(node)) {
+         |    variables[node] = Java.to(script.substring(node.range[0], node.range[1]), "java.lang.String");
+         |  }
+         |  print("typeof variables: " + typeof variables)
+         |  return variables;
+         |}, {})
+       """
+        .stripMargin
+
+    println(s">>>>>> STATE: ${jsre.eval(getVariables).asInstanceOf[ScriptObjectMirror].toString}")
+    val state = jsre.eval(getVariables).asInstanceOf[ScriptObjectMirror]
+    state
+  }
+
+  private def deriveFunctions(jsre: NashornScriptEngine, name: String): ScriptObjectMirror = {
+    val getFunctions =
+      s"""
+         |var funcOutput = "";
+         |var script = c.toString();
+         |var strArrType = Java.type("java.lang.String[]");
+         |
+         |isFunction = function(node) {
+         |  if(node.type === 'ExpressionStatement')
+         |    console.log(node)
+         |    return true;
+         |}
+         |
+         |//var parsedFunc = esprima.parseScript(script, { range: true })
+         |//var func = parsedFunc.body.foreach(function(node) {
+         |  //if(isFunction(node)) {
+         |    //funcOutput += script.substring(node.range[0], node.range[1])
+         |  //}
+         |//});
+       """
+        .stripMargin
+
+    println(s">>>>>>>>>> getVariables: ${}")
+      //jsre.eval(getFunctions)
+    jsre.eval(getFunctions).asInstanceOf[ScriptObjectMirror]
+  }
+
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer = ActorMaterializer()
 
@@ -201,6 +282,8 @@ object ProgramPreprocessor {
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
     registry <- c.downField("registry").as[Map[String, mutable.LinkedHashSet[String]]]
+    variables <- c.downField("variables").as[List[String]]
+    code <- c.downField("code").as[List[String]]
     signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
 
@@ -218,6 +301,8 @@ object ProgramPreprocessor {
         new String(decodedInitjs.toArray[Byte]),
         registry,
         parse(new String(decodedState.toArray[Byte])).right.get,
+        variables,
+        code,
         signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
       )
     }, Duration.Inf)

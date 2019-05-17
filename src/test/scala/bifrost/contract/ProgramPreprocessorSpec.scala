@@ -29,14 +29,96 @@ class ProgramPreprocessorSpec extends PropSpec
     "nextPayment" -> Array("0", "0").map(_.asJson).asJson
   ).asJsonObject
 
-  val filePath = URLDecoder.decode(this.getClass.getResource("/contract-modules-fastopt.json").getPath, "UTF-8")
+  val name = "test"
+
+  val script =
+    s"""
+       |this.test = function() {
+       |  var x = 1;
+       |  var y = "test";
+       |
+         |  this.add = function(a,b) {
+       |    return a + b;
+       |  }
+       |
+         |  this.sub = function(a,b) {
+       |    return a - b;
+       |  }
+       |
+         |  this.contract = function() {
+       |    this.status = "initialized";
+       |
+         |    this.newStatus = function(input) {
+       |      status = input;
+       |      return this;
+       |    }
+       |
+         |    this.changeStatus = function(input) {
+       |      status = input;
+       |      return this;
+       |    }
+       |  }
+       |}
+       |
+         |
+         |this.$name.fromJSON = function(str) {
+       |    return new $name();
+       |}
+       |
+         |this.$name.toJSON = function(o) {
+       |    return JSON.stringify(o);
+       |}
+       """.stripMargin
+
+  val contract =
+    s"""
+       |this.$name = function() {
+       |    this.status = "initialized";
+       |    this.assetCode = "Wheat";
+       |    this.initialCapital = "0";
+       |
+       |  this.changeStatus = function(newStatus) {
+       |      this.status = newStatus;
+       |      return this;
+       |    };
+       |};
+       |
+       |this.$name.fromJSON = function(str) {
+       |    return new $name();
+       |};
+       |
+       |this.$name.toJSON = function(o) {
+       |    return JSON.stringify(o);
+       |};
+       """.stripMargin
+
+  val simpleTest =
+    s"""
+       |var test = "test";
+     """.stripMargin
+
+  /*val filePath = URLDecoder.decode(this.getClass.getResource("/contract-modules-fastopt.json").getPath, "UTF-8")
   val osAppropriatePath: Path = Paths.get(
     if (System.getProperty("os.name").contains("indow")) filePath.substring(1) else filePath
-  )
+  )*/
 
   property("Json encoding and decoding should work") {
-    val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
+    //val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
+    val wrapper = ProgramPreprocessor(name, contract)(JsonObject.empty)
     wrapper.json.as[ProgramPreprocessor].right.get shouldEqual wrapper
   }
 
+  property("ProgramPreprocessor should split a single script into separate state and code objects") {
+
+
+    val variables =
+      s"""
+         |var x = 1;
+         |var y = "test";
+       """.stripMargin
+
+    val preprocessor = ProgramPreprocessor(name, contract)(JsonObject.empty)
+
+    println(s">>>>>>>> preprocessor output: ${preprocessor.asJson}")
+  }
 }

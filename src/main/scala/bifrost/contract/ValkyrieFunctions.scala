@@ -32,7 +32,9 @@ case class ValkyrieFunctions() {
 
   val reserved: String =
     s"""
-       |var assetCreated, assetTransferred, polyTransferred;
+       |this.assetCreated = {};
+       |this.assetTransferred = {};
+       |this.polyTransferred = {};
        |
        |this.createAssets = function(issuer, to, amount, assetCode, fee, data) {
        |  this.issuer = issuer;
