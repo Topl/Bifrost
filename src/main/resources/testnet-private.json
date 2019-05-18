@@ -25,6 +25,6 @@
   "blockGenerationDelay": 2000,
   "cors": false,
   "verboseAPI": true,
-  "version": 3,
-  "forkHeight": 6
+  "version": [3,0,0],
+  "forkHeight": 0
 }

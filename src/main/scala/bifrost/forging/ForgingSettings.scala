@@ -30,11 +30,12 @@ trait ForgingSettings extends Settings with ForgingConstants {
 
   val DefaultPosAttachmentSize = 1024
 
-
   lazy val version = settingsJSON
     .get("version")
-    .flatMap(_.asNumber)
-    .flatMap(_.toByte)
+    .flatMap(_.asArray)
+    .map(_.flatMap(_.asNumber.flatMap(_.toInt)))
+    .map(_.toArray)
+    .map(ints => ints(0).toByte)
     .getOrElse(0.toByte)
 
 

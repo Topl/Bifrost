@@ -25,7 +25,7 @@
   "cors": false,
   "agent": "2-Hop",
   "testnet": true,
-  "version": 3,
+  "version": [3,0,0],
   "forkHeight": 0,
   "verboseAPI": true,
   "apiKeyHash": "66akULzvGr1wsoXGzrTTaWrfkafHBukAaTJpM5c2Jtpo"

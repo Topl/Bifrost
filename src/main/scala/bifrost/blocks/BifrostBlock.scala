@@ -39,9 +39,7 @@ case class BifrostBlock(override val parentId: BlockId,
 
   override lazy val serializer = BifrostBlockCompanion
 
-//  override lazy val version: Version = 0: Byte
   override lazy val version: Version = protocolVersion
-
 
   override lazy val id: BlockId = FastCryptographicHash(serializer.messageToSign(this))
 
@@ -152,10 +150,22 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
   }
 
   override def toBytes(block: BifrostBlock): Array[Byte] = {
-    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
-      bytes ++
-        Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
-        BifrostTransactionCompanion.toBytes(tx))
+    block.version match {
+      case 0 =>
+        commonMessage2xAndBefore(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
+          bytes ++
+            Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
+            BifrostTransactionCompanion.toBytes(tx))
+      case _ =>
+        commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
+          bytes ++
+            Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
+            BifrostTransactionCompanion.toBytes(tx))
+    }
+//    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
+//      bytes ++
+//        Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
+//        BifrostTransactionCompanion.toBytes(tx))
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
