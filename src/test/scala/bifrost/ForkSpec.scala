@@ -160,7 +160,9 @@ object ForkSpec {
   }
 
   lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) + ("version" -> (List(0,0,0).asJson))
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
+      ("version" -> (List(0,0,0).asJson)) +
+      ("forkHeight" -> 3.asJson)
 
   }
 
