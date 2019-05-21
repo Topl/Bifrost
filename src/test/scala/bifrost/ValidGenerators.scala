@@ -480,8 +480,6 @@ trait ValidGenerators extends BifrostGenerators {
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(oneHub._1, messageToSign))
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
-
-    //println("Generated")
   }
 
   lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {

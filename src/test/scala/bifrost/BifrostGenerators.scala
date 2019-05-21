@@ -50,6 +50,12 @@ trait BifrostGenerators extends CoreGenerators {
     override lazy val Difficulty: BigInt = 1
   }
 
+  val settings_version0: ForgingSettings = new ForgingSettings {
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> (List(0,0,0).asJson))
+
+    override lazy val Difficulty: BigInt = 1
+  }
+
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
     f(seed) match {
       case Some((a, b)) => a +: unfoldLeft(b)(f)
@@ -626,6 +632,7 @@ trait BifrostGenerators extends CoreGenerators {
     val lastBlockIds = (0 until numLastBlocks).map { _ => sampleUntilNonEmpty(modifierIdGen) }
     BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
   }
+
 
   def generateHistory: BifrostHistory = {
     val dataDir = s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}"

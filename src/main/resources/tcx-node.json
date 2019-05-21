@@ -1,0 +1,29 @@
+{
+  "p2p": {
+    "name": "tcx-node",
+    "bindAddress": "0.0.0.0",
+    "upnp": false,
+    "upnpGatewayTimeout": 7000,
+    "upnpDiscoverTimeout": 3000,
+    "port": 9584,
+    "knownPeers": [
+    ],
+    "addedMaxDelay": 2000,
+    "maxConnections": 10
+  },
+  "walletSeed": "genesisoo",
+  "keyFileDir": "keyfiles/tcx_node",
+  "walletDir": "/tmp/bifrost/tcx-node/wallet",
+  "dataDir": "/tmp/bifrost/tcx-node/data",
+  "logDir": "/tmp/bifrost/tcx-node/log",
+  "rpcPort": 9585,
+  "rpcAllowed": [],
+  "maxRollback": 100,
+  "targetBlockTime": 6000,
+  "offlineGeneration": true,
+  "testnet": true,
+  "blockGenerationDelay": 2000,
+  "cors": false,
+  "verboseAPI": true,
+  "apiKeyHash": "Cu4vDiFZD2yPjk6qbb3RHsfnCRxGkD5GWS4AFSR7x2uk"
+}
