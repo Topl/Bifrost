@@ -166,8 +166,8 @@ object ForkSpec {
 
   }
 
-  val path: Path = Path("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
+//  val path: Path = Path("/tmp/scorex/test-data")
+//  Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
