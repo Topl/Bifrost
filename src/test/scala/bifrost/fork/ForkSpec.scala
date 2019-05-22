@@ -22,7 +22,7 @@ class ForkSpec extends PropSpec
   with Matchers
 {
 
-  val path: Path = Path("/tmp/scorex/test-data/blockchain")
+  val path: Path = Path("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
@@ -85,8 +85,7 @@ class ForkSpec extends PropSpec
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
-    //Height represents height of bestBlockId which is at 1 less than current number of blocks
-    history.height shouldEqual testSettings_version0.forkHeight + 1
+    history.height shouldEqual testSettings_version0.forkHeight + 2
 
     test_height = history.height
 
@@ -109,7 +108,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     val heightAfterAppendAttempt = history.height
-
+    
     //Since block validation does not exist block is still appended to history, failure only pops up
     //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
 
