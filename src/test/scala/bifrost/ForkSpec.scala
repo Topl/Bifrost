@@ -18,10 +18,7 @@ import scala.reflect.io.Path
 import scala.util.{Failure, Try}
 
 class ForkSpec extends PropSpec
-  //  with PropertyChecks
-  //  with GeneratorDrivenPropertyChecks
   with Matchers
-  //  with BifrostGenerators
 {
 
   val path: Path = Path("/tmp/scorex/test-data")
@@ -168,35 +165,3 @@ class ForkSpec extends PropSpec
 
 }
 
-
-//object ForkSpec {
-//
-//  import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-//  import bifrost.transaction.state.MinimalState.VersionTag
-//
-//  val settingsFilename = "testSettings.json"
-//  lazy val testSettings_version3: ForgingSettings = new ForgingSettings {
-//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-//  }
-//
-//  lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
-//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
-//      ("version" -> (List(0,0,0).asJson)) +
-//      ("forkHeight" -> 3.asJson)
-//
-//  }
-//
-//  val path: Path = Path("/tmp/scorex/test-data")
-//  Try(path.deleteRecursively())
-//
-//  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
-//  var history: HIS = gs._1
-//  var genesisState: MS = gs._2
-//  var gw: VL = gs._3
-//
-//  // Unlock Secrets
-//  gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
-//  gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
-//  gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
-//  val genesisBlockId: VersionTag = genesisState.version
-//}
