@@ -21,7 +21,7 @@ class ForkSpec extends PropSpec
   with Matchers
 {
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/scorex/test-data/blockchain")
   Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
