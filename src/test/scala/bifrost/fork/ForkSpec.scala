@@ -1,21 +1,22 @@
 
-package bifrost
+package bifrost.fork
 
+import bifrost.BifrostNodeViewHolder
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
+import bifrost.history.BifrostHistory
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import io.circe
-import org.scalatest.{Matchers, PropSpec}
-import io.circe.syntax._
-import scorex.crypto.signatures.Curve25519
-import bifrost.history.BifrostHistory
 import bifrost.validation.DifficultyBlockValidator
+import io.circe
+import io.circe.syntax._
+import org.scalatest.{Matchers, PropSpec}
+import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 class ForkSpec extends PropSpec
   with Matchers
@@ -108,7 +109,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     val heightAfterAppendAttempt = history.height
-    
+
     //Since block validation does not exist block is still appended to history, failure only pops up
     //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
 
