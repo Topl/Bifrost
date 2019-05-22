@@ -3,12 +3,12 @@ package bifrost.srb
 import java.io.File
 import java.util.UUID
 
+import bifrost.NodeViewModifier.ModifierId
 import bifrost.forging.ForgingSettings
-import bifrost.transaction.BifrostTransaction
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.NodeViewModifier.ModifierId
-import scorex.core.utils.ScorexLogging
+import bifrost.utils.ScorexLogging
 
 import scala.util.Try
 

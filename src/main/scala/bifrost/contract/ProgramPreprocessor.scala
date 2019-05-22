@@ -10,13 +10,13 @@ import akka.util.ByteString
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import jdk.nashorn.api.scripting.{NashornScriptEngine, NashornScriptEngineFactory, ScriptObjectMirror}
 import bifrost.serialization.JsonSerializable
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
+import com.oracle.js.parser.{Parser, ErrorManager, ScriptEnvironment, Source}
+import org.graalvm.polyglot.Context
 import scorex.crypto.encode.{Base58, Base64}
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
@@ -133,20 +133,22 @@ object ProgramPreprocessor {
     (Map[String, mutable.LinkedHashSet[String]], String, List[String], List[String]) = {
 
     /* Construct base module from params */
-    val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
+    val jsre: Context = Context.newBuilder("js").build()
+    //val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
 
-    jsre.eval(objectAssignPolyfill)
-    jsre.eval(initjs)
-    jsre.eval(s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
+    jsre.eval("js", objectAssignPolyfill)
+    jsre.eval("js", initjs)
+    jsre.eval("js", s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
     println(s">>>>>>>> var c: ")
-    jsre.eval("for(property in c) { print(property) }")
-    val cleanModuleState: String = jsre.eval(s"$name.toJSON(c)").asInstanceOf[String]
+    jsre.eval("js", "for(property in c) { print(property) }")
+    val cleanModuleState: String = jsre.eval("js", s"$name.toJSON(c)").asInstanceOf[String]
+
 
     /* Interpret registry from object */
-    val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
-    jsre.eval(new InputStreamReader(esprimajs))
+   /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
+    jsre.eval(new InputStreamReader(esprimajs))*/
 
-    val defineEsprimaFnParamParser =
+    /*val defineEsprimaFnParamParser =
       s"""
         |function getParameters(f) {
         |    var parsed = esprima.parse("safetyValve = " + f.toString().replace("[native code]", ""));
@@ -157,29 +159,31 @@ object ProgramPreprocessor {
         |}
       """.stripMargin
 
-    jsre.eval(defineEsprimaFnParamParser)
+    jsre.eval(defineEsprimaFnParamParser)*/
 
-    val registry = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
+    /*val registry = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
       announcedRegistry.get
     } else {
       val registryRes = deriveRegistry(jsre)
       registryRes.entrySet().asScala.map(entry => entry.getKey -> mutable.LinkedHashSet(entry.getValue.asInstanceOf[Array[String]]:_*)).toMap
-    }
+    }*/
 
-    println(s">>>>>>>>>>> Registry: $registry")
+    //println(s">>>>>>>>>>> Registry: $registry")
 
-    val variables: List[String] = deriveState(jsre, initjs).entrySet().asScala.flatMap(entry => entry.getValue.asInstanceOf[Array[String]]).toList
+    val variables: List[String] = deriveState(jsre, initjs)
     //val code: String = deriveFunctions(jsre, name).entrySet().asScala.map(entry => entry.getValue.asInstanceOf[Array[String]]).mkString("")
 
     //val variables: List[String] = List("")
     val code: List[String] = List("")
 
+    val registry: Map[String, mutable.LinkedHashSet[String]] = ???
+
     (registry, cleanModuleState, variables, code)
   }
 
-  private def checkRegistry(jsre: NashornScriptEngine, announcedRegistry: Map[String, mutable.LinkedHashSet[String]]): Boolean = {
+  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, mutable.LinkedHashSet[String]]): Boolean = {
     announcedRegistry.keySet.forall(k => {
-      jsre.eval(
+      jsre.eval("js",
         s"""
            |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
          """.stripMargin
@@ -187,7 +191,7 @@ object ProgramPreprocessor {
     })
   }
 
-  private def deriveRegistry(jsre: NashornScriptEngine): ScriptObjectMirror = {
+  /*private def deriveRegistry(jsre: Context): ScriptObjectMirror = {
     val getProperties =
       s"""
          |var classFunctions = Object.getOwnPropertyNames(c)
@@ -204,71 +208,54 @@ object ProgramPreprocessor {
         stripMargin
 
     jsre.eval(getProperties).asInstanceOf[ScriptObjectMirror]
-  }
+  }*/
 
-  private def deriveState(jsre: NashornScriptEngine, initjs: String): ScriptObjectMirror = {
+  private def deriveState(jsre: Context, initjs: String): List[String] = {
     val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
     println(s"initjs deriveState: $initjsStr")
-    val getVariables =
-      s"""
-         |var script = $initjsStr;
-         |print("script: " + script);
-         |var strType = Java.type("java.lang.String");
-         |var parsedState = esprima.parseScript(script, { range: true });
-         |print("parsedState: " + JSON.stringify(parsedState));
-         |
-         |isVariable = function(node) {
-         |  if(node.type === 'VariableDeclaration')
-         |    print(node);
-         |    return true;
-         |}
-         |
-         |//var state = parsedState.body.foreach(function(node) {
-         |  //if(isVariable(node)) {
-         |    //stateOutput += script.substring(node.range[0], node.range[1])
-         |  //}
-         |//});
-         |
-         |parsedState.body.reduce(function(variables, node) {
-         |  if(isVariable(node)) {
-         |    variables[node] = Java.to(script.substring(node.range[0], node.range[1]), "java.lang.String");
-         |  }
-         |  print("typeof variables: " + typeof variables)
-         |  return variables;
-         |}, {})
-       """
-        .stripMargin
 
-    println(s">>>>>> STATE: ${jsre.eval(getVariables).asInstanceOf[ScriptObjectMirror].toString}")
-    val state = jsre.eval(getVariables).asInstanceOf[ScriptObjectMirror]
-    state
+    val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
+      .ecmaScriptVersion(8)
+      .constAsVar(false)
+      .earlyLvalueError(true)
+      .emptyStatements(false)
+      .syntaxExtensions(true)
+      .scripting(false)
+      .shebang(false)
+      .strict(true)
+      .functionStatementBehavior(ScriptEnvironment.FunctionStatementBehavior.ERROR)
+      .build()
+
+
+    val errManager = new ErrorManager.ThrowErrorManager
+    val src = Source.sourceFor("script", "")
+    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parsed = parser.parse()
+
+    List(parsed.getBody.toString())
   }
 
-  private def deriveFunctions(jsre: NashornScriptEngine, name: String): ScriptObjectMirror = {
-    val getFunctions =
-      s"""
-         |var funcOutput = "";
-         |var script = c.toString();
-         |var strArrType = Java.type("java.lang.String[]");
-         |
-         |isFunction = function(node) {
-         |  if(node.type === 'ExpressionStatement')
-         |    console.log(node)
-         |    return true;
-         |}
-         |
-         |//var parsedFunc = esprima.parseScript(script, { range: true })
-         |//var func = parsedFunc.body.foreach(function(node) {
-         |  //if(isFunction(node)) {
-         |    //funcOutput += script.substring(node.range[0], node.range[1])
-         |  //}
-         |//});
-       """
-        .stripMargin
+  private def deriveFunctions(jsre: Context, name: String): List[String] = {
 
-    println(s">>>>>>>>>> getVariables: ${}")
-      //jsre.eval(getFunctions)
-    jsre.eval(getFunctions).asInstanceOf[ScriptObjectMirror]
+
+    val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
+      .ecmaScriptVersion(8)
+      .constAsVar(false)
+      .earlyLvalueError(true)
+      .emptyStatements(false)
+      .syntaxExtensions(true)
+      .scripting(false)
+      .shebang(false)
+      .strict(true)
+      .functionStatementBehavior(ScriptEnvironment.FunctionStatementBehavior.ERROR)
+      .build()
+
+    val errManager = new ErrorManager.ThrowErrorManager
+    val src = Source.sourceFor("script", "")
+    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parsed = parser.parse()
+
+    List(parsed.getBody.toString())
   }
 
   implicit val system = ActorSystem("QuickStart")

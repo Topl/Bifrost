@@ -37,5 +37,6 @@ class TruffleSpec extends PropSpec
   val parsed = parser.parse()
 
   println(parsed.getBody.getStatements)
+  println(parsed.getParameters)
 
 }

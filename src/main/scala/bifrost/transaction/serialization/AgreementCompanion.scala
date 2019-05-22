@@ -1,6 +1,6 @@
 package bifrost.transaction.serialization
 
-import bifrost.contract.modules.BaseModuleWrapper
+import bifrost.contract.ProgramPreprocessor
 import bifrost.contract.{Agreement, AgreementTerms}
 import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -49,13 +49,13 @@ object AgreementCompanion extends Serializer[Agreement] {
 
     numBytesRead += termsLength.toInt
 
-    val core: BaseModuleWrapper = parse(new String(
+    val core: ProgramPreprocessor = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + coreLength.toInt)
     )) match {
       case Left(_) => throw new Exception("BaseModule json not properly formatted")
-      case Right(x) => x.as[BaseModuleWrapper] match {
+      case Right(x) => x.as[ProgramPreprocessor] match {
         case Left(_) => throw new Exception("Internal json was malformed in BaseModule")
-        case Right(b: BaseModuleWrapper) => b
+        case Right(b: ProgramPreprocessor) => b
       }
     }
 

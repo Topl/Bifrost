@@ -1,7 +1,7 @@
 package bifrost.srb
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.utils.ScorexLogging
+import bifrost.utils.ScorexLogging
 
 import scala.util.Try
 
