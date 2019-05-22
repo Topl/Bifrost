@@ -16,7 +16,7 @@ import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
 
 class ForkSpec extends PropSpec
   with Matchers
@@ -103,7 +103,14 @@ class ForkSpec extends PropSpec
 
     val heightBeforeAppendAttempt = history.height
 
-    history = history.append(tempBlock_version0).get._1
+//    history = history.append(tempBlock_version0).get._1
+
+    val appendResult = history.append(tempBlock_version0).get
+    appendResult match {
+      case (historyInstance, progressInfo) => history = historyInstance
+      case _ =>
+    }
+    
 
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
@@ -129,7 +136,7 @@ class ForkSpec extends PropSpec
       ))
 
     history.height shouldEqual test_height
-    
+
   }
 
   property("Appending version0 blocks after height = forkHeight should fail") {
