@@ -27,11 +27,16 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.Try
 
 class NodeViewRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -216,4 +221,9 @@ class NodeViewRPCSpec extends WordSpec
       }
     }
   }
+}
+
+object NodeViewRPCSpec {
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 }
