@@ -163,7 +163,7 @@ class DebugRPCSpec extends WordSpec
 
   }
 
-  
+
   object DebugRPCSpec {
     val path: Path = Path("/tmp/scorex/test-data")
     Try(path.deleteRecursively())

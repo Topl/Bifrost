@@ -71,6 +71,9 @@ class ForkSpec extends PropSpec
 
     first_version3_block = tempBlock_version3_1
 
+    history = history.append(tempBlock_version3_1).get._1
+    assert(history.modifierById(tempBlock_version3_1.id).isDefined)
+
     val tempBlock_version3_2 = BifrostBlock(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
@@ -78,9 +81,6 @@ class ForkSpec extends PropSpec
       Seq(),
       10L,
       testSettings_version3.version)
-
-    history = history.append(tempBlock_version3_1).get._1
-    assert(history.modifierById(tempBlock_version3_1.id).isDefined)
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
