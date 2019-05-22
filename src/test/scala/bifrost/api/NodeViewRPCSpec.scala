@@ -223,6 +223,7 @@ class NodeViewRPCSpec extends WordSpec
   }
 }
 
+
 object NodeViewRPCSpec {
   val path: Path = Path("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
