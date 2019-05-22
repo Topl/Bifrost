@@ -3,10 +3,11 @@ package bifrost.transaction
 import bifrost.blocks.BifrostBlock
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.state.{BifrostState, BifrostStateSpec}
+import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import bifrost.transaction.box.ArbitBox
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.transaction.state.PrivateKey25519
 
 class CoinbaseTransactionSpec extends PropSpec
   with PropertyChecks

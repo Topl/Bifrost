@@ -13,11 +13,12 @@ import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.ApiException
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.api.http.ApiException
+import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetRedemption, AssetTransfer}
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -44,15 +45,15 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
           var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
-            case Right(json) =>
+            case Right(request) =>
               val futureResponse: Try[Future[Json]] = Try {
-              val id = (json \\ "id").head.asString.get
+              val id = (request \\ "id").head.asString.get
               reqId = id
-              require((json \\ "jsonrpc").head.asString.get == "2.0")
-              val params = (json \\ "params").head.asArray.get
+              require((request \\ "jsonrpc").head.asString.get == "2.0")
+              val params = (request \\ "params").head.asArray.get
               require(params.size <= 5, s"size of params is ${params.size}")
 
-              (json \\ "method").head.asString.get match {
+              (request \\ "method").head.asString.get match {
                 case "redeemAssets" => redeemAssets(params.head, id)
                 case "transferAssets" => transferAssets(params.head, id)
                 case "createAssets" => createAssets(params.head, id)
@@ -74,15 +75,12 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   private def redeemAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-
       val tempTx = params.as[AssetRedemption] match {
         case Right(a: AssetRedemption) => a
         case Left(e) => throw new JsonParsingException(s"Could not parse AssetRedemption: $e")
       }
-
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
       val modifiedSignatures = tempTx.signatures.map { case (key, fakeSigs) =>
         (key, fakeSigs.map(_ => realSignature))
@@ -94,12 +92,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   }
 
   private def transferAssets(params: Json, id: String): Future[Json] = {
-
-    println(s">>>>>>>> transferAssets: $params")
-
     viewAsync().map { view =>
       val wallet = view.vault
-
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -118,21 +112,16 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
       tx.json
     }
   }
 
   private def createAssets(params: Json, id: String): Future[Json] = {
-
-    println(s">>>>>>>>> createAssets: $params")
-
     viewAsync().map { view =>
       val wallet = view.vault
-
       val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val to: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -140,11 +129,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((to, amount)), fee, issuer, assetCode, data).get
+      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data).get
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
-      //    println("----------------------")
-      //    println("validating transaction")
-      //    println(AssetCreation.validate(tx))
       tx.json
     }
   }

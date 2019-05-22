@@ -3,8 +3,8 @@ package bifrost.transaction.box
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
 
 /**

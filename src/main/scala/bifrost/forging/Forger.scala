@@ -9,23 +9,22 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
 import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
-import scorex.core.LocalInterface.LocallyGeneratedModifier
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.LocalInterface.LocallyGeneratedModifier
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
-import bifrost.transaction.CoinbaseTransaction
+import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try
 
@@ -51,8 +50,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(
-                        memPool: BifrostMemPool,
+  def pickTransactions( memPool: BifrostMemPool,
                         state: BifrostState,
                         parent: BifrostBlock,
                         view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)

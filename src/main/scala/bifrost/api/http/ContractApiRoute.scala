@@ -1,35 +1,28 @@
 package bifrost.api.http
 
-import java.time.Instant
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.ContractCreation._
 import bifrost.transaction._
 import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
-import com.google.common.primitives.Longs
-import com.google.protobuf.ByteString
-import io.circe.Decoder.Result
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{HCursor, Json}
 import io.swagger.annotations._
 import javax.ws.rs.Path
-import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.ApiException
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.ScorexLogging
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution, ProfileTransaction}
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-import scalapb.json4s.JsonFormat
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -57,7 +50,7 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-          //viewAsync().map { view =>
+          viewAsync().map { view =>
           var reqId = ""
           parse(body) match {
             case Left(failure) => ApiException(failure.getCause)
@@ -91,7 +84,7 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
         }
       }
     }
-  }
+  }}
 
   def declareRole(params: Vector[Json], id: String): Future[Json] = {
     viewAsync().map { view =>
@@ -133,7 +126,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
   def getContractSignature(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      //println(s">>>>>>>>>>>>>>>>>>>> ${params} <<<<<<<<<<<<<<<<<<<<<<<<")
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state
@@ -160,30 +152,20 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
   def executeContractMethod(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-
       val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "contractBox")
-
       val cme = try{
         modifiedParams.as[ContractMethodExecution]
       } catch {
         case e: Exception => e.getCause
       }
-
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ContractMethodExecution] match {
         case Right(c: ContractMethodExecution) => c
         case Left(e) => throw new JsonParsingException(s"Could not parse ContractMethodExecution: $e")
       }
-
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
-
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
-
-//      println(s"${tx.signatures.toString()}")
-//      println(s"${tx.json}")
-
       ContractMethodExecution.validate(tx) match {
         case Success(e) => log.info("Contract method execution successfully validated")
         case Failure(e) => throw e.getCause

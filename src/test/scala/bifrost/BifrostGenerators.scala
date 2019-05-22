@@ -7,9 +7,9 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.{ProgramPreprocessor, Contract, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.Role.Role
-import bifrost.transaction._
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.bifrostTransaction.Role.Role
+import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -17,11 +17,12 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.core.block.Block
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.block.Block
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 
@@ -406,7 +407,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ContractCompletion(
+    bifrostTransaction.ContractCompletion(
       contract,
       IndexedSeq(reputation),
       parties,
@@ -450,21 +451,6 @@ trait BifrostGenerators extends CoreGenerators {
 
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
-
-  /*lazy val conversionTxGen: Gen[ConversionTransaction] = for {
-    assetLength <- positiveTinyIntGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    val assetHub = (0 until assetLength).map { _ => sampleUntilNonEmpty(assetHubGen) }
-    val totalAssetBoxes = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctFromGen))).toMap
-    val assetsToReturn = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
-    val assetTokensToRedeem = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(ctToGen))).toMap
-    val conversionSignatures = assetHub.map(_ -> IndexedSeq(sampleUntilNonEmpty(signatureGen))).toMap
-
-    ConversionTransaction(totalAssetBoxes, assetsToReturn, assetTokensToRedeem, conversionSignatures, fee, timestamp, data)
-  }*/
 
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen

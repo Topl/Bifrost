@@ -3,12 +3,12 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.AssetCreation
+import bifrost.transaction.bifrostTransaction.AssetCreation
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure

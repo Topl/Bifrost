@@ -4,8 +4,8 @@ import bifrost.BifrostGenerators
 import bifrost.transaction.box.proposition.MofNProposition
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 
 class MultiSignature25519Spec extends PropSpec
   with PropertyChecks

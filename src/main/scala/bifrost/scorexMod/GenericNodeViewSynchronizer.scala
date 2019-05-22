@@ -2,16 +2,16 @@ package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.scorexMod.GenericNodeViewHolder._
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.consensus.{History, SyncInfo}
-import scorex.core.network.NetworkController.{DataFromPeer, SendToNetwork}
-import scorex.core.network._
-import scorex.core.network.message.BasicMsgDataTypes._
-import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
-import scorex.core.transaction.Transaction
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.utils.ScorexLogging
-import scorex.core.{LocalInterface, NodeViewModifier}
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.consensus.{History, SyncInfo}
+import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
+import bifrost.network._
+import bifrost.network.message.BasicMsgDataTypes._
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.transaction.Transaction
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.utils.ScorexLogging
+import bifrost.{LocalInterface, NodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
@@ -37,7 +37,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
 
   import GenericNodeViewSynchronizer._
   import History.HistoryComparisonResult._
-  import scorex.core.NodeViewModifier._
+  import bifrost.NodeViewModifier._
 
   //modifier ids asked from other nodes are kept in order to check then
   //against objects sent
@@ -204,6 +204,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
   //local node sending out objects requested to remote
   private def responseFromLocal: Receive = {
     case ResponseFromLocal(peer, typeId, modifiers: Seq[NodeViewModifier]) =>
+      println("Entered response from local")
       if (modifiers.nonEmpty) {
         val modType = modifiers.head.modifierTypeId
         val m = modType -> modifiers.map(m => m.id -> m.bytes).toMap

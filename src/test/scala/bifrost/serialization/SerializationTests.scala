@@ -4,8 +4,10 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.Agreement
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction._
+import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
@@ -207,20 +209,6 @@ class SerializationTests extends PropSpec
           ProfileTransactionCompanion.toBytes(p) shouldBe true
     }
   }
-
-  /*property("ConversionTransaction Serialization") {
-    forAll(conversionTxGen) {
-      ct: ConversionTransaction =>
-        val parsed: ConversionTransaction = ConversionTransactionCompanion
-          .parseBytes(ConversionTransactionCompanion.toBytes(ct))
-          .get
-
-        val ctToBytes = ConversionTransactionCompanion.toBytes(parsed)
-
-        ctToBytes sameElements ConversionTransactionCompanion.toBytes(ct) shouldBe true
-    }
-  }*/
-
 
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {

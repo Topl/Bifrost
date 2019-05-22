@@ -27,5 +27,6 @@
   "agent": "2-Hop",
   "testnet": true,
   "version": [0, 0, 1],
-  "verboseAPI": true
+  "verboseAPI": true,
+  "apiKeyHash": "66akULzvGr1wsoXGzrTTaWrfkafHBukAaTJpM5c2Jtpo"
 }

@@ -3,16 +3,17 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.BifrostTransaction.Nonce
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box._
-import bifrost.transaction.{AgreementCompanion, ContractCreation, Role}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.PrivateKey25519Companion
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.bifrostTransaction.{ContractCreation, Role}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}

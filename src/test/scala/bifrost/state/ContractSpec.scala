@@ -1,15 +1,14 @@
 package bifrost.state
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.transaction.ContractCreation
-import bifrost.transaction.Role.Role
+import bifrost.transaction.bifrostTransaction.Role.Role
+import bifrost.transaction.bifrostTransaction.ContractCreation
 import bifrost.transaction.box.BifrostBox
 import bifrost.transaction.box.PolyBox
 import bifrost.transaction.box.ProfileBox
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 
 class ContractSpec extends PropSpec
   with PropertyChecks

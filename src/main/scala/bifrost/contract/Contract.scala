@@ -7,7 +7,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
@@ -46,11 +46,11 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
 
     jsre.eval("js", agreementObj.core.initjs)
-    println(">>>>>>>>> agreement initjs")
+//    println(">>>>>>>>> agreement initjs")
     jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
-    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
-    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
-    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
+//    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
+//    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
+//    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
 
     val parameterString: String = params
       .tail
@@ -78,10 +78,10 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
          |}
     """.stripMargin
 
-    println(s">>>>>>>>>>>>>>>>>>> Before result:")
+//    println(s">>>>>>>>>>>>>>>>>>> Before result:")
       //ValkyrieFunctions(jsre, args)
       val result = parse(jsre.eval("js", update).asString()).right.get
-      println(s">>>>>>>>>>>>>>>>>>> After result ")
+//      println(s">>>>>>>>>>>>>>>>>>> After result ")
 
       val resultingContract = this.copy(
         agreement = agreementObj
@@ -182,7 +182,7 @@ object Contract {
           .toArray
           .map(_.noSpaces)
 
-        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
+//        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
 
         val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
 

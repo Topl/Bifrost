@@ -6,12 +6,12 @@ package bifrost.history
 
 import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.state.BifrostStateSpec
-import bifrost.transaction.{AssetCreation, BifrostTransaction, ContractCompletion}
+import bifrost.transaction.bifrostTransaction.{ContractCompletion, AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 
 import scala.collection.BitSet
 import scala.util.Try

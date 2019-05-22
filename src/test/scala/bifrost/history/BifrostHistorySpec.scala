@@ -5,7 +5,7 @@ import bifrost.blocks.BifrostBlock
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.NodeViewModifier.ModifierId
+import bifrost.NodeViewModifier.ModifierId
 import scorex.crypto.encode.Base58
 
 class BifrostHistorySpec extends PropSpec
@@ -63,7 +63,6 @@ class BifrostHistorySpec extends PropSpec
       continuation.tail.foreach { c =>
         startList.exists(sl => sl._2 sameElements c._2) shouldBe false
       }
-
     }
   }
 

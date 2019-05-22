@@ -6,12 +6,12 @@ import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.exceptions.JsonParsingException
 import bifrost.transaction.box._
-import bifrost.transaction.{ContractMethodExecution, Role}
+import bifrost.transaction.bifrostTransaction.{ContractMethodExecution, Role}
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

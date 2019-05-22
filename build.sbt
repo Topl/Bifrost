@@ -11,7 +11,7 @@ lazy val commonSettings = Seq(
 
 scalaVersion := "2.12.7"
 organization := "co.topl"
-version := "0.2.2-alpha"
+version := "0.3-alpha"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
 

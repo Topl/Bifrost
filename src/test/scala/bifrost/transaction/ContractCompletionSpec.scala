@@ -5,11 +5,12 @@ package bifrost.transaction
   */
 
 import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.ContractCompletion
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 
 import scala.util.Success
 

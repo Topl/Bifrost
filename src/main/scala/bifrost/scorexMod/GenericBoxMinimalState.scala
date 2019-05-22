@@ -4,8 +4,8 @@ package bifrost.scorexMod
   * Created by cykoz on 4/13/17.
   */
 
-import scorex.core.PersistentNodeViewModifier
-import scorex.core.transaction.box.proposition.Proposition
+import bifrost.PersistentNodeViewModifier
+import bifrost.transaction.box.proposition.Proposition
 
 import scala.util.Try
 

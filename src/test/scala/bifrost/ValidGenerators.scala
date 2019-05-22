@@ -3,19 +3,21 @@ package bifrost
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
-import bifrost.transaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.Role.Role
-import bifrost.transaction._
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.transaction.bifrostTransaction.Role.Role
+import bifrost.transaction.{bifrostTransaction, _}
 import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.account.PublicKeyNoncedBox
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -237,7 +239,7 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = Bytes.concat(FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
-    ContractMethodExecution(
+    bifrostTransaction.ContractMethodExecution(
       contractBox,
       methodName,
       parameters,
@@ -342,7 +344,7 @@ trait ValidGenerators extends BifrostGenerators {
         (keypair._2, sig)
     }
 
-    ContractCompletion(
+    bifrostTransaction.ContractCompletion(
       contractBox,
       reputation,
       partyRolePairs,
@@ -548,68 +550,4 @@ trait ValidGenerators extends BifrostGenerators {
 
     dummyTx.copy(signatures = signatures)
   }
-
-  /*lazy val validConversionTxGen: Gen[ConversionTransaction] = for {
-    assetLength <- positiveTinyIntGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
-    val assetHubPairs: Map[String, PublicKey25519Proposition] = assets.map(
-      _ -> sampleUntilNonEmpty(propositionGen)
-    ).toMap
-
-    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen
-      .sample
-      .get
-      .map(kp => kp._2 -> kp._1)
-      .toIndexedSeq
-
-    val totalAssetBoxes: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Nonce)]] =
-      assetHubPairs
-        .map {
-          _ ->
-            IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
-              sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)))
-        }
-
-
-    val assetsToReturn: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
-      assetHubPairs
-        .map(_ ->
-          IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
-            sampleUntilNonEmpty(positiveMediumIntGen).toLong))
-
-    val assetTokensToRedeem: Map[(String, PublicKey25519Proposition), IndexedSeq[(PublicKey25519Proposition, Long)]] =
-      assetHubPairs
-        .map(_ ->
-          IndexedSeq(sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1
-            -> sampleUntilNonEmpty(positiveMediumIntGen).toLong
-          ))
-
-    val dummyConversionSignatures: Map[(String, PublicKey25519Proposition), IndexedSeq[Signature25519]] =
-      totalAssetBoxes
-        .map(entry => entry._1 -> entry._2
-          .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
-
-    val dummyTx = ConversionTransaction(totalAssetBoxes,
-      assetsToReturn,
-      assetTokensToRedeem,
-      dummyConversionSignatures,
-      fee,
-      timestamp,
-      data)
-
-    val fromKeyMap = fromKeyPairs.toMap
-    val realSignatures = totalAssetBoxes
-      .map {
-        case (assetHub, boxes) =>
-          assetHub -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
-      }
-
-    //println(s"Dummy transaction's message to Sign: ${Base58.encode(dummyTx.messageToSign)}")
-
-    dummyTx.copy(conversionSignatures = realSignatures)
-  }*/
 }

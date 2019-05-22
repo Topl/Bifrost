@@ -1,13 +1,13 @@
 package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
-import bifrost.blocks.BifrostBlock
-import bifrost.contract.{Agreement, ProgramPreprocessor}
+import bifrost.contract.Agreement
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
@@ -15,25 +15,19 @@ import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.{AgreementCompanion, BifrostTransaction, ContractCompletion, Role}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
 import io.circe._
-import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
-import scalapb.json4s.JsonFormat
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network.{NetworkController, UPnP}
+import bifrost.transaction.bifrostTransaction.{BifrostTransaction, Role}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
-import serializer.ProducerProposal
-import serializer.ProducerProposal.ProposalDetails
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -97,7 +91,7 @@ class ContractRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/contract/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    )
+    ).withHeaders(RawHeader("api_key", "test_key"))
   }
 
   implicit val timeout = Timeout(10.seconds)
@@ -124,7 +118,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("hub")}"
@@ -143,7 +137,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "declareRole",
            |  "params": [{
            |        "publicKey": "${publicKeys("investor")}",
@@ -187,7 +181,7 @@ class ContractRPCSpec extends WordSpec
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "16",
+           |  "id": "1",
            |  "method": "getRole",
            |  "params": [{
            |      "publicKey": "${publicKeys("investor")}"
@@ -231,7 +225,7 @@ class ContractRPCSpec extends WordSpec
       s"""
       {
         "jsonrpc": "2.0",
-        "id": "16",
+        "id": "1",
         "method": "getContractSignature",
         "params": [{
           "signingPublicKey": "${publicKeys("investor")}",
@@ -549,7 +543,6 @@ class ContractRPCSpec extends WordSpec
 //
 //      httpPOST(ByteString(requestBody)) ~> route ~> check {
 //        val res = parse(responseAs[String]).right.get
-//        println(res)
 //        (res \\ "result").head.asObject.isDefined shouldEqual true
 //        ((res \\ "result").head \\ "totalProposals").head.asNumber.get.toInt.get shouldEqual 1
 //      }
