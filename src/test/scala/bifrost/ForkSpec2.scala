@@ -2,7 +2,6 @@
 package bifrost
 
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.ForkSpec.testSettings_version0
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.transaction.box.ArbitBox
