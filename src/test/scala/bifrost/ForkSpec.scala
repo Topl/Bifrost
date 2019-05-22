@@ -108,8 +108,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     val heightAfterAppendAttempt = history.height
-
-
+    
     //Since block validation does not exist block is still appended to history, failure only pops up
     //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
 
