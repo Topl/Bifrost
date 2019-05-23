@@ -26,15 +26,14 @@ class ForkSpec extends PropSpec
   Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
+
   lazy val testSettings_version3: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
-
   lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
       ("version" -> (List(0,0,0).asJson)) +
       ("forkHeight" -> 3.asJson)
-
   }
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
