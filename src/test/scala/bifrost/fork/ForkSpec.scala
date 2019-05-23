@@ -94,7 +94,6 @@ class ForkSpec extends PropSpec
     history.height shouldEqual testSettings_version0.forkHeight
 
     assert(history.height == testSettings_version0.forkHeight)
-
   }
 
   property("Appending version0 blocks after height = forkHeight should fail") {
