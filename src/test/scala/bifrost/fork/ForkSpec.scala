@@ -107,33 +107,55 @@ class ForkSpec extends PropSpec
 
     val appendResult = history.append(tempBlock_version0).get
     appendResult match {
-      case (historyInstance, progressInfo) => history = historyInstance
+      case (historyInstance, _) => history = historyInstance
+        history.modifierById(tempBlock_version0.id).isDefined shouldBe false
+
+        val heightAfterAppendAttempt = history.height
+
+        //Since block validation does not exist block is still appended to history, failure only pops up
+        //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
+
+        //Hence failure pops up when trying to append a new block on top of an incorrect block
+
+        //heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt, but is not the case due to above reason
+        //manually rolling back storage, recreating history, and then checking height
+
+        //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
+
+        history.storage.rollback(tempBlock_version0.parentId)
+        history = new BifrostHistory(history.storage,
+          testSettings_version3,
+          Seq(
+            new DifficultyBlockValidator(history.storage)
+            //new ParentBlockValidator(storage),
+            //new SemanticBlockValidator(FastCryptographicHash)
+          ))
       case _ =>
     }
-    
 
-    history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
-    val heightAfterAppendAttempt = history.height
-
-    //Since block validation does not exist block is still appended to history, failure only pops up
-    //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
-
-    //Hence failure pops up when trying to append a new block on top of an incorrect block
-
-    //heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt, but is not the case due to above reason
-    //manually rolling back storage, recreating history, and then checking height
-
-    //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
-
-    history.storage.rollback(tempBlock_version0.parentId)
-    history = new BifrostHistory(history.storage,
-      testSettings_version3,
-      Seq(
-        new DifficultyBlockValidator(history.storage)
-        //new ParentBlockValidator(storage),
-        //new SemanticBlockValidator(FastCryptographicHash)
-      ))
+//    history.modifierById(tempBlock_version0.id).isDefined shouldBe false
+//
+//    val heightAfterAppendAttempt = history.height
+//
+//    //Since block validation does not exist block is still appended to history, failure only pops up
+//    //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
+//
+//    //Hence failure pops up when trying to append a new block on top of an incorrect block
+//
+//    //heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt, but is not the case due to above reason
+//    //manually rolling back storage, recreating history, and then checking height
+//
+//    //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
+//
+//    history.storage.rollback(tempBlock_version0.parentId)
+//    history = new BifrostHistory(history.storage,
+//      testSettings_version3,
+//      Seq(
+//        new DifficultyBlockValidator(history.storage)
+//        //new ParentBlockValidator(storage),
+//        //new SemanticBlockValidator(FastCryptographicHash)
+//      ))
 
     history.height shouldEqual test_height
 
