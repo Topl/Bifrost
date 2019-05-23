@@ -42,10 +42,6 @@ class ForkSpec extends PropSpec
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
-  var test_height: Long = 0L
-//  var first_version3_block: BifrostBlock = null
-  var temp_historyInstance: BifrostHistory = null
-
 
   property("Appending version3 blocks after height = forkHeight should work") {
 
@@ -85,8 +81,6 @@ class ForkSpec extends PropSpec
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
     history.height shouldEqual testSettings_version0.forkHeight + 2
-
-    test_height = history.height
 
     history.storage.rollback(tempBlock_version3_1.parentId)
     history = new BifrostHistory(history.storage,
@@ -130,6 +124,17 @@ class ForkSpec extends PropSpec
 
   property("Appending version3 blocks after height = forkHeight and then appending a version0 block should fail") {
 
+    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+      System.currentTimeMillis(),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+      Seq(),
+      10L,
+      testSettings_version3.version)
+
+    history = history.append(tempBlock_version3).get._1
+    assert(history.modifierById(tempBlock_version3.id).isDefined)
+
     val tempBlock_version0 = BifrostBlock(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
@@ -166,8 +171,6 @@ class ForkSpec extends PropSpec
               //new ParentBlockValidator(storage),
               //new SemanticBlockValidator(FastCryptographicHash)
             ))
-
-          history.height shouldEqual test_height
 
         case Failure(_) =>
 
