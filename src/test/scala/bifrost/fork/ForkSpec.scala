@@ -121,7 +121,6 @@ class ForkSpec extends PropSpec
       ))
   }
 
-
   property("Appending version3 blocks after height = forkHeight and then appending a version0 block should fail") {
 
     val tempBlock_version3 = BifrostBlock(history.bestBlockId,
@@ -146,38 +145,34 @@ class ForkSpec extends PropSpec
     val heightBeforeAppendAttempt = history.height
 
     val appendResult = history.append(tempBlock_version0)
-      appendResult match {
-        case Success(result) =>
-          history = result._1
-          history.modifierById(tempBlock_version0.id).isDefined shouldBe false
+    appendResult match {
+      case Success(result) =>
+        history = result._1
+        history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
-          val heightAfterAppendAttempt = history.height
+        val heightAfterAppendAttempt = history.height
 
-          //Since block validation does not exist block is still appended to history, failure only pops up
-          //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
+        //Since block validation does not exist block is still appended to history, failure only pops up
+        //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
 
-          //Hence failure pops up when trying to append a new block on top of an incorrect block
+        //Hence failure pops up when trying to append a new block on top of an incorrect block
 
-          //heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt, but is not the case due to above reason
-          //manually rolling back storage, recreating history, and then checking height
+        //heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt, but is not the case due to above reason
+        //manually rolling back storage, recreating history, and then checking height
 
-          //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
+        //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
 
-          history.storage.rollback(tempBlock_version0.parentId)
-          history = new BifrostHistory(history.storage,
-            testSettings_version3,
-            Seq(
-              new DifficultyBlockValidator(history.storage)
-              //new ParentBlockValidator(storage),
-              //new SemanticBlockValidator(FastCryptographicHash)
-            ))
+        history.storage.rollback(tempBlock_version3.parentId)
+        history = new BifrostHistory(history.storage,
+          testSettings_version3,
+          Seq(
+            new DifficultyBlockValidator(history.storage)
+            //new ParentBlockValidator(storage),
+            //new SemanticBlockValidator(FastCryptographicHash)
+          ))
 
-        case Failure(_) =>
-
+      case Failure(_) =>
     }
-
   }
-
-
 }
 
