@@ -172,5 +172,6 @@ class ForkSpec extends PropSpec
       case Failure(_) =>
     }
   }
+  
 }
 
