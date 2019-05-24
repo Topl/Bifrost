@@ -17,9 +17,7 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
   private var UUID2BoxID = initialMap
 
   def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
-    tx match { // TODO | update to match with any TX types that can effect state boxes (currently none)
-      case _ => log.info("non-StateBox tx given to SBR")
-    }
+
   }
 
   def update(k: UUID, v: Array[Byte]) : Unit = {

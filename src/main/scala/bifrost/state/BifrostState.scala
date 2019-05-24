@@ -7,9 +7,7 @@ import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
 import bifrost.exceptions.TransactionValidationException
-import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
-import bifrost.srb.StateBoxRegistry
 import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
@@ -18,6 +16,7 @@ import com.google.common.primitives.Longs
 import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.forging.ForgingSettings
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -43,7 +42,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param version   : blockId used to identify each block. Also used for rollback
   * @param timestamp : timestamp of the block that results in this state
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: StateBoxRegistry)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -77,8 +76,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
-//    println("Rollback step")
-//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(version)}")
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
@@ -87,11 +84,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history, sbr)
+      BifrostState(storage, version, timestamp, history)
     }
   }
 
-  override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod, sbr)
+  override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
@@ -108,8 +105,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
-//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(newVersion)}")
-
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,
@@ -117,7 +112,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr)
+    val newSt = BifrostState(storage, newVersion, timestamp, history)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -686,60 +681,27 @@ object BifrostState extends ScorexLogging {
     }
   }
 
+  def changes(mod: BPMOD) : Try[GSC] = Try {
+    val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
-  def changes(mod: BPMOD, sbr: StateBoxRegistry) : Try[GSC] = {
-    Try {
-      val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
+    val gen = mod.forgerBox.proposition
 
-      val gen = mod.forgerBox.proposition
-
-      // SBR update for all StateBox effecting txs
-      for (txs <- mod.transactions) for (tx <- txs) sbr.updateIfStateBoxTransaction(tx)
-
-      val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
-        case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-      }
-
-      val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
-          (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
-        })
-
-      val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
-
-      var finalToAdd = toAdd
-      if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
-
-      //no reward additional to tx fees
-      BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
+    val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
+      case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
     }
-  }
 
-  def changes(mod: BPMOD) : Try[GSC] = {
-    Try {
-      val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
+    val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
+      boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
+        (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
+      })
 
-      val gen = mod.forgerBox.proposition
+    val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
 
-      log.error("BifrostState.changes Was Called W/O An SBR Arg")
+    var finalToAdd = toAdd
+    if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
 
-      val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
-        case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-      }
-
-      val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
-          (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
-        })
-
-      val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
-
-      var finalToAdd = toAdd
-      if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
-
-      //no reward additional to tx fees
-      BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
-    }
+    //no reward additional to tx fees
+    BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
   }
 
   def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
@@ -771,17 +733,7 @@ object BifrostState extends ScorexLogging {
         .data)
     }
 
-//    val blockStorage = new LSMStore(iFile)
-//    val storage = new BifrostStorage(blockStorage, settings)
-//
-//    val validators = Seq(
-//      new DifficultyBlockValidator(storage)
-//      //new ParentBlockValidator(storage),
-//      //new SemanticBlockValidator(FastCryptographicHash)
-//    )
-    val sbr = StateBoxRegistry.readOrGenerate(settings.asInstanceOf[ForgingSettings])
-
-    BifrostState(stateStorage, version, timestamp, history, sbr)
+    BifrostState(stateStorage, version, timestamp, history)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {

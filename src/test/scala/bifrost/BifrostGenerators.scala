@@ -9,7 +9,8 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.{bifrostTransaction, _}
+import bifrost.transaction.bifrostTransaction
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -637,7 +638,8 @@ trait BifrostGenerators extends CoreGenerators {
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new BifrostHistory(storage, settings, validators)
+    val sbr = StateBoxRegistry.readOrGenerate(settings)
+    var history = new BifrostHistory(storage, settings, validators, sbr)
 
     val keyPair = sampleUntilNonEmpty(key25519Gen)
     val genesisBlock = BifrostBlock.create(
