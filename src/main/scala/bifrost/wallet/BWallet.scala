@@ -48,6 +48,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   //not implemented intentionally for now
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
+  //Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each transaction
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
     log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
@@ -70,7 +71,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .map(_.get)
   }
 
-  //Only returns asset arbit and poly boxes by public key
+  //Only returns asset, arbit and poly boxes by public key
    def boxesByKey(publicKeyString: String): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
     log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds

@@ -214,7 +214,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
         )
       }
-
+      //Determine enough arbits
       boxesSumTry flatMap { openSum =>
         if (arT.newBoxes.map {
           case p: ArbitBox => p.value
