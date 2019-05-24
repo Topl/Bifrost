@@ -55,15 +55,16 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
-          case pb: PolyBox => pb.value > 0
-          case cb: ContractBox => true
-          case ab: ArbitBox => ab.value > 0
-          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
-          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
-            .isInstanceOf[Double]
-          case assetB: AssetBox => assetB.amount > 0
-        }
+        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => true
+//          s.value.box match {
+//          case pb: PolyBox => pb.value > 0
+//          case cb: ContractBox => true
+//          case ab: ArbitBox => ab.value > 0
+//          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
+//          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
+//            .isInstanceOf[Double]
+//          case assetB: AssetBox => assetB.amount > 0
+//        }
         case _ => false
       }
       .map(_.get)
@@ -79,13 +80,13 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .filter {
         case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
           case pb: PolyBox =>
-            pb.value > 0 &&
+//            pb.value > 0 &&
             publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
           case ab: ArbitBox =>
-            ab.value > 0 &&
+//            ab.value > 0 &&
               publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
           case assetB: AssetBox =>
-            assetB.amount > 0 &&
+//            assetB.amount > 0 &&
               publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
         }
         case _ => false
