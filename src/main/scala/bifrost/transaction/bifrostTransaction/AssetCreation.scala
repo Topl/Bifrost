@@ -42,7 +42,26 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     Longs.toByteArray(fee)
   )
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+//  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+//   case ((prop, value), idx) =>
+//     val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
+//       "AssetCreation".getBytes ++
+//         prop.pubKeyBytes ++
+//         issuer.pubKeyBytes ++
+//         assetCode.getBytes ++
+//         hashNoNonces ++
+//         Ints.toByteArray(idx)
+//     ))
+//
+//     //TODO assetBoxes elsewhere do not subtract fee from box value
+//     //TODO no check that amount >= fee
+//     //AssetBox(prop, nonce, value, assetCode, hub)
+//     AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
+
+   override lazy val newBoxes: Traversable[BifrostBox] = to
+     .filter(toInstance => toInstance._2 > 0L)
+     .zipWithIndex
+     .map {
    case ((prop, value), idx) =>
      val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
        "AssetCreation".getBytes ++
@@ -55,8 +74,8 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
      //TODO assetBoxes elsewhere do not subtract fee from box value
      //TODO no check that amount >= fee
-     //AssetBox(prop, nonce, value, assetCode, hub)
-     AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
+     //AssetBox(prop, nonce, value - fee, assetCode, hub)
+     AssetBox(prop, nonce, value, assetCode, issuer, data)
    }
 
   override lazy val json: Json = Map(

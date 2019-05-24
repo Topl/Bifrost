@@ -31,7 +31,10 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
 
   override def toString: String = s"PolyTransfer(${json.noSpaces})"
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+  override lazy val newBoxes: Traversable[BifrostBox] = to
+    .filter(toInstance => toInstance._2 > 0L)
+    .zipWithIndex
+    .map {
     case ((prop, value), idx) =>
       val nonce = PolyTransfer
         .nonceFromDigest(FastCryptographicHash("PolyTransfer".getBytes
