@@ -96,8 +96,14 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       // Call to BifrostTX to create TX
       val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
       // Update nodeView with new TX
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
-      tx.json
+//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
+//      tx.json
+      PolyTransfer.validate(tx) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
+          tx.json
+        case Failure(e) => ("Could not validate transaction").asJson
+      }
     }
   }
 
@@ -124,8 +130,14 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       // Call to BifrostTX to create TX
       val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
       // Update nodeView with new TX
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
-      tx.json
+//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
+//      tx.json
+      ArbitTransfer.validate(tx) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
+          tx.json
+        case Failure(e) => ("Could not validate transaction").asJson
+      }
     }
   }
 
