@@ -138,7 +138,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
         case 0 => commonMessage2xAndBefore(block)
         case _ => commonMessage(block)
       }
-
     }
     //noinspection ScalaStyle
     if (block.parentId sameElements Array.fill(32)(1: Byte)) {
