@@ -41,6 +41,28 @@ class ForkSpec extends PropSpec
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
+  property("Appending version3 blocks before height = forkHeight should fail") {
+    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+      System.currentTimeMillis(),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+      Seq(),
+      0L,
+      testSettings_version3.version)
+
+    history = history.append(tempBlock_version3).get._1
+    history.modifierById(tempBlock_version3.id).isDefined shouldBe false
+
+    history.storage.rollback(tempBlock_version3.parentId)
+    history = new BifrostHistory(history.storage,
+      testSettings_version3,
+      Seq(
+        new DifficultyBlockValidator(history.storage)
+        //new ParentBlockValidator(storage),
+        //new SemanticBlockValidator(FastCryptographicHash)
+      ))
+  }
+
 
   property("Appending version3 blocks after height = forkHeight should work") {
 
