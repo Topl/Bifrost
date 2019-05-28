@@ -4,20 +4,64 @@ package bifrost.contract
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import org.graalvm.polyglot._
 import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
+import com.oracle.js.parser.ir.{BlockExpression, Expression, FunctionNode, LexicalContext, Node}
+import com.oracle.js.parser.ir.visitor.NodeVisitor
 
 class TruffleSpec extends PropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
 
+  val name = "test"
+
+  val testScript =
+    s"""
+       |var test = function() {
+       |  return 1;
+       |}
+     """.stripMargin
+
   val script =
-    """
-      |var x = 1;
-      |var y = "test";
-      |function z() { return x; };
-    """.stripMargin
+    s"""
+       |var outside = "a"
+       |
+       |this.test = function() {
+       |  var x = 1;
+       |  var y = "test";
+       |
+         |  this.add = function(a,b) {
+       |    return a + b;
+       |  }
+       |
+         |  this.sub = function(a,b) {
+       |    return a - b;
+       |  }
+       |
+         |  this.contract = function() {
+       |    this.status = "initialized";
+       |
+         |    this.newStatus = function(input) {
+       |      status = input;
+       |      return this;
+       |    }
+       |
+         |    this.changeStatus = function(input) {
+       |      status = input;
+       |      return this;
+       |    }
+       |  }
+       |}
+       |
+         |
+         |this.$name.fromJSON = function(str) {
+       |    return new $name();
+       |}
+       |
+         |this.$name.toJSON = function(o) {
+       |    return JSON.stringify(o);
+       |}
+       """.stripMargin
 
   val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
     .ecmaScriptVersion(8)
@@ -36,7 +80,34 @@ class TruffleSpec extends PropSpec
   val parser: Parser = new Parser(scriptEnv, src, errManager)
   val parsed = parser.parse()
 
-  println(parsed.getBody.getStatements)
-  println(parsed.getParameters)
+  println(s"parsed: ${parsed.getBody.toString()}")
+
+  def nodeList(node: FunctionNode): Node = {
+    node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
+
+      println(s"lc.getCurrentBlock: ${lc.getBlocks}")
+
+      println(s"lc.getFunctions: ${lc.getFunctions.toString}")
+      println(s"lc: ${
+        while (lc.getAllNodes.hasNext) {
+          lc.getAllNodes.hasNext.toString
+        }
+      }")
+
+      override def leaveFunctionNode(functionNode: FunctionNode): Node = {
+        functionNode
+      }
+    })
+  }
+
+  println(s"nodeList: ${nodeList(parsed)}")
+
+  //noinspection ScalaStyle
+  {
+    println("-------------------------------------------")
+    println(parsed.getBody.getStatements)
+    println("-------------------------------------------")
+    println(parsed.getBody.getStatements.forEach(x => x.getLineNumber))
+  }
 
 }
