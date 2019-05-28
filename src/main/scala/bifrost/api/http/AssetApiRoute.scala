@@ -86,8 +86,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         (key, fakeSigs.map(_ => realSignature))
       }
       val tx = tempTx.copy(signatures = modifiedSignatures)
-//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetRedemption](tx)
-//      tx.json
       AssetRedemption.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetRedemption](tx)
@@ -118,8 +116,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
       }
       val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
-//      tx.json
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
@@ -149,11 +145,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
           tx.json
         case Failure(e) => ("Could not validate transaction").asJson
       }
-
-//      else {
-//        Failure(new Exception("Could not validate transaction"))
-//      }
-
     }
   }
 }
