@@ -140,7 +140,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       }
 
     }
-//    val commonBytes = commonMessage(block)
     //noinspection ScalaStyle
     if (block.parentId sameElements Array.fill(32)(1: Byte)) {
       commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ tx.messageToSign)
@@ -162,10 +161,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
             Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
             BifrostTransactionCompanion.toBytes(tx))
     }
-//    commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
-//      bytes ++
-//        Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
-//        BifrostTransactionCompanion.toBytes(tx))
   }
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[BifrostBlock] = Try {
