@@ -15,7 +15,9 @@ case class Agreement(terms: AgreementTerms, assetCode: String, core: ProgramPrep
   lazy val json: Json = Map(
     "terms" -> terms.json,
     "assetCode" -> assetCode.asJson,
-    "core" -> core.json
+    "core" -> core.json,
+    "state" -> core.variables.asJson,
+    "code" -> core.code.asJson
   ).asJson
 
   override def toString: String = s"Agreement(${json.toString})"

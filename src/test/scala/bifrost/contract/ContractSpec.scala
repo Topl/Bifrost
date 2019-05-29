@@ -19,7 +19,8 @@ class ContractSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-    property("Calling a method not in the contract will throw an error") {
+    //TODO Replace with
+    /*property("Calling a method not in the contract will throw an error") {
       forAll(contractGen) {
         c: Contract => {
           forAll(stringGen.suchThat(!validContractMethods.contains(_))) {
@@ -34,7 +35,7 @@ class ContractSpec extends PropSpec
           }
         }
       }
-    }
+    }*/
 
   property("Json works properly for AgreementTerms") {
     forAll(validAgreementTermsGen) {

@@ -6,7 +6,7 @@ import BifrostTransaction.Nonce
 import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ContractBox, PolyBox}
+import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ContractBox, PolyBox, StateBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ContractCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
@@ -20,7 +20,7 @@ import scala.util.Try
 
 /**
   *
-  * @param agreement          the Agreement object containing the terms for the proposed contract
+  * //@param agreement          the Agreement object containing the terms for the proposed contract
   * @param preInvestmentBoxes a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
   * @param parties            a mapping specifying which public key should correspond with which role for this contract
   * @param signatures         a mapping specifying the signatures by each public key for this transaction
@@ -101,6 +101,9 @@ case class ContractCreation(agreement: Agreement,
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
+
+    val stateBox = StateBox()
+
     val investorDeductedBoxes = PolyBox(investorProp, boxNonce, leftOver)
     val nonInvestorDeductedBoxes = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
