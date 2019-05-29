@@ -95,16 +95,31 @@ case class ContractCreation(agreement: Agreement,
       .toLong
 
     val leftOver: Long = canSend - fees(investorProp) - polyInvestment.toLong
-    val boxNonce = ContractTransaction.nonceFromDigest(
+    val investorNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
         ++ investorProp.pubKeyBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
+    val stateNonce = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("ContractCreation".getBytes
+        ++ agreement.core.variables
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0))
+    )
+    val codeNonce = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("ContractCreation".getBytes
+        ++ agreement.core.code
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0))
+    )
 
-    val stateBox = StateBox()
+    //TODO Add logic to set mutabilityFlag
+    //TODO Change proposition to MofNProposition
+    val stateBox = StateBox(investorProp, stateNonce, agreement.core.variables, false)
+    val codeBox = CodeBox(investorProp, codeNonce, agreement.core.code)
 
-    val investorDeductedBoxes = PolyBox(investorProp, boxNonce, leftOver)
+    val investorDeductedBoxes = PolyBox(investorProp, investorNonce, leftOver)
     val nonInvestorDeductedBoxes = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
     IndexedSeq(ContractBox(proposition, nonce, boxValue)) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes

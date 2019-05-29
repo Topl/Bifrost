@@ -503,7 +503,7 @@ object StateBoxSerializer {
 
     val value = new String(obj.slice(takenBytes, takenBytes + valueLength))
     takenBytes += valueLength
-    
+
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 
