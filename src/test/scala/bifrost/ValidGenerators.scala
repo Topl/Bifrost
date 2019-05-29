@@ -159,7 +159,7 @@ trait ValidGenerators extends BifrostGenerators {
     "confirmDelivery",
     "checkExpiration")
 
-  def createContractBox(agreement: Agreement, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
+  def createContractBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
 
     val contractJson = Map(
       "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,

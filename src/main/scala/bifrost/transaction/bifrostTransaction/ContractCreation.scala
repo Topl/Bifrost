@@ -1,6 +1,6 @@
 package bifrost.transaction.bifrostTransaction
 
-import bifrost.contract.Agreement
+import bifrost.contract.ExecutionBuilder
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import Role.Role
@@ -29,7 +29,7 @@ import scala.util.Try
   * @param fees               a mapping specifying the amount each party is contributing to the fees
   * @param timestamp          the timestamp of this transaction
   */
-case class ContractCreation(agreement: Agreement,
+case class ContractCreation(agreement: ExecutionBuilder,
                             preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                             parties: Map[PublicKey25519Proposition, Role],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -103,13 +103,13 @@ case class ContractCreation(agreement: Agreement,
     )
     val stateNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.variables
+        ++ agreement.core.variables.getBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
     val codeNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.code
+        ++ agreement.core.code.getBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
@@ -158,7 +158,7 @@ object ContractCreation {
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
-    val outcome = Agreement.validate(tx.agreement)
+    val outcome = ExecutionBuilder.validate(tx.agreement)
     require(outcome.isSuccess)
 
 
@@ -172,7 +172,7 @@ object ContractCreation {
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractCreation: Decoder[ContractCreation] = (c: HCursor) => for {
-    agreement <- c.downField("agreement").as[Agreement]
+    agreement <- c.downField("agreement").as[ExecutionBuilder]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawParties <- c.downField("parties").as[Map[String, String]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]

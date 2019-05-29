@@ -7,7 +7,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ContractApiRoute
-import bifrost.contract.Agreement
+import bifrost.contract.ExecutionBuilder
 import bifrost.forging.Forger
 import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
 import bifrost.mempool.BifrostMemPool
@@ -213,7 +213,7 @@ class ContractRPCSpec extends WordSpec
       .boxes()
       .filter(_.box.isInstanceOf[PolyBox])
 
-    val agreement: Agreement = sampleUntilNonEmpty(validAgreementGen(contractEffectiveTime, contractExpirationTime))
+    val agreement: ExecutionBuilder = sampleUntilNonEmpty(validAgreementGen(contractEffectiveTime, contractExpirationTime))
 
     val fees = Map(
       publicKeys("investor") -> 500,

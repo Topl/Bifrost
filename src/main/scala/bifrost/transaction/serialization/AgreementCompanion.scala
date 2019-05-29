@@ -1,16 +1,16 @@
 package bifrost.transaction.serialization
 
 import bifrost.contract.ProgramPreprocessor
-import bifrost.contract.{Agreement, AgreementTerms}
+import bifrost.contract.{ExecutionBuilder, AgreementTerms}
 import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser.parse
 
 import scala.util.Try
 
-object AgreementCompanion extends Serializer[Agreement] {
+object AgreementCompanion extends Serializer[ExecutionBuilder] {
 
-  override def toBytes(a: Agreement): Array[Byte] = {
+  override def toBytes(a: ExecutionBuilder): Array[Byte] = {
     Bytes.concat(
       Longs.toByteArray(a.terms.json.noSpaces.getBytes.length),
       Longs.toByteArray(a.core.json.noSpaces.getBytes.length),
@@ -21,7 +21,7 @@ object AgreementCompanion extends Serializer[Agreement] {
     )
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[Agreement] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[ExecutionBuilder] = Try {
 
     val Array(termsLength: Long, coreLength: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytes.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
@@ -59,6 +59,6 @@ object AgreementCompanion extends Serializer[Agreement] {
       }
     }
 
-    Agreement(terms, assetCode, core)
+    ExecutionBuilder(terms, assetCode, core)
   }
 }

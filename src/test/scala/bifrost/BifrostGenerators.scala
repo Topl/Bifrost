@@ -308,13 +308,13 @@ trait BifrostGenerators extends CoreGenerators {
 
   // TODO: This results in an empty generator far too often. Fix needed
   def validAgreementGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
-                        expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[Agreement] = for {
+                        expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[ExecutionBuilder] = for {
     assetCode <- alphanumeric
     terms <- validAgreementTermsGen
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
     initjs <- validInitJsGen(name, assetCode, effectiveTimestamp, expirationTimestamp)
   } yield {
-    Agreement(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
+    ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))

@@ -4,7 +4,7 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import bifrost.contract.{Agreement, Contract}
+import bifrost.contract.{ExecutionBuilder, Contract}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.box.{ContractBox, ReputationBox}
@@ -148,8 +148,8 @@ class ContractTransactionSpec extends PropSpec
     val parties: Seq[PublicKey25519Proposition] = allKeyPairs.map(_._2)
     val roles: Seq[Role] = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-    val gen: Gen[Agreement] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
-    val validAgreement: Agreement = sampleUntilNonEmpty(gen)
+    val gen: Gen[ExecutionBuilder] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
+    val validAgreement: ExecutionBuilder = sampleUntilNonEmpty(gen)
     val contractBox: ContractBox = createContractBox(validAgreement, parties.zip(roles).toMap)
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get

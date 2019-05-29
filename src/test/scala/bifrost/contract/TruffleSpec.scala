@@ -82,32 +82,26 @@ class TruffleSpec extends PropSpec
 
   println(s"parsed: ${parsed.getBody.toString()}")
 
-  def nodeList(node: FunctionNode): Node = {
+  def functionList(node: FunctionNode): Node = {
+
     node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
-      println(s"lc.getCurrentBlock: ${lc.getBlocks}")
-
-      println(s"lc.getFunctions: ${lc.getFunctions.toString}")
-      println(s"lc: ${
-        while (lc.getAllNodes.hasNext) {
-          lc.getAllNodes.hasNext.toString
-        }
-      }")
-
       override def leaveFunctionNode(functionNode: FunctionNode): Node = {
+        println(s"getKind: ${functionNode.getKind}")
+        println(s"getBody: ${functionNode.getBody}")
+        println(s"getLineNumber: ${functionNode.getLineNumber}")
+        println(s"functionNode: ${functionNode.toString()}")
         functionNode
       }
     })
   }
 
-  println(s"nodeList: ${nodeList(parsed)}")
+  println(s"nodeList: ${functionList(parsed).toString}")
 
   //noinspection ScalaStyle
   {
     println("-------------------------------------------")
     println(parsed.getBody.getStatements)
-    println("-------------------------------------------")
-    println(parsed.getBody.getStatements.forEach(x => x.getLineNumber))
   }
 
 }

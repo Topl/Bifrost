@@ -35,7 +35,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   val jsre: Context = Context.create("js")
 
 
-  val agreementObj: Agreement = agreement.as[Agreement] match {
+  val agreementObj: ExecutionBuilder = agreement.as[ExecutionBuilder] match {
     case Right(a) => a
     case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
   }

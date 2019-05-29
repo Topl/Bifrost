@@ -10,7 +10,7 @@ import scala.util.Try
   * @param terms                    an AgreementTerms object that specifies the specific compensation terms
   * @param assetCode                the string identifier for this specific asset to be produced
   */
-case class Agreement(terms: AgreementTerms, assetCode: String, core: ProgramPreprocessor) {
+case class ExecutionBuilder(terms: AgreementTerms, assetCode: String, core: ProgramPreprocessor) {
 
   lazy val json: Json = Map(
     "terms" -> terms.json,
@@ -24,19 +24,19 @@ case class Agreement(terms: AgreementTerms, assetCode: String, core: ProgramPrep
 
 }
 
-object Agreement {
+object ExecutionBuilder {
 
-  implicit val encodeAgreement: Encoder[Agreement] = (a: Agreement) => a.json
+  implicit val encodeAgreement: Encoder[ExecutionBuilder] = (a: ExecutionBuilder) => a.json
 
-  implicit val decodeAgreement: Decoder[Agreement] = (c: HCursor) => for {
+  implicit val decodeAgreement: Decoder[ExecutionBuilder] = (c: HCursor) => for {
     terms <- c.downField("terms").as[AgreementTerms]
     assetCode <- c.downField("assetCode").as[String]
     core <- c.downField("core").as[ProgramPreprocessor]
   } yield {
-    Agreement(terms, assetCode, core)
+    ExecutionBuilder(terms, assetCode, core)
   }
 
-  def validate(a: Agreement): Try[Unit] = Try {
+  def validate(a: ExecutionBuilder): Try[Unit] = Try {
 
   }
 }

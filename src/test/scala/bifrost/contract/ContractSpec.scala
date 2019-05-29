@@ -56,7 +56,7 @@ class ContractSpec extends PropSpec
   }
 
   def mockAgreement: Json =
-    Agreement(
+    ExecutionBuilder(
       AgreementTerms("testing"),
       "myAssetCode",
       ProgramPreprocessor(

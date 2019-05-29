@@ -1,7 +1,7 @@
 package bifrost.serialization
 
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
-import bifrost.contract.Agreement
+import bifrost.contract.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction._
 import bifrost.transaction.bifrostTransaction._
@@ -115,7 +115,7 @@ class SerializationTests extends PropSpec
 
   property("Agreement Serialization") {
     forAll(validAgreementGen()) {
-      a: Agreement =>
+      a: ExecutionBuilder =>
         val parsed = AgreementCompanion
           .parseBytes(AgreementCompanion.toBytes(a))
           .get
