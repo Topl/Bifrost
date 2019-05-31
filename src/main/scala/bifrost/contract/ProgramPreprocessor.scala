@@ -28,8 +28,8 @@ case class ProgramPreprocessor(name: String,
                                initjs: String,
                                registry: Map[String, mutable.LinkedHashSet[String]],
                                state: Json,
-                               variables: String,
-                               code: String,
+                               variables: Seq[String],
+                               code: Seq[String],
                                signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
   lazy val json: Json = Map(
@@ -130,7 +130,7 @@ object ProgramPreprocessor {
 
   //noinspection ScalaStyle
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
-    (Map[String, mutable.LinkedHashSet[String]], String, String, String) = {
+    (Map[String, mutable.LinkedHashSet[String]], String, Seq[String], Seq[String]) = {
 
     /* Construct base module from params */
     val jsre: Context = Context.newBuilder("js").build()
@@ -170,11 +170,11 @@ object ProgramPreprocessor {
 
     //println(s">>>>>>>>>>> Registry: $registry")
 
-    val variables: String = deriveState(jsre, initjs)
+    val variables: Seq[String] = deriveState(jsre, initjs)
     //val code: String = deriveFunctions(jsre, name).entrySet().asScala.map(entry => entry.getValue.asInstanceOf[Array[String]]).mkString("")
 
     //val variables: List[String] = List("")
-    val code: String = ""
+    val code: Seq[String] = deriveFunctions(jsre, initjs)
 
     val registry: Map[String, mutable.LinkedHashSet[String]] = ???
 
@@ -210,7 +210,7 @@ object ProgramPreprocessor {
     jsre.eval(getProperties).asInstanceOf[ScriptObjectMirror]
   }*/
 
-  private def deriveState(jsre: Context, initjs: String): String = {
+  private def deriveState(jsre: Context, initjs: String): Seq[String] = {
     val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
     println(s"initjs deriveState: $initjsStr")
 
@@ -232,7 +232,7 @@ object ProgramPreprocessor {
     val parser: Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
-    parsed.getBody.toString()
+    Seq(parsed.getBody.toString())
   }
 
   private def deriveFunctions(jsre: Context, name: String): List[String] = {
@@ -268,8 +268,8 @@ object ProgramPreprocessor {
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
     registry <- c.downField("registry").as[Map[String, mutable.LinkedHashSet[String]]]
-    variables <- c.downField("variables").as[String]
-    code <- c.downField("code").as[String]
+    variables <- c.downField("variables").as[Seq[String]]
+    code <- c.downField("code").as[Seq[String]]
     signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
 
