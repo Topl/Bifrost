@@ -1,20 +1,16 @@
 package bifrost.serialization
 
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.contract.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
-import bifrost.transaction._
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, PublicKey25519Proposition}
 import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
-
 import scala.collection.BitSet
-import scala.util.{Failure, Success}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -114,7 +110,7 @@ class SerializationTests extends PropSpec
   }
 
   property("StateBox Serialization") {
-    forAll(stateBoxGen) {
+    forAll(stateBoxGen)
       b: StateBox =>
         val json = b.json
         val parsed = BifrostBoxSerializer
@@ -122,9 +118,8 @@ class SerializationTests extends PropSpec
           .get
 
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[ProfileBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        json.as[StateBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-    }
   }
 
   property("CodeBox Serialization") {
@@ -136,7 +131,7 @@ class SerializationTests extends PropSpec
           .get
 
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[ProfileBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        json.as[CodeBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }

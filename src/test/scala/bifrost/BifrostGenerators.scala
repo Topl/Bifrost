@@ -238,6 +238,7 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
     value <- stringGen
+    value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
     StateBox(proposition, nonce, Seq(value), true)

@@ -53,6 +53,8 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case c: ContractBox => ContractBoxSerializer.toBytes(c)
     case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
+    case sb: StateBox => StateBoxSerializer.toBytes(sb)
+    case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -68,6 +70,8 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ContractBox" => ContractBoxSerializer.parseBytes(bytes)
       case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
       case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
+      case "StateBox" => StateBoxSerializer.parseBytes(bytes)
+      case "CodeBox" => CodeBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
@@ -415,7 +419,7 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
                     mutabilityFlag: Boolean,
                    ) extends BifrostBox(proposition, nonce, value) {
 
-  val typeOfBox: String = "State"
+  val typeOfBox: String = "StateBox"
 
   val id = StateBox.idFromBox(proposition, nonce)
 
@@ -477,8 +481,6 @@ object StateBoxSerializer {
     val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
     takenBytes += boxTypeLength
 
-    println(boxType)
-
     assert(boxType == "StateBox") // no need to continue decoding if it's gibberish
 
     val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
@@ -490,14 +492,13 @@ object StateBoxSerializer {
     val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    val value = Seq[String]()
+    var value = Seq[String]()
     for (_ <- 1 to valueLength) {
       val l = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
       takenBytes += Ints.BYTES
-      value :+ new String(obj.slice(takenBytes, takenBytes + l))
+      value = value :+ new String(obj.slice(takenBytes, takenBytes + l))
       takenBytes += l
     }
-
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 
@@ -511,7 +512,7 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
                    value: Seq[String], // List of strings of JS functions
                   ) extends BifrostBox(proposition, nonce, value) {
 
-  val typeOfBox: String = "Code"
+  val typeOfBox: String = "CodeBox"
 
   val id = CodeBox.idFromBox(proposition, nonce)
 
@@ -579,11 +580,11 @@ object CodeBoxSerializer {
     val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    val value = Seq[String]()
+    var value = Seq[String]()
     for (_ <- 1 to valueLength) {
       val l = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
       takenBytes += Ints.BYTES
-      value :+ new String(obj.slice(takenBytes, takenBytes + l))
+      value = value :+ new String(obj.slice(takenBytes, takenBytes + l))
       takenBytes += l
     }
 
@@ -592,5 +593,4 @@ object CodeBoxSerializer {
 
     CodeBox(prop, nonce, value)
   }
-
 }

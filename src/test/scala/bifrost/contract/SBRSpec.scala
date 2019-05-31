@@ -40,8 +40,8 @@ class SBRSpec extends PropSpec
 //  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ".toArray[Byte])
 
   val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
-  val sbox_1: StateBox = StateBox(pubKey, 0L, "a", true)
-  val sbox_2: StateBox = StateBox(pubKey, 1L, "b", true)
+  val sbox_1: StateBox = StateBox(pubKey, 0L, Seq("a"), true)
+  val sbox_2: StateBox = StateBox(pubKey, 1L, Seq("b"), true)
 
   val uuid: UUID = UUID.randomUUID()
 
