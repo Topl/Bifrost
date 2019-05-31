@@ -110,7 +110,7 @@ class SerializationTests extends PropSpec
   }
 
   property("StateBox Serialization") {
-    forAll(stateBoxGen)
+    forAll(stateBoxGen) {
       b: StateBox =>
         val json = b.json
         val parsed = BifrostBoxSerializer
@@ -120,6 +120,7 @@ class SerializationTests extends PropSpec
         val serialized = BifrostBoxSerializer.toBytes(parsed)
         json.as[StateBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+    }
   }
 
   property("CodeBox Serialization") {
