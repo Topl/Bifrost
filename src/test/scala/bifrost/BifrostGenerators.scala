@@ -235,6 +235,22 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileBox(proposition, 0L, value, field)
   }
 
+  lazy val stateBoxGen: Gen[StateBox] = for {
+    proposition <- propositionGen
+    value <- stringGen
+    nonce <- positiveLongGen
+  } yield {
+    StateBox(proposition, nonce, value, true)
+  }
+
+  lazy val codeBoxGen: Gen[CodeBox] = for {
+    proposition <- propositionGen
+    value <- stringGen
+    nonce <- positiveLongGen
+  } yield {
+    CodeBox(proposition, nonce, value)
+  }
+
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
     a <- propositionGen
     b <- propositionGen

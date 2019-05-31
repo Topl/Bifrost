@@ -477,6 +477,8 @@ object StateBoxSerializer {
     val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
     takenBytes += boxTypeLength
 
+    println(boxType)
+
     assert(boxType == "StateBox") // no need to continue decoding if it's gibberish
 
     val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
