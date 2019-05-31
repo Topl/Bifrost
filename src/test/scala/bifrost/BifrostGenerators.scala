@@ -240,7 +240,7 @@ trait BifrostGenerators extends CoreGenerators {
     value <- stringGen
     nonce <- positiveLongGen
   } yield {
-    StateBox(proposition, nonce, value, true)
+    StateBox(proposition, nonce, Seq(value), true)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
@@ -248,7 +248,7 @@ trait BifrostGenerators extends CoreGenerators {
     value <- stringGen
     nonce <- positiveLongGen
   } yield {
-    CodeBox(proposition, nonce, value)
+    CodeBox(proposition, nonce, Seq(value))
   }
 
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
