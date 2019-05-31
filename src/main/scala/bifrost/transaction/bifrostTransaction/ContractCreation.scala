@@ -103,20 +103,18 @@ case class ContractCreation(agreement: ExecutionBuilder,
     )
     val stateNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.variables.getBytes
+        ++ agreement.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
     val codeNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.code.getBytes
+        ++ agreement.core.code.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
 
-    //TODO Add logic to set mutabilityFlag
-    //TODO Change proposition to MofNProposition
-    val stateBox = StateBox(investorProp, stateNonce, agreement.core.variables, false)
+    val stateBox = StateBox(investorProp, stateNonce, agreement.core.variables, true)
     val codeBox = CodeBox(investorProp, codeNonce, agreement.core.code)
 
     val investorDeductedBoxes = PolyBox(investorProp, investorNonce, leftOver)
