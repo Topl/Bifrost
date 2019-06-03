@@ -13,9 +13,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
 
-/**
-  * Created by Matt Kindy on 6/7/2017.
-  */
+
 class AssetCreationValidationSpec extends BifrostStateSpec {
 
   property("A block with valid AssetCreation should result in more tokens for receiver") {
@@ -51,13 +49,6 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           case None => false
         })
 
-        //        /* Expect none of the prexisting boxes to still be around */
-//        require(preExistingAssetBoxes
-//          .forall(pb => newState
-//            .storage
-//            .get(ByteArrayWrapper(pb.id))
-//            .isEmpty))
-
         BifrostStateSpec.genesisState = newState
           .rollbackTo(BifrostStateSpec.genesisBlockId)
           .get
@@ -91,32 +82,4 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
         newState.failed.get.getMessage shouldBe "requirement failed: Invalid signatures"
     }
   }
-//
-//  property("Attempting to validate an AssetTransfer for an amount you do not have should error") {
-//    forAll(validAssetTransferGen) {
-//      assetTransfer: AssetTransfer =>
-//
-//        val preExistingAssetBoxes: Set[BifrostBox] =
-//          assetTransfer
-//            .from
-//            .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.hub))
-//            .toSet
-//
-//        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)
-//
-//        val preparedState = BifrostStateSpec
-//          .genesisState
-//          .applyChanges(necessaryBoxesSC, Ints.toByteArray(10))
-//          .get
-//
-//        val newState = preparedState.validate(assetTransfer)
-//
-//        BifrostStateSpec.genesisState = preparedState
-//          .rollbackTo(BifrostStateSpec.genesisBlockId)
-//          .get
-//
-//        newState shouldBe a[Failure[_]]
-//        newState.failed.get.getMessage shouldBe "Not enough assets"
-//    }
-//  }
 }

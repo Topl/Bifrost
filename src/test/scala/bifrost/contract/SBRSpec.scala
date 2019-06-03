@@ -1,16 +1,20 @@
 package bifrost.contract
 
+import java.time.Instant
 import java.util.UUID
 
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.srb.StateBoxRegistry
 import bifrost.state.BifrostStateSpec.testSettings
-import bifrost.transaction.box.{StateBox, StateBoxSerializer}
+import bifrost.transaction.box.{ArbitBox, StateBox, StateBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import io.circe
+import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.signatures.Curve25519
@@ -29,7 +33,7 @@ class SBRSpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/scorex/test-sbr")
   Try(path.deleteRecursively())
 
 //  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
@@ -45,19 +49,45 @@ class SBRSpec extends PropSpec
 
   val uuid: UUID = UUID.randomUUID()
 
+
+  val uuid_2: UUID = UUID.randomUUID()
+
 //  var history: BifrostHistory = generateHistory
   var sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings)
 
   property("SBR should update correctly for new state box with same UUID") {
 
-    sbr.update(uuid, StateBoxSerializer.toBytes(sbox_1))
-    sbr.get(uuid).isSuccess shouldBe true
-//    StateBoxSerializer.parseBytes(sbr.get(uuid).get._2).isSuccess shouldBe true
-    StateBoxSerializer.parseBytes(sbr.get(uuid).get._2).get == sbox_1 shouldBe true
+    val block = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(), 10L)
 
-    sbr.update(uuid, StateBoxSerializer.toBytes(sbox_2))
-    StateBoxSerializer.parseBytes(sbr.get(uuid).get._2).isSuccess shouldBe true
-    StateBoxSerializer.parseBytes(sbr.get(uuid).get._2).get == sbox_2 shouldBe true
+    sbr.update(block.id, uuid, sbox_1.id)
+
+    //Should be able to access stateBoxID from sbr by UUID
+    sbr.get(uuid).isSuccess shouldBe true
+    assert(sbr.get(uuid).get._2 sameElements(sbox_1.id))
+
+    //TODO Should be able to reconstruct stateBox from id
+//    StateBoxSerializer.parseBytes(<get box from box id>).isSuccess shouldBe true
+
+
+    Thread.sleep(1000)
+
+    val block_2 = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(), 10L)
+
+    sbr.update(block_2.id, uuid, sbox_2.id)
+
+    //SBR should update correctly when replacing stateBoxID for same UUID
+    sbr.get(uuid).isSuccess shouldBe true
+    assert(sbr.get(uuid).get._2 sameElements(sbox_2.id))
   }
 
 }
