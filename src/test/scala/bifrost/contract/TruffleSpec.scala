@@ -17,6 +17,14 @@ class TruffleSpec extends PropSpec
 
   val testScript =
     s"""
+       |//state
+       |
+       |var x = 1
+       |let y = "test"
+       |const z = 3.14
+       |
+       |//code
+       |
        |var test = function() {
        |  return 1;
        |}
@@ -89,6 +97,7 @@ class TruffleSpec extends PropSpec
       override def leaveFunctionNode(functionNode: FunctionNode): Node = {
         println(s"getKind: ${functionNode.getKind}")
         println(s"getBody: ${functionNode.getBody}")
+        println(s"finish: ${functionNode.getFinish}")
         println(s"getLineNumber: ${functionNode.getLineNumber}")
         println(s"functionNode: ${functionNode.toString()}")
         functionNode

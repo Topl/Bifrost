@@ -117,10 +117,10 @@ case class ContractCreation(agreement: ExecutionBuilder,
     val stateBox = StateBox(investorProp, stateNonce, agreement.core.variables, true)
     val codeBox = CodeBox(investorProp, codeNonce, agreement.core.code)
 
-    val investorDeductedBoxes = PolyBox(investorProp, investorNonce, leftOver)
-    val nonInvestorDeductedBoxes = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
+    val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
+    val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
-    IndexedSeq(ContractBox(proposition, nonce, boxValue)) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
+    IndexedSeq(ContractBox(proposition, nonce, boxValue), codeBox, stateBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
