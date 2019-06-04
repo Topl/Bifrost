@@ -5,7 +5,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
-import com.oracle.js.parser.ir.{BlockExpression, Expression, FunctionNode, LexicalContext, Node}
+import com.oracle.js.parser.ir.{BlockExpression, Expression, ExpressionStatement, FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 
 class TruffleSpec extends PropSpec
@@ -17,16 +17,10 @@ class TruffleSpec extends PropSpec
 
   val testScript =
     s"""
-       |//state
+       |var a = 0
        |
-       |var x = 1
-       |let y = "test"
-       |const z = 3.14
-       |
-       |//code
-       |
-       |var test = function() {
-       |  return 1;
+       |add = function() {
+       |  return 2 + 2
        |}
      """.stripMargin
 
@@ -84,11 +78,36 @@ class TruffleSpec extends PropSpec
     .build()
 
   val errManager = new ErrorManager.ThrowErrorManager
-  val src = Source.sourceFor("script", script)
+  val src = Source.sourceFor("script", testScript)
   val parser: Parser = new Parser(scriptEnv, src, errManager)
   val parsed = parser.parse()
 
-  println(s"parsed: ${parsed.getBody.toString()}")
+  println(s"parsed: ${parsed.toString()}")
+
+  def varList(node: FunctionNode): Node = {
+
+    var vars: Seq[String] = Seq("")
+
+    node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
+
+      override def enterVarNode(varNode: VarNode): Boolean = {
+        if(varNode.isInstanceOf[VarNode])
+          {
+            println(s"varNode.getInit: ${varNode.getInit}")
+            true
+          }
+        false
+      }
+      override def leaveVarNode(varNode: VarNode): VarNode = {
+        println(s"getAssignmentSource: ${varNode.getAssignmentSource}")
+        println(s"getStart: ${varNode.getStart}")
+        println(s"getInit: ${varNode.getInit}")
+        println(s"varNode: ${varNode.toString()}")
+        varNode
+      }
+
+    })
+  }
 
   def functionList(node: FunctionNode): Node = {
 
@@ -105,12 +124,28 @@ class TruffleSpec extends PropSpec
     })
   }
 
-  println(s"nodeList: ${functionList(parsed).toString}")
+
 
   //noinspection ScalaStyle
   {
     println("-------------------------------------------")
+    println(s"varList: ${varList(parsed).toString}")
+    println("-------------------------------------------")
+    println(s"nodeList: ${functionList(parsed).toString}")
+    println("-------------------------------------------")
     println(parsed.getBody.getStatements)
   }
 
+  property("Script should be parsed into a list of variables") {
+
+    val variables = Seq(varList(parsed).toString)
+    variables shouldEqual Seq("var a = 0")
+
+  }
+
+  property("Script should be parsed into a list of functions") {
+
+    val functions = Seq(functionList(parsed))
+    functions shouldEqual Seq("function add() { return 2 + 2 }")
+  }
 }

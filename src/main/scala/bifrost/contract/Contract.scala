@@ -47,7 +47,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
 
     jsre.eval("js", agreementObj.core.initjs)
 //    println(">>>>>>>>> agreement initjs")
-    jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
+    //jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
 //    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
 //    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
 //    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")

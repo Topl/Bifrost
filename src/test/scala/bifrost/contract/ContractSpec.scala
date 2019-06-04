@@ -64,8 +64,6 @@ class ContractSpec extends PropSpec
         validInitJsGen(
           "test",
           "testCode",
-          Instant.now.toEpochMilli,
-          Instant.now.toEpochMilli + 10000
         ).sample.get
       )(JsonObject.empty)
     ).json

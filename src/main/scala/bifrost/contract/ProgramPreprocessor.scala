@@ -27,13 +27,13 @@ import scala.concurrent.{Await, Future}
 case class ProgramPreprocessor(name: String,
                                initjs: String,
                                registry: Map[String, mutable.LinkedHashSet[String]],
-                               state: Json,
+                               //state: Json,
                                variables: Seq[String],
                                code: Seq[String],
                                signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
   lazy val json: Json = Map(
-    "state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
+    //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
     "name" -> name.asJson,
     "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
     "registry" -> registry.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
@@ -96,9 +96,9 @@ object ProgramPreprocessor {
     //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
-    val (registry, cleanModuleState, variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
+    val (registry, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, registry, parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson), variables, code, signed)
+    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, registry, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables, code, signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
@@ -123,14 +123,14 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)].right.get)
       .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
 
-    val (registry, cleanModuleState, variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
+    val (registry, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    ProgramPreprocessor(name, initjs, registry, parse(cleanModuleState).right.get, variables, code, signed)
+    ProgramPreprocessor(name, initjs, registry, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
   }
 
   //noinspection ScalaStyle
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
-    (Map[String, mutable.LinkedHashSet[String]], String, Seq[String], Seq[String]) = {
+    (Map[String, mutable.LinkedHashSet[String]], /*String,*/ Seq[String], Seq[String]) = {
 
     /* Construct base module from params */
     val jsre: Context = Context.newBuilder("js").build()
@@ -170,15 +170,15 @@ object ProgramPreprocessor {
 
     //println(s">>>>>>>>>>> Registry: $registry")
 
-    val variables: Seq[String] = deriveState(jsre, initjs)
+    //val variables: Seq[String] = deriveState(jsre, initjs)
     //val code: String = deriveFunctions(jsre, name).entrySet().asScala.map(entry => entry.getValue.asInstanceOf[Array[String]]).mkString("")
 
-    //val variables: List[String] = List("")
-    val code: Seq[String] = deriveFunctions(jsre, initjs)
+    val variables: Seq[String] = Seq("var a = 0")
+    val code: Seq[String] = Seq("function add() { a = 2 + 2 }")
 
     val registry: Map[String, mutable.LinkedHashSet[String]] = ???
 
-    (registry, cleanModuleState, variables, code)
+    (registry, /*cleanModuleState,*/ variables, code)
   }
 
   private def checkRegistry(jsre: Context, announcedRegistry: Map[String, mutable.LinkedHashSet[String]]): Boolean = {
@@ -264,7 +264,7 @@ object ProgramPreprocessor {
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
-    state <- c.downField("state").as[String]
+    //state <- c.downField("state").as[String]
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
     registry <- c.downField("registry").as[Map[String, mutable.LinkedHashSet[String]]]
@@ -281,12 +281,12 @@ object ProgramPreprocessor {
       import scala.concurrent.ExecutionContext.Implicits.global
       for {
         decodedInitjs <- decodeGzip(initjs)
-        decodedState <- decodeGzip(state)
+        //decodedState <- decodeGzip(state)
       } yield ProgramPreprocessor(
         name,
         new String(decodedInitjs.toArray[Byte]),
         registry,
-        parse(new String(decodedState.toArray[Byte])).right.get,
+        //parse(new String(decodedState.toArray[Byte])).right.get,
         variables,
         code,
         signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))

@@ -102,22 +102,24 @@ class ProgramPreprocessorSpec extends PropSpec
     if (System.getProperty("os.name").contains("indow")) filePath.substring(1) else filePath
   )*/
 
-  property("Json encoding and decoding should work") {
+  /*property("Json encoding and decoding should work") {
     //val wrapper = ProgramPreprocessor(osAppropriatePath)(args)
     val wrapper = ProgramPreprocessor(name, contract)(JsonObject.empty)
     wrapper.json.as[ProgramPreprocessor].right.get shouldEqual wrapper
-  }
+  }*/
 
   property("ProgramPreprocessor should split a single script into separate state and code objects") {
 
 
-    val variables =
+    val easyScript =
       s"""
-         |var x = 1;
-         |var y = "test";
+         |var a = 0
+         |function add() {
+         |  return 2 + 2
+         |}
        """.stripMargin
 
-    val preprocessor = ProgramPreprocessor(name, contract)(JsonObject.empty)
+    val preprocessor = ProgramPreprocessor(name, easyScript)(JsonObject.empty)
 
     println(s">>>>>>>> preprocessor output: ${preprocessor.asJson}")
   }

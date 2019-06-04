@@ -276,6 +276,19 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   def validInitJsGen(name: String,
+                     assetCode: String): Gen[String] = for {
+    _ <- stringGen
+  } yield {
+    s"""
+       |var a = 0
+       |
+       |function $name() {
+       |  return 2 + 2
+       |}
+     """.stripMargin
+  }
+
+  /*def validInitJsGen(name: String,
                      assetCode: String,
                      effectiveTimestamp: Long,
                      expirationTimestamp: Long): Gen[String] = for {
@@ -315,7 +328,7 @@ trait BifrostGenerators extends CoreGenerators {
        |    return JSON.stringify(o);
        |}
      """.stripMargin
-  }
+  }*/
 
   val alphanumeric: Gen[String] = for {
     size <- positiveMediumIntGen
@@ -329,7 +342,7 @@ trait BifrostGenerators extends CoreGenerators {
     assetCode <- alphanumeric
     terms <- validAgreementTermsGen
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
-    initjs <- validInitJsGen(name, assetCode, effectiveTimestamp, expirationTimestamp)
+    initjs <- validInitJsGen(name, assetCode)
   } yield {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
