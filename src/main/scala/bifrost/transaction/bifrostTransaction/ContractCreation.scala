@@ -85,16 +85,8 @@ case class ContractCreation(agreement: ExecutionBuilder,
     val investorProp = investor._1
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
-    val polyInvestment = BigInt(
-      (agreement.core.state \\ "initialCapital")
-        .head
-        .as[String] match {
-        case Right(initialCapital: String) => initialCapital
-        case Left(f: DecodingFailure) => throw f
-      })
-      .toLong
+    val leftOver: Long = canSend - fees(investorProp)
 
-    val leftOver: Long = canSend - fees(investorProp) - polyInvestment.toLong
     val investorNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("ContractCreation".getBytes
         ++ investorProp.pubKeyBytes
@@ -120,7 +112,7 @@ case class ContractCreation(agreement: ExecutionBuilder,
     val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
     val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
-    IndexedSeq(ContractBox(proposition, nonce, boxValue), codeBox, stateBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
+    IndexedSeq(ContractBox(proposition, nonce, boxValue), stateBox, codeBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

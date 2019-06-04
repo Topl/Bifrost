@@ -86,6 +86,9 @@ trait ValidGenerators extends BifrostGenerators {
 
       //val allInvestorsSorted = partiesWithRoles.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
+      val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
+
+      val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
         .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
@@ -153,11 +156,7 @@ trait ValidGenerators extends BifrostGenerators {
     }
   }
 
-  lazy val validContractMethods: List[String] = List("endorseCompletion",
-    "currentStatus",
-    "deliver",
-    "confirmDelivery",
-    "checkExpiration")
+  lazy val validContractMethods: List[String] = List("add")
 
   def createContractBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
 
@@ -189,7 +188,8 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
 
-    val stateBox =
+    val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
+    val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
     val methodName = sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 

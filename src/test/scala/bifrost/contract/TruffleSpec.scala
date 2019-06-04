@@ -21,7 +21,7 @@ class TruffleSpec extends PropSpec
        |var a = 0
        |
        |add = function() {
-       |  return 2 + 2
+       |  a = 2 + 2
        |}
      """.stripMargin
 
@@ -147,7 +147,7 @@ class TruffleSpec extends PropSpec
   property("Script should be parsed into a list of functions") {
 
     val functions = Seq(functionList(parsed))
-    functions shouldEqual Seq("function add() { return 2 + 2 }")
+    functions shouldEqual Seq("function add() { a = 2 + 2 }")
   }
 
 

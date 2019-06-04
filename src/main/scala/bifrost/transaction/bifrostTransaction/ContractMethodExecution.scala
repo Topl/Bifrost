@@ -30,7 +30,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override type M = ContractMethodExecution
 
-  val program: String = stateBox.value.foldLeft("")(_ ++ _) ++ codeBox.value.foldLeft("")(_ ++ _)
+  val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
 
   lazy val contract: Contract = {
     val valueObject: Map[String, Json] = contractBox.json
@@ -89,20 +89,21 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val contractResult = Contract.execute(program, methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
-                                                                                              .get) match {
-      case Success(res) => res match {
-        case Left(updatedContract) => ContractBox(
+    val contractResult: String = Contract.execute(program, methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
+                                                                                              .get) //match {
+      /*case Success(res) => res match {
+        /*case Left(updatedContract) => ContractBox(
           proposition,
           nonce,
           updatedContract.json)
         case Right(_) => contractBox
+         */
       }
-      case Failure(_) => contractBox
-    }
+      //case Failure(_) => contractBox
+    }*/
 
     //Handle boxes being sent from the contract to a public key
-    val boxesFromContract: Option[BifrostBox] = methodName match {
+    /*val boxesFromContract: Option[BifrostBox] = methodName match {
       case "assetTransfer" => {
         val key = (parameters \\ "publicKey").head.asString.get
         val asset = (parameters \\ "asset").head.asString.get
@@ -131,8 +132,11 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
     if(boxesFromContract.nonEmpty)
       IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces) :+ boxesFromContract.get
-    else
-      IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces)
+    else*/
+
+    val updatedStateBox: StateBox = StateBox(parties.toIndexedSeq(0)._1, nonce, Seq(contractResult), true)
+
+      IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

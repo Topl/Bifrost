@@ -3,6 +3,7 @@ package bifrost.contract
 import java.time.Instant
 
 import bifrost.exceptions.{InvalidProvidedContractArgumentsException, JsonParsingException}
+import bifrost.transaction.box.StateBox
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
@@ -169,8 +170,25 @@ object Contract {
   //noinspection ScalaStyle
   def execute(program: String, methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject)/*: Try[Either[Contract, Json]]*/ = Try {
+             (args: JsonObject): String /*: Try[Either[Contract, Json]]*/ = /*Try*/ {
 
+    //TODO Incorporate args into method
+    println(s"execute program: ${program}")
+    val jsre: Context = Context.create("js")
+    jsre.eval("js", program)
+    val state = jsre.getBindings("js")
+
+    println(s"execute state: ${state.getMemberKeys.forEach(a => println(a))}")
+
+    val methodNameJS: String = methodName + "()"
+
+    val methodEval = jsre.eval("js", methodNameJS)
+
+    val output = state.getMember("a").asInt().toString
+
+    println(s">>>>>> output: ${output}")
+
+    output
 
     /*val methodAttempt: Option[mutable.LinkedHashSet[String]] =
       ((c.agreement \\ "registry").head \\ methodName)

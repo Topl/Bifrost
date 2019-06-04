@@ -1,4 +1,4 @@
-/*package bifrost.contract
+package bifrost.contract
 
 import java.time.Instant
 
@@ -21,19 +21,21 @@ class ContractMethodSpec extends PropSpec
   property("Can call a function from a contract") {
     forAll(contractGen) {
       c: Contract => {
+        println(s">>>>>>>>>>> contract: ")
+        val program = c.agreementObj.core.variables.foldLeft("")((a,b) => a ++ (b + "\n")) ++ c.agreementObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
         val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
 
-        println(s">>>>>>>>> stringGen: ${params}")
-        val result = Contract.execute(c, "changeStatus")(party)(params)
+        println(s"program: ${program}")
+
+        val result = Contract.execute(program, "add")(party)(params)
         println(s"test result: $result")
-        assert(result.isSuccess)
       }
     }
   }
 
-  property("Can call createAssets protocol level function from a contract") {
+  /*property("Can call createAssets protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
@@ -51,9 +53,9 @@ class ContractMethodSpec extends PropSpec
         assert(result.isSuccess)
       }
     }
-  }
+  }*/
 
-  property("Can call transferAssets protocol level function from a contract") {
+  /*property("Can call transferAssets protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
@@ -70,9 +72,9 @@ class ContractMethodSpec extends PropSpec
         assert(result.isSuccess)
       }
     }
-  }
+  }*/
 
-  property("Can call polyTransfer protocol level function from a contract") {
+  /*property("Can call polyTransfer protocol level function from a contract") {
     forAll(contractGen) {
       c: Contract => {
         val party = propositionGen.sample.get
@@ -86,7 +88,7 @@ class ContractMethodSpec extends PropSpec
         assert(result.isSuccess)
       }
     }
-  }
+  }*/
 
     /*val name: String = "assetCreation"
     val assetCode: String = "Wheat"
@@ -144,4 +146,4 @@ class ContractMethodSpec extends PropSpec
 
     val result = Contract.execute(contract, "createAsset")(party)(params)
     println(s">>>>>>>> Result: $result")*/
-}*/
+}

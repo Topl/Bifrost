@@ -13,8 +13,8 @@ import io.circe.syntax._
 import bifrost.serialization.JsonSerializable
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import com.oracle.js.parser.{Parser, ErrorManager, ScriptEnvironment, Source}
-import org.graalvm.polyglot.Context
+import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
+import org.graalvm.polyglot.{Context, Value}
 import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable
@@ -136,13 +136,15 @@ object ProgramPreprocessor {
     val jsre: Context = Context.newBuilder("js").build()
     //val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
 
-    jsre.eval("js", objectAssignPolyfill)
+    /*jsre.eval("js", objectAssignPolyfill)
     jsre.eval("js", initjs)
     jsre.eval("js", s"var c = $name.fromJSON('${args.asJson.noSpaces}')")
     println(s">>>>>>>> var c: ")
     jsre.eval("js", "for(property in c) { print(property) }")
-    val cleanModuleState: String = jsre.eval("js", s"$name.toJSON(c)").asInstanceOf[String]
-
+    val cleanModuleState: Value = jsre.eval("js", s"$name.toJSON(c)") //.asInstanceOf[String]
+    val cms = cleanModuleState.getSourceLocation
+    println(cms)
+     */
 
     /* Interpret registry from object */
    /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
@@ -176,7 +178,7 @@ object ProgramPreprocessor {
     val variables: Seq[String] = Seq("var a = 0")
     val code: Seq[String] = Seq("function add() { a = 2 + 2 }")
 
-    val registry: Map[String, mutable.LinkedHashSet[String]] = ???
+    val registry: Map[String, mutable.LinkedHashSet[String]] = Map()
 
     (registry, /*cleanModuleState,*/ variables, code)
   }

@@ -80,7 +80,12 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    bifrostTransaction.ContractMethodExecution(contractBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
+    //TODO Finish serialization for state and code boxes
+
+    val stateBox = ???
+    val codeBox = ???
+
+    bifrostTransaction.ContractMethodExecution(contractBox, stateBox, codeBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }

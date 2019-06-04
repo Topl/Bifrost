@@ -4,18 +4,21 @@ import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
+import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.JsonParsingException
+import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box._
 import bifrost.transaction.bifrostTransaction.{ContractMethodExecution, Role}
-import com.google.common.primitives.Ints
+import com.google.common.primitives.{Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Random, Success}
 
 /**
   * Created by Matt Kindy on 6/7/2017.
@@ -24,15 +27,16 @@ import scala.util.{Failure, Success}
 class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
   //noinspection ScalaStyle
-  /* TODO uncomment and fix tests with arbitraryPartyContractMethodExecutionGen
   def arbitraryPartyContractMethodExecutionGen(num: Int, numInContract: Int): Gen[ContractMethodExecution] = for {
     methodName <- Gen.oneOf(validContractMethods)
     parameters <- jsonGen()
     timestamp <- positiveLongGen.map(_ / 3)
-    deliveredQuantity <- positiveLongGen
-    effDelta <- positiveLongGen.map(_ / 3)
-    expDelta <- positiveLongGen.map(_ / 3)
+    //deliveredQuantity <- positiveLongGen
+    //effDelta <- positiveLongGen.map(_ / 3)
+    //expDelta <- positiveLongGen.map(_ / 3)
   } yield {
+    println(s">>>>> yield")
+
     val allKeyPairs = (0 until num + (3 - numInContract)).map(_ => keyPairSetGen.sample.get.head)
 
     val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
@@ -40,13 +44,19 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
     var agreementOpt = validAgreementGen().sample
+    println(s">>>>> agreementOpt: ${agreementOpt.get.core.json}")
     while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
     val contractBox = createContractBox(
       agreement,
-      parties.take(3).map(t => t._1 -> t._2._2).toMap
+      parties.take(3).map(t => t._2._2 -> t._1).toMap
     )
+
+    val leadParty = parties.head._2._2
+
+    val stateBox: StateBox = StateBox(leadParty, 0L, Seq("a = 0"), true)
+    val codeBox: CodeBox = CodeBox(leadParty, 1L, Seq("function add() { a = 2 + 2 }"))
 
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
@@ -64,7 +74,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
       contractBox.id ++
         methodName.getBytes ++
         parties.take(numInContract).flatMap(_._2._2.pubKeyBytes) ++
-        parameters.noSpaces.getBytes ++
+        //parameters.noSpaces.getBytes ++
         (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1.data)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, amount) => prop.pubKeyBytes ++ Longs.toByteArray(amount) }
@@ -78,17 +88,22 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
       extraSigs = parties.slice(3, parties.length).map(t => t._2._2 -> PrivateKey25519Companion.sign(t._2._1, messageToSign))
     }
 
+    val data = ""
+
     ContractMethodExecution(
       contractBox,
+      stateBox,
+      codeBox,
       methodName,
       parameters,
-      parties.take(numInContract).map(t => t._1 -> t._2._2).toMap,
+      parties.take(numInContract).map(t => t._2._2 -> t._1).toMap,
       (sigs ++ extraSigs).toMap,
       feePreBoxes,
       fees,
-      timestamp
+      timestamp,
+      data
     )
-  } */
+  }
 
   property("A block with valid CME will result in a correct contract entry " +
     "and updated poly boxes in the LSMStore") {
@@ -176,13 +191,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         Contract
-          .execute(cme.contract, cme.methodName)(cme.parties.toIndexedSeq(0)._1)(cme.parameters.asObject.get) match {
-          case Success(res) => res match {
-            case Left(_) => newContractTimestamp shouldBe cme.timestamp
-            case Right(_) => newContractTimestamp shouldBe oldContractTimestamp
-          }
-          case Failure(_) => newContractTimestamp shouldBe oldContractTimestamp
-        }
+          .execute(cme.program, cme.methodName)(cme.parties.toIndexedSeq(0)._1)(cme.parameters.asObject.get)
 
         require(deductedFeeBoxes
           .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
@@ -502,5 +511,4 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState.failed.get.getMessage shouldBe "Insufficient balances provided for fees"
     }
   }
-
 }

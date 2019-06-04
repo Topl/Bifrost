@@ -113,12 +113,16 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(contractCreation)
 
         val box = contractCreation.newBoxes.head.asInstanceOf[ContractBox]
-        val returnedPolyBoxes: Traversable[PolyBox] = contractCreation.newBoxes.tail.map {
+        val stateBox = contractCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
+        val codeBox = contractCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
+        val returnedPolyBoxes: Traversable[PolyBox] = contractCreation.newBoxes.tail.drop(2).map {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
 
         val boxBytes = ContractBoxSerializer.toBytes(box)
+        val stateBoxBytes = StateBoxSerializer.toBytes(stateBox)
+        val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -146,13 +150,24 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
                     case None => false
                   }))
 
+        //TODO split into separate test
+        require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
+          case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+        })
+
+       println(stateBox.json)
+
+        require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
+          case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+        })
+
+        println(codeBox.json)
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual
           preExistingPolyBoxes
             .map { case pb: PolyBox => pb.value }
-            .sum - BigInt((contractCreation.agreement.core.state \\ "initialCapital").head.as[String].right.get)
-            .toLong - contractCreation.fee
+            .sum - contractCreation.fee
 
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
@@ -167,25 +182,13 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
           val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
             pb.value }).sum
 
-          val investment =
-            if (prop equals contractCreation.parties.head._1) {
-              BigInt((contractCreation.agreement.core.state \\ "initialCapital")
-                       .head
-                       .as[String]
-                       .right
-                       .get)
-                .toLong
-              // TODO(balinskia): Which party is the investor
-            } else {
-              0
-            }
-
+          val investment = 0
 
           output shouldEqual (input - fee - investment)
         }
 
 
-        /* Expect none of the prexisting boxes to still be around */
+        /* Expect none of the preexisting boxes to still be around */
         preExistingPolyBoxes
           .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 

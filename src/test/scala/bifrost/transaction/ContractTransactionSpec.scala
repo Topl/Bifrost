@@ -4,10 +4,10 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import bifrost.contract.{ExecutionBuilder, Contract}
+import bifrost.contract.{Contract, ExecutionBuilder}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.box.{ContractBox, ReputationBox}
+import bifrost.transaction.box.{CodeBox, ContractBox, ReputationBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -151,6 +151,10 @@ class ContractTransactionSpec extends PropSpec
     val gen: Gen[ExecutionBuilder] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
     val validAgreement: ExecutionBuilder = sampleUntilNonEmpty(gen)
     val contractBox: ContractBox = createContractBox(validAgreement, parties.zip(roles).toMap)
+
+    val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
+
+    val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get
 

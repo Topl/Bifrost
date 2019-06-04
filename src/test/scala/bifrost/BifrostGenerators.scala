@@ -280,10 +280,20 @@ trait BifrostGenerators extends CoreGenerators {
     _ <- stringGen
   } yield {
     s"""
-       |var a = 0
-       |
        |function $name() {
-       |  return 2 + 2
+       |  var a = 0
+       |
+       |  function add() {
+       |    a = 2 + 2
+       |  }
+       |}
+       |
+       |this.$name.fromJSON = function(str) {
+       |    return new $name();
+       |}
+       |
+       |this.$name.toJSON = function(o) {
+       |    return JSON.stringify(o);
        |}
      """.stripMargin
   }
