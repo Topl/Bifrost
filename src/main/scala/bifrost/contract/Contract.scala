@@ -43,16 +43,18 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
   jsre.eval("js", ProgramPreprocessor.objectAssignPolyfill)
 
   //noinspection ScalaStyle
-  def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]): Try[(Contract, Option[Json])] = Try {
+  def applyFunction(methodName: String)(args: JsonObject)(params: Array[String])/*: Try[(Contract, Option[Json])]*/ = Try {
 
-    jsre.eval("js", agreementObj.core.initjs)
+
+
+    // jsre.eval("js", agreementObj.core.initjs)
 //    println(">>>>>>>>> agreement initjs")
     //jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
 //    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
 //    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
 //    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
 
-    val parameterString: String = params
+    /*val parameterString: String = params
       .tail
       .foldLeft(params
         .headOption
@@ -83,14 +85,14 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
       val result = parse(jsre.eval("js", update).asString()).right.get
 //      println(s">>>>>>>>>>>>>>>>>>> After result ")
 
-      val resultingContract = this.copy(
+      /*val resultingContract = this.copy(
         agreement = agreementObj
           .copy(core = agreementObj
             .core
             .copy(state = (result \\ "contract").head))
           .asJson,
         lastUpdated = Instant.now.toEpochMilli
-      )
+      )*/
 
       val functionReturnedUpdate = (result \\ "__returnedUpdate")
         .head
@@ -103,13 +105,14 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
         None
       }
 
-      (resultingContract, functionResult)
+      (/*resultingContract,*/ functionResult)
+     */
     }
 
-  def getFromContract(property: String): Try[Json] = Try {
+  /*def getFromContract(property: String): Try[Json] = Try {
     val core = agreementObj.core
     jsre.eval("js", core.initjs)
-    jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
+    //jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
     val update = s"c.$property"
 
@@ -119,7 +122,7 @@ case class Contract(parties: Map[PublicKey25519Proposition, String],
       case Right(json: Json) => json
       case Left(_) => Json.Null
     }
-  }
+  }*/
 
   lazy val json: Json = Map(
     "agreement" -> agreement,
@@ -163,11 +166,13 @@ object Contract {
     )
   }
 
-  def execute(c: Contract, methodName: String)
+  //noinspection ScalaStyle
+  def execute(program: String, methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): Try[Either[Contract, Json]] = Try {
+             (args: JsonObject)/*: Try[Either[Contract, Json]]*/ = Try {
 
-    val methodAttempt: Option[mutable.LinkedHashSet[String]] =
+
+    /*val methodAttempt: Option[mutable.LinkedHashSet[String]] =
       ((c.agreement \\ "registry").head \\ methodName)
         .headOption
         .flatMap(_.as[mutable.LinkedHashSet[String]].toOption)
@@ -181,10 +186,11 @@ object Contract {
           .values
           .toArray
           .map(_.noSpaces)
+     */
 
 //        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
 
-        val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
+        /*/val res: Try[(Contract, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
 
         res match {
           case Success((c: Contract, None)) => Left(c)
@@ -193,7 +199,7 @@ object Contract {
         }
 
       case _ => throw new MatchError(s"Could not find method <$methodName>")
-    }
+    }*/
   }
 
   object Status extends Enumeration {

@@ -17,6 +17,8 @@ import io.circe.syntax._
 import scala.util.{Failure, Success, Try}
 
 case class ContractMethodExecution(contractBox: ContractBox,
+                                   stateBox: StateBox,
+                                   codeBox: CodeBox,
                                    methodName: String,
                                    parameters: Json,
                                    parties: Map[PublicKey25519Proposition, Role],
@@ -28,6 +30,8 @@ case class ContractMethodExecution(contractBox: ContractBox,
   extends ContractTransaction {
 
   override type M = ContractMethodExecution
+
+  val program: String = stateBox.value.foldLeft("")(_ ++ _) ++ codeBox.value.foldLeft("")(_ ++ _)
 
   lazy val contract: Contract = {
     val valueObject: Map[String, Json] = contractBox.json
@@ -85,7 +89,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val contractResult = Contract.execute(contract, methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
+    val contractResult = Contract.execute(program, methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
                                                                                               .get) match {
       case Success(res) => res match {
         case Left(updatedContract) => ContractBox(
@@ -133,6 +137,8 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "contractBox" -> newBoxes.filter(b => b.isInstanceOf[ContractBox]).head.json,
+    "stateBox" -> stateBox.json,
+    "codeBox" -> codeBox.json,
     "methodName" -> methodName.asJson,
     "methodParams" -> parameters
   )).asJson
@@ -169,6 +175,8 @@ object ContractMethodExecution {
 
   implicit val decodeContractMethodExecution: Decoder[ContractMethodExecution] = (c: HCursor) => for {
     contractBox <- c.downField("contractBox").as[ContractBox]
+    stateBox <- c.downField("stateBox").as[StateBox]
+    codeBox <- c.downField("codeBox").as[CodeBox]
     methodName <- c.downField("methodName").as[String]
     methodParams <- c.downField("methodParams").as[Json]
     rawParties <- c.downField("parties").as[Map[String, String]]
@@ -180,6 +188,8 @@ object ContractMethodExecution {
   } yield {
     val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
     ContractMethodExecution(contractBox,
+      stateBox,
+      codeBox,
       methodName,
       methodParams,
       commonArgs._1,

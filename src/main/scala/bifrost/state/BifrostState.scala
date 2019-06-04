@@ -405,7 +405,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
     val contractProposition: MofNProposition = contractBox.proposition
     val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-    val contractEffectiveTime: Long = contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
+    //val contractEffectiveTime: Long = contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
@@ -482,10 +482,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     if (cme.timestamp > Instant.now.toEpochMilli) {
       throw new TransactionValidationException("ContractMethodExecution timestamp is too far into the future")
     }
-    if (contractEffectiveTime > Instant.now.toEpochMilli) {
-      throw new TransactionValidationException("Effective date hasn't passed")
-    }
-
   }.flatMap(_ => semanticValidity(cme))
 
   /**

@@ -4,6 +4,7 @@ package bifrost.contract
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
+import org.graalvm.polyglot.Context
 import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
 import com.oracle.js.parser.ir.{BlockExpression, Expression, ExpressionStatement, FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.ir.visitor.NodeVisitor
@@ -148,4 +149,19 @@ class TruffleSpec extends PropSpec
     val functions = Seq(functionList(parsed))
     functions shouldEqual Seq("function add() { return 2 + 2 }")
   }
+
+
+
+
+
+
+  val jsre: Context = Context.create("js")
+
+  val output = jsre.eval("js", testScript)
+  val outputSource = Source.sourceFor("output", output.asString())
+  val outputParser = new Parser(scriptEnv, outputSource, errManager)
+  val parsedOutput = parser.parse()
+
+  println(s"parsedOutput: ${parsedOutput.toString()}")
+
 }

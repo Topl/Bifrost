@@ -68,7 +68,8 @@ case class ContractCompletion(contractBox: ContractBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
 
-    val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
+    val
+    //val assetCode: String = contract.getFromContract("assetCode").get.noSpaces
     val issuer: PublicKey25519Proposition = contract.parties.find(_._2 == "issuer").get._1
 
     val partyAssets: IndexedSeq[AssetBox] = contract.parties.map { p =>
