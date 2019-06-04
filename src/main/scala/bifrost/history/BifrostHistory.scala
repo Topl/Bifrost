@@ -109,6 +109,8 @@ class BifrostHistory(val storage: BifrostStorage,
           bestForkChanges(block)
         }
         storage.update(block, difficulty, builtOnBestChain)
+        //improve by passing all txs as a sequence instead of one by one
+        //maybe the txs can be collected as a sequence in the method below and then sent to the update function in SBR
         if (block.transactions.isDefined) {
           for (tx <- block.transactions.get) sbr.updateIfStateBoxTransaction(tx)
           sbr.checkpoint(block.id)

@@ -14,23 +14,25 @@ import scala.util.Try
 
 class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: SBRStorage) extends ScorexLogging {
 
-  private var UUID2BoxID = initialMap
+  var UUID2BoxID = initialMap
 
   def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
 
+
   }
 
-  def update(k: UUID, v: Array[Byte]) : Unit = {
+  def update(modifierId: ModifierId, k: UUID, v: Array[Byte]) : Unit = {
     val k_baw = StateBoxRegistry.uuid2baw(k)
     val v_baw = ByteArrayWrapper(v)
-    val version = StateBoxRegistry.uuid2baw(UUID.randomUUID())
-    storage.update(version, Seq((k_baw, v_baw)))
+    storage.update(ByteArrayWrapper(modifierId), Seq((k_baw, v_baw)))
     UUID2BoxID += (k_baw -> v_baw)
   }
 
-  def get(k: UUID) : Try[(UUID, Array[Byte])] = {
+  def get(k: UUID) : Try[(UUID, Array[Byte])] = Try {
     val k_baw = StateBoxRegistry.uuid2baw(k)
-    StateBoxRegistry.parseLine(Option(UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get)))
+    k -> UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get).data
+
+//    StateBoxRegistry.parseLine(Option(UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get)))
   }
 
   def checkpoint(modifierId: ModifierId): Try[Unit] = Try { storage.checkpoint(ByteArrayWrapper(modifierId)) }
@@ -48,6 +50,7 @@ object StateBoxRegistry extends ScorexLogging {
     new StateBoxRegistry(Map[ByteArrayWrapper, ByteArrayWrapper](), s)
   }
 
+  //parsing a byteArrayWrapper which has UUID in bytes concatenated to boxID in bytes?
   def parseLine(raw: Option[ByteArrayWrapper]) : Try[(UUID, Array[Byte])] = Try {
     val rawLine : Array[Byte] = raw.get.data
     val uUIDBytes = rawLine.take(bytesInAUUID)
@@ -59,8 +62,15 @@ object StateBoxRegistry extends ScorexLogging {
   }
 
   // UUID -> ByteArrayWrapper
-  def uuid2baw(v: UUID) : ByteArrayWrapper = ByteArrayWrapper(ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data
-    ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data)
+  //Currently appending UUID to itself to reach 32 byte length requirement for keys in LSMStore
+  def uuid2baw(v: UUID) : ByteArrayWrapper =
+//    ByteArrayWrapper(ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data
+//    ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data
+//    ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data)
+
+    ByteArrayWrapper(ByteArrayWrapper.fromLong(v.getMostSignificantBits).data
+      ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data
+      ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data)
 
   def readOrGenerate(settings: ForgingSettings): StateBoxRegistry = {
     val dataDirOpt = settings.sbrDirOpt.ensuring(_.isDefined, "sbr dir must be specified")
