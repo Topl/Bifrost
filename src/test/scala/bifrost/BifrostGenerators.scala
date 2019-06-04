@@ -408,6 +408,8 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     contract <- contractBoxGen
     methodName <- stringGen
+    stateBox <- stateBoxGen
+    codeBox <- codeBoxGen
     parameters <- jsonArrayGen()
     sig <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
@@ -418,33 +420,14 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     ContractMethodExecution(
       contract,
+      stateBox,
+      codeBox,
       methodName,
       parameters,
       Map(sampleUntilNonEmpty(party) -> Gen.oneOf(Role.values.toSeq).sample.get),
       Map(party -> sig),
       Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
-      timestamp,
-      data)
-  }
-
-  lazy val contractCompletionGen: Gen[ContractCompletion] = for {
-    contract <- contractBoxGen
-    reputation <- reputationBoxGen
-    parties <- partiesGen
-    signature <- signatureGen
-    fee <- positiveLongGen
-    numFeeBoxes <- positiveTinyIntGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    bifrostTransaction.ContractCompletion(
-      contract,
-      IndexedSeq(reputation),
-      parties,
-      parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
-      parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),
-      parties.map({ case (k, _) => k -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }),
       timestamp,
       data)
   }

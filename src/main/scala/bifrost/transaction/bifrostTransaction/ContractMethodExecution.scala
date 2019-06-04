@@ -3,7 +3,6 @@ package bifrost.transaction.bifrostTransaction
 import bifrost.contract.Contract
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.ContractCompletion.assetNonce
 import Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -38,6 +37,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
       .asObject
       .map(_.toMap)
       .get
+
 
     val cursor: HCursor = valueObject("value").hcursor
     val time = cursor.fields
@@ -150,6 +150,13 @@ case class ContractMethodExecution(contractBox: ContractBox,
     data.getBytes
   )
 
+  def assetNonce(prop: PublicKey25519Proposition, hashNoNonces: Array[Byte]): Nonce = ContractTransaction
+  .nonceFromDigest(
+    FastCryptographicHash("assetNonce".getBytes
+      ++ prop.pubKeyBytes
+      ++ hashNoNonces)
+  )
+
   override def toString: String = s"ContractMethodExecution(${json.noSpaces})"
 }
 
@@ -163,13 +170,6 @@ object ContractMethodExecution {
     }, "Either an invalid signature was submitted or the party listed was not part of the contract.")
 
     require(tx.parties.size == 1, "An incorrect number (not equal to 1) of parties provided signatures.")
-
-    val effDate = tx.contract.getFromContract("contractEffectiveTime")
-    val expDate = tx.contract.getFromContract("contractExpirationTime")
-
-    require(tx.timestamp >= effDate.get.asNumber.get.toLong.get, "The contract was not in effect yet.")
-
-    require(tx.timestamp < expDate.get.asNumber.get.toLong.get, "The contract has expired.")
 
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 

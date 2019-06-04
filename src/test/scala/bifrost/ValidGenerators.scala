@@ -189,6 +189,8 @@ trait ValidGenerators extends BifrostGenerators {
 
     val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
 
+    val stateBox =
+
     val methodName = sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
@@ -241,6 +243,8 @@ trait ValidGenerators extends BifrostGenerators {
 
     bifrostTransaction.ContractMethodExecution(
       contractBox,
+      stateBox,
+      codeBox,
       methodName,
       parameters,
       Map(sender._2._2 -> sender._1),
@@ -251,109 +255,6 @@ trait ValidGenerators extends BifrostGenerators {
       data)
   }
 
-  lazy val validContractCompletionGen: Gen[ContractCompletion] = for {
-    timestamp <- positiveLongGen
-    agreement <- validAgreementGen()
-    deliveredQuantity <- positiveLongGen
-    numReputation <- positiveTinyIntGen
-    data <- stringGen
-  } yield {
-
-    val nrOfParties = 3 //Random.nextInt(1022) + 2
-    val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
-
-    val parties = allKeyPairs.map(_._2)
-    val roles = Random.shuffle(POSSIBLE_ROLES)
-    val partyRolePairs: Map[PublicKey25519Proposition, Role.Role] = parties.zip(roles).toMap
-
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = parties
-      .map(p => {
-        val hashedFulfillment = FastCryptographicHash(currentFulfillment.asJson.noSpaces.getBytes)
-        Base58.encode(p.pubKeyBytes) -> Base58.encode(hashedFulfillment).asJson
-      })
-      .toMap
-
-    val contractBox = createContractBox(agreement, parties.zip(POSSIBLE_ROLES).toMap)
-
-    val contract = Contract(
-      contractBox
-        .json
-        .asObject
-        .flatMap(_ ("value"))
-        .get,
-      contractBox.id)
-
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-      val sum = sampleUntilNonEmpty(positiveLongGen)
-
-      splitAmongN(sum, parties.length, minShareSize = 0, maxShareSize = Long.MaxValue) match {
-        case Success(shares) => parties
-          .zip(shares)
-          .map {
-            case (party, share) =>
-              party -> (splitAmongN(share, sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
-                case Success(boxAmounts) => boxAmounts
-                case f: Failure[_] => throw f.exception
-              }).map {
-                boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount))
-              }.toIndexedSeq
-          }
-          .toMap
-
-        case f: Failure[_] => throw f.exception
-      }
-    }
-
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes
-      .toIndexedSeq
-      .flatMap {
-        case (prop, v) =>
-          v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
-      }
-
-    val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
-
-    val reputation = (0 until numReputation)
-      .map(_ => ReputationBox(partyRolePairs.find(_._2 == Role.Producer).get._1,
-        sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue)),
-        (sampleUntilNonEmpty(reasonableDoubleGen), sampleUntilNonEmpty(reasonableDoubleGen))))
-
-
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1) //++ reputation.map(_.id)
-    val fees = feePreBoxes.map { case (prop, preBoxes) =>
-      prop -> preBoxes.map(_._2).sum
-    }
-
-    val messageToSign = Bytes.concat(FastCryptographicHash(
-      contractBox.id ++
-        //reputation.foldLeft(Array[Byte]())((a,b) => a ++ b.id) ++
-        partyRolePairs.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes)
-        ++ boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
-        ++ Longs.toByteArray(contract.lastUpdated)
-        ++ fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))),
-        data.getBytes
-    )
-
-    val signatures = allKeyPairs.map {
-      keypair =>
-        val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
-        //println(s"Validate Signatures: ${keypair} + ${sig.isValid(keypair._2, messageToSign)}")
-        (keypair._2, sig)
-    }
-
-    bifrostTransaction.ContractCompletion(
-      contractBox,
-      reputation,
-      partyRolePairs,
-      signatures.toMap,
-      feePreBoxes,
-      fees,
-      timestamp,
-      data)
-  }
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
     from <- fromSeqGen

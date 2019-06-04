@@ -621,18 +621,6 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="16609.9942" cy="-378" rx="93.6835" ry="18"/>
 <text text-anchor="middle" x="16609.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">NodeViewHolderEvent</text>
 </g>
-<!-- ContractCompletionCompanion -->
-<g id="node46" class="node">
-<title>ContractCompletionCompanion</title>
-<ellipse fill="#ffd700" stroke="#000000" cx="6758.9942" cy="-450" rx="124.2781" ry="18"/>
-<text text-anchor="middle" x="6758.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractCompletionCompanion</text>
-</g>
-<!-- ContractCompletionCompanion&#45;&gt;Serializer -->
-<g id="edge30" class="edge">
-<title>ContractCompletionCompanion&#45;&gt;Serializer</title>
-<path fill="none" stroke="#000000" d="M6844.6915,-436.8965C6860.3921,-434.9248 6876.6599,-433.1644 6891.9942,-432 7531.8097,-383.4167 9637.4012,-378.5353 10003.4884,-378.0523"/>
-<polygon fill="#000000" stroke="#000000" points="10003.5654,-381.5523 10013.5609,-378.0395 10003.5564,-374.5523 10003.5654,-381.5523"/>
-</g>
 <!-- DifficultyBlockValidator -->
 <g id="node47" class="node">
 <title>DifficultyBlockValidator</title>

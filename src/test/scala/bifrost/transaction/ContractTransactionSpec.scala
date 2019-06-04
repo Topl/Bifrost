@@ -199,6 +199,8 @@ class ContractTransactionSpec extends PropSpec
 
     bifrostTransaction.ContractMethodExecution(
       contractBox,
+      stateBox,
+      codeBox,
       methodName,
       parameters,
       Map(sender._2._2 -> sender._1),
@@ -210,107 +212,14 @@ class ContractTransactionSpec extends PropSpec
     )
   }
 
-  //noinspection ScalaStyle
-  def potentiallyInvalidContractCompletionGen(minFee: Long,
-                                              maxFee: Long,
-                                              minFeeSum: Long,
-                                              maxFeeSum: Long): Gen[ContractCompletion] = for {
-    timestamp <- positiveLongGen
-    agreement <- validAgreementGen()
-    status <- Gen.oneOf(validStatuses)
-    deliveredQuantity <- positiveLongGen
-    numReputation <- positiveTinyIntGen
-    data <- stringGen
-  } yield {
-    /* 2*maxFee > 0 checks if 3*maxFee would overflow twice or not, same for minFee (underflow) */
-    if ((minFeeSum > 3 * maxFee && 2 * maxFee > 0) || (maxFeeSum < 3 * minFee && 2 * minFee < 0) || minFeeSum > maxFeeSum || maxFee < minFee) {
-      throw new Exception("Fee bounds are irreconciliable")
-    }
-
-    val allKeyPairs = (0 until 3).map(_ => keyPairSetGen.sample.get.head)
-    val parties = allKeyPairs.map(_._2)
-    val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-    val partiesWithRoles = parties.zip(roles)
-
-    val currentFulfillment = Map("deliveredQuantity" -> deliveredQuantity.asJson)
-    val currentEndorsement = parties.map(p =>
-                                           Base58.encode(p.pubKeyBytes) -> Base58.encode(FastCryptographicHash(
-                                             currentFulfillment.asJson.noSpaces.getBytes)).asJson
-    ).toMap
-
-    val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
-
-    val contract = Contract(contractBox.json.asObject.get.apply("value").get, contractBox.id)
-
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-      val sum = Gen.choose(minFeeSum, maxFeeSum).sample.get
-
-      splitAmongN(sum, parties.length, minFee, maxFee) match {
-        case Success(shares) => parties.zip(shares).map { case (party, share) =>
-          party -> (splitAmongN(share, positiveTinyIntGen.sample.get) match {
-            case Success(boxAmounts) => boxAmounts
-          }).map { boxAmount => preFeeBoxGen(boxAmount, boxAmount).sample.get }.toIndexedSeq
-        }.toMap
-
-        case f: Failure[_] => throw f.exception
-      }
-    }
-
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
-      .flatMap { case (prop, v) =>
-        v.map {
-          case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-        }
-      }
-    val reasonableDoubleGen: Gen[Double] = Gen.choose(-1e3, 1e3)
-
-    val reputation = (0 until numReputation)
-      .map(_ =>
-             ReputationBox(
-               parties(roles.indexOf(Role.Producer)),
-               Gen.choose(Long.MinValue, Long.MaxValue).sample.get,
-               (reasonableDoubleGen.sample.get, reasonableDoubleGen.sample.get)))
-
-    val boxIdsToOpen = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1)//++ reputation.map(_.id)
-    val fees = feePreBoxes.map { case (prop, preBoxes) =>
-      val available = preBoxes.map(_._2).sum
-      prop -> available
-    }
-
-    val messageToSign = Bytes.concat(FastCryptographicHash(
-      contractBox.id ++
-        partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
-        boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
-        Longs.toByteArray(contract.lastUpdated) ++
-        fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))),
-        data.getBytes
-    )
-    val signatures = allKeyPairs.map(
-      keypair =>
-        PrivateKey25519Companion.sign(keypair._1, messageToSign)
-    )
-
-    bifrostTransaction.ContractCompletion(
-      contractBox,
-      reputation,
-      partiesWithRoles.toMap,
-      parties.zip(signatures).toMap,
-      feePreBoxes,
-      fees,
-      timestamp,
-      data)
-
-  }
-
   def potentiallyInvalidContractTransactionGen(minFee: Long = 0,
                                                maxFee: Long = Long.MaxValue,
                                                minFeeSum: Long = 0,
                                                maxFeeSum: Long = Long.MaxValue): Gen[ContractTransaction] = for {
-    txType <- Gen.oneOf(ContractCreation, ContractCompletion, ContractMethodExecution)
+    txType <- Gen.oneOf(ContractCreation, ContractMethodExecution)
   } yield {
     val typeGen: Gen[ContractTransaction] = txType match {
       case ContractCreation => potentiallyInvalidContractCreationGen(minFee, maxFee, minFeeSum, maxFeeSum)
-      case ContractCompletion => potentiallyInvalidContractCompletionGen(minFee, maxFee, minFeeSum, maxFeeSum)
       case ContractMethodExecution => potentiallyInvalidContractMethodExecutionGen(minFee, maxFee, minFeeSum, maxFeeSum)
     }
 
@@ -324,7 +233,6 @@ class ContractTransactionSpec extends PropSpec
 
         val tryValidate = contractTransaction match {
           case cc: ContractCreation => ContractCreation.validate(cc)
-          case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
           case cm: ContractMethodExecution => ContractMethodExecution.validate(cm)
         }
 
@@ -341,7 +249,6 @@ class ContractTransactionSpec extends PropSpec
 
         val tryValidate = contractTransaction match {
           case cc: ContractCreation => ContractCreation.validate(cc)
-          case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
           case cm: ContractMethodExecution => ContractMethodExecution.validate(cm)
         }
 
@@ -360,7 +267,6 @@ class ContractTransactionSpec extends PropSpec
 
         val tryValidate = contractTransaction match {
           case cc: ContractCreation => ContractCreation.validate(cc)
-          case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
           case cm: ContractMethodExecution => ContractMethodExecution.validate(cm)
         }
 

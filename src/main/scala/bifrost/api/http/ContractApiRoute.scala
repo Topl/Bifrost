@@ -17,7 +17,7 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{ContractCompletion, ContractCreation, ContractMethodExecution, ProfileTransaction}
+import bifrost.transaction.bifrostTransaction.{ContractCreation, ContractMethodExecution, ProfileTransaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
@@ -67,8 +67,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
                   case "getContractSignature" => getContractSignature(params.head, reqId)
                   case "createContract" => createContract(params.head, reqId)
                   case "executeContractMethod" => executeContractMethod(params.head, reqId)
-                  case "getCompletionSignature" => getCompletionSignature(params.head, reqId)
-                  case "completeContract" => completeContract(params.head, reqId)
                   case "filter" => bloomFilter(params, reqId)
                 }
               }
@@ -176,47 +174,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  def getCompletionSignature(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val state = view.state
-      val wallet = view.vault
-      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-
-      val modified = replaceBoxIdWithBox(state, params, "contractBox")
-      val modifiedParams = root.reputationBoxes.each.json.modify(
-        id => {
-          val boxInstance = state.closedBox(Base58.decode(id.asString.get).get)
-          boxInstance.get.json
-        }
-      )(modified)
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-      val tx = createCompletionInstance(modifiedParams, state)
-      val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
-      Map("signature" -> Base58.encode(signature.signature).asJson,
-        "tx" -> tx.json.asJson).asJson
-    }
-  }
-
-  def completeContract(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val state = view.state
-      val modified = replaceBoxIdWithBox(state, params, "contractBox")
-      val modifiedParams = root.reputationBoxes.each.json.modify(
-        id => {
-          val boxInstance = state.closedBox(Base58.decode(id.asString.get).get)
-          boxInstance.get.json
-        }
-      )(modified)
-      val tx = createCompletionInstance(modifiedParams, state)
-      ContractCompletion.validate(tx) match {
-        case Success(e) => log.info("Contract completion successfully validated")
-        case Failure(e) => throw e
-      }
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ContractCompletion](tx)
-      tx.json
-    }
-  }
-
   def bloomFilter(params: Vector[Json], id: String): Future[Json] = {
     viewAsync().map { view =>
       val history = view.history
@@ -239,13 +196,6 @@ case class ContractApiRoute(override val settings: Settings, nodeViewHolderRef: 
     json.as[ContractCreation] match {
       case Right(c: ContractCreation) => c
       case Left(e) => throw new JsonParsingException(s"Could not parse ContractCreation: $e")
-    }
-  }
-
-  def createCompletionInstance(json: Json, state: BifrostState): ContractCompletion = {
-    json.as[ContractCompletion] match {
-      case Right(c: ContractCompletion) => c
-      case Left(e) => throw new JsonParsingException(s"Could not parse ContractCompletion: $e")
     }
   }
 }

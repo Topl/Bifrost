@@ -128,7 +128,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case cc: ContractCreation => validateContractCreation(cc)
       case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ContractMethodExecution => validateContractMethodExecution(cme)
-      case cComp: ContractCompletion => validateContractCompletion(cComp)
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ac: AssetCreation => validateAssetCreation(ac)
       case cb: CoinbaseTransaction => validateCoinbaseTransaction(cb)
@@ -486,77 +485,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param cc : complete the contract with all parties having signed the completed contract
-    * @return
-    */
-  //noinspection ScalaStyle
-  def validateContractCompletion(cc: ContractCompletion): Try[Unit] = {
-
-    val contractBytes = storage.get(ByteArrayWrapper(cc.contractBox.id))
-
-    /* Contract exists */
-    if (contractBytes.isEmpty) {
-      Failure(new TransactionValidationException(s"Contract ${Base58.encode(cc.contractBox.id)} does not exist"))
-    } else {
-      val contractJson: Json = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.json
-      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-        .proposition
-
-
-      /* Checking that all of the parties are part of the contract and have claimed roles */
-      val verifyParties = Try {
-        val parties = cc.signatures.map {
-          case (prop, sig) =>
-            val profileBox = getProfileBox(prop, "role") match {
-              case Success(pb) => pb
-              case Failure(_) => throw new TransactionValidationException(s"Role does not exist")
-            }
-
-            val claimedRole = cc.parties.find(_._1.pubKeyBytes sameElements prop.pubKeyBytes) match {
-              case Some(role) => role._2
-              case None => throw new Exception("Unexpected signature for this transaction")
-            }
-
-            /* This person belongs to contract */
-            if (!MultiSignature25519(Set(sig)).isValid(contractProposition, cc.messageToSign)) {
-              throw new TransactionValidationException(s"Signature is invalid for contractBox")
-            } /* Signature matches profilebox owner */
-            else if (!sig.isValid(profileBox.proposition, cc.messageToSign)) {
-              throw new TransactionValidationException(s"Signature invalid for ${Base58.encode(prop.pubKeyBytes)} " +
-                s"profileBox")
-            } /* Role provided by cc matches profilebox */
-            else if (!profileBox.value.equals(claimedRole.toString)) {
-              throw new TransactionValidationException(
-                s"Role ${claimedRole.toString} for ${Base58.encode(prop.pubKeyBytes)} " +
-                  s"does not match ${profileBox.value} in profileBox")
-            }
-
-            claimedRole
-        }
-
-        /* Checking that all the roles are represented */
-        if (!parties.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer))) {
-          throw new TransactionValidationException("Not all roles present")
-        }
-      }
-
-      if (verifyParties.isFailure) {
-        verifyParties
-      } else if (cc.timestamp <= timestamp) {
-        Failure(new TransactionValidationException("ContractCompletion attempts to write into the past"))
-
-      } else if (cc.timestamp >= Instant.now.toEpochMilli) {
-        Failure(new TransactionValidationException("ContractCompletion timestamp is too far in the future"))
-
-        /* Contract is in completed state, waiting for completion */
-      } else {
-        Success()
-      }
-    }
-  }
-
-  /**
-    *
     * @param ar :  the AssetRedemption to validate
     * @return
     */
@@ -667,7 +595,6 @@ object BifrostState extends ScorexLogging {
       case asT: AssetTransfer => AssetTransfer.validate(asT)
       case ac: AssetCreation => AssetCreation.validate(ac)
       case cc: ContractCreation => ContractCreation.validate(cc)
-      case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
