@@ -1,5 +1,7 @@
 package bifrost.transaction.box
 
+import java.util.UUID
+
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
@@ -55,6 +57,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
     case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
+    case eb: ExecutionBox => ExecutionBoxSerializer.toBytes(eb)
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -72,6 +75,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case "StateBox" => StateBoxSerializer.parseBytes(bytes)
       case "CodeBox" => CodeBoxSerializer.parseBytes(bytes)
+      case "ExecutionBox" => ExecutionBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
@@ -425,7 +429,7 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
-    "type" -> "State".asJson,
+    "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.toString.asJson,
@@ -518,7 +522,7 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
 
   override lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
-    "type" -> "Code".asJson,
+    "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
     "nonce" -> nonce.toString.asJson,
@@ -594,3 +598,106 @@ object CodeBoxSerializer {
     CodeBox(prop, nonce, value)
   }
 }
+
+case class ExecutionBox(override val proposition: PublicKey25519Proposition,
+                        override val nonce: Long,
+                        value: Seq[UUID], //List of uuids of state boxes from SBR
+                        val codeBoxIds: Seq[Array[Byte]]
+                        ) extends BifrostBox(proposition, nonce, value) {
+
+  val typeOfBox: String = "ExecutionBox"
+
+  val id = ExecutionBox.idFromBox(proposition, nonce)
+
+  override lazy val json: Json = Map(
+    "id" -> Base58.encode(id).asJson,
+    "type" -> typeOfBox.asJson,
+    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "value" -> value.asJson,
+    "codeBoxIds" -> codeBoxIds.asJson,
+    "nonce" -> nonce.toString.asJson,
+  ).asJson
+
+}
+
+object ExecutionBox {
+
+  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
+    FastCryptographicHash(prop.pubKeyBytes ++ "execution".getBytes ++ Longs.toByteArray(nonce))
+
+  implicit val decodeCodeBox: Decoder[ExecutionBox] = (c: HCursor) => for {
+    proposition <- c.downField("proposition").as[String]
+    value <- c.downField("value").as[Seq[UUID]]
+    nonce <- c.downField("nonce").as[Long]
+    codeBoxIds <- c.downField("codeBoxIds").as[Seq[Array[Byte]]]
+  } yield {
+    val preparedPubKey = Base58.decode(proposition).get
+    val prop = PublicKey25519Proposition(preparedPubKey)
+    ExecutionBox(prop, nonce, value, codeBoxIds)
+  }
+}
+
+object ExecutionBoxSerializer {
+
+  def toBytes(obj: ExecutionBox): Array[Byte] = {
+    val boxType = "ExecutionBox"
+    Bytes.concat(
+      Ints.toByteArray(boxType.getBytes.length),
+      boxType.getBytes,
+      Longs.toByteArray(obj.nonce),
+      Ints.toByteArray(obj.value.length),
+      obj.value.foldLeft(Array[Byte]()) {
+        (arr, x) => arr ++ Bytes.concat(
+          Longs.toByteArray(x.getMostSignificantBits),
+          Longs.toByteArray(x.getLeastSignificantBits)
+        )
+      },
+      Ints.toByteArray(obj.codeBoxIds.length),
+      obj.codeBoxIds.foldLeft(Array[Byte]()) {
+        (arr, x) => arr ++ x
+      },
+      obj.proposition.pubKeyBytes
+    )
+  }
+
+  def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
+    var takenBytes = 0
+
+    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
+    takenBytes += boxTypeLength
+
+    assert(boxType == "ExecutionBox") // no need to continue decoding if it's gibberish
+
+    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
+    takenBytes += Longs.BYTES
+
+    val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    var value = Seq[UUID]()
+    for (_ <- 1 to valueLength) {
+      val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
+                          Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + Longs.BYTES*2)))
+      takenBytes += Longs.BYTES*2
+      value = value :+ uuid
+    }
+
+    val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    var codeBoxIds = Seq[Array[Byte]]()
+    for (_ <- 1 to codeBoxIdsLength) {
+      codeBoxIds = codeBoxIds :+ obj.slice(takenBytes, takenBytes + 32)
+      takenBytes += 32
+    }
+
+    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
+    takenBytes += Constants25519.PubKeyLength
+
+    ExecutionBox(prop, nonce, value, codeBoxIds)
+  }
+}
+

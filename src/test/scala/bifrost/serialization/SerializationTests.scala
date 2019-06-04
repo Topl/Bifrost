@@ -137,6 +137,20 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("ExecutionBox Serialization") {
+    forAll(executionBoxGen) {
+      b: ExecutionBox =>
+        val json = b.json
+        val parsed = BifrostBoxSerializer
+          .parseBytes(BifrostBoxSerializer.toBytes(b))
+          .get
+
+        val serialized = BifrostBoxSerializer.toBytes(parsed)
+        json.as[ExecutionBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+    }
+  }
+
   property("Agreement Serialization") {
     forAll(validAgreementGen()) {
       a: ExecutionBuilder =>

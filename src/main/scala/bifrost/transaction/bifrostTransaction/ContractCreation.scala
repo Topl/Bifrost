@@ -1,5 +1,7 @@
 package bifrost.transaction.bifrostTransaction
 
+import java.util.UUID
+
 import bifrost.contract.ExecutionBuilder
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
