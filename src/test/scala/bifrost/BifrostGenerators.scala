@@ -263,9 +263,10 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     ExecutionBox(proposition,
                   nonce,
-                  Map((UUID.nameUUIDFromBytes(stateBox_1.id), stateBox_1.id),
-                      (UUID.nameUUIDFromBytes(stateBox_2.id), stateBox_2.id)),
-                  Seq(codeBox_1.id, codeBox_2.id))
+                  Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
+                      UUID.nameUUIDFromBytes(stateBox_2.id)),
+                  Seq(codeBox_1.id,
+                      codeBox_2.id))
   }
 
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {

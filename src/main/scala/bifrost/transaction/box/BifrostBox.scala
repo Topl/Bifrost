@@ -601,7 +601,7 @@ object CodeBoxSerializer {
 
 case class ExecutionBox(override val proposition: PublicKey25519Proposition,
                         override val nonce: Long,
-                        value: Map[UUID, Array[Byte]], //Mapping of UUIDs to stateBoxIDs
+                        value: Seq[UUID], //List of uuids of state boxes from SBR
                         val codeBoxIds: Seq[Array[Byte]]
                         ) extends BifrostBox(proposition, nonce, value) {
 
@@ -627,7 +627,7 @@ object ExecutionBox {
 
   implicit val decodeCodeBox: Decoder[ExecutionBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    value <- c.downField("value").as[Map[UUID, Array[Byte]]]
+    value <- c.downField("value").as[Seq[UUID]]
     nonce <- c.downField("nonce").as[Long]
     codeBoxIds <- c.downField("codeBoxIds").as[Seq[Array[Byte]]]
   } yield {
@@ -645,12 +645,11 @@ object ExecutionBoxSerializer {
       Ints.toByteArray(boxType.getBytes.length),
       boxType.getBytes,
       Longs.toByteArray(obj.nonce),
-      Ints.toByteArray(obj.value.size),
+      Ints.toByteArray(obj.value.length),
       obj.value.foldLeft(Array[Byte]()) {
         (arr, x) => arr ++ Bytes.concat(
-          Longs.toByteArray(x._1.getMostSignificantBits),
-          Longs.toByteArray(x._1.getLeastSignificantBits),
-          x._2
+          Longs.toByteArray(x.getMostSignificantBits),
+          Longs.toByteArray(x.getLeastSignificantBits)
         )
       },
       Ints.toByteArray(obj.codeBoxIds.length),
@@ -678,14 +677,12 @@ object ExecutionBoxSerializer {
     val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    var value = Map[UUID, Array[Byte]]()
+    var value = Seq[UUID]()
     for (_ <- 1 to valueLength) {
       val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
                           Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + Longs.BYTES*2)))
       takenBytes += Longs.BYTES*2
-      val sboxid = obj.slice(takenBytes, takenBytes + 32)
-      takenBytes += 32
-      value = value + (uuid -> sboxid)
+      value = value :+ uuid
     }
 
     val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
