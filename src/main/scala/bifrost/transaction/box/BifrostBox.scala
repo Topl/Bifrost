@@ -57,6 +57,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
     case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
+    case eb: ExecutionBox => ExecutionBoxSerializer.toBytes(eb)
     case _ => throw new Exception("Unanticipated BifrostBox type")
   }
 
@@ -74,6 +75,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case "StateBox" => StateBoxSerializer.parseBytes(bytes)
       case "CodeBox" => CodeBoxSerializer.parseBytes(bytes)
+      case "ExecutionBox" => ExecutionBoxSerializer.parseBytes(bytes)
       case _ => throw new Exception("Unanticipated Box Type")
     }
   }
@@ -635,55 +637,70 @@ object ExecutionBox {
   }
 }
 
-//object ExecutionBoxSerializer {
-//
-//  def toBytes(obj: ExecutionBox): Array[Byte] = {
-//    val boxType = "ExecutionBox"
-//    Bytes.concat(
-//      Ints.toByteArray(boxType.getBytes.length),
-//      boxType.getBytes,
-//      Longs.toByteArray(obj.nonce),
-//      Ints.toByteArray(obj.value.size),
-//      obj.value.foldLeft(Array[Byte]()) {
-//        (arr, x) => arr ++ Bytes.concat(
-//          Ints.toByteArray(x.getBytes().length),
-//          x.getBytes()
-//        )
-//      },
-//      obj.proposition.pubKeyBytes
-//    )
-//  }
-//
-//  def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
-//    var takenBytes = 0
-//
-//    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
-//    takenBytes += Ints.BYTES
-//
-//    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
-//    takenBytes += boxTypeLength
-//
-//    //TODO Check this, it may not fail gracefully
-//    assert(boxType == "CodeBox") // no need to continue decoding if it's gibberish
-//
-//    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
-//    takenBytes += Longs.BYTES
-//
-//    val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
-//    takenBytes += Ints.BYTES
-//
-//    var value = Seq[String]()
-//    for (_ <- 1 to valueLength) {
-//      val l = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
-//      takenBytes += Ints.BYTES
-//      value = value :+ new String(obj.slice(takenBytes, takenBytes + l))
-//      takenBytes += l
-//    }
-//
-//    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
-//    takenBytes += Constants25519.PubKeyLength
-//
-//    ExecutionBox(prop, nonce, value, codeBoxIds)
-//  }
-//}
+object ExecutionBoxSerializer {
+
+  def toBytes(obj: ExecutionBox): Array[Byte] = {
+    val boxType = "ExecutionBox"
+    Bytes.concat(
+      Ints.toByteArray(boxType.getBytes.length),
+      boxType.getBytes,
+      Longs.toByteArray(obj.nonce),
+      Ints.toByteArray(obj.value.size),
+      obj.value.foldLeft(Array[Byte]()) {
+        (arr, x) => arr ++ Bytes.concat(
+          Longs.toByteArray(x._1.getMostSignificantBits),
+          Longs.toByteArray(x._1.getLeastSignificantBits),
+          x._2
+        )
+      },
+      Ints.toByteArray(obj.codeBoxIds.length),
+      obj.codeBoxIds.foldLeft(Array[Byte]()) {
+        (arr, x) => arr ++ x
+      },
+      obj.proposition.pubKeyBytes
+    )
+  }
+
+  def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
+    var takenBytes = 0
+
+    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
+    takenBytes += boxTypeLength
+
+    assert(boxType == "ExecutionBox") // no need to continue decoding if it's gibberish
+
+    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
+    takenBytes += Longs.BYTES
+
+    val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    var value = Map[UUID, Array[Byte]]()
+    for (_ <- 1 to valueLength) {
+      val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
+                          Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + Longs.BYTES*2)))
+      takenBytes += Longs.BYTES*2
+      val sboxid = obj.slice(takenBytes, takenBytes + 32)
+      takenBytes += 32
+      value = value + (uuid -> sboxid)
+    }
+
+    val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    var codeBoxIds = Seq[Array[Byte]]()
+    for (_ <- 1 to codeBoxIdsLength) {
+      codeBoxIds = codeBoxIds :+ obj.slice(takenBytes, takenBytes + 32)
+      takenBytes += 32
+    }
+
+    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
+    takenBytes += Constants25519.PubKeyLength
+
+    ExecutionBox(prop, nonce, value, codeBoxIds)
+  }
+}
 

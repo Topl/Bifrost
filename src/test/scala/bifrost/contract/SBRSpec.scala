@@ -49,7 +49,6 @@ class SBRSpec extends PropSpec
 
   val uuid: UUID = UUID.randomUUID()
 
-
   val uuid_2: UUID = UUID.randomUUID()
 
 //  var history: BifrostHistory = generateHistory
@@ -69,9 +68,6 @@ class SBRSpec extends PropSpec
     //Should be able to access stateBoxID from sbr by UUID
     sbr.get(uuid).isSuccess shouldBe true
     assert(sbr.get(uuid).get._2 sameElements(sbox_1.id))
-
-    //TODO Should be able to reconstruct stateBox from id
-//    StateBoxSerializer.parseBytes(<get box from box id>).isSuccess shouldBe true
 
     Thread.sleep(1000)
 

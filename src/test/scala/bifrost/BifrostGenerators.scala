@@ -2,9 +2,10 @@ package bifrost
 
 import java.io.File
 import java.time.Instant
+import java.util.UUID
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.{ProgramPreprocessor, Contract, _}
+import bifrost.contract.{Contract, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
@@ -250,6 +251,21 @@ trait BifrostGenerators extends CoreGenerators {
     nonce <- positiveLongGen
   } yield {
     CodeBox(proposition, nonce, Seq(value))
+  }
+
+  lazy val executionBoxGen: Gen[ExecutionBox] = for {
+    proposition <- propositionGen
+    codeBox_1 <- codeBoxGen
+    codeBox_2 <- codeBoxGen
+    nonce <- positiveLongGen
+    stateBox_1 <- stateBoxGen
+    stateBox_2 <- stateBoxGen
+  } yield {
+    ExecutionBox(proposition,
+                  nonce,
+                  Map((UUID.nameUUIDFromBytes(stateBox_1.id), stateBox_1.id),
+                      (UUID.nameUUIDFromBytes(stateBox_2.id), stateBox_2.id)),
+                  Seq(codeBox_1.id, codeBox_2.id))
   }
 
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
