@@ -73,7 +73,6 @@ class SBRSpec extends PropSpec
     //TODO Should be able to reconstruct stateBox from id
 //    StateBoxSerializer.parseBytes(<get box from box id>).isSuccess shouldBe true
 
-
     Thread.sleep(1000)
 
     val block_2 = BifrostBlock(
@@ -88,6 +87,40 @@ class SBRSpec extends PropSpec
     //SBR should update correctly when replacing stateBoxID for same UUID
     sbr.get(uuid).isSuccess shouldBe true
     assert(sbr.get(uuid).get._2 sameElements(sbox_2.id))
+  }
+
+  property("SBR should deterministically generate a new UUID for a new state box") {
+
+    Thread.sleep(1000)
+    val block_3 = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(), 10L)
+
+    val sbox_3: StateBox = StateBox(pubKey, 2L, Seq("c"), true)
+    val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
+    uuidAndBoxID.isSuccess shouldBe true
+    //    assert(uuidAndBoxID_2.get._1 == new UUID(0L, 0L))
+    assert(uuidAndBoxID.get._1 == UUID.nameUUIDFromBytes(sbox_3.id))
+    assert(uuidAndBoxID.get._2 sameElements sbox_3.id)
+
+    //Test to make sure counters update correctly
+    Thread.sleep(1000)
+    val block_4 = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(), 10L)
+
+    val sbox_4: StateBox = StateBox(pubKey, 3L, Seq("d"), true)
+    val uuidAndBoxID_2 = sbr.insertNewStateBox(block_4.id, sbox_4.id)
+    uuidAndBoxID_2.isSuccess shouldBe true
+//    assert(uuidAndBoxID_2.get._1 == new UUID(0L, 1L))
+    assert(uuidAndBoxID_2.get._1 == UUID.nameUUIDFromBytes(sbox_4.id))
+    assert(uuidAndBoxID_2.get._2 sameElements sbox_4.id)
   }
 
 }
