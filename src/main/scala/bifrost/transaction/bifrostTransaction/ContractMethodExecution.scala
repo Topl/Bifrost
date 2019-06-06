@@ -18,6 +18,7 @@ import scala.util.{Failure, Success, Try}
 case class ContractMethodExecution(contractBox: ContractBox,
                                    stateBox: StateBox,
                                    codeBox: CodeBox,
+                                   executionBox: ExecutionBox,
                                    methodName: String,
                                    parameters: Json,
                                    parties: Map[PublicKey25519Proposition, Role],
@@ -29,6 +30,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   extends ContractTransaction {
 
   override type M = ContractMethodExecution
+
 
   val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
 
@@ -181,6 +183,7 @@ object ContractMethodExecution {
     contractBox <- c.downField("contractBox").as[ContractBox]
     stateBox <- c.downField("stateBox").as[StateBox]
     codeBox <- c.downField("codeBox").as[CodeBox]
+    executionBox <- c.downField("executionBox").as[ExecutionBox]
     methodName <- c.downField("methodName").as[String]
     methodParams <- c.downField("methodParams").as[Json]
     rawParties <- c.downField("parties").as[Map[String, String]]
@@ -194,6 +197,7 @@ object ContractMethodExecution {
     ContractMethodExecution(contractBox,
       stateBox,
       codeBox,
+      executionBox,
       methodName,
       methodParams,
       commonArgs._1,

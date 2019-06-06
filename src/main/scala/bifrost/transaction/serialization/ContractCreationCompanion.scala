@@ -20,7 +20,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
   def toChildBytes(m: ContractCreation): Array[Byte] = {
     val typeBytes = "ContractCreation".getBytes
 
-    val agreementBytes = AgreementCompanion.toBytes(m.agreement)
+    val executionBuilderBytes = AgreementCompanion.toBytes(m.executionBuilder)
 
     Bytes.concat(
       /* First two arguments MUST STAY */
@@ -28,8 +28,8 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
       typeBytes,
       Ints.toByteArray(m.preInvestmentBoxes.length),
       m.preInvestmentBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2)),
-      Longs.toByteArray(agreementBytes.length),
-      agreementBytes,
+      Longs.toByteArray(executionBuilderBytes.length),
+      executionBuilderBytes,
       ContractTransactionCompanion.commonToBytes(m),
       m.data.getBytes,
       Ints.toByteArray(m.data.getBytes.length)
@@ -59,14 +59,14 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
 
     numReadBytes += 2 * numPreInvestmentBoxes * Longs.BYTES
 
-    val agreementLength: Long = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Longs.BYTES))
+    val executionBuilderLength: Long = Longs.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Longs.BYTES))
 
     numReadBytes += Longs.BYTES
 
-    val agreement = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
-      numReadBytes + agreementLength.toInt)).get
+    val executionBuilder = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
+      numReadBytes + executionBuilderLength.toInt)).get
 
-    numReadBytes += agreementLength.toInt
+    numReadBytes += executionBuilderLength.toInt
 
     val (parties: Map[PublicKey25519Proposition, Role],
     signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -75,7 +75,7 @@ object ContractCreationCompanion extends Serializer[ContractCreation] {
     timestamp: Long) = ContractTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    ContractCreation(agreement, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
+    ContractCreation(executionBuilder, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }

@@ -19,11 +19,11 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
 
   var UUID2BoxID = initialMap
 
-  var counter_1: Long = storage.get(ByteArrayWrapper("counter_1".getBytes)) match {
+  var counterOne: Long = storage.get(ByteArrayWrapper("counterOne".getBytes)) match {
     case Some(value_baw) => Longs.fromByteArray(value_baw.data)
     case None => 0L
   }
-  var counter_2: Long = storage.get(ByteArrayWrapper("counter_2".getBytes)) match {
+  var counterTwo: Long = storage.get(ByteArrayWrapper("counterTwo".getBytes)) match {
     case Some(value_baw) => Longs.fromByteArray(value_baw.data)
     case None => 0L
   }
@@ -33,26 +33,26 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
   }
 
 //  def insertNewStateBox(modifierId: ModifierId, v: Array[Byte]): Try[(UUID, Array[Byte])] = Try {
-//    var uuid = new UUID(counter_1, counter_2)
+//    var uuid = new UUID(counterOne, counterTwo)
 ////    update(modifierId, uuid, v)
-//    if (counter_2 == Long.MaxValue) {
-//      counter_2 = 0
-//      counter_1 += 1
+//    if (counterTwo == Long.MaxValue) {
+//      counterTwo = 0
+//      counterOne += 1
 //    }
 //    else {
-//      counter_2 += 1
+//      counterTwo += 1
 //    }
-//    updateWithCounters(modifierId, counter_1, counter_2, uuid, v)
+//    updateWithCounters(modifierId, counterOne, counterTwo, uuid, v)
 //    uuid -> v
 //  }
 //
-//  def updateWithCounters(modifierId: ModifierId, counter_1: Long, counter_2: Long, k:UUID, v: Array[Byte]): Unit =  {
+//  def updateWithCounters(modifierId: ModifierId, counterOne: Long, counterTwo: Long, k:UUID, v: Array[Byte]): Unit =  {
 //    val k_baw = StateBoxRegistry.uuid2baw(k)
 //    val v_baw = ByteArrayWrapper(v)
 //    storage.update(ByteArrayWrapper(modifierId),
 //      Seq(
-//        (ByteArrayWrapper(Sha256("counter_1".getBytes)), ByteArrayWrapper(Longs.toByteArray(counter_1))),
-//        (ByteArrayWrapper(Sha256("counter_2".getBytes)), ByteArrayWrapper(Longs.toByteArray(counter_2))),
+//        (ByteArrayWrapper(Sha256("counterOne".getBytes)), ByteArrayWrapper(Longs.toByteArray(counterOne))),
+//        (ByteArrayWrapper(Sha256("counterTwo".getBytes)), ByteArrayWrapper(Longs.toByteArray(counterTwo))),
 //        (k_baw, v_baw)
 //      )
 //    )
@@ -75,7 +75,7 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
 //    }
       match {
         case Success(_) =>
-        case Failure(e) => new Exception("Unable to insert in LSMStore")
+        case Failure(e) => new Exception("Unable to insert in StateBox registry")
       }
     UUID2BoxID += (k_baw -> v_baw)
   }

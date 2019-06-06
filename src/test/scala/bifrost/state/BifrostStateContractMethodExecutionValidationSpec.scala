@@ -1,6 +1,7 @@
 package bifrost.state
 
 import java.time.Instant
+import java.util.UUID
 
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract
@@ -58,6 +59,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     val stateBox: StateBox = StateBox(leadParty, 0L, Seq("a = 0"), true)
     val codeBox: CodeBox = CodeBox(leadParty, 1L, Seq("function add() { a = 2 + 2 }"))
 
+    val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+
+    val executionBox = ExecutionBox(leadParty, 2L, Seq(stateBoxUUID), Seq(codeBox.id))
+
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
 
     val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen().sample.get }).toMap
@@ -94,6 +99,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
       contractBox,
       stateBox,
       codeBox,
+      executionBox,
       methodName,
       parameters,
       parties.take(numInContract).map(t => t._2._2 -> t._1).toMap,

@@ -602,7 +602,7 @@ object CodeBoxSerializer {
 case class ExecutionBox(override val proposition: PublicKey25519Proposition,
                         override val nonce: Long,
                         value: Seq[UUID], //List of uuids of state boxes from SBR
-                        val codeBoxIds: Seq[Array[Byte]]
+                        codeBoxIds: Seq[Array[Byte]]
                         ) extends BifrostBox(proposition, nonce, value) {
 
   val typeOfBox: String = "ExecutionBox"
@@ -614,7 +614,7 @@ case class ExecutionBox(override val proposition: PublicKey25519Proposition,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "value" -> value.asJson,
-    "codeBoxIds" -> codeBoxIds.asJson,
+    "codeBoxIds" -> codeBoxIds.map(id => Base58.encode(id).asJson).asJson,
     "nonce" -> nonce.toString.asJson,
   ).asJson
 

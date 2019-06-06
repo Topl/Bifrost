@@ -1,14 +1,15 @@
 package bifrost.contract
 
+import bifrost.transaction.box.StateBox
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 
 import scala.util.Try
 
 /**
-  *
-  * @param terms                    an AgreementTerms object that specifies the specific compensation terms
-  * @param assetCode                the string identifier for this specific asset to be produced
+  * @param core                     The JavaScript program split into state and functions
+  * @param terms                    An AgreementTerms object that specifies the specific compensation terms
+  * @param assetCode                The string identifier for this specific asset to be produced
   */
 case class ExecutionBuilder(terms: AgreementTerms, assetCode: String, core: ProgramPreprocessor) {
 
@@ -35,6 +36,8 @@ object ExecutionBuilder {
   } yield {
     ExecutionBuilder(terms, assetCode, core)
   }
+
+  //def getStateBox: StateBox =
 
   def validate(a: ExecutionBuilder): Try[Unit] = Try {
 

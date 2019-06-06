@@ -1,5 +1,7 @@
 package bifrost
 
+import java.util.UUID
+
 import bifrost.blocks.BifrostBlock
 import bifrost.contract.Contract.Status.Status
 import bifrost.contract._
@@ -191,7 +193,11 @@ trait ValidGenerators extends BifrostGenerators {
     val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
     val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
-    val methodName = sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
+    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+
+    val executionBox = ExecutionBox(parties.head, 2L, Seq(stateUUID), Seq(codeBox.id))
+
+    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
       sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
@@ -245,6 +251,7 @@ trait ValidGenerators extends BifrostGenerators {
       contractBox,
       stateBox,
       codeBox,
+      executionBox,
       methodName,
       parameters,
       Map(sender._2._2 -> sender._1),

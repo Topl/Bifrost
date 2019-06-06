@@ -147,7 +147,7 @@ class TruffleSpec extends PropSpec
   property("Script should be parsed into a list of functions") {
 
     val functions = Seq(functionList(parsed))
-    functions shouldEqual Seq("function add() { a = 2 + 2 }")
+    functions shouldEqual Seq("add = function() { a = 2 + 2 }")
   }
 
 
@@ -158,10 +158,12 @@ class TruffleSpec extends PropSpec
   val jsre: Context = Context.create("js")
 
   val output = jsre.eval("js", testScript)
-  val outputSource = Source.sourceFor("output", output.asString())
-  val outputParser = new Parser(scriptEnv, outputSource, errManager)
-  val parsedOutput = parser.parse()
+  val outputBindings = jsre.getBindings("js")
+  //val outputSource = Source.sourceFor("output", output.asString())
+  //val outputParser = new Parser(scriptEnv, outputSource, errManager)
+  //val parsedOutput = parser.parse()
 
-  println(s"parsedOutput: ${parsedOutput.toString()}")
+  println(s"outputBindings: ${outputBindings.getMember("add")}")
+  //println(s"parsedOutput: ${parsedOutput.toString()}")
 
 }

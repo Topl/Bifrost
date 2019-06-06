@@ -4,10 +4,12 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 
+import java.util.UUID
+
 import bifrost.contract.{Contract, ExecutionBuilder}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.box.{CodeBox, ContractBox, ReputationBox, StateBox}
+import bifrost.transaction.box.{CodeBox, ContractBox, ExecutionBox, ReputationBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -156,6 +158,10 @@ class ContractTransactionSpec extends PropSpec
 
     val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
+    val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+
+    val executionBox = ExecutionBox(parties.head, 2L, Seq(stateBoxUUID), Seq(codeBox.id))
+
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
@@ -205,6 +211,7 @@ class ContractTransactionSpec extends PropSpec
       contractBox,
       stateBox,
       codeBox,
+      executionBox,
       methodName,
       parameters,
       Map(sender._2._2 -> sender._1),

@@ -436,6 +436,7 @@ trait BifrostGenerators extends CoreGenerators {
     contract <- contractBoxGen
     methodName <- stringGen
     stateBox <- stateBoxGen
+    executionBox <- executionBoxGen
     codeBox <- codeBoxGen
     parameters <- jsonArrayGen()
     sig <- signatureGen
@@ -449,6 +450,7 @@ trait BifrostGenerators extends CoreGenerators {
       contract,
       stateBox,
       codeBox,
+      executionBox,
       methodName,
       parameters,
       Map(sampleUntilNonEmpty(party) -> Gen.oneOf(Role.values.toSeq).sample.get),

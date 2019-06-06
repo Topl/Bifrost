@@ -8,21 +8,21 @@ import BifrostTransaction.Nonce
 import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ContractBox, PolyBox, StateBox}
+import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ContractBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ContractCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.transaction.serialization.AgreementCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, HCursor, Json}
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
 /**
   *
-  * //@param agreement          the Agreement object containing the terms for the proposed contract
+  * @param executionBuilder   the Agreement object containing the terms for the proposed contract
   * @param preInvestmentBoxes a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
   * @param parties            a mapping specifying which public key should correspond with which role for this contract
   * @param signatures         a mapping specifying the signatures by each public key for this transaction
@@ -31,7 +31,7 @@ import scala.util.Try
   * @param fees               a mapping specifying the amount each party is contributing to the fees
   * @param timestamp          the timestamp of this transaction
   */
-case class ContractCreation(agreement: ExecutionBuilder,
+case class ContractCreation(executionBuilder: ExecutionBuilder,
                             preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                             parties: Map[PublicKey25519Proposition, Role],
                             signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -66,7 +66,7 @@ case class ContractCreation(agreement: ExecutionBuilder,
     ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
-    AgreementCompanion.toBytes(agreement) ++
+    AgreementCompanion.toBytes(executionBuilder) ++
       parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
@@ -78,7 +78,7 @@ case class ContractCreation(agreement: ExecutionBuilder,
 
     val boxValue: Json = Map(
         "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
-        "agreement" -> agreement.json,
+        "executionBuilder" -> executionBuilder.json,
         "lastUpdated" -> timestamp.asJson
       ).asJson
 
@@ -96,43 +96,54 @@ case class ContractCreation(agreement: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
     val stateNonce = ContractTransaction.nonceFromDigest(
-      FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+      FastCryptographicHash("stateBox".getBytes
+        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
     val codeNonce = ContractTransaction.nonceFromDigest(
-      FastCryptographicHash("ContractCreation".getBytes
-        ++ agreement.core.code.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+      FastCryptographicHash("codeBox".getBytes
+        ++ executionBuilder.core.code.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0))
+    )
+    val execNonce = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("executionBuilder".getBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
 
-    val stateBox = StateBox(investorProp, stateNonce, agreement.core.variables, true)
-    val codeBox = CodeBox(investorProp, codeNonce, agreement.core.code)
+
+
+    val stateBox = StateBox(investorProp, stateNonce, executionBuilder.core.variables, true)
+    val codeBox = CodeBox(investorProp, codeNonce, executionBuilder.core.code)
+
+    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+
+    val executionBox = ExecutionBox(investorProp, execNonce, Seq(stateUUID), Seq(codeBox.id))
 
     val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
     val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
-    IndexedSeq(ContractBox(proposition, nonce, boxValue), stateBox, codeBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
+    IndexedSeq(ContractBox(proposition, nonce, boxValue), stateBox, codeBox, executionBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-    "agreement" -> agreement.json
+    "executionBuilder" -> executionBuilder.json
   )).asJson
 
   override lazy val serializer = ContractCreationCompanion
 
 //  println("BifrostTransaction")
-  //println(AgreementCompanion.toBytes(agreement).mkString(""))
+  //println(AgreementCompanion.toBytes(executionBuilder).mkString(""))
   //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
 //  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 //  println(preInvestmentBoxes)
   //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    AgreementCompanion.toBytes(agreement),
+    AgreementCompanion.toBytes(executionBuilder),
     parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
     unlockers.toArray.flatMap(_.closedBoxId),
     data.getBytes
@@ -150,7 +161,7 @@ object ContractCreation {
 
   def validate(tx: ContractCreation): Try[Unit] = Try {
 
-    val outcome = ExecutionBuilder.validate(tx.agreement)
+    val outcome = ExecutionBuilder.validate(tx.executionBuilder)
     require(outcome.isSuccess)
 
 
@@ -164,7 +175,7 @@ object ContractCreation {
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractCreation: Decoder[ContractCreation] = (c: HCursor) => for {
-    agreement <- c.downField("agreement").as[ExecutionBuilder]
+    executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawParties <- c.downField("parties").as[Map[String, String]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
@@ -174,7 +185,7 @@ object ContractCreation {
     data <- c.downField("data").as[String]
   } yield {
     val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
-    ContractCreation(agreement,
+    ContractCreation(executionBuilder,
       preInvestmentBoxes,
       commonArgs._1,
       commonArgs._2,

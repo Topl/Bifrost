@@ -115,7 +115,8 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val box = contractCreation.newBoxes.head.asInstanceOf[ContractBox]
         val stateBox = contractCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
         val codeBox = contractCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
-        val returnedPolyBoxes: Traversable[PolyBox] = contractCreation.newBoxes.tail.drop(2).map {
+        val executionBox = contractCreation.newBoxes.drop(3).head.asInstanceOf[ExecutionBox]
+        val returnedPolyBoxes: Traversable[PolyBox] = contractCreation.newBoxes.tail.drop(3).map {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
@@ -123,6 +124,7 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         val boxBytes = ContractBoxSerializer.toBytes(box)
         val stateBoxBytes = StateBoxSerializer.toBytes(stateBox)
         val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
+        val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -162,6 +164,12 @@ class BifrostStateContractCreationValidationSpec extends ContractSpec {
         })
 
         println(codeBox.json)
+
+        require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
+          case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+        })
+
+        println(executionBox.json)
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual

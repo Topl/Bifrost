@@ -44,12 +44,11 @@ class SBRSpec extends PropSpec
 //  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ".toArray[Byte])
 
   val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
-  val sbox_1: StateBox = StateBox(pubKey, 0L, Seq("a"), true)
-  val sbox_2: StateBox = StateBox(pubKey, 1L, Seq("b"), true)
+  val sboxOne: StateBox = StateBox(pubKey, 0L, Seq("a"), true)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, Seq("b"), true)
 
-  val uuid: UUID = UUID.randomUUID()
-
-  val uuid_2: UUID = UUID.randomUUID()
+  val uuid: UUID = UUID.nameUUIDFromBytes(sboxOne.id)
+  val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
 
 //  var history: BifrostHistory = generateHistory
   var sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings)
@@ -63,11 +62,11 @@ class SBRSpec extends PropSpec
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
       Seq(), 10L)
 
-    sbr.update(block.id, uuid, sbox_1.id)
+    sbr.update(block.id, uuid, sboxOne.id)
 
     //Should be able to access stateBoxID from sbr by UUID
     sbr.get(uuid).isSuccess shouldBe true
-    assert(sbr.get(uuid).get._2 sameElements(sbox_1.id))
+    assert(sbr.get(uuid).get._2 sameElements(sboxOne.id))
 
     Thread.sleep(1000)
 
@@ -78,11 +77,11 @@ class SBRSpec extends PropSpec
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
       Seq(), 10L)
 
-    sbr.update(block_2.id, uuid, sbox_2.id)
+    sbr.update(block_2.id, uuid, sboxTwo.id)
 
     //SBR should update correctly when replacing stateBoxID for same UUID
     sbr.get(uuid).isSuccess shouldBe true
-    assert(sbr.get(uuid).get._2 sameElements(sbox_2.id))
+    assert(sbr.get(uuid).get._2 sameElements(sboxTwo.id))
   }
 
   property("SBR should deterministically generate a new UUID for a new state box") {
@@ -98,7 +97,7 @@ class SBRSpec extends PropSpec
     val sbox_3: StateBox = StateBox(pubKey, 2L, Seq("c"), true)
     val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
     uuidAndBoxID.isSuccess shouldBe true
-    //    assert(uuidAndBoxID_2.get._1 == new UUID(0L, 0L))
+    //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 0L))
     assert(uuidAndBoxID.get._1 == UUID.nameUUIDFromBytes(sbox_3.id))
     assert(uuidAndBoxID.get._2 sameElements sbox_3.id)
 
@@ -112,11 +111,10 @@ class SBRSpec extends PropSpec
       Seq(), 10L)
 
     val sbox_4: StateBox = StateBox(pubKey, 3L, Seq("d"), true)
-    val uuidAndBoxID_2 = sbr.insertNewStateBox(block_4.id, sbox_4.id)
-    uuidAndBoxID_2.isSuccess shouldBe true
-//    assert(uuidAndBoxID_2.get._1 == new UUID(0L, 1L))
-    assert(uuidAndBoxID_2.get._1 == UUID.nameUUIDFromBytes(sbox_4.id))
-    assert(uuidAndBoxID_2.get._2 sameElements sbox_4.id)
+    val uuidAndBoxIDTwo = sbr.insertNewStateBox(block_4.id, sbox_4.id)
+    uuidAndBoxIDTwo.isSuccess shouldBe true
+//    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 1L))
+    assert(uuidAndBoxIDTwo.get._1 == UUID.nameUUIDFromBytes(sbox_4.id))
+    assert(uuidAndBoxIDTwo.get._2 sameElements sbox_4.id)
   }
-
 }

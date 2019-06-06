@@ -84,8 +84,10 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
 
     val stateBox = ???
     val codeBox = ???
+    val executionBox = ???
 
-    bifrostTransaction.ContractMethodExecution(contractBox, stateBox, codeBox, methodName, parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
+    bifrostTransaction.ContractMethodExecution(contractBox, stateBox, codeBox, executionBox, methodName,
+      parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }
