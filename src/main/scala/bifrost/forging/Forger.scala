@@ -144,7 +144,7 @@ object Forger extends ScorexLogging {
     log.debug("in the iteration function")
     val successfulHits = boxKeys.map { boxKey =>
       val h = hit(parent)(boxKey._1)
-      log.debug(s"Hit value: $h")
+      //log.debug(s"Hit value: $h")
       (boxKey, h)
     }.filter(t => BigInt(t._2) < BigInt(t._1._1.value) * target)
 
