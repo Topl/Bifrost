@@ -24,8 +24,10 @@ class ContractMethodSpec extends PropSpec
         println(s">>>>>>>>>>> contract: ")
         val program = c.agreementObj.core.variables.foldLeft("")((a,b) => a ++ (b + "\n")) ++ c.agreementObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
-        val params = JsonObject.fromMap(
+        /*val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
+         */
+        val params = JsonObject.empty
 
         println(s"program: ${program}")
 

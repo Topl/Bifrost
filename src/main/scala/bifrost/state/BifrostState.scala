@@ -43,7 +43,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param version   : blockId used to identify each block. Also used for rollback
   * @param timestamp : timestamp of the block that results in this state
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -86,7 +86,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history)
+      BifrostState(storage, version, timestamp, history, stateBoxRegistry)
     }
   }
 
@@ -94,9 +94,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
+
+
     /*val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
       {
-        case "StateBox" => sb.asInstanceOf[StateBox]
+        case "StateBox" => ByteArrayWrapper(sb.)
       }
     }*/
 
@@ -120,12 +122,58 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history)
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
 
   }
+
+  def applyChanges(changes: GSC, newVersion: VersionTag, executionBox: ExecutionBox): Try[NVCT] = Try {
+
+
+
+    val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
+      {
+        case "StateBox" => sb.asInstanceOf[StateBox]
+      }
+    }
+
+    val stateBoxId = executionBox.value.zip(stateBoxesToAdd).map(usb => usb._1 -> usb._2.bytes)
+
+    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
+
+    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
+      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
+
+    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
+
+    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
+
+    storage.update(
+      ByteArrayWrapper(newVersion),
+      boxIdsToRemove,
+      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
+        timestamp)))
+    )
+
+    stateBoxId.foreach(sb => stateBoxRegistry.update(
+      newVersion,
+      sb._1,
+      sb._2
+    ))
+
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
+
+    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
+    newSt
+
+  }
+
 
   //noinspection ScalaStyle
   override def validate(transaction: TX): Try[Unit] = {
@@ -666,9 +714,9 @@ object BifrostState extends ScorexLogging {
         .data)
     }
 
-    //val sbr = StateBoxRegistry.readOrGenerate(settings)
+    val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
 
-    BifrostState(stateStorage, version, timestamp, history)
+    BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {

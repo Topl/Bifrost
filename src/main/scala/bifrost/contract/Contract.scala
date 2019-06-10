@@ -172,7 +172,6 @@ object Contract {
              (party: PublicKey25519Proposition)
              (args: JsonObject): String /*: Try[Either[Contract, Json]]*/ = /*Try*/ {
 
-    //TODO Incorporate args into method
     println(s"execute program: ${program}")
     val jsre: Context = Context.create("js")
     jsre.eval("js", program)
@@ -180,7 +179,9 @@ object Contract {
 
     println(s"execute state: ${state.getMemberKeys.forEach(a => println(a))}")
 
-    val methodNameJS: String = methodName + "()"
+    val params = args.values.foldLeft("")((a,b) => a + "," + b.toString)
+
+    val methodNameJS: String = methodName + "(" + params + ")"
 
     val methodEval = jsre.eval("js", methodNameJS)
 

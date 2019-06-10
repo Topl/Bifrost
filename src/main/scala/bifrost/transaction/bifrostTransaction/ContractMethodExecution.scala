@@ -4,12 +4,16 @@ import bifrost.contract.Contract
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import Role.Role
+import bifrost.BifrostApp
+import bifrost.forging.ForgingSettings
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}
 import bifrost.transaction.serialization.ContractMethodExecutionCompanion
 import bifrost.transaction.state.PrivateKey25519
 import com.google.common.primitives.{Bytes, Longs}
+import io.circe
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 
@@ -33,7 +37,16 @@ case class ContractMethodExecution(stateBox: StateBox,
   //lazy val proposition = MofNProposition(1, contract.parties.map(p => p._1.pubKeyBytes).toSet)
   val proposition = MofNProposition(1, executionBox.proposition.setOfPubKeyBytes)
 
-  val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
+  val forgingSettings = new ForgingSettings {
+    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
+  }
+
+  val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
+
+  val uuidStateBoxes = executionBox.value.map(v => sbr.get(v).get._2.asInstanceOf[StateBox])
+
+  //val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
+  val program: String = uuidStateBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ b)) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
 
   lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(stateBox.id)
 
