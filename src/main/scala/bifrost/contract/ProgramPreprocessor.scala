@@ -13,6 +13,8 @@ import io.circe.syntax._
 import bifrost.serialization.JsonSerializable
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
+import com.oracle.js.parser.ir.visitor.NodeVisitor
+import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
 import org.graalvm.polyglot.{Context, Value}
 import scorex.crypto.encode.{Base58, Base64}
@@ -234,10 +236,28 @@ object ProgramPreprocessor {
     val parser: Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
-    Seq(parsed.getBody.toString())
+
+    def varList(node: FunctionNode): Node = {
+
+      node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
+
+        override def enterVarNode(varNode: VarNode): Boolean = {
+          if (varNode.isInstanceOf[VarNode]) {
+            true
+          }
+          false
+        }
+
+        override def leaveVarNode(varNode: VarNode): VarNode = {
+          varNode
+        }
+      })
+    }
+
+    Seq(varList(parsed).toString)
   }
 
-  private def deriveFunctions(jsre: Context, name: String): List[String] = {
+  private def deriveFunctions(jsre: Context, name: String): Seq[String] = {
 
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
@@ -257,7 +277,17 @@ object ProgramPreprocessor {
     val parser: Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
-    List(parsed.getBody.toString())
+    def functionList(node: FunctionNode): Node = {
+
+      node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
+
+        override def leaveFunctionNode(functionNode: FunctionNode): Node = {
+          functionNode
+        }
+      })
+    }
+
+    Seq(functionList(parsed).toString)
   }
 
   implicit val system = ActorSystem("QuickStart")

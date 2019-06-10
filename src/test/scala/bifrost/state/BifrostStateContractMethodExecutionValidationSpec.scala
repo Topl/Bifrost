@@ -10,10 +10,10 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box._
 import bifrost.transaction.bifrostTransaction.{ContractMethodExecution, Role}
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
@@ -32,9 +32,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     methodName <- Gen.oneOf(validContractMethods)
     parameters <- jsonGen()
     timestamp <- positiveLongGen.map(_ / 3)
-    //deliveredQuantity <- positiveLongGen
-    //effDelta <- positiveLongGen.map(_ / 3)
-    //expDelta <- positiveLongGen.map(_ / 3)
+    data <- stringGen
   } yield {
     println(s">>>>> yield")
 
@@ -49,11 +47,6 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
-    val contractBox = createContractBox(
-      agreement,
-      parties.take(3).map(t => t._2._2 -> t._1).toMap
-    )
-
     val leadParty = parties.head._2._2
 
     val stateBox: StateBox = StateBox(leadParty, 0L, Seq("a = 0"), true)
@@ -61,9 +54,11 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 
-    val executionBox = ExecutionBox(leadParty, 2L, Seq(stateBoxUUID), Seq(codeBox.id))
-
     val senders = parties.slice(3 - numInContract, 3 - numInContract + num)
+
+    val proposition = MofNProposition(1, senders.map(_._2._2.pubKeyBytes).toSet)
+
+    val executionBox: ExecutionBox = ExecutionBox(proposition, 2L, Seq(stateBoxUUID), Seq(codeBox.id))
 
     val feePreBoxes = senders.map(s => s._2._2 -> (0 until positiveTinyIntGen.sample.get).map { _ => preFeeBoxGen().sample.get }).toMap
     val feeBoxIdKeyPairs: Map[ByteArrayWrapper, PublicKey25519Proposition] = feePreBoxes.flatMap { case (prop, v) =>
@@ -76,16 +71,16 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     }
 
     val hashNoNonces = FastCryptographicHash(
-      contractBox.id ++
+      executionBox.id ++
         methodName.getBytes ++
         parties.take(numInContract).flatMap(_._2._2.pubKeyBytes) ++
         //parameters.noSpaces.getBytes ++
-        (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1.data)) ++
+        (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1.data)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, amount) => prop.pubKeyBytes ++ Longs.toByteArray(amount) }
     )
 
-    val messageToSign = FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces)
+    val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val sigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = allKeyPairs.take(numInContract).map(t => t._2 -> PrivateKey25519Companion.sign(t._1, messageToSign))
     var extraSigs: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = IndexedSeq()
 
@@ -93,10 +88,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
       extraSigs = parties.slice(3, parties.length).map(t => t._2._2 -> PrivateKey25519Companion.sign(t._2._1, messageToSign))
     }
 
-    val data = ""
-
     ContractMethodExecution(
-      contractBox,
       stateBox,
       codeBox,
       executionBox,
@@ -111,7 +103,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     )
   }
 
-  property("A block with valid CME will result in a correct contract entry " +
+  property("A block with valid CME will result in a correctly updated StateBox entry " +
     "and updated poly boxes in the LSMStore") {
 
     forAll(semanticallyValidContractMethodExecutionGen) {
@@ -135,7 +127,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val box = cme
           .newBoxes
           .head
-          .asInstanceOf[ContractBox]
+          .asInstanceOf[StateBox]
 
         val deductedFeeBoxes: Traversable[PolyBox] = cme
           .newBoxes
@@ -145,10 +137,10 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
             case _ => throw new Exception("Was expecting PolyBoxes but found something else")
           }
 
-        val boxBytes = ContractBoxSerializer.toBytes(box)
+        val boxBytes = StateBoxSerializer.toBytes(box)
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes + cme.contractBox,
+          preExistingPolyBoxes + cme.executionBox + cme.stateBox + cme.codeBox,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec
@@ -165,36 +157,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           case None => false
         })
 
-        cme.newBoxes.head shouldBe a[ContractBox]
-        val contractJson = cme
-          .newBoxes
-          .head
-          .asInstanceOf[ContractBox]
-          .json
-
-        val newContractTimestamp = contractJson
-          .asObject
-          .flatMap(_.apply("value"))
-          .flatMap(_.asObject.get("lastUpdated"))
-          .map(_.as[Long] match {
-            case Right(timestamp: Long) => timestamp
-            case Left(_) =>
-              throw new JsonParsingException("Was unable to convert lastUpdated to long in new contract")
-          })
-          .get
-
-        val oldContractTimestamp = cme
-          .contractBox
-          .json
-          .asObject
-          .flatMap(_.apply("value"))
-          .flatMap(_.asObject.get("lastUpdated"))
-          .map(_.as[Long] match {
-            case Right(timestamp: Long) => timestamp
-            case Left(_) =>
-              throw new JsonParsingException("Was unable to convert lastUpdated to long in old contract")
-          })
-          .get
+        cme.newBoxes.head shouldBe a[StateBox]
 
         Contract
           .execute(cme.program, cme.methodName)(cme.parties.toIndexedSeq(0)._1)(cme.parameters.asObject.get)
@@ -260,7 +223,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.executionBox + contractMethodExecution.stateBox + contractMethodExecution.codeBox,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec
@@ -275,7 +238,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe "Signature is invalid for contractBox"
+        newState.failed.get.getMessage shouldBe "Signature is invalid for ExecutionBox"
     }
   }
 
@@ -341,7 +304,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
     }*/
   //}
 
-  property("Attempting to validate a CME with a timestamp that is before the last block timestamp should error") {
+  /*property("Attempting to validate a CME with a timestamp that is before the last block timestamp should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       contractMethodExecution: ContractMethodExecution =>
 
@@ -362,7 +325,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.executionBox + contractMethodExecution.stateBox + contractMethodExecution.codeBox,
           contractMethodExecution.timestamp +
             Gen.choose(1L, Long.MaxValue - contractMethodExecution.timestamp - 1L).sample.get)
 
@@ -380,9 +343,9 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution attempts to write into the past"
     }
-  }
+  }*/
 
-  property("Attempting to validate a CME for a contract that doesn't exist should error") {
+  property("Attempting to validate a CME for a program that doesn't exist should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       contractMethodExecution: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -404,7 +367,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         val box = contractMethodExecution
           .newBoxes
           .head
-          .asInstanceOf[ContractBox]
+          .asInstanceOf[StateBox]
 
         val deductedFeeBoxes: Traversable[PolyBox] = contractMethodExecution
           .newBoxes
@@ -414,7 +377,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
             case _ => throw new Exception("Was expecting PolyBoxes but found something else")
           }
 
-        val boxBytes = ContractBoxSerializer.toBytes(box)
+        val boxBytes = StateBoxSerializer.toBytes(box)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -433,14 +396,14 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
           .get
 
         newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe s"Contract ${
-          Base58.encode(contractMethodExecution.contractBox
+        newState.failed.get.getMessage shouldBe s"Program ${
+          Base58.encode(contractMethodExecution.executionBox
             .id)
         } does not exist"
     }
   }
 
-  property("Attempting to validate a CME with a timestamp too far in the future should error") {
+  /*property("Attempting to validate a CME with a timestamp too far in the future should error") {
     forAll(semanticallyValidContractMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
       contractMethodExecution: ContractMethodExecution =>
         val preExistingPolyBoxes: Set[BifrostBox] = contractMethodExecution
@@ -459,7 +422,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.contractBox,
+          preExistingPolyBoxes ++ profileBoxes + contractMethodExecution.executionBox + contractMethodExecution.stateBox + contractMethodExecution.codeBox,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec
@@ -476,9 +439,9 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ContractMethodExecution timestamp is too far into the future"
     }
-  }
+  }*/
 
-  property("Attempting to validate a CME with nonexistent fee boxes should error") {
+  /*property("Attempting to validate a CME with nonexistent fee boxes should error") {
     forAll(semanticallyValidContractMethodExecutionGen) {
       contractMethodExecution: ContractMethodExecution =>
         val block = BifrostBlock(
@@ -499,7 +462,7 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          profileBoxes + contractMethodExecution.contractBox,
+          profileBoxes + contractMethodExecution.executionBox + contractMethodExecution.stateBox + contractMethodExecution.codeBox,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec
@@ -516,5 +479,5 @@ class BifrostStateContractMethodExecutionValidationSpec extends ContractSpec {
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "Insufficient balances provided for fees"
     }
-  }
+  }*/
 }

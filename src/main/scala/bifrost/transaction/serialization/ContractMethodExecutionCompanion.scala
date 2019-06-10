@@ -29,10 +29,8 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
       typeBytes,
       Ints.toByteArray(cme.methodName.getBytes.length),
       Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
-      Ints.toByteArray(cme.contractBox.bytes.length),
       cme.methodName.getBytes,
       cme.parameters.noSpaces.getBytes,
-      cme.contractBox.bytes,
       ContractTransactionCompanion.commonToBytes(cme),
       cme.data.getBytes,
       Ints.toByteArray(cme.data.getBytes.length)
@@ -86,7 +84,7 @@ object ContractMethodExecutionCompanion extends Serializer[ContractMethodExecuti
     val codeBox = ???
     val executionBox = ???
 
-    bifrostTransaction.ContractMethodExecution(contractBox, stateBox, codeBox, executionBox, methodName,
+    bifrostTransaction.ContractMethodExecution(stateBox, codeBox, executionBox, methodName,
       parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 

@@ -15,8 +15,7 @@ import io.circe.syntax._
 
 import scala.util.{Failure, Success, Try}
 
-case class ContractMethodExecution(contractBox: ContractBox,
-                                   stateBox: StateBox,
+case class ContractMethodExecution(stateBox: StateBox,
                                    codeBox: CodeBox,
                                    executionBox: ExecutionBox,
                                    methodName: String,
@@ -31,45 +30,18 @@ case class ContractMethodExecution(contractBox: ContractBox,
 
   override type M = ContractMethodExecution
 
+  //lazy val proposition = MofNProposition(1, contract.parties.map(p => p._1.pubKeyBytes).toSet)
+  val proposition = MofNProposition(1, executionBox.proposition.setOfPubKeyBytes)
 
   val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
 
-  lazy val contract: Contract = {
-    val valueObject: Map[String, Json] = contractBox.json
-      .asObject
-      .map(_.toMap)
-      .get
+  lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(stateBox.id)
 
-
-    val cursor: HCursor = valueObject("value").hcursor
-    val time = cursor.fields
-    val timeUpdatedContract = {
-
-//      println(s"valueObject value: ${valueObject("value")}")
-//      println(s"valueObject: ${valueObject}")
-//      println(s"${contractBox.json.asObject.map(b => b.toMap)}")
-//      println(s"contractBox.json: ${cursor.downN(1).downField("value").as[Json]}")
-
-      cursor.downField("lastUpdated").withFocus(x => timestamp.asJson).top.get
-
-      /*contractBox.json
-        .asObject
-        .flatMap(_.apply("value"))
-        .flatMap(_.asObject)
-        .map(_.toMap)
-        .get + ("lastUpdated" -> timestamp.asJson)*/
-    }
-
-    Contract(timeUpdatedContract.asJson, contractBox.id)
-  }
-
-  lazy val proposition = MofNProposition(1, contract.parties.map(p => p._1.pubKeyBytes).toSet)
-
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(contractBox.id) ++ feeBoxIdKeyPairs.map(_._1)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
-      override val closedBoxId: Array[Byte] = contractBox.id
+      override val closedBoxId: Array[Byte] = stateBoxIds.head
       override val boxKey: Proof[MofNProposition] = MultiSignature25519(parties.map(p => signatures.get(p._1) match {
         case Some(sig) => sig
         case None => Signature25519(Array[Byte]())
@@ -78,7 +50,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
-    contractBox.id ++
+    executionBox.id ++
       methodName.getBytes ++
       parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       parameters.noSpaces.getBytes ++
@@ -136,13 +108,12 @@ case class ContractMethodExecution(contractBox: ContractBox,
       IndexedSeq(contractResult) ++ deductedFeeBoxes(hashNoNonces) :+ boxesFromContract.get
     else*/
 
-    val updatedStateBox: StateBox = StateBox(parties.toIndexedSeq(0)._1, nonce, Seq(contractResult), true)
+    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, Seq(contractResult), true)
 
       IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "contractBox" -> newBoxes.filter(b => b.isInstanceOf[ContractBox]).head.json,
     "stateBox" -> stateBox.json,
     "codeBox" -> codeBox.json,
     "methodName" -> methodName.asJson,
@@ -152,7 +123,7 @@ case class ContractMethodExecution(contractBox: ContractBox,
   override lazy val serializer = ContractMethodExecutionCompanion
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces),
+    FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
     data.getBytes
   )
 
@@ -172,7 +143,7 @@ object ContractMethodExecution {
 
     require(tx.parties forall { case (proposition, _) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign) &&
-        MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.contractBox.proposition, tx.messageToSign)
+        MultiSignature25519(Set(tx.signatures(proposition))).isValid(tx.executionBox.proposition, tx.messageToSign)
     }, "Either an invalid signature was submitted or the party listed was not part of the contract.")
 
     require(tx.parties.size == 1, "An incorrect number (not equal to 1) of parties provided signatures.")
@@ -180,7 +151,6 @@ object ContractMethodExecution {
   }.flatMap(_ => ContractTransaction.commonValidation(tx))
 
   implicit val decodeContractMethodExecution: Decoder[ContractMethodExecution] = (c: HCursor) => for {
-    contractBox <- c.downField("contractBox").as[ContractBox]
     stateBox <- c.downField("stateBox").as[StateBox]
     codeBox <- c.downField("codeBox").as[CodeBox]
     executionBox <- c.downField("executionBox").as[ExecutionBox]
@@ -194,7 +164,7 @@ object ContractMethodExecution {
     data <- c.downField("data").as[String]
   } yield {
     val commonArgs = ContractTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
-    ContractMethodExecution(contractBox,
+    ContractMethodExecution(
       stateBox,
       codeBox,
       executionBox,

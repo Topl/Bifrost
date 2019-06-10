@@ -160,7 +160,7 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validContractMethods: List[String] = List("add")
 
-  def createContractBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
+  /*def createContractBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
 
     val contractJson = Map(
       "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
@@ -172,7 +172,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
     ContractBox(proposition, sampleUntilNonEmpty(positiveLongGen), contract.json)
-  }
+  }*/
 
   lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
@@ -188,19 +188,17 @@ trait ValidGenerators extends BifrostGenerators {
     while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
     val agreement = agreementOpt.get
 
-    val contractBox = createContractBox(agreement, parties.zip(roles).toMap)
-
-    val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
-    val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
-
-    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
-
-    val executionBox = ExecutionBox(parties.head, 2L, Seq(stateUUID), Seq(codeBox.id))
-
     val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
 
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
       sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
+
+    val stateBox = StateBox(sender._2._2, 0L, Seq("var a = 0"), true)
+    val codeBox = CodeBox(sender._2._2, 1L, Seq("add = function() { a = 2 + 2 }"))
+
+    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+    val executionBox = ExecutionBox(proposition, 2L, Seq(stateUUID), Seq(codeBox.id))
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
       sampleUntilNonEmpty(positiveTinyIntGen),
@@ -226,29 +224,31 @@ trait ValidGenerators extends BifrostGenerators {
     val senderFeePreBoxes = feePreBoxes(sender._2._2)
     val fees = Map(sender._2._2 -> senderFeePreBoxes.map(_._2).sum)
 
-    val parameters = agreement
+    /*val parameters = agreement
       .core
       .registry
       .keys
       .map(k => k -> "".asJson)
       .toMap
       .asJson
+     */
+
+    val parameters = {}.asJson
 
     val hashNoNonces = FastCryptographicHash(
-      contractBox.id ++
+      executionBox.id ++
         methodName.getBytes ++
         sender._2._2.pubKeyBytes ++
         parameters.noSpaces.getBytes ++
-        (contractBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
+        (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-    val messageToSign = Bytes.concat(FastCryptographicHash(contractBox.value.noSpaces.getBytes ++ hashNoNonces), data.getBytes)
+    val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
     bifrostTransaction.ContractMethodExecution(
-      contractBox,
       stateBox,
       codeBox,
       executionBox,

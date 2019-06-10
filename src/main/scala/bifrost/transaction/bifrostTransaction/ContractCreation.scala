@@ -72,6 +72,18 @@ case class ContractCreation(executionBuilder: ExecutionBuilder,
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
+  lazy val newStateBoxes: Traversable[StateBox] = {
+      val stateNonce = ContractTransaction.nonceFromDigest(
+        FastCryptographicHash("stateBox".getBytes
+        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0))
+      )
+
+    val stateBox = StateBox(parties.head._1, stateNonce, executionBuilder.core.variables, true)
+    IndexedSeq(stateBox)
+  }
+
   override lazy val newBoxes: Traversable[BifrostBox] = {
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ContractTransaction.nonceFromDigest(digest)
@@ -95,12 +107,7 @@ case class ContractCreation(executionBuilder: ExecutionBuilder,
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
-    val stateNonce = ContractTransaction.nonceFromDigest(
-      FastCryptographicHash("stateBox".getBytes
-        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
+
     val codeNonce = ContractTransaction.nonceFromDigest(
       FastCryptographicHash("codeBox".getBytes
         ++ executionBuilder.core.code.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
@@ -114,18 +121,25 @@ case class ContractCreation(executionBuilder: ExecutionBuilder,
     )
 
 
+    val stateNonce = ContractTransaction.nonceFromDigest(
+      FastCryptographicHash("stateBox".getBytes
+        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0))
+    )
 
-    val stateBox = StateBox(investorProp, stateNonce, executionBuilder.core.variables, true)
-    val codeBox = CodeBox(investorProp, codeNonce, executionBuilder.core.code)
+    val stateBox = StateBox(parties.head._1, stateNonce, executionBuilder.core.variables, true)
 
-    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
-
-    val executionBox = ExecutionBox(investorProp, execNonce, Seq(stateUUID), Seq(codeBox.id))
+    val codeBox: Seq[CodeBox] = Seq(CodeBox(investorProp, codeNonce, executionBuilder.core.code))
+    val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
+    //val stateUUID: Seq[UUID] = newStateBoxes.map(sb => UUID.nameUUIDFromBytes(sb.id)).toSeq
+    val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id))
+    val executionBox = ExecutionBox(proposition, execNonce, stateUUIDs, codeBoxIDs)
 
     val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
     val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
 
-    IndexedSeq(ContractBox(proposition, nonce, boxValue), stateBox, codeBox, executionBox) ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
+    IndexedSeq(executionBox, stateBox) ++ codeBox ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

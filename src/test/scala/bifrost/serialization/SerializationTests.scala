@@ -137,7 +137,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ExecutionBox Serialization") {
+  /*property("ExecutionBox Serialization") {
     forAll(executionBoxGen) {
       b: ExecutionBox =>
         val json = b.json
@@ -149,7 +149,7 @@ class SerializationTests extends PropSpec
         json.as[ExecutionBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
-  }
+  }*/
 
   property("Agreement Serialization") {
     forAll(validAgreementGen()) {
@@ -212,7 +212,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ContractMethodExecution Serialization") {
+  /*property("ContractMethodExecution Serialization") {
     forAll(contractMethodExecutionGen) {
       c: ContractMethodExecution =>
         val parsed = ContractTransactionCompanion
@@ -222,7 +222,7 @@ class SerializationTests extends PropSpec
         ContractTransactionCompanion.toBytes(parsed) sameElements
           ContractTransactionCompanion.toBytes(c) shouldBe true
     }
-  }
+  }*/
 
   property("ProfileTransaction Serialization") {
     forAll(profileTxGen) {

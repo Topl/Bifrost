@@ -137,7 +137,7 @@ class TruffleSpec extends PropSpec
     println(parsed.getBody.getStatements)
   }
 
-  property("Script should be parsed into a list of variables") {
+  /*property("Script should be parsed into a list of variables") {
 
     val variables = Seq(varList(parsed).toString)
     variables shouldEqual Seq("var a = 0")
@@ -148,7 +148,7 @@ class TruffleSpec extends PropSpec
 
     val functions = Seq(functionList(parsed))
     functions shouldEqual Seq("add = function() { a = 2 + 2 }")
-  }
+  }*/
 
 
 

@@ -30,7 +30,7 @@ class BloomFilterSpec extends PropSpec
     set shouldEqual BitSet(10, 138, 201)
   }
 
-  property("Checking bloom filter for specific transactions") {
+  /*property("Checking bloom filter for specific transactions") {
     val tx: AssetCreation = AssetCreation.createAndApply(BifrostStateSpec.gw,
     IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 10L)),
     0L,
@@ -63,5 +63,5 @@ class BloomFilterSpec extends PropSpec
     txs.head.bytes sameElements tx.bytes shouldBe true
 
 
-  }
+  }*/
 }

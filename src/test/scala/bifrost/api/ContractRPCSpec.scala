@@ -248,7 +248,7 @@ class ContractRPCSpec extends WordSpec
     var hubSig = ""
     var producerSig = ""
 
-    "Get ContractCreation Signature" in {
+    /*"Get ContractCreation Signature" in {
       val requestBody = ByteString(contractBodyTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
@@ -303,7 +303,7 @@ class ContractRPCSpec extends WordSpec
 
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
       view().pool.remove(txInstance)
-    }
+    }*/
 
    /* "Create the Contract" in {
       val requestBodyJson = parse(contractBodyTemplate).getOrElse(Json.Null)

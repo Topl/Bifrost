@@ -254,14 +254,14 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
-    proposition <- propositionGen
+    proposition <- oneOfNPropositionGen
     codeBox_1 <- codeBoxGen
     codeBox_2 <- codeBoxGen
     nonce <- positiveLongGen
     stateBox_1 <- stateBoxGen
     stateBox_2 <- stateBoxGen
   } yield {
-    ExecutionBox(proposition,
+    ExecutionBox(proposition._2,
                   nonce,
                   Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
                       UUID.nameUUIDFromBytes(stateBox_2.id)),
@@ -433,7 +433,6 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
-    contract <- contractBoxGen
     methodName <- stringGen
     stateBox <- stateBoxGen
     executionBox <- executionBoxGen
@@ -447,7 +446,6 @@ trait BifrostGenerators extends CoreGenerators {
     data <- stringGen
   } yield {
     ContractMethodExecution(
-      contract,
       stateBox,
       codeBox,
       executionBox,

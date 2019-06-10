@@ -18,6 +18,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.settings.Settings
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -55,6 +56,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   type GSC = BifrostState.GSC
   type BSC = BifrostState.BSC
 
+
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
@@ -91,6 +93,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
+
+    /*val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
+      {
+        case "StateBox" => sb.asInstanceOf[StateBox]
+      }
+    }*/
 
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
@@ -394,17 +402,15 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
 
-    val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
+    val executionBoxBytes = storage.get(ByteArrayWrapper(cme.executionBox.id))
 
-    /* Contract exists */
-    if (contractBytes.isEmpty) {
-      throw new TransactionValidationException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist")
+    /* Program exists */
+    if (executionBoxBytes.isEmpty) {
+      throw new TransactionValidationException(s"Program ${Base58.encode(cme.executionBox.id)} does not exist")
     }
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-    val contractProposition: MofNProposition = contractBox.proposition
-    val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-    //val contractEffectiveTime: Long = contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
+    val executionBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
+    val contractProposition: MofNProposition =  executionBox.proposition
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
@@ -418,7 +424,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* This person belongs to contract */
     if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
-      throw new TransactionValidationException(s"Signature is invalid for contractBox")
+
+      println(s">>>>> contractProposition: ${contractProposition.toString}")
+      println(s">>>>> cme.signatures.keySet: ${cme.signatures.keySet}")
+      println(s">>>>> cme.parties.keySet ${cme.parties.keySet}")
+      throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
     /* ProfileBox exists for all attempted signers */
@@ -655,6 +665,8 @@ object BifrostState extends ScorexLogging {
         .get
         .data)
     }
+
+    //val sbr = StateBoxRegistry.readOrGenerate(settings)
 
     BifrostState(stateStorage, version, timestamp, history)
   }
