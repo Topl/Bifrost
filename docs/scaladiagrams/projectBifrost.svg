@@ -105,11 +105,11 @@
 <path fill="none" stroke="#000000" d="M706.9942,-431.8314C706.9942,-424.131 706.9942,-414.9743 706.9942,-406.4166"/>
 <polygon fill="#000000" stroke="#000000" points="710.4943,-406.4132 706.9942,-396.4133 703.4943,-406.4133 710.4943,-406.4132"/>
 </g>
-<!-- ContractTransaction -->
+<!-- ProgramTransaction -->
 <g id="node5" class="node">
-<title>ContractTransaction</title>
+<title>ProgramTransaction</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="4127.9942" cy="-450" rx="82.5854" ry="18"/>
-<text text-anchor="middle" x="4127.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractTransaction</text>
+<text text-anchor="middle" x="4127.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransaction</text>
 </g>
 <!-- BifrostTransaction -->
 <g id="node6" class="node">
@@ -117,9 +117,9 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="4376.9942" cy="-378" rx="76.8869" ry="18"/>
 <text text-anchor="middle" x="4376.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransaction</text>
 </g>
-<!-- ContractTransaction&#45;&gt;BifrostTransaction -->
+<!-- ProgramTransaction&#45;&gt;BifrostTransaction -->
 <g id="edge3" class="edge">
-<title>ContractTransaction&#45;&gt;BifrostTransaction</title>
+<title>ProgramTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M4177.7846,-435.6028C4218.4697,-423.8384 4276.0457,-407.1899 4318.8438,-394.8146"/>
 <polygon fill="#000000" stroke="#000000" points="4319.9269,-398.1449 4328.5611,-392.0048 4317.9824,-391.4203 4319.9269,-398.1449"/>
 </g>
@@ -435,11 +435,11 @@
 <path fill="none" stroke="#000000" d="M14584.9942,-431.8314C14584.9942,-424.131 14584.9942,-414.9743 14584.9942,-406.4166"/>
 <polygon fill="#000000" stroke="#000000" points="14588.4943,-406.4132 14584.9942,-396.4133 14581.4943,-406.4133 14588.4943,-406.4132"/>
 </g>
-<!-- ContractBox -->
+<!-- ProgramBox -->
 <g id="node32" class="node">
-<title>ContractBox</title>
+<title>ProgramBox</title>
 <ellipse fill="#deb887" stroke="#000000" cx="14690.9942" cy="-378" rx="55.7903" ry="18"/>
-<text text-anchor="middle" x="14690.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractBox</text>
+<text text-anchor="middle" x="14690.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramBox</text>
 </g>
 <!-- BifrostBox -->
 <g id="node33" class="node">
@@ -447,9 +447,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="14813.9942" cy="-306" rx="50.0912" ry="18"/>
 <text text-anchor="middle" x="14813.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostBox</text>
 </g>
-<!-- ContractBox&#45;&gt;BifrostBox -->
+<!-- ProgramBox&#45;&gt;BifrostBox -->
 <g id="edge21" class="edge">
-<title>ContractBox&#45;&gt;BifrostBox</title>
+<title>ProgramBox&#45;&gt;BifrostBox</title>
 <path fill="none" stroke="#000000" d="M14717.9871,-362.1993C14735.8133,-351.7645 14759.3584,-337.982 14778.6701,-326.6776"/>
 <polygon fill="#000000" stroke="#000000" points="14780.6252,-329.5887 14787.4872,-321.5163 14777.0889,-323.5476 14780.6252,-329.5887"/>
 </g>
@@ -669,27 +669,27 @@
 <path fill="none" stroke="#000000" d="M224.0841,-360.2022C230.9687,-351.506 239.3756,-340.8867 246.9177,-331.3598"/>
 <polygon fill="#000000" stroke="#000000" points="249.8002,-333.3575 253.2631,-323.3446 244.3119,-329.0126 249.8002,-333.3575"/>
 </g>
-<!-- ContractApiRoute -->
+<!-- ProgramApiRoute -->
 <g id="node51" class="node">
-<title>ContractApiRoute</title>
+<title>ProgramApiRoute</title>
 <ellipse fill="#deb887" stroke="#000000" cx="4530.9942" cy="-234" rx="75.2868" ry="18"/>
-<text text-anchor="middle" x="4530.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractApiRoute</text>
+<text text-anchor="middle" x="4530.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramApiRoute</text>
 </g>
-<!-- ContractApiRoute&#45;&gt;ApiRouteWithView -->
+<!-- ProgramApiRoute&#45;&gt;ApiRouteWithView -->
 <g id="edge34" class="edge">
-<title>ContractApiRoute&#45;&gt;ApiRouteWithView</title>
+<title>ProgramApiRoute&#45;&gt;ApiRouteWithView</title>
 <path fill="none" stroke="#000000" d="M4585.5147,-221.4586C4638.801,-209.201 4720.0254,-190.5168 4777.1715,-177.3714"/>
 <polygon fill="#000000" stroke="#000000" points="4778.2324,-180.7188 4787.1932,-175.066 4776.6631,-173.897 4778.2324,-180.7188"/>
 </g>
-<!-- ContractApiRoute&#45;&gt;ScorexLogging -->
+<!-- ProgramApiRoute&#45;&gt;ScorexLogging -->
 <g id="edge35" class="edge">
-<title>ContractApiRoute&#45;&gt;ScorexLogging</title>
+<title>ProgramApiRoute&#45;&gt;ScorexLogging</title>
 <path fill="none" stroke="#000000" d="M4477.9207,-221.0646C4467.7134,-219.0213 4457.0657,-217.1924 4446.9942,-216 4233.2178,-190.6903 2687.6674,-168.0017 2327.0701,-163.0149"/>
 <polygon fill="#000000" stroke="#000000" points="2327.0489,-159.5144 2317.0015,-162.876 2326.9523,-166.5137 2327.0489,-159.5144"/>
 </g>
-<!-- ContractApiRoute&#45;&gt;ActorRefFactory -->
+<!-- ProgramApiRoute&#45;&gt;ActorRefFactory -->
 <g id="edge33" class="edge">
-<title>ContractApiRoute&#45;&gt;ActorRefFactory</title>
+<title>ProgramApiRoute&#45;&gt;ActorRefFactory</title>
 <path fill="none" stroke="#000000" d="M4563.4431,-217.6621C4583.9206,-207.3518 4610.5626,-193.9376 4632.5615,-182.8613"/>
 <polygon fill="#000000" stroke="#000000" points="4634.316,-185.8965 4641.6737,-178.2733 4631.168,-179.6443 4634.316,-185.8965"/>
 </g>
@@ -1167,15 +1167,15 @@
 <path fill="none" stroke="#000000" d="M8784.6382,-437.2339C8795.3276,-435.1751 8806.4699,-433.297 8816.9942,-432 9051.8139,-403.0603 9795.7902,-384.0591 10003.6059,-379.2199"/>
 <polygon fill="#000000" stroke="#000000" points="10003.7511,-382.7176 10013.6674,-378.9869 10003.589,-375.7194 10003.7511,-382.7176"/>
 </g>
-<!-- ContractCreationCompanion -->
+<!-- ProgramCreationCompanion -->
 <g id="node97" class="node">
-<title>ContractCreationCompanion</title>
+<title>ProgramCreationCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="8937.9942" cy="-450" rx="112.3801" ry="18"/>
-<text text-anchor="middle" x="8937.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractCreationCompanion</text>
+<text text-anchor="middle" x="8937.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramCreationCompanion</text>
 </g>
-<!-- ContractCreationCompanion&#45;&gt;Serializer -->
+<!-- ProgramCreationCompanion&#45;&gt;Serializer -->
 <g id="edge78" class="edge">
-<title>ContractCreationCompanion&#45;&gt;Serializer</title>
+<title>ProgramCreationCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M9017.2696,-437.2184C9031.4675,-435.2391 9046.1477,-433.3931 9059.9942,-432 9418.6895,-395.9127 9852.5069,-382.8331 10003.2545,-379.1854"/>
 <polygon fill="#000000" stroke="#000000" points="10003.7004,-382.6759 10013.6142,-378.9389 10003.5338,-375.6779 10003.7004,-382.6759"/>
 </g>
@@ -1575,15 +1575,15 @@
 <path fill="none" stroke="#000000" d="M19137.4209,-435.256C19120.6096,-425.1692 19098.0173,-411.6138 19079.0353,-400.2247"/>
 <polygon fill="#000000" stroke="#000000" points="19080.7014,-397.1426 19070.3257,-394.9989 19077.0999,-403.1451 19080.7014,-397.1426"/>
 </g>
-<!-- ContractBoxSerializer -->
+<!-- ProgramBoxSerializer -->
 <g id="node128" class="node">
-<title>ContractBoxSerializer</title>
+<title>ProgramBoxSerializer</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="10247.9942" cy="-450" rx="89.0842" ry="18"/>
-<text text-anchor="middle" x="10247.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractBoxSerializer</text>
+<text text-anchor="middle" x="10247.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramBoxSerializer</text>
 </g>
-<!-- ContractBoxSerializer&#45;&gt;Serializer -->
+<!-- ProgramBoxSerializer&#45;&gt;Serializer -->
 <g id="edge116" class="edge">
-<title>ContractBoxSerializer&#45;&gt;Serializer</title>
+<title>ProgramBoxSerializer&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M10205.8271,-434.0209C10174.3203,-422.0815 10131.4456,-405.8342 10099.9821,-393.9112"/>
 <polygon fill="#000000" stroke="#000000" points="10101.2005,-390.6301 10090.6091,-390.3593 10098.72,-397.1759 10101.2005,-390.6301"/>
 </g>
@@ -2181,15 +2181,15 @@
 <path fill="none" stroke="#000000" d="M18189.9942,-431.8314C18189.9942,-424.131 18189.9942,-414.9743 18189.9942,-406.4166"/>
 <polygon fill="#000000" stroke="#000000" points="18193.4943,-406.4132 18189.9942,-396.4133 18186.4943,-406.4133 18193.4943,-406.4132"/>
 </g>
-<!-- ContractMethodExecutionCompanion -->
+<!-- ProgramMethodExecutionCompanion -->
 <g id="node178" class="node">
-<title>ContractMethodExecutionCompanion</title>
+<title>ProgramMethodExecutionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="11965.9942" cy="-450" rx="145.6742" ry="18"/>
-<text text-anchor="middle" x="11965.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractMethodExecutionCompanion</text>
+<text text-anchor="middle" x="11965.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramMethodExecutionCompanion</text>
 </g>
-<!-- ContractMethodExecutionCompanion&#45;&gt;Serializer -->
+<!-- ProgramMethodExecutionCompanion&#45;&gt;Serializer -->
 <g id="edge181" class="edge">
-<title>ContractMethodExecutionCompanion&#45;&gt;Serializer</title>
+<title>ProgramMethodExecutionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M11864.8089,-436.9975C11846.9055,-435.0546 11828.4209,-433.278 11810.9942,-432 11468.7955,-406.9052 10370.443,-384.1428 10112.5589,-379.056"/>
 <polygon fill="#000000" stroke="#000000" points="10112.3906,-375.5521 10102.3237,-378.8547 10112.2529,-382.5508 10112.3906,-375.5521"/>
 </g>
@@ -2229,21 +2229,21 @@
 <path fill="none" stroke="#000000" d="M12167.5805,-436.9645C12152.1083,-434.9992 12136.0941,-433.2235 12120.9942,-432 11714.0057,-399.0237 10396.3133,-381.9608 10112.2727,-378.6158"/>
 <polygon fill="#000000" stroke="#000000" points="10112.2599,-375.1155 10102.2196,-378.4981 10112.1779,-382.115 10112.2599,-375.1155"/>
 </g>
-<!-- InvalidProvidedContractArgumentsException -->
+<!-- InvalidProvidedProgramArgumentsException -->
 <g id="node182" class="node">
-<title>InvalidProvidedContractArgumentsException</title>
+<title>InvalidProvidedProgramArgumentsException</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="3662.9942" cy="-306" rx="172.7694" ry="18"/>
-<text text-anchor="middle" x="3662.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">InvalidProvidedContractArgumentsException</text>
+<text text-anchor="middle" x="3662.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">InvalidProvidedProgramArgumentsException</text>
 </g>
-<!-- InvalidProvidedContractArgumentsException&#45;&gt;String -->
+<!-- InvalidProvidedProgramArgumentsException&#45;&gt;String -->
 <g id="edge185" class="edge">
-<title>InvalidProvidedContractArgumentsException&#45;&gt;String</title>
+<title>InvalidProvidedProgramArgumentsException&#45;&gt;String</title>
 <path fill="none" stroke="#000000" d="M3560.095,-291.4731C3447.873,-275.6299 3273.7155,-251.043 3194.6126,-239.8755"/>
 <polygon fill="#000000" stroke="#000000" points="3194.9381,-236.3869 3184.547,-238.4545 3193.9595,-243.3181 3194.9381,-236.3869"/>
 </g>
-<!-- InvalidProvidedContractArgumentsException&#45;&gt;Exception -->
+<!-- InvalidProvidedProgramArgumentsException&#45;&gt;Exception -->
 <g id="edge186" class="edge">
-<title>InvalidProvidedContractArgumentsException&#45;&gt;Exception</title>
+<title>InvalidProvidedProgramArgumentsException&#45;&gt;Exception</title>
 <path fill="none" stroke="#000000" d="M3598.2848,-289.3008C3547.5945,-276.2194 3478.1986,-258.3108 3432.2802,-246.4609"/>
 <polygon fill="#000000" stroke="#000000" points="3433.1256,-243.0645 3422.5682,-243.9546 3431.3764,-249.8424 3433.1256,-243.0645"/>
 </g>
@@ -2271,15 +2271,15 @@
 <path fill="none" stroke="#000000" d="M12690.4423,-436.9196C12673.6828,-434.959 12656.3401,-433.1964 12639.9942,-432 12123.5364,-394.1986 10436.9142,-380.6495 10112.315,-378.3631"/>
 <polygon fill="#000000" stroke="#000000" points="10112.25,-374.8626 10102.2257,-378.2926 10112.201,-381.8625 10112.25,-374.8626"/>
 </g>
-<!-- ContractTransactionCompanion -->
+<!-- ProgramTransactionCompanion -->
 <g id="node185" class="node">
-<title>ContractTransactionCompanion</title>
+<title>ProgramTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="13058.9942" cy="-450" rx="124.2781" ry="18"/>
-<text text-anchor="middle" x="13058.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ContractTransactionCompanion</text>
+<text text-anchor="middle" x="13058.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransactionCompanion</text>
 </g>
-<!-- ContractTransactionCompanion&#45;&gt;Serializer -->
+<!-- ProgramTransactionCompanion&#45;&gt;Serializer -->
 <g id="edge190" class="edge">
-<title>ContractTransactionCompanion&#45;&gt;Serializer</title>
+<title>ProgramTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M12973.2952,-436.919C12957.5948,-434.945 12941.3276,-433.178 12925.9942,-432 12349.308,-387.6965 10457.9646,-379.3333 10112.4409,-378.1638"/>
 <polygon fill="#000000" stroke="#000000" points="10112.2144,-374.6631 10102.2028,-378.1298 10112.1911,-381.6631 10112.2144,-374.6631"/>
 </g>

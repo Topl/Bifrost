@@ -52,7 +52,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
     case as: AssetBox => AssetBoxSerializer.toBytes(as)
-    case c: ContractBox => ContractBoxSerializer.toBytes(c)
+    case c: ProgramBox => ProgramBoxSerializer.toBytes(c)
     case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
@@ -70,7 +70,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
       case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
       case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
-      case "ContractBox" => ContractBoxSerializer.parseBytes(bytes)
+      case "ProgramBox" => ProgramBoxSerializer.parseBytes(bytes)
       case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
       case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case "StateBox" => StateBoxSerializer.parseBytes(bytes)
@@ -171,11 +171,11 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
   }
 }
 
-case class ContractBox(proposition: MofNProposition,
+case class ProgramBox(proposition: MofNProposition,
                        override val nonce: Long,
                        value: Json) extends BifrostBox(proposition, nonce, value) {
 
-  val typeOfBox = "ContractBox"
+  val typeOfBox = "ProgramBox"
 
   lazy val id: Array[Byte] = FastCryptographicHash(
     MofNPropositionSerializer.toBytes(proposition) ++
@@ -184,7 +184,7 @@ case class ContractBox(proposition: MofNProposition,
   )
 
   override lazy val json: Json = Map(
-    "type" -> "Contract".asJson,
+    "type" -> "Program".asJson,
     "id" -> Base58
       .encode(id)
       .asJson,
@@ -201,23 +201,25 @@ case class ContractBox(proposition: MofNProposition,
 
 }
 
-object ContractBox {
-  implicit val decodeContractBox: Decoder[ContractBox] = (c: HCursor) => for {
+object ProgramBox {
+  implicit val decodeProgramBox: Decoder[ProgramBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[Seq[String]]
     value <- c.downField("value").as[Json]
     nonce <- c.downField("nonce").as[Long]
   } yield {
     val preparedPubKey = proposition.map(t => Base58.decode(t).get).toSet
     val prop = MofNProposition(1, preparedPubKey)
-    ContractBox(prop, nonce, value)
+    ProgramBox(prop, nonce, value)
   }
 }
 
-object ContractBoxSerializer extends Serializer[ContractBox] {
+object ProgramBoxSerializer extends Serializer[ProgramBox] {
 
-  def toBytes(obj: ContractBox): Array[Byte] = {
+  def toBytes(obj: ProgramBox): Array[Byte] = {
 
-    val boxType = "ContractBox"
+    val boxType = "ProgramBox"
+
+    println(s"ProgramBox toBytes: ${obj.proposition}")
 
     Ints.toByteArray(boxType.getBytes.length) ++
       boxType.getBytes ++
@@ -227,7 +229,7 @@ object ContractBoxSerializer extends Serializer[ContractBox] {
       obj.value.noSpaces.getBytes
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[ContractBox] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[ProgramBox] = Try {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
 
@@ -251,7 +253,9 @@ object ContractBoxSerializer extends Serializer[ContractBox] {
       case Right(j: Json) => j
     }
 
-    ContractBox(proposition, nonce, value)
+    println(s"ProgramBox parseBytes: ${proposition}")
+
+    ProgramBox(proposition, nonce, value)
   }
 
 }
@@ -647,7 +651,7 @@ object ExecutionBoxSerializer {
 
   def toBytes(obj: ExecutionBox): Array[Byte] = {
     val boxType = "ExecutionBox"
-    Bytes.concat(
+    val bytes = Bytes.concat(
       Ints.toByteArray(boxType.getBytes.length),
       boxType.getBytes,
       Longs.toByteArray(obj.nonce),
@@ -662,8 +666,12 @@ object ExecutionBoxSerializer {
       obj.codeBoxIds.foldLeft(Array[Byte]()) {
         (arr, x) => arr ++ x
       },
-      MofNPropositionSerializer.toBytes(obj.proposition),
+      MofNPropositionSerializer.toBytes(obj.proposition)
     )
+    println(s"obj.proposition: ${obj.proposition}")
+    println(s"obj.codeBoxIds: ${obj.codeBoxIds}")
+    println(s"toBytes: ${bytes.length}")
+    bytes
   }
 
   def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
@@ -700,23 +708,24 @@ object ExecutionBoxSerializer {
     val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    var codeBoxIds = Seq[Array[Byte]]()
+    /*var codeBoxIds = Seq[Array[Byte]]()
     for (_ <- 1 to codeBoxIdsLength) {
-      codeBoxIds = codeBoxIds :+ obj.slice(takenBytes, takenBytes + 32)
-      takenBytes += 32
-    }
-
-    /*val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { i =>
-      val id: Array[Byte] = obj.slice(takenBytes * i, (takenBytes + 32) * i)
-      takenBytes += 32
-      id
+      codeBoxIds = codeBoxIds :+ obj.slice(takenBytes, takenBytes + Longs.BYTES * 4)
+      takenBytes += Longs.BYTES * 4
     }*/
+
+    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { i =>
+      val id: Array[Byte] = obj.slice(takenBytes * i, takenBytes + Longs.BYTES * i * 4)
+      id
+    }
+    takenBytes += Longs.BYTES * 4 * codeBoxIdsLength
 
     val numOfPk = Ints.fromByteArray(obj.slice(takenBytes + Ints.BYTES, takenBytes + 2 * Ints.BYTES))
     val endIndex = takenBytes + 2 * Ints.BYTES + numOfPk * Constants25519.PubKeyLength
-    val prop = MofNPropositionSerializer.parseBytes(obj.slice(takenBytes, endIndex)).get
+    val prop: MofNProposition = MofNPropositionSerializer.parseBytes(obj.slice(takenBytes, endIndex)).get
     takenBytes = endIndex
 
+    println(s"takenBytes: $takenBytes")
     println(s">>>>> $boxType: \n prop -> $prop \n nonce -> $nonce \n value -> ${value.toList} \n codeBoxIds -> ${codeBoxIds.toList}")
 
     ExecutionBox(prop, nonce, value, codeBoxIds)

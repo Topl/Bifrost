@@ -9,7 +9,7 @@ import scala.util.Try
 object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
 
   override def toBytes(m: BifrostTransaction): Array[Byte] = m match {
-    case c: ContractTransaction => ContractTransactionCompanion.toBytes(c)
+    case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
     case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
@@ -22,7 +22,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     typeStr match {
-      case "ContractTransaction" => ContractTransactionCompanion.parseBytes(bytes).get
+      case "ProgramTransaction" => ProgramTransactionCompanion.parseBytes(bytes).get
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
       case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get

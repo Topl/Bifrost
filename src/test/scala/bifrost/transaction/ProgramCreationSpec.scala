@@ -1,0 +1,145 @@
+package bifrost.transaction
+
+/**
+  * Created by cykoz on 5/11/2017.
+  */
+import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.ProgramCreation
+import bifrost.{BifrostGenerators, ValidGenerators}
+import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatest.{Matchers, PropSpec}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
+
+import scala.util.Success
+
+class ProgramCreationSpec extends PropSpec
+  with PropertyChecks
+  with GeneratorDrivenPropertyChecks
+  with Matchers
+  with BifrostGenerators
+  with ValidGenerators {
+
+  property("Generated ProgramCreation Tx should be valid") {
+    forAll(validProgramCreationGen) {
+      programCreation: ProgramCreation =>
+        val semanticValid = BifrostState.semanticValidity(programCreation)
+        semanticValid shouldBe a[Success[Unit]]
+    }
+  }
+
+  property("Tx with modified signature should be invalid") {
+    forAll(validProgramCreationGen) {
+      programCreation: ProgramCreation =>
+        val wrongSig: Array[Byte] =
+          (programCreation.signatures.head._2.bytes.head + 1).toByte +:
+            programCreation.signatures.head._2.bytes.tail
+
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
+          programCreation.signatures +
+            (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+
+        BifrostState.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
+    }
+  }
+/*
+  property("Tx with effective date in the past should be invalid") {
+
+    lazy val pastEffDateAgreementGen: Gen[Agreement] = for {
+      terms <- validAgreementTermsGen
+      programEndTime <- positiveLongGen
+      assetCode <- stringGen
+    } yield Agreement(terms, assetCode, Instant.now.toEpochMilli - 1L, programEndTime)
+
+    forAll(
+      for {
+        agreement <- pastEffDateAgreementGen
+        parties <- partiesGen
+        signature <- signatureGen
+        fee <- positiveLongGen
+        timestamp <- positiveLongGen
+        numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
+      } yield ProgramCreation(
+        agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
+    ) {
+      cc: ProgramCreation =>
+        val semanticValid = BifrostState.semanticValidity(cc)
+        semanticValid.isSuccess shouldBe false
+        semanticValid.failed.get shouldBe an[IllegalArgumentException]
+    }
+  }
+
+  property("Tx with expiration date in the past should be invalid") {
+    lazy val pastExpDateAgreementGen: Gen[Agreement] = for {
+      terms <- validAgreementTermsGen
+      programEffectiveTime <- positiveLongGen
+      assetCode <- stringGen
+    } yield Agreement(terms, assetCode, programEffectiveTime, Instant.now.toEpochMilli - 1L)
+
+    forAll(
+      for {
+        agreement <- pastExpDateAgreementGen
+        parties <- partiesGen
+        signature <- signatureGen
+        fee <- positiveLongGen
+        timestamp <- positiveLongGen
+        numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
+      } yield ProgramCreation(
+        agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
+    ) {
+      cc: ProgramCreation =>
+        val semanticValid = BifrostState.semanticValidity(cc)
+        semanticValid.isSuccess shouldBe false
+        semanticValid.failed.get shouldBe an[IllegalArgumentException]
+    }
+  }
+
+  property("Tx with valid expiration date before valid effective date should be invalid") {
+    lazy val expBeforeEffAgreementGen: Gen[Agreement] = for {
+      terms <- validAgreementTermsGen
+      assetCode <- stringGen
+    } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 1000L)
+
+    forAll(
+      for {
+        agreement <- expBeforeEffAgreementGen
+        parties <- partiesGen
+        signature <- signatureGen
+        fee <- positiveLongGen
+        timestamp <- positiveLongGen
+        numFeeBoxes <- positiveTinyIntGen
+        numInvestmentBoxes <- positiveTinyIntGen
+      } yield ProgramCreation(
+        agreement,
+        (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
+        parties,
+        parties.map { case (_, v) => (v, signatureGen.sample.get) },
+        parties.map { case (_, v) => v -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get } },
+        parties.map { case (_, v) => v -> positiveTinyIntGen.sample.get.toLong },
+        timestamp
+      )
+    ) {
+      cc: ProgramCreation =>
+        val semanticValid = BifrostState.semanticValidity(cc)
+        semanticValid.isSuccess shouldBe false
+        semanticValid.failed.get shouldBe an[IllegalArgumentException]
+    }
+  }*/
+
+}

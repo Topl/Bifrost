@@ -1,7 +1,7 @@
 package bifrost.transaction.serialization
 
-import bifrost.contract.ProgramPreprocessor
-import bifrost.contract.{ExecutionBuilder, AgreementTerms}
+import bifrost.program.ProgramPreprocessor
+import bifrost.program.{ExecutionBuilder, AgreementTerms}
 import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser.parse

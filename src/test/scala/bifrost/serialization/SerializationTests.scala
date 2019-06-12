@@ -1,6 +1,6 @@
 package bifrost.serialization
 
-import bifrost.contract.ExecutionBuilder
+import bifrost.program.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
@@ -34,9 +34,9 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ContractBox Serialization") {
-    forAll(contractBoxGen) {
-      b: ContractBox =>
+  property("ProgramBox Serialization") {
+    forAll(programBoxGen) {
+      b: ProgramBox =>
         val parsed = BifrostBoxSerializer
           .parseBytes(BifrostBoxSerializer.toBytes(b))
           .get
@@ -198,29 +198,29 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ContractCreation Serialization") {
-    forAll(contractCreationGen) {
-      c: ContractCreation =>
-        val parsed = ContractTransactionCompanion
-          .parseBytes(ContractTransactionCompanion.toBytes(c))
+  property("ProgramCreation Serialization") {
+    forAll(programCreationGen) {
+      c: ProgramCreation =>
+        val parsed = ProgramTransactionCompanion
+          .parseBytes(ProgramTransactionCompanion.toBytes(c))
           .get
 
-        val parsedBytes = ContractTransactionCompanion.toBytes(parsed)
-        val directParsedBytes = ContractTransactionCompanion.toBytes(c)
+        val parsedBytes = ProgramTransactionCompanion.toBytes(parsed)
+        val directParsedBytes = ProgramTransactionCompanion.toBytes(c)
 
         parsedBytes sameElements directParsedBytes shouldBe true
     }
   }
 
-  /*property("ContractMethodExecution Serialization") {
-    forAll(contractMethodExecutionGen) {
-      c: ContractMethodExecution =>
-        val parsed = ContractTransactionCompanion
-          .parseBytes(ContractTransactionCompanion.toBytes(c))
+  /*property("ProgramMethodExecution Serialization") {
+    forAll(programMethodExecutionGen) {
+      c: ProgramMethodExecution =>
+        val parsed = ProgramTransactionCompanion
+          .parseBytes(ProgramTransactionCompanion.toBytes(c))
           .get
 
-        ContractTransactionCompanion.toBytes(parsed) sameElements
-          ContractTransactionCompanion.toBytes(c) shouldBe true
+        ProgramTransactionCompanion.toBytes(parsed) sameElements
+          ProgramTransactionCompanion.toBytes(c) shouldBe true
     }
   }*/
 
