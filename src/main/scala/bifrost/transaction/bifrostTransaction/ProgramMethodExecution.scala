@@ -47,14 +47,13 @@ case class ProgramMethodExecution(stateBox: StateBox,
   //TODO Replace stateBox with stateBox ids
   val uuidStateBoxes = executionBox.value.map(v => sbr.get(v).get._2.asInstanceOf[StateBox])
 
-  //TODO Refactor to handle mutliple codeBoxes
-  //val program: String = stateBox.value.foldLeft("")((a,b) => a ++ (b + "\n")) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
-  val program: String = uuidStateBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ b)) ++ codeBox.value.foldLeft("")((a,b) => a ++ (b + "\n"))
+  val codeBoxes = executionBox.codeBoxIds
 
   lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(stateBox.id)
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
+  //TODO Refactor to handle multiple stateBoxes being opened
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
       override val closedBoxId: Array[Byte] = stateBoxIds.head
@@ -79,50 +78,8 @@ case class ProgramMethodExecution(stateBox: StateBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    val programResult: String = Program.execute(program, methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
-                                                                                              .get) //match {
-      /*case Success(res) => res match {
-        /*case Left(updatedProgram) => ProgramBox(
-          proposition,
-          nonce,
-          updatedProgram.json)
-        case Right(_) => programBox
-         */
-      }
-      //case Failure(_) => programBox
-    }*/
-
-    //Handle boxes being sent from the program to a public key
-    /*val boxesFromProgram: Option[BifrostBox] = methodName match {
-      case "assetTransfer" => {
-        val key = (parameters \\ "publicKey").head.asString.get
-        val asset = (parameters \\ "asset").head.asString.get
-        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
-        if (key != "program") {
-          Some(AssetBox(PublicKey25519Proposition(key.getBytes),
-            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount, asset, parties.head._1, data))
-        }
-        else
-          None
-      }
-
-      case "polyTransfer" => {
-        val key = (parameters \\ "publicKey").head.asString.get
-        val amount = (parameters \\ "amount").head.asNumber.get.toLong.get
-        if(key != "program"){
-          Some(PolyBox(PublicKey25519Proposition(key.getBytes),
-            assetNonce(PublicKey25519Proposition(key.getBytes), hashNoNonces), amount))
-        }
-        else
-          None
-      }
-
-      case _ => None
-    }
-
-    if(boxesFromProgram.nonEmpty)
-      IndexedSeq(programResult) ++ deductedFeeBoxes(hashNoNonces) :+ boxesFromProgram.get
-    else*/
+    val programResult: String = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
+                                                                                              .get)
 
     val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, Seq(programResult), true)
 

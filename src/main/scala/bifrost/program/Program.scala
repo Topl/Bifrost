@@ -1,21 +1,23 @@
 package bifrost.program
 
-import java.time.Instant
-
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
-import bifrost.transaction.box.StateBox
+import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
-import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
-import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 import scala.language.existentials
 
-
+/**
+  *
+  * @param parties            Public keys allowed to interact with the program
+  * @param lastUpdated        timestamp of last update made to the program
+  * @param id                 Unique identifier
+  * @param executionBuilder   Context for the state and code to execute methods on the program
+  */
 case class Program(parties: Map[PublicKey25519Proposition, String],
                    lastUpdated: Long,
                    id: Array[Byte],
@@ -28,10 +30,6 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
     throw new InvalidProvidedProgramArgumentsException("An invalid number of parties was specified for the program " +
       "(must be between 2 and 1024).")
   }
-
-  /*lazy val jsre: NashornScriptEngine = new NashornScriptEngineFactory()
-    .getScriptEngine
-    .asInstanceOf[NashornScriptEngine]*/
 
   val jsre: Context = Context.create("js")
 
@@ -48,82 +46,7 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
 
 
 
-    // jsre.eval("js", executionBuilderObj.core.initjs)
-//    println(">>>>>>>>> executionBuilder initjs")
-    //jsre.eval("js", s"var c = ${executionBuilderObj.core.name}.fromJSON('${executionBuilderObj.core.state.noSpaces}')")
-//    println(s">>>>>>>>> executionBuilder name: ${executionBuilderObj.core.name}")
-//    println(s">>>>>>>>> executionBuilder state: ${executionBuilderObj.core.state.noSpaces}")
-//    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
-
-    /*val parameterString: String = params
-      .tail
-      .foldLeft(params
-        .headOption
-        .getOrElse(""))((agg, cur) => s"$agg, $cur")
-
-    println(s"params: ${args.asJson}")
-    println(s"parameterString: $parameterString")
-
-    val update =
-      s"""
-         |var res = c["$methodName"]($parameterString);
-         |if(res instanceof ${executionBuilderObj.core.name}) {
-         |  JSON.stringify({
-         |    "__returnedUpdate": true,
-         |    "program": ${executionBuilderObj.core.name}.toJSON(res)
-         |  })
-         |} else {
-         |  JSON.stringify({
-         |    "__returnedUpdate": false,
-         |    "program": ${executionBuilderObj.core.name}.toJSON(c),
-         |    "functionResult": res
-         |  })
-         |}
-    """.stripMargin
-
-//    println(s">>>>>>>>>>>>>>>>>>> Before result:")
-      //ValkyrieFunctions(jsre, args)
-      val result = parse(jsre.eval("js", update).asString()).right.get
-//      println(s">>>>>>>>>>>>>>>>>>> After result ")
-
-      /*val resultingProgram = this.copy(
-        executionBuilder = executionBuilderObj
-          .copy(core = executionBuilderObj
-            .core
-            .copy(state = (result \\ "program").head))
-          .asJson,
-        lastUpdated = Instant.now.toEpochMilli
-      )*/
-
-      val functionReturnedUpdate = (result \\ "__returnedUpdate")
-        .head
-        .asBoolean
-        .get
-
-      val functionResult: Option[Json] = if (!functionReturnedUpdate) {
-        Some((result \\ "functionResult").head)
-      } else {
-        None
-      }
-
-      (/*resultingProgram,*/ functionResult)
-     */
     }
-
-  /*def getFromProgram(property: String): Try[Json] = Try {
-    val core = executionBuilderObj.core
-    jsre.eval("js", core.initjs)
-    //jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
-
-    val update = s"c.$property"
-
-    val res = jsre.eval("js", s"JSON.stringify($update)").asString()
-
-    parse(res) match {
-      case Right(json: Json) => json
-      case Left(_) => Json.Null
-    }
-  }*/
 
   lazy val json: Json = Map(
     "executionBuilder" -> executionBuilder,
@@ -168,9 +91,21 @@ object Program {
   }
 
   //noinspection ScalaStyle
-  def execute(program: String, methodName: String)
+  /**
+    *
+    * @param stateBoxes   Set of StateBoxes to form program
+    * @param codeBoxes    Set of CodeBoxes to form program
+    * @param methodName   The method to be called on the program
+    * @param party        Public key making the call
+    * @param args         parameters for the method
+    * @return             State members to update the StateBox(es)
+    */
+  def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
              (args: JsonObject): String /*: Try[Either[Program, Json]]*/ = /*Try*/ {
+
+    val program: String = stateBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n"))) ++
+      codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
 
     println(s"execute program: ${program}")
     val jsre: Context = Context.create("js")
@@ -190,46 +125,5 @@ object Program {
     println(s">>>>>> output: ${output}")
 
     output
-
-    /*val methodAttempt: Option[mutable.LinkedHashSet[String]] =
-      ((c.executionBuilder \\ "registry").head \\ methodName)
-        .headOption
-        .flatMap(_.as[mutable.LinkedHashSet[String]].toOption)
-
-    methodAttempt match {
-      case Some(params: mutable.LinkedHashSet[String]) =>
-
-        val neededArgs: Array[String] = args
-          .toMap
-          .filterKeys(k => params.contains(k))
-          .values
-          .toArray
-          .map(_.noSpaces)
-     */
-
-//        println(s">>>>>> neededArgs: ${neededArgs.foreach(a => a)}")
-
-        /*/val res: Try[(Program, Option[Json])] = c.applyFunction(methodName)(args)(neededArgs)
-
-        res match {
-          case Success((c: Program, None)) => Left(c)
-          case Success((_, Some(j: Json))) => Right(j)
-          case f: Failure[_] => throw f.exception
-        }
-
-      case _ => throw new MatchError(s"Could not find method <$methodName>")
-    }*/
   }
-
-  object Status extends Enumeration {
-    type Status = Value
-    val EXPIRED: Status = Value("expired")
-    val COMPLETE: Status = Value("complete")
-    val INITIALISED: Status = Value("initialised")
-    val UNKNOWN: Status = Value("unknown")
-
-    implicit val decodeStatus: Decoder[Status.Value] = Decoder.enumDecoder(Status)
-    implicit val encodeStatus: Encoder[Status.Value] = Encoder.enumEncoder(Status)
-  }
-
 }

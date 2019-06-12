@@ -3,6 +3,7 @@ package bifrost.program
 import java.time.Instant
 
 import bifrost.transaction.bifrostTransaction.AssetCreation
+import bifrost.transaction.box.{CodeBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
@@ -29,9 +30,12 @@ class ProgramMethodSpec extends PropSpec
          */
         val params = JsonObject.empty
 
+        val stateBox = StateBox(c.parties.head._1, 0L, Seq("var a = 0"), true)
+        val codeBox = CodeBox(c.parties.head._1, 1L, Seq("add = function() { a += 1 }"))
+
         println(s"program: ${program}")
 
-        val result = Program.execute(program, "add")(party)(params)
+        val result = Program.execute(Seq(stateBox), Seq(codeBox), "add")(party)(params)
         println(s"test result: $result")
       }
     }

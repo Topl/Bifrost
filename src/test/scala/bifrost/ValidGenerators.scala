@@ -2,8 +2,6 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
-import bifrost.program.Program.Status.Status
 import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
@@ -30,8 +28,6 @@ import scala.util.{Failure, Random, Success, Try}
   */
 trait ValidGenerators extends BifrostGenerators {
 
-  val validStatuses: List[Status] = Program.Status.values.toList
-
   private val POSSIBLE_ROLES = Seq(Role.Producer, Role.Investor, Role.Hub)
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
@@ -49,8 +45,6 @@ trait ValidGenerators extends BifrostGenerators {
     producer <- propositionGen
     investor <- propositionGen
     hub <- propositionGen
-    storage <- jsonGen()
-    status <- Gen.oneOf(validStatuses)
     executionBuilder <- validExecutionBuilderGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
@@ -60,7 +54,6 @@ trait ValidGenerators extends BifrostGenerators {
       Base58.encode(investor.pubKeyBytes) -> "investor",
       Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
-      "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
       "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
