@@ -20,7 +20,7 @@ import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.{MofNProposition, PublicKey25519Proposition}
-import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 
@@ -39,7 +39,7 @@ class ProgramTransactionSpec extends PropSpec
                                             maxFee: Long,
                                             minFeeSum: Long,
                                             maxFeeSum: Long): Gen[ProgramCreation] = for {
-    agreement <- validAgreementGen()
+    executionBuilder <- validExecutionBuilderGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
     data <- stringGen
@@ -100,7 +100,7 @@ class ProgramTransactionSpec extends PropSpec
     //val roles = IndexedSeq(Role.Investor, Role.Producer, Role.Hub)
 
     val messageToSign = Bytes.concat(
-      AgreementCompanion.toBytes(agreement),
+      ExecutionBuilderCompanion.toBytes(executionBuilder),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       partiesWithRoles.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
@@ -113,7 +113,7 @@ class ProgramTransactionSpec extends PropSpec
     }
 
     ProgramCreation(
-      agreement,
+      executionBuilder,
       preInvestmentBoxes,
       partiesWithRoles.toMap,
       signatures.toMap,
@@ -150,8 +150,8 @@ class ProgramTransactionSpec extends PropSpec
     val parties: Seq[PublicKey25519Proposition] = allKeyPairs.map(_._2)
     val roles: Seq[Role] = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
-    val gen: Gen[ExecutionBuilder] = validAgreementGen(timestamp - effDelta, timestamp + expDelta)
-    val validAgreement: ExecutionBuilder = sampleUntilNonEmpty(gen)
+    val gen: Gen[ExecutionBuilder] = validExecutionBuilderGen(timestamp - effDelta, timestamp + expDelta)
+    val validExecutionBuilder: ExecutionBuilder = sampleUntilNonEmpty(gen)
 
     val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
 

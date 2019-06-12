@@ -20,7 +20,7 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
   def toChildBytes(m: ProgramCreation): Array[Byte] = {
     val typeBytes = "ProgramCreation".getBytes
 
-    val executionBuilderBytes = AgreementCompanion.toBytes(m.executionBuilder)
+    val executionBuilderBytes = ExecutionBuilderCompanion.toBytes(m.executionBuilder)
 
     Bytes.concat(
       /* First two arguments MUST STAY */
@@ -63,7 +63,7 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
     numReadBytes += Longs.BYTES
 
-    val executionBuilder = AgreementCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
+    val executionBuilder = ExecutionBuilderCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
       numReadBytes + executionBuilderLength.toInt)).get
 
     numReadBytes += executionBuilderLength.toInt

@@ -1,14 +1,14 @@
 package bifrost.transaction.serialization
 
 import bifrost.program.ProgramPreprocessor
-import bifrost.program.{ExecutionBuilder, AgreementTerms}
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms}
 import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser.parse
 
 import scala.util.Try
 
-object AgreementCompanion extends Serializer[ExecutionBuilder] {
+object ExecutionBuilderCompanion extends Serializer[ExecutionBuilder] {
 
   override def toBytes(a: ExecutionBuilder): Array[Byte] = {
     Bytes.concat(
@@ -37,13 +37,13 @@ object AgreementCompanion extends Serializer[ExecutionBuilder] {
 
     numBytesRead += numStrBytes
 
-    val terms: AgreementTerms = parse(new String(
+    val terms: ExecutionBuilderTerms = parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
     )) match {
-      case Left(_) => throw new Exception("AgreementTerm json not properly formatted")
-      case Right(x) => x.as[AgreementTerms] match {
-        case Left(_) => throw new Exception("Agreement terms json was malformed")
-        case Right(a: AgreementTerms) => a
+      case Left(_) => throw new Exception("ExecutionBuilderTerm json not properly formatted")
+      case Right(x) => x.as[ExecutionBuilderTerms] match {
+        case Left(_) => throw new Exception("ExecutionBuilder terms json was malformed")
+        case Right(a: ExecutionBuilderTerms) => a
       }
     }
 

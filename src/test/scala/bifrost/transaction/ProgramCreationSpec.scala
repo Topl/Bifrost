@@ -45,15 +45,15 @@ class ProgramCreationSpec extends PropSpec
 /*
   property("Tx with effective date in the past should be invalid") {
 
-    lazy val pastEffDateAgreementGen: Gen[Agreement] = for {
-      terms <- validAgreementTermsGen
+    lazy val pastEffDateExecutionBuilderGen: Gen[ExecutionBuilder] = for {
+      terms <- validExecutionBuilderTermsGen
       programEndTime <- positiveLongGen
       assetCode <- stringGen
-    } yield Agreement(terms, assetCode, Instant.now.toEpochMilli - 1L, programEndTime)
+    } yield ExecutionBuilder(terms, assetCode, Instant.now.toEpochMilli - 1L, programEndTime)
 
     forAll(
       for {
-        agreement <- pastEffDateAgreementGen
+        executionBuilder <- pastEffDateExecutionBuilderGen
         parties <- partiesGen
         signature <- signatureGen
         fee <- positiveLongGen
@@ -61,7 +61,7 @@ class ProgramCreationSpec extends PropSpec
         numFeeBoxes <- positiveTinyIntGen
         numInvestmentBoxes <- positiveTinyIntGen
       } yield ProgramCreation(
-        agreement,
+        executionBuilder,
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
@@ -78,15 +78,15 @@ class ProgramCreationSpec extends PropSpec
   }
 
   property("Tx with expiration date in the past should be invalid") {
-    lazy val pastExpDateAgreementGen: Gen[Agreement] = for {
-      terms <- validAgreementTermsGen
+    lazy val pastExpDateExecutionBuilderGen: Gen[ExecutionBuilder] = for {
+      terms <- validExecutionBuilderTermsGen
       programEffectiveTime <- positiveLongGen
       assetCode <- stringGen
-    } yield Agreement(terms, assetCode, programEffectiveTime, Instant.now.toEpochMilli - 1L)
+    } yield ExecutionBuilder(terms, assetCode, programEffectiveTime, Instant.now.toEpochMilli - 1L)
 
     forAll(
       for {
-        agreement <- pastExpDateAgreementGen
+        executionBuilder <- pastExpDateExecutionBuilderGen
         parties <- partiesGen
         signature <- signatureGen
         fee <- positiveLongGen
@@ -94,7 +94,7 @@ class ProgramCreationSpec extends PropSpec
         numFeeBoxes <- positiveTinyIntGen
         numInvestmentBoxes <- positiveTinyIntGen
       } yield ProgramCreation(
-        agreement,
+        executionBuilder,
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },
@@ -111,14 +111,14 @@ class ProgramCreationSpec extends PropSpec
   }
 
   property("Tx with valid expiration date before valid effective date should be invalid") {
-    lazy val expBeforeEffAgreementGen: Gen[Agreement] = for {
-      terms <- validAgreementTermsGen
+    lazy val expBeforeEffExecutionBuilderGen: Gen[ExecutionBuilder] = for {
+      terms <- validExecutionBuilderTermsGen
       assetCode <- stringGen
-    } yield Agreement(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 1000L)
+    } yield ExecutionBuilder(terms, assetCode, Instant.now.toEpochMilli + 10000L, Instant.now.toEpochMilli + 1000L)
 
     forAll(
       for {
-        agreement <- expBeforeEffAgreementGen
+        executionBuilder <- expBeforeEffExecutionBuilderGen
         parties <- partiesGen
         signature <- signatureGen
         fee <- positiveLongGen
@@ -126,7 +126,7 @@ class ProgramCreationSpec extends PropSpec
         numFeeBoxes <- positiveTinyIntGen
         numInvestmentBoxes <- positiveTinyIntGen
       } yield ProgramCreation(
-        agreement,
+        executionBuilder,
         (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get },
         parties,
         parties.map { case (_, v) => (v, signatureGen.sample.get) },

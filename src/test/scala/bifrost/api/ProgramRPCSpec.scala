@@ -213,7 +213,7 @@ class ProgramRPCSpec extends WordSpec
       .boxes()
       .filter(_.box.isInstanceOf[PolyBox])
 
-    val agreement: ExecutionBuilder = sampleUntilNonEmpty(validAgreementGen(programEffectiveTime, programExpirationTime))
+    val executionBuilder: ExecutionBuilder = sampleUntilNonEmpty(validExecutionBuilderGen(programEffectiveTime, programExpirationTime))
 
     val fees = Map(
       publicKeys("investor") -> 500,
@@ -229,7 +229,7 @@ class ProgramRPCSpec extends WordSpec
         "method": "getProgramSignature",
         "params": [{
           "signingPublicKey": "${publicKeys("investor")}",
-          "agreement": ${agreement.asJson},
+          "executionBuilder": ${executionBuilder.asJson},
           "preInvestmentBoxes": [],
           "parties": ${publicKeys.map { case (k, v) => v -> k.asJson }.asJson},
           "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
@@ -379,7 +379,7 @@ class ProgramRPCSpec extends WordSpec
         val boxContent = ((res \\ "result").head \\ "programBox").head
         Base58.encode(programBox.get.id) shouldEqual (boxContent \\ "id").head.asString.get
 
-        val state = root.value.agreement.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state
+        val state = root.value.executionBuilder.core.json.getOption(boxContent).get.as[BaseModuleWrapper].right.get.state
           .asString.get
         (parse(state).right.get \\ "status").head.asString.get shouldBe "in progress"
       }

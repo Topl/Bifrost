@@ -11,7 +11,7 @@ import scorex.crypto.encode.Base64
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
-case class AgreementTerms(terms: String){
+case class ExecutionBuilderTerms(terms: String){
 
   require(terms.length < 16*1024)
   lazy val json: Json = if(terms.length > 1024) {
@@ -20,10 +20,10 @@ case class AgreementTerms(terms: String){
     terms.asJson
   }
 
-  override def toString: String = s"AgreementTerms(${json.toString})"
+  override def toString: String = s"ExecutionBuilderTerms(${json.toString})"
 }
 
-object AgreementTerms {
+object ExecutionBuilderTerms {
 
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer = ActorMaterializer()
@@ -32,7 +32,7 @@ object AgreementTerms {
     Gzip.decode(ByteString(Base64.decode(zipped)))
   }
 
-  implicit val decodeTerms: Decoder[AgreementTerms] = (c: HCursor) => for {
+  implicit val decodeTerms: Decoder[ExecutionBuilderTerms] = (c: HCursor) => for {
     terms <- c.as[String]
   } yield {
 
@@ -41,15 +41,15 @@ object AgreementTerms {
         import scala.concurrent.ExecutionContext.Implicits.global
         for {
           decodedTerms <- decodeGzip(terms.substring("gzip:".length))
-        } yield AgreementTerms(new String(decodedTerms.toArray[Byte]))
+        } yield ExecutionBuilderTerms(new String(decodedTerms.toArray[Byte]))
       }, Duration.Inf)
     } else {
-      AgreementTerms(terms)
+      ExecutionBuilderTerms(terms)
     }
   }
 
 
-  // def validate(terms: AgreementTerms): Try[Unit] = Try {
+  // def validate(terms: ExecutionBuilderTerms): Try[Unit] = Try {
   //   require(terms.pledge > 0)
   //   require(terms.xrate > 0)
   // }

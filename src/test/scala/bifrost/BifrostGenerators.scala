@@ -286,10 +286,10 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val validFulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen))
     .map(seq => PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq))
 
-  lazy val validAgreementTermsGen: Gen[AgreementTerms] = for {
+  lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
     size <- Gen.choose(1, 16 * 1024-1)
   } yield {
-    AgreementTerms(Random.alphanumeric.take(size).mkString)
+    ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
   }
 
   def validInitJsGen(name: String,
@@ -364,10 +364,10 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   // TODO: This results in an empty generator far too often. Fix needed
-  def validAgreementGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
+  def validExecutionBuilderGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
                         expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[ExecutionBuilder] = for {
     assetCode <- alphanumeric
-    terms <- validAgreementTermsGen
+    terms <- validExecutionBuilderTermsGen
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
     initjs <- validInitJsGen(name, assetCode)
   } yield {
@@ -382,7 +382,7 @@ trait BifrostGenerators extends CoreGenerators {
     hub <- propositionGen
     storage <- jsonGen()
     status <- jsonGen()
-    agreement <- validAgreementGen().map(_.json)
+    executionBuilder <- validExecutionBuilderGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
     Program(Map(
@@ -392,7 +392,7 @@ trait BifrostGenerators extends CoreGenerators {
         Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
       "storage" -> Map("status" -> status, "other" -> storage).asJson,
-      "agreement" -> agreement,
+      "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
@@ -413,7 +413,7 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val programCreationGen: Gen[ProgramCreation] = for {
-    agreement <- validAgreementGen()
+    executionBuilder <- validExecutionBuilderGen()
     numInvestmentBoxes <- positiveTinyIntGen
     parties <- partiesGen
     numFeeBoxes <- positiveTinyIntGen
@@ -421,7 +421,7 @@ trait BifrostGenerators extends CoreGenerators {
     data <- stringGen
   } yield {
     ProgramCreation(
-      agreement,
+      executionBuilder,
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       parties,

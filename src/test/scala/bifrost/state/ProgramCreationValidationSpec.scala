@@ -12,7 +12,7 @@ import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.{ProgramCreation, Role}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 
@@ -25,7 +25,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
   //noinspection ScalaStyle
   def arbitraryPartyProgramCreationGen(num: Int): Gen[ProgramCreation] = for {
-    agreement <- validAgreementGen()
+    executionBuilder <- validExecutionBuilderGen()
     timestamp <- positiveLongGen
     numFeeBoxes <- positiveTinyIntGen
     numInvestmentBoxes <- positiveTinyIntGen
@@ -75,7 +75,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
     val messageToSign = Bytes.concat(
-      AgreementCompanion.toBytes(agreement),
+      ExecutionBuilderCompanion.toBytes(executionBuilder),
       parties.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
       //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
       boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
@@ -83,7 +83,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
 
     ProgramCreation(
-      agreement,
+      executionBuilder,
       preInvestmentBoxes,
       parties.toMap,
       allKeyPairs.map(_._2).zip(signatures).toMap,

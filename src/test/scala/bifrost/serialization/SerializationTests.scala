@@ -151,14 +151,14 @@ class SerializationTests extends PropSpec
     }
   }*/
 
-  property("Agreement Serialization") {
-    forAll(validAgreementGen()) {
+  property("ExecutionBuilder Serialization") {
+    forAll(validExecutionBuilderGen()) {
       a: ExecutionBuilder =>
-        val parsed = AgreementCompanion
-          .parseBytes(AgreementCompanion.toBytes(a))
+        val parsed = ExecutionBuilderCompanion
+          .parseBytes(ExecutionBuilderCompanion.toBytes(a))
           .get
 
-        AgreementCompanion.toBytes(parsed) sameElements AgreementCompanion.toBytes(a) shouldBe true
+        ExecutionBuilderCompanion.toBytes(parsed) sameElements ExecutionBuilderCompanion.toBytes(a) shouldBe true
     }
   }
 

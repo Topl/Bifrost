@@ -37,27 +37,27 @@ class ProgramSpec extends PropSpec
       }
     }*/
 
-  property("Json works properly for AgreementTerms") {
-    forAll(validAgreementTermsGen) {
-      t: AgreementTerms => {
-        t.json.as[AgreementTerms].right.get shouldBe t
+  property("Json works properly for ExecutionBuilderTerms") {
+    forAll(validExecutionBuilderTermsGen) {
+      t: ExecutionBuilderTerms => {
+        t.json.as[ExecutionBuilderTerms].right.get shouldBe t
       }
     }
   }
 
-  property("Cannot create AgreementTerms with too long of a string") {
+  property("Cannot create ExecutionBuilderTerms with too long of a string") {
     forAll(Gen.choose(16 * 1024 + 1, 100000)) {
       size: Int => {
         Try {
-          AgreementTerms(Random.alphanumeric.take(size).mkString)
+          ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
         } shouldBe a[Failure[_]]
       }
     }
   }
 
-  def mockAgreement: Json =
+  def mockExecutionBuilder: Json =
     ExecutionBuilder(
-      AgreementTerms("testing"),
+      ExecutionBuilderTerms("testing"),
       "myAssetCode",
       ProgramPreprocessor(
         "test",
@@ -78,7 +78,7 @@ class ProgramSpec extends PropSpec
         Map(getMockPublicKeyProposition(0) -> "hub", getMockPublicKeyProposition(1) -> "producer"),
         Instant.now.toEpochMilli,
         Array(),
-        mockAgreement
+        mockExecutionBuilder
       )
     } shouldBe a[Success[_]]
   }
@@ -89,7 +89,7 @@ class ProgramSpec extends PropSpec
         Map(),
         Instant.now.toEpochMilli,
         Array(),
-        mockAgreement
+        mockExecutionBuilder
       )
     } shouldBe a[Failure[_]]
   }

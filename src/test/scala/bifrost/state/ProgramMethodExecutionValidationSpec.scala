@@ -51,10 +51,10 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     val parties = (allKeyPairs zip (Stream continually roles).flatten).map(t => t._2 -> t._1)
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var agreementOpt = validAgreementGen().sample
-    println(s">>>>> agreementOpt: ${agreementOpt.get.core.json}")
-    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
-    val agreement = agreementOpt.get
+    var executionBuilderOpt = validExecutionBuilderGen().sample
+    println(s">>>>> executionBuilderOpt: ${executionBuilderOpt.get.core.json}")
+    while (executionBuilderOpt.isEmpty) executionBuilderOpt = validExecutionBuilderGen().sample
+    val executionBuilder = executionBuilderOpt.get
 
     val leadParty = parties.head._2._2
 

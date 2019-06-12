@@ -18,7 +18,7 @@ import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -51,7 +51,7 @@ trait ValidGenerators extends BifrostGenerators {
     hub <- propositionGen
     storage <- jsonGen()
     status <- Gen.oneOf(validStatuses)
-    agreement <- validAgreementGen().map(_.json)
+    executionBuilder <- validExecutionBuilderGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
     Program(Map(
@@ -61,13 +61,13 @@ trait ValidGenerators extends BifrostGenerators {
       Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
       "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
-      "agreement" -> agreement,
+      "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
 
   lazy val validProgramCreationGen: Gen[ProgramCreation] = for {
-    agreement <- validAgreementGen()
+    executionBuilder <- validExecutionBuilderGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
     data <- stringGen
@@ -130,7 +130,7 @@ trait ValidGenerators extends BifrostGenerators {
 
 
       val messageToSign = Bytes.concat(
-        AgreementCompanion.toBytes(agreement),
+        ExecutionBuilderCompanion.toBytes(executionBuilder),
         partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
         data.getBytes
@@ -143,7 +143,7 @@ trait ValidGenerators extends BifrostGenerators {
       }
 
       ProgramCreation(
-        agreement,
+        executionBuilder,
         preInvestmentBoxes,
         partiesWithRoles,
         signatures.toMap,
@@ -160,11 +160,11 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validProgramMethods: List[String] = List("add")
 
-  /*def createProgramBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ProgramBox = {
+  /*def createProgramBox(executionBuilder: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ProgramBox = {
 
     val programJson = Map(
       "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
-      "agreement" -> agreement.json,
+      "executionBuilder" -> executionBuilder.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson
 
@@ -184,11 +184,11 @@ trait ValidGenerators extends BifrostGenerators {
     val roles = (0 until nrOfParties).map(_ => Random.shuffle(POSSIBLE_ROLES).head)
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var agreementOpt = validAgreementGen().sample
-    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
-    val agreement = agreementOpt.get
+    var executionBuilderOpt = validExecutionBuilderGen().sample
+    while (executionBuilderOpt.isEmpty) executionBuilderOpt = validExecutionBuilderGen().sample
+    val executionBuilder = executionBuilderOpt.get
 
-    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
+    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(executionBuilder.core.registry.keys.toSeq))
 
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
       sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
@@ -224,7 +224,7 @@ trait ValidGenerators extends BifrostGenerators {
     val senderFeePreBoxes = feePreBoxes(sender._2._2)
     val fees = Map(sender._2._2 -> senderFeePreBoxes.map(_._2).sum)
 
-    /*val parameters = agreement
+    /*val parameters = executionBuilder
       .core
       .registry
       .keys

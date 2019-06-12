@@ -12,7 +12,7 @@ import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ProgramBox, Ex
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
@@ -22,7 +22,7 @@ import scala.util.Try
 
 /**
   *
-  * @param executionBuilder   the Agreement object containing the terms for the proposed program
+  * @param executionBuilder   the ExecutionBuilder object containing the terms for the proposed program
   * @param preInvestmentBoxes a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
   * @param parties            a mapping specifying which public key should correspond with which role for this program
   * @param signatures         a mapping specifying the signatures by each public key for this transaction
@@ -66,7 +66,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
-    AgreementCompanion.toBytes(executionBuilder) ++
+    ExecutionBuilderCompanion.toBytes(executionBuilder) ++
       parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
@@ -150,14 +150,14 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   override lazy val serializer = ProgramCreationCompanion
 
 //  println("BifrostTransaction")
-  //println(AgreementCompanion.toBytes(executionBuilder).mkString(""))
+  //println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
   //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
 //  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 //  println(preInvestmentBoxes)
   //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    AgreementCompanion.toBytes(executionBuilder),
+    ExecutionBuilderCompanion.toBytes(executionBuilder),
     parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
     unlockers.toArray.flatMap(_.closedBoxId),
     data.getBytes

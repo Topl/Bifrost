@@ -19,7 +19,7 @@ import scala.language.existentials
 case class Program(parties: Map[PublicKey25519Proposition, String],
                    lastUpdated: Long,
                    id: Array[Byte],
-                   agreement: Json) {
+                   executionBuilder: Json) {
 
   val MIN_PARTIES: Int = 2
   val MAX_PARTIES: Int = 1024
@@ -36,9 +36,9 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
   val jsre: Context = Context.create("js")
 
 
-  val agreementObj: ExecutionBuilder = agreement.as[ExecutionBuilder] match {
+  val executionBuilderObj: ExecutionBuilder = executionBuilder.as[ExecutionBuilder] match {
     case Right(a) => a
-    case Left(_) => throw new JsonParsingException("Was unable to parse a valid agreement from provided JSON")
+    case Left(_) => throw new JsonParsingException("Was unable to parse a valid executionBuilder from provided JSON")
   }
 
   jsre.eval("js", ProgramPreprocessor.objectAssignPolyfill)
@@ -48,11 +48,11 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
 
 
 
-    // jsre.eval("js", agreementObj.core.initjs)
-//    println(">>>>>>>>> agreement initjs")
-    //jsre.eval("js", s"var c = ${agreementObj.core.name}.fromJSON('${agreementObj.core.state.noSpaces}')")
-//    println(s">>>>>>>>> agreement name: ${agreementObj.core.name}")
-//    println(s">>>>>>>>> agreement state: ${agreementObj.core.state.noSpaces}")
+    // jsre.eval("js", executionBuilderObj.core.initjs)
+//    println(">>>>>>>>> executionBuilder initjs")
+    //jsre.eval("js", s"var c = ${executionBuilderObj.core.name}.fromJSON('${executionBuilderObj.core.state.noSpaces}')")
+//    println(s">>>>>>>>> executionBuilder name: ${executionBuilderObj.core.name}")
+//    println(s">>>>>>>>> executionBuilder state: ${executionBuilderObj.core.state.noSpaces}")
 //    println(s">>>>>>>>> params length: ${params.length}  params: ${params.asJson}")
 
     /*val parameterString: String = params
@@ -67,15 +67,15 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
     val update =
       s"""
          |var res = c["$methodName"]($parameterString);
-         |if(res instanceof ${agreementObj.core.name}) {
+         |if(res instanceof ${executionBuilderObj.core.name}) {
          |  JSON.stringify({
          |    "__returnedUpdate": true,
-         |    "program": ${agreementObj.core.name}.toJSON(res)
+         |    "program": ${executionBuilderObj.core.name}.toJSON(res)
          |  })
          |} else {
          |  JSON.stringify({
          |    "__returnedUpdate": false,
-         |    "program": ${agreementObj.core.name}.toJSON(c),
+         |    "program": ${executionBuilderObj.core.name}.toJSON(c),
          |    "functionResult": res
          |  })
          |}
@@ -87,8 +87,8 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
 //      println(s">>>>>>>>>>>>>>>>>>> After result ")
 
       /*val resultingProgram = this.copy(
-        agreement = agreementObj
-          .copy(core = agreementObj
+        executionBuilder = executionBuilderObj
+          .copy(core = executionBuilderObj
             .core
             .copy(state = (result \\ "program").head))
           .asJson,
@@ -111,7 +111,7 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
     }
 
   /*def getFromProgram(property: String): Try[Json] = Try {
-    val core = agreementObj.core
+    val core = executionBuilderObj.core
     jsre.eval("js", core.initjs)
     //jsre.eval("js", s"var c = ${core.name}.fromJSON('${core.state.noSpaces}')")
 
@@ -126,7 +126,7 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
   }*/
 
   lazy val json: Json = Map(
-    "agreement" -> agreement,
+    "executionBuilder" -> executionBuilder,
     "parties" -> parties
       .map(p => {
         Base58.encode(p._1.pubKeyBytes) -> p._2.asJson
@@ -163,7 +163,7 @@ object Program {
       parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
-      jsonMap("agreement")
+      jsonMap("executionBuilder")
     )
   }
 
@@ -192,7 +192,7 @@ object Program {
     output
 
     /*val methodAttempt: Option[mutable.LinkedHashSet[String]] =
-      ((c.agreement \\ "registry").head \\ methodName)
+      ((c.executionBuilder \\ "registry").head \\ methodName)
         .headOption
         .flatMap(_.as[mutable.LinkedHashSet[String]].toOption)
 

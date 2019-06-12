@@ -8,10 +8,10 @@ import scala.util.Try
 
 /**
   * @param core                     The JavaScript program split into state and functions
-  * @param terms                    An AgreementTerms object that specifies the specific compensation terms
+  * @param terms                    An ExecutionBuilderTerms object that specifies the specific compensation terms
   * @param assetCode                The string identifier for this specific asset to be produced
   */
-case class ExecutionBuilder(terms: AgreementTerms, assetCode: String, core: ProgramPreprocessor) {
+case class ExecutionBuilder(terms: ExecutionBuilderTerms, assetCode: String, core: ProgramPreprocessor) {
 
   lazy val json: Json = Map(
     "terms" -> terms.json,
@@ -21,16 +21,16 @@ case class ExecutionBuilder(terms: AgreementTerms, assetCode: String, core: Prog
     "code" -> core.code.asJson
   ).asJson
 
-  override def toString: String = s"Agreement(${json.toString})"
+  override def toString: String = s"ExecutionBuilder(${json.toString})"
 
 }
 
 object ExecutionBuilder {
 
-  implicit val encodeAgreement: Encoder[ExecutionBuilder] = (a: ExecutionBuilder) => a.json
+  implicit val encodeExecutionBuilder: Encoder[ExecutionBuilder] = (a: ExecutionBuilder) => a.json
 
-  implicit val decodeAgreement: Decoder[ExecutionBuilder] = (c: HCursor) => for {
-    terms <- c.downField("terms").as[AgreementTerms]
+  implicit val decodeExecutionBuilder: Decoder[ExecutionBuilder] = (c: HCursor) => for {
+    terms <- c.downField("terms").as[ExecutionBuilderTerms]
     assetCode <- c.downField("assetCode").as[String]
     core <- c.downField("core").as[ProgramPreprocessor]
   } yield {
