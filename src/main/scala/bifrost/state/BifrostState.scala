@@ -593,7 +593,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }.flatMap(_ => semanticValidity(cme))
 
 
-  //TODO
+  //noinspection ScalaStyle
   def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
     //TODO get execution box from box registry using UUID before using its actual id to get it from storage
     val executionBoxBytes = storage.get(ByteArrayWrapper(pme.executionBox.id))
@@ -618,12 +618,53 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     //TODO check that one of the boxIds to remove is a state box and was present in the SBR
     //TODO Remember that for each pme, exactly one state box would be consumed and exactly one would be created
 
-    pme.unlockers.foreach(unlocker =>
-      if(closedBox(unlocker.closedBoxId)).isInstanceOf[StateBox] {
-      return true
-    })
+//    pme.unlockers.foreach(unlocker =>
+//      if(closedBox(unlocker.closedBoxId)).isInstanceOf[StateBox] {
+//      return true
+//    })
+//
+    val unlockersValid: Try[Unit] = pme.unlockers
+      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      unlockersValid
+        .flatMap { (unlockerValidity) =>
+          closedBox(unlocker.closedBoxId) match {
+            case Some(box) =>
+              if (unlocker.boxKey.isValid(box.proposition, pme.messageToSign)) {
+                Success()
+              } else {
+                Failure(new TransactionValidationException("Incorrect unlocker"))
+              }
+            case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+          }
+        }
+    )
 
-    semanticValidity(pme)
+
+    val statefulValid = unlockersValid flatMap { _ =>
+      //Checks that newBoxes being created dont already exists
+      val boxesAreNew = pme.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
+        case Some(_) => false
+        case None => true
+      })
+
+      //Checks that tx timestamp is after state timestamp and before current time
+      val inPast = pme.timestamp <= timestamp
+      val inFuture = pme.timestamp >= Instant.now().toEpochMilli
+      val txTimestampIsAcceptable = !(inPast || inFuture)
+
+      if (boxesAreNew && txTimestampIsAcceptable) {
+        Success[Unit](Unit)
+      } else if (!boxesAreNew) {
+        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
+      } else if (inPast) {
+        Failure(new TransactionValidationException("ProgramCreation attempts to write into the past"))
+      } else {
+        Failure(new TransactionValidationException("ProgramCreation timestamp is too far into the future"))
+      }
+    }
+
+
+    statefulValid.flatMap(_ => semanticValidity(pme))
   }
 
   /**
