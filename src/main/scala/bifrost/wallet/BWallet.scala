@@ -57,7 +57,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .filter {
         case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
           case pb: PolyBox => pb.value > 0
-          case cb: ContractBox => true
+          case cb: ProgramBox => true
           case ab: ArbitBox => ab.value > 0
           case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
           case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2

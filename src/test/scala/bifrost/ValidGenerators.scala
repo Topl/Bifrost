@@ -2,9 +2,7 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
-import bifrost.contract.Contract.Status.Status
-import bifrost.contract._
+import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.{bifrostTransaction, _}
@@ -18,7 +16,7 @@ import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.AgreementCompanion
+import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -29,8 +27,6 @@ import scala.util.{Failure, Random, Success, Try}
   * Created by cykoz on 5/11/2017.
   */
 trait ValidGenerators extends BifrostGenerators {
-
-  val validStatuses: List[Status] = Contract.Status.values.toList
 
   private val POSSIBLE_ROLES = Seq(Role.Producer, Role.Investor, Role.Hub)
 
@@ -45,29 +41,26 @@ trait ValidGenerators extends BifrostGenerators {
     }
   }
 
-  lazy val validContractGen: Gen[Contract] = for {
+  lazy val validProgramGen: Gen[Program] = for {
     producer <- propositionGen
     investor <- propositionGen
     hub <- propositionGen
-    storage <- jsonGen()
-    status <- Gen.oneOf(validStatuses)
-    agreement <- validAgreementGen().map(_.json)
+    executionBuilder <- validExecutionBuilderGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
-    Contract(Map(
+    Program(Map(
       "parties" -> Map(
       Base58.encode(producer.pubKeyBytes) -> "producer",
       Base58.encode(investor.pubKeyBytes) -> "investor",
       Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
-      "storage" -> Map("status" -> status.toString.asJson, "other" -> storage).asJson,
-      "agreement" -> agreement,
+      "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
 
-  lazy val validContractCreationGen: Gen[ContractCreation] = for {
-    agreement <- validAgreementGen()
+  lazy val validProgramCreationGen: Gen[ProgramCreation] = for {
+    executionBuilder <- validExecutionBuilderGen()
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
     data <- stringGen
@@ -130,7 +123,7 @@ trait ValidGenerators extends BifrostGenerators {
 
 
       val messageToSign = Bytes.concat(
-        AgreementCompanion.toBytes(agreement),
+        ExecutionBuilderCompanion.toBytes(executionBuilder),
         partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
         data.getBytes
@@ -142,8 +135,8 @@ trait ValidGenerators extends BifrostGenerators {
           (keypair._2, sig)
       }
 
-      ContractCreation(
-        agreement,
+      ProgramCreation(
+        executionBuilder,
         preInvestmentBoxes,
         partiesWithRoles,
         signatures.toMap,
@@ -158,23 +151,23 @@ trait ValidGenerators extends BifrostGenerators {
     }
   }
 
-  lazy val validContractMethods: List[String] = List("add")
+  lazy val validProgramMethods: List[String] = List("add")
 
-  /*def createContractBox(agreement: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ContractBox = {
+  /*def createProgramBox(executionBuilder: ExecutionBuilder, parties: Map[PublicKey25519Proposition, Role.Role]): ProgramBox = {
 
-    val contractJson = Map(
+    val programJson = Map(
       "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
-      "agreement" -> agreement.json,
+      "executionBuilder" -> executionBuilder.json,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson
 
-    val contract = Contract(contractJson, sampleUntilNonEmpty(genBytesList(FastCryptographicHash.DigestSize)))
+    val program = Program(programJson, sampleUntilNonEmpty(genBytesList(FastCryptographicHash.DigestSize)))
 
     val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
-    ContractBox(proposition, sampleUntilNonEmpty(positiveLongGen), contract.json)
+    ProgramBox(proposition, sampleUntilNonEmpty(positiveLongGen), program.json)
   }*/
 
-  lazy val semanticallyValidContractMethodExecutionGen: Gen[ContractMethodExecution] = for {
+  lazy val semanticallyValidProgramMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
     data <- stringGen
   } yield {
@@ -184,11 +177,11 @@ trait ValidGenerators extends BifrostGenerators {
     val roles = (0 until nrOfParties).map(_ => Random.shuffle(POSSIBLE_ROLES).head)
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
-    var agreementOpt = validAgreementGen().sample
-    while (agreementOpt.isEmpty) agreementOpt = validAgreementGen().sample
-    val agreement = agreementOpt.get
+    var executionBuilderOpt = validExecutionBuilderGen().sample
+    while (executionBuilderOpt.isEmpty) executionBuilderOpt = validExecutionBuilderGen().sample
+    val executionBuilder = executionBuilderOpt.get
 
-    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(agreement.core.registry.keys.toSeq))
+    val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(executionBuilder.core.registry.keys.toSeq))
 
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
       sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
@@ -224,7 +217,7 @@ trait ValidGenerators extends BifrostGenerators {
     val senderFeePreBoxes = feePreBoxes(sender._2._2)
     val fees = Map(sender._2._2 -> senderFeePreBoxes.map(_._2).sum)
 
-    /*val parameters = agreement
+    /*val parameters = executionBuilder
       .core
       .registry
       .keys
@@ -248,7 +241,7 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
 
-    bifrostTransaction.ContractMethodExecution(
+    bifrostTransaction.ProgramMethodExecution(
       stateBox,
       codeBox,
       executionBox,
