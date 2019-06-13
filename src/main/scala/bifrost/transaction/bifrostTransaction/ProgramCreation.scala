@@ -179,9 +179,8 @@ object ProgramCreation {
     require(outcome.isSuccess)
 
 
-    require((tx.parties.size == tx.signatures.size) && tx.parties.size >= 2,
+    require(tx.parties.size == tx.signatures.size,
       "There aren't exactly 3 parties involved in signing")
-    require(tx.parties.size >= 2, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
     require(tx.parties.forall { case (proposition, _) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
     }, "Not all signatures were valid")

@@ -370,7 +370,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * @return
     */
   //noinspection ScalaStyle
-  def validateProgramCreation(cc: ProgramCreation): Try[Unit] = {
+  def validateContractCreation(cc: ProgramCreation): Try[Unit] = {
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
@@ -444,13 +444,62 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(cc))
   }
 
+
+  //noinspection ScalaStyle
+  def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
+
+    //Only needed for fee boxes
+    val unlockersValid: Try[Unit] = pc.unlockers
+      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      unlockersValid
+        .flatMap { (unlockerValidity) =>
+          closedBox(unlocker.closedBoxId) match {
+            case Some(box) =>
+              if (unlocker.boxKey.isValid(box.proposition, pc.messageToSign)) {
+                Success()
+              } else {
+                Failure(new TransactionValidationException("Incorrect unlocker"))
+              }
+            case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+          }
+        }
+    )
+
+
+    val statefulValid = unlockersValid flatMap { _ =>
+      //Checks that newBoxes being created dont already exists
+      val boxesAreNew = pc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
+        case Some(_) => false
+        case None => true
+      })
+
+      //Checks that tx timestamp is after state timestamp and before current time
+      val inPast = pc.timestamp <= timestamp
+      val inFuture = pc.timestamp >= Instant.now().toEpochMilli
+      val txTimestampIsAcceptable = !(inPast || inFuture)
+
+      if (boxesAreNew && txTimestampIsAcceptable) {
+        Success[Unit](Unit)
+      } else if (!boxesAreNew) {
+        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
+      } else if (inPast) {
+        Failure(new TransactionValidationException("ProgramCreation attempts to write into the past"))
+      } else {
+        Failure(new TransactionValidationException("ProgramCreation timestamp is too far into the future"))
+      }
+    }
+
+    statefulValid.flatMap(_ => semanticValidity(pc))
+  }
+
+
   /**
     *
     * @param cme : the ProgramMethodExecution to validate
     * @return
     */
   //noinspection ScalaStyle
-  def validateProgramMethodExecution(cme: ProgramMethodExecution): Try[Unit] = Try {
+  def validateContractMethodExecution(cme: ProgramMethodExecution): Try[Unit] = Try {
 
     val executionBoxBytes = storage.get(ByteArrayWrapper(cme.executionBox.id))
 
@@ -542,6 +591,40 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       throw new TransactionValidationException("ProgramMethodExecution timestamp is too far into the future")
     }
   }.flatMap(_ => semanticValidity(cme))
+
+
+  //TODO
+  def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
+    //TODO get execution box from box registry using UUID before using its actual id to get it from storage
+    val executionBoxBytes = storage.get(ByteArrayWrapper(pme.executionBox.id))
+
+    /* Program exists */
+    if (executionBoxBytes.isEmpty) {
+      throw new TransactionValidationException(s"Program ${Base58.encode(pme.executionBox.id)} does not exist")
+    }
+
+    val executionBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
+    val programProposition: MofNProposition =  executionBox.proposition
+
+    /* This person belongs to program */
+    if (!MultiSignature25519(pme.signatures.values.toSet).isValid(programProposition, pme.messageToSign)) {
+
+      println(s">>>>> programProposition: ${programProposition.toString}")
+      println(s">>>>> cme.signatures.keySet: ${pme.signatures.keySet}")
+      println(s">>>>> cme.parties.keySet ${pme.parties.keySet}")
+      throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
+    }
+
+    //TODO check that one of the boxIds to remove is a state box and was present in the SBR
+    //TODO Remember that for each pme, exactly one state box would be consumed and exactly one would be created
+
+    pme.unlockers.foreach(unlocker =>
+      if(closedBox(unlocker.closedBoxId)).isInstanceOf[StateBox] {
+      return true
+    })
+
+    semanticValidity(pme)
+  }
 
   /**
     *

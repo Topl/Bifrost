@@ -1,14 +1,10 @@
-package bifrost.contract
+package bifrost.program
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.ir.visitor.NodeVisitor
-import com.oracle.js.parser.{ErrorManager, Parser, ScriptEnvironment, Source}
 import org.graalvm.polyglot.Context
 import org.scalatest.{Matchers, PropSpec}
+
 import scala.collection.JavaConverters._
-import io.circe.Json
-import io.circe.parser.parse
 
 class SampleProgramsSpec extends PropSpec
   with Matchers
