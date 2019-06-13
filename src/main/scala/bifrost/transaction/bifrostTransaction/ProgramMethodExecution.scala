@@ -18,7 +18,9 @@ import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 
 import scala.util.{Failure, Success, Try}
-
+//TODO Execution Box parameter should be a UUID given its inclusion in the Box Registry
+//TODO There should be only one write-able state box which should be accessed from Execution Box once you get the box from registry
+//TODO Therefore remove stateBox and codeBox parameters from PME
 case class ProgramMethodExecution(stateBox: StateBox,
                                   codeBox: CodeBox,
                                   executionBox: ExecutionBox,
