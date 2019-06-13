@@ -23,6 +23,7 @@ class TruffleSpec extends PropSpec
        |add = function() {
        |  a = 2 + 2
        |}
+       |
      """.stripMargin
 
   val script =
@@ -158,12 +159,16 @@ class TruffleSpec extends PropSpec
   val jsre: Context = Context.create("js")
 
   val output = jsre.eval("js", testScript)
+  jsre.eval("js", "add()")
   val outputBindings = jsre.getBindings("js")
   //val outputSource = Source.sourceFor("output", output.asString())
   //val outputParser = new Parser(scriptEnv, outputSource, errManager)
   //val parsedOutput = parser.parse()
 
-  println(s"outputBindings: ${outputBindings.getMember("add")}")
+  println(s"outputBindings: a = ${outputBindings.getMember("a")}")
+  println(s"outputBindings: add = ${outputBindings.getMember("add")}")
+
+  println(jsre.getEngine.getOptions())
   //println(s"parsedOutput: ${parsedOutput.toString()}")
 
 }
