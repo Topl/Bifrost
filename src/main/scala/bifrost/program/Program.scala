@@ -108,21 +108,24 @@ object Program {
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json /*: Try[Either[Program, Json]]*/ = /*Try*/ {
 
+    val mutableState: Seq[(String, String)] = stateBoxes.head.value.as[Map[String, String]].toSeq.flatten
     val state: Seq[(String, String)] = stateBoxes.flatMap(sb => sb.value.as[Map[String, String]].toSeq.flatten)
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
 
+    // Create new execution context and evaluate method
     val jsre: Context = Context.create("js")
-    jsre.eval("js", programCode)
     val bindings = jsre.getBindings("js")
 
-    state.foreach(s => bindings.putMember(s._1, s._2))
+    mutableState.foreach(s => bindings.putMember(s._1, s._2))
+    jsre.eval("js", programCode)
 
+    //TODO Sanitize JS method creation
     val params = args.values.foldLeft("")((a,b) => a + "," + b.toString)
     val methodJS: String = methodName + "(" + params + ")"
 
     val methodEval = jsre.eval("js", methodJS)
 
-    val output: Map[String, String] = state.map(s => s._1 -> bindings.getMember(s._1).toString).toMap
+    val output: Map[String, String] = mutableState.map(s => s._1 -> bindings.getMember(s._1).toString).toMap
 
     output.asJson
   }

@@ -83,12 +83,26 @@ trait ValidGenerators extends BifrostGenerators {
 
       val state =
         s"""
-           |{ "a": "0" }
+           |{ "a": 0 }
+         """.stripMargin.asJson
+
+      val stateTwo =
+        s"""
+           |{ "b": 0 }
+         """.stripMargin.asJson
+
+      val stateThree =
+        s"""
+           |{ "c": 0 }
          """.stripMargin.asJson
 
       val stateBox = StateBox(parties.head, 0L, state, true)
+      val stateBoxTwo = StateBox(parties.head, 1L, stateTwo, true)
+      val stateBoxThree = StateBox(parties.head, 2L, stateThree, true)
 
-      val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
+      val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+
+      val codeBox = CodeBox(parties.head, 3L, Seq("add = function() { a = 2 + 2 }"))
 
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
         .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
@@ -142,6 +156,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       ProgramCreation(
         executionBuilder,
+        readOnlyUUIDs,
         preInvestmentBoxes,
         partiesWithRoles,
         signatures.toMap,

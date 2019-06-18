@@ -1,12 +1,14 @@
 package bifrost.state
 
 import java.time.Instant
+import java.util.UUID
 
 import bifrost.blocks.BifrostBlock
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
+import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.{ProgramCreation, Role}
@@ -82,8 +84,24 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
     val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
 
+    val stateTwo =
+      s"""
+         |{ "b": 0 }
+         """.stripMargin.asJson
+
+    val stateThree =
+      s"""
+         |{ "c": 0 }
+         """.stripMargin.asJson
+
+    val stateBoxTwo = StateBox(parties.head._1, 1L, stateTwo, true)
+    val stateBoxThree = StateBox(parties.head._1, 2L, stateThree, true)
+
+    val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+
     ProgramCreation(
       executionBuilder,
+      readOnlyUUIDs,
       preInvestmentBoxes,
       parties.toMap,
       allKeyPairs.map(_._2).zip(signatures).toMap,

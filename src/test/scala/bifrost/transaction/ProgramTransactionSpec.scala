@@ -112,8 +112,24 @@ class ProgramTransactionSpec extends PropSpec
         (keypair._2, sig)
     }
 
+    val stateTwo =
+      s"""
+         |{ "b": 0 }
+         """.stripMargin.asJson
+
+    val stateThree =
+      s"""
+         |{ "c": 0 }
+         """.stripMargin.asJson
+
+    val stateBoxTwo = StateBox(parties.head, 1L, stateTwo, true)
+    val stateBoxThree = StateBox(parties.head, 2L, stateThree, true)
+
+    val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+
     ProgramCreation(
       executionBuilder,
+      readOnlyUUIDs,
       preInvestmentBoxes,
       partiesWithRoles.toMap,
       signatures.toMap,

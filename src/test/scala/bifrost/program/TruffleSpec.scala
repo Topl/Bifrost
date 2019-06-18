@@ -102,11 +102,11 @@ class TruffleSpec extends PropSpec
 
   println(s"parsed: ${parsed.toString()}")
 
-  def varList(node: FunctionNode): Node = {
+  def varList(node: FunctionNode): Json = {
 
     val jsre: Context = Context.create("js", testScript)
 
-
+    var vars = scala.collection.mutable.Map[String, Json]()
 
     node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
@@ -130,14 +130,15 @@ class TruffleSpec extends PropSpec
         val name: String = varNode.getName.getName
         val init = varNode.getInit.toString(true)
         println(s"init with TypeInfo: $init")
-        /*val value = jsre.eval("js", s"typeof $name").asString match {
-          case "number" => vars.add(name, varNode.getName.asInstanceOf[Number])
-          case _ => vars.add(name, varNode.getName.toString)
-        }*/
+        val value = jsre.eval("js", s"typeof $name").asString match {
+          case "number" => vars += (name -> varNode.getInit.asInstanceOf[Double].asJson)
+          case _ => vars += (name -> varNode.getInit.toString.asJson)
+        }
         varNode
       }
 
     })
+    vars.toMap.asJson
   }
 
 

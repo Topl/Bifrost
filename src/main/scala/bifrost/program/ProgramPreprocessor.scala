@@ -218,8 +218,6 @@ object ProgramPreprocessor {
   private def deriveState(jsre: Context, initjs: String): Json = {
     //val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
 
-    println(s"initjs deriveState: $initjs")
-
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
       .constAsVar(false)
@@ -246,15 +244,12 @@ object ProgramPreprocessor {
 
         override def leaveVarNode(varNode: VarNode): VarNode = {
           vars += (varNode.getName.getName -> varNode.getInit.toString)
-          println(s"varList vars: ${vars.toString}")
           varNode
         }
 
       })
       vars.toMap.asJson
     }
-
-    println(s">>>>>> deriveState: ${varList(parsed)}")
 
     varList(parsed)
   }

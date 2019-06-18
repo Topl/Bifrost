@@ -1,5 +1,7 @@
 package bifrost.transaction.serialization
 
+import java.util.UUID
+
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
@@ -18,6 +20,9 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
   }
 
   def toChildBytes(m: ProgramCreation): Array[Byte] = {
+
+    //println(s">>>>>>> programCreation.toChildBytes: ${m.json}")
+
     val typeBytes = "ProgramCreation".getBytes
 
     val executionBuilderBytes = ExecutionBuilderCompanion.toBytes(m.executionBuilder)
@@ -30,16 +35,22 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
       m.preInvestmentBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2)),
       Longs.toByteArray(executionBuilderBytes.length),
       executionBuilderBytes,
-      ProgramTransactionCompanion.commonToBytes(m),
+      Ints.toByteArray(m.readOnlyStateBoxes.length),
+      m.readOnlyStateBoxes.foldLeft(Array[Byte]()) {
+      (arr, x) => arr ++ Bytes.concat(
+        Longs.toByteArray(x.getMostSignificantBits),
+        Longs.toByteArray(x.getLeastSignificantBits)
+        )
+      },
       m.data.getBytes,
-      Ints.toByteArray(m.data.getBytes.length)
+      Ints.toByteArray(m.data.getBytes.length),
+      ProgramTransactionCompanion.commonToBytes(m)
+
     )
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[ProgramCreation] = Try {
-    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
-    val data: String = new String(
-      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
+
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
     var numReadBytes = Ints.BYTES + typeLength
@@ -68,6 +79,21 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
     numReadBytes += executionBuilderLength.toInt
 
+    val readOnlyStateBoxesLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    numReadBytes += Ints.BYTES
+
+    var readOnlyStateBoxes = Seq[UUID]()
+    for (_ <- 1 to readOnlyStateBoxesLength) {
+      val uuid = new UUID(Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES)),
+        Longs.fromByteArray(bytes.slice(numReadBytes + Longs.BYTES, numReadBytes + Longs.BYTES*2)))
+      numReadBytes += Longs.BYTES*2
+      readOnlyStateBoxes = readOnlyStateBoxes :+ uuid
+    }
+
+    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val data: String = new String(
+      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
+
     val (parties: Map[PublicKey25519Proposition, Role],
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
@@ -75,7 +101,9 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
     timestamp: Long) = ProgramTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
 
-    ProgramCreation(executionBuilder, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
+    //println(s">>>>>> programCreation.parseBytes: ${ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data).json}")
+
+    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }

@@ -23,6 +23,8 @@ import scala.util.Try
 /**
   *
   * @param executionBuilder   the ExecutionBuilder object containing the terms for the proposed program
+  * @param readOnlyStateBoxes a list of StateBoxes to be used in evaluating the program, but never mutated
+  *                           beyond the context of the evaluation
   * @param preInvestmentBoxes a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
   * @param parties            a mapping specifying which public key should correspond with which role for this program
   * @param signatures         a mapping specifying the signatures by each public key for this transaction
@@ -32,6 +34,7 @@ import scala.util.Try
   * @param timestamp          the timestamp of this transaction
   */
 case class ProgramCreation(executionBuilder: ExecutionBuilder,
+                           readOnlyStateBoxes: Seq[UUID],
                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                            parties: Map[PublicKey25519Proposition, Role],
                            signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -132,8 +135,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
     val codeBox: Seq[CodeBox] = Seq(CodeBox(investorProp, codeNonce, executionBuilder.core.code))
     val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
-    //val stateUUID: Seq[UUID] = newStateBoxes.map(sb => UUID.nameUUIDFromBytes(sb.id)).toSeq
-    val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id))
+    val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
     val executionBox = ExecutionBox(proposition, execNonce, stateUUIDs, codeBoxIDs)
 
     val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
@@ -190,6 +192,7 @@ object ProgramCreation {
 
   implicit val decodeProgramCreation: Decoder[ProgramCreation] = (c: HCursor) => for {
     executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
+    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[UUID]]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawParties <- c.downField("parties").as[Map[String, String]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
@@ -200,6 +203,7 @@ object ProgramCreation {
   } yield {
     val commonArgs = ProgramTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
     ProgramCreation(executionBuilder,
+      readOnlyStateBoxes,
       preInvestmentBoxes,
       commonArgs._1,
       commonArgs._2,

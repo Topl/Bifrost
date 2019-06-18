@@ -404,6 +404,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val programCreationGen: Gen[ProgramCreation] = for {
     executionBuilder <- validExecutionBuilderGen()
+    readOnlyStateBoxes <- stateBoxGen
     numInvestmentBoxes <- positiveTinyIntGen
     parties <- partiesGen
     numFeeBoxes <- positiveTinyIntGen
@@ -412,6 +413,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     ProgramCreation(
       executionBuilder,
+      Seq(UUID.nameUUIDFromBytes(readOnlyStateBoxes.id)),
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       parties,
