@@ -53,7 +53,6 @@ case class ProgramMethodExecution(stateBox: StateBox,
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
-  //TODO Refactor to handle multiple stateBoxes being opened
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Seq(
     new BoxUnlocker[MofNProposition] {
       override val closedBoxId: Array[Byte] = stateBoxIds.head
@@ -78,10 +77,9 @@ case class ProgramMethodExecution(stateBox: StateBox,
     val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    val programResult: String = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject
-                                                                                              .get)
+    val programResult: Json = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject.get)
 
-    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, Seq(programResult), true)
+    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, programResult, true)
 
       IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }

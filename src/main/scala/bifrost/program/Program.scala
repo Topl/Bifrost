@@ -1,11 +1,15 @@
 package bifrost.program
 
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
+import bifrost.forging.ForgingSettings
+import bifrost.history.BifrostHistory
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import io.iohk.iodb.LSMStore
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -102,28 +106,34 @@ object Program {
     */
   def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): String /*: Try[Either[Program, Json]]*/ = /*Try*/ {
+             (args: JsonObject): Json /*: Try[Either[Program, Json]]*/ = /*Try*/ {
 
-    val program: String = stateBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n"))) ++
-      codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
+    val state: Seq[(String, String)] = stateBoxes.flatMap(sb => sb.value.as[Map[String, String]].toSeq.flatten)
+    val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
 
-    println(s"execute program: ${program}")
     val jsre: Context = Context.create("js")
-    jsre.eval("js", program)
-    val state = jsre.getBindings("js")
+    jsre.eval("js", programCode)
+    val bindings = jsre.getBindings("js")
 
-    println(s"execute state: ${state.getMemberKeys.forEach(a => println(a))}")
+    state.foreach(s => bindings.putMember(s._1, s._2))
 
     val params = args.values.foldLeft("")((a,b) => a + "," + b.toString)
+    val methodJS: String = methodName + "(" + params + ")"
 
-    val methodNameJS: String = methodName + "(" + params + ")"
+    val methodEval = jsre.eval("js", methodJS)
 
-    val methodEval = jsre.eval("js", methodNameJS)
+    val output: Map[String, String] = state.map(s => s._1 -> bindings.getMember(s._1).toString).toMap
 
-    val output = state.getMember("a").asInt().toString
-
-    println(s">>>>>> output: ${output}")
-
-    output
+    output.asJson
   }
+
+  // TODO Fix instantiation to handle runtime input and/or extract to a better location
+  val forgingSettings = new ForgingSettings {
+    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
+  }
+
+  val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
+  val storage: BifrostHistory = BifrostHistory.readOrGenerate(forgingSettings)
+
+  //def getStatebox(): StateBox =
 }

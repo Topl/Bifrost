@@ -59,6 +59,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   type BSC = BifrostState.BSC
 
 
+
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")

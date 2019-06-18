@@ -81,7 +81,12 @@ trait ValidGenerators extends BifrostGenerators {
 
       //val allInvestorsSorted = partiesWithRoles.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
-      val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
+      val state =
+        s"""
+           |{ "a": "0" }
+         """.stripMargin.asJson
+
+      val stateBox = StateBox(parties.head, 0L, state, true)
 
       val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 
@@ -186,7 +191,9 @@ trait ValidGenerators extends BifrostGenerators {
     val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
       sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
 
-    val stateBox = StateBox(sender._2._2, 0L, Seq("var a = 0"), true)
+    val state = Map("a" -> "0").asJson
+
+    val stateBox = StateBox(sender._2._2, 0L, state, true)
     val codeBox = CodeBox(sender._2._2, 1L, Seq("add = function() { a = 2 + 2 }"))
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)

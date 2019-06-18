@@ -75,9 +75,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   lazy val newStateBoxes: Traversable[StateBox] = {
       val stateNonce = ProgramTransaction.nonceFromDigest(
         FastCryptographicHash("stateBox".getBytes
-        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
+          ++ executionBuilder.core.variables.noSpaces.getBytes
+          ++ hashNoNonces
+          ++ Ints.toByteArray(0))
       )
 
     val stateBox = StateBox(parties.head._1, stateNonce, executionBuilder.core.variables, true)
@@ -123,7 +123,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
     val stateNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("stateBox".getBytes
-        ++ executionBuilder.core.variables.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+        ++ executionBuilder.core.variables.noSpaces.getBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )

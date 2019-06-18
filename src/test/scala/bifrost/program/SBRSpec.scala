@@ -14,6 +14,7 @@ import bifrost.transaction.box.{ArbitBox, StateBox, StateBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import io.circe
+import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -44,8 +45,19 @@ class SBRSpec extends PropSpec
 //  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ".toArray[Byte])
 
   val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
-  val sboxOne: StateBox = StateBox(pubKey, 0L, Seq("a"), true)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, Seq("b"), true)
+
+  val stateOne =
+    s"""
+       |{ "a": "0" }
+     """.stripMargin.asJson
+
+  val stateTwo =
+    s"""
+       |{"b": "1" }
+     """.stripMargin.asJson
+
+  val sboxOne: StateBox = StateBox(pubKey, 0L, stateOne, true)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, stateTwo, true)
 
   val uuid: UUID = UUID.nameUUIDFromBytes(sboxOne.id)
   val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
@@ -94,7 +106,7 @@ class SBRSpec extends PropSpec
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
       Seq(), 10L)
 
-    val sbox_3: StateBox = StateBox(pubKey, 2L, Seq("c"), true)
+    val sbox_3: StateBox = StateBox(pubKey, 2L, "c".asJson, true)
     val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
     uuidAndBoxID.isSuccess shouldBe true
     //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 0L))
@@ -110,7 +122,7 @@ class SBRSpec extends PropSpec
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
       Seq(), 10L)
 
-    val sbox_4: StateBox = StateBox(pubKey, 3L, Seq("d"), true)
+    val sbox_4: StateBox = StateBox(pubKey, 3L, "d".asJson, true)
     val uuidAndBoxIDTwo = sbr.insertNewStateBox(block_4.id, sbox_4.id)
     uuidAndBoxIDTwo.isSuccess shouldBe true
 //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 1L))

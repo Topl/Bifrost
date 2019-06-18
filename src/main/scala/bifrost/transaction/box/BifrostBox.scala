@@ -5,7 +5,7 @@ import java.util.UUID
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{Decoder, HCursor, Json, JsonObject}
 import io.circe.parser._
 import io.circe.syntax._
 import bifrost.crypto.hash.FastCryptographicHash
@@ -424,7 +424,7 @@ object ReputationBoxSerializer extends Serializer[ReputationBox] {
 
 case class StateBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
-                    value: Seq[String], // List of Strings of JS Variable Declarations
+                    value: Json, //  JSON representation of JS Variable Declarations
                     mutabilityFlag: Boolean,
                    ) extends BifrostBox(proposition, nonce, value) {
 
@@ -450,7 +450,7 @@ object StateBox {
 
   implicit val decodeStateBox: Decoder[StateBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    value <- c.downField("value").as[Seq[String]]
+    value <- c.downField("value").as[Json]
     nonce <- c.downField("nonce").as[Long]
     mutabilityFlag <- c.downField("mutabilityFlag").as[Boolean]
   } yield {
@@ -470,13 +470,8 @@ object StateBoxSerializer {
       boxType.getBytes,
       Longs.toByteArray(obj.nonce),
       Booleans.toByteArray(obj.mutabilityFlag),
-      Ints.toByteArray(obj.value.length),
-      obj.value.foldLeft(Array[Byte]()) {
-        (arr, x) => arr ++ Bytes.concat(
-          Ints.toByteArray(x.getBytes().length),
-          x.getBytes()
-        )
-      },
+      Ints.toByteArray(obj.value.noSpaces.getBytes.length),
+      obj.value.noSpaces.getBytes,
       obj.proposition.pubKeyBytes
     )
   }
@@ -499,13 +494,12 @@ object StateBoxSerializer {
     val valueLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    var value = Seq[String]()
-    for (_ <- 1 to valueLength) {
-      val l = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
-      takenBytes += Ints.BYTES
-      value = value :+ new String(obj.slice(takenBytes, takenBytes + l))
-      takenBytes += l
+    val value: Json = parse(new String(obj.slice(takenBytes, takenBytes + valueLength))) match {
+      case Left(f) => throw f
+      case Right(j: Json) => j
     }
+    takenBytes += valueLength
+
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 

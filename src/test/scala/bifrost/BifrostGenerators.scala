@@ -242,7 +242,7 @@ trait BifrostGenerators extends CoreGenerators {
     value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
-    StateBox(proposition, nonce, Seq(value), true)
+    StateBox(proposition, nonce, value.asJson, true)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
@@ -297,20 +297,10 @@ trait BifrostGenerators extends CoreGenerators {
     _ <- stringGen
   } yield {
     s"""
-       |function $name() {
-       |  var a = 0
+       |var a = 0
        |
-       |  function add() {
-       |    a = 2 + 2
-       |  }
-       |}
-       |
-       |this.$name.fromJSON = function(str) {
-       |    return new $name();
-       |}
-       |
-       |this.$name.toJSON = function(o) {
-       |    return JSON.stringify(o);
+       |add = function() {
+       |  a += 1
        |}
      """.stripMargin
   }

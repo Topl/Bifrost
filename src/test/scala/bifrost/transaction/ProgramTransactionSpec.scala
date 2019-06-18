@@ -153,7 +153,12 @@ class ProgramTransactionSpec extends PropSpec
     val gen: Gen[ExecutionBuilder] = validExecutionBuilderGen(timestamp - effDelta, timestamp + expDelta)
     val validExecutionBuilder: ExecutionBuilder = sampleUntilNonEmpty(gen)
 
-    val stateBox = StateBox(parties.head, 0L, Seq("var a = 0"), true)
+    val state =
+      s"""
+         |{ "a": "0" }
+       """.stripMargin.asJson
+
+    val stateBox = StateBox(parties.head, 0L, state, true)
 
     val codeBox = CodeBox(parties.head, 1L, Seq("add = function() { a = 2 + 2 }"))
 

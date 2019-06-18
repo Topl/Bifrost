@@ -23,14 +23,17 @@ class ProgramMethodSpec extends PropSpec
     forAll(programGen) {
       c: Program => {
         println(s">>>>>>>>>>> program: ")
-        val program = c.executionBuilderObj.core.variables.foldLeft("")((a,b) => a ++ (b + "\n")) ++ c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
+        val program = c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
         /*val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
          */
         val params = JsonObject.empty
 
-        val stateBox = StateBox(c.parties.head._1, 0L, Seq("var a = 0"), true)
+        val state = c.executionBuilderObj.core.variables
+        println(s"state: ${state.toString}")
+
+        val stateBox = StateBox(c.parties.head._1, 0L, state, true)
         val codeBox = CodeBox(c.parties.head._1, 1L, Seq("add = function() { a += 1 }"))
 
         println(s"program: ${program}")

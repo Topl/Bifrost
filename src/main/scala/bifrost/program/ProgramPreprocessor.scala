@@ -30,7 +30,7 @@ case class ProgramPreprocessor(name: String,
                                initjs: String,
                                registry: Map[String, mutable.LinkedHashSet[String]],
                                //state: Json,
-                               variables: Seq[String],
+                               variables: Json,
                                code: Seq[String],
                                signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
@@ -132,7 +132,7 @@ object ProgramPreprocessor {
 
   //noinspection ScalaStyle
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, mutable.LinkedHashSet[String]]] = None)(args: JsonObject):
-    (Map[String, mutable.LinkedHashSet[String]], /*String,*/ Seq[String], Seq[String]) = {
+    (Map[String, mutable.LinkedHashSet[String]], /*String,*/ Json, Seq[String]) = {
 
     /* Construct base module from params */
     val jsre: Context = Context.newBuilder("js").build()
@@ -177,8 +177,9 @@ object ProgramPreprocessor {
     //val variables: Seq[String] = deriveState(jsre, initjs)
     //val code: Seq[String] = deriveFunctions(jsre, initjs)
 
-    val variables: Seq[String] = Seq("var a = 0")
-    val code: Seq[String] = Seq("function add() { a = 2 + 2 }")
+    val variables: Json = deriveState(jsre, initjs)
+
+    val code: Seq[String] = Seq("add = function() { a += 1 }")
 
     val registry: Map[String, mutable.LinkedHashSet[String]] = Map()
 
@@ -214,9 +215,10 @@ object ProgramPreprocessor {
     jsre.eval(getProperties).asInstanceOf[ScriptObjectMirror]
   }*/
 
-  private def deriveState(jsre: Context, initjs: String): Seq[String] = {
-    val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
-    println(s"initjs deriveState: $initjsStr")
+  private def deriveState(jsre: Context, initjs: String): Json = {
+    //val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
+
+    println(s"initjs deriveState: $initjs")
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
@@ -232,32 +234,32 @@ object ProgramPreprocessor {
 
 
     val errManager = new ErrorManager.ThrowErrorManager
-    val src = Source.sourceFor("script", "")
+    val src = Source.sourceFor("script", initjs)
     val parser: Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
+    def varList(node: FunctionNode): Json = {
 
-    def varList(node: FunctionNode): Node = {
+      var vars = scala.collection.mutable.Map[String, String]()
 
       node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
-        override def enterVarNode(varNode: VarNode): Boolean = {
-          if (varNode.isInstanceOf[VarNode]) {
-            true
-          }
-          false
-        }
-
         override def leaveVarNode(varNode: VarNode): VarNode = {
+          vars += (varNode.getName.getName -> varNode.getInit.toString)
+          println(s"varList vars: ${vars.toString}")
           varNode
         }
+
       })
+      vars.toMap.asJson
     }
 
-    Seq(varList(parsed).toString)
+    println(s">>>>>> deriveState: ${varList(parsed)}")
+
+    varList(parsed)
   }
 
-  private def deriveFunctions(jsre: Context, name: String): Seq[String] = {
+  private def deriveFunctions(jsre: Context, initjs: String): Seq[String] = {
 
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
@@ -273,7 +275,7 @@ object ProgramPreprocessor {
       .build()
 
     val errManager = new ErrorManager.ThrowErrorManager
-    val src = Source.sourceFor("script", "")
+    val src = Source.sourceFor("script", initjs)
     val parser: Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
@@ -300,7 +302,7 @@ object ProgramPreprocessor {
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
     registry <- c.downField("registry").as[Map[String, mutable.LinkedHashSet[String]]]
-    variables <- c.downField("variables").as[Seq[String]]
+    variables <- c.downField("variables").as[Json]
     code <- c.downField("code").as[Seq[String]]
     signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
