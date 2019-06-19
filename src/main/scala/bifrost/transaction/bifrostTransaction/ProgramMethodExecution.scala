@@ -47,7 +47,7 @@ case class ProgramMethodExecution(stateBox: StateBox,
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
 
   //TODO Replace stateBox with stateBox ids
-  val uuidStateBoxes = executionBox.value.map(v => sbr.get(v).get._2.asInstanceOf[StateBox])
+  val uuidStateBoxes = executionBox.value.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.value)
 
   val codeBoxes = executionBox.codeBoxIds
 

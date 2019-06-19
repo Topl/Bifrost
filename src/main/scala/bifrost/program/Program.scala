@@ -1,5 +1,7 @@
 package bifrost.program
 
+import java.util.UUID
+
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
@@ -102,20 +104,25 @@ object Program {
     * @param methodName   The method to be called on the program
     * @param party        Public key making the call
     * @param args         parameters for the method
-    * @return             State members to update the StateBox(es)
+    * @return             State members to update the mutable StateBox
     */
-  def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)
+  def execute(stateBoxes: Seq[(StateBox, UUID)], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json /*: Try[Either[Program, Json]]*/ = /*Try*/ {
 
-    val mutableState: Seq[(String, String)] = stateBoxes.head.value.as[Map[String, String]].toSeq.flatten
-    val state: Seq[(String, String)] = stateBoxes.flatMap(sb => sb.value.as[Map[String, String]].toSeq.flatten)
+    val mutableState: Seq[(String, String)] = stateBoxes.head._1.value.as[Map[String, String]].toSeq.flatten
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
 
-    // Create new execution context and evaluate method
     val jsre: Context = Context.create("js")
     val bindings = jsre.getBindings("js")
 
+    //Pass in JSON objects for each read-only StateBox
+    stateBoxes.tail.map{ sb =>
+      val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
+      jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.value})""")
+    }
+
+    //Pass in writable state and functions
     mutableState.foreach(s => bindings.putMember(s._1, s._2))
     jsre.eval("js", programCode)
 

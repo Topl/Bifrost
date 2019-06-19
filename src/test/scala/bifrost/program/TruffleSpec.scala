@@ -192,6 +192,7 @@ class TruffleSpec extends PropSpec
 
 
   val jsre: Context = Context.create("js")
+  val bindings = jsre.getBindings("js")
 
   //val output = jsre.eval("js", testScript)
   /*Try {
@@ -210,5 +211,20 @@ class TruffleSpec extends PropSpec
   println(s"varList last: ${varList(parsed).toString}")
 
   //println(s"cast as Map: ${varList(parsed).as[Map[String, String]]}")
+
+  val testJson: Json =
+    s"""
+       |{ "c": 0 }
+     """.stripMargin.asJson
+
+  //bindings.putMember("uuid", testJson)
+  jsre.eval("js", "function getStateFrom(uuid, value) { return this[uuid][value] }")
+  jsre.eval("js", s"var uuid = JSON.parse($testJson)")
+
+  println(s">>>> ${bindings.getMember("uuid")}")
+
+  val getStateFrom = jsre.eval("js", s"""getStateFrom("uuid", "c")""")
+
+  println(s">>>> getStateFrom: ${getStateFrom.toString}")
 
 }

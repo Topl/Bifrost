@@ -1,6 +1,7 @@
 package bifrost.program
 
 import java.time.Instant
+import java.util.UUID
 
 import bifrost.transaction.bifrostTransaction.AssetCreation
 import bifrost.transaction.box.{CodeBox, StateBox}
@@ -22,7 +23,6 @@ class ProgramMethodSpec extends PropSpec
   property("Can call a function from a program") {
     forAll(programGen) {
       c: Program => {
-        println(s">>>>>>>>>>> program: ")
         val program = c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
         /*val params = JsonObject.fromMap(
@@ -33,12 +33,21 @@ class ProgramMethodSpec extends PropSpec
         val state = c.executionBuilderObj.core.variables
         println(s"state: ${state.toString}")
 
+        val stateTwo = s"""{ "b": 0 }""".asJson
+        val stateThree = s"""{ "c": 0 }""".asJson
+
         val stateBox = StateBox(c.parties.head._1, 0L, state, true)
-        val codeBox = CodeBox(c.parties.head._1, 1L, Seq("add = function() { a += 1 }"))
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, stateTwo, true)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, stateThree, true)
+        val codeBox = CodeBox(c.parties.head._1, 3L, Seq("add = function() { a += 1 }"))
 
-        println(s"program: ${program}")
+        val stateBoxUuids = Seq(
+          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
+          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
+          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
+        )
 
-        val result = Program.execute(Seq(stateBox), Seq(codeBox), "add")(party)(params)
+        val result = Program.execute(stateBoxUuids, Seq(codeBox), "add")(party)(params)
         println(s"test result: $result")
       }
     }
@@ -104,7 +113,7 @@ class ProgramMethodSpec extends PropSpec
     val effectiveTimestamp = Instant.now.toEpochMilli
     val expirationTimestamp = Instant.now.toEpochMilli + 10000L
     val program: String =
-      s"""
+      s
          |this.$name = function(){
          |    this.programEffectiveTime = $effectiveTimestamp;
          |    this.programExpirationTime = $expirationTimestamp;
