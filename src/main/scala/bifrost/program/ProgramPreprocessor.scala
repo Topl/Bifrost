@@ -215,6 +215,7 @@ object ProgramPreprocessor {
     jsre.eval(getProperties).asInstanceOf[ScriptObjectMirror]
   }*/
 
+  //noinspection ScalaStyle
   private def deriveState(jsre: Context, initjs: String): Json = {
     //val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
 
@@ -239,16 +240,28 @@ object ProgramPreprocessor {
     def varList(node: FunctionNode): Json = {
 
       var vars = scala.collection.mutable.Map[String, String]()
+      var varJson = scala.collection.mutable.Map[String, Json]()
 
       node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
         override def leaveVarNode(varNode: VarNode): VarNode = {
-          vars += (varNode.getName.getName -> varNode.getInit.toString)
+          val name: String = varNode.getName.getName
+          val init = varNode.getInit.toString
+          vars += (name -> init)
           varNode
         }
 
       })
-      vars.toMap.asJson
+
+      jsre.eval("js", initjs)
+
+      vars.map{ v =>
+        jsre.eval("js", s"typeof ${v._1}").toString match {
+          case "number" => varJson += (v._1 -> v._2.toLong.asJson)
+          case _ => varJson += (v._1 -> v._2.asJson)
+        }
+      }
+      varJson.toMap.asJson
     }
 
     varList(parsed)

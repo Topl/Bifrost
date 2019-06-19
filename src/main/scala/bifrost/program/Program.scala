@@ -122,12 +122,22 @@ object Program {
       jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.value})""")
     }
 
+    //Inject function to read from read only StateBoxes
+    val getStateFrom =
+      s"""
+         |function getStateFrom(uuid, value) {
+         |  return this[uuid][value]
+         |}
+       """.stripMargin
+
+    jsre.eval("js", getStateFrom)
+
     //Pass in writable state and functions
     mutableState.foreach(s => bindings.putMember(s._1, s._2))
     jsre.eval("js", programCode)
 
     //TODO Sanitize JS method creation
-    val params = args.values.foldLeft("")((a,b) => a + "," + b.toString)
+    val params = args.values
     val methodJS: String = methodName + "(" + params + ")"
 
     val methodEval = jsre.eval("js", methodJS)
