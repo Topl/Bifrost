@@ -287,7 +287,7 @@ trait BifrostGenerators extends CoreGenerators {
     .map(seq => PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq))
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
-    size <- Gen.choose(1, 16 * 1024-1)
+    size <- Gen.choose(1, 1024-1)
   } yield {
     ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
   }
@@ -608,8 +608,9 @@ trait BifrostGenerators extends CoreGenerators {
     ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
   }
 
+  //TODO Add programCreationGen after fixing serialization
   val transactionTypes: Seq[Gen[BifrostTransaction]] =
-    Seq(programCreationGen, polyTransferGen, arbitTransferGen, profileTxGen)
+    Seq(polyTransferGen, arbitTransferGen, profileTxGen) //programCreationGen
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen

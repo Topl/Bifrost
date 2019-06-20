@@ -9,6 +9,7 @@ import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
+import io.circe.parser._
 import org.graalvm.polyglot.Context
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import io.iohk.iodb.LSMStore
@@ -96,7 +97,7 @@ object Program {
     )
   }
 
-  //noinspection ScalaStyle
+
   /**
     *
     * @param stateBoxes   Set of StateBoxes to form program
@@ -106,11 +107,12 @@ object Program {
     * @param args         parameters for the method
     * @return             State members to update the mutable StateBox
     */
+  //noinspection ScalaStyle
   def execute(stateBoxes: Seq[(StateBox, UUID)], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): Json /*: Try[Either[Program, Json]]*/ = /*Try*/ {
+             (args: JsonObject): Json /*Try[Either[Json, Json]]*/ = /*Try*/ {
 
-    val mutableState: Seq[(String, String)] = stateBoxes.head._1.value.as[Map[String, String]].toSeq.flatten
+    val mutableState = stateBoxes.head._1.value.asObject.get.toMap
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
 
     val jsre: Context = Context.create("js")
@@ -123,28 +125,57 @@ object Program {
     }
 
     //Inject function to read from read only StateBoxes
-    val getStateFrom =
+    val getFromState =
       s"""
-         |function getStateFrom(uuid, value) {
+         |function getFromState(uuid, value) {
          |  return this[uuid][value]
          |}
        """.stripMargin
 
-    jsre.eval("js", getStateFrom)
+    jsre.eval("js", getFromState)
 
     //Pass in writable state and functions
-    mutableState.foreach(s => bindings.putMember(s._1, s._2))
+    mutableState.foreach{s =>
+      jsre.eval("js", s"${s._1} = ${s._2}")
+    }
     jsre.eval("js", programCode)
+    println(s"Right after injecting function code, a = ${bindings.getMember("a")}")
 
-    //TODO Sanitize JS method creation
-    val params = args.values
-    val methodJS: String = methodName + "(" + params + ")"
+    val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
+    val paramString: String = if(params.nonEmpty) {
+      params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"$a, $b")
+    } else ""
 
-    val methodEval = jsre.eval("js", methodJS)
+    println(s"mutableState: ${mutableState}")
+    println(jsre.eval("js", "a"))
 
-    val output: Map[String, String] = mutableState.map(s => s._1 -> bindings.getMember(s._1).toString).toMap
+    val methodString: String = s"this[$methodName]($paramString)"
 
-    output.asJson
+    println(s"$methodName($paramString)")
+    if(params.nonEmpty) {
+      println(s"getFromState try: " + jsre.eval("js", s"getFromState(${params(0)}, ${params(1)})"))
+    }
+    println(jsre.eval("js", "a"))
+
+    //Evaluate the method on the built script context
+    jsre.eval("js", s"""$methodName($paramString)""")
+
+    val newState: Map[String, String] = mutableState.map { s =>
+      s._1 -> bindings.getMember(s._1).toString
+    }
+
+    val checkState: Json = mutableState.map{ s =>
+
+      println(s"s._2.name: ${s._2.name}")
+
+      s._2.name match {
+        case "Number" => println("match: "+bindings.getMember(s._1).asInt()); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
+        case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
+      }
+    }.asJson
+
+
+    checkState
   }
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location

@@ -257,7 +257,7 @@ object ProgramPreprocessor {
 
       vars.map{ v =>
         jsre.eval("js", s"typeof ${v._1}").toString match {
-          case "number" => varJson += (v._1 -> v._2.toLong.asJson)
+          case "number" => varJson += (v._1 -> JsonNumber.fromString(v._2.toString).get.asJson)
           case _ => varJson += (v._1 -> v._2.asJson)
         }
       }
