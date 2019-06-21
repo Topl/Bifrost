@@ -4,6 +4,7 @@ import java.io.File
 
 import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.ForgingSettings
+import bifrost.srb.StateBoxRegistry
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier
@@ -30,7 +31,8 @@ import scala.util.{Failure, Try}
   */
 class BifrostHistory(val storage: BifrostStorage,
                      settings: ForgingSettings,
-                     validators: Seq[BlockValidator[BifrostBlock]])
+                     validators: Seq[BlockValidator[BifrostBlock]],
+                     sbr: StateBoxRegistry)
   extends History[ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostTransaction,
     BifrostBlock,
@@ -88,17 +90,13 @@ class BifrostHistory(val storage: BifrostStorage,
       if (isGenesis(block)) {
         storage.update(block, settings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
-        (new BifrostHistory(storage, settings, validators), progInfo)
-
+        (new BifrostHistory(storage, settings, validators, sbr), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
         val oldDifficulty = storage.difficultyOf(block.parentId).get
         var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
-
         if (difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
-
         val builtOnBestChain = applicable(block)
-
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[BifrostBlock] = if (!builtOnBestChain) {
           log.debug(s"New orphaned block ${Base58.encode(block.id)}")
@@ -109,9 +107,14 @@ class BifrostHistory(val storage: BifrostStorage,
         } else { // we want to swap to a fork
           bestForkChanges(block)
         }
-
         storage.update(block, difficulty, builtOnBestChain)
-        (new BifrostHistory(storage, settings, validators), mod)
+        //improve by passing all txs as a sequence instead of one by one
+        //maybe the txs can be collected as a sequence in the method below and then sent to the update function in SBR
+        if (block.transactions.isDefined) {
+          for (tx <- block.transactions.get) sbr.updateIfStateBoxTransaction(tx)
+          sbr.checkpoint(block.id)
+        }
+        (new BifrostHistory(storage, settings, validators, sbr), mod)
       }
     }
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
@@ -129,13 +132,14 @@ class BifrostHistory(val storage: BifrostStorage,
 
     val block = storage.modifierById(modifierId).get
     val parentBlock = storage.modifierById(block.parentId).get
+    sbr.rollback(modifierId)
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${Base58.encode(parentBlock.id)} from version ${
       Base58
         .encode(block.id)
     }")
     storage.rollback(parentBlock.id)
-    new BifrostHistory(storage, settings, validators)
+    new BifrostHistory(storage, settings, validators, sbr)
   }
 
   /**
@@ -269,7 +273,6 @@ class BifrostHistory(val storage: BifrostStorage,
     } else {
       HistoryComparisonResult.Younger
     }
-
   }
 
   private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
@@ -340,20 +343,17 @@ class BifrostHistory(val storage: BifrostStorage,
         queryBloom equals andRes
     }
     // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
-                                                                        tx.bloomTopics match {
-                                                                          case Some(txBlooms) =>
-                                                                            var res = false
-                                                                            val txBloomsWrapper = txBlooms.map(
-                                                                              ByteArrayWrapper(_))
-                                                                            val queryBloomsWrapper = queryBloomTopics
-                                                                              .map(ByteArrayWrapper(_))
-                                                                            res = txBloomsWrapper.intersect(
-                                                                              queryBloomsWrapper)
-                                                                              .length == queryBloomsWrapper.length
-                                                                            res
-                                                                          case None => false
-                                                                        }
+    getBlockIdsByBloom(f).flatMap(b =>
+      modifierById(b).get.txs.filter(tx =>
+        tx.bloomTopics match {
+          case Some(txBlooms) =>
+            var res = false
+            val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+            val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+            res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+            res
+          case None => false
+        }
     ))
   }
 
@@ -441,10 +441,11 @@ object BifrostHistory extends ScorexLogging {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
     val logDirOpt = settings.logDirOpt
-    readOrGenerate(dataDir, logDirOpt, settings)
+    val sbr = StateBoxRegistry.readOrGenerate(settings)
+    readOrGenerate(dataDir, logDirOpt, sbr, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): BifrostHistory = {
+  def readOrGenerate(dataDir: String, logDirOpt: Option[String], sbr: StateBoxRegistry, settings: ForgingSettings): BifrostHistory = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
@@ -464,6 +465,6 @@ object BifrostHistory extends ScorexLogging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    new BifrostHistory(storage, settings, validators)
+    new BifrostHistory(storage, settings, validators, sbr)
   }
 }

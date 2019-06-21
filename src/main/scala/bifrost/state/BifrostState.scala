@@ -5,9 +5,8 @@ import java.time.Instant
 
 import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.Contract
+import bifrost.program.Program
 import bifrost.exceptions.TransactionValidationException
-import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction._
 import bifrost.transaction.box._
@@ -17,7 +16,9 @@ import com.google.common.primitives.Longs
 import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.forging.ForgingSettings
 import bifrost.settings.Settings
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -38,11 +39,13 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * applicable to it or not. Also has methods to get a closed box, to apply a persistent modifier, and to roll back
   * to a previous version.
   *
-  * @param storage   : singleton Iodb storage instance
-  * @param version   : blockId used to identify each block. Also used for rollback
-  * @param timestamp : timestamp of the block that results in this state
+  * @param storage           singleton Iodb storage instance
+  * @param version           blockId used to identify each block. Also used for rollback
+  * @param timestamp         timestamp of the block that results in this state
+  * @param history           Main box storage
+  * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -54,6 +57,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   type BPMOD = BifrostState.BPMOD
   type GSC = BifrostState.GSC
   type BSC = BifrostState.BSC
+
+
 
   override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
@@ -76,8 +81,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
-//    println("Rollback step")
-//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(version)}")
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
@@ -86,13 +89,21 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history)
+      BifrostState(storage, version, timestamp, history, stateBoxRegistry)
     }
   }
 
   override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
+
+
+
+    /*val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
+      {
+        case "StateBox" => ByteArrayWrapper(sb.)
+      }
+    }*/
 
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
@@ -107,7 +118,44 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
-//    println(s"storage last version ID: ${storage.lastVersionID} New version: ${ByteArrayWrapper(newVersion)}")
+    storage.update(
+      ByteArrayWrapper(newVersion),
+      boxIdsToRemove,
+      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
+        timestamp)))
+    )
+
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
+
+    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
+    newSt
+
+  }
+
+  def applyChanges(changes: GSC, newVersion: VersionTag, executionBox: ExecutionBox): Try[NVCT] = Try {
+
+
+
+    val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
+      {
+        case "StateBox" => sb.asInstanceOf[StateBox]
+      }
+    }
+
+    val stateBoxId = executionBox.value.zip(stateBoxesToAdd).map(usb => usb._1 -> usb._2.bytes)
+
+    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
+
+    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
+      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
+
+    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
+
+    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
     storage.update(
       ByteArrayWrapper(newVersion),
@@ -116,11 +164,19 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history)
+    stateBoxId.foreach(sb => stateBoxRegistry.update(
+      newVersion,
+      sb._1,
+      sb._2
+    ))
+
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
+
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
 
   }
+
 
   //noinspection ScalaStyle
   override def validate(transaction: TX): Try[Unit] = {
@@ -128,10 +184,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
       case asT: AssetTransfer => validateAssetTransfer(asT)
-      case cc: ContractCreation => validateContractCreation(cc)
+      case cc: ProgramCreation => validateProgramCreation(cc)
       case prT: ProfileTransaction => validateProfileTransaction(prT)
-      case cme: ContractMethodExecution => validateContractMethodExecution(cme)
-      case cComp: ContractCompletion => validateContractCompletion(cComp)
+      case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ac: AssetCreation => validateAssetCreation(ac)
       case cb: CoinbaseTransaction => validateCoinbaseTransaction(cb)
@@ -320,17 +375,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   /**
-    * Validates ContractCreation instance on its unlockers && timestamp of the contract
+    * Validates ProgramCreation instance on its unlockers && timestamp of the program
     *
-    * @param cc : ContractCreation object
+    * @param cc : ProgramCreation object
     * @return
     */
   //noinspection ScalaStyle
-  def validateContractCreation(cc: ContractCreation): Try[Unit] = {
+  def validateProgramCreation(cc: ProgramCreation): Try[Unit] = {
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
-      // Verify that this is being sent by this party because we rely on that during ContractMethodExecution
+      // Verify that this is being sent by this party because we rely on that during ProgramMethodExecution
       sig.isValid(prop, cc.messageToSign)
 
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
@@ -349,11 +404,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       return Failure(new TransactionValidationException("Too many signatures for the parties of this transaction"))
     }
 
-    /* Verifies that the role boxes match the roles stated in the contract creation */
+    /* Verifies that the role boxes match the roles stated in the program creation */
     if (!roleBoxes.zip(cc.parties).forall { case (boxRole, propToRole) => boxRole.equals(propToRole._2.toString) }) {
-      log.debug("role boxes does not match the roles stated in the contract creation")
+      log.debug("role boxes does not match the roles stated in the program creation")
       return Failure(
-        new TransactionValidationException("role boxes does not match the roles stated in the contract creation"))
+        new TransactionValidationException("role boxes does not match the roles stated in the program creation"))
     }
 
     val unlockersValid: Try[Unit] = cc.unlockers
@@ -389,11 +444,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       if (boxesAreNew && txTimestampIsAcceptable) {
         Success[Unit](Unit)
       } else if (!boxesAreNew) {
-        Failure(new TransactionValidationException("ContractCreation attempts to overwrite existing contract"))
+        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
       } else if (inPast) {
-        Failure(new TransactionValidationException("ContractCreation attempts to write into the past"))
+        Failure(new TransactionValidationException("ProgramCreation attempts to write into the past"))
       } else {
-        Failure(new TransactionValidationException("ContractCreation timestamp is too far into the future"))
+        Failure(new TransactionValidationException("ProgramCreation timestamp is too far into the future"))
       }
     }
 
@@ -402,27 +457,25 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   /**
     *
-    * @param cme : the ContractMethodExecution to validate
+    * @param cme : the ProgramMethodExecution to validate
     * @return
     */
   //noinspection ScalaStyle
-  def validateContractMethodExecution(cme: ContractMethodExecution): Try[Unit] = Try {
+  def validateProgramMethodExecution(cme: ProgramMethodExecution): Try[Unit] = Try {
 
-    val contractBytes = storage.get(ByteArrayWrapper(cme.contractBox.id))
+    val executionBoxBytes = storage.get(ByteArrayWrapper(cme.executionBox.id))
 
-    /* Contract exists */
-    if (contractBytes.isEmpty) {
-      throw new TransactionValidationException(s"Contract ${Base58.encode(cme.contractBox.id)} does not exist")
+    /* Program exists */
+    if (executionBoxBytes.isEmpty) {
+      throw new TransactionValidationException(s"Program ${Base58.encode(cme.executionBox.id)} does not exist")
     }
 
-    val contractBox: ContractBox = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-    val contractProposition: MofNProposition = contractBox.proposition
-    val contract: Contract = Contract((contractBox.json \\ "value").head, contractBox.id)
-    val contractEffectiveTime: Long = contract.getFromContract("contractEffectiveTime").get.asNumber.get.toLong.get
+    val executionBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
+    val programProposition: MofNProposition =  executionBox.proposition
 
     /* First check to see all roles are present */
     val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
-      /* Verify that this is being sent by this party because we rely on that during ContractMethodExecution */
+      /* Verify that this is being sent by this party because we rely on that during ProgramMethodExecution */
       sig.isValid(prop, cme.messageToSign)
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
@@ -430,9 +483,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       ._2.isSuccess => s._2.get
     }
 
-    /* This person belongs to contract */
-    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(contractProposition, cme.messageToSign)) {
-      throw new TransactionValidationException(s"Signature is invalid for contractBox")
+    /* This person belongs to program */
+    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(programProposition, cme.messageToSign)) {
+
+      println(s">>>>> programProposition: ${programProposition.toString}")
+      println(s">>>>> cme.signatures.keySet: ${cme.signatures.keySet}")
+      println(s">>>>> cme.parties.keySet ${cme.parties.keySet}")
+      throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
     /* ProfileBox exists for all attempted signers */
@@ -490,87 +547,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     /* Timestamp is after most recent block, not in future */
     if (cme.timestamp <= timestamp) {
-      throw new TransactionValidationException("ContractMethodExecution attempts to write into the past")
+      throw new TransactionValidationException("ProgramMethodExecution attempts to write into the past")
     }
     if (cme.timestamp > Instant.now.toEpochMilli) {
-      throw new TransactionValidationException("ContractMethodExecution timestamp is too far into the future")
+      throw new TransactionValidationException("ProgramMethodExecution timestamp is too far into the future")
     }
-    if (contractEffectiveTime > Instant.now.toEpochMilli) {
-      throw new TransactionValidationException("Effective date hasn't passed")
-    }
-
   }.flatMap(_ => semanticValidity(cme))
-
-  /**
-    *
-    * @param cc : complete the contract with all parties having signed the completed contract
-    * @return
-    */
-  //noinspection ScalaStyle
-  def validateContractCompletion(cc: ContractCompletion): Try[Unit] = {
-
-    val contractBytes = storage.get(ByteArrayWrapper(cc.contractBox.id))
-
-    /* Contract exists */
-    if (contractBytes.isEmpty) {
-      Failure(new TransactionValidationException(s"Contract ${Base58.encode(cc.contractBox.id)} does not exist"))
-    } else {
-      val contractJson: Json = ContractBoxSerializer.parseBytes(contractBytes.get.data).get.json
-      val contractProposition: MofNProposition = ContractBoxSerializer.parseBytes(contractBytes.get.data).get
-        .proposition
-
-
-      /* Checking that all of the parties are part of the contract and have claimed roles */
-      val verifyParties = Try {
-        val parties = cc.signatures.map {
-          case (prop, sig) =>
-            val profileBox = getProfileBox(prop, "role") match {
-              case Success(pb) => pb
-              case Failure(_) => throw new TransactionValidationException(s"Role does not exist")
-            }
-
-            val claimedRole = cc.parties.find(_._1.pubKeyBytes sameElements prop.pubKeyBytes) match {
-              case Some(role) => role._2
-              case None => throw new Exception("Unexpected signature for this transaction")
-            }
-
-            /* This person belongs to contract */
-            if (!MultiSignature25519(Set(sig)).isValid(contractProposition, cc.messageToSign)) {
-              throw new TransactionValidationException(s"Signature is invalid for contractBox")
-            } /* Signature matches profilebox owner */
-            else if (!sig.isValid(profileBox.proposition, cc.messageToSign)) {
-              throw new TransactionValidationException(s"Signature invalid for ${Base58.encode(prop.pubKeyBytes)} " +
-                s"profileBox")
-            } /* Role provided by cc matches profilebox */
-            else if (!profileBox.value.equals(claimedRole.toString)) {
-              throw new TransactionValidationException(
-                s"Role ${claimedRole.toString} for ${Base58.encode(prop.pubKeyBytes)} " +
-                  s"does not match ${profileBox.value} in profileBox")
-            }
-
-            claimedRole
-        }
-
-        /* Checking that all the roles are represented */
-        if (!parties.toSet.equals(Set(Role.Investor, Role.Hub, Role.Producer))) {
-          throw new TransactionValidationException("Not all roles present")
-        }
-      }
-
-      if (verifyParties.isFailure) {
-        verifyParties
-      } else if (cc.timestamp <= timestamp) {
-        Failure(new TransactionValidationException("ContractCompletion attempts to write into the past"))
-
-      } else if (cc.timestamp >= Instant.now.toEpochMilli) {
-        Failure(new TransactionValidationException("ContractCompletion timestamp is too far in the future"))
-
-        /* Contract is in completed state, waiting for completion */
-      } else {
-        Success()
-      }
-    }
-  }
 
   /**
     *
@@ -666,7 +648,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 }
 
-object BifrostState {
+object BifrostState extends ScorexLogging {
 
   type T = Any
   type TX = BifrostTransaction
@@ -683,10 +665,9 @@ object BifrostState {
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case asT: AssetTransfer => AssetTransfer.validate(asT)
       case ac: AssetCreation => AssetCreation.validate(ac)
-      case cc: ContractCreation => ContractCreation.validate(cc)
-      case ccomp: ContractCompletion => ContractCompletion.validate(ccomp)
+      case cc: ProgramCreation => ProgramCreation.validate(cc)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
-      case cme: ContractMethodExecution => ContractMethodExecution.validate(cme)
+      case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
       case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
@@ -694,30 +675,27 @@ object BifrostState {
     }
   }
 
+  def changes(mod: BPMOD) : Try[GSC] = Try {
+    val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
-  def changes(mod: BPMOD): Try[GSC] = {
-    Try {
-      val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
+    val gen = mod.forgerBox.proposition
 
-      val gen = mod.forgerBox.proposition
-
-      val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
-        case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-      }
-
-      val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
-          (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
-        })
-
-      val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
-
-      var finalToAdd = toAdd
-      if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
-
-      //no reward additional to tx fees
-      BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
+    val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
+      case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
     }
+
+    val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
+      boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))((aggregate, boxDelta) => {
+        (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
+      })
+
+    val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
+
+    var finalToAdd = toAdd
+    if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
+
+    //no reward additional to tx fees
+    BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
   }
 
   def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
@@ -749,16 +727,9 @@ object BifrostState {
         .data)
     }
 
-//    val blockStorage = new LSMStore(iFile)
-//    val storage = new BifrostStorage(blockStorage, settings)
-//
-//    val validators = Seq(
-//      new DifficultyBlockValidator(storage)
-//      //new ParentBlockValidator(storage),
-//      //new SemanticBlockValidator(FastCryptographicHash)
-//    )
+    val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
 
-    BifrostState(stateStorage, version, timestamp, history)
+    BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {

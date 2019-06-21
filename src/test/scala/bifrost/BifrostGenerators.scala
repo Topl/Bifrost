@@ -2,15 +2,16 @@ package bifrost
 
 import java.io.File
 import java.time.Instant
+import java.util.UUID
 
 import bifrost.blocks.BifrostBlock
-import bifrost.contract.modules.BaseModuleWrapper
-import bifrost.contract.{Contract, _}
+import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.{bifrostTransaction, _}
+import bifrost.transaction.bifrostTransaction
+import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -241,6 +242,39 @@ trait BifrostGenerators extends CoreGenerators {
     ProfileBox(proposition, 0L, value, field)
   }
 
+  lazy val stateBoxGen: Gen[StateBox] = for {
+    proposition <- propositionGen
+    value <- stringGen
+    value2 <- stringGen
+    nonce <- positiveLongGen
+  } yield {
+    StateBox(proposition, nonce, value.asJson, true)
+  }
+
+  lazy val codeBoxGen: Gen[CodeBox] = for {
+    proposition <- propositionGen
+    value <- stringGen
+    nonce <- positiveLongGen
+  } yield {
+    CodeBox(proposition, nonce, Seq(value))
+  }
+
+  lazy val executionBoxGen: Gen[ExecutionBox] = for {
+    proposition <- oneOfNPropositionGen
+    codeBox_1 <- codeBoxGen
+    codeBox_2 <- codeBoxGen
+    nonce <- positiveLongGen
+    stateBox_1 <- stateBoxGen
+    stateBox_2 <- stateBoxGen
+  } yield {
+    ExecutionBox(proposition._2,
+                  nonce,
+                  Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
+                      UUID.nameUUIDFromBytes(stateBox_2.id)),
+                  Seq(codeBox_1.id,
+                      codeBox_2.id))
+  }
+
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
     a <- propositionGen
     b <- propositionGen
@@ -258,13 +292,26 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val validFulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen))
     .map(seq => PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq))
 
-  lazy val validAgreementTermsGen: Gen[AgreementTerms] = for {
-    size <- Gen.choose(1, 16 * 1024-1)
+  lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
+    size <- Gen.choose(1, 1024-1)
   } yield {
-    AgreementTerms(Random.alphanumeric.take(size).mkString)
+    ExecutionBuilderTerms(Random.alphanumeric.take(size).mkString)
   }
 
   def validInitJsGen(name: String,
+                     assetCode: String): Gen[String] = for {
+    _ <- stringGen
+  } yield {
+    s"""
+       |var a = 0
+       |
+       |add = function() {
+       |  a += 1
+       |}
+     """.stripMargin
+  }
+
+  /*def validInitJsGen(name: String,
                      assetCode: String,
                      effectiveTimestamp: Long,
                      expirationTimestamp: Long): Gen[String] = for {
@@ -272,8 +319,8 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     s"""
        |this.$name = function(){
-       |    this.contractEffectiveTime = $effectiveTimestamp;
-       |    this.contractExpirationTime = $expirationTimestamp;
+       |    this.programEffectiveTime = $effectiveTimestamp;
+       |    this.programExpirationTime = $expirationTimestamp;
        |    this.status = "initialized";
        |    this.assetCode = "$assetCode";
        |    this.initialCapital = "0";
@@ -304,7 +351,7 @@ trait BifrostGenerators extends CoreGenerators {
        |    return JSON.stringify(o);
        |}
      """.stripMargin
-  }
+  }*/
 
   val alphanumeric: Gen[String] = for {
     size <- positiveMediumIntGen
@@ -313,45 +360,45 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   // TODO: This results in an empty generator far too often. Fix needed
-  def validAgreementGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
-                        expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[Agreement] = for {
+  def validExecutionBuilderGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
+                        expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[ExecutionBuilder] = for {
     assetCode <- alphanumeric
-    terms <- validAgreementTermsGen
+    terms <- validExecutionBuilderTermsGen
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
-    initjs <- validInitJsGen(name, assetCode, effectiveTimestamp, expirationTimestamp)
+    initjs <- validInitJsGen(name, assetCode)
   } yield {
-    Agreement(terms, assetCode, BaseModuleWrapper(name, initjs)(JsonObject.empty))
+    ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
-  lazy val contractGen: Gen[Contract] = for {
+  lazy val programGen: Gen[Program] = for {
     producer <- propositionGen
     investor <- propositionGen
     hub <- propositionGen
     storage <- jsonGen()
     status <- jsonGen()
-    agreement <- validAgreementGen().map(_.json)
+    executionBuilder <- validExecutionBuilderGen().map(_.json)
     id <- genBytesList(FastCryptographicHash.DigestSize)
   } yield {
-    Contract(Map(
+    Program(Map(
       "parties" -> Map(
         Base58.encode(producer.pubKeyBytes) -> "producer",
         Base58.encode(investor.pubKeyBytes) -> "investor",
         Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
       "storage" -> Map("status" -> status, "other" -> storage).asJson,
-      "agreement" -> agreement,
+      "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
     ).asJson, id)
   }
 
-  lazy val contractBoxGen: Gen[ContractBox] = for {
+  lazy val programBoxGen: Gen[ProgramBox] = for {
     proposition <- oneOfNPropositionGen
     nonce <- positiveLongGen
-    value <- contractGen.map(_.json)
+    value <- programGen.map(_.json)
   } yield {
-    ContractBox(proposition._2, nonce, value)
+    ProgramBox(proposition._2, nonce, value)
   }
 
   def preFeeBoxGen(minFee: Long = 0, maxFee: Long = Long.MaxValue): Gen[(Nonce, Long)] = for {
@@ -361,16 +408,18 @@ trait BifrostGenerators extends CoreGenerators {
     (nonce, amount)
   }
 
-  lazy val contractCreationGen: Gen[ContractCreation] = for {
-    agreement <- validAgreementGen()
+  lazy val programCreationGen: Gen[ProgramCreation] = for {
+    executionBuilder <- validExecutionBuilderGen()
+    readOnlyStateBoxes <- stateBoxGen
     numInvestmentBoxes <- positiveTinyIntGen
     parties <- partiesGen
     numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ContractCreation(
-      agreement,
+    ProgramCreation(
+      executionBuilder,
+      Seq(UUID.nameUUIDFromBytes(readOnlyStateBoxes.id)),
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       parties,
@@ -381,9 +430,11 @@ trait BifrostGenerators extends CoreGenerators {
       data)
   }
 
-  lazy val contractMethodExecutionGen: Gen[ContractMethodExecution] = for {
-    contract <- contractBoxGen
+  lazy val programMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     methodName <- stringGen
+    stateBox <- stateBoxGen
+    executionBox <- executionBoxGen
+    codeBox <- codeBoxGen
     parameters <- jsonArrayGen()
     sig <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
@@ -392,35 +443,16 @@ trait BifrostGenerators extends CoreGenerators {
     party <- propositionGen
     data <- stringGen
   } yield {
-    ContractMethodExecution(
-      contract,
+    ProgramMethodExecution(
+      stateBox,
+      codeBox,
+      executionBox,
       methodName,
       parameters,
       Map(sampleUntilNonEmpty(party) -> Gen.oneOf(Role.values.toSeq).sample.get),
       Map(party -> sig),
       Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
-      timestamp,
-      data)
-  }
-
-  lazy val contractCompletionGen: Gen[ContractCompletion] = for {
-    contract <- contractBoxGen
-    reputation <- reputationBoxGen
-    parties <- partiesGen
-    signature <- signatureGen
-    fee <- positiveLongGen
-    numFeeBoxes <- positiveTinyIntGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    bifrostTransaction.ContractCompletion(
-      contract,
-      IndexedSeq(reputation),
-      parties,
-      parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
-      parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),
-      parties.map({ case (k, _) => k -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }),
       timestamp,
       data)
   }
@@ -582,8 +614,9 @@ trait BifrostGenerators extends CoreGenerators {
     ((0 until seqLen) map { _ => sampleUntilNonEmpty(key25519Gen) }).toSet
   }
 
+  //TODO Add programCreationGen after fixing serialization
   val transactionTypes: Seq[Gen[BifrostTransaction]] =
-    Seq(contractCreationGen, polyTransferGen, arbitTransferGen, profileTxGen)
+    Seq(polyTransferGen, arbitTransferGen, profileTxGen) //programCreationGen
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
@@ -645,7 +678,8 @@ trait BifrostGenerators extends CoreGenerators {
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new BifrostHistory(storage, settings, validators)
+    val sbr = StateBoxRegistry.readOrGenerate(settings)
+    var history = new BifrostHistory(storage, settings, validators, sbr)
 
     val keyPair = sampleUntilNonEmpty(key25519Gen)
     val genesisBlock = BifrostBlock.create(
