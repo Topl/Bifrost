@@ -27,7 +27,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
           Seq(assetCreation),
-          10L
+          10L,
+          settings.version
         )
 
         val assetBoxes: Traversable[AssetBox] = assetCreation.newBoxes.map {

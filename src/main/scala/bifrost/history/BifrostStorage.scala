@@ -38,7 +38,12 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
-            val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
+            val parsed = {
+              heightOf(blockId) match {
+                case Some(x) if (x <= settings.forkHeight) => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+              }
+            }
             parsed match {
               case Failure(e) => log.warn("Failed to parse bytes from db", e)
               case _ =>

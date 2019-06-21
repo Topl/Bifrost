@@ -35,7 +35,8 @@ class BloomFilterSpec extends PropSpec
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,
                                txs,
-                               10L
+                               10L,
+                               settings.version
       )
 
       history = history.append(block).get._1

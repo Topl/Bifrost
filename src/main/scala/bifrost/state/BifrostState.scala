@@ -214,7 +214,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
         )
       }
-
+      //Determine enough arbits
       boxesSumTry flatMap { openSum =>
         if (arT.newBoxes.map {
           case p: ArbitBox => p.value
@@ -263,13 +263,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(asT))
   }
 
-
-
-  //TODO implement
-  def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
-    semanticValidity(ac)
-  }
-
   private def determineEnoughAssets(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
     boxesSumTry flatMap { openSum =>
       if (tx.newBoxes.map {
@@ -281,6 +274,23 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         Failure(new Exception("Not enough assets"))
       }
     }
+  }
+
+  def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+      ac.newBoxes.size match {
+          //only one box should be created
+        case 1 => if (ac.newBoxes.head.isInstanceOf[AssetBox]) // the new box is an asset box
+          {
+            Success[Unit](Unit)
+          }
+          else {
+            Failure(new Exception("Incorrect box type"))
+          }
+        case _ => Failure(new Exception("Incorrect number of boxes created"))
+      }
+    }
+    statefulValid.flatMap(_ => semanticValidity(ac))
   }
 
   /**

@@ -24,6 +24,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
+import bifrost.block.Block.Version
 import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try
@@ -107,7 +108,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
         val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
 
-        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget) match {
+        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, forgerSettings.version) match {
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
@@ -136,10 +137,12 @@ object Forger extends ScorexLogging {
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
+
   def iteration(parent: BifrostBlock,
                 boxKeys: Seq[(ArbitBox, PrivateKey25519)],
                 txsToInclude: Seq[BifrostTransaction],
-                target: BigInt): Option[BifrostBlock] = {
+                target: BigInt,
+                version: Version): Option[BifrostBlock] = {
 
     log.debug("in the iteration function")
     val successfulHits = boxKeys.map { boxKey =>
@@ -151,7 +154,7 @@ object Forger extends ScorexLogging {
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
       BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
-        txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value)  // inflation val
+        txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version)  // inflation val
     }
   }
 

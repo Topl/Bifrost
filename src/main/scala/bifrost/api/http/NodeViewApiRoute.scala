@@ -129,10 +129,6 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
           case Success(id) =>
             val blockNumber = view.history.storage.heightOf(id)
             val storage = view.history.storage
-//            Map(
-//              "blockNumber" -> view.history.storage.heightOf(id).get.asJson,
-//              "blockInfo" -> view.history.modifierById(id).get.json
-//            ).asJson
 //            view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).asJson
             view.history.modifierById(id).get.json.asObject.get.add("blockNumber", blockNumber.asJson).add("blockDifficulty",
             storage.difficultyOf(id).asJson).asJson

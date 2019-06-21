@@ -42,22 +42,25 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     Longs.toByteArray(fee)
   )
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
-   case ((prop, value), idx) =>
-     val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
-       "AssetCreation".getBytes ++
-         prop.pubKeyBytes ++
-         issuer.pubKeyBytes ++
-         assetCode.getBytes ++
-         hashNoNonces ++
-         Ints.toByteArray(idx)
-     ))
+   override lazy val newBoxes: Traversable[BifrostBox] = to
+     .filter(toInstance => toInstance._2 > 0L)
+     .zipWithIndex
+     .map {
+     case ((prop, value), idx) =>
+       val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
+         "AssetCreation".getBytes ++
+           prop.pubKeyBytes ++
+           issuer.pubKeyBytes ++
+           assetCode.getBytes ++
+           hashNoNonces ++
+           Ints.toByteArray(idx)
+       ))
 
-     //TODO assetBoxes elsewhere do not subtract fee from box value
-     //TODO no check that amount >= fee
-     //AssetBox(prop, nonce, value, assetCode, hub)
-     AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
-   }
+       //TODO assetBoxes elsewhere do not subtract fee from box value
+       //TODO no check that amount >= fee
+       //AssetBox(prop, nonce, value, assetCode, hub)
+       AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
+     }
 
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
@@ -107,7 +110,6 @@ object AssetCreation {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures.forall({ case (signature) =>
-      //println(signature.isValid(tx.hub, tx.messageToSign))
       signature.isValid(tx.issuer, tx.messageToSign)
     }), "Invalid signatures")
   }

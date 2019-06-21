@@ -43,7 +43,13 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
-  lazy val newBoxes: Traversable[BifrostBox] = Traversable(ArbitBox(to.head._1, nonce, to.head._2))
+  lazy val newBoxes: Traversable[BifrostBox] =
+    if(to.head._2 > 0L) {
+      Traversable(ArbitBox(to.head._1, nonce, to.head._2))
+    }
+    else {
+      Traversable()
+    }
 
   override lazy val json: Json = Map( // tx in json form
     "txHash" -> Base58.encode(id).asJson,

@@ -21,7 +21,5 @@ class DifficultyBlockValidator(storage: BifrostStorage) extends BlockValidator[B
       val target = Forger.calcAdjustedTarget(difficulty, lastBlock, storage.settings.targetBlockTime.length)
       require(BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
     }
-
   }
-
 }

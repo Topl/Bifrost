@@ -129,7 +129,8 @@ class AssetRPCSpec extends WordSpec
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
-          10L
+          10L,
+          settings.version
         )
         gw.scanPersistent(tempBlock)
         //Dont need further checks here since the subsequent tests would fail if this one did

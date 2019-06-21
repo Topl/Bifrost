@@ -27,11 +27,16 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.Try
 
 class NodeViewRPCSpec extends WordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -134,7 +139,8 @@ class NodeViewRPCSpec extends WordSpec
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
-          10L
+          10L,
+          settings.version
         )
         history.append(tempBlock)
         blockId = tempBlock.id
@@ -215,4 +221,10 @@ class NodeViewRPCSpec extends WordSpec
       }
     }
   }
+}
+
+
+object NodeViewRPCSpec {
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 }

@@ -81,7 +81,6 @@ class BifrostHistory(val storage: BifrostStorage,
       case Failure(e) => log.warn(s"Block validation failed", e)
       case _ =>
     }
-
     validationResults.foreach(_.get)
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
@@ -93,7 +92,6 @@ class BifrostHistory(val storage: BifrostStorage,
 
       } else {
         val parent = modifierById(block.parentId).get
-
         val oldDifficulty = storage.difficultyOf(block.parentId).get
         var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
 
@@ -116,10 +114,8 @@ class BifrostHistory(val storage: BifrostStorage,
         (new BifrostHistory(storage, settings, validators), mod)
       }
     }
-
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
                s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
-
     res
   }
 

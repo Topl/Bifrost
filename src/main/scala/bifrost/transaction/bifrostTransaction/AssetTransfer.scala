@@ -33,7 +33,10 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
+  override lazy val newBoxes: Traversable[BifrostBox] = to
+    .filter(toInstance => toInstance._2 > 0L)
+    .zipWithIndex
+    .map {
     case ((prop, value), idx) =>
       val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
         "AssetTransfer".getBytes ++
