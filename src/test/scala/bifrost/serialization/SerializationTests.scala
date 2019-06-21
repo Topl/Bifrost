@@ -137,7 +137,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  /*property("ExecutionBox Serialization") {
+  property("ExecutionBox Serialization") {
     forAll(executionBoxGen) {
       b: ExecutionBox =>
         val json = b.json
@@ -149,7 +149,7 @@ class SerializationTests extends PropSpec
         json.as[ExecutionBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
-  }*/
+  }
 
   property("ExecutionBuilder Serialization") {
     forAll(validExecutionBuilderGen()) {

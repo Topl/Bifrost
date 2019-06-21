@@ -618,7 +618,7 @@ case class ExecutionBox(proposition: MofNProposition,
       .map(_.asJson)
       .asJson,
     "value" -> value.asJson,
-    "codeBoxIds" -> codeBoxIds.map(id => Base58.encode(id).asJson).asJson,
+    "codeBoxIds" -> codeBoxIds.map(cb => Base58.encode(cb)).asJson,
     "nonce" -> nonce.toString.asJson,
   ).asJson
 
@@ -633,11 +633,12 @@ object ExecutionBox {
     proposition <- c.downField("proposition").as[Seq[String]]
     value <- c.downField("value").as[Seq[UUID]]
     nonce <- c.downField("nonce").as[Long]
-    codeBoxIds <- c.downField("codeBoxIds").as[Seq[Array[Byte]]]
+    codeBoxIds <- c.downField("codeBoxIds").as[Seq[String]]
   } yield {
     val preparedPubKey = proposition.map(t => Base58.decode(t).get).toSet
     val prop = MofNProposition(1, preparedPubKey)
-    ExecutionBox(prop, nonce, value, codeBoxIds)
+    val codeBoxes: Seq[Array[Byte]] = codeBoxIds.map(cb => Base58.decode(cb).get)
+    ExecutionBox(prop, nonce, value, codeBoxes)
   }
 }
 
@@ -663,7 +664,7 @@ object ExecutionBoxSerializer {
       MofNPropositionSerializer.toBytes(obj.proposition)
     )
     println(s"obj.proposition: ${obj.proposition}")
-    println(s"obj.codeBoxIds: ${obj.codeBoxIds}")
+    println(s"obj.codeBoxIds: ${obj.codeBoxIds.map(b => Base58.encode(b))}")
     println(s"toBytes: ${bytes.length}")
     bytes
   }
@@ -709,7 +710,7 @@ object ExecutionBoxSerializer {
     }*/
 
     val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { i =>
-      val id: Array[Byte] = obj.slice(takenBytes * i, takenBytes + Longs.BYTES * i * 4)
+      val id: Array[Byte] = obj.slice(takenBytes + i * (4 * Longs.BYTES), takenBytes + (i + 1) * (4 * Longs.BYTES))
       id
     }
     takenBytes += Longs.BYTES * 4 * codeBoxIdsLength
@@ -719,8 +720,11 @@ object ExecutionBoxSerializer {
     val prop: MofNProposition = MofNPropositionSerializer.parseBytes(obj.slice(takenBytes, endIndex)).get
     takenBytes = endIndex
 
+    println(s">>>> numOfPk: $numOfPk")
+    println(s">>>> endIndex: $endIndex")
+
     println(s"takenBytes: $takenBytes")
-    println(s">>>>> $boxType: \n prop -> $prop \n nonce -> $nonce \n value -> ${value.toList} \n codeBoxIds -> ${codeBoxIds.toList}")
+    println(s">>>>> $boxType: \n prop -> $prop \n nonce -> $nonce \n value -> ${value.toList} \n codeBoxIds -> ${codeBoxIds.map(b => Base58.encode(b))}")
 
     ExecutionBox(prop, nonce, value, codeBoxIds)
   }
