@@ -61,7 +61,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
+    if (CB.newBoxes.size > 0) {
+      print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
+    } else {
+      print("\n\n" + "No boxes created by 0 value coinbase transaction" + "\n\n")
+    }    
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
@@ -153,8 +157,13 @@ object Forger extends ScorexLogging {
 
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
-      BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
-        txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version)  // inflation val
+    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.size > 0) {
+        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
+          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value) // inflation val
+      }
+    else {
+        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0)
+      }
     }
   }
 
