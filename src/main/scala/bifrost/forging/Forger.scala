@@ -159,10 +159,10 @@ object Forger extends ScorexLogging {
     successfulHits.headOption.map { case (boxKey, _) =>
     if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.size > 0) {
         BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
-          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value) // inflation val
+          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
       }
     else {
-        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0)
+        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0, version)
       }
     }
   }
