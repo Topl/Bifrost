@@ -15,6 +15,7 @@
   "keyFileDir": "keyfiles/hel",
   "walletDir": "/tmp/bifrost/hel/wallet",
   "dataDir": "/tmp/bifrost/hel/data",
+  "sbrDir": "/tmp/bifrost/private-testnet/sbr",
   "logDir": "/tmp/bifrost/hel/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
