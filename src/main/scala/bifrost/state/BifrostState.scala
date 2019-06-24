@@ -750,8 +750,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
     val validConstruction: Try[Unit] = {
       assert(cb.fee == 0L) // no fee for a coinbase tx
-      assert(cb.newBoxes.size == 1) // one one new box
-      assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
+//      assert(cb.newBoxes.size == 1) // one one new box
+//      assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
       // This will be implemented at a consensus level
       Try {
         // assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value == history.modifierById(history.chainBack(history.bestBlock, helper).get.reverse(1)._2).get.inflation)

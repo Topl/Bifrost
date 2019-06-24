@@ -1,8 +1,13 @@
 package bifrost.program
 
 import bifrost.{BifrostGenerators, ValidGenerators}
+import com.oracle.truffle.api.TruffleLanguage
+import com.oracle.truffle.api.instrumentation.TruffleInstrument
 import org.graalvm.polyglot.Context
 import org.scalatest.{Matchers, PropSpec}
+import org.graalvm.polyglot._
+import org.graalvm.polyglot.management._
+import bifrost.program.Valkyrie
 
 import scala.collection.JavaConverters._
 
@@ -35,127 +40,111 @@ class SampleProgramsSpec extends PropSpec
 
   val testScriptCallee =
     s"""
-       |var c = a
-       |var d = b
+       |var c = 1
+       |var d = 2
+       |var e = createAssets()
      """.stripMargin
 
   val testValkyrie =
     s"""
+       |this.assetCreated = {};
+       |this.assetTransferred = {};
+       |this.polyTransferred = {};
+       |
+       |this.createAssets = function(issuer, to, amount, assetCode, fee, data) {
+       |  this.issuer = issuer;
+       |  this.to = to;
+       |  this.amount = amount;
+       |  this.assetCode = assetCode;
+       |  this.fee = fee;
+       |  this.data = data;
+       |
+       |  return assetCreated;
+       |}
+       |
        |function create() {
-       |  createAssets("a", "b", 10, "testAssets", 0, "")
+       |  a = 2 + 2
+       |  var res = createAssets("a", "b", 10, "testAssets", 0, "")
        |  }
      """.stripMargin
-/*
-  //Preprocessing
-  val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
-    .ecmaScriptVersion(8)
-    .constAsVar(false)
-    .earlyLvalueError(true)
-    .emptyStatements(false)
-    .syntaxExtensions(true)
-    .scripting(false)
-    .shebang(false)
-    .strict(true)
-    .functionStatementBehavior(ScriptEnvironment.FunctionStatementBehavior.ERROR)
-    .build()
 
-  val errManager = new ErrorManager.ThrowErrorManager
-  val src = Source.sourceFor("script", testScriptCaller)
-  val parser: Parser = new Parser(scriptEnv, src, errManager)
-  val parsed = parser.parse()
 
-  println(s"parsed: ${parsed.toString()}")
-
-  def varList(node: FunctionNode): Node = {
-
-    var vars: Seq[String] = Seq("")
-
-    node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
-
-      override def enterVarNode(varNode: VarNode): Boolean = {
-        if(varNode.isInstanceOf[VarNode])
-        {
-          println(s"varNode.getInit: ${varNode.getInit}")
-          true
-        }
-        false
-      }
-      override def leaveVarNode(varNode: VarNode): VarNode = {
-        println(s"getAssignmentSource: ${varNode.getAssignmentSource}")
-        println(s"getStart: ${varNode.getStart}")
-        println(s"getInit: ${varNode.getInit}")
-        println(s"varNode: ${varNode.toString()}")
-        varNode
-      }
-
-    })
-  }
-
-  def functionList(node: FunctionNode): Node = {
-
-    node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
-
-      override def leaveFunctionNode(functionNode: FunctionNode): Node = {
-        println(s"functionNode: ${functionNode.toString()}")
-        functionNode
-      }
-    })
-  }
-*/
-
-  println("")
-  val jsre: Context = Context.create("js")
-
-  val output = jsre.eval("js", testScriptCaller)
-
-  jsre.eval("js", "add()")
-
-  val outputBindings = jsre.getBindings("js")
-
+//  println("")
+//  val jsre: Context = Context.create("js")
+//
+//  val output = jsre.eval("js", testScriptCaller)
+//
+//  jsre.eval("js", "add()")
+//
+//  val outputBindings = jsre.getBindings("js")
+//
+//
+///////////////////////
+//
+//  val bindingsKeys: Set[String] = asScalaSet(outputBindings.getMemberKeys).map(identity)(collection.breakOut) //Set[String]
+//
+//  println(bindingsKeys)
+//
+//  bindingsKeys.foreach( x => {
+//    println(x + "\t" + outputBindings.getMember(x))
+////    jsre2.getBindings("js").putMember(x, outputBindings.getMember(x))
+//  }
+//  )
+//
 //  jsre.close()
 
-/////////////////////
-
-  val jsre2: Context = Context.create("js")
-
-  val bindingsKeys: Set[String] = asScalaSet(outputBindings.getMemberKeys).map(identity)(collection.breakOut) //Set[String]
-
-  println(bindingsKeys)
-
-  bindingsKeys.foreach( x => {
-    println(x + "\t" + outputBindings.getMember(x))
-//    jsre2.getBindings("js").putMember(x, outputBindings.getMember(x))
-  }
-  )
-
-  jsre.close()
 
 
 
 
-//  jsre2.getBindings("js").putMember("jsobj", output.asString)
+  /**Valkyrie Test*/
+  println()
+  println("Valkyrie Tests")
 
-//  val output2 = jsre2.eval("js", testScriptCallee)
+
+  var jsre_valk = Context.newBuilder()
+    .allowAllAccess(true)
+    //.option("engine.InstrumentExceptionsAreThrown", "true")
+    .build()
+
+
+  println(jsre_valk.getEngine().getInstruments().get("Valkyrie"))
+  jsre_valk.getEngine().getInstruments().get("Valkyrie").lookup(classOf[Object])
+  jsre_valk.initialize("js")
+  jsre_valk.enter()
+
+
+//  ExecutionListener.newBuilder().statements(true).expressions(true).roots(true).attach(jsre_valk.getEngine)
+
+
+
+  //Evaluation
+  jsre_valk.eval("js", testValkyrie)
+  val output_valk = jsre_valk.eval("js", "create()")
+
+  println(jsre_valk.getBindings("js").getMemberKeys)
+  println(jsre_valk.getBindings("js").getMember("a"))
+
+
+
+
+  /** Valkyrie with Graal Execution Listener*/
+//  val context: Context = Context.create("js")
+//  val listener: ExecutionListener = ExecutionListener.newBuilder()
+//    .onEnter((e) => {
+//      println("HELLO GUY")
+//      println(e.getLocation.getCharacters)
+////      println(e.getReturnValue)
 //
-//  val outputBindings2 = jsre2.getBindings("js")
-
-//  println(s"outputBindings: c = ${outputBindings2.getMember("c")}")
-
-
-  //Valkyrie test
-
-  val params =
-    s"""
-       |[
-       |  "to" : "a"
-       |]
-     """.stripMargin
-  val jsreValk: Context = Context.create("js")
-
-  jsreValk.eval("js", testValkyrie)
-
-  ValkyrieFunctions(jsreValk, null)
-
-
-
+//    })
+////    .statements(true)
+////    .roots(true)
+//    .expressions(true)
+//    .attach(context.getEngine())
+//  context.eval("js", testValkyrie)
+//
+//  println()
+//  println(">>>>>>>>>>>Evaluate here<<<<<<<<<<<")
+//  context.eval("js", "create()")
+//  listener.close()
 }

@@ -52,6 +52,9 @@ val testingDependencies = Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
+
+
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",

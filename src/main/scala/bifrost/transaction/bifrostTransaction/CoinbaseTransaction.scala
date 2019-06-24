@@ -62,10 +62,15 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     "timestamp" -> timestamp.asJson
   ).asJson
 
-  def commonMessageToSign: Array[Byte] = newBoxes.head.bytes ++ // is the new box + the timestamp + the fee,
+  def commonMessageToSign: Array[Byte] =
+    if(newBoxes.size > 0) {
+      newBoxes.head.bytes}
+    else {
+      Array[Byte]()} ++ // is the new box + the timestamp + the fee,
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee) ++
     blockID
+
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
     "CoinbaseTransaction".getBytes(),

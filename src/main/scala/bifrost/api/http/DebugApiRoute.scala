@@ -49,7 +49,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                     case "delay" => delay(params.head, id)
                     case "myBlocks" => myBlocks(params.head, id)
                     case "generators" => generators(params.head, id)
-                    case "chain" => chain(params.head, id)
+//                    case "chain" => chain(params.head, id)
 //                    case "sync" => sync(params.head, id)
                   }
                 }
@@ -116,14 +116,16 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     }
   }
 
-  private def chain(params: Json, id: String): Future[Json] = {
-    viewAsync().map {
-      view =>
-        Map(
-          "history" -> view.history.toString
-        ).asJson
-    }
-  }
+//Removed endpoint to preclude data type overflows and response timeouts
+
+//  private def chain(params: Json, id: String): Future[Json] = {
+//    viewAsync().map {
+//      view =>
+//        Map(
+//          "history" -> view.history.toString
+//        ).asJson
+//    }
+//  }
 
   //TODO unimplemented
 //  private def sync(params: Json, id: String): Future[Json] = {
