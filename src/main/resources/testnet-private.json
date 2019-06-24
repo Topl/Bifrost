@@ -24,7 +24,7 @@
   "offlineGeneration": true,
   "testnet": true,
   "blockGenerationDelay": 2000,
-  "cors": false,
+  "cors": true,
   "verboseAPI": true,
   "version": [3,0,0],
   "forkHeight": 0

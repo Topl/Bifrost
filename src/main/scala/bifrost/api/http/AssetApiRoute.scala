@@ -39,32 +39,34 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(request) =>
-              val futureResponse: Try[Future[Json]] = Try {
-              val id = (request \\ "id").head.asString.get
-              reqId = id
-              require((request \\ "jsonrpc").head.asString.get == "2.0")
-              val params = (request \\ "params").head.asArray.get
-              require(params.size <= 5, s"size of params is ${params.size}")
+    withCors {
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(request) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (request \\ "id").head.asString.get
+                  reqId = id
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
+                  require(params.size <= 5, s"size of params is ${params.size}")
 
-              (request \\ "method").head.asString.get match {
-                case "redeemAssets" => redeemAssets(params.head, id)
-                case "transferAssets" => transferAssets(params.head, id)
-                case "createAssets" => createAssets(params.head, id)
-              }
-            }
-              futureResponse map {
-                response => Await.result(response, timeout.duration)
-              }
-            match {
-              case Success(resp) => BifrostSuccessResponse(resp, reqId)
-              case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                  (request \\ "method").head.asString.get match {
+                    case "redeemAssets" => redeemAssets(params.head, id)
+                    case "transferAssets" => transferAssets(params.head, id)
+                    case "createAssets" => createAssets(params.head, id)
+                  }
+                }
+                futureResponse map {
+                  response => Await.result(response, timeout.duration)
+                }
+                match {
+                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                }
             }
           }
         }

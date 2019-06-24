@@ -48,40 +48,42 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
   //noinspection ScalaStyle
   def programRoute: Route = path("") {
     entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          viewAsync().map { view =>
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(request) =>
-              val futureResponse: Try[Future[Json]] = Try {
-                reqId = (request \\ "id").head.asString.get
-                require((request \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (request \\ "params").head.asArray.get
-                require(params.size <= 5, s"size of params is ${params.size}")
+      withCors {
+        withAuth {
+          postJsonRoute {
+            viewAsync().map { view =>
+              var reqId = ""
+              parse(body) match {
+                case Left(failure) => ApiException(failure.getCause)
+                case Right(request) =>
+                  val futureResponse: Try[Future[Json]] = Try {
+                    reqId = (request \\ "id").head.asString.get
+                    require((request \\ "jsonrpc").head.asString.get == "2.0")
+                    val params = (request \\ "params").head.asArray.get
+                    require(params.size <= 5, s"size of params is ${params.size}")
 
-                (request \\ "method").head.asString.get match {
-                  case "declareRole" => declareRole(params, reqId)
-                  case "getRole" => getRole(params, reqId)
-                  case "getProgramSignature" => getProgramSignature(params.head, reqId)
-                  case "createProgram" => createProgram(params.head, reqId)
-                  case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
-                  case "filter" => bloomFilter(params, reqId)
-                }
-              }
+                    (request \\ "method").head.asString.get match {
+                      case "declareRole" => declareRole(params, reqId)
+                      case "getRole" => getRole(params, reqId)
+                      case "getProgramSignature" => getProgramSignature(params.head, reqId)
+                      case "createProgram" => createProgram(params.head, reqId)
+                      case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
+                      case "filter" => bloomFilter(params, reqId)
+                    }
+                  }
 
-              futureResponse map {
-                response => Await.result(response, timeout.duration)
-              } match {
-                case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                case Failure(e) =>
-                  BifrostErrorResponse(e, 500, reqId)
+                  futureResponse map {
+                    response => Await.result(response, timeout.duration)
+                  } match {
+                    case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                    case Failure(e) =>
+                      BifrostErrorResponse(e, 500, reqId)
+                  }
               }
+            }
           }
         }
       }
-    }
   }}
 
   def declareRole(params: Vector[Json], id: String): Future[Json] = {
