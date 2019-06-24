@@ -64,7 +64,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (CB.newBoxes.size > 0) {
       print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
     } else {
-      print("\n" + "No boxes created by 0 value coinbase transaction" + "\n")
+      print("\n" + "No boxes created by 0 value coinbase transaction" + "\n\n")
     }    
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
