@@ -106,20 +106,20 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
           newStateTry match {
             case Success(newMinState) =>
-              val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions.filter(!_.isInstanceOf[CoinbaseTransaction])).flatten
+              val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions).flatten
 
               val appliedMods = progressInfo.toApply
 
               val appliedTxs = appliedMods.flatMap(_.transactions).flatten
               var newMemPool = memoryPool()
               log.debug(s"${Console.GREEN}before newMemPool Size: ${newMemPool.size}${Console.RESET}")
-              newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx =>
+              newMemPool = memoryPool().putWithoutCheck(rolledBackTxs).filter { tx => !tx.isInstanceOf[CoinbaseTransaction] &&
                 !appliedTxs.exists(t => t.id sameElements tx.id) && newMinState.validate(tx).isSuccess
               }
               val validUnconfirmed = newMemPool.take(100)
               log.debug(s"${Console.GREEN}Re-Broadcast unconfirmed TXs: ${validUnconfirmed.map(tx => Base58.encode(tx.id)).toList}${Console.RESET}")
-              validUnconfirmed.foreach(tx =>
-                notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None)))
+              validUnconfirmed.foreach(tx => { if(tx.isInstanceOf[CoinbaseTransaction]) {log.debug(s"${Console.RED}Attempting to rebroadcast Coinbase transaction" + tx)}
+                notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None))})
               log.debug(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
               //we consider that vault always able to perform a rollback needed
