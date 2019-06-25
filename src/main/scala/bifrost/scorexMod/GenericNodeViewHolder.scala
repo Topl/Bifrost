@@ -9,6 +9,7 @@ import bifrost.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
 import bifrost.network.ConnectedPeer
 import bifrost.serialization.Serializer
+import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.wallet.Vault
 import bifrost.transaction.{MemoryPool, Transaction}
@@ -105,7 +106,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
           newStateTry match {
             case Success(newMinState) =>
-              val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions).flatten
+              val rolledBackTxs = progressInfo.toRemove.flatMap(_.transactions.filter(!_.isInstanceOf[CoinbaseTransaction])).flatten
 
               val appliedMods = progressInfo.toApply
 
