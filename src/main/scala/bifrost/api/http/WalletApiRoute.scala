@@ -37,41 +37,39 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   //noinspection ScalaStyle
   def walletRoute: Route = path("") {
     entity(as[String]) { body =>
-      withCors {
-        withAuth {
-          postJsonRoute {
-            viewAsync().map { view =>
-              var reqId = ""
-              parse(body) match {
-                case Left(failure) => ApiException(failure.getCause)
-                case Right(request) =>
-                  val futureResponse: Try[Future[Json]] = Try {
-                    val id = (request \\ "id").head.asString.get
-                    reqId = id
-                    require((request \\ "jsonrpc").head.asString.get == "2.0")
-                    val params = (request \\ "params").head.asArray.get
-                    //todo: why is there an enforcement on the size of params?
-                    require(params.size <= 5, s"size of params is ${params.size}")
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(request) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (request \\ "id").head.asString.get
+                  reqId = id
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
+                  //todo: why is there an enforcement on the size of params?
+                  require(params.size <= 5, s"size of params is ${params.size}")
 
-                    (request \\ "method").head.asString.get match {
-                      case "transferPolys" => transferPolys(params.head, id)
-                      case "transferArbits" => transferArbits(params.head, id)
-                      case "balances" => balances(params.head, id)
-                      case "unlockKeyfile" => unlockKeyfile(params.head, id)
-                      case "lockKeyfile" => lockKeyfile(params.head, id)
-                      case "generateKeyfile" => generateKeyfile(params.head, id)
-                      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-                      case "importSeedPhrase" => importKeyfile(params.head, id)
-                    }
+                  (request \\ "method").head.asString.get match {
+                    case "transferPolys" => transferPolys(params.head, id)
+                    case "transferArbits" => transferArbits(params.head, id)
+                    case "balances" => balances(params.head, id)
+                    case "unlockKeyfile" => unlockKeyfile(params.head, id)
+                    case "lockKeyfile" => lockKeyfile(params.head, id)
+                    case "generateKeyfile" => generateKeyfile(params.head, id)
+                    case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+                    case "importSeedPhrase" => importKeyfile(params.head, id)
                   }
-                  futureResponse map {
-                    response => Await.result(response, timeout.duration)
-                  }
-                  match {
-                    case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                    case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-                  }
-              }
+                }
+                futureResponse map {
+                  response => Await.result(response, timeout.duration)
+                }
+                match {
+                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                }
             }
           }
         }

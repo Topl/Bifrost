@@ -32,31 +32,29 @@ case class UtilsApiRoute(override val settings: Settings)
 
   def utilsRoute: Route = path("") {
     entity(as[String]) { body =>
-      withCors {
-        withAuth {
-          postJsonRoute {
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
-              case Right(request) =>
-                val response: Try[Json] = Try {
-                  val id = (request \\ "id").head.asString.get
-                  reqId = id
-                  require((request \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (request \\ "params").head.asArray.get
-                  require(params.size <= 5, s"size of params is ${params.size}")
+      withAuth {
+        postJsonRoute {
+          var reqId = ""
+          parse(body) match {
+            case Left(failure) => ApiException(failure.getCause)
+            case Right(request) =>
+              val response: Try[Json] = Try {
+                val id = (request \\ "id").head.asString.get
+                reqId = id
+                require((request \\ "jsonrpc").head.asString.get == "2.0")
+                val params = (request \\ "params").head.asArray.get
+                require(params.size <= 5, s"size of params is ${params.size}")
 
-                  (request \\ "method").head.asString.get match {
-                    case "seed" => seedRoute(params.head, id)
-                    case "seedOfLength" => seedOfLength(params.head, id)
-                    case "hashBlake2b" => hashBlake2b(params.head, id)
-                  }
+                (request \\ "method").head.asString.get match {
+                  case "seed" => seedRoute(params.head, id)
+                  case "seedOfLength" => seedOfLength(params.head, id)
+                  case "hashBlake2b" => hashBlake2b(params.head, id)
                 }
-                response match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-                }
-            }
+              }
+              response match {
+                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+              }
           }
         }
       }

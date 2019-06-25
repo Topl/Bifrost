@@ -29,40 +29,38 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
 
   //noinspection ScalaStyle
   def debugRoute: Route = path("") { entity(as[String]) { body =>
-    withCors {
-      withAuth {
-        postJsonRoute {
-          viewAsync().map {
-            view =>
-              var reqId = ""
-              parse(body) match {
-                case Left(failure) => ApiException(failure.getCause)
-                case Right(request) =>
-                  val futureResponse: Try[Future[Json]] = Try {
-                    val id = (request \\ "id").head.asString.get
-                    reqId = id
-                    require((request \\ "jsonrpc").head.asString.get == "2.0")
-                    val params = (request \\ "params").head.asArray.get
-                    require(params.size <= 5, s"size of params is ${params.size}")
+    withAuth {
+      postJsonRoute {
+        viewAsync().map {
+          view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(request) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (request \\ "id").head.asString.get
+                  reqId = id
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
+                  require(params.size <= 5, s"size of params is ${params.size}")
 
-                    (request \\ "method").head.asString.get match {
-                      case "info" => infoRoute(params.head, id)
-                      case "delay" => delay(params.head, id)
-                      case "myBlocks" => myBlocks(params.head, id)
-                      case "generators" => generators(params.head, id)
-                      case "chain" => chain(params.head, id)
-                      //                    case "sync" => sync(params.head, id)
-                    }
+                  (request \\ "method").head.asString.get match {
+                    case "info" => infoRoute(params.head, id)
+                    case "delay" => delay(params.head, id)
+                    case "myBlocks" => myBlocks(params.head, id)
+                    case "generators" => generators(params.head, id)
+                    case "chain" => chain(params.head, id)
+                    //                    case "sync" => sync(params.head, id)
                   }
-                  futureResponse map {
-                    response => Await.result(response, timeout.duration)
-                  }
-                  match {
-                    case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                    case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-                  }
-              }
-          }
+                }
+                futureResponse map {
+                  response => Await.result(response, timeout.duration)
+                }
+                match {
+                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                }
+            }
         }
       }
     }
