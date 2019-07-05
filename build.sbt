@@ -104,8 +104,7 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-Dcom.sun.management.jmxremote",
-  "-Dtruffle.class.path.append=lib/ValkyrieInstrument-1.0-SNAPSHOT-jar-with-dependencies.jar"
+  "-Dcom.sun.management.jmxremote"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -159,8 +158,3 @@ lazy val programModules = Project(id = "program-modules", base = file("program-m
   .settings(commonSettings: _*)
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-
-
-fork := true
-
-//javaOptions ++= Seq("-Dtruffle.class.path.append=lib/ValkyrieInstrument-1.0-SNAPSHOT-jar-with-dependencies.jar")
