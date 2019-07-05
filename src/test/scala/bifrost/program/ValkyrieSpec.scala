@@ -1,18 +1,22 @@
 package bifrost.program
 
 import java.time.Instant
+import java.util
 
-import InstrumentClasses.ProgramController
-import InstrumentClasses.TokenClasses.AssetInstance
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.AssetCreation
-import bifrost.transaction.box.{AssetBox, BifrostBox}
+import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import org.graalvm.polyglot.{Context, Instrument}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.encode.Base58
+import InstrumentClasses.ProgramController
+import InstrumentClasses.TokenClasses._
+import bifrost.settings.Settings
+import bifrost.state.BifrostStateSpec
+import bifrost.wallet.BWallet
 
 class ValkyrieSpec extends PropSpec
   with Matchers
@@ -37,14 +41,20 @@ class ValkyrieSpec extends PropSpec
        |    var fromAddress = '${publicKeys("producer")}';
        |    var toAddress = '${publicKeys("hub")}';
        |    res = Valkyrie_transferAssets(issuer, fromAddress, toAddress, 10, 'testAssets', 0);}
+       |  function transferArbits() {
+       |    var fromAddress = '${publicKeys("investor")}';
+       |    var toAddress = '${publicKeys("hub")}';
+       |    res = Valkyrie_transferArbits(fromAddress, toAddress, 10, 0);}
        |  function Valkyrie_createAssets(issuer, to, amount, assetCode, fee, data) {
        |    res = ValkyrieReserved.createAssets(issuer, to , amount, assetCode, fee, data);
        |    return res; }
        |  function Valkyrie_transferAssets(issuer, from, to, amount, assetCode, fee) {
        |    res = ValkyrieReserved.transferAssets(issuer, from, to , amount, assetCode, fee);
        |    return res; };
+       |  function Valkyrie_transferArbits(from, to, amount, fee) {
+       |    res = ValkyrieReserved.transferArbits(from, to , amount, fee);
+       |    return res; };
      """.stripMargin
-
 
 
   property("Valkyrie function should generate new assetInstance") {
@@ -78,19 +88,19 @@ class ValkyrieSpec extends PropSpec
 
     val timestamp = Instant.now.toEpochMilli
     lazy val hashNoNonces = FastCryptographicHash(
-        proposition.pubKeyBytes ++
+      proposition.pubKeyBytes ++
         Longs.toByteArray(timestamp)
-        //Longs.toByteArray(fee)
+      //Longs.toByteArray(fee)
     )
 
     val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
-          "AssetCreation".getBytes ++
-            proposition.pubKeyBytes ++
-            issuer.pubKeyBytes ++
-            assetCode.getBytes ++
-            hashNoNonces ++
-            Ints.toByteArray(0)
-        ))
+      "AssetCreation".getBytes ++
+        proposition.pubKeyBytes ++
+        issuer.pubKeyBytes ++
+        assetCode.getBytes ++
+        hashNoNonces ++
+        Ints.toByteArray(0)
+    ))
 
     val assetBox: AssetBox = AssetBox(proposition, nonce, amount, assetCode, issuer, data)
 
@@ -99,7 +109,7 @@ class ValkyrieSpec extends PropSpec
 
   }
 
-  property("Valkyrie function should transfer new assetInstance tp different public key") {
+  property("Valkyrie function should transfer new assetInstance to different public key") {
 
 
     val context: Context = Context
@@ -154,4 +164,65 @@ class ValkyrieSpec extends PropSpec
 
   }
 
+  property("Valkyrie function should transfer inputted arbit box to different public key") {
+
+    val context: Context = Context
+      .newBuilder("js")
+      .option("Valkyrie", "true")
+      .build
+
+    val valkyrieController: ProgramController = ProgramController.find(context.getEngine) //context.getEngine.getInstruments.get("Valkyrie").lookup(classOf[ProgramController])
+
+    assert(valkyrieController != null)
+
+    val wallet: BWallet = BWallet.readOrGenerate(BifrostStateSpec.testSettings)
+
+    assert(!wallet.boxesByKey(publicKeys("investor")).isEmpty)
+
+    var arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
+
+    //Sanitize inputBoxes
+    wallet.boxesByKey(publicKeys("investor")).foreach(box =>
+    box.box match {
+      case arbitBox: ArbitBox =>
+        arbitInstances.add(new ArbitInstance(Base58.encode(arbitBox.proposition.pubKeyBytes), arbitBox.value, arbitBox.id))
+      case _ =>
+    })
+
+    valkyrieController.setArbitBoxesForUse(arbitInstances)
+
+    context.eval("js", testValkyrie)
+
+    context.eval("js", "transferArbits()")
+
+    assert(context.getBindings("js").getMember("res").asBoolean())
+
+    assert(valkyrieController.getNewArbitInstances.size == 2)
+
+    val arbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
+
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(arbitInstance1.publicKey).get)
+    val amount: Long = arbitInstance1.amount
+
+    val timestamp = Instant.now.toEpochMilli
+
+    lazy val hashNoNonces = FastCryptographicHash(
+      proposition.pubKeyBytes) ++
+      //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+      Longs.toByteArray(timestamp)
+    //Longs.toByteArray(fee)
+
+    val nonce = ArbitTransfer
+      .nonceFromDigest(FastCryptographicHash("ArbitTransfer".getBytes
+        ++ proposition.pubKeyBytes
+        ++ hashNoNonces
+        ++ Ints.toByteArray(0)))
+
+    val arbitBox1: ArbitBox = ArbitBox(proposition, nonce, amount)
+
+    assert(arbitBox1 != null)
+    assert(arbitBox1.proposition.pubKeyBytes sameElements Base58.decode(publicKeys("hub")).get)
+    assert(arbitBox1.value == 10)
+
+  }
 }
