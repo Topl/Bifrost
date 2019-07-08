@@ -104,7 +104,8 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-Dcom.sun.management.jmxremote"
+  "-Dcom.sun.management.jmxremote",
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0-SNAPSHOT-jar-with-dependencies.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
