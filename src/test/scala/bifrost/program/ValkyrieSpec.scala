@@ -197,12 +197,17 @@ class ValkyrieSpec extends PropSpec
 
     assert(context.getBindings("js").getMember("res").asBoolean())
 
+    //Two new boxes should be outputted after transfer
     assert(valkyrieController.getNewArbitInstances.size == 2)
 
-    val arbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
+    //One box should be removed from list of input boxes
+    assert(valkyrieController.getBoxesToRemove.get(0) sameElements(arbitInstances.get(0).boxId))
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(arbitInstance1.publicKey).get)
-    val amount: Long = arbitInstance1.amount
+    //Parsing the new arbit instance as an arbit box
+    val newArbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
+
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(newArbitInstance1.publicKey).get)
+    val amount: Long = newArbitInstance1.amount
 
     val timestamp = Instant.now.toEpochMilli
 
@@ -218,11 +223,11 @@ class ValkyrieSpec extends PropSpec
         ++ hashNoNonces
         ++ Ints.toByteArray(0)))
 
-    val arbitBox1: ArbitBox = ArbitBox(proposition, nonce, amount)
+    val newArbitBox1: ArbitBox = ArbitBox(proposition, nonce, amount)
 
-    assert(arbitBox1 != null)
-    assert(arbitBox1.proposition.pubKeyBytes sameElements Base58.decode(publicKeys("hub")).get)
-    assert(arbitBox1.value == 10)
+    assert(newArbitBox1 != null)
+    assert(newArbitBox1.proposition.pubKeyBytes sameElements Base58.decode(publicKeys("hub")).get)
+    assert(newArbitBox1.value == 10)
 
   }
 }
