@@ -110,7 +110,7 @@ object Program {
   //noinspection ScalaStyle
   def execute(stateBoxes: Seq[(StateBox, UUID)], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): Json /*Try[Either[Json, Json]]*/ = /*Try*/ {
+             (args: JsonObject): Json /*Try[Either[StateBox, Json]]*/ = /*Try*/ {
 
     val mutableState = stateBoxes.head._1.value.asObject.get.toMap
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
@@ -166,14 +166,14 @@ object Program {
 
     val checkState: Json = mutableState.map{ s =>
 
-      println(s"s._2.name: ${s._2.name}")
+        println(s"s._2.name: ${s._2.name}")
 
-      s._2.name match {
-        case "Number" => println("match: "+bindings.getMember(s._1).asInt()); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
-        case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
-      }
-    }.asJson
-
+        s._2.name match {
+          case "Number" => println("match: "+bindings.getMember(s._1).asInt()); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
+          case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
+          case _ => throw new NoSuchElementException
+        }
+      }.asJson
 
     checkState
   }

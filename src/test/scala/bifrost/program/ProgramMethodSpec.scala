@@ -8,8 +8,7 @@ import bifrost.transaction.box.{CodeBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
-import org.graalvm.polyglot.management.ExecutionListener
-import org.graalvm.polyglot.{Context, Value}
+import org.graalvm.polyglot.Context
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
@@ -167,17 +166,8 @@ class ProgramMethodSpec extends PropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-        val args = JsonObject.fromMap(Map(
-          "uuid" -> s"_${stateBoxUuids.drop(1).head._2.toString.replace("-","_")}".asJson,
-          "value" -> "b".asJson,
-          "state" -> "a".asJson
-        ))
-
-
-        try{
-          Program.execute(stateBoxUuids, Seq(codeBox), "changeType")(party)(args)
-        } catch {
-          case e => println(e)
+        intercept[Exception] {
+          Program.execute(stateBoxUuids, Seq(codeBox), "changeType")(party)(params)
         }
       }
     }
