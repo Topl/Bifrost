@@ -173,6 +173,44 @@ class ProgramMethodSpec extends PropSpec
     }
   }
 
+  property("Removing a mutable state variable during execution will result in an error") {
+    forAll(programGen) {
+      c: Program => {
+        val program = c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
+        val party = propositionGen.sample.get
+        /*val params = JsonObject.fromMap(
+          Map("newStatus" -> stringGen.sample.get.asJson))
+         */
+        val params = JsonObject.empty
+
+        val state = c.executionBuilderObj.core.variables
+        println(s"state: ${state.toString}")
+
+        val stateTwo = s"""{ "b": 0 }""".asJson
+        val stateThree = s"""{ "c": 0 }""".asJson
+
+        val stateBox = StateBox(c.parties.head._1, 0L, state, true)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, stateTwo, true)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, stateThree, true)
+        val codeBox = CodeBox(c.parties.head._1, 3L, Seq(
+          s"""function deleteVar() {
+             |  delete global.a
+             |}
+           """.stripMargin))
+
+        val stateBoxUuids = Seq(
+          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
+          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
+          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
+        )
+
+        intercept[Exception] {
+          Program.execute(stateBoxUuids, Seq(codeBox), "deleteVar")(party)(params)
+        }
+      }
+    }
+  }
+
   /*property("Can call createAssets protocol level function from a program") {
     forAll(programGen) {
       c: Program => {
