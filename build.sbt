@@ -123,7 +123,7 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
-//fork := false
+fork := false
 
 pomIncludeRepository := { _ => false }
 
