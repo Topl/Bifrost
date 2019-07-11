@@ -19,14 +19,14 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
 
   var UUID2BoxID = initialMap
 
-  var counterOne: Long = storage.get(ByteArrayWrapper("counterOne".getBytes)) match {
-    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
-    case None => 0L
-  }
-  var counterTwo: Long = storage.get(ByteArrayWrapper("counterTwo".getBytes)) match {
-    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
-    case None => 0L
-  }
+//  var counterOne: Long = storage.get(ByteArrayWrapper("counterOne".getBytes)) match {
+//    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
+//    case None => 0L
+//  }
+//  var counterTwo: Long = storage.get(ByteArrayWrapper("counterTwo".getBytes)) match {
+//    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
+//    case None => 0L
+//  }
 
   def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
 //    tx.newBoxes.foreach(b => if b.isInstanceOf[StateBox])

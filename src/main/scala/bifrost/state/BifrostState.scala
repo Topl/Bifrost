@@ -80,6 +80,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .map(BifrostBoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
+  //TODO rollback SBR and BFR here as well
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
@@ -157,6 +158,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
+    //BFR update ideally takes place here, before state updates and removes boxes that are needed for public key information
+
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,
@@ -164,6 +167,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
+    //The below code is incorrect since the version for each write to LSMStore should be unique
+    //All updates to SBR (and BFR) should flatten to a single write for a single block
+    //Should use the scanPersistent function like BWallet and other members of NodeViewHolder
     stateBoxId.foreach(sb => stateBoxRegistry.update(
       newVersion,
       sb._1,
@@ -728,6 +734,8 @@ object BifrostState extends ScorexLogging {
     }
 
     val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
+
+    //val BFR = BFR.readOrGenerate(settings, state)
 
     BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry)
   }
