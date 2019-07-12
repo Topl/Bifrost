@@ -33,11 +33,9 @@ class BFRSpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val bfrPath: Path = Path("/tmp/scorex/test-bfr")
-  Try(bfrPath.deleteRecursively())
 
-  val dataPath: Path = Path("/tmp/scorex/test-data")
-  Try(dataPath.deleteRecursively())
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1

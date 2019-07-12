@@ -2,10 +2,8 @@ package bifrost.bfr
 
 import java.io.File
 
-import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericMinimalState.VersionTag
-import bifrost.state.BifrostState
 import bifrost.state.BifrostState.{BX, GSC}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -26,6 +24,7 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
   def boxIdsByKey(publicKey: PublicKey25519Proposition): Seq[Array[Byte]] =
     boxIdsByKey(publicKey.pubKeyBytes)
 
+  //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
   def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] = bfrStore
     .get(ByteArrayWrapper(pubKeyBytes))
     .map(_
@@ -48,112 +47,19 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
   }
 
 
-//  //noinspection ScalaStyle
-//  def updateFromState(newVersion: VersionTag, changes: GSC): BFR = {
-//    log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
-//
-//    println()
-//    println("Boxes to remove")
-//    changes.boxIdsToRemove.flatMap(
-//      id => closedBox(id))
-//      .foreach(box => println(box.json)
-//      )
-//    println()
-//    println("Boxes to append")
-//    changes.toAppend.foreach(box => println(box.json))
-//
-//    var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
-//    var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
-//    //Getting set of public keys for boxes being removed and appended
-//    //Using ByteArrayWrapper for sets since equality method compares the actual array data unlike a set of byte arrays
-//    val keysSet: Set[ByteArrayWrapper] = {
-//      val boxesToRemoveKeys: Set[ByteArrayWrapper] = changes.boxIdsToRemove
-//        .flatMap(boxId => closedBox(boxId))
-//        .filter(box => box.isInstanceOf[ArbitBox] || box.isInstanceOf[AssetBox] || box.isInstanceOf[PolyBox])
-//        .map(box => box match {
-//          //Filtering token boxes (these are the only boxes whose propositions are assured to be publicKeys)
-//          //Adding other boxes to BFR needs box rearchitecture so that propositions match those of token boxes
-//          case arbit: ArbitBox => {
-//            boxesToRemove += (arbit.id -> arbit.proposition.pubKeyBytes)
-//            //boxesToRemove = boxesToRemove :+ arbit
-//            ByteArrayWrapper(arbit.proposition.pubKeyBytes)
-//          }
-//          case asset: AssetBox => {
-//            //boxesToRemove = boxesToRemove :+ asset
-//            boxesToRemove += (asset.id -> asset.proposition.pubKeyBytes)
-//            ByteArrayWrapper(asset.proposition.pubKeyBytes)
-//          }
-//          case poly: PolyBox => {
-//            boxesToRemove += (poly.id -> poly.proposition.pubKeyBytes)
-//            //boxesToRemove = boxesToRemove :+ poly
-//            ByteArrayWrapper(poly.proposition.pubKeyBytes)
-//          }
-//        })
-//
-//      val boxesToAppendKeys: Set[ByteArrayWrapper] = changes.toAppend
-//        .filter(box => box.isInstanceOf[ArbitBox] || box.isInstanceOf[AssetBox] || box.isInstanceOf[PolyBox])
-//        //        .map(box => box match {
-//        .map({
-//        case arbit: ArbitBox => {
-//          boxesToAppend += (arbit.id -> arbit.proposition.pubKeyBytes)
-//          ByteArrayWrapper(arbit.proposition.pubKeyBytes)
-//        }
-//        case asset: AssetBox => {
-//          boxesToAppend += (asset.id -> asset.proposition.pubKeyBytes)
-//          ByteArrayWrapper(asset.proposition.pubKeyBytes)
-//        }
-//        case poly: PolyBox => {
-//          boxesToAppend += (poly.id -> poly.proposition.pubKeyBytes)
-//          ByteArrayWrapper(poly.proposition.pubKeyBytes)
-//        }
-//      })
-//      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
-////      boxesToRemoveKeys.union(boxesToAppendKeys).toSet
-//
-//    }
-//
-//    println()
-//    println("KeySet")
-//    keysSet.foreach(
-//      key => println(Base58.encode(key.data))
-//    )
-//
-//    //Get old boxIds list for each of the above public keys
-//    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
-//      publicKey => publicKey -> boxIdsByKey(publicKey.data)
-//    ).toMap
-//
-//    //For each box in temporary map match against public key and remove/append to boxIds list
-//    for((boxId, publicKey) <- boxesToRemove) {
-//      keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
-//    }
-//    for((boxId, publicKey) <- boxesToAppend) {
-//      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (keysToBoxIds(ByteArrayWrapper(publicKey)) :+ boxId))
-//    }
-//
-//    bfrStore.update(
-//      ByteArrayWrapper(newVersion),
-//      Seq(),
-//      keysToBoxIds.map(
-//        element =>
-//          element._1 -> ByteArrayWrapper(element._2.flatten.toArray)
-//      ).toSeq)
-//
-//    BFR(bfrStore, stateStore)
-//  }
 //noinspection ScalaStyle
 def updateFromState(newVersion: VersionTag, changes: GSC): BFR = {
   log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
-  println()
-  println("Boxes to remove")
-  changes.boxIdsToRemove.flatMap(
-    id => closedBox(id))
-    .foreach(box => println(box.json)
-    )
-  println()
-  println("Boxes to append")
-  changes.toAppend.foreach(box => println(box.json))
+//  println()
+//  println("Boxes to remove")
+//  changes.boxIdsToRemove.flatMap(
+//    id => closedBox(id))
+//    .foreach(box => println(box.json)
+//    )
+//  println()
+//  println("Boxes to append")
+//  changes.toAppend.foreach(box => println(box.json))
 
   var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
   var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
@@ -164,7 +70,7 @@ def updateFromState(newVersion: VersionTag, changes: GSC): BFR = {
       .flatMap(boxId => closedBox(boxId))
       .foreach(box => box match {
         //Filtering token boxes (these are the only boxes whose propositions are assured to be publicKeys)
-        //Adding other boxes to BFR needs box rearchitecture so that proposition format matches those of token boxes
+        //Adding other boxes to BFR needs box re-architecture so that proposition format matches those of token boxes
         case arbit: ArbitBox => {
           boxesToRemove += (arbit.id -> arbit.proposition.pubKeyBytes)
         }
@@ -179,17 +85,17 @@ def updateFromState(newVersion: VersionTag, changes: GSC): BFR = {
 
     changes.toAppend
       .foreach({
-      case arbit: ArbitBox => {
-        boxesToAppend += (arbit.id -> arbit.proposition.pubKeyBytes)
-      }
-      case asset: AssetBox => {
-        boxesToAppend += (asset.id -> asset.proposition.pubKeyBytes)
-      }
-      case poly: PolyBox => {
-        boxesToAppend += (poly.id -> poly.proposition.pubKeyBytes)
-      }
-      case _ =>
-    })
+        case arbit: ArbitBox => {
+          boxesToAppend += (arbit.id -> arbit.proposition.pubKeyBytes)
+        }
+        case asset: AssetBox => {
+          boxesToAppend += (asset.id -> asset.proposition.pubKeyBytes)
+        }
+        case poly: PolyBox => {
+          boxesToAppend += (poly.id -> poly.proposition.pubKeyBytes)
+        }
+        case _ =>
+      })
 
     (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
   }
