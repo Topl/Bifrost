@@ -3,6 +3,7 @@ package bifrost.state
 import java.io.File
 import java.time.Instant
 
+import bifrost.bfr.BFR
 import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
 import bifrost.program.Program
@@ -45,7 +46,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry, bfr: BFR)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -81,16 +82,30 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .flatMap(_.toOption)
 
   //TODO rollback SBR and BFR here as well
+//  override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
+//    if (storage.lastVersionID.exists(_.data sameElements version)) {
+//      this
+//    } else {
+//      log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
+//      storage.rollback(ByteArrayWrapper(version))
+//      val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
+//        .getBytes))).get
+//        .data)
+//      BifrostState(storage, version, timestamp, history, stateBoxRegistry, bfr)
+//    }
+//  }
+
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
       log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
       storage.rollback(ByteArrayWrapper(version))
+      bfr.rollback(version, storage)
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history, stateBoxRegistry)
+      BifrostState(storage, version, timestamp, history, stateBoxRegistry, bfr)
     }
   }
 
@@ -119,6 +134,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
+    bfr.updateFromState(newVersion, changes)
+
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,
@@ -126,7 +143,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry, bfr)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -158,7 +175,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
-    //BFR update ideally takes place here, before state updates and removes boxes that are needed for public key information
+    //BFR update ideally takes place here, before state updates which removes boxes that are needed to update bfr correctly
+
+    bfr.updateFromState(newVersion, changes)
 
     storage.update(
       ByteArrayWrapper(newVersion),
@@ -176,7 +195,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       sb._2
     ))
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry)
+    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry, bfr)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -631,10 +650,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
           throw new TransactionValidationException("Insufficient balances provided for fees")
         }
       }
-
       enoughAssets.flatMap(_ => enoughToCoverFees)
     }
-
     statefulValid.flatMap(_ => semanticValidity(ar))
   }
 
@@ -732,12 +749,10 @@ object BifrostState extends ScorexLogging {
         .get
         .data)
     }
-
     val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
+    val bfr = BFR.readOrGenerate(settings, stateStorage)
 
-    //val BFR = BFR.readOrGenerate(settings, state)
-
-    BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry)
+    BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry, bfr)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {
