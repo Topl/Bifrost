@@ -17,6 +17,7 @@
   "walletDir": "/tmp/scorex/test-data/wallet",
   "dataDir": "/tmp/scorex/test-data/blockchain",
   "sbrDir": "/tmp/scorex/test-sbr/sbr",
+  "bfrDir": "/tmp/scorex/test-bfr/bfr",
   "logDir": "/tmp/scorex/test-data/log",
   "rpcPort": 9085,
   "rpcAllowed": [],

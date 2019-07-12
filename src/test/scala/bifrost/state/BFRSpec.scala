@@ -33,8 +33,11 @@ class BFRSpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val path: Path = Path("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
+  val bfrPath: Path = Path("/tmp/scorex/test-bfr")
+  Try(bfrPath.deleteRecursively())
+
+  val dataPath: Path = Path("/tmp/scorex/test-data")
+  Try(dataPath.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
@@ -59,7 +62,7 @@ class BFRSpec extends PropSpec
 
     assert(genesisState.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    val tx = ArbitTransfer.create(gw,
+    val tx1 = ArbitTransfer.create(gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
       0,
       "",
@@ -67,35 +70,112 @@ class BFRSpec extends PropSpec
       "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
     ).get
 
-    val block = BifrostBlock(
+    val block1 = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-      Seq(tx), 10L, settings.version)
+      Seq(tx1), 10L, settings.version)
 
-    require(genesisState.validate(tx).isSuccess)
+    require(genesisState.validate(tx1).isSuccess)
 
-    val newState = genesisState
-      .applyChanges(genesisState.changes(block).get, block.id)
+    val newState1 = genesisState
+      .applyChanges(genesisState.changes(block1).get, block1.id)
       .get
 
-    val newWallet = gw.scanPersistent(block)
+    val newWallet1 = gw.scanPersistent(block1)
 
-    val newArbitBoxes = newWallet
-      .boxes()
-      .filter(_.box match {
-        case a: ArbitBox => newState.closedBox(a.id).isDefined
-        case _ => false
-      })
-      .map(_.box.asInstanceOf[ArbitBox])
+    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newArbitBoxes.length == 1)
+    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
 
-    assert(newState.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
+    val tx2 = ArbitTransfer.create(newWallet1,
+      IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
+      0,
+      "",
+      Vector("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"),
+      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
+    ).get
+
+    val block2 = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(tx2), 10L, settings.version)
+
+    require(newState1.validate(tx2).isSuccess)
+
+    val newState2 = newState1
+      .applyChanges(newState1.changes(block2).get, block2.id)
+      .get
+
+    val newWallet2 = newWallet1.scanPersistent(block2)
+
+
+    assert(newState2.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 2)
+
+    assert(newState2.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+
+    assert(newState2.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox])
+      .foldLeft(true) {(acc, i) => acc && (i.value == 99999995 || i.value == 4)})
+
+    assert(newState2.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).head.value == 1)
+
+    newState2.rollbackTo(genesisState.version)
+    newWallet2.rollback(genesisState.version)
+
+
+  }
+
+  property("Rollback should have worked and recreated above changes exactly") {
+
+    val tx1 = ArbitTransfer.create(gw,
+      IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
+      0,
+      "",
+      Vector("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"),
+      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+    ).get
+
+    val block1 = BifrostBlock(
+      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Seq(tx1), 10L, settings.version)
+
+    require(genesisState.validate(tx1).isSuccess)
+
+    val newState1 = genesisState
+      .applyChanges(genesisState.changes(block1).get, block1.id)
+      .get
+
+    val newWallet1 = gw.scanPersistent(block1)
+
+    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+
+    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+
+    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+      .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
+
+    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+      .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
   }
 

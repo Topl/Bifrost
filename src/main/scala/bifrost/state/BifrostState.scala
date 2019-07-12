@@ -101,7 +101,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     } else {
       log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
       storage.rollback(ByteArrayWrapper(version))
-      bfr.rollback(version, storage)
+      bfr.rollbackTo(version, storage)
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
