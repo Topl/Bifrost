@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.{Nonce, Value}
+import bifrost.bfr.BFR
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
@@ -89,6 +90,14 @@ object ArbitTransfer extends TransferUtil {
   {
 
     val params = parametersForCreate(w, toRecieve, fee, "ArbitTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
+    val timestamp = Instant.now.toEpochMilli
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+  }
+
+  def createWithBFR(bfr: BFR, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: PublicKey25519Proposition, fee: Long, data: String): Try[ArbitTransfer] = Try
+  {
+
+    val params = parametersForCreate(bfr, w, toRecieve, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }

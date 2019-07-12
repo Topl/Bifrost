@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.{Nonce, Value}
+import bifrost.bfr.BFR
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BifrostBox, PolyBox}
 import bifrost.transaction.proof.Signature25519
@@ -89,6 +90,16 @@ object PolyTransfer extends TransferUtil {
              fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(),
              publicKeyToSendChangeTo: String = ""): Try[PolyTransfer] = Try {
     val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
+    val timestamp = Instant.now.toEpochMilli
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+  }
+
+  def createWithBFR(bfr: BFR,
+             w: BWallet,
+             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+             sender: PublicKey25519Proposition,
+             fee: Long, data: String): Try[PolyTransfer] = Try {
+    val params = parametersForCreate(bfr, w, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }

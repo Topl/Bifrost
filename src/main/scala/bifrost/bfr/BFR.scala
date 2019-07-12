@@ -15,11 +15,21 @@ import scala.util.Try
 
 class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
-  def closedBox(boxId: Array[Byte]): Option[BX] =
-    stateStore.get(ByteArrayWrapper(boxId))
-      .map(_.data)
-      .map(BifrostBoxSerializer.parseBytes)
-      .flatMap(_.toOption)
+//  def closedBox(boxId: Array[Byte]): Option[BX] =
+//    stateStore.get(ByteArrayWrapper(boxId))
+//      .map(_.data)
+//      .map(BifrostBoxSerializer.parseBytes)
+//      .flatMap(_.toOption)
+
+    def closedBox(boxId: Array[Byte]): Option[BifrostPublic25519NoncedBox] =
+      stateStore.get(ByteArrayWrapper(boxId))
+        .map(_.data)
+        .map(BifrostBoxSerializer.parseBytes)
+        .flatMap(_.toOption) match {
+        case Some(p) => Some(p.asInstanceOf[BifrostPublic25519NoncedBox])
+        case None => None
+      }
+
 
   def boxIdsByKey(publicKey: PublicKey25519Proposition): Seq[Array[Byte]] =
     boxIdsByKey(publicKey.pubKeyBytes)
@@ -33,14 +43,27 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[BifrostBox] =
+//  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[BifrostBox] =
+//    boxesByKey(publicKey.pubKeyBytes)
+//
+//  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[BifrostBox] = {
+//    boxIdsByKey(pubKeyBytes)
+//      .map(id => closedBox(id))
+//      .filter {
+//        case box: Some[BifrostBox] => true
+//        case None => false
+//      }
+//      .map(_.get)
+//  }
+
+  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[BifrostPublic25519NoncedBox] =
     boxesByKey(publicKey.pubKeyBytes)
 
-  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[BifrostBox] = {
+  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[BifrostPublic25519NoncedBox] = {
     boxIdsByKey(pubKeyBytes)
       .map(id => closedBox(id))
       .filter {
-        case box: Some[BifrostBox] => true
+        case box: Some[BifrostPublic25519NoncedBox] => true
         case None => false
       }
       .map(_.get)
