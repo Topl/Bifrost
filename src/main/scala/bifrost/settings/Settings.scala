@@ -54,7 +54,7 @@ trait Settings extends ScorexLogging {
 
   lazy val sbrDirOpt = folderOpt("sbrDir")
 
-  lazy val bfrDirOpt = folderOpt("bfrDir").getOrElse(null)
+  lazy val bfrDirOpt = folderOpt("bfrDir")
 
   //p2p
   lazy val DefaultPort = 9084

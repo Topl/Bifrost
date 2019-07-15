@@ -25,7 +25,8 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     boxIdsByKey(publicKey.pubKeyBytes)
 
   //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
-  def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] = bfrStore
+  def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] =
+    bfrStore
     .get(ByteArrayWrapper(pubKeyBytes))
     .map(_
       .data
@@ -46,8 +47,14 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       .map(_.get)
   }
 
+  /**
+    *
+    * @param newVersion - block id
+    * @param changes - boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
+    * @return - instance of updated BFR
+    */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, changes: GSC): BFR = {
+  def updateFromState(newVersion: VersionTag, changes: GSC): Try[BFR] = Try {
     log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
     //  println()
@@ -135,18 +142,13 @@ object BFR extends ScorexLogging {
   }
 
   def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[BFR] = {
-    val dataDirOpt = settings.bfrDirOpt//.ensuring(_.isDefined, "bfr dir must be specified")
-    dataDirOpt match {
-      case null => None
-      case _ =>
-        val dataDir = dataDirOpt
-        val logDirOpt = settings.logDirOpt
-        Some(readOrGenerate(dataDir, logDirOpt, settings, stateStore))
-    }
+    val bfrDirOpt = settings.bfrDirOpt//.ensuring(_.isDefined, "bfr dir must be specified")
+    val logDirOpt = settings.logDirOpt
+    bfrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): BFR = {
-    val iFile = new File(s"$dataDir/map")
+  def readOrGenerate(bfrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): BFR = {
+    val iFile = new File(s"$bfrDir")
     iFile.mkdirs()
     val bfrStore = new LSMStore(iFile)
 

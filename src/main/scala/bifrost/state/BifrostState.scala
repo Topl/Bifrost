@@ -746,6 +746,8 @@ object BifrostState extends ScorexLogging {
     }
     val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
     val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
+    if(stateBoxRegistry == null) log.info("Initializing state without sbr") else log.info("Initializing state with sbr")
+    if(bfr == null) log.info("Initializing state without bfr") else log.info("Initializing state with bfr")
 
     BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry, bfr)
   }

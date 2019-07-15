@@ -32,32 +32,6 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
 //    tx.newBoxes.foreach(b => if b.isInstanceOf[StateBox])
   }
 
-//  def insertNewStateBox(modifierId: ModifierId, v: Array[Byte]): Try[(UUID, Array[Byte])] = Try {
-//    var uuid = new UUID(counterOne, counterTwo)
-////    update(modifierId, uuid, v)
-//    if (counterTwo == Long.MaxValue) {
-//      counterTwo = 0
-//      counterOne += 1
-//    }
-//    else {
-//      counterTwo += 1
-//    }
-//    updateWithCounters(modifierId, counterOne, counterTwo, uuid, v)
-//    uuid -> v
-//  }
-//
-//  def updateWithCounters(modifierId: ModifierId, counterOne: Long, counterTwo: Long, k:UUID, v: Array[Byte]): Unit =  {
-//    val k_baw = StateBoxRegistry.uuid2baw(k)
-//    val v_baw = ByteArrayWrapper(v)
-//    storage.update(ByteArrayWrapper(modifierId),
-//      Seq(
-//        (ByteArrayWrapper(Sha256("counterOne".getBytes)), ByteArrayWrapper(Longs.toByteArray(counterOne))),
-//        (ByteArrayWrapper(Sha256("counterTwo".getBytes)), ByteArrayWrapper(Longs.toByteArray(counterTwo))),
-//        (k_baw, v_baw)
-//      )
-//    )
-//    UUID2BoxID += (k_baw -> v_baw)
-//  }
 
   def insertNewStateBox(modifierId: ModifierId, v: Array[Byte]): Try[(UUID, Array[Byte])] = Try {
     val k_uuid = UUID.nameUUIDFromBytes(v)
