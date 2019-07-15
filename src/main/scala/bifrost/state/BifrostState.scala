@@ -46,7 +46,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry, bfr: BFR)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, var history: BifrostHistory, stateBoxRegistry: StateBoxRegistry, bfr: BFR = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -113,14 +113,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
-
-
-    /*val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
-      {
-        case "StateBox" => ByteArrayWrapper(sb.)
-      }
-    }*/
-
     val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
@@ -134,7 +126,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
-    bfr.updateFromState(newVersion, changes)
+    //BFR must be updated before state since it uses the boxes from state that are being removed in the update
+    if(bfr != null) bfr.updateFromState(newVersion, changes)
 
     storage.update(
       ByteArrayWrapper(newVersion),
@@ -698,6 +691,8 @@ object BifrostState extends ScorexLogging {
     }
   }
 
+  //TODO YT - check if byte array set quality is correctly overloaded, consider using bytearraywrapper instead
+  //TODO LSMStore will throw error if given duplicate keys in toRemove or toAppend
   def changes(mod: BPMOD) : Try[GSC] = Try {
     val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
@@ -750,7 +745,7 @@ object BifrostState extends ScorexLogging {
         .data)
     }
     val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
-    val bfr = BFR.readOrGenerate(settings, stateStorage)
+    val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
 
     BifrostState(stateStorage, version, timestamp, history, stateBoxRegistry, bfr)
   }

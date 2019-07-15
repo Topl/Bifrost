@@ -91,7 +91,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetRedemption](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -121,7 +121,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -139,12 +139,13 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
       val tx = AssetTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -167,7 +168,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }

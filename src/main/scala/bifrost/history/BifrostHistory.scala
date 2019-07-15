@@ -108,6 +108,8 @@ class BifrostHistory(val storage: BifrostStorage,
           bestForkChanges(block)
         }
         storage.update(block, difficulty, builtOnBestChain)
+        //TODO change - bad design to update state within history because of rollback resolution process
+        //TODO SBR and BFR should be updated within BifrostState right before the actual LSMStore is updated
         //improve by passing all txs as a sequence instead of one by one
         //maybe the txs can be collected as a sequence in the method below and then sent to the update function in SBR
         if (block.transactions.isDefined) {

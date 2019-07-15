@@ -106,7 +106,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -123,15 +123,16 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
+
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
       // Call to BifrostTX to create TX
       val tx = PolyTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
-
       // Update nodeView with new TX
       PolyTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -164,7 +165,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
@@ -182,14 +183,16 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      val tx = ArbitTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
 
+//      if(view.state.bfr == null) ("BFR not defined for node").asJson
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      val tx = ArbitTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
       ArbitTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
           tx.json
-        case Failure(e) => ("Could not validate transaction").asJson
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }

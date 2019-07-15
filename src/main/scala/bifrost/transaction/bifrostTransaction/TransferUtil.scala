@@ -134,7 +134,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[BifrostPublic25519NoncedBox] =
+          val keyFilteredBoxes: Seq[BifrostBox] =
             bfr.boxesByKey(sender)
 
           // Match only the type of boxes specified by txType
