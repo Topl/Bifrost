@@ -52,6 +52,13 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     * @param newVersion - block id
     * @param changes - boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
     * @return - instance of updated BFR
+    * (Note - makes use of vars for local variables since function remains a pure function and helps achieve better runtime)
+    *
+    *         Runtime complexity of below function is O(MN) + O(L)
+    *         where M = Number of boxes to remove
+    *         N = Number of boxes owned by a public key
+    *         L = Number of boxes to append
+    *
     */
   //noinspection ScalaStyle
   def updateFromState(newVersion: VersionTag, changes: GSC): Try[BFR] = Try {
@@ -104,12 +111,13 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       publicKey => publicKey -> boxIdsByKey(publicKey.data)
     ).toMap
 
-    //For each box in temporary map match against public key and remove/append to boxIds list
+    //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
     for((boxId, publicKey) <- boxesToRemove) {
       keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
     }
     for((boxId, publicKey) <- boxesToAppend) {
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (keysToBoxIds(ByteArrayWrapper(publicKey)) :+ boxId))
+      //Prepending to list is O(1) while appending is O(n)
+      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId :+ keysToBoxIds(ByteArrayWrapper(publicKey))))
     }
 
     bfrStore.update(

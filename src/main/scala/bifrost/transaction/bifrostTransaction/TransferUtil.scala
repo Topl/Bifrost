@@ -88,6 +88,9 @@ trait TransferUtil {
               })
           }
 
+          //YT Note - Dust collection takes place here - so long as someone forms a valid transaction,
+          // all their tokens of that type are collected into one spend box and one change box
+
           // Check if the keys currently unlocked in wallet match the proposition of any of the found boxes
           val senderInputBoxes: IndexedSeq[(PrivateKey25519, Long, Long)] = keyAndTypeFilteredBoxes
             .flatMap {

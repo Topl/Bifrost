@@ -7,6 +7,7 @@ import bifrost.NodeViewModifier.ModifierId
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericMinimalState.VersionTag
+import bifrost.state.BifrostState.GSC
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.utils.ScorexLogging
@@ -25,6 +26,19 @@ class SBR (store: LSMStore) extends ScorexLogging {
     val k_baw = StateBoxRegistry.uuid2baw(k)
     val v_baw = ByteArrayWrapper(v)
     store.update(ByteArrayWrapper(modifierId), Seq(), Seq((k_baw, v_baw)))
+    SBR(store)
+  }
+
+  //Using this function signature means boxes being removed from state must contain UUID (key) information
+  //And that the SBR needs to associate state's LSMStore as well to access the box by boxId (see BFR)
+  //Might be better to use transactions as parameters instead of changes (boxesToRemove and boxesToAppend)
+  def updateFromState(versionTag: VersionTag, changes: GSC): Try[SBR] = Try {
+//TODO unimplemented
+    SBR(store)
+  }
+
+  def updateFromState(versionTag: VersionTag, txs: Seq[BifrostTransaction]): Try[SBR] = Try {
+    //TODO unimplemented
     SBR(store)
   }
 
