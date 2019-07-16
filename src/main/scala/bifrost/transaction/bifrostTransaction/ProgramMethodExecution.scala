@@ -35,7 +35,9 @@ case class ProgramMethodExecution(stateBox: StateBox,
   override type M = ProgramMethodExecution
 
   // lazy val proposition = MofNProposition(1, program.parties.map(p => p._1.pubKeyBytes).toSet)
-  val proposition = MofNProposition(1, executionBox.proposition.setOfPubKeyBytes)
+//  val proposition = MofNProposition(1, executionBox.proposition.setOfPubKeyBytes)
+val proposition = executionBox.proposition
+
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
   val forgingSettings = new ForgingSettings {
@@ -45,7 +47,7 @@ case class ProgramMethodExecution(stateBox: StateBox,
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
 
   //TODO Replace stateBox with stateBox ids
-  val uuidStateBoxes = executionBox.value.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.value)
+  val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.stateBoxUUIDs)
 
   val codeBoxes = executionBox.codeBoxIds
 
@@ -74,12 +76,14 @@ case class ProgramMethodExecution(stateBox: StateBox,
   )
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+//    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
+
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
     val programResult: Json = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject.get)
 
-    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, programResult, true)
+    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, uuidStateBoxes.head._1.value, programResult, true)
 
       IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }

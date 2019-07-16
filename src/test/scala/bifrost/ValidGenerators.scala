@@ -96,13 +96,13 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBox = StateBox(parties.head, 0L, state, true)
-      val stateBoxTwo = StateBox(parties.head, 1L, stateTwo, true)
-      val stateBoxThree = StateBox(parties.head, 2L, stateThree, true)
+      val stateBox = StateBox(parties.head, 0L, null, state, true)
+      val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo, true)
+      val stateBoxThree = StateBox(parties.head, 2L, null, stateThree, true)
 
       val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-      val codeBox = CodeBox(parties.head, 3L, Seq("add = function() { a = 2 + 2 }"))
+      val codeBox = CodeBox(parties.head, 3L, null, Seq("add = function() { a = 2 + 2 }"))
 
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
         .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
@@ -208,12 +208,17 @@ trait ValidGenerators extends BifrostGenerators {
 
     val state = Map("a" -> "0").asJson
 
-    val stateBox = StateBox(sender._2._2, 0L, state, true)
-    val codeBox = CodeBox(sender._2._2, 1L, Seq("add = function() { a = 2 + 2 }"))
+    val stateBoxWithoutUUID = StateBox(sender._2._2, 0L, null, state, true)
+    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
+    val codeBoxWithoutUUID = CodeBox(sender._2._2, 1L, null, Seq("add = function() { a = 2 + 2 }"))
+    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"))
+
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
-    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBox = ExecutionBox(proposition, 2L, Seq(stateUUID), Seq(codeBox.id))
+//    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+    val executionBoxWithoutUUID = ExecutionBox(parties.head, 2L, null, Seq(stateUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(parties.head, 2L, UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id), Seq(stateUUID), Seq(codeBox.id))
+
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
       sampleUntilNonEmpty(positiveTinyIntGen),

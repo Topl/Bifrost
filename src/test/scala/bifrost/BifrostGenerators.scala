@@ -248,7 +248,8 @@ trait BifrostGenerators extends CoreGenerators {
     value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
-    StateBox(proposition, nonce, value.asJson, true)
+    val stateBoxWihtouUUID = StateBox(proposition, nonce, null, value.asJson, true)
+    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWihtouUUID.id), value.asJson, true)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
@@ -256,23 +257,33 @@ trait BifrostGenerators extends CoreGenerators {
     value <- stringGen
     nonce <- positiveLongGen
   } yield {
-    CodeBox(proposition, nonce, Seq(value))
+    val codeBoxWithoutUUID = CodeBox(proposition, nonce, null, Seq(value))
+    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(value))
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
-    proposition <- oneOfNPropositionGen
+//    proposition <- oneOfNPropositionGen
+    proposition <- propositionGen
     codeBox_1 <- codeBoxGen
     codeBox_2 <- codeBoxGen
     nonce <- positiveLongGen
     stateBox_1 <- stateBoxGen
     stateBox_2 <- stateBoxGen
   } yield {
-    ExecutionBox(proposition._2,
+    val executionBoxWithoutUUID = ExecutionBox(proposition,
                   nonce,
+                  null,
                   Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
                       UUID.nameUUIDFromBytes(stateBox_2.id)),
                   Seq(codeBox_1.id,
                       codeBox_2.id))
+    ExecutionBox(proposition,
+      nonce,
+      UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id),
+      Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
+        UUID.nameUUIDFromBytes(stateBox_2.id)),
+      Seq(codeBox_1.id,
+        codeBox_2.id))
   }
 
   lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {

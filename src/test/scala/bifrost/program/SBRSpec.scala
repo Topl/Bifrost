@@ -23,6 +23,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
+//TODO rewrite with new SBR
 class SBRSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
@@ -56,8 +57,11 @@ class SBRSpec extends PropSpec
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOne: StateBox = StateBox(pubKey, 0L, stateOne, true)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, stateTwo, true)
+  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne, true)
+  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo, true)
+
+  val sboxOne: StateBox = StateBox(pubKey, 0L, UUID.nameUUIDFromBytes(sboxOneWithoutUUID.id), stateOne, true)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, UUID.nameUUIDFromBytes(sboxTwoWithoutUUID.id), stateTwo, true)
 
   val uuid: UUID = UUID.nameUUIDFromBytes(sboxOne.id)
   val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
@@ -115,7 +119,8 @@ class SBRSpec extends PropSpec
       settings.version
     )
 
-    val sbox_3: StateBox = StateBox(pubKey, 2L, "c".asJson, true)
+    val sbox_3_withoutUUID: StateBox = StateBox(pubKey, 2L, null, "c".asJson, true)
+    val sbox_3: StateBox = StateBox(pubKey, 2L, UUID.nameUUIDFromBytes(sbox_3_withoutUUID.id),"c".asJson, true)
     val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
     uuidAndBoxID.isSuccess shouldBe true
     //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 0L))
@@ -134,7 +139,8 @@ class SBRSpec extends PropSpec
       settings.version
     )
 
-    val sbox_4: StateBox = StateBox(pubKey, 3L, "d".asJson, true)
+    val sbox_4_withoutUUID: StateBox = StateBox(pubKey, 3L, null, "d".asJson, true)
+    val sbox_4: StateBox = StateBox(pubKey, 3L, UUID.nameUUIDFromBytes(sbox_4_withoutUUID.id),"d".asJson, true)
     val uuidAndBoxIDTwo = sbr.insertNewStateBox(block_4.id, sbox_4.id)
     uuidAndBoxIDTwo.isSuccess shouldBe true
 //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 1L))

@@ -14,7 +14,7 @@
   "walletSeed": "genesisoo",
   "keyFileDir": "keyfiles/private-testnet",
   "walletDir": "/tmp/bifrost/private-testnet/wallet",
-  "dataDir": "/tmp/bifrost/private-testnet/data",
+  "dataDir": "/tmp/bifrost/private-testnet/blockchain",
   "sbrDir": "/tmp/bifrost/private-testnet/sbr",
   "bfrDir": "/tmp/bifrost/private-testnet/bfr",
   "logDir": "/tmp/bifrost/private-testnet/log",

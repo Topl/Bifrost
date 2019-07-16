@@ -7,8 +7,9 @@ import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.box
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ProgramBox, ExecutionBox, PolyBox, StateBox}
+import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ExecutionBox, PolyBox, ProgramBox, StateBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
@@ -46,7 +47,10 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override type M = ProgramCreation
 
-  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
+//  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
+
+  lazy val proposition = parties.head._1
+
 
   //val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
@@ -83,12 +87,16 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
           ++ Ints.toByteArray(0))
       )
 
-    val stateBox = StateBox(parties.head._1, stateNonce, executionBuilder.core.variables, true)
+    val stateBoxWithoutUUID = StateBox(proposition, stateNonce, null, executionBuilder.core.variables, true)
+    val stateBox = StateBox(proposition, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), executionBuilder.core.variables, true)
+
     IndexedSeq(stateBox)
   }
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+//    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+    val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
+
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
     val boxValue: Json = Map(
@@ -131,12 +139,15 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
 
-    val stateBox = StateBox(parties.head._1, stateNonce, executionBuilder.core.variables, true)
+    val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables, true)
+    val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables, true)
 
-    val codeBox: Seq[CodeBox] = Seq(CodeBox(investorProp, codeNonce, executionBuilder.core.code))
+    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code))
+    val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code))
     val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
     val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
-    val executionBox = ExecutionBox(proposition, execNonce, stateUUIDs, codeBoxIDs)
+    val executionBoxWithoutUUID = ExecutionBox(proposition, execNonce, null, stateUUIDs, codeBoxIDs)
+    val executionBox = ExecutionBox(proposition, execNonce, UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id), stateUUIDs, codeBoxIDs)
 
     val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
     val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)

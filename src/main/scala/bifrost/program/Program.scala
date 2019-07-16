@@ -112,8 +112,8 @@ object Program {
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json /*Try[Either[StateBox, Json]]*/ = /*Try*/ {
 
-    val mutableState = stateBoxes.head._1.value.asObject.get.toMap
-    val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
+    val mutableState = stateBoxes.head._1.state.asObject.get.toMap
+    val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
     val jsre: Context = Context.create("js")
     val bindings = jsre.getBindings("js")
@@ -121,7 +121,7 @@ object Program {
     //Pass in JSON objects for each read-only StateBox
     stateBoxes.tail.map{ sb =>
       val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
-      jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.value})""")
+      jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.state})""")
     }
 
     //Inject function to read from read only StateBoxes

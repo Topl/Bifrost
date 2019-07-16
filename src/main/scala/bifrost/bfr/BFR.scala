@@ -85,21 +85,17 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       boxIdsToRemove
         .flatMap(boxId => closedBox(boxId.data))
         .foreach(box => box match {
-          case box: BifrostBox => box.proposition match {
-            case key: PublicKey25519Proposition => boxesToRemove += (box.id -> key.pubKeyBytes)
+          case box: BifrostPublic25519NoncedBox =>
+            boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
               //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
-            case _ =>
-          }
           case _ =>
         })
 
       changes.toAppend
         .foreach({
-          case box: BifrostBox => box.proposition match {
-            case key: PublicKey25519Proposition => boxesToAppend += (box.id -> key.pubKeyBytes)
+          case box: BifrostPublic25519NoncedBox =>
+            boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
             //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
-            case _ =>
-          }
           case _ =>
         })
 
@@ -124,7 +120,7 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       ByteArrayWrapper(newVersion),
       Seq(),
       keysToBoxIds.map(element =>
-        element._1 -> ByteArrayWrapper(element._2.flatten.toArray)).toSeq
+        element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
     )
 
     BFR(bfrStore, stateStore)

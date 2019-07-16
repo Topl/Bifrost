@@ -94,8 +94,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
          |{ "c": 0 }
          """.stripMargin.asJson
 
-    val stateBoxTwo = StateBox(parties.head._1, 1L, stateTwo, true)
-    val stateBoxThree = StateBox(parties.head._1, 2L, stateThree, true)
+    val stateBoxTwo = StateBox(parties.head._1, 1L, null, stateTwo, true)
+    val stateBoxThree = StateBox(parties.head._1, 2L, null, stateThree, true)
 
     val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
