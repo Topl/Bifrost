@@ -117,7 +117,7 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     }
     for((boxId, publicKey) <- boxesToAppend) {
       //Prepending to list is O(1) while appending is O(n)
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId :+ keysToBoxIds(ByteArrayWrapper(publicKey))))
+      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
     }
 
     bfrStore.update(
