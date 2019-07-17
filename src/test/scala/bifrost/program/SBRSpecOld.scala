@@ -24,7 +24,7 @@ import scala.reflect.io.Path
 import scala.util.Try
 
 //TODO rewrite with new SBR
-class SBRSpec extends PropSpec
+class SBRSpecOld extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
