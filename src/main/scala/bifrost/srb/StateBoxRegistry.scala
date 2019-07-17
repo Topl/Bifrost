@@ -15,18 +15,10 @@ import scorex.crypto.hash.Sha256
 import scala.util.Try
 import scala.util.{Failure, Success}
 
+//TODO remove
 class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: SBRStorage) extends ScorexLogging {
 
   var UUID2BoxID = initialMap
-
-//  var counterOne: Long = storage.get(ByteArrayWrapper("counterOne".getBytes)) match {
-//    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
-//    case None => 0L
-//  }
-//  var counterTwo: Long = storage.get(ByteArrayWrapper("counterTwo".getBytes)) match {
-//    case Some(value_baw) => Longs.fromByteArray(value_baw.data)
-//    case None => 0L
-//  }
 
   def updateIfStateBoxTransaction(tx: BifrostTransaction) : Unit = {
 //    tx.newBoxes.foreach(b => if b.isInstanceOf[StateBox])
@@ -43,10 +35,6 @@ class StateBoxRegistry (initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], sto
     val k_baw = StateBoxRegistry.uuid2baw(k)
     val v_baw = ByteArrayWrapper(v)
     storage.update(ByteArrayWrapper(modifierId), Seq((k_baw, v_baw)))
-//    match {
-//      case Success(_) => println("WORKED")
-//      case Failure(e) => println("FAILED", e)
-//    }
       match {
         case Success(_) =>
         case Failure(e) => new Exception("Unable to insert in StateBox registry")

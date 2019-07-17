@@ -30,7 +30,7 @@ class SBRSpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val path: Path = Path("/tmp/scorex/test-sbr")
+  val path: Path = Path("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 
 //  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
