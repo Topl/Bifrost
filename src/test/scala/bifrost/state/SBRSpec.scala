@@ -33,10 +33,10 @@ class SBRSpec extends PropSpec
   val path: Path = Path("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 
-//  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
-//  val history: HIS = gs._1
-//  var genesisState: MS = gs._2
-//  var gw: VL = gs._3
+  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val history: HIS = gs._1
+  var genesisState: MS = gs._2
+  var gw: VL = gs._3
 
   val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
 
@@ -65,7 +65,7 @@ class SBRSpec extends PropSpec
   property("BifrostState should update sbr with state box and rollback correctly") {
 
     val changes_1: BifrostStateChanges = BifrostStateChanges(Set(), Set(sboxOne), 0L)
-    newState_1 = BifrostStateSpec.genesisState.applyChanges(changes_1, Ints.toByteArray(1)).get
+    newState_1 = genesisState.applyChanges(changes_1, Ints.toByteArray(1)).get
 
     assert(newState_1.sbr.getBoxId(uuid).get sameElements sboxOne.id)
     assert(newState_1.sbr.getBox(uuid).get.bytes sameElements sboxOne.bytes)
