@@ -689,8 +689,7 @@ trait BifrostGenerators extends CoreGenerators {
     //we don't care about validation here
     val validators = Seq()
 
-    val sbr = StateBoxRegistry.readOrGenerate(settings)
-    var history = new BifrostHistory(storage, settings, validators, sbr)
+    var history = new BifrostHistory(storage, settings, validators)
 
     val keyPair = sampleUntilNonEmpty(key25519Gen)
     val genesisBlock = BifrostBlock.create(
