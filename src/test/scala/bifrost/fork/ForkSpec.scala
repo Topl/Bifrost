@@ -51,8 +51,6 @@ class ForkSpec extends PropSpec
       0L,
       testSettings_version3.version)
 
-    val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings_version3)
-
     history = history.append(tempBlock_version3).get._1
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
@@ -63,8 +61,7 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
   }
 
@@ -120,8 +117,7 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
 
     history.height shouldEqual testSettings_version0.forkHeight
@@ -153,8 +149,7 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
   }
 
@@ -210,8 +205,7 @@ class ForkSpec extends PropSpec
             new DifficultyBlockValidator(history.storage)
             //new ParentBlockValidator(storage),
             //new SemanticBlockValidator(FastCryptographicHash)
-          ),
-          sbr
+          )
         )
 
       case Failure(_) =>
