@@ -47,6 +47,7 @@ class BFRSpec extends PropSpec
   gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
   gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
 
+
   property("Transfer should update bfr correctly") {
 
     val oldArbitBoxes = gw

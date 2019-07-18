@@ -16,7 +16,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -34,14 +34,43 @@ class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
   //Using this function signature means boxes being removed from state must contain UUID (key) information
   //And that the SBR needs to associate state's LSMStore as well to access the box by boxId (see BFR)
   //Might be better to use transactions as parameters instead of changes (boxesToRemove and boxesToAppend)
-  def updateFromState(newVersion: VersionTag, changes: GSC): Try[SBR] = Try {
+//  def updateFromState(newVersion: VersionTag, changes: GSC): Try[SBR] = Try {
+//    log.debug(s"${Console.GREEN} Update SBR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+//
+//    val boxIdsToRemove: Set[ByteArrayWrapper] = (changes.boxIdsToRemove -- changes.toAppend.map(_.id)).map(ByteArrayWrapper.apply)
+//
+//    //Getting all uuids being updated
+//    val uuidsToAppend: Map[UUID, Array[Byte]] =
+//      changes.toAppend.filter(_.isInstanceOf[BifrostProgramBox]).map(_.asInstanceOf[BifrostProgramBox])
+//      .map(box => box.value -> box.id).toMap
+//
+//    //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
+//    val uuidsToRemove: Set[UUID] =
+//      boxIdsToRemove
+//        .flatMap(boxId => closedBox(boxId.data))
+//        .filter(box => box.isInstanceOf[BifrostProgramBox])
+//        .map(_.asInstanceOf[BifrostProgramBox])
+//        .filterNot(box => uuidsToAppend.contains(box.value))
+//        .map(_.value)
+//
+//    sbrStore.update(
+//      ByteArrayWrapper(newVersion),
+//      uuidsToRemove.map(SBR.uuidToBaw(_)),
+//      uuidsToAppend.map(e => SBR.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
+//    )
+//
+//    SBR(sbrStore, stateStore)
+//  }
 
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (changes.boxIdsToRemove -- changes.toAppend.map(_.id)).map(ByteArrayWrapper.apply)
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[SBR] = Try {
+    log.debug(s"${Console.GREEN} Update SBR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+
+    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
     //Getting all uuids being updated
     val uuidsToAppend: Map[UUID, Array[Byte]] =
-      changes.toAppend.filter(_.isInstanceOf[BifrostProgramBox]).map(_.asInstanceOf[BifrostProgramBox])
-      .map(box => box.value -> box.id).toMap
+      keyFilteredBoxesToAdd.filter(_.isInstanceOf[BifrostProgramBox]).map(_.asInstanceOf[BifrostProgramBox])
+        .map(box => box.value -> box.id).toMap
 
     //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
     val uuidsToRemove: Set[UUID] =

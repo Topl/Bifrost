@@ -2,6 +2,7 @@ package bifrost.state
 
 import java.io.File
 import java.time.Instant
+import bifrost.forging.ForgingSettings
 
 import bifrost.bfr.BFR
 import bifrost.history.BifrostHistory
@@ -46,7 +47,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -112,51 +113,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
 
-  override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
-
-    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
-
-    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
-
-    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
-      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
-
-    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
-
-    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
-
-    //BFR must be updated before state since it uses the boxes from state that are being removed in the update
-    if(bfr != null) bfr.updateFromState(newVersion, changes)
-    if(sbr != null) sbr.updateFromState(newVersion, changes)
-
-
-    storage.update(
-      ByteArrayWrapper(newVersion),
-      boxIdsToRemove,
-      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
-        timestamp)))
-    )
-
-    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr, bfr)
-
-    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
-    newSt
-
-  }
-
-//  def applyChanges(changes: GSC, newVersion: VersionTag, executionBox: ExecutionBox): Try[NVCT] = Try {
-//
-//
-//
-//    val stateBoxesToAdd = changes.toAppend.map { sb => sb.typeOfBox match
-//      {
-//        case "StateBox" => sb.asInstanceOf[StateBox]
-//      }
-//    }
-//
-//    val stateBoxId = executionBox.stateBoxUUIDs.zip(stateBoxesToAdd).map(usb => usb._1 -> usb._2.bytes)
+//  override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 //
 //    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 //
@@ -171,9 +128,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 //
 //    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 //
-//    //BFR update ideally takes place here, before state updates which removes boxes that are needed to update bfr correctly
+//    //BFR must be updated before state since it uses the boxes from state that are being removed in the update
+//    if(bfr != null) bfr.updateFromState(newVersion, changes)
+//    if(sbr != null) sbr.updateFromState(newVersion, changes)
 //
-//    bfr.updateFromState(newVersion, changes)
 //
 //    storage.update(
 //      ByteArrayWrapper(newVersion),
@@ -182,21 +140,69 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 //        timestamp)))
 //    )
 //
-//    //The below code is incorrect since the version for each write to LSMStore should be unique
-//    //All updates to SBR (and BFR) should flatten to a single write for a single block
-//    //Should use the scanPersistent function like BWallet and other members of NodeViewHolder
-//    stateBoxId.foreach(sb => stateBoxRegistry.update(
-//      newVersion,
-//      sb._1,
-//      sb._2
-//    ))
-//
-//    val newSt = BifrostState(storage, newVersion, timestamp, history, stateBoxRegistry, bfr)
+//    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr, bfr)
 //
 //    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
 //    newSt
 //
 //  }
+
+  override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
+
+//    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    //Filtering boexs pertaining to public keys specified in settings file
+    val filteredBoxesToAdd =
+      if(nodeKeys != null)
+        changes.toAppend
+        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes))) ||
+          (b.isInstanceOf[BifrostProgramBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
+      else
+        changes.toAppend
+
+    val filteredBoxIdsToRemove =
+      if(nodeKeys != null)
+        changes.boxIdsToRemove
+        .flatMap(closedBox(_))
+        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes)))  ||
+          (b.isInstanceOf[BifrostProgramBox]&& nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
+        .map(b => b.id)
+      else
+        changes.boxIdsToRemove
+
+    val boxesToAdd = filteredBoxesToAdd
+      .map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+    val boxIdsToRemove = (filteredBoxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
+
+    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
+      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
+
+    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
+
+    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
+
+    //BFR must be updated before state since it uses the boxes from state that are being removed in the update
+    if(bfr != null) bfr.updateFromState(newVersion, filteredBoxIdsToRemove, filteredBoxesToAdd)
+    if(sbr != null) sbr.updateFromState(newVersion, filteredBoxIdsToRemove, filteredBoxesToAdd)
+
+
+    storage.update(
+      ByteArrayWrapper(newVersion),
+      boxIdsToRemove,
+      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
+        timestamp)))
+    )
+
+    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr, bfr, nodeKeys)
+
+    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
+    newSt
+
+  }
+
 
 
   //noinspection ScalaStyle
@@ -719,6 +725,7 @@ object BifrostState extends ScorexLogging {
     BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
   }
 
+
   def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
@@ -747,13 +754,16 @@ object BifrostState extends ScorexLogging {
         .get
         .data)
     }
-//    val stateBoxRegistry = StateBoxRegistry.readOrGenerate(settings)
+    
+    val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).getOrElse(null)
     val sbr = SBR.readOrGenerate(settings, stateStorage).getOrElse(null)
     val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
     if(sbr == null) log.info("Initializing state without sbr") else log.info("Initializing state with sbr")
     if(bfr == null) log.info("Initializing state without bfr") else log.info("Initializing state with bfr")
+    if(nodeKeys == null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
+      else log.info("Initializing state to watch for all public keys")
 
-    BifrostState(stateStorage, version, timestamp, history, sbr, bfr)
+    BifrostState(stateStorage, version, timestamp, history, sbr, bfr, nodeKeys)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {

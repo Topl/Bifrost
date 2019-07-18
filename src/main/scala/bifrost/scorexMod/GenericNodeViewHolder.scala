@@ -122,12 +122,6 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
                 notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None))})
               log.debug(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
-//              val newBFR = if (progressInfo.rollbackNeeded) {
-//                vault().rollback(progressInfo.branchPoint.get).get.scanPersistent(appliedMods)
-//              } else {
-//                vault().scanPersistent(appliedMods)
-//              }
-
               //we consider that vault always able to perform a rollback needed
               val newVault = if (progressInfo.rollbackNeeded) {
                 vault().rollback(progressInfo.branchPoint.get).get.scanPersistent(appliedMods)

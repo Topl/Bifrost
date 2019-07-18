@@ -13,7 +13,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -61,9 +61,72 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, changes: GSC): Try[BFR] = Try {
-    log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+//  def updateFromState(newVersion: VersionTag, changes: GSC): Try[BFR] = Try {
+//    log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+//    //  println()
+//    //  println("Boxes to remove")
+//    //  changes.boxIdsToRemove.flatMap(
+//    //    id => closedBox(id))
+//    //    .foreach(box => println(box.json)
+//    //    )
+//    //  println()
+//    //  println("Boxes to append")
+//    //  changes.toAppend.foreach(box => println(box.json))
+//
+//    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+//    val boxIdsToRemove: Set[ByteArrayWrapper] = (changes.boxIdsToRemove -- changes.toAppend.map(_.id)).map(ByteArrayWrapper.apply)
+//
+//    var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
+//    var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
+//    //Getting set of public keys for boxes being removed and appended
+//    //Using ByteArrayWrapper for sets since equality method uses a deep compare unlike a set of byte arrays
+//    val keysSet: Set[ByteArrayWrapper] = {
+//      boxIdsToRemove
+//        .flatMap(boxId => closedBox(boxId.data))
+//        .foreach(box => box match {
+//          case box: BifrostPublic25519NoncedBox =>
+//              boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
+//              //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
+//          case _ =>
+//        })
+//
+//      changes.toAppend
+//        .foreach({
+//          case box: BifrostPublic25519NoncedBox =>
+//              boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
+//            //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
+//          case _ =>
+//        })
+//
+//      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
+//    }
+//
+//    //Get old boxIds list for each of the above public keys
+//    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
+//      publicKey => publicKey -> boxIdsByKey(publicKey.data)
+//    ).toMap
+//
+//    //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
+//    for((boxId, publicKey) <- boxesToRemove) {
+//      keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
+//    }
+//    for((boxId, publicKey) <- boxesToAppend) {
+//      //Prepending to list is O(1) while appending is O(n)
+//      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
+//    }
+//
+//    bfrStore.update(
+//      ByteArrayWrapper(newVersion),
+//      Seq(),
+//      keysToBoxIds.map(element =>
+//        element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
+//    )
+//
+//    BFR(bfrStore, stateStore)
+//  }
 
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[BFR] = Try {
+    log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
     //  println()
     //  println("Boxes to remove")
     //  changes.boxIdsToRemove.flatMap(
@@ -75,7 +138,7 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     //  changes.toAppend.foreach(box => println(box.json))
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (changes.boxIdsToRemove -- changes.toAppend.map(_.id)).map(ByteArrayWrapper.apply)
+    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
 
     var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
     var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
@@ -87,15 +150,15 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
         .foreach(box => box match {
           case box: BifrostPublic25519NoncedBox =>
             boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
-              //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
+          //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
           case _ =>
         })
 
-      changes.toAppend
+      keyFilteredBoxesToAdd
         .foreach({
           case box: BifrostPublic25519NoncedBox =>
             boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
-            //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
+          //TODO for boxes that do not follow the BifrostPublicKey25519NoncedBox format and have different propositions
           case _ =>
         })
 
@@ -125,7 +188,6 @@ class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
     BFR(bfrStore, stateStore)
   }
-
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[BFR] = Try {
     if (bfrStore.lastVersionID.exists(_.data sameElements version)) {
