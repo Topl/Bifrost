@@ -763,7 +763,7 @@ object BifrostState extends ScorexLogging {
     val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
     if(sbr == null) log.info("Initializing state without sbr") else log.info("Initializing state with sbr")
     if(bfr == null) log.info("Initializing state without bfr") else log.info("Initializing state with bfr")
-    if(nodeKeys == null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
+    if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
     BifrostState(stateStorage, version, timestamp, history, sbr, bfr, nodeKeys)
