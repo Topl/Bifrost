@@ -38,7 +38,7 @@ class SBRSpec extends PropSpec
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
-  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte))
+  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
   val stateOne =
     s"""

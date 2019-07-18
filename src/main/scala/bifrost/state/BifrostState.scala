@@ -152,6 +152,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 //    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
     //Filtering boexs pertaining to public keys specified in settings file
+    //Note YT - Need to handle MofN Proposition separately
     val filteredBoxesToAdd =
       if(nodeKeys != null)
         changes.toAppend
