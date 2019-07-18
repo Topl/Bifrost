@@ -47,7 +47,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -754,7 +754,7 @@ object BifrostState extends ScorexLogging {
         .get
         .data)
     }
-    
+
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).getOrElse(null)
     val sbr = SBR.readOrGenerate(settings, stateStorage).getOrElse(null)
     val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
