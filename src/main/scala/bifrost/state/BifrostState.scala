@@ -155,8 +155,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val filteredBoxesToAdd =
       if(nodeKeys != null)
         changes.toAppend
-        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes))) ||
-          (b.isInstanceOf[BifrostProgramBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
+//        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes))) ||
+//          (b.isInstanceOf[BifrostProgramBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
+        .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
       else
         changes.toAppend
 
@@ -164,9 +165,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       if(nodeKeys != null)
         changes.boxIdsToRemove
         .flatMap(closedBox(_))
-        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes)))  ||
-          (b.isInstanceOf[BifrostProgramBox]&& nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
-        .map(b => b.id)
+//        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes)))  ||
+//          (b.isInstanceOf[BifrostProgramBox]&& nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
+          .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
+          .map(b => b.id)
       else
         changes.boxIdsToRemove
 
