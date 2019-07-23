@@ -13,8 +13,6 @@ import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import io.circe.Json
-import io.circe.syntax._
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -46,39 +44,7 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
       PolyBox(prop, nonce, value)
   }
 
-  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
-
-//  override lazy val json: Json = Map(
-//    "txHash" -> Base58.encode(id).asJson,
-//    "txType" -> "PolyTransfer".asJson,
-//    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-//    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-//    "from" -> from.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "nonce" -> s._2.toString.asJson
-//      ).asJson
-//    }.asJson,
-//    "to" -> to.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "value" -> s._2.toString.asJson
-//      ).asJson
-//    }.asJson,
-////    "signatures" -> signatures
-////      .map(s => Base58.encode(s.signature).asJson)
-////      .asJson,
-//    "signatures" -> signatures
-//      .map { s =>
-//        Map(
-//          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//          "signature" -> Base58.encode(s._2.signature).asJson
-//        ).asJson
-//      }.asJson,
-//    "fee" -> fee.asJson,
-//    "timestamp" -> timestamp.asJson,
-//    "data" -> data.asJson
-//  ).asJson
+  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
 
   override lazy val json: Json = super.json("PolyTransfer")
 
@@ -113,14 +79,6 @@ object PolyTransfer extends TransferUtil {
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
-
-//  def createByKey(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: Seq[Json]) = Try {
-//        println()
-//        println("Entered createByKey")
-//        val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", "")
-//        val timestamp = Instant.now.toEpochMilli
-//        PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//      }//
 
   def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
 }

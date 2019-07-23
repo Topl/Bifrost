@@ -38,7 +38,6 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   lazy val hashNoNonces = FastCryptographicHash(
   to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-    Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
   )
 
@@ -55,11 +54,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
            hashNoNonces ++
            Ints.toByteArray(idx)
        ))
-
-       //TODO assetBoxes elsewhere do not subtract fee from box value
-       //TODO no check that amount >= fee
-       //AssetBox(prop, nonce, value, assetCode, hub)
-       AssetBox(prop, nonce, value - fee, assetCode, issuer, data)
+       AssetBox(prop, nonce, value, assetCode, issuer, data)
      }
 
   override lazy val json: Json = Map(
@@ -80,22 +75,14 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     "data" -> data.asJson
   ).asJson
 
-  def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
-  newBoxes
-    .map(_.bytes)
-    .reduce(_ ++ _)
-  } else {
-    Array[Byte]()
-  }) ++
-    Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee)
-
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-  "AssetCreation".getBytes(),
-  commonMessageToSign,
-  issuer.pubKeyBytes,
-  assetCode.getBytes,
-  data.getBytes
+    "AssetCreation".getBytes(),
+    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes),
+    issuer.pubKeyBytes,
+    assetCode.getBytes,
+    Longs.toByteArray(fee),
+    data.getBytes
   )
 
 }

@@ -46,7 +46,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       ArbitBox(prop, nonce, value)
   }
 
-  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
+  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.commonMessageToSign
 
   override lazy val json: Json = super.json("ArbitTransfer")
 }

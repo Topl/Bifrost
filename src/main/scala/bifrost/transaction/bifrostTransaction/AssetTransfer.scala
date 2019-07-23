@@ -50,38 +50,39 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       AssetBox(prop, nonce, value, assetCode, issuer, data)
   }
 
-//  override lazy val json: Json = Map(
-//    "txHash" -> Base58.encode(id).asJson,
-//    "txType" -> "AssetTransfer".asJson,
-//    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-//    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-//    "from" -> from.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "nonce" -> s._2.asJson
-//      ).asJson
-//    }.asJson,
-//    "to" -> to.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "value" -> s._2.asJson
-//      ).asJson
-//    }.asJson,
-//    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
-//    "assetCode" -> assetCode.asJson,
-////    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
-//    "signatures" -> signatures
-//      .map { s =>
-//        Map(
-//          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//          "signature" -> Base58.encode(s._2.signature).asJson
-//        ).asJson
-//      }.asJson,
-//    "fee" -> fee.asJson,
-//    "timestamp" -> timestamp.asJson,
-//    "data" -> data.asJson
-//  ).asJson
-  override lazy val json: Json = super.json("AssetTransfer")
+  override lazy val json: Json = Map(
+    "txHash" -> Base58.encode(id).asJson,
+    "txType" -> "AssetTransfer".asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+    "from" -> from.map { s =>
+      Map(
+        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+        "nonce" -> s._2.asJson
+      ).asJson
+    }.asJson,
+    "to" -> to.map { s =>
+      Map(
+        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+        "value" -> s._2.asJson
+      ).asJson
+    }.asJson,
+    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
+    "assetCode" -> assetCode.asJson,
+//    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+    "signatures" -> signatures
+      .map { s =>
+        Map(
+          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+          "signature" -> Base58.encode(s._2.signature).asJson
+        ).asJson
+      }.asJson,
+    "fee" -> fee.asJson,
+    "timestamp" -> timestamp.asJson,
+    "data" -> data.asJson
+  ).asJson
+
+  //override lazy val json: Json = super.json("AssetTransfer")
 
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
@@ -89,7 +90,6 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     super.commonMessageToSign,
     issuer.pubKeyBytes,
     assetCode.getBytes,
-    data.getBytes
   )
 }
 

@@ -45,8 +45,9 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
   lazy val hashNoNonces = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
       //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
-      Longs.toByteArray(timestamp) ++
-      Longs.toByteArray(fee)
+      //Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee) ++
+      data.getBytes
   )
 
   def json(txType: String): Json =
@@ -79,45 +80,12 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
       "data" -> data.asJson
     ).asJson
 
-//  override lazy val json: Json = Map(
-//    "txHash" -> Base58.encode(id).asJson,
-//    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-//    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-//    "from" -> from.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "nonce" -> s._2.toString.asJson
-//      ).asJson
-//    }.asJson,
-//    "to" -> to.map { s =>
-//      Map(
-//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//        "value" -> s._2.toString.asJson
-//      ).asJson
-//    }.asJson,
-//    "signatures" -> signatures
-//      .map { s =>
-//        Map(
-//          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-//          "signature" -> Base58.encode(s._2.signature).asJson
-//        ).asJson
-//      }.asJson,
-//
-////        Base58.encode(s.signature).asJson)
-////      .asJson,
-//    "fee" -> fee.asJson,
-//    "timestamp" -> timestamp.asJson,
-//    "data" -> data.asJson
-//  ).asJson
 
-  def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
-    newBoxes
-      .map(_.bytes)
-      .reduce(_ ++ _)
-  } else {
-    Array[Byte]()
-  }) ++
-    //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
-    Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee)
+  //YT - removed timestamp and unlockers since that will be updated after signatures are received
+  def commonMessageToSign: Array[Byte] =
+    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
+    Longs.toByteArray(fee) ++
+    boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
+    data.getBytes
 }
