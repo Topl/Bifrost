@@ -19,6 +19,7 @@ import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetRedemption, AssetTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -125,29 +126,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
-  private def transferAssetsWithBFR(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val sender: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "sender").head.asString.get).get)
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
-      }
-      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
-      val tx = AssetTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
-      AssetTransfer.validate(tx) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
 
   private def createAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

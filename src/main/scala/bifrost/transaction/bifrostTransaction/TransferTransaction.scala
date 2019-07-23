@@ -13,7 +13,7 @@ import scorex.crypto.encode.Base58
 
 abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                    val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                                   val signatures: IndexedSeq[Signature25519],
+                                   val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
                                    override val fee: Long,
                                    override val timestamp: Long,
                                    val data: String) extends BifrostTransaction {
@@ -22,44 +22,93 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen.zip(signatures).map {
-    case (boxId, signature) =>
-      new BoxUnlocker[PublicKey25519Proposition] {
-        override val closedBoxId: Array[Byte] = boxId
-        override val boxKey: Signature25519 = signature
-      }
-  }
+//  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
+//   boxIdsToOpen.zip(signatures).map {
+//    case (boxId, signature) =>
+//      new BoxUnlocker[PublicKey25519Proposition] {
+//        override val closedBoxId: Array[Byte] = boxId
+//        override val boxKey: Signature25519 = signature
+//      }
+//  }
+
+  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
+    if (signatures.length > 0)
+    from.map {
+      case (prop, nonce) =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
+          override val boxKey: Signature25519 = signatures.filter(_._1.pubKeyBytes sameElements(prop.pubKeyBytes)).map(_._2).headOption.getOrElse(throw new Exception("Signature not provided"))
+        }
+    }
+  else Traversable()
 
   lazy val hashNoNonces = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-      unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+      //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
   )
 
-  override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-    "from" -> from.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "signatures" -> signatures
-      .map(s => Base58.encode(s.signature).asJson)
-      .asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-  ).asJson
+  def json(txType: String): Json =
+    Map(
+      "txHash" -> Base58.encode(id).asJson,
+      "txType" -> txType.asJson,
+      "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+      "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+      "from" -> from.map { s =>
+        Map(
+          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+          "nonce" -> s._2.toString.asJson
+        ).asJson
+      }.asJson,
+      "to" -> to.map { s =>
+        Map(
+          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+          "value" -> s._2.toString.asJson
+        ).asJson
+      }.asJson,
+      "signatures" -> signatures
+        .map { s =>
+          Map(
+            "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+            "signature" -> Base58.encode(s._2.signature).asJson
+          ).asJson
+        }.asJson,
+      "fee" -> fee.asJson,
+      "timestamp" -> timestamp.asJson,
+      "data" -> data.asJson
+    ).asJson
+
+//  override lazy val json: Json = Map(
+//    "txHash" -> Base58.encode(id).asJson,
+//    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+//    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+//    "from" -> from.map { s =>
+//      Map(
+//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//        "nonce" -> s._2.toString.asJson
+//      ).asJson
+//    }.asJson,
+//    "to" -> to.map { s =>
+//      Map(
+//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//        "value" -> s._2.toString.asJson
+//      ).asJson
+//    }.asJson,
+//    "signatures" -> signatures
+//      .map { s =>
+//        Map(
+//          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//          "signature" -> Base58.encode(s._2.signature).asJson
+//        ).asJson
+//      }.asJson,
+//
+////        Base58.encode(s.signature).asJson)
+////      .asJson,
+//    "fee" -> fee.asJson,
+//    "timestamp" -> timestamp.asJson,
+//    "data" -> data.asJson
+//  ).asJson
 
   def commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
     newBoxes
@@ -68,7 +117,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
   } else {
     Array[Byte]()
   }) ++
-    unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+    //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
 }

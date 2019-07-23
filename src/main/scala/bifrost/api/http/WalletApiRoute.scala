@@ -17,7 +17,9 @@ import bifrost.crypto.Bip39
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -55,6 +57,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                   (request \\ "method").head.asString.get match {
                     case "transferPolys" => transferPolys(params.head, id)
                     case "transferArbits" => transferArbits(params.head, id)
+                    case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
                     case "balances" => balances(params.head, id)
                     case "unlockKeyfile" => unlockKeyfile(params.head, id)
                     case "lockKeyfile" => lockKeyfile(params.head, id)
@@ -109,32 +112,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
-  private def transferPolysWithBFR(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val sender: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "sender").head.asString.get).get)
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
-      }
 
-      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
-      // Call to BifrostTX to create TX
-      val tx = PolyTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
-      // Update nodeView with new TX
-      PolyTransfer.validate(tx) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
-
+  //TODO deprecate in favor of transferArbitsWithBFR
   private def transferArbits(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
@@ -173,17 +152,15 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val sender: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "sender").head.asString.get).get)
-
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-
-//      if(view.state.bfr == null) ("BFR not defined for node").asJson
       if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       val tx = ArbitTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
       ArbitTransfer.validate(tx) match {
@@ -194,6 +171,69 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       }
     }
   }
+
+  private def transferArbitsPrototype(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      // Optional API parameters
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
+      val tx = ArbitTransfer.createPrototype(view.state.bfr, IndexedSeq((recipient, amount)), sender, fee, data).get
+      println()
+      println("Api route -- created tx")
+      println(tx.json)
+
+      // Update nodeView with new TX
+//      NewArbitTransfer.validate(tx) match {
+//        case Success(_) =>
+          tx.json
+//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+//      }
+    }
+  }
+
+  private def transferArbitsSigned(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
+//      val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = (params \\ "signature").headOption match {
+//        case Some(signatures) => signatures.asArray.get.map(json => json.asJson).map((key, sign) => (PublicKey25519Proposition(Base58.decode(key).get), Signature25519(Base58.decode(sign).get))).toIndexedSeq
+//        case None => throw new IllegalArgumentException
+//      }
+      val signature: IndexedSeq[(PublicKey25519Proposition, Signature25519)] = (params \\ "signatures").head.asJson.
+
+      //Signature25519(Base58.decode((params \\ "signatures").head.asString.get).get)
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      // Optional API parameters
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
+      val tx = ArbitTransfer.createWithSignatures(view.state.bfr, IndexedSeq((recipient, amount)), sender, IndexedSeq((sender, signature)), fee, data).get
+      // Update nodeView with new TX
+//      ArbitTransfer.validate(tx) match {
+//        case Success(_) =>
+          //nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], NewArbitTransfer](tx)
+          tx.json
+//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+//      }
+    }
+  }
+
 
   private def balances(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

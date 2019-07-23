@@ -20,7 +20,7 @@ import scala.util.Try
 
 case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                         override val signatures: IndexedSeq[Signature25519],
+                         override val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
                          override val fee: Long,
                          override val timestamp: Long,
                          override val data: String)
@@ -48,30 +48,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
 
-  override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
-    "txType" -> "ArbitTransfer".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-    "from" -> from.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "signatures" -> signatures
-      .map(s => Base58.encode(s.signature).asJson)
-      .asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-  ).asJson
+  override lazy val json: Json = super.json("ArbitTransfer")
 }
 
 //noinspection ScalaStyle
@@ -94,7 +71,7 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
-  def createWithBFR(bfr: BFR, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: PublicKey25519Proposition, fee: Long, data: String): Try[ArbitTransfer] = Try
+  def createWithBFR(bfr: BFR, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
 
     val params = parametersForCreate(bfr, w, toRecieve, sender, fee, "ArbitTransfer")
@@ -103,4 +80,18 @@ object ArbitTransfer extends TransferUtil {
   }
 
   def validate(tx: ArbitTransfer): Try[Unit] = validateTx(tx)
+
+  def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
+  {
+    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, IndexedSeq(), fee, timestamp, data)
+  }
+
+  def createWithSignatures(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)], fee: Long, data: String): Try[ArbitTransfer] = Try
+  {
+    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, IndexedSeq(), fee, timestamp, data)
+  }
 }

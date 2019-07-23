@@ -20,7 +20,7 @@ import scala.util.Try
 
 case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                         override val signatures: IndexedSeq[Signature25519],
+                         override val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
                          issuer: PublicKey25519Proposition,
                          assetCode: String,
                          override val fee: Long,
@@ -50,30 +50,39 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
       AssetBox(prop, nonce, value, assetCode, issuer, data)
   }
 
-  override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
-    "txType" -> "AssetTransfer".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-    "from" -> from.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.asJson
-      ).asJson
-    }.asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.asJson
-      ).asJson
-    }.asJson,
-    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
-    "assetCode" -> assetCode.asJson,
-    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-  ).asJson
+//  override lazy val json: Json = Map(
+//    "txHash" -> Base58.encode(id).asJson,
+//    "txType" -> "AssetTransfer".asJson,
+//    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+//    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
+//    "from" -> from.map { s =>
+//      Map(
+//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//        "nonce" -> s._2.asJson
+//      ).asJson
+//    }.asJson,
+//    "to" -> to.map { s =>
+//      Map(
+//        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//        "value" -> s._2.asJson
+//      ).asJson
+//    }.asJson,
+//    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
+//    "assetCode" -> assetCode.asJson,
+////    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
+//    "signatures" -> signatures
+//      .map { s =>
+//        Map(
+//          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+//          "signature" -> Base58.encode(s._2.signature).asJson
+//        ).asJson
+//      }.asJson,
+//    "fee" -> fee.asJson,
+//    "timestamp" -> timestamp.asJson,
+//    "data" -> data.asJson
+//  ).asJson
+  override lazy val json: Json = super.json("AssetTransfer")
+
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
@@ -114,7 +123,7 @@ object AssetTransfer extends TransferUtil {
   def createWithBFR(bfr:BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             sender: PublicKey25519Proposition,
+             sender: IndexedSeq[PublicKey25519Proposition],
              fee: Long,
              issuer: PublicKey25519Proposition,
              assetCode: String,

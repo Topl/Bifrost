@@ -563,7 +563,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    PolyTransfer(from, to, signatures, fee, timestamp, data)
+    PolyTransfer(from, to, from.map(a => a._1).zip(signatures), fee, timestamp, data)
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer] = for {
@@ -574,7 +574,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ArbitTransfer(from, to, signatures, fee, timestamp, data)
+    ArbitTransfer(from, to, from.map(a => a._1).zip(signatures), fee, timestamp, data)
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer] = for {
@@ -587,7 +587,7 @@ trait BifrostGenerators extends CoreGenerators {
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetTransfer(from, to, signatures, hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, from.map(a => a._1).zip(signatures), hub, assetCode, fee, timestamp, data)
   }
 
   lazy val assetCreationGen: Gen[AssetCreation] = for {
