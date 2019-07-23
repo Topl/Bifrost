@@ -241,6 +241,53 @@ class ProgramMethodSpec extends PropSpec
     }
   }
 
+  property("Calling a function with mismatched argument types should fail") {
+    forAll(programGen) {
+      c: Program => {
+        val program = c.executionBuilderObj.core.code.values.foldLeft("")((a,b) => a ++ (b + "\n"))
+        val party = propositionGen.sample.get
+        /*val params = JsonObject.fromMap(
+          Map("newStatus" -> stringGen.sample.get.asJson))
+         */
+        val params = JsonObject.empty
+
+        val state = c.executionBuilderObj.core.variables
+        println(s"state: ${state.toString}")
+
+        val stateTwo = s"""{ "b": 0 }""".asJson
+        val stateThree = s"""{ "c": 0 }""".asJson
+
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
+          s"""function add(a,b) {
+             |  return a + b
+             |}
+           """.stripMargin))
+
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
+        val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(
+          s"""function add(a,b) {
+             |  return a + b
+             |}
+           """.stripMargin))
+
+        val stateBoxUuids = Seq(
+          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
+          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
+          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
+        )
+
+       // intercept[Exception] {
+          Program.execute(stateBoxUuids, Seq(codeBox), "add")(party)(params)
+       // }
+      }
+    }
+  }
+
   /*property("Can call createAssets protocol level function from a program") {
     forAll(programGen) {
       c: Program => {

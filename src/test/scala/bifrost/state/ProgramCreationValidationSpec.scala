@@ -166,8 +166,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         require(returnedPolyBoxes
                   .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
-                    case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
-                    case None => false
+                    case Some(wrapper) => println(s"same Elements: ${wrapper.data sameElements PolyBoxSerializer.toBytes(pb)}"); wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
+                    case None => println(s"None: ${newState.storage.get(ByteArrayWrapper(pb.id))}"); false
                   }))
 
         //TODO split into separate test

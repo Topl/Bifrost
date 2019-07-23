@@ -121,7 +121,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
     val codeNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("codeBox".getBytes
-        ++ executionBuilder.core.code.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+        ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
@@ -142,8 +142,8 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables, true)
     val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables, true)
 
-    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code))
-    val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code))
+    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code.values.toSeq))
+    val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code.values.toSeq))
     val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
     val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
     val executionBoxWithoutUUID = ExecutionBox(proposition, execNonce, null, stateUUIDs, codeBoxIDs)

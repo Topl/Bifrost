@@ -2,6 +2,7 @@ package bifrost.program
 
 import java.util.UUID
 
+import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
@@ -110,7 +111,7 @@ object Program {
   //noinspection ScalaStyle
   def execute(stateBoxes: Seq[(StateBox, UUID)], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): Json /*Try[Either[StateBox, Json]]*/ = /*Try*/ {
+             (args: JsonObject): Json = {
 
     val mutableState = stateBoxes.head._1.state.asObject.get.toMap
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
@@ -175,7 +176,7 @@ object Program {
         }
       }.asJson
 
-    checkState
+      checkState
   }
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location

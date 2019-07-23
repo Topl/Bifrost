@@ -114,8 +114,29 @@ class ProgramPreprocessorSpec extends PropSpec
     val easyScript =
       s"""
          |var a = 0
-         |function add() {
-         |  return 2 + 2
+         |
+         |/**
+         |* @param {Number}
+         |* @param {Number}
+         |**/
+         |add = function(a,b) {
+         |  return a + b
+         |}
+         |
+         |/**
+         |* @param {Number}
+         |* @param {Number}
+         |**/
+         |sub = function(a,b) {
+         |  return a - b
+         |}
+         |
+         |/**
+         |* @param {String}
+         |* @param {String}
+         |**/
+         |concat = function(a,b) {
+         |  return a + b
          |}
        """.stripMargin
 
