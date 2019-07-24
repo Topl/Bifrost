@@ -12,7 +12,6 @@ import scala.util.Try
 object AssetCreationCompanion extends Serializer[AssetCreation] {
   override def toBytes(ac: AssetCreation): Array[Byte] = {
     val typeBytes = "AssetCreation".getBytes
-
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
@@ -44,39 +43,32 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
-
     numReadBytes = 2 * Longs.BYTES
 
     val sigLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
-
     numReadBytes += Ints.BYTES
 
     val toLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
-
     numReadBytes += Ints.BYTES
 
     val assetCodeLen: Int = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
-
     numReadBytes += Ints.BYTES
 
     val assetCode: String = new String(
       bytesWithoutType.slice(numReadBytes, numReadBytes + assetCodeLen)
     )
-
     numReadBytes += assetCodeLen
 
     val issuer = PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes,
       numReadBytes + Constants25519.PubKeyLength))
-
     numReadBytes += Constants25519.PubKeyLength
 
     val signatures = (0 until sigLength) map { i =>
-      (PublicKey25519Proposition(bytes.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength),
+      (PublicKey25519Proposition(bytesWithoutType.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength),
         numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength)),
-        Signature25519(bytes.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength,
+        Signature25519(bytesWithoutType.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength,
           numReadBytes + (i+1) * (Curve25519.KeyLength + Curve25519.SignatureLength))))
     }
-
     numReadBytes += sigLength * (Curve25519.SignatureLength + Curve25519.KeyLength)
 
     val elementLength = Longs.BYTES + Curve25519.KeyLength
@@ -88,12 +80,6 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       )
       (PublicKey25519Proposition(pk), v)
     }
-
-//    val dataLen: Int = Ints.fromByteArray(bytesWithoutType.slice(bytesWithoutType.length - Ints.BYTES, bytesWithoutType.length))
-//    val data: String = new String(
-//      bytes.slice(bytesWithoutType.length - Ints.BYTES - dataLen, bytesWithoutType.length - Ints.BYTES)
-//    )
-
 
     AssetCreation(to, signatures.toMap, assetCode, issuer, fee, timestamp, data)
   }
