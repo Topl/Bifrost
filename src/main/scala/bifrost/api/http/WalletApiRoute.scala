@@ -12,12 +12,10 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.api.http.{ApiException, SuccessApiResponse}
 import bifrost.crypto.Bip39
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
@@ -147,6 +145,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
+  //YT NOTE - change is returned to first address from senders list
   private def transferArbitsWithBFR(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
@@ -188,16 +187,12 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       if(view.state.bfr == null) throw new Exception("BFR not defined for node")
       sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       val tx = ArbitTransfer.createPrototype(view.state.bfr, IndexedSeq((recipient, amount)), sender, fee, data).get
-      println()
-      println("Api route -- created tx")
-      println(tx.json)
-
       // Update nodeView with new TX
-//      NewArbitTransfer.validate(tx) match {
-//        case Success(_) =>
+      ArbitTransfer.validatePrototype(tx) match {
+        case Success(_) =>
           tx.json
-//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-//      }
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
     }
   }
 

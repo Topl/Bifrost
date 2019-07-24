@@ -18,12 +18,12 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
       typeBytes,
       Longs.toByteArray(ac.fee),
       Longs.toByteArray(ac.timestamp),
-      Ints.toByteArray(ac.signatures.length),
+      Ints.toByteArray(ac.signatures.size),
       Ints.toByteArray(ac.to.size),
       Ints.toByteArray(ac.assetCode.getBytes.length),
       ac.assetCode.getBytes,
       ac.issuer.pubKeyBytes,
-      ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+      ac.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b._1.bytes ++ b._2.bytes),
       ac.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
       ac.data.getBytes,
       Ints.toByteArray(ac.data.getBytes.length)
@@ -71,11 +71,13 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     numReadBytes += Constants25519.PubKeyLength
 
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytesWithoutType.slice(numReadBytes + i * Curve25519.SignatureLength,
-        numReadBytes + (i + 1) * Curve25519.SignatureLength))
+      (PublicKey25519Proposition(bytes.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength),
+        numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength)),
+        Signature25519(bytes.slice(numReadBytes + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength,
+          numReadBytes + (i+1) * (Curve25519.KeyLength + Curve25519.SignatureLength))))
     }
 
-    numReadBytes += sigLength * Curve25519.SignatureLength
+    numReadBytes += sigLength * (Curve25519.SignatureLength + Curve25519.KeyLength)
 
     val elementLength = Longs.BYTES + Curve25519.KeyLength
 
@@ -93,6 +95,6 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
 //    )
 
 
-    AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
+    AssetCreation(to, signatures.toMap, assetCode, issuer, fee, timestamp, data)
   }
 }

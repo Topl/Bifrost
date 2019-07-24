@@ -13,7 +13,7 @@ import scorex.crypto.encode.Base58
 
 abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                    val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                                   val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
+                                   val signatures: Map[PublicKey25519Proposition, Signature25519],
                                    override val fee: Long,
                                    override val timestamp: Long,
                                    val data: String) extends BifrostTransaction {
@@ -32,12 +32,12 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
 //  }
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
-    if (signatures.length > 0)
+    if (signatures.size > 0)
     from.map {
       case (prop, nonce) =>
         new BoxUnlocker[PublicKey25519Proposition] {
           override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.filter(_._1.pubKeyBytes sameElements(prop.pubKeyBytes)).map(_._2).headOption.getOrElse(throw new Exception("Signature not provided"))
+          override val boxKey: Signature25519 = signatures.get(prop).getOrElse(throw new Exception("Signature not provided"))
         }
     }
   else Traversable()
@@ -54,6 +54,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     Map(
       "txHash" -> Base58.encode(id).asJson,
       "txType" -> txType.asJson,
+      "messageToSign" -> Base58.encode(messageToSign).asJson,
       "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
       "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
       "from" -> from.map { s =>
@@ -81,7 +82,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     ).asJson
 
 
-  //YT - removed timestamp and unlockers since that will be updated after signatures are received
+  //YT NOTE - removed timestamp and unlockers since that will be updated after signatures are received
   def commonMessageToSign: Array[Byte] =
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)

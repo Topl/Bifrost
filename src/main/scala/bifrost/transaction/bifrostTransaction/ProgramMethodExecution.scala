@@ -18,7 +18,7 @@ import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 
 import scala.util.{Failure, Success, Try}
-//TODO Execution Box parameter should be a UUID given its inclusion in the Box Registry
+
 case class ProgramMethodExecution(stateBox: StateBox,
                                   codeBox: CodeBox,
                                   executionBox: ExecutionBox,
@@ -44,9 +44,12 @@ val proposition = executionBox.proposition
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
+  // TODO do not readOrGenerate sbr here
+  // SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
+  //Static function should extract necessary boxes and use those as parameters to transaction class
+  //See how BFR is used in ArbitTransfer for reference
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
 
-  //TODO Replace stateBox with stateBox ids
   val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.stateBoxUUIDs)
 
   val codeBoxes = executionBox.codeBoxIds

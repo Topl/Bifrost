@@ -15,7 +15,7 @@ trait TransferSerializer {
       typeBytes,
       Longs.toByteArray(tx.fee),
       Longs.toByteArray(tx.timestamp),
-      Ints.toByteArray(tx.signatures.length),
+      Ints.toByteArray(tx.signatures.size),
       Ints.toByteArray(tx.from.length),
       Ints.toByteArray(tx.to.length),
       tx.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b._1.bytes ++ b._2.bytes),
@@ -26,7 +26,7 @@ trait TransferSerializer {
 
   def parametersParseBytes(bytes: Array[Byte]): (IndexedSeq[(PublicKey25519Proposition, Long)],
     IndexedSeq[(PublicKey25519Proposition, Long)],
-    IndexedSeq[(PublicKey25519Proposition, Signature25519)], Long, Long) = {
+    Map[PublicKey25519Proposition, Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
@@ -72,6 +72,6 @@ trait TransferSerializer {
       )
       (PublicKey25519Proposition(pk), v)
     }
-    (from, to, signatures, fee, timestamp)
+    (from, to, signatures.toMap, fee, timestamp)
   }
 }

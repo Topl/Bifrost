@@ -356,56 +356,20 @@ trait ValidGenerators extends BifrostGenerators {
     _ <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
-    hub <- keyPairSetGen
+    issuer <- keyPairSetGen
     assetCode <- stringGen
     data <- stringGen
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
-    val oneHub = hub.head
-
-//    val hashNoNonces = FastCryptographicHash(
-//      to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-//        Longs.toByteArray(timestamp) ++
-//        Longs.toByteArray(fee)
-//    )
-//
-//    val newBoxes: Traversable[BifrostBox] = to.zipWithIndex.map {
-//      case ((prop, value), idx) =>
-//        val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
-//          "AssetCreation".getBytes ++
-//            prop.pubKeyBytes ++
-//            oneHub._2.pubKeyBytes ++
-//            assetCode.getBytes ++
-//            hashNoNonces ++
-//            Ints.toByteArray(idx)
-//        ))
-//        AssetBox(prop, nonce, value, assetCode, oneHub._2)
-//    }
-//
-//    val commonMessageToSign: Array[Byte] = (if (newBoxes.nonEmpty) {
-//      newBoxes
-//        .map(_.bytes)
-//        .reduce(_ ++ _)
-//    } else {
-//      Array[Byte]()
-//    }) ++
-//      Longs.toByteArray(timestamp) ++
-//      Longs.toByteArray(fee)
-//
-//    val messageToSign: Array[Byte] = Bytes.concat(
-//      "AssetCreation".getBytes(),
-//      commonMessageToSign,
-//      oneHub._2.pubKeyBytes,
-//      assetCode.getBytes
-//    )
+    val oneHub = issuer.head
 
     val fakeSigs = IndexedSeq(Signature25519(Array()))
 
-    val messageToSign = AssetCreation(to, fakeSigs, assetCode, oneHub._2, fee, timestamp, data).messageToSign
+    val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
 
-    val signatures = IndexedSeq(PrivateKey25519Companion.sign(oneHub._1, messageToSign))
+    val signatures = Map(oneHub._2 -> PrivateKey25519Companion.sign(oneHub._1, messageToSign))
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }

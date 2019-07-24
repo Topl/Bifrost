@@ -13,14 +13,12 @@ import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import io.circe.Json
-import io.circe.syntax._
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
 case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                         override val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
+                         override val signatures: Map[PublicKey25519Proposition, Signature25519],
                          override val fee: Long,
                          override val timestamp: Long,
                          override val data: String)
@@ -79,19 +77,23 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
-  def validate(tx: ArbitTransfer): Try[Unit] = validateTx(tx)
-
   def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
     val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
-    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, IndexedSeq(), fee, timestamp, data)
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
 
-  def createWithSignatures(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)], fee: Long, data: String): Try[ArbitTransfer] = Try
-  {
-    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
-    val timestamp = Instant.now.toEpochMilli
-    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, IndexedSeq(), fee, timestamp, data)
-  }
+  //TODO implement
+  //  def createWithSignatures(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], signatures: Map[PublicKey25519Proposition, Signature25519], fee: Long, data: String): Try[ArbitTransfer] = Try
+  //  {
+  //    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
+  //    val timestamp = Instant.now.toEpochMilli
+  //    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, signatures, fee, timestamp, data)
+  //  }
+
+  def validate(tx: ArbitTransfer): Try[Unit] = validateTx(tx)
+
+  def validatePrototype(tx: ArbitTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+
 }

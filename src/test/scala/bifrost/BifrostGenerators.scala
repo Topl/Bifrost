@@ -563,7 +563,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    PolyTransfer(from, to, from.map(a => a._1).zip(signatures), fee, timestamp, data)
+    PolyTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
   lazy val arbitTransferGen: Gen[ArbitTransfer] = for {
@@ -574,7 +574,7 @@ trait BifrostGenerators extends CoreGenerators {
     timestamp <- positiveLongGen
     data <- stringGen
   } yield {
-    ArbitTransfer(from, to, from.map(a => a._1).zip(signatures), fee, timestamp, data)
+    ArbitTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, fee, timestamp, data)
   }
 
   lazy val assetTransferGen: Gen[AssetTransfer] = for {
@@ -587,7 +587,7 @@ trait BifrostGenerators extends CoreGenerators {
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetTransfer(from, to, from.map(a => a._1).zip(signatures), hub, assetCode, fee, timestamp, data)
+    AssetTransfer(from, to, from.map(a => a._1).zip(signatures).toMap, hub, assetCode, fee, timestamp, data)
   }
 
   lazy val assetCreationGen: Gen[AssetCreation] = for {
@@ -599,7 +599,7 @@ trait BifrostGenerators extends CoreGenerators {
     assetCode <- stringGen
     data <- stringGen
   } yield {
-    AssetCreation(to, signatures, assetCode, hub, fee, timestamp, data)
+    AssetCreation(to, Map(hub -> signatures.head), assetCode, hub, fee, timestamp, data)
   }
 
   lazy val oneOfNPropositionGen: Gen[(Set[PrivateKey25519], MofNProposition)] = for {

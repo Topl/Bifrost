@@ -20,7 +20,7 @@ import scala.util.Try
 
 case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                         override val signatures: IndexedSeq[(PublicKey25519Proposition, Signature25519)],
+                         override val signatures: Map[PublicKey25519Proposition, Signature25519],
                          issuer: PublicKey25519Proposition,
                          assetCode: String,
                          override val fee: Long,

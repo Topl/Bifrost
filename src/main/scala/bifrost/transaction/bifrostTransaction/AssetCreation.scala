@@ -18,7 +18,7 @@ import scorex.crypto.encode.Base58
 import scala.util.Try
 
 case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                          signatures: IndexedSeq[Signature25519],
+                          signatures: Map[PublicKey25519Proposition, Signature25519],
                           assetCode: String,
                           val issuer: PublicKey25519Proposition,
                           override val fee: Long,
@@ -59,6 +59,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
+    "messageToSign" -> Base58.encode(messageToSign).asJson,
     "txType" -> "AssetCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { s =>
@@ -69,8 +70,13 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
-    "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
-    "fee" -> fee.asJson,
+    "signatures" -> signatures
+      .map { s =>
+        Map(
+          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
+          "signature" -> Base58.encode(s._2.signature).asJson
+        ).asJson
+      }.asJson,    "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson,
     "data" -> data.asJson
   ).asJson
@@ -92,12 +98,11 @@ object AssetCreation {
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   def validate(tx: AssetCreation): Try[Unit] = Try {
-    //require(tx.from.size == tx.signatures.size)
     require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures.forall({ case (signature) =>
-      signature.isValid(tx.issuer, tx.messageToSign)
+    require(tx.signatures.forall({ case (prop, signature) =>
+      signature.isValid(prop, tx.messageToSign)
     }), "Invalid signatures")
   }
 
@@ -117,9 +122,9 @@ object AssetCreation {
     val selectedSecret = w.secretByPublicImage(issuer).get
     val fakeSigs = IndexedSeq(Signature25519(Array()))
     val timestamp = Instant.now.toEpochMilli
-    val messageToSign = AssetCreation(to, fakeSigs, assetCode, issuer, fee, timestamp, data).messageToSign
+    val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
 
-    val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign))
+    val signatures = Map(issuer -> PrivateKey25519Companion.sign(selectedSecret, messageToSign))
 
     AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
   }
