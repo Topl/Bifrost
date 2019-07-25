@@ -177,8 +177,8 @@ class ProgramTransactionSpec extends PropSpec
     val stateBoxWithoutUUID = StateBox(parties.head, 0L, null, state, true)
     val stateBox = StateBox(parties.head, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
 
-    val codeBoxWithoutUUID = CodeBox(parties.head, 1L, null, Seq("add = function() { a = 2 + 2 }"))
-    val codeBox = CodeBox(parties.head, 1L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"))
+    val codeBoxWithoutUUID = CodeBox(parties.head, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
+    val codeBox = CodeBox(parties.head, 1L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 

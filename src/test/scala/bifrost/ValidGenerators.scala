@@ -102,7 +102,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-      val codeBox = CodeBox(parties.head, 3L, null, Seq("add = function() { a = 2 + 2 }"))
+      val codeBox = CodeBox(parties.head, 3L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
         .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
@@ -210,8 +210,8 @@ trait ValidGenerators extends BifrostGenerators {
 
     val stateBoxWithoutUUID = StateBox(sender._2._2, 0L, null, state, true)
     val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-    val codeBoxWithoutUUID = CodeBox(sender._2._2, 1L, null, Seq("add = function() { a = 2 + 2 }"))
-    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"))
+    val codeBoxWithoutUUID = CodeBox(sender._2._2, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
+    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)

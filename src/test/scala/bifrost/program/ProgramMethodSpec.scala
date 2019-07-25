@@ -38,12 +38,12 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
         val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
         val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
-        val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq("function add() { a += 1; return a; }"))
+        val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq("function add() { a += 1; return a; }"), Map("add" -> Seq("Number", "Number")))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
         val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
-        val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("function add() { a += 1; return a; }"))
+        val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("function add() { a += 1; return a; }"), Map("add" -> Seq("Number", "Number")))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -77,14 +77,14 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
-        ))
+        ), Map("changeState" -> Seq("String", "String", "String")))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id),stateTwo, true)
         val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id),stateThree, true)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id),Seq(
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
-        ))
+        ), Map("changeState" -> Seq("String", "String", "String")))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -170,7 +170,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function changeType() {
              |  return a = "wrong"
              |}
-           """.stripMargin))
+           """.stripMargin), Map("changeType" -> Seq()))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
@@ -179,7 +179,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function changeType() {
              |  return a = "wrong"
              |}
-           """.stripMargin))
+           """.stripMargin), Map("changeType" -> Seq()))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -217,7 +217,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function deleteVar() {
              |  delete global.a
              |}
-           """.stripMargin))
+           """.stripMargin), Map("deleteVar" -> Seq()))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
@@ -226,7 +226,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function deleteVar() {
              |  delete global.a
              |}
-           """.stripMargin))
+           """.stripMargin), Map("deleteVar" -> Seq()))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -264,7 +264,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function add(a,b) {
              |  return a + b
              |}
-           """.stripMargin))
+           """.stripMargin), Map("add" -> Seq("Number", "Number")))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
@@ -273,7 +273,7 @@ class ProgramMethodSpec extends PropSpec
           s"""function add(a,b) {
              |  return a + b
              |}
-           """.stripMargin))
+           """.stripMargin), Map("add" -> Seq("Number", "Number")))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),

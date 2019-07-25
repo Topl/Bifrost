@@ -829,6 +829,7 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
                            override val nonce: Long,
                            override val value: UUID,
                            code: Seq[String], // List of strings of JS functions
+                           interface: Map[String, Seq[String]]
                            ) extends BifrostProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "CodeBox"
@@ -839,9 +840,10 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
     "id" -> Base58.encode(id).asJson,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "nonce" -> nonce.toString.asJson,
     "uuid" -> value.asJson,
     "code" -> code.asJson,
-    "nonce" -> nonce.toString.asJson,
+    "interface" -> interface.map(ci => ci._1 -> ci._2.asJson).asJson
   ).asJson
 
 }
@@ -855,11 +857,12 @@ object CodeBox {
     proposition <- c.downField("proposition").as[String]
     uuid <- c.downField("uuid").as[UUID]
     code <- c.downField("code").as[Seq[String]]
+    interface <- c.downField("interface").as[Map[String, Seq[String]]]
     nonce <- c.downField("nonce").as[Long]
   } yield {
     val preparedPubKey = Base58.decode(proposition).get
     val prop = PublicKey25519Proposition(preparedPubKey)
-    CodeBox(prop, nonce, uuid, code)
+    CodeBox(prop, nonce, uuid, code, interface)
   }
 
 }
@@ -875,12 +878,12 @@ object CodeBoxSerializer {
       Longs.toByteArray(obj.value.getMostSignificantBits),
       Longs.toByteArray(obj.value.getLeastSignificantBits),
       Ints.toByteArray(obj.code.length),
-      obj.code.foldLeft(Array[Byte]()) {
-        (arr, x) => arr ++ Bytes.concat(
-          Ints.toByteArray(x.getBytes().length),
-          x.getBytes()
-        )
-      },
+      obj.code.foldLeft(Array[Byte]())(
+        (a, b) => a ++ Bytes.concat(
+          Ints.toByteArray(b.getBytes().length), b.getBytes())),
+      Ints.toByteArray(obj.interface.size),
+      obj.interface.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(b._1.length) ++ b._1.getBytes ++
+        Ints.toByteArray(b._2.length) ++ b._2.flatMap(s => Bytes.concat(Ints.toByteArray(s.length) ++ s.getBytes))),
       obj.proposition.pubKeyBytes
     )
   }
@@ -912,10 +915,35 @@ object CodeBoxSerializer {
       takenBytes += l
     }
 
+    val interfaceLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+    takenBytes += Ints.BYTES
+
+    val interface: Map[String, Seq[String]] = (0 until interfaceLength).map{ _ =>
+
+      val functionNamelength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+      takenBytes += Ints.BYTES
+
+      val functionName = new String(obj.slice(takenBytes, takenBytes + functionNamelength))
+      takenBytes += functionNamelength * Ints.BYTES
+
+      val paramsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+      takenBytes += Ints.BYTES
+
+      val params: Seq[String] = (0 until paramsLength).map { i =>
+        val strLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+        takenBytes += Ints.BYTES
+
+        val str = new String(obj.slice(takenBytes, takenBytes + strLength))
+        takenBytes += strLength
+        str
+      }
+      functionName -> params
+    }.toMap
+
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 
-    CodeBox(prop, nonce, uuid, code)
+    CodeBox(prop, nonce, uuid, code, interface)
   }
 }
 

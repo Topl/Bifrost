@@ -257,8 +257,8 @@ trait BifrostGenerators extends CoreGenerators {
     value <- stringGen
     nonce <- positiveLongGen
   } yield {
-    val codeBoxWithoutUUID = CodeBox(proposition, nonce, null, Seq(value))
-    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(value))
+    val codeBoxWithoutUUID = CodeBox(proposition, nonce, null, Seq(value), Map("" -> Seq(value)))
+    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(value), Map("" -> Seq(value)))
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {

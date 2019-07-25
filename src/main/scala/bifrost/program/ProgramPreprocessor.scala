@@ -30,7 +30,7 @@ import scala.util.matching.Regex
   */
 case class ProgramPreprocessor(name: String,
                                initjs: String,
-                               registry: Map[String, Vector[String]],
+                               registry: Map[String, Seq[String]],
                                //state: Json,
                                variables: Json,
                                code: Map[String, String],
@@ -119,8 +119,8 @@ object ProgramPreprocessor {
       cleanInitjs
     }
 
-    val announcedRegistry: Option[Map[String, Vector[String]]] =
-      (json \\ "registry").headOption.map(_.as[Map[String, Vector[String]]].right.get)
+    val announcedRegistry: Option[Map[String, Seq[String]]] =
+      (json \\ "registry").headOption.map(_.as[Map[String, Seq[String]]].right.get)
 
     val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
       .headOption
@@ -133,8 +133,8 @@ object ProgramPreprocessor {
   }
 
   //noinspection ScalaStyle
-  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Vector[String]]] = None)(args: JsonObject):
-    (Map[String, Vector[String]], /*String,*/ Json, Map[String, String]) = {
+  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
+    (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
 
     /* Construct base module from params */
     val jsre: Context = Context.newBuilder("js").build()
@@ -190,7 +190,7 @@ object ProgramPreprocessor {
     (registry, /*cleanModuleState,*/ variables, code)
   }
 
-  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Vector[String]]): Boolean = {
+  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean = {
     announcedRegistry.keySet.forall(k => {
       jsre.eval("js",
         s"""
@@ -200,9 +200,9 @@ object ProgramPreprocessor {
     })
   }
 
-  private def deriveRegistry(jsre: Context, initjs: String): Vector[Vector[String]] = {
+  private def deriveRegistry(jsre: Context, initjs: String): Seq[Seq[String]] = {
 
-    def commentTokenSource(source: Source): Vector[String] = {
+    def commentTokenSource(source: Source): Seq[String] = {
 
       var commentList: ListBuffer[String] = new ListBuffer[String]()
 
@@ -220,15 +220,15 @@ object ProgramPreprocessor {
         }
       }
 
-      commentList.toVector
+      commentList
     }
 
-    def paramTypes(commentString: Vector[String]): Vector[Vector[String]] = {
+    def paramTypes(commentString: Seq[String]): Seq[Seq[String]] = {
 
       val pattern: Regex = """(?<=@param \{)[A-Za-z]+(?=\})""".r
 
       commentString.map { str =>
-        pattern.findAllIn(str).toVector
+        pattern.findAllIn(str).toSeq
       }
     }
 
@@ -333,7 +333,7 @@ object ProgramPreprocessor {
     //state <- c.downField("state").as[String]
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
-    registry <- c.downField("registry").as[Map[String, Vector[String]]]
+    registry <- c.downField("registry").as[Map[String, Seq[String]]]
     variables <- c.downField("variables").as[Json]
     code <- c.downField("code").as[Map[String, String]]
     signed <- c.downField("signed").as[Option[(String, String)]]
