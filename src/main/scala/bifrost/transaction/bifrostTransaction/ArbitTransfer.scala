@@ -61,14 +61,6 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-//  def create(w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(), publicKeyToSendChangeTo: String = ""): Try[ArbitTransfer] = Try
-//  {
-//
-//    val params = parametersForCreate(w, toRecieve, fee, "ArbitTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
-//    val timestamp = Instant.now.toEpochMilli
-//    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//  }
-
   def create(bfr: BFR, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
 

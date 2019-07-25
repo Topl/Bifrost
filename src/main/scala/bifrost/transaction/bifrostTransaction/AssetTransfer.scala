@@ -106,20 +106,6 @@ object AssetTransfer extends TransferUtil {
     AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-//  def create(w: BWallet,
-//             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-//             fee: Long,
-//             issuer: PublicKey25519Proposition,
-//             assetCode: String,
-//             data: String,
-//             publicKeyToSendFrom: Vector[String] = Vector(),
-//             publicKeyToSendChangeTo: String = ""): Try[AssetTransfer] = Try {
-//
-//    val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, issuer, assetCode)
-//    val timestamp = Instant.now.toEpochMilli
-//    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
-//  }
-
   def create(bfr:BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -134,6 +120,21 @@ object AssetTransfer extends TransferUtil {
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
 
+  def createPrototype(bfr: BFR,
+                      toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+                      sender: IndexedSeq[PublicKey25519Proposition],
+                      issuer: PublicKey25519Proposition,
+                      assetCode: String,
+                      fee: Long,
+                      data: String): Try[AssetTransfer] = Try
+  {
+    val params = parametersForCreate(bfr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val timestamp = Instant.now.toEpochMilli
+    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
+  }
 
   def validate(tx: AssetTransfer): Try[Unit] = validateTx(tx)
+
+  def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+
 }

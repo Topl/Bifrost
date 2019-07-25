@@ -61,15 +61,6 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-//  def create(w: BWallet,
-//             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-//             fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(),
-//             publicKeyToSendChangeTo: String = ""): Try[PolyTransfer] = Try {
-//    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
-//    val timestamp = Instant.now.toEpochMilli
-//    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//  }
-
   def create(bfr: BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -80,5 +71,15 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
+  def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[PolyTransfer] = Try
+  {
+    val params = parametersForCreate(bfr, toReceive, sender, fee, "PolyTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
+  }
+
   def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
+
+  def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+
 }

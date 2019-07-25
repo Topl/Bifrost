@@ -57,7 +57,9 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
                 (request \\ "method").head.asString.get match {
                   case "redeemAssets" => redeemAssets(params.head, id)
                   case "transferAssets" => transferAssets(params.head, id)
+                  case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
                   case "createAssets" => createAssets(params.head, id)
+                  case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
                 }
               }
               futureResponse map {
@@ -96,35 +98,6 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
     }
   }
 
-//  private def transferAssets(params: Json, id: String): Future[Json] = {
-//    viewAsync().map { view =>
-//      val wallet = view.vault
-//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-//      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-//      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-//      val data: String = (params \\ "data").headOption match {
-//        case Some(dataStr) => dataStr.asString.getOrElse("")
-//        case None => ""
-//      }
-//      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
-//        case Some(keys: Json) => keys.asArray.get.map(k => k.asString.get)
-//        case None => Vector()
-//      }
-//      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
-//        case Some(key) => key.asString.get
-//        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
-//      }
-//      val tx = AssetTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-//      AssetTransfer.validate(tx) match {
-//        case Success(_) =>
-//          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
-//          tx.json
-//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-//      }
-//    }
-//  }
 
   private def transferAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
@@ -140,11 +113,40 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case None => ""
       }
       if(view.state.bfr == null) throw new Exception("BFR not defined for node")
-      sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
+      if(view.state.nodeKeys != null)
+        sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       val tx = AssetTransfer.create(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
+          tx.json
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  private def transferAssetsPrototype(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
+      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+      // Optional API parameters
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      if(view.state.nodeKeys != null)
+        sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
+      val tx = AssetTransfer.createPrototype(view.state.bfr, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data).get
+      // Update nodeView with new TX
+      AssetTransfer.validatePrototype(tx) match {
+        case Success(_) =>
           tx.json
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
@@ -169,6 +171,27 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       AssetCreation.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
+          tx.json
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+      val tx = AssetCreation.createPrototype(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data).get
+
+      AssetCreation.validatePrototype(tx) match {
+        case Success(_) =>
           tx.json
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }

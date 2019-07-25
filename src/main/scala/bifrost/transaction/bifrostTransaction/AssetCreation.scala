@@ -106,6 +106,12 @@ object AssetCreation {
     }), "Invalid signatures")
   }
 
+  def validatePrototype(tx: AssetCreation): Try[Unit] = Try {
+    require(tx.to.forall(_._2 >= 0L))
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+  }
+
   /**
     * Route here from AssetApiRoute
     * Assumes that the Wallet contains the issuer's key information
@@ -127,5 +133,16 @@ object AssetCreation {
     val signatures = Map(issuer -> PrivateKey25519Companion.sign(selectedSecret, messageToSign))
 
     AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
+  }
+
+  def createPrototype(to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                     fee: Long,
+                     issuer: PublicKey25519Proposition,
+                     assetCode: String,
+                     data: String): Try[AssetCreation] = Try {
+
+    val timestamp = Instant.now.toEpochMilli
+
+    AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data)
   }
 }
