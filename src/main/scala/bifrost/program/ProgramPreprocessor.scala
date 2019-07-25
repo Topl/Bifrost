@@ -1,6 +1,5 @@
 package bifrost.program
 
-import java.io.{InputStream, InputStreamReader}
 import java.nio.file.{Files, Path}
 
 import akka.actor.ActorSystem
@@ -30,7 +29,7 @@ import scala.util.matching.Regex
   */
 case class ProgramPreprocessor(name: String,
                                initjs: String,
-                               registry: Map[String, Seq[String]],
+                               interface: Map[String, Seq[String]],
                                //state: Json,
                                variables: Json,
                                code: Map[String, String],
@@ -40,7 +39,7 @@ case class ProgramPreprocessor(name: String,
     //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
     "name" -> name.asJson,
     "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
-    "registry" -> registry.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
+    "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
     "variables" -> variables.asJson,
     "code" -> code.map(a => a._1 -> a._2).asJson,
     "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
@@ -100,9 +99,9 @@ object ProgramPreprocessor {
     //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
     //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
-    val (registry, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
+    val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
-    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, registry, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables, code, signed)
+    ProgramPreprocessor(name, initjs /*modifiedInitjs*/, interface, /*parse(cleanModuleState).right.getOrElse(JsonObject.empty.asJson),*/ variables, code, signed)
   }
 
   private def wrapperFromJson(json: Json, args: JsonObject): ProgramPreprocessor = {
@@ -120,16 +119,16 @@ object ProgramPreprocessor {
     }
 
     val announcedRegistry: Option[Map[String, Seq[String]]] =
-      (json \\ "registry").headOption.map(_.as[Map[String, Seq[String]]].right.get)
+      (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]].right.get)
 
     val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
       .headOption
       .map(_.as[(String, String)].right.get)
       .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
 
-    val (registry, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
+    val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
-    ProgramPreprocessor(name, initjs, registry, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
+    ProgramPreprocessor(name, initjs, interface, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
   }
 
   //noinspection ScalaStyle
@@ -150,7 +149,7 @@ object ProgramPreprocessor {
     println(cms)
      */
 
-    /* Interpret registry from object */
+    /* Interpret interface from object */
    /* val esprimajs: InputStream = classOf[ProgramPreprocessor].getResourceAsStream("/esprima.js")
     jsre.eval(new InputStreamReader(esprimajs))*/
 
@@ -168,7 +167,7 @@ object ProgramPreprocessor {
     jsre.eval(defineEsprimaFnParamParser)*/
 
 
-    //println(s">>>>>>>>>>> Registry: $registry")
+    //println(s">>>>>>>>>>> Registry: $interface")
 
     //val variables: Seq[String] = deriveState(jsre, initjs)
     //val code: Seq[String] = deriveFunctions(jsre, initjs)
@@ -177,17 +176,17 @@ object ProgramPreprocessor {
 
     val code: Map[String, String] = deriveFunctions(jsre, initjs) //Seq("add = function() { a += 1 }")
 
-    val registry = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
+    val interface = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
       announcedRegistry.get
     } else {
-      val registryRes = deriveRegistry(jsre, initjs)
+      val interfaceRes = deriveRegistry(jsre, initjs)
 
-      println(code.keySet.zip(registryRes).toMap)
+      println(code.keySet.zip(interfaceRes).toMap)
 
-      code.keySet.zip(registryRes).toMap
+      code.keySet.zip(interfaceRes).toMap
     }
 
-    (registry, /*cleanModuleState,*/ variables, code)
+    (interface, /*cleanModuleState,*/ variables, code)
   }
 
   private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean = {
@@ -333,7 +332,7 @@ object ProgramPreprocessor {
     //state <- c.downField("state").as[String]
     name <- c.downField("name").as[String]
     initjs <- c.downField("initjs").as[String]
-    registry <- c.downField("registry").as[Map[String, Seq[String]]]
+    interface <- c.downField("interface").as[Map[String, Seq[String]]]
     variables <- c.downField("variables").as[Json]
     code <- c.downField("code").as[Map[String, String]]
     signed <- c.downField("signed").as[Option[(String, String)]]
@@ -351,7 +350,7 @@ object ProgramPreprocessor {
       } yield ProgramPreprocessor(
         name,
         new String(decodedInitjs.toArray[Byte]),
-        registry,
+        interface,
         //parse(new String(decodedState.toArray[Byte])).right.get,
         variables,
         code,

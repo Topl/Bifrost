@@ -7,9 +7,8 @@ import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.box
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ExecutionBox, PolyBox, ProgramBox, StateBox}
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramCreationCompanion
 import bifrost.transaction.state.PrivateKey25519
@@ -142,9 +141,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables, true)
     val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables, true)
 
-    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code.values.toSeq, executionBuilder.core.registry))
+    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code.values.toSeq, executionBuilder.core.interface))
     val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(
-      investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code.values.toSeq, executionBuilder.core.registry))
+      investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code.values.toSeq, executionBuilder.core.interface))
     val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
     val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
     val executionBoxWithoutUUID = ExecutionBox(proposition, execNonce, null, stateUUIDs, codeBoxIDs)
