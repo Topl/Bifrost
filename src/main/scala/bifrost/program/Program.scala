@@ -113,6 +113,9 @@ object Program {
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json = {
 
+    val chainProgramInterface = createProgramInterface(codeBoxes)
+    methodCheck(methodName, args, chainProgramInterface)
+
     val mutableState = stateBoxes.head._1.state.asObject.get.toMap
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
@@ -179,13 +182,27 @@ object Program {
       checkState
   }
 
+  def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
+    val params: Seq[String] = interface.getOrElse(methodName, throw Exception)
+
+    args.toMap.zip(params).map{ p =>
+      p._1._2.name match {
+        case p._2 =>
+        case _ => throw Exception
+      }
+    }
+  }
+
+  def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] = {
+    codeBoxes.foldLeft(Map[String, Seq[String]]())((a, b) => a ++ b.interface)
+  }
+
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
-  val forgingSettings = new ForgingSettings {
+  /*val forgingSettings = new ForgingSettings {
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
   val storage: BifrostHistory = BifrostHistory.readOrGenerate(forgingSettings)
-
-  //def getStatebox(): StateBox =
+   */
 }
