@@ -61,16 +61,16 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(w: BWallet,
-             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(),
-             publicKeyToSendChangeTo: String = ""): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
-    val timestamp = Instant.now.toEpochMilli
-    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-  }
+//  def create(w: BWallet,
+//             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+//             fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(),
+//             publicKeyToSendChangeTo: String = ""): Try[PolyTransfer] = Try {
+//    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
+//    val timestamp = Instant.now.toEpochMilli
+//    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+//  }
 
-  def createWithBFR(bfr: BFR,
+  def create(bfr: BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],

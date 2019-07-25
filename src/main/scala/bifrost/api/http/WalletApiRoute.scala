@@ -83,23 +83,17 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
-        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
-        case None => Vector()
-      }
-      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
-        case Some(key) => key.asString.get
-        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
-      }
+      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       // Call to BifrostTX to create TX
-      val tx = PolyTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
+      val tx = PolyTransfer.create(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
       PolyTransfer.validate(tx) match {
         case Success(_) =>
@@ -111,42 +105,42 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   }
 
 
-  //TODO deprecate in favor of transferArbitsWithBFR
-  private def transferArbits(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
-      }
-      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
-        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
-        case None => Vector()
-      }
-      // Look for a specified change address, if not present then try to choose from the list of specified send keys, if no send keys let the wallet decide
-      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
-        case Some(key) => key.asString.get
-        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
-      }
-      // Call to BifrostTX to create TX
-      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
-
-      // Update nodeView with new TX
-      ArbitTransfer.validate(tx) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//  //TODO deprecate in favor of transferArbitsWithBFR
+//  private def transferArbits(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      // Optional API parameters
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None => ""
+//      }
+//      val publicKeysToSendFrom: Vector[String] = (params \\ "publicKeyToSendFrom").headOption match {
+//        case Some(keys) => keys.asArray.get.map(k => k.asString.get)
+//        case None => Vector()
+//      }
+//      // Look for a specified change address, if not present then try to choose from the list of specified send keys, if no send keys let the wallet decide
+//      val publicKeyToSendChangeTo: String = (params \\ "publicKeyToSendChangeTo").headOption match {
+//        case Some(key) => key.asString.get
+//        case None => if (publicKeysToSendFrom.nonEmpty) publicKeysToSendFrom.head else ""
+//      }
+//      // Call to BifrostTX to create TX
+//      val tx = ArbitTransfer.create(wallet, IndexedSeq((recipient, amount)), fee, data, publicKeysToSendFrom, publicKeyToSendChangeTo).get
+//
+//      // Update nodeView with new TX
+//      ArbitTransfer.validate(tx) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
+//          tx.json
+//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   //YT NOTE - change is returned to first address from senders list
-  private def transferArbitsWithBFR(params: Json, id: String): Future[Json] = {
+  private def transferArbits(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -160,7 +154,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       }
       if(view.state.bfr == null) throw new Exception("BFR not defined for node")
       sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
-      val tx = ArbitTransfer.createWithBFR(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
+      val tx = ArbitTransfer.create(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
       ArbitTransfer.validate(tx) match {
         case Success(_) =>

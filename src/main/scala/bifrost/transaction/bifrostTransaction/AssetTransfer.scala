@@ -106,21 +106,21 @@ object AssetTransfer extends TransferUtil {
     AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-  def create(w: BWallet,
-             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             fee: Long,
-             issuer: PublicKey25519Proposition,
-             assetCode: String,
-             data: String,
-             publicKeyToSendFrom: Vector[String] = Vector(),
-             publicKeyToSendChangeTo: String = ""): Try[AssetTransfer] = Try {
+//  def create(w: BWallet,
+//             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+//             fee: Long,
+//             issuer: PublicKey25519Proposition,
+//             assetCode: String,
+//             data: String,
+//             publicKeyToSendFrom: Vector[String] = Vector(),
+//             publicKeyToSendChangeTo: String = ""): Try[AssetTransfer] = Try {
+//
+//    val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, issuer, assetCode)
+//    val timestamp = Instant.now.toEpochMilli
+//    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
+//  }
 
-    val params = parametersForCreate(w, toReceive, fee, "AssetTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo, issuer, assetCode)
-    val timestamp = Instant.now.toEpochMilli
-    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
-  }
-
-  def createWithBFR(bfr:BFR,
+  def create(bfr:BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
