@@ -87,6 +87,9 @@ trait TransferUtil {
                 case _ => None
               })
           }
+
+          if(keyAndTypeFilteredBoxes.length < 1) throw new Exception("No boxes found to fund transaction")
+
           //YT Note - Dust collection takes place here - so long as someone forms a valid transaction,
           //YT Note - all their tokens of that type are collected into one spend box and one change box
 
@@ -102,11 +105,10 @@ trait TransferUtil {
           // amount available to send in tx
           val canSend = senderInputBoxes.map(_._3).sum
 
+          if(canSend < amount + fee) throw new Exception("Not enough funds to create transaction")
+
           // Updated sender balance for specified box type (this is the change calculation for sender)
-          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = keyAndTypeFilteredBoxes.head match {
-            case b: BifrostPublic25519NoncedBox => (sender.head, canSend - amount - fee)
-            case _ => null
-          }
+          val senderUpdatedBalance: (PublicKey25519Proposition, Long) = (sender.head, canSend - amount - fee)
 
           // create the list of outputs (senderChangeOut & recipientOut)
           val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq(senderUpdatedBalance, (recipient, amount))
@@ -156,6 +158,8 @@ trait TransferUtil {
               })
           }
 
+          if(keyAndTypeFilteredBoxes.length < 1) throw new Exception("No boxes found to fund transaction")
+
           val senderInputBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce, Long)] = keyAndTypeFilteredBoxes
             .map (b => (b.proposition, b.nonce, b.value))
             .toIndexedSeq
@@ -163,10 +167,12 @@ trait TransferUtil {
           // amount available to send in tx
           val canSend = senderInputBoxes.map(_._3).sum
 
+          if(canSend < amount + fee) throw new Exception("Not enough funds to create transaction")
+
           require(canSend >= (toReceive.map(_._2).sum + fee))
 
           // Updated sender balance for specified box type (this is the change calculation for sender)
-          //TODO reconsider - returns change to first key in list
+          //TODO reconsider? - returns change to first key in list
           val senderUpdatedBalance: (PublicKey25519Proposition, Long) = (sender.head, canSend - amount - fee)
 
           // create the list of outputs (senderChangeOut & recipientOut)
