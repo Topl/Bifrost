@@ -22,22 +22,13 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-//  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
-//   boxIdsToOpen.zip(signatures).map {
-//    case (boxId, signature) =>
-//      new BoxUnlocker[PublicKey25519Proposition] {
-//        override val closedBoxId: Array[Byte] = boxId
-//        override val boxKey: Signature25519 = signature
-//      }
-//  }
-
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
     if (signatures.size > 0)
-    from.map {
-      case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.get(prop).getOrElse(throw new Exception("Signature not provided"))
+      from.map {
+        case (prop, nonce) =>
+          new BoxUnlocker[PublicKey25519Proposition] {
+            override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
+            override val boxKey: Signature25519 = signatures.get(prop).getOrElse(throw new Exception("Signature not provided"))
         }
     }
   else Traversable()
@@ -54,7 +45,6 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     Map(
       "txHash" -> Base58.encode(id).asJson,
       "txType" -> txType.asJson,
-      "messageToSign" -> Base58.encode(messageToSign).asJson,
       "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
       "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
       "from" -> from.map { s =>

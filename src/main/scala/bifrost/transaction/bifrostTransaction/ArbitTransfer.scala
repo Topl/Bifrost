@@ -76,14 +76,6 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
 
-  //TODO implement
-  //  def createWithSignatures(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], signatures: Map[PublicKey25519Proposition, Signature25519], fee: Long, data: String): Try[ArbitTransfer] = Try
-  //  {
-  //    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
-  //    val timestamp = Instant.now.toEpochMilli
-  //    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, signatures, fee, timestamp, data)
-  //  }
-
   def validate(tx: ArbitTransfer): Try[Unit] = validateTx(tx)
 
   def validatePrototype(tx: ArbitTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
