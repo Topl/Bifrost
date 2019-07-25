@@ -36,8 +36,10 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
+  //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces = FastCryptographicHash(
-  to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
   )
 

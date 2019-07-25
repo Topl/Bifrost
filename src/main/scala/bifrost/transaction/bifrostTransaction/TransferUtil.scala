@@ -178,7 +178,9 @@ trait TransferUtil {
   }
 
   def validateTx(tx: TransferTransaction): Try[Unit] = Try {
-    require(tx.from.size == tx.signatures.size)
+    require(tx.from.forall {
+      case (prop, nonce) => tx.signatures.contains(prop)
+    })
     require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
