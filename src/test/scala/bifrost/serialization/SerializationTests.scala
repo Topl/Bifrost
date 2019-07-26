@@ -247,10 +247,8 @@ class SerializationTests extends PropSpec
           .parseBytes(AssetCreationCompanion.toBytes(ac))
           .get
 
-        val acToBytes = AssetCreationCompanion.toBytes(parsed)
-
-
-        acToBytes sameElements AssetCreationCompanion.toBytes(ac) shouldBe true
+        AssetCreationCompanion.toBytes(parsed) sameElements
+          AssetCreationCompanion.toBytes(ac) shouldBe true
     }
   }
 

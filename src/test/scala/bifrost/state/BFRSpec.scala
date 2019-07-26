@@ -61,12 +61,12 @@ class BFRSpec extends PropSpec
 
     assert(genesisState.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    val tx1 = ArbitTransfer.create(gw,
+    val tx1 = ArbitTransfer.create(genesisState.bfr,
+      gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
+      IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
       0,
-      "",
-      Vector("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"),
-      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
+      ""
     ).get
 
     val block1 = BifrostBlock(
@@ -96,12 +96,12 @@ class BFRSpec extends PropSpec
     assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
-    val tx2 = ArbitTransfer.create(newWallet1,
+    val tx2 = ArbitTransfer.create(newState1.bfr,
+      newWallet1,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
+      IndexedSeq(PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)),
       0,
       "",
-      Vector("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"),
-      "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb"
     ).get
 
     val block2 = BifrostBlock(
@@ -141,12 +141,12 @@ class BFRSpec extends PropSpec
 
   property("Rollback should have worked and recreated above changes exactly") {
 
-    val tx1 = ArbitTransfer.create(gw,
+    val tx1 = ArbitTransfer.create(genesisState.bfr,
+      gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
+      IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
       0,
       "",
-      Vector("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"),
-      "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
     ).get
 
     val block1 = BifrostBlock(

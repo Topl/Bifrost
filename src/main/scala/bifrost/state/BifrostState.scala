@@ -2,25 +2,19 @@ package bifrost.state
 
 import java.io.File
 import java.time.Instant
-import bifrost.forging.ForgingSettings
 
 import bifrost.bfr.BFR
 import bifrost.history.BifrostHistory
 import bifrost.blocks.BifrostBlock
-import bifrost.program.Program
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
-import bifrost.transaction._
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNProposition
 import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.Longs
-import io.circe.Json
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.settings.Settings
-import bifrost.srb.{SBR, StateBoxRegistry}
+import bifrost.srb.SBR
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -82,20 +76,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       .map(BifrostBoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-  //TODO rollback SBR and BFR here as well
-//  override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
-//    if (storage.lastVersionID.exists(_.data sameElements version)) {
-//      this
-//    } else {
-//      log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
-//      storage.rollback(ByteArrayWrapper(version))
-//      val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
-//        .getBytes))).get
-//        .data)
-//      BifrostState(storage, version, timestamp, history, stateBoxRegistry, bfr)
-//    }
-//  }
-
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
@@ -113,71 +93,32 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
 
-//  override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
-//
-//    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
-//
-//    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-//    val boxIdsToRemove = (changes.boxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
-//
-//    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
-//      s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-//      s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
-//
-//    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
-//
-//    if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
-//
-//    //BFR must be updated before state since it uses the boxes from state that are being removed in the update
-//    if(bfr != null) bfr.updateFromState(newVersion, changes)
-//    if(sbr != null) sbr.updateFromState(newVersion, changes)
-//
-//
-//    storage.update(
-//      ByteArrayWrapper(newVersion),
-//      boxIdsToRemove,
-//      boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
-//        timestamp)))
-//    )
-//
-//    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr, bfr)
-//
-//    boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
-//    newSt
-//
-//  }
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
-//    val boxesToAdd = changes.toAppend.map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
-
-    //Filtering boexs pertaining to public keys specified in settings file
+    //Filtering boxes pertaining to public keys specified in settings file
     //Note YT - Need to handle MofN Proposition separately
-    val filteredBoxesToAdd =
+    val keyFilteredBoxesToAdd =
       if(nodeKeys != null)
         changes.toAppend
-//        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes))) ||
-//          (b.isInstanceOf[BifrostProgramBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
         .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
       else
         changes.toAppend
 
-    val filteredBoxIdsToRemove =
+    val keyFilteredBoxIdsToRemove =
       if(nodeKeys != null)
         changes.boxIdsToRemove
         .flatMap(closedBox(_))
-//        .filter(b => (b.isInstanceOf[BifrostPublic25519NoncedBox] && nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostPublic25519NoncedBox].proposition.pubKeyBytes)))  ||
-//          (b.isInstanceOf[BifrostProgramBox]&& nodeKeys.contains(ByteArrayWrapper(b.asInstanceOf[BifrostProgramBox].proposition.pubKeyBytes))))
-          .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
-          .map(b => b.id)
+        .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
+        .map(b => b.id)
       else
         changes.boxIdsToRemove
 
-    val boxesToAdd = filteredBoxesToAdd
+    val boxesToAdd = keyFilteredBoxesToAdd
       .map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove = (filteredBoxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
+    val boxIdsToRemove = (keyFilteredBoxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
     log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
@@ -188,8 +129,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
     //BFR must be updated before state since it uses the boxes from state that are being removed in the update
-    if(bfr != null) bfr.updateFromState(newVersion, filteredBoxIdsToRemove, filteredBoxesToAdd)
-    if(sbr != null) sbr.updateFromState(newVersion, filteredBoxIdsToRemove, filteredBoxesToAdd)
+    if(bfr != null) bfr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
+    if(sbr != null) sbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
 
 
     storage.update(
@@ -703,8 +644,8 @@ object BifrostState extends ScorexLogging {
     }
   }
 
-  //TODO YT - byte array set quality is incorrectly overloaded, consider using bytearraywrapper instead
-  //TODO LSMStore will throw error if given duplicate keys in toRemove or toAppend so above needs to be fixed
+  //YT NOTE - byte array set quality is incorrectly overloaded (shallow not deep), consider using bytearraywrapper instead
+  //YT NOTE - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
   def changes(mod: BPMOD) : Try[GSC] = Try {
     val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 

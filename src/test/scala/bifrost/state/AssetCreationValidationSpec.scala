@@ -62,8 +62,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
       assetCreation: AssetCreation =>
 
         val headSig = assetCreation.signatures.head
-        val wrongSig: Array[Byte] = (headSig.bytes.head + 1).toByte +: headSig.bytes.tail
-        val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetCreation.signatures.tail
+        val wrongSig: Array[Byte] = (headSig._2.bytes.head + 1).toByte +: headSig._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)

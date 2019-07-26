@@ -13,14 +13,12 @@ import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import io.circe.Json
-import io.circe.syntax._
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
 case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                         override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                        override val signatures: IndexedSeq[Signature25519],
+                        override val signatures: Map[PublicKey25519Proposition, Signature25519],
                         override val fee: Long,
                         override val timestamp: Long,
                         override val data: String)
@@ -46,32 +44,10 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
       PolyBox(prop, nonce, value)
   }
 
-  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign ++ data.getBytes
+  override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
 
-  override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
-    "txType" -> "PolyTransfer".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-    "from" -> from.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.toString.asJson
-      ).asJson
-    }.asJson,
-    "signatures" -> signatures
-      .map(s => Base58.encode(s.signature).asJson)
-      .asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-  ).asJson
+  override lazy val json: Json = super.json("PolyTransfer")
+
 }
 
 object PolyTransfer extends TransferUtil {
@@ -85,32 +61,25 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(w: BWallet,
-             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             fee: Long, data: String, publicKeyToSendFrom: Vector[String] = Vector(),
-             publicKeyToSendChangeTo: String = ""): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", publicKeyToSendFrom, publicKeyToSendChangeTo)
-    val timestamp = Instant.now.toEpochMilli
-    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-  }
-
-  def createWithBFR(bfr: BFR,
+  def create(bfr: BFR,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             sender: PublicKey25519Proposition,
+             sender: IndexedSeq[PublicKey25519Proposition],
              fee: Long, data: String): Try[PolyTransfer] = Try {
     val params = parametersForCreate(bfr, w, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
-//  def createByKey(w: BWallet, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], fee: Long, data: String, publicKeyToSendFrom: Seq[Json]) = Try {
-//        println()
-//        println("Entered createByKey")
-//        val params = parametersForCreate(w, toReceive, fee, "PolyTransfer", "")
-//        val timestamp = Instant.now.toEpochMilli
-//        PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-//      }//
+  def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[PolyTransfer] = Try
+  {
+    val params = parametersForCreate(bfr, toReceive, sender, fee, "PolyTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
+  }
 
   def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
+
+  def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+
 }
