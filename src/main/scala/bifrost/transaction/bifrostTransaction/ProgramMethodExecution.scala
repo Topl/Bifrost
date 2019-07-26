@@ -1,12 +1,14 @@
 package bifrost.transaction.bifrostTransaction
 
+import java.util.UUID
+
 import bifrost.program.Program
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import Role.Role
 import bifrost.BifrostApp
 import bifrost.forging.ForgingSettings
-import bifrost.srb.StateBoxRegistry
+import bifrost.srb.{SBR, StateBoxRegistry}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}
@@ -44,10 +46,10 @@ val proposition = executionBox.proposition
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
-  // TODO do not readOrGenerate sbr here
-  // SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
+  //TODO do not readOrGenerate sbr here
+  //SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as parameters to transaction class
-  //See how BFR is used in ArbitTransfer for reference
+  //See static create function in companion object below
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
 
   val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.stateBoxUUIDs)
@@ -116,6 +118,24 @@ val proposition = executionBox.proposition
 }
 
 object ProgramMethodExecution {
+
+  //YT NOTE - example of how to use static function to construct parameters for PME tx
+  //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
+  def create(sbr: SBR,
+             uuid: UUID,
+             methodName: String,
+             parameters: Json,
+             parties: Map[PublicKey25519Proposition, Role],
+             signatures: Map[PublicKey25519Proposition, Signature25519],
+             preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
+             fees: Map[PublicKey25519Proposition, Long],
+             timestamp: Long,
+             data: String): Try[ProgramMethodExecution] = Try {
+    val execBox = sbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
+    val stateBox = sbr.getBox(execBox.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
+    val codeBox = sbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
+    ProgramMethodExecution(stateBox, codeBox, execBox, methodName, parameters, parties, signatures, preFeeBoxes, fees, timestamp, data)
+  }
 
   def validate(tx: ProgramMethodExecution): Try[Unit] = Try {
 
