@@ -183,12 +183,12 @@ object Program {
   }
 
   def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
-    val params: Seq[String] = interface.getOrElse(methodName, throw Exception)
+    val params: Seq[String] = interface(methodName)
 
     args.toMap.zip(params).map{ p =>
       p._1._2.name match {
         case p._2 =>
-        case _ => throw Exception
+        case _ => new Exception
       }
     }
   }
