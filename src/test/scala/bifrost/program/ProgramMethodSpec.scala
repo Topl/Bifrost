@@ -38,12 +38,12 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
         val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
         val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
-        val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq("function add() { a += 1; return a; }"), Map("add" -> Seq("Number", "Number")))
+        val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq("Number", "Number")))
 
         val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
         val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
-        val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("function add() { a += 1; return a; }"), Map("add" -> Seq("Number", "Number")))
+        val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq("Number", "Number")))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
@@ -51,7 +51,7 @@ class ProgramMethodSpec extends PropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-        val result = Program.execute(stateBoxUuids, Seq(codeBox), "add")(party)(params)
+        val result = Program.execute(stateBoxUuids, Seq(codeBox), "inc")(party)(params)
         println(s"test result: $result")
 
         result.hcursor.get[Int]("a").right.get shouldEqual 1
@@ -187,7 +187,7 @@ class ProgramMethodSpec extends PropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-        intercept[Exception] {
+        intercept[ClassCastException] {
           Program.execute(stateBoxUuids, Seq(codeBox), "changeType")(party)(params)
         }
       }
@@ -234,7 +234,7 @@ class ProgramMethodSpec extends PropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-        intercept[Exception] {
+        intercept[NullPointerException] {
           Program.execute(stateBoxUuids, Seq(codeBox), "deleteVar")(party)(params)
         }
       }
@@ -249,7 +249,7 @@ class ProgramMethodSpec extends PropSpec
         /*val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
          */
-        val params = JsonObject.empty
+        val params = JsonObject.fromMap(Map("a" -> "2".asJson, "b" -> "2".asJson))
 
         val state = c.executionBuilderObj.core.variables
         println(s"state: ${state.toString}")
@@ -261,7 +261,7 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
         val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
-          s"""function add(a,b) {
+          s"""add = function(a,b) {
              |  return a + b
              |}
            """.stripMargin), Map("add" -> Seq("Number", "Number")))
@@ -270,7 +270,7 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
         val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(
-          s"""function add(a,b) {
+          s"""add = function(a,b) {
              |  return a + b
              |}
            """.stripMargin), Map("add" -> Seq("Number", "Number")))
@@ -281,9 +281,9 @@ class ProgramMethodSpec extends PropSpec
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
-       // intercept[Exception] {
+        intercept[Exception] {
           Program.execute(stateBoxUuids, Seq(codeBox), "add")(party)(params)
-       // }
+        }
       }
     }
   }

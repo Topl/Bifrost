@@ -174,7 +174,7 @@ object ProgramPreprocessor {
 
     val variables: Json = deriveState(jsre, initjs)
 
-    val code: Map[String, String] = deriveFunctions(jsre, initjs) //Seq("add = function() { a += 1 }")
+    val code: Map[String, String] = deriveFunctions(jsre, initjs)
 
     val interface = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
       announcedRegistry.get

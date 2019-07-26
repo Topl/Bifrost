@@ -2,18 +2,12 @@ package bifrost.program
 
 import java.util.UUID
 
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
-import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
-import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
-import io.circe.parser._
 import org.graalvm.polyglot.Context
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import io.iohk.iodb.LSMStore
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -114,6 +108,7 @@ object Program {
              (args: JsonObject): Json = {
 
     val chainProgramInterface = createProgramInterface(codeBoxes)
+
     methodCheck(methodName, args, chainProgramInterface)
 
     val mutableState = stateBoxes.head._1.state.asObject.get.toMap
@@ -143,37 +138,25 @@ object Program {
       jsre.eval("js", s"${s._1} = ${s._2}")
     }
     jsre.eval("js", programCode)
-    println(s"Right after injecting function code, a = ${bindings.getMember("a")}")
 
     val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
     val paramString: String = if(params.nonEmpty) {
-      params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"$a, $b")
+      params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"""$a, $b""")
     } else ""
 
-    println(s"mutableState: ${mutableState}")
-    println(jsre.eval("js", "a"))
-
-    val methodString: String = s"this[$methodName]($paramString)"
+    println(s"mutableState: $mutableState")
 
     println(s"$methodName($paramString)")
-    if(params.nonEmpty) {
-      println(s"getFromState try: " + jsre.eval("js", s"getFromState(${params(0)}, ${params(1)})"))
-    }
-    println(jsre.eval("js", "a"))
 
     //Evaluate the method on the built script context
     jsre.eval("js", s"""$methodName($paramString)""")
-
-    val newState: Map[String, String] = mutableState.map { s =>
-      s._1 -> bindings.getMember(s._1).toString
-    }
 
     val checkState: Json = mutableState.map{ s =>
 
         println(s"s._2.name: ${s._2.name}")
 
         s._2.name match {
-          case "Number" => println("match: "+bindings.getMember(s._1).asInt()); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
+          case "Number" => println(s"match: ${bindings.getMember(s._1).asInt()}"); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
           case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
           case _ => throw new NoSuchElementException
         }
@@ -188,7 +171,7 @@ object Program {
     args.toMap.zip(params).map{ p =>
       p._1._2.name match {
         case p._2 =>
-        case _ => new Exception
+        case _ => throw new Exception("Argument types do not match chain program method parameter types")
       }
     }
   }
