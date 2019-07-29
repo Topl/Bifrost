@@ -276,6 +276,18 @@ class SerializationTests extends PropSpec
     }
   }
 
+  property("ProgramTransfer Serialization") {
+    forAll(programTransferGen) {
+      pt: ProgramTransfer =>
+        val parsed = ProgramTransferCompanion
+          .parseBytes(ProgramTransferCompanion.toBytes(pt))
+          .get
+
+        ProgramTransferCompanion.toBytes(parsed) sameElements
+          ProgramTransferCompanion.toBytes(pt) shouldBe true
+    }
+  }
+
   /*property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>

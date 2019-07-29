@@ -71,7 +71,11 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
-  def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[PolyTransfer] = Try
+  def createPrototype(bfr: BFR,
+                      toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+                      sender: IndexedSeq[PublicKey25519Proposition],
+                      fee: Long,
+                      data: String): Try[PolyTransfer] = Try
   {
     val params = parametersForCreate(bfr, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli

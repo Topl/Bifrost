@@ -524,6 +524,19 @@ trait BifrostGenerators extends CoreGenerators {
     CodeBoxCreation(to, signature, code, fee, timestamp, data)
   }
 
+  lazy val programTransferGen: Gen[ProgramTransfer] = for {
+    from <- fromGen
+    to <- propositionGen
+    signature <- signatureGen
+    executionBox <- executionBoxGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    data <- stringGen
+  } yield {
+
+    ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
+  }
+
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen
     hub <- propositionGen
