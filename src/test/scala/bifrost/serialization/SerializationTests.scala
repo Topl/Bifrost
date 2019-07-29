@@ -4,7 +4,7 @@ import bifrost.program.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, PublicKey25519Proposition}
+import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -261,6 +261,18 @@ class SerializationTests extends PropSpec
 
         AssetRedemptionCompanion.toBytes(parsed) sameElements
           AssetRedemptionCompanion.toBytes(ar) shouldBe true
+    }
+  }
+
+  property("CodeBoxCreation Serialization") {
+    forAll(codeBoxCreationGen) {
+      ccc: CodeBoxCreation =>
+        val parsed = CodeBoxCreationCompanion
+          .parseBytes(CodeBoxCreationCompanion.toBytes(ccc))
+          .get
+
+        CodeBoxCreationCompanion.toBytes(parsed) sameElements
+          CodeBoxCreationCompanion.toBytes(ccc) shouldBe true
     }
   }
 

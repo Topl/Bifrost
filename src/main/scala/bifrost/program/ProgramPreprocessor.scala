@@ -181,8 +181,6 @@ object ProgramPreprocessor {
     } else {
       val interfaceRes = deriveRegistry(jsre, initjs)
 
-      println(code.keySet.zip(interfaceRes).toMap)
-
       code.keySet.zip(interfaceRes).toMap
     }
 

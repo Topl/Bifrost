@@ -502,6 +502,28 @@ trait BifrostGenerators extends CoreGenerators {
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
+  lazy val codeBoxCreationGen: Gen[CodeBoxCreation] = for {
+    to <- propositionGen
+    signature <- signatureGen
+    fee <- positiveLongGen
+    timestamp <- positiveLongGen
+    data <- stringGen
+  } yield {
+
+    val code: String =
+      """
+        |/**
+        |* @param {Number}
+        |* @param {Number}
+        |**/
+        |add = function(a,b) {
+        | return a + b
+        |}
+      """.stripMargin
+
+    CodeBoxCreation(to, signature, code, fee, timestamp, data)
+  }
+
   lazy val assetHubGen: Gen[(String, PublicKey25519Proposition)] = for {
     asset <- stringGen
     hub <- propositionGen
