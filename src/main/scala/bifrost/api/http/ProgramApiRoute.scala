@@ -7,7 +7,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
 import bifrost.transaction._
-import bifrost.transaction.box.ProfileBox
+import bifrost.transaction.box.{ExecutionBox, ProfileBox, StateBox}
 import bifrost.wallet.BWallet
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
@@ -17,7 +17,7 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{ProgramCreation, ProgramMethodExecution, ProfileTransaction}
+import bifrost.transaction.bifrostTransaction.{ProfileTransaction, ProgramCreation, ProgramMethodExecution}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
@@ -67,6 +67,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                     case "getProgramSignature" => getProgramSignature(params.head, reqId)
                     case "createProgram" => createProgram(params.head, reqId)
                     case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
+                    case "programCall" => programCall(params.head, reqId)
                     case "filter" => bloomFilter(params, reqId)
                   }
                 }
@@ -171,6 +172,18 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       tx.newBoxes.toSet
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)
       tx.json
+    }
+  }
+
+  def programCall(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val sbr = view.state.sbr
+      val bfr = view.state.bfr
+      val programId = (params \\ "programId").head.asString.get
+      val program: ExecutionBox = bfr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
+      val programState = sbr.getBox(program.stateBoxUUIDs.head).get
+      val result = programState.json
+      result
     }
   }
 

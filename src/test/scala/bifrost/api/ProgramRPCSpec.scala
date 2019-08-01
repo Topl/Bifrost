@@ -113,98 +113,6 @@ class ProgramRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   "Program RPC" should {
-//    "return role or error" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |  "jsonrpc": "2.0",
-//           |  "id": "1",
-//           |  "method": "getRole",
-//           |  "params": [{
-//           |      "publicKey": "${publicKeys("hub")}"
-//           |  }]
-//           |}
-//           |""".stripMargin)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "error").head.asObject.isDefined shouldBe true
-//        (res \\ "result").isEmpty shouldBe true
-//      }
-//    }
-//
-//    "Create a role" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |  "jsonrpc": "2.0",
-//           |  "id": "1",
-//           |  "method": "declareRole",
-//           |  "params": [{
-//           |        "publicKey": "${publicKeys("investor")}",
-//           |        "role": "investor"
-//           |    }, {
-//           |        "publicKey": "${publicKeys("hub")}",
-//           |        "role": "hub"
-//           |    }, {
-//           |        "publicKey": "${publicKeys("producer")}",
-//           |        "role": "producer"
-//           |    }]
-//           |}
-//           |""".stripMargin)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "result").head.asArray.isDefined shouldEqual true
-//        (res \\ "error").isEmpty shouldEqual true
-//
-//        val state = view().state
-//        val wallet = view().vault
-//        //println(s"secrets in wallet, ${wallet.secrets}")
-//        val profileBoxes = Seq(
-//          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get),
-//            0L,
-//            Role.Investor.toString,
-//            "role"),
-//          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get), 0L, Role.Hub.toString, "role"),
-//          ProfileBox(PublicKey25519Proposition(Base58.decode(publicKeys("producer")).get),
-//                     0L,
-//                     Role.Producer.toString,
-//                     "role")
-//        )
-//        val boxSC = BifrostStateChanges(Set(), profileBoxes.toSet, System.currentTimeMillis())
-//
-//        state.applyChanges(boxSC, Ints.toByteArray(7)).get
-//      }
-//    }
-//
-//    "Get the role after declaration" in {
-//      val requestBody = ByteString(
-//        s"""
-//           |{
-//           |  "jsonrpc": "2.0",
-//           |  "id": "1",
-//           |  "method": "getRole",
-//           |  "params": [{
-//           |      "publicKey": "${publicKeys("investor")}"
-//           |  }, {
-//           |      "publicKey": "${publicKeys("hub")}"
-//           |  }, {
-//           |      "publicKey": "${publicKeys("producer")}"
-//           |  }]
-//           |}
-//           |""".stripMargin)
-//      httpPOST(requestBody) ~> route ~> check {
-//        val res = parse(responseAs[String]).right.get
-//        (res \\ "result").head.asArray.isDefined shouldEqual true
-//        (res \\ "error").isEmpty shouldEqual true
-//        val jsonArray = (res \\ "result").head.asArray.get
-//        (jsonArray(0) \\ "proposition").head.asString.get shouldEqual publicKeys("investor")
-//        (jsonArray(0) \\ "value").head.asString.get shouldEqual "investor"
-//        (jsonArray(1) \\ "proposition").head.asString.get shouldEqual publicKeys("hub")
-//        (jsonArray(1) \\ "value").head.asString.get shouldEqual "hub"
-//        (jsonArray(2) \\ "proposition").head.asString.get shouldEqual publicKeys("producer")
-//        (jsonArray(2) \\ "value").head.asString.get shouldEqual "producer"
-//      }
-//    }
 
     val programEffectiveTime = System.currentTimeMillis() + 100000L
     val programExpirationTime = System.currentTimeMillis() + 200000000L
@@ -221,66 +129,6 @@ class ProgramRPCSpec extends WordSpec
       publicKeys("producer") -> 0
     )
 
-    val programBodyTemplate =
-      s"""
-      {
-        "jsonrpc": "2.0",
-        "id": "1",
-        "method": "getProgramSignature",
-        "params": [{
-          "signingPublicKey": "${publicKeys("investor")}",
-          "executionBuilder": ${executionBuilder.asJson},
-          "preInvestmentBoxes": [],
-          "parties": ${publicKeys.map { case (k, v) => v -> k.asJson }.asJson},
-          "signatures": ${publicKeys.map { case (k, v) => v -> "".asJson }.asJson},
-          "preFeeBoxes": {
-            "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]],
-            "${publicKeys("hub")}": [],
-            "${publicKeys("producer")}": []
-          },
-          "fees": ${fees.asJson},
-          "timestamp": ${System.currentTimeMillis},
-          "data": ""
-        }]
-      }
-      """
-    var investorSig = ""
-    var hubSig = ""
-    var producerSig = ""
-
-    /*"Get ProgramCreation Signature" in {
-      val requestBody = ByteString(programBodyTemplate.stripMargin)
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        investorSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
-        investorSig.nonEmpty shouldEqual true
-        (res \\ "error").isEmpty shouldEqual true
-      }
-      // Getting Producer and Hub signatures
-      val paramsJson: Json = parse(programBodyTemplate).getOrElse(Json.Null)
-      val cursor: HCursor = paramsJson.hcursor
-      val hubJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
-        .withFocus(_.mapString(_ => publicKeys("hub"))).top.get
-      val producerJson: Json = cursor.downField("params").downArray.downField("signingPublicKey")
-        .withFocus(_.mapString(_ => publicKeys("producer"))).top.get
-
-      httpPOST(ByteString(hubJson.toString)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        hubSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
-        hubSig.nonEmpty shouldEqual true
-        (res \\ "error").isEmpty shouldEqual true
-      }
-      httpPOST(ByteString(producerJson.toString)) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "result").head.asObject.isDefined shouldEqual true
-        producerSig = ((res \\ "result").head.asJson \\ "signature").head.asString.get
-        hubSig.nonEmpty shouldEqual true
-        (res \\ "error").isEmpty shouldEqual true
-      }
-      //println(s"Investor: $investorSig, Producer: $producerSig, Hub: $hubSig")
-    }
 
     var programBox: Option[ProgramBox] = None
     var hubFeeBox: Option[PolyBox] = None
@@ -303,7 +151,7 @@ class ProgramRPCSpec extends WordSpec
 
       view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
       view().pool.remove(txInstance)
-    }*/
+    }
 
    /* "Create the Program" in {
       val requestBodyJson = parse(programBodyTemplate).getOrElse(Json.Null)
