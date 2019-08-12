@@ -45,7 +45,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
               }
             }
             parsed match {
-              case Failure(e) => log.warn("Failed to parse bytes from db", e)
+              case Failure(e) => println(s"bytes.head: ${bytes.head}"); log.warn("Failed to parse bytes from db", e)
               case _ =>
             }
             parsed.toOption

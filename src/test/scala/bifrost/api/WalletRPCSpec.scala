@@ -31,6 +31,9 @@ class WalletRPCSpec extends WordSpec
   with ScalatestRouteTest
   with BifrostGenerators {
 
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
+
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef

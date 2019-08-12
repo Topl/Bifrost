@@ -39,8 +39,8 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param version           blockId used to identify each block. Also used for rollback
   * @param timestamp         timestamp of the block that results in this state
   * @param history           Main box storage
-  * @param stateBoxRegistry  Separate box set for program StateBoxes
   */
+//noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {

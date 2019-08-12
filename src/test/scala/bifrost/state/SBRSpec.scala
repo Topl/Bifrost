@@ -10,7 +10,7 @@ import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe
 import io.circe.syntax._
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -22,16 +22,17 @@ class SBRSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
+  with BeforeAndAfterAll
   with BifrostGenerators
   with ValidGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
-
-  val path: Path = Path("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
@@ -89,4 +90,7 @@ class SBRSpec extends PropSpec
     assert(!newState_2.sbr.getBoxId(sboxOne.value).isDefined)
   }
 
+  override def afterAll() {
+    history.storage.storage.close
+  }
 }

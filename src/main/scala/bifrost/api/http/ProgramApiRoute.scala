@@ -12,10 +12,11 @@ import bifrost.wallet.BWallet
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{HCursor, Json}
+import io.circe.{HCursor, Json, JsonObject}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ProfileTransaction, ProgramCreation, ProgramMethodExecution}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -206,7 +207,15 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
 
   //noinspection ScalaStyle
   def createProgramInstance(json: Json, state: BifrostState): ProgramCreation = {
-    json.as[ProgramCreation] match {
+    val program = (json \\ "program").head.asString.get
+    val preProcess = ProgramPreprocessor("program", program)(JsonObject.empty)
+    val builder = Map("executionBuilder" -> ExecutionBuilder(ExecutionBuilderTerms(""), "", preProcess).json).asJson
+
+    val strippedProgram: Json = json.hcursor.downField("program").delete.top.get
+
+    val preparedProgram: Json = strippedProgram.deepMerge(builder)
+
+    preparedProgram.as[ProgramCreation] match {
       case Right(c: ProgramCreation) => c
       case Left(e) => throw new JsonParsingException(s"Could not parse ProgramCreation: $e")
     }

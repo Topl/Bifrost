@@ -50,15 +50,8 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   lazy val proposition = parties.head._1
 
-
-  //val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
-
-
   lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
     preInvestmentBoxes.map(n => {
-//      println(parties.head._1)
-//      println(s">>>>>>>>>>>>  ${n._1}")
-//      println(s">>>>>>>>>>>> preInvestmentBoxes: ${PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)}")
       PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)})
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
@@ -105,7 +98,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
       ).asJson
 
     val investor = parties.head
-//    println(s">>>>>>> find investor: ${investor.toString()}")
     val investorProp = investor._1
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
@@ -177,10 +169,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )
 
-//  println()
-//  println(s">>>>>>>>>>> messageToSign direct: " + messageToSign.mkString(""))
-//  println()
-
   override def toString: String = s"ProgramCreation(${json.noSpaces})"
 }
 
@@ -191,10 +179,6 @@ object ProgramCreation {
     val outcome = ExecutionBuilder.validate(tx.executionBuilder)
     require(outcome.isSuccess)
 
-
-    require((tx.parties.size == tx.signatures.size) && tx.parties.size >= 2,
-      "There aren't exactly 3 parties involved in signing")
-    require(tx.parties.size >= 2, "There aren't exactly 3 roles") // Make sure there are exactly 3 unique roles
     require(tx.parties.forall { case (proposition, _) =>
       tx.signatures(proposition).isValid(proposition, tx.messageToSign)
     }, "Not all signatures were valid")

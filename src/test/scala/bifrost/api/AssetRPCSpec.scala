@@ -68,8 +68,10 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
-  // TODO asset redemption does not work
   "Asset RPC" should {
+
+    // TODO asset redemption does not work
+/*
     "Redeem some assets" in {
       val requestBody = ByteString(
         s"""
@@ -82,12 +84,13 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //      httpPOST(requestBody) ~> route ~> check {
-      //        val res = parse(responseAs[String]).right.get
-      //        (res \\ "error").head.asObject.isDefined shouldBe true
-      //        (res \\ "result").isEmpty shouldBe true
-      //      }
+            httpPOST(requestBody) ~> route ~> check {
+              val res = parse(responseAs[String]).right.get
+              (res \\ "error").head.asObject.isDefined shouldBe true
+              (res \\ "result").isEmpty shouldBe true
+            }
     }
+*/
 
 
     "Create some assets" in {
@@ -124,7 +127,8 @@ class AssetRPCSpec extends WordSpec
           10L,
           settings.version
         )
-        view().state.applyModifier(tempBlock)
+        view.state.applyModifier(tempBlock)
+        view.pool.remove(txInstance)
         //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }
@@ -180,8 +184,8 @@ class AssetRPCSpec extends WordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
+        val txInstance: BifrostTransaction = view.pool.getById(Base58.decode(txHash).get).get
+        view.pool.remove(txInstance)
       }
     }
 
@@ -212,8 +216,9 @@ class AssetRPCSpec extends WordSpec
     }
   }
 
-  object AssetRPCSpec {
-    val path: Path = Path("/tmp/scorex/test-data")
-    Try(path.deleteRecursively())
+  override def afterAll() {
+    view.pool.unconfirmed.clear
+    println(s"${view.pool.take(1).toList}")
+    actorSystem.terminate
   }
 }

@@ -116,13 +116,13 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-parallelExecution in Test := false
+parallelExecution in Test := true
 
 logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
-fork := false
+fork := true
 
 pomIncludeRepository := { _ => false }
 

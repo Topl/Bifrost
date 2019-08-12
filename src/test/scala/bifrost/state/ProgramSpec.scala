@@ -6,7 +6,7 @@ import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.BifrostBox
 import bifrost.transaction.box.PolyBox
 import bifrost.transaction.box.ProfileBox
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
+import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 
@@ -15,8 +15,7 @@ class ProgramSpec extends PropSpec
   with GeneratorDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
-  with ValidGenerators
-  with BeforeAndAfterAll {
+  with ValidGenerators {
 
   def getPreExistingPolyBoxes(cc: ProgramCreation): Set[BifrostBox] = {
     (cc

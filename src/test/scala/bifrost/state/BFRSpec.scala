@@ -25,17 +25,17 @@ class BFRSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
+  with BeforeAndAfterAll
   with BifrostGenerators
   with ValidGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
-
-
-  val path: Path = Path("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
@@ -178,4 +178,7 @@ class BFRSpec extends PropSpec
 
   }
 
+  override def afterAll() {
+    history.storage.storage.close
+  }
 }

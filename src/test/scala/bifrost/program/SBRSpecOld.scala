@@ -16,7 +16,7 @@ import bifrost.transaction.proof.Signature25519
 import io.circe
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import scorex.crypto.signatures.Curve25519
 
@@ -28,15 +28,16 @@ class SBRSpecOld extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
+  with BeforeAndAfterAll
   with BifrostGenerators {
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
-
-  val path: Path = Path("/tmp/scorex/test-data")
-  Try(path.deleteRecursively())
 
 //  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
 //  val history: HIS = gs._1
