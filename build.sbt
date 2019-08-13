@@ -116,7 +116,7 @@ publishMavenStyle := true
 
 publishArtifact in Test := false
 
-parallelExecution in Test := true
+parallelExecution in Test := false
 
 logBuffered in Test := false
 
