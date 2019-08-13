@@ -181,6 +181,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       val sbr = view.state.sbr
       val bfr = view.state.bfr
       val programId = (params \\ "programId").head.asString.get
+      val stateVar = (params \\ "stateVar").head.asString.get
       val program: ExecutionBox = bfr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
       val programState = sbr.getBox(program.stateBoxUUIDs.head).get
       val result = programState.json
