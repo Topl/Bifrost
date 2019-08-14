@@ -5,8 +5,7 @@ import java.util.UUID
 import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.{bifrostTransaction, _}
-import bifrost.transaction.box.proposition.MofNProposition
+import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
@@ -96,9 +95,9 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBox = StateBox(parties.head, 0L, null, state, true)
-      val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo, true)
-      val stateBoxThree = StateBox(parties.head, 2L, null, stateThree, true)
+      val stateBox = StateBox(parties.head, 0L, null, state)
+      val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo)
+      val stateBoxThree = StateBox(parties.head, 2L, null, stateThree)
 
       val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
@@ -208,8 +207,8 @@ trait ValidGenerators extends BifrostGenerators {
 
     val state = Map("a" -> "0").asJson
 
-    val stateBoxWithoutUUID = StateBox(sender._2._2, 0L, null, state, true)
-    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
+    val stateBoxWithoutUUID = StateBox(sender._2._2, 0L, null, state)
+    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
     val codeBoxWithoutUUID = CodeBox(sender._2._2, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
     val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 

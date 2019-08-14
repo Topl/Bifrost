@@ -88,7 +88,7 @@ val proposition = executionBox.proposition
 
     val programResult: Json = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(parties.toIndexedSeq(0)._1)(parameters.asObject.get)
 
-    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, uuidStateBoxes.head._1.value, programResult, true)
+    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, uuidStateBoxes.head._1.value, programResult)
 
       IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }

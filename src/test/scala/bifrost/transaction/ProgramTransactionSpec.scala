@@ -122,8 +122,8 @@ class ProgramTransactionSpec extends PropSpec
          |{ "c": 0 }
          """.stripMargin.asJson
 
-    val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo, true)
-    val stateBoxThree = StateBox(parties.head, 2L, null, stateThree, true)
+    val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo)
+    val stateBoxThree = StateBox(parties.head, 2L, null, stateThree)
 
     val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
@@ -174,8 +174,8 @@ class ProgramTransactionSpec extends PropSpec
          |{ "a": "0" }
        """.stripMargin.asJson
 
-    val stateBoxWithoutUUID = StateBox(parties.head, 0L, null, state, true)
-    val stateBox = StateBox(parties.head, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
+    val stateBoxWithoutUUID = StateBox(parties.head, 0L, null, state)
+    val stateBox = StateBox(parties.head, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
 
     val codeBoxWithoutUUID = CodeBox(parties.head, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
     val codeBox = CodeBox(parties.head, 1L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))

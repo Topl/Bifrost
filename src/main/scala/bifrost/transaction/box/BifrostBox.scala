@@ -733,8 +733,7 @@ object ReputationBoxSerializer extends Serializer[ReputationBox] {
 case class StateBox(override val proposition: PublicKey25519Proposition,
                             override val nonce: Long,
                             override val value: UUID,
-                            state: Json, //  JSON representation of JS Variable Declarations
-                            mutabilityFlag: Boolean,
+                            state: Json //  JSON representation of JS Variable Declarations
                             ) extends BifrostProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "StateBox"
@@ -748,7 +747,6 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
     "uuid" -> value.asJson,
     "state" -> state.asJson,
     "nonce" -> nonce.toString.asJson,
-    "mutabilityFlag" -> mutabilityFlag.asJson
   ).asJson
 
 }
@@ -763,11 +761,10 @@ object StateBox {
     value <- c.downField("uuid").as[UUID]
     state <- c.downField("state").as[Json]
     nonce <- c.downField("nonce").as[Long]
-    mutabilityFlag <- c.downField("mutabilityFlag").as[Boolean]
   } yield {
     val preparedPubKey = Base58.decode(proposition).get
     val prop = PublicKey25519Proposition(preparedPubKey)
-    StateBox(prop, nonce, value, state, mutabilityFlag)
+    StateBox(prop, nonce, value, state)
   }
 
 }
@@ -780,7 +777,6 @@ object StateBoxSerializer {
       Ints.toByteArray(boxType.getBytes.length),
       boxType.getBytes,
       Longs.toByteArray(obj.nonce),
-      Booleans.toByteArray(obj.mutabilityFlag),
       Longs.toByteArray(obj.value.getMostSignificantBits),
       Longs.toByteArray(obj.value.getLeastSignificantBits),
       Ints.toByteArray(obj.state.noSpaces.getBytes.length),
@@ -801,9 +797,6 @@ object StateBoxSerializer {
     val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
     takenBytes += Longs.BYTES
 
-    val mutabilityFlag = Booleans.fromByteArray(obj.slice(takenBytes, takenBytes + 1))
-    takenBytes += 1
-
     val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
       Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + 2*Longs.BYTES)))
     takenBytes += Longs.BYTES*2
@@ -820,7 +813,7 @@ object StateBoxSerializer {
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 
-    StateBox(prop, nonce, uuid, state, mutabilityFlag)
+    StateBox(prop, nonce, uuid, state)
   }
 
 }

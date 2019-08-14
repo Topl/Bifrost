@@ -248,8 +248,8 @@ trait BifrostGenerators extends CoreGenerators {
     value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
-    val stateBoxWihtouUUID = StateBox(proposition, nonce, null, value.asJson, true)
-    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWihtouUUID.id), value.asJson, true)
+    val stateBoxWihtouUUID = StateBox(proposition, nonce, null, value.asJson)
+    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWihtouUUID.id), value.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {

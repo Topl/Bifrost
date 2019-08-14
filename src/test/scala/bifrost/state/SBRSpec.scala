@@ -51,13 +51,13 @@ class SBRSpec extends PropSpec
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne, true)
-  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo, true)
+  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne)
+  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo)
 
   val uuid: UUID = UUID.nameUUIDFromBytes(sboxOneWithoutUUID.id)
 
-  val sboxOne: StateBox = StateBox(pubKey, 0L, uuid, stateOne, true)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, uuid, stateTwo, true)
+  val sboxOne: StateBox = StateBox(pubKey, 0L, uuid, stateOne)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, uuid, stateTwo)
 
   var newState_1: BifrostState = null
 
@@ -87,7 +87,7 @@ class SBRSpec extends PropSpec
     val changes_2: BifrostStateChanges = BifrostStateChanges(Set(sboxOne.id), Set(), 0L)
     val newState_2 = newState_1.applyChanges(changes_2, Ints.toByteArray(3)).get
 
-    assert(!newState_2.sbr.getBoxId(sboxOne.value).isDefined)
+    assert(newState_2.sbr.getBoxId(sboxOne.value).isEmpty)
   }
 
   override def afterAll() {

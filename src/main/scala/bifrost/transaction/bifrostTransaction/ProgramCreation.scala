@@ -79,8 +79,8 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
           ++ Ints.toByteArray(0))
       )
 
-    val stateBoxWithoutUUID = StateBox(proposition, stateNonce, null, executionBuilder.core.variables, true)
-    val stateBox = StateBox(proposition, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), executionBuilder.core.variables, true)
+    val stateBoxWithoutUUID = StateBox(proposition, stateNonce, null, executionBuilder.core.variables)
+    val stateBox = StateBox(proposition, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), executionBuilder.core.variables)
 
     IndexedSeq(stateBox)
   }
@@ -130,8 +130,8 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
 
-    val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables, true)
-    val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables, true)
+    val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables)
+    val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables)
 
     val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code.values.toSeq, executionBuilder.core.interface))
     val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(

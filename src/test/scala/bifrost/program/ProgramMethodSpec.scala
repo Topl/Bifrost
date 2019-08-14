@@ -35,14 +35,14 @@ class ProgramMethodSpec extends PropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
-        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
-        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq("Number", "Number")))
 
-        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
-        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq("Number", "Number")))
 
         val stateBoxUuids = Seq(
@@ -72,16 +72,16 @@ class ProgramMethodSpec extends PropSpec
         val stateTwo = s"""{ "b": 4 }""".asJson
         val stateThree = s"""{ "c": 7 }""".asJson
 
-        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
-        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
-        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
         ), Map("changeState" -> Seq("String", "String", "String")))
 
-        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id),stateTwo, true)
-        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id),stateThree, true)
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id),stateTwo)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id),stateThree)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id),Seq(
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
         ), Map("changeState" -> Seq("String", "String", "String")))
@@ -163,18 +163,18 @@ class ProgramMethodSpec extends PropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
-        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
-        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
           s"""function changeType() {
              |  return a = "wrong"
              |}
            """.stripMargin), Map("changeType" -> Seq()))
 
-        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
-        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(
           s"""function changeType() {
              |  return a = "wrong"
@@ -210,18 +210,18 @@ class ProgramMethodSpec extends PropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
-        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
-        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
           s"""function deleteVar() {
              |  delete global.a
              |}
            """.stripMargin), Map("deleteVar" -> Seq()))
 
-        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
-        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(
           s"""function deleteVar() {
              |  delete global.a
@@ -257,18 +257,18 @@ class ProgramMethodSpec extends PropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state, true)
-        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo, true)
-        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree, true)
+        val stateBoxWithoutUUID = StateBox(c.parties.head._1, 0L, null, state)
+        val stateBoxTwoWithoutUUID = StateBox(c.parties.head._1, 1L, null, stateTwo)
+        val stateBoxThreeWithoutUUID = StateBox(c.parties.head._1, 2L, null, stateThree)
         val codeBoxWithoutUUID = CodeBox(c.parties.head._1, 3L, null, Seq(
           s"""add = function(a,b) {
              |  return a + b
              |}
            """.stripMargin), Map("add" -> Seq("Number", "Number")))
 
-        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state, true)
-        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo, true)
-        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree, true)
+        val stateBox = StateBox(c.parties.head._1, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+        val stateBoxTwo = StateBox(c.parties.head._1, 1L, UUID.nameUUIDFromBytes(stateBoxTwoWithoutUUID.id), stateTwo)
+        val stateBoxThree = StateBox(c.parties.head._1, 2L, UUID.nameUUIDFromBytes(stateBoxThreeWithoutUUID.id), stateThree)
         val codeBox = CodeBox(c.parties.head._1, 3L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq(
           s"""add = function(a,b) {
              |  return a + b

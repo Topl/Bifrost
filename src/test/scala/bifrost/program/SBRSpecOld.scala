@@ -58,11 +58,11 @@ class SBRSpecOld extends PropSpec
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne, true)
-  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo, true)
+  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne)
+  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo)
 
-  val sboxOne: StateBox = StateBox(pubKey, 0L, UUID.nameUUIDFromBytes(sboxOneWithoutUUID.id), stateOne, true)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, UUID.nameUUIDFromBytes(sboxTwoWithoutUUID.id), stateTwo, true)
+  val sboxOne: StateBox = StateBox(pubKey, 0L, UUID.nameUUIDFromBytes(sboxOneWithoutUUID.id), stateOne)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, UUID.nameUUIDFromBytes(sboxTwoWithoutUUID.id), stateTwo)
 
   val uuid: UUID = UUID.nameUUIDFromBytes(sboxOne.id)
   val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
@@ -86,7 +86,7 @@ class SBRSpecOld extends PropSpec
 
     //Should be able to access stateBoxID from sbr by UUID
     sbr.get(uuid).isSuccess shouldBe true
-    assert(sbr.get(uuid).get._2 sameElements(sboxOne.id))
+    assert(sbr.get(uuid).get._2 sameElements sboxOne.id)
 
     Thread.sleep(1000)
 
@@ -120,8 +120,8 @@ class SBRSpecOld extends PropSpec
       settings.version
     )
 
-    val sbox_3_withoutUUID: StateBox = StateBox(pubKey, 2L, null, "c".asJson, true)
-    val sbox_3: StateBox = StateBox(pubKey, 2L, UUID.nameUUIDFromBytes(sbox_3_withoutUUID.id),"c".asJson, true)
+    val sbox_3_withoutUUID: StateBox = StateBox(pubKey, 2L, null, "c".asJson)
+    val sbox_3: StateBox = StateBox(pubKey, 2L, UUID.nameUUIDFromBytes(sbox_3_withoutUUID.id),"c".asJson)
     val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
     uuidAndBoxID.isSuccess shouldBe true
     //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 0L))
@@ -140,8 +140,8 @@ class SBRSpecOld extends PropSpec
       settings.version
     )
 
-    val sbox_4_withoutUUID: StateBox = StateBox(pubKey, 3L, null, "d".asJson, true)
-    val sbox_4: StateBox = StateBox(pubKey, 3L, UUID.nameUUIDFromBytes(sbox_4_withoutUUID.id),"d".asJson, true)
+    val sbox_4_withoutUUID: StateBox = StateBox(pubKey, 3L, null, "d".asJson)
+    val sbox_4: StateBox = StateBox(pubKey, 3L, UUID.nameUUIDFromBytes(sbox_4_withoutUUID.id),"d".asJson)
     val uuidAndBoxIDTwo = sbr.insertNewStateBox(block_4.id, sbox_4.id)
     uuidAndBoxIDTwo.isSuccess shouldBe true
 //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 1L))
