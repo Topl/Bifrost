@@ -6,10 +6,10 @@ package bifrost.transaction
 
 import java.util.UUID
 
-import bifrost.program.{Program, ExecutionBuilder}
+import bifrost.program.ExecutionBuilder
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.box.{CodeBox, ProgramBox, ExecutionBox, ReputationBox, StateBox}
+import bifrost.transaction.box.{CodeBox, ExecutionBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._

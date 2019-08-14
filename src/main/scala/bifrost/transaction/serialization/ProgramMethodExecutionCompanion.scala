@@ -5,8 +5,8 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.transaction.box.{ExecutionBox, ExecutionBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.box.{ProgramBox, ProgramBoxSerializer}
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
@@ -65,7 +65,7 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
 
     numReadBytes += parameterJsonLength
 
-    val programBox: ProgramBox = ProgramBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
+    val execBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
       numReadBytes + programBoxLength))
       .get
 

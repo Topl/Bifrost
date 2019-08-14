@@ -153,7 +153,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     viewAsync().map { view =>
       val wallet = view.vault
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-      val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "programBox")
+      val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "executionBox")
       val cme = try{
         modifiedParams.as[ProgramMethodExecution]
       } catch {

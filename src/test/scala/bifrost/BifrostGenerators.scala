@@ -403,14 +403,6 @@ trait BifrostGenerators extends CoreGenerators {
     ).asJson, id)
   }
 
-  lazy val programBoxGen: Gen[ProgramBox] = for {
-    proposition <- oneOfNPropositionGen
-    nonce <- positiveLongGen
-    value <- programGen.map(_.json)
-  } yield {
-    ProgramBox(proposition._2, nonce, value)
-  }
-
   def preFeeBoxGen(minFee: Long = 0, maxFee: Long = Long.MaxValue): Gen[(Nonce, Long)] = for {
     nonce <- Gen.choose(Long.MinValue, Long.MaxValue)
     amount <- Gen.choose(minFee, maxFee)

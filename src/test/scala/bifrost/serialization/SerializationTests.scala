@@ -34,19 +34,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ProgramBox Serialization") {
-    forAll(programBoxGen) {
-      b: ProgramBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        parsed.json.noSpaces shouldBe b.json.noSpaces
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
   property("PolyBox Serialization") {
     forAll(polyBoxGen) {
       b: PolyBox =>
