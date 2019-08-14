@@ -12,7 +12,7 @@ import bifrost.wallet.BWallet
 import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{HCursor, Json, JsonObject}
+import io.circe.{Decoder, HCursor, Json, JsonObject}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
@@ -183,9 +183,13 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       val programId = (params \\ "programId").head.asString.get
       val stateVar = (params \\ "stateVar").head.asString.get
       val program: ExecutionBox = bfr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
-      val programState = sbr.getBox(program.stateBoxUUIDs.head).get
-      val result = programState.json
-      result
+      val programState: StateBox = sbr.getBox(program.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
+      val result: Decoder.Result[Json] = programState.state.hcursor.downField(stateVar).as[Json]
+
+      result match {
+        case Right(value) => value
+        case Left(error) => error.getMessage.asJson
+      }
     }
   }
 

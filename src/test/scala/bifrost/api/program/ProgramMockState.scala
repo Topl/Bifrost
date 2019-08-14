@@ -16,20 +16,23 @@ import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSp
 import bifrost.network.peer.PeerManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, ProgramBox, StateBox}
+import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
-import io.circe.Json
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.reflect.io.Path
+import scala.util.Try
 
-trait ProgramTestState extends BifrostGenerators {
+trait ProgramMockState extends BifrostGenerators {
 
+
+  val path: Path = Path("/tmp/scorex/test-data")
+  Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
@@ -111,7 +114,7 @@ trait ProgramTestState extends BifrostGenerators {
        |}
        |""".stripMargin
 
-  val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), "var a = 0".asJson, true)
+  val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), Map("a" -> 0, "b" -> 1).asJson, true)
   val codeBox = CodeBox(prop, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 1L)),
     Seq("add = function(x,y) { return x + y }"), Map("add" -> Seq("Number", "Number")))
   val executionBox = ExecutionBox(prop, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(prop, 2L)), Seq(stateBox.value), Seq(codeBox.id))
