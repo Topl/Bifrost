@@ -174,19 +174,16 @@ class ProgramTransactionSpec extends PropSpec
          |{ "a": "0" }
        """.stripMargin.asJson
 
-    val stateBoxWithoutUUID = StateBox(parties.head, 0L, null, state)
-    val stateBox = StateBox(parties.head, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
+    val stateBox = StateBox(parties.head, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(parties.head, 0L)), state)
 
-    val codeBoxWithoutUUID = CodeBox(parties.head, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
-    val codeBox = CodeBox(parties.head, 1L, UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
+    val codeBox = CodeBox(parties.head, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(parties.head, 1L)), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 
 //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
     val proposition = parties.head
 
-    val executionBoxWithoutUUID = ExecutionBox(proposition, 2L, null, Seq(stateBoxUUID), Seq(codeBox.id))
-    val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id), Seq(stateBoxUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)), Seq(stateBoxUUID), Seq(codeBox.id))
 
     val sender = Gen.oneOf(Seq(Role.Producer, Role.Investor, Role.Hub).zip(allKeyPairs)).sample.get
 

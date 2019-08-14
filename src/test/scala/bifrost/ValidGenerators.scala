@@ -7,7 +7,7 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.box._
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.crypto.hash.FastCryptographicHash
@@ -207,16 +207,15 @@ trait ValidGenerators extends BifrostGenerators {
 
     val state = Map("a" -> "0").asJson
 
-    val stateBoxWithoutUUID = StateBox(sender._2._2, 0L, null, state)
-    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), state)
-    val codeBoxWithoutUUID = CodeBox(sender._2._2, 1L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
-    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(codeBoxWithoutUUID.id), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
+    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender._2._2, 0L)), state)
+    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender._2._2, 1L)),
+      Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
     val executionBoxWithoutUUID = ExecutionBox(parties.head, 2L, null, Seq(stateUUID), Seq(codeBox.id))
-    val executionBox = ExecutionBox(parties.head, 2L, UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id), Seq(stateUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(parties.head, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(parties.head, 2L)), Seq(stateUUID), Seq(codeBox.id))
 
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
