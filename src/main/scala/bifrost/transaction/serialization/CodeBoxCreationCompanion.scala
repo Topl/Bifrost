@@ -1,7 +1,7 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.CodeBoxCreation
+import bifrost.transaction.bifrostTransaction.CodeCreation
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -9,11 +9,11 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object CodeBoxCreationCompanion extends Serializer[CodeBoxCreation]{
+object CodeBoxCreationCompanion extends Serializer[CodeCreation]{
 
-  override def toBytes(obj: CodeBoxCreation): Array[Byte] = {
+  override def toBytes(obj: CodeCreation): Array[Byte] = {
 
-    val typeBytes = "CodeBoxCreation".getBytes
+    val typeBytes = "CodeCreation".getBytes
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
@@ -28,7 +28,7 @@ object CodeBoxCreationCompanion extends Serializer[CodeBoxCreation]{
     )
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[CodeBoxCreation] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[CodeCreation] = Try {
 
     val typeLen: Int = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
@@ -59,7 +59,7 @@ object CodeBoxCreationCompanion extends Serializer[CodeBoxCreation]{
     val dataLen: Int = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
     val data: String = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + dataLen))
 
-    println(CodeBoxCreation(to, signature, code, fee, timestamp, data).json)
-    CodeBoxCreation(to, signature, code, fee, timestamp, data)
+    println(CodeCreation(to, signature, code, fee, timestamp, data).json)
+    CodeCreation(to, signature, code, fee, timestamp, data)
   }
 }

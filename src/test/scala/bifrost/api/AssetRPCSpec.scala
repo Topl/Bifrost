@@ -127,8 +127,8 @@ class AssetRPCSpec extends WordSpec
           10L,
           settings.version
         )
-        view.state.applyModifier(tempBlock)
-        view.pool.remove(txInstance)
+        view().state.applyModifier(tempBlock)
+        view().pool.remove(txInstance)
         //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }

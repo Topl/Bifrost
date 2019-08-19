@@ -32,19 +32,19 @@ class ProgramCallSpec extends WordSpec
 
       val programCallTemplate =
         s"""
-      {
-        "jsonrpc": "2.0",
-        "id": "1",
-        "method": "programCall",
-        "params": [{
-          "programId": "${Base58.encode(executionBox.id)}",
-          "stateVar": "a",
-          "fees": ${fees.asJson},
-          "timestamp": ${System.currentTimeMillis},
-          "data": ""
-        }]
-      }
-      """
+        {
+          "jsonrpc": "2.0",
+          "id": "1",
+          "method": "programCall",
+          "params": [{
+            "programId": "${Base58.encode(executionBox.id)}",
+            "stateVar": "a",
+            "fees": ${fees.asJson},
+            "timestamp": ${System.currentTimeMillis},
+            "data": ""
+          }]
+        }
+        """.stripMargin
 
       val requestBody = ByteString(programCallTemplate.stripMargin)
       httpPOST(requestBody) ~> route ~> check {

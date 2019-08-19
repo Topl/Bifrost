@@ -6,10 +6,8 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction._
 import bifrost.transaction.box.{ExecutionBox, ProfileBox, StateBox}
 import bifrost.wallet.BWallet
-import io.circe.optics.JsonPath._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json, JsonObject}
@@ -18,7 +16,7 @@ import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{ProfileTransaction, ProgramCreation, ProgramMethodExecution}
+import bifrost.transaction.bifrostTransaction.{CodeCreation, ProfileTransaction, ProgramCreation, ProgramMethodExecution}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
@@ -66,6 +64,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                     case "declareRole" => declareRole(params, reqId)
                     case "getRole" => getRole(params, reqId)
                     case "getProgramSignature" => getProgramSignature(params.head, reqId)
+                    case "createCode" => createCode(params.head, reqId)
                     case "createProgram" => createProgram(params.head, reqId)
                     case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
                     case "programCall" => programCall(params.head, reqId)
@@ -136,12 +135,34 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     }
   }
 
+  def createCode(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val owner = PublicKey25519Proposition(Base58.decode((params \\ "publicKey").head.asString.get).get)
+      val code: String = (params \\ "code").head.asString.get
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      val tx = CodeCreation.createAndApply(wallet, owner, code, fee, data).get
+
+      CodeCreation.validate(tx) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], CodeCreation](tx)
+          tx.json
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
   def createProgram(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val state = view.state
       val tx = createProgramInstance(params, state)
       ProgramCreation.validate(tx) match {
-        case Success(e) => log.info("Program creation validated successfully")
+        case Success(_) => log.info("Program creation validated successfully")
         case Failure(e) => throw e
       }
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramCreation](tx)
@@ -167,7 +188,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
       ProgramMethodExecution.validate(tx) match {
-        case Success(e) => log.info("Program method execution successfully validated")
+        case Success(_) => log.info("Program method execution successfully validated")
         case Failure(e) => throw e.getCause
       }
       tx.newBoxes.toSet

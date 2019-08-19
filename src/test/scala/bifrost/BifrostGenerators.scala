@@ -493,7 +493,7 @@ trait BifrostGenerators extends CoreGenerators {
     AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
-  lazy val codeBoxCreationGen: Gen[CodeBoxCreation] = for {
+  lazy val codeBoxCreationGen: Gen[CodeCreation] = for {
     to <- propositionGen
     signature <- signatureGen
     fee <- positiveLongGen
@@ -512,7 +512,7 @@ trait BifrostGenerators extends CoreGenerators {
         |}
       """.stripMargin
 
-    CodeBoxCreation(to, signature, code, fee, timestamp, data)
+    CodeCreation(to, signature, code, fee, timestamp, data)
   }
 
   lazy val programTransferGen: Gen[ProgramTransfer] = for {

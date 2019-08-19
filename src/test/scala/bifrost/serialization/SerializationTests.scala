@@ -251,9 +251,9 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("CodeBoxCreation Serialization") {
+  property("CodeCreation Serialization") {
     forAll(codeBoxCreationGen) {
-      ccc: CodeBoxCreation =>
+      ccc: CodeCreation =>
         val parsed = CodeBoxCreationCompanion
           .parseBytes(CodeBoxCreationCompanion.toBytes(ccc))
           .get
