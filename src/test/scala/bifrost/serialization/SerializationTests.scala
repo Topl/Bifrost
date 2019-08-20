@@ -215,18 +215,6 @@ class SerializationTests extends PropSpec
     }
   }*/
 
-  property("ProfileTransaction Serialization") {
-    forAll(profileTxGen) {
-      p: ProfileTransaction =>
-        val parsed = ProfileTransactionCompanion
-          .parseBytes(ProfileTransactionCompanion.toBytes(p))
-          .get
-
-        ProfileTransactionCompanion.toBytes(parsed) sameElements
-          ProfileTransactionCompanion.toBytes(p) shouldBe true
-    }
-  }
-
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
       ac: AssetCreation =>

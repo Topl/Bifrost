@@ -372,22 +372,6 @@ trait ValidGenerators extends BifrostGenerators {
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
 
-  lazy val validProfileTransactionGen: Gen[ProfileTransaction] = for {
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield {
-    val rnd = new Random
-    val keyValues = Map(
-      "role" -> ProfileBox.acceptableRoleValues.toVector(rnd.nextInt(ProfileBox.acceptableRoleValues.size))
-    )
-    val fromKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val from = fromKeyPairs._2
-    val signature = PrivateKey25519Companion
-      .sign(fromKeyPairs._1, ProfileTransaction.messageToSign(timestamp, from, keyValues))
-
-    ProfileTransaction(from, signature, keyValues, fee, timestamp)
-  }
-
   lazy val validAssetRedemptionGen: Gen[AssetRedemption] = for {
     assetLength <- positiveTinyIntGen
     hub <- propositionGen

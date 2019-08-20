@@ -457,18 +457,6 @@ trait BifrostGenerators extends CoreGenerators {
       data)
   }
 
-  lazy val profileTxGen: Gen[ProfileTransaction] = for {
-    from <- propositionGen
-    numKeys <- positiveMediumIntGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-  } yield {
-    val signature = sampleUntilNonEmpty(signatureGen)
-    val keyValues = (0 until numKeys).map { _ => (sampleUntilNonEmpty(stringGen), sampleUntilNonEmpty(stringGen)) }
-      .foldLeft[Map[String, String]](Map())((a, b) => a + b)
-    ProfileTransaction(from, signature, keyValues, fee, timestamp)
-  }
-
   lazy val assetRedemptionGen: Gen[AssetRedemption] = for {
     assetLength <- positiveTinyIntGen
     hub <- propositionGen
@@ -651,7 +639,7 @@ trait BifrostGenerators extends CoreGenerators {
 
   //TODO Add programCreationGen after fixing serialization
   val transactionTypes: Seq[Gen[BifrostTransaction]] =
-    Seq(polyTransferGen, arbitTransferGen, profileTxGen) //programCreationGen
+    Seq(polyTransferGen, arbitTransferGen) //programCreationGen
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen

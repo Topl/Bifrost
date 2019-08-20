@@ -1,6 +1,5 @@
 package bifrost.api.http
 
-import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
@@ -18,12 +17,11 @@ import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{CodeCreation, ProfileTransaction, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
+import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -63,7 +61,6 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                   require(params.size <= 5, s"size of params is ${params.size}")
 
                   (request \\ "method").head.asString.get match {
-                    case "declareRole" => declareRole(params, reqId)
                     case "getRole" => getRole(params, reqId)
                     case "getProgramSignature" => getProgramSignature(params.head, reqId)
                     case "createCode" => createCode(params.head, reqId)
@@ -87,31 +84,6 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
         }
       }
   }}
-
-  def declareRole(params: Vector[Json], id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      params.map { param =>
-        // parse the check for semantic validity
-        val pubKey = (param \\ "publicKey").head.asString.get
-        require(Base58.decode(pubKey).get.length == Curve25519.KeyLength)
-        val pubKeyProp = PublicKey25519Proposition(Base58.decode(pubKey).get)
-        val roleValue = (param \\ "role").head.asString.get
-        require(ProfileBox.acceptableRoleValues.contains(roleValue))
-        // Get the PrivateKey
-        val privKeySet = wallet.secrets.filter(secret => secret.publicImage.pubKeyBytes sameElements Base58.decode(pubKey).get)
-        require(privKeySet.nonEmpty, "Cannot Find an unlocked privateKey")
-        // create Transaction
-        val timestamp = System.currentTimeMillis()
-        val signature = PrivateKey25519Companion.sign(privKeySet.toSeq.head,
-          ProfileTransaction.messageToSign(timestamp, pubKeyProp,
-            Map("role" -> roleValue)))
-        val tx = ProfileTransaction(pubKeyProp, signature, Map("role" -> roleValue), 0L, timestamp)
-        nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProfileTransaction](tx)
-        tx.json
-      }.asJson
-    }
-  }
 
   def getRole(params: Vector[Json], id: String): Future[Json] = {
     viewAsync().map { view =>

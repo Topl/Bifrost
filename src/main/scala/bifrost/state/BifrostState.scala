@@ -157,7 +157,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case asT: AssetTransfer => validateAssetTransfer(asT)
       case cc: CodeCreation => validateCodeCreation(cc)
       case pc: ProgramCreation => validateProgramCreation(pc)
-      case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
       case ar: AssetRedemption => validateAssetRedemption(ar)
       case ac: AssetCreation => validateAssetCreation(ac)
@@ -318,32 +317,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
     }
     statefulValid.flatMap(_ => semanticValidity(ac))
-  }
-
-  /**
-    *
-    * @param pt : ProfileTransaction
-    * @return success or failure
-    */
-  def validateProfileTransaction(pt: ProfileTransaction): Try[Unit] = Try {
-    /* Make sure there are no existing boxes of the all fields in tx
-    *  If there is one box that exists then the tx is invalid
-    * */
-    val boxesExist: Boolean = pt.newBoxes.forall(curBox => {
-      if (curBox.isInstanceOf[ProfileBox]) {
-        val pBox = curBox.asInstanceOf[ProfileBox]
-        val boxBytes = storage.get(ByteArrayWrapper(ProfileBox.idFromBox(pBox.proposition, pBox.key)))
-        boxBytes match {
-          case None => false
-          case _ => ProfileBoxSerializer.parseBytes(boxBytes.get.data).isSuccess
-        }
-      } else {
-        false
-      }
-    })
-    require(!boxesExist)
-
-    semanticValidity(pt)
   }
 
   /**
@@ -660,7 +633,6 @@ object BifrostState extends ScorexLogging {
       case asT: AssetTransfer => AssetTransfer.validate(asT)
       case ac: AssetCreation => AssetCreation.validate(ac)
       case pc: ProgramCreation => ProgramCreation.validate(pc)
-      case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)
       case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
