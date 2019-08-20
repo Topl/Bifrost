@@ -93,5 +93,4 @@ class ProgramSpec extends PropSpec
       )
     } shouldBe a[Failure[_]]
   }
-
 }

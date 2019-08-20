@@ -35,7 +35,7 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
         val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
-          Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq("Number", "Number")))
+          Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq()))
 
         val stateBoxUuids = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),

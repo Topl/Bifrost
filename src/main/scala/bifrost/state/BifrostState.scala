@@ -155,7 +155,8 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
       case asT: AssetTransfer => validateAssetTransfer(asT)
-      case cc: ProgramCreation => validateProgramCreation(cc)
+      case cc: CodeCreation => validateCodeCreation(cc)
+      case pc: ProgramCreation => validateProgramCreation(pc)
       case prT: ProfileTransaction => validateProfileTransaction(prT)
       case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
       case ar: AssetRedemption => validateAssetRedemption(ar)
@@ -346,18 +347,42 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   /**
+    * Check the code is valid chain code and the newly created CodeBox is
+    * formed properly
+    *
+    * @param cc
+    * @return
+    */
+  def validateCodeCreation(cc: CodeCreation): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+      cc.newBoxes.size match {
+        //only one box should be created
+        case 1 => if (cc.newBoxes.head.isInstanceOf[CodeBox]) // the new box is a code box
+        {
+          Success[Unit](Unit)
+        }
+        else {
+          Failure(new Exception("Incorrect box type"))
+        }
+        case _ => Failure(new Exception("Incorrect number of boxes created"))
+      }
+    }
+    statefulValid.flatMap(_ => semanticValidity(cc))
+  }
+
+  /**
     * Validates ProgramCreation instance on its unlockers && timestamp of the program
     *
-    * @param cc : ProgramCreation object
+    * @param pc : ProgramCreation object
     * @return
     */
   //noinspection ScalaStyle
-  def validateProgramCreation(cc: ProgramCreation): Try[Unit] = {
+  def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
 
     /* First check to see all roles are present */
-    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cc.signatures.filter { case (prop, sig) =>
+    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = pc.signatures.filter { case (prop, sig) =>
       // Verify that this is being sent by this party because we rely on that during ProgramMethodExecution
-      sig.isValid(prop, cc.messageToSign)
+      sig.isValid(prop, pc.messageToSign)
 
     }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
 
@@ -376,13 +401,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
 
     /* Verifies that the role boxes match the roles stated in the program creation */
-    if (!roleBoxes.zip(cc.parties).forall { case (boxRole, propToRole) => boxRole.equals(propToRole._2.toString) }) {
+    if (!roleBoxes.zip(pc.parties).forall { case (boxRole, propToRole) => boxRole.equals(propToRole._2.toString) }) {
       log.debug("role boxes does not match the roles stated in the program creation")
       return Failure(
         new TransactionValidationException("role boxes does not match the roles stated in the program creation"))
     }
 
-    val unlockersValid: Try[Unit] = cc.unlockers
+    val unlockersValid: Try[Unit] = pc.unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { (unlockerValidity) =>
@@ -390,7 +415,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
             case Some(box) =>
               if (unlocker.boxKey.isValid(
                 box.proposition,
-                cc.messageToSign)) {
+                pc.messageToSign)) {
                 Success()
               } else {
                 Failure(new TransactionValidationException("Incorrect unlocker"))
@@ -402,13 +427,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     val statefulValid = unlockersValid flatMap { _ =>
 
-      val boxesAreNew = cc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
+      val boxesAreNew = pc.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
         case Some(_) => false
         case None => true
       })
 
-      val inPast = cc.timestamp <= timestamp
-      val inFuture = cc.timestamp >= Instant.now().toEpochMilli
+      val inPast = pc.timestamp <= timestamp
+      val inFuture = pc.timestamp >= Instant.now().toEpochMilli
       val txTimestampIsAcceptable = !(inPast || inFuture)
 
 
@@ -423,7 +448,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       }
     }
 
-    statefulValid.flatMap(_ => semanticValidity(cc))
+    statefulValid.flatMap(_ => semanticValidity(pc))
   }
 
   /**
@@ -634,7 +659,7 @@ object BifrostState extends ScorexLogging {
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case asT: AssetTransfer => AssetTransfer.validate(asT)
       case ac: AssetCreation => AssetCreation.validate(ac)
-      case cc: ProgramCreation => ProgramCreation.validate(cc)
+      case pc: ProgramCreation => ProgramCreation.validate(pc)
       case prT: ProfileTransaction => ProfileTransaction.validate(prT)
       case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
       case ar: AssetRedemption => AssetRedemption.validate(ar)

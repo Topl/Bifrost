@@ -43,7 +43,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    val allInvestorsSorted = parties.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
+    val allInvestorsSorted = parties.filter(_._2 == Role.Investor).sortBy(_._1.pubKeyBytes.toString)
 
     val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
       preInvestmentBoxes.map(n => {
@@ -139,7 +139,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
 
-        val boxBytes = ExecutionBoxSerializer.toBytes(executionBox)
         val stateBoxBytes = StateBoxSerializer.toBytes(stateBox)
         val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
         val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
