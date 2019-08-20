@@ -60,16 +60,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  private def getProfileBox(prop: PublicKey25519Proposition, field: String): Try[ProfileBox] = {
-    storage.get(ByteArrayWrapper(ProfileBox.idFromBox(prop, field))) match {
-      case Some(bytes) => ProfileBoxSerializer.parseBytes(bytes.data)
-      case None => Failure(new Exception(s"Couldn't find profile box for ${
-        Base58.encode(prop
-          .pubKeyBytes)
-      } with field <$field>"))
-    }
-  }
-
   override def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
@@ -352,34 +342,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
 
-    /* First check to see all roles are present */
-    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = pc.signatures.filter { case (prop, sig) =>
-      // Verify that this is being sent by this party because we rely on that during ProgramMethodExecution
-      sig.isValid(prop, pc.messageToSign)
-
-    }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
-
-    val roleBoxes: Iterable[String] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s
-      ._2.isSuccess => s._2.get.value
-    }
-
-    if (!Set(Role.Producer.toString, Role.Hub.toString, Role.Investor.toString).equals(roleBoxes.toSet)) {
-      log.debug(
-        "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid.")
-      return Failure(new Exception(
-        "Not all roles were fulfilled for this transaction. Either they weren't provided or the signatures were not valid."))
-    } else if (roleBoxes.size > 3) {
-      log.debug("Too many signatures for the parties of this transaction")
-      return Failure(new TransactionValidationException("Too many signatures for the parties of this transaction"))
-    }
-
-    /* Verifies that the role boxes match the roles stated in the program creation */
-    if (!roleBoxes.zip(pc.parties).forall { case (boxRole, propToRole) => boxRole.equals(propToRole._2.toString) }) {
-      log.debug("role boxes does not match the roles stated in the program creation")
-      return Failure(
-        new TransactionValidationException("role boxes does not match the roles stated in the program creation"))
-    }
-
     val unlockersValid: Try[Unit] = pc.unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
@@ -442,16 +404,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val executionBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
     val programProposition: PublicKey25519Proposition = executionBox.proposition
 
-    /* First check to see all roles are present */
-    val roleBoxAttempts: Map[PublicKey25519Proposition, Try[ProfileBox]] = cme.signatures.filter { case (prop, sig) =>
-      /* Verify that this is being sent by this party because we rely on that during ProgramMethodExecution */
-      sig.isValid(prop, cme.messageToSign)
-    }.map { case (prop, _) => (prop, getProfileBox(prop, "role")) }
-
-    val roleBoxes: Iterable[ProfileBox] = roleBoxAttempts collect { case s: (PublicKey25519Proposition, Try[ProfileBox]) if s
-      ._2.isSuccess => s._2.get
-    }
-
     /* This person belongs to program */
     if (!MultiSignature25519(cme.signatures.values.toSet).isValid(programProposition, cme.messageToSign)) {
 
@@ -459,19 +411,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       println(s">>>>> cme.signatures.keySet: ${cme.signatures.keySet}")
       println(s">>>>> cme.parties.keySet ${cme.parties.keySet}")
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
-    }
-
-    /* ProfileBox exists for all attempted signers */
-    if (roleBoxes.size != cme.signatures.size) {
-      throw new TransactionValidationException(
-        s"${Base58.encode(cme.parties.head._1.pubKeyBytes)} claimed ${cme.parties.head._1} role but didn't exist.")
-    }
-
-    /* Signatures match each profilebox owner */
-    if (!cme.signatures.values.zip(roleBoxes).forall { case (sig, roleBox) => sig.isValid(roleBox.proposition,
-      cme.messageToSign)
-    }) {
-      throw new TransactionValidationException(s"Not all signatures are valid for provided role boxes")
     }
 
     /* Roles provided by CME matches profileboxes */

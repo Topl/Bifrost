@@ -232,14 +232,6 @@ trait BifrostGenerators extends CoreGenerators {
     ReputationBox(proposition, nonce, (sampleUntilNonEmpty(doubleGen), sampleUntilNonEmpty(doubleGen)))
   }
 
-  lazy val profileBoxGen: Gen[ProfileBox] = for {
-    proposition <- propositionGen
-    value <- stringGen
-    field <- stringGen
-  } yield {
-    ProfileBox(proposition, 0L, value, field)
-  }
-
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
     value <- stringGen

@@ -233,22 +233,13 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = programCreation.signatures +
           (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        val invalidCC = programCreation.copy(signatures = wrongSigs)
+        val invalidPC = programCreation.copy(signatures = wrongSigs)
 
-        // TODO(balinskia): Which party is the investor
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
-
-        val profileBoxes: Set[ProfileBox] = programCreation
-          .parties
-          .map {
-            case (p: PublicKey25519Proposition, r: Role.Role) =>
-              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-          }
-          .toSet
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes,
+          preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec
@@ -256,7 +247,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
           .get
 
-        val newState = preparedState.validate(invalidCC)
+        val newState = preparedState.validate(invalidPC)
 
         BifrostStateSpec.genesisState = preparedState
           .rollbackTo(BifrostStateSpec.genesisBlockId)
@@ -264,48 +255,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         newState shouldBe a[Failure[_]]
 
-        newState.failed.get.getMessage shouldBe
-          "Not all roles were fulfilled for this transaction. " +
-            "Either they weren't provided or the signatures were not valid."
-    }
-  }
-
-  property("Attempting to validate a program creation tx without all roles should error") {
-    forAll(arbitraryPartyProgramCreationGen(Gen.choose(1, 2).sample.get)) {
-      cc: ProgramCreation =>
-
-        // TODO(balinskia): Which party is the investor
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
-
-        val profileBoxes: Set[ProfileBox] = cc
-          .parties
-          .map {
-            case (p: PublicKey25519Proposition, r: Role.Role) =>
-              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-          }
-          .toSet
-
-        val necessaryBoxesSC = BifrostStateChanges(
-          Set(),
-          preExistingPolyBoxes ++ profileBoxes,
-          Instant.now.toEpochMilli)
-
-        val preparedState = BifrostStateSpec
-          .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(26))
-          .get
-
-        val newState = preparedState.validate(cc)
-
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
-          .get
-
-        newState shouldBe a[Failure[_]]
-
-        newState.failed.get.getMessage shouldBe
-          "Not all roles were fulfilled for this transaction. " +
-            "Either they weren't provided or the signatures were not valid."
+        newState.failed.get.getMessage shouldBe "Incorrect unlocker"
     }
   }
 
@@ -348,11 +298,10 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
-        val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes,
+          preExistingPolyBoxes,
           cc.timestamp + Gen.choose(1L, Long.MaxValue - cc.timestamp - 1L).sample.get)
 
         val preparedState = BifrostStateSpec
@@ -378,9 +327,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
-        val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes ++ profileBoxes, cc.timestamp)
+        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
         val firstCCAddBlock = BifrostBlock(
           Array.fill(BifrostBlock.SignatureLength)(1: Byte),
@@ -422,17 +370,9 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
 
-        val profileBoxes: Set[ProfileBox] = cc
-          .parties
-          .map {
-            case (p: PublicKey25519Proposition, r: Role.Role) =>
-              ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
-          }
-          .toSet
-
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
-          preExistingPolyBoxes ++ profileBoxes,
+          preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
         val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(32)).get

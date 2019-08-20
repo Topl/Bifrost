@@ -7,7 +7,7 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ExecutionBox, ProfileBox, StateBox}
+import bifrost.transaction.box.{ExecutionBox, StateBox}
 import bifrost.wallet.BWallet
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -61,7 +61,6 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                   require(params.size <= 5, s"size of params is ${params.size}")
 
                   (request \\ "method").head.asString.get match {
-                    case "getRole" => getRole(params, reqId)
                     case "getProgramSignature" => getProgramSignature(params.head, reqId)
                     case "createCode" => createCode(params.head, reqId)
                     case "createProgram" => createProgram(params.head, reqId)
@@ -84,18 +83,6 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
         }
       }
   }}
-
-  def getRole(params: Vector[Json], id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val state = view.state
-      params.map { param =>
-        val pubKey = (param \\ "publicKey").head.asString.get
-        val prop = PublicKey25519Proposition(Base58.decode(pubKey).get)
-        val box = state.closedBox(ProfileBox.idFromBox(prop, "role")).get
-        box.json
-      }.asJson
-    }
-  }
 
   def getProgramSignature(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

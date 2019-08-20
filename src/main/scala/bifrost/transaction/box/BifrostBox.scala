@@ -4,7 +4,6 @@ import java.util.UUID
 
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._
@@ -13,7 +12,6 @@ import bifrost.serialization.Serializer
 import bifrost.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
-import scorex.utils.Booleans
 
 import scala.util.Try
 
@@ -52,7 +50,6 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
     case as: AssetBox => AssetBoxSerializer.toBytes(as)
-    case profileb: ProfileBox => ProfileBoxSerializer.toBytes(profileb)
     case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
     case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
@@ -69,7 +66,6 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
       case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
       case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
-      case "ProfileBox" => ProfileBoxSerializer.parseBytes(bytes)
       case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case "StateBox" => StateBoxSerializer.parseBytes(bytes)
       case "CodeBox" => CodeBoxSerializer.parseBytes(bytes)
@@ -167,84 +163,6 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
 
     AssetBox(params._1, params._2, params._3, asset, issuer, data)
   }
-}
-
-/**
-  *
-  * @param proposition
-  * @param nonce : place holder for now. Make it always zero
-  * @param value
-  * @param key   : Name of the profile attribute you wish to use for the box
-  */
-case class ProfileBox(proposition: PublicKey25519Proposition,
-                      override val nonce: Long,
-                      value: String,
-                      key: String) extends BifrostBox(proposition, nonce, value) {
-
-  lazy val id: Array[Byte] = ProfileBox.idFromBox(proposition, key)
-
-  val typeOfBox = "ProfileBox"
-
-  override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "type" -> "Profile".asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "value" -> value.asJson,
-    "key" -> key.asJson
-  ).asJson
-}
-
-object ProfileBox {
-
-  val acceptableKeys = Set("role")
-  val acceptableRoleValues = Set("investor", "hub", "producer")
-
-  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, field: String): Array[Byte] =
-    FastCryptographicHash(prop.pubKeyBytes ++ field.getBytes)
-
-  implicit val decodeProfileBox: Decoder[ProfileBox] = (c: HCursor) => for {
-    proposition <- c.downField("proposition").as[String]
-    value <- c.downField("value").as[String]
-    field <- c.downField("key").as[String]
-  } yield {
-    val pubkey = PublicKey25519Proposition(Base58.decode(proposition).get)
-    ProfileBox(pubkey, 0L, value, field)
-  }
-}
-
-object ProfileBoxSerializer extends Serializer[ProfileBox] {
-
-  def toBytes(obj: ProfileBox): Array[Byte] = {
-
-    val boxType = "ProfileBox"
-
-    Ints.toByteArray(boxType.getBytes.length) ++ boxType.getBytes ++
-      obj.proposition.pubKeyBytes ++
-      Ints.toByteArray(obj.value.getBytes.length) ++ obj.value.getBytes ++
-      Ints.toByteArray(obj.key.getBytes.length) ++ obj.key.getBytes
-  }
-
-  override def parseBytes(bytes: Array[Byte]): Try[ProfileBox] = Try {
-
-    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-
-    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-
-    var numReadBytes = Ints.BYTES + typeLen
-
-    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-
-    numReadBytes += Constants25519.PubKeyLength
-
-    val valueLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
-    val value = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + valueLen))
-
-    numReadBytes += Ints.BYTES + valueLen
-    val fieldLen = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
-    val field = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + fieldLen))
-    ProfileBox(pk, 0L, value, field)
-  }
-
 }
 
 case class ReputationBox(override val proposition: PublicKey25519Proposition,

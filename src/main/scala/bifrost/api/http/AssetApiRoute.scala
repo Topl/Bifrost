@@ -8,7 +8,6 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
 import bifrost.state.BifrostState
 import bifrost.transaction._
-import bifrost.transaction.box.ProfileBox
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse

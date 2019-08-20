@@ -82,20 +82,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("ProfileBox Serialization") {
-    forAll(profileBoxGen) {
-      b: ProfileBox =>
-        val json = b.json
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[ProfileBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
   property("StateBox Serialization") {
     forAll(stateBoxGen) {
       b: StateBox =>
