@@ -98,9 +98,9 @@ object CodeCreation {
                      data: String): Try[CodeCreation] = Try {
 
     val selectedSecret = w.secretByPublicImage(to).get
-    val fakeSigs = Signature25519(Array())
+    val fakeSig = Signature25519(Array())
     val timestamp = Instant.now.toEpochMilli
-    val messageToSign = CodeCreation(to, fakeSigs, code, fee, timestamp, data).messageToSign
+    val messageToSign = CodeCreation(to, fakeSig, code, fee, timestamp, data).messageToSign
 
     val signature = PrivateKey25519Companion.sign(selectedSecret, messageToSign)
 

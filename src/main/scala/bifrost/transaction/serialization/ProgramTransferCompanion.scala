@@ -1,8 +1,7 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.{BifrostTransaction, ProgramTransfer}
+import bifrost.transaction.bifrostTransaction.ProgramTransfer
 import bifrost.transaction.box.{ExecutionBox, ExecutionBoxSerializer}
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
@@ -20,8 +19,7 @@ object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
     Bytes.concat(
       Ints.toByteArray(typeBytes.length),
       typeBytes,
-      obj.from._1.pubKeyBytes,
-      Longs.toByteArray(obj.from._2),
+      obj.from.pubKeyBytes,
       obj.to.pubKeyBytes,
       obj.signature.signature,
       Ints.toByteArray(obj.executionBox.bytes.length),
@@ -40,15 +38,10 @@ object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
 
     var numReadBytes: Int = Ints.BYTES + typeLen
 
-    val from: (PublicKey25519Proposition, Nonce) = {
-      val prop = PublicKey25519Proposition(
+    val from: PublicKey25519Proposition = PublicKey25519Proposition(
         bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-      val nonce: Nonce = Longs.fromByteArray(
-        bytes.slice(numReadBytes + Constants25519.PubKeyLength, numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
-      (prop, nonce)
-    }
 
-    numReadBytes += Constants25519.PubKeyLength + Longs.BYTES
+    numReadBytes += Constants25519.PubKeyLength
 
     val to: PublicKey25519Proposition = PublicKey25519Proposition(
       bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))

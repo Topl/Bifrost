@@ -10,8 +10,6 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction.bifrostTransaction
-import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -52,7 +50,7 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   val settings_version0: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> (List(0,0,0).asJson))
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
 
     override lazy val Difficulty: BigInt = 1
   }
@@ -146,7 +144,7 @@ trait BifrostGenerators extends CoreGenerators {
   //noinspection ScalaStyle
   lazy val positiveTinyIntGen: Gen[Int] = Gen.choose(1, 10)
   lazy val positiveMediumIntGen: Gen[Int] = Gen.choose(1, 100)
-  val digitGen = Gen.choose(1, 9)
+  lazy val digitGen: Gen[Int] = Gen.choose(1, 9)
 
   //noinspection ScalaStyle
   lazy val numStringGen: Gen[String] = for {
@@ -516,7 +514,7 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val programTransferGen: Gen[ProgramTransfer] = for {
-    from <- fromGen
+    from <- propositionGen
     to <- propositionGen
     signature <- signatureGen
     executionBox <- executionBoxGen

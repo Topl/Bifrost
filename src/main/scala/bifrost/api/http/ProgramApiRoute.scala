@@ -1,5 +1,7 @@
 package bifrost.api.http
 
+import java.util.UUID
+
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
@@ -16,7 +18,7 @@ import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{CodeCreation, ProfileTransaction, ProgramCreation, ProgramMethodExecution}
+import bifrost.transaction.bifrostTransaction.{CodeCreation, ProfileTransaction, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.utils.ScorexLogging
@@ -66,6 +68,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                     case "getProgramSignature" => getProgramSignature(params.head, reqId)
                     case "createCode" => createCode(params.head, reqId)
                     case "createProgram" => createProgram(params.head, reqId)
+                    case "transferProgram" => transferProgram(params.head, reqId)
                     case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
                     case "programCall" => programCall(params.head, reqId)
                     case "filter" => bloomFilter(params, reqId)
@@ -166,6 +169,26 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
         case Failure(e) => throw e
       }
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramCreation](tx)
+      tx.json
+    }
+  }
+
+  def transferProgram(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val bfr = view.state.bfr
+      val from = PublicKey25519Proposition(Base58.decode((params \\ "from").head.asString.get).get)
+      val to = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
+      val executionBox = bfr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      val tx = ProgramTransfer.createAndApply(wallet, from, to, executionBox, fee, data).get
+
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramTransfer](tx)
       tx.json
     }
   }

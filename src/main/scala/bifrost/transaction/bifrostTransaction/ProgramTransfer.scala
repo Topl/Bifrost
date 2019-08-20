@@ -1,21 +1,25 @@
 package bifrost.transaction.bifrostTransaction
 
+import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.serialization.Serializer
-import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ExecutionBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramTransferCompanion
+import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-case class ProgramTransfer(from: (PublicKey25519Proposition, Nonce),
+import scala.util.Try
+
+case class ProgramTransfer(from: PublicKey25519Proposition,
                            to: PublicKey25519Proposition,
                            signature: Signature25519,
                            executionBox: ExecutionBox,
@@ -35,12 +39,12 @@ case class ProgramTransfer(from: (PublicKey25519Proposition, Nonce),
       ++ data.getBytes
   )
 
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(PublicKeyNoncedBox.idFromBox(from._1, from._2))
+  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
 
   override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
     if(signature.isInstanceOf[Signature25519])
     Seq(new BoxUnlocker[PublicKey25519Proposition] {
-      override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(from._1, from._2)
+      override val closedBoxId: Array[Byte] = executionBox.id
       override val boxKey: Signature25519 = signature
     })
     else Traversable()
@@ -70,11 +74,7 @@ case class ProgramTransfer(from: (PublicKey25519Proposition, Nonce),
     "txType" -> "ProgramTransfer".asJson,
     "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
     "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,
-    "from" ->
-      Map(
-        "proposition" -> Base58.encode(from._1.pubKeyBytes).asJson,
-        "nonce" -> from._2.asJson,
-      ).asJson,
+    "from" -> Base58.encode(from.pubKeyBytes).asJson,
     "to" -> Base58.encode(to.pubKeyBytes).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "fee" -> fee.asJson,
@@ -87,29 +87,28 @@ object ProgramTransfer {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  //TODO implement create and apply for ProgramTransfer
-  /*def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
-            to: IndexedSeq[(PublicKey25519Proposition, Value)],
-            fee: Long,
-            timestamp: Long,
-            data: String): ProgramTransfer = {
-    val params = parametersForApply(from, to, fee, timestamp, "ProgramTransfer", data).get
-    ProgramTransfer(params._1.head, to, params._2, fee, timestamp, data)
-  }
+  def createAndApply(w: BWallet,
+                     from: PublicKey25519Proposition,
+                     to: PublicKey25519Proposition,
+                     executionBox: ExecutionBox,
+                     fee: Long,
+                     data: String): Try[ProgramTransfer] = Try {
 
-  def create(bfr: BFR,
-             w: BWallet,
-             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             sender: IndexedSeq[PublicKey25519Proposition],
-             fee: Long, data: String): Try[ProgramTransfer] = Try {
-    val params = parametersForCreate(bfr, w, toReceive, sender, fee, "ProgramTransfer")
+    val selectedSecret = w.secretByPublicImage(from).get
+    val fakeSig = Signature25519(Array())
     val timestamp = Instant.now.toEpochMilli
-    ProgramTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+    val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
+
+    val signature = PrivateKey25519Companion.sign(selectedSecret, messageToSign)
+
+    ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }
-   */
 
   //TODO implement prototype tx
-  /*def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[PolyTransfer] = Try
+  /*def createPrototype(bfr: BFR,
+                      toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+                      sender: IndexedSeq[PublicKey25519Proposition],
+                      fee: Long, data: String): Try[PolyTransfer] = Try
   {
     val params = parametersForCreate(bfr, toReceive, sender, fee, "ProgramTransfer")
     val timestamp = Instant.now.toEpochMilli
@@ -117,7 +116,7 @@ object ProgramTransfer {
   }
    */
 
-  //def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
+ //def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
 
   //def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
 }
