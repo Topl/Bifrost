@@ -58,18 +58,3 @@ object BifrostTransaction {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 }
-
-
-
-
-
-
-
-
-
-object Role extends Enumeration {
-  type Role = Value
-  val Producer: Role = Value("producer")
-  val Investor: Role = Value("investor")
-  val Hub: Role = Value("hub")
-}

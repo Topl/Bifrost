@@ -163,7 +163,7 @@ class ProgramRPCSpec extends WordSpec
           "program": $program,
           "readOnlyStateBoxes": [],
           "preInvestmentBoxes": [],
-          "parties": ${Map(publicKeys("investor") -> "investor".asJson).asJson},
+          "owner": "${publicKeys("investor")}",
           "signatures": ${Map(publicKeys("investor") -> "".asJson).asJson},
           "preFeeBoxes": {
             "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]]

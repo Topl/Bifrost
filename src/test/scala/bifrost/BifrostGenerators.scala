@@ -9,7 +9,6 @@ import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import io.circe
@@ -275,12 +274,11 @@ trait BifrostGenerators extends CoreGenerators {
         codeBox_2.id))
   }
 
-  lazy val partiesGen: Gen[Map[PublicKey25519Proposition, Role]] = for {
+  // TODO refactor out partiesGen and replace with proposition
+  lazy val partiesGen: Gen[PublicKey25519Proposition] = for {
     a <- propositionGen
-    b <- propositionGen
-    c <- propositionGen
   } yield {
-    Map(a -> Role.Producer, b -> Role.Hub, c -> Role.Investor)
+    a
   }
 
   lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen)).map(seq => {
@@ -415,9 +413,9 @@ trait BifrostGenerators extends CoreGenerators {
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       parties,
-      parties.map({ case (k, _) => (k, sampleUntilNonEmpty(signatureGen)) }),
-      parties.map({ case (k, _) => k -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) } }),
-      parties.map({ case (k, _) => k -> sampleUntilNonEmpty(positiveTinyIntGen).toLong }),
+      Map(parties -> signatureGen.sample.get),
+      Map(parties -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
+      Map(parties -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
       timestamp,
       data)
   }
@@ -441,7 +439,7 @@ trait BifrostGenerators extends CoreGenerators {
       executionBox,
       methodName,
       parameters,
-      Map(sampleUntilNonEmpty(party) -> Gen.oneOf(Role.values.toSeq).sample.get),
+      party,
       Map(party -> sig),
       Map(party -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),

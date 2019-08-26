@@ -5,7 +5,6 @@ import java.util.UUID
 import bifrost.program.ExecutionBuilder
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
-import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ExecutionBox, PolyBox, StateBox}
@@ -26,7 +25,7 @@ import scala.util.Try
   * @param readOnlyStateBoxes a list of StateBoxes to be used in evaluating the program, but never mutated
   *                           beyond the context of the evaluation
   * @param preInvestmentBoxes a list of box nonces corresponding to the PolyBoxes to be used to fund the investment
-  * @param parties            a mapping specifying which public key should correspond with which role for this program
+  * @param owner              the public key used to sign and create newboxes
   * @param signatures         a mapping specifying the signatures by each public key for this transaction
   * @param preFeeBoxes        a mapping specifying box nonces and amounts corresponding to the PolyBoxes to be used to
   *                           pay fees for each party contributing fees
@@ -36,7 +35,7 @@ import scala.util.Try
 case class ProgramCreation(executionBuilder: ExecutionBuilder,
                            readOnlyStateBoxes: Seq[UUID],
                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
-                           parties: Map[PublicKey25519Proposition, Role],
+                           owner: PublicKey25519Proposition,
                            signatures: Map[PublicKey25519Proposition, Signature25519],
                            preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
                            fees: Map[PublicKey25519Proposition, Long],
@@ -48,11 +47,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
-  lazy val proposition = parties.head._1
-
   lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
     preInvestmentBoxes.map(n => {
-      PublicKeyNoncedBox.idFromBox(parties.head._1, n._1)})
+      PublicKeyNoncedBox.idFromBox(owner, n._1)})
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
@@ -60,13 +57,13 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     .map(id =>
            new BoxUnlocker[PublicKey25519Proposition] {
              override val closedBoxId: Array[Byte] = id
-             override val boxKey: Signature25519 = signatures(parties.head._1)
+             override val boxKey: Signature25519 = signatures(owner)
            }
     ) ++ feeBoxUnlockers
 
   lazy val hashNoNonces = FastCryptographicHash(
     ExecutionBuilderCompanion.toBytes(executionBuilder) ++
-      parties.toSeq.sortBy(_._2).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes) ++
+      owner.pubKeyBytes ++
       unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
@@ -79,33 +76,30 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
           ++ Ints.toByteArray(0))
       )
 
-    val stateBoxWithoutUUID = StateBox(proposition, stateNonce, null, executionBuilder.core.variables)
-    val stateBox = StateBox(proposition, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), executionBuilder.core.variables)
+    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)), executionBuilder.core.variables)
 
     IndexedSeq(stateBox)
   }
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
-//    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
+
+    val digest = FastCryptographicHash(owner.pubKeyBytes ++ hashNoNonces)
 
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
     val boxValue: Json = Map(
-        "parties" -> parties.map(kv => Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
+        "owner" -> Base58.encode(owner.pubKeyBytes).asJson,
         "executionBuilder" -> executionBuilder.json,
         "lastUpdated" -> timestamp.asJson
       ).asJson
 
-    val investor = parties.head
-    val investorProp = investor._1
-    val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(investorProp) ++ preInvestmentBoxes).toSet
+    val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(owner) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
-    val leftOver: Long = canSend - fees(investorProp)
+    val leftOver: Long = canSend - fees(owner)
 
     val investorNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("ProgramCreation".getBytes
-        ++ investorProp.pubKeyBytes
+        ++ owner.pubKeyBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
@@ -130,21 +124,16 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
 
-    val stateBoxWithoutUUID = StateBox(parties.head._1, stateNonce, null, executionBuilder.core.variables)
-    val stateBox = StateBox(parties.head._1, stateNonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id),executionBuilder.core.variables)
+    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)),executionBuilder.core.variables)
 
-    val codeBoxWithoutUUID = Seq(CodeBox(investorProp, codeNonce, null, executionBuilder.core.code.values.toSeq, executionBuilder.core.interface))
-    val codeBox: Seq[CodeBox] = codeBoxWithoutUUID.map(box => CodeBox(
-      investorProp, codeNonce, UUID.nameUUIDFromBytes(box.id), executionBuilder.core.code.values.toSeq, executionBuilder.core.interface))
-    val codeBoxIDs: Seq[Array[Byte]] = codeBox.map(cb => cb.id)
+    val codeBox = CodeBox(owner, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(owner, codeNonce)),
+      executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
     val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
-    val executionBoxWithoutUUID = ExecutionBox(proposition, execNonce, null, stateUUIDs, codeBoxIDs)
-    val executionBox = ExecutionBox(proposition, execNonce, UUID.nameUUIDFromBytes(executionBoxWithoutUUID.id), stateUUIDs, codeBoxIDs)
+    val executionBox = ExecutionBox(owner, execNonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(owner, execNonce)), stateUUIDs, Seq(codeBox.id))
 
-    val investorDeductedBoxes: PolyBox = PolyBox(investorProp, investorNonce, leftOver)
-    val nonInvestorDeductedBoxes: IndexedSeq[PolyBox] = deductedFeeBoxes(hashNoNonces).filter(_.proposition != investorProp)
+    val investorDeductedBoxes: PolyBox = PolyBox(owner, investorNonce, leftOver)
 
-    IndexedSeq(executionBox, stateBox) ++ codeBox ++ nonInvestorDeductedBoxes :+ investorDeductedBoxes
+    IndexedSeq(executionBox, stateBox, codeBox) :+ investorDeductedBoxes // nonInvestorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -163,7 +152,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderCompanion.toBytes(executionBuilder),
-    parties.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+    owner.pubKeyBytes,
     unlockers.toArray.flatMap(_.closedBoxId),
     data.getBytes
     //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
@@ -179,9 +168,7 @@ object ProgramCreation {
     val outcome = ExecutionBuilder.validate(tx.executionBuilder)
     require(outcome.isSuccess)
 
-    require(tx.parties.forall { case (proposition, _) =>
-      tx.signatures(proposition).isValid(proposition, tx.messageToSign)
-    }, "Not all signatures were valid")
+    require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign), "Not all signatures were valid")
 
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
@@ -189,14 +176,14 @@ object ProgramCreation {
     executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
     readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[UUID]]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
-    rawParties <- c.downField("parties").as[Map[String, String]]
+    rawOwner <- c.downField("owner").as[String]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
     rawFees <- c.downField("fees").as[Map[String, Long]]
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {
-    val commonArgs = ProgramTransaction.commonDecode(rawParties, rawSignatures, rawPreFeeBoxes, rawFees)
+    val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
     ProgramCreation(executionBuilder,
       readOnlyStateBoxes,
       preInvestmentBoxes,

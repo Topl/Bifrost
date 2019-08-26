@@ -1,7 +1,6 @@
 package bifrost.state
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.BifrostBox
 import bifrost.transaction.box.PolyBox
@@ -25,7 +24,7 @@ class ProgramSpec extends PropSpec
       } ++
       cc
         .preInvestmentBoxes
-        .map(b => PolyBox(cc.parties.head._1, b._1, b._2)))
+        .map(b => PolyBox(cc.owner, b._1, b._2)))
       .toSet
   }
 }

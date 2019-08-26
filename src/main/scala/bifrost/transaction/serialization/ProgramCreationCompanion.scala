@@ -4,7 +4,6 @@ import java.util.UUID
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
@@ -94,7 +93,7 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
     val data: String = new String(
       bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
 
-    val (parties: Map[PublicKey25519Proposition, Role],
+    val (owner: PublicKey25519Proposition,
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
@@ -103,7 +102,7 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
     //println(s">>>>>> programCreation.parseBytes: ${ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data).json}")
 
-    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data)
+    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }

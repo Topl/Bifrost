@@ -4,7 +4,6 @@ import java.util.UUID
 
 import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Longs}
@@ -26,8 +25,6 @@ import scala.util.{Failure, Random, Success, Try}
   * Created by cykoz on 5/11/2017.
   */
 trait ValidGenerators extends BifrostGenerators {
-
-  private val POSSIBLE_ROLES = Seq(Role.Producer, Role.Investor, Role.Hub)
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
     seqLen <- positiveMediumIntGen
@@ -63,22 +60,16 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen
     numInvestmentBoxes <- positiveTinyIntGen
     data <- stringGen
+    maxFee <- positiveTinyIntGen
   } yield {
     Try {
-      val allKeyPairs = (0 until 3).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
-      val parties = allKeyPairs.map(_._2)
+      val senderKeyPair = keyPairSetGen.sample.get.head
+      val sender = senderKeyPair._2
 
       val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until numInvestmentBoxes)
         .map { _ =>
           sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
         }
-
-      val partiesWithRoles: Map[PublicKey25519Proposition, Role.Role] = Map(allKeyPairs.head._2 -> Role.Investor) ++
-        allKeyPairs.drop(1).map(_._2)
-        .zip((Stream continually Random.shuffle(List(Role.Producer, Role.Hub))).flatten)
-        .map(t => t._1 -> t._2)
-
-      //val allInvestorsSorted = partiesWithRoles.filter(_._2 == Role.Investor).toSeq.sortBy(_._1.pubKeyBytes.toString)
 
       val state =
         s"""
@@ -95,37 +86,19 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBox = StateBox(parties.head, 0L, null, state)
-      val stateBoxTwo = StateBox(parties.head, 1L, null, stateTwo)
-      val stateBoxThree = StateBox(parties.head, 2L, null, stateThree)
+      val stateBox = StateBox(sender, 0L, null, state)
+      val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
+      val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
       val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-      val codeBox = CodeBox(parties.head, 3L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
+      val codeBox = CodeBox(sender, 3L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
       val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
-        .map(n => PublicKeyNoncedBox.idFromBox(parties(0), n._1))
+        .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
 
-      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
-        val sum = sampleUntilNonEmpty(Gen.choose(0L, Long.MaxValue))
-
-        splitAmongN(sum, parties.length, minShareSize = 0) match {
-          case Success(shares) => parties
-            .zip(shares)
-            .map {
-              case (party, share) =>
-                party -> (splitAmongN(share, sampleUntilNonEmpty(positiveTinyIntGen), minShareSize = 0) match {
-                  case Success(boxAmounts) => boxAmounts
-                  case f: Failure[_] => throw f.exception
-                })
-                  .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
-                  .toIndexedSeq
-            }
-            .toMap
-
-          case f: Failure[_] => throw f.exception
-        }
-      }
+      val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+        Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
 
 
       val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
@@ -142,23 +115,19 @@ trait ValidGenerators extends BifrostGenerators {
 
       val messageToSign = Bytes.concat(
         ExecutionBuilderCompanion.toBytes(executionBuilder),
-        partiesWithRoles.toSeq.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+        sender.pubKeyBytes,
         (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
         data.getBytes
       )
 
-      val signatures = allKeyPairs.map {
-        keypair =>
-          val sig = PrivateKey25519Companion.sign(keypair._1, messageToSign)
-          (keypair._2, sig)
-      }
+      val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
 
       ProgramCreation(
         executionBuilder,
         readOnlyUUIDs,
         preInvestmentBoxes,
-        partiesWithRoles,
-        signatures.toMap,
+        sender,
+        signature,
         feePreBoxes,
         fees,
         timestamp,
@@ -166,7 +135,7 @@ trait ValidGenerators extends BifrostGenerators {
       )
     } match {
       case Success(s) => s
-      case Failure(e) => println("FAIL"); throw e
+      case Failure(e) => throw e.getCause
     }
   }
 
@@ -190,10 +159,8 @@ trait ValidGenerators extends BifrostGenerators {
     timestamp <- positiveLongGen.map(_ / 3)
     data <- stringGen
   } yield {
-    val nrOfParties = 3 //Random.nextInt(1022) + 2
-    val allKeyPairs = (0 until nrOfParties).map(_ => sampleUntilNonEmpty(keyPairSetGen).head)
-    val parties = allKeyPairs.map(_._2)
-    val roles = (0 until nrOfParties).map(_ => Random.shuffle(POSSIBLE_ROLES).head)
+    val senderKeyPair = keyPairSetGen.sample.get.head
+    val sender = senderKeyPair._2
 
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
     var executionBuilderOpt = validExecutionBuilderGen().sample
@@ -202,20 +169,17 @@ trait ValidGenerators extends BifrostGenerators {
 
     val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(executionBuilder.core.registry.keys.toSeq))
 
-    val sender: (Role, (PrivateKey25519, PublicKey25519Proposition)) =
-      sampleUntilNonEmpty(Gen.oneOf(roles.zip(allKeyPairs)))
 
     val state = Map("a" -> "0").asJson
 
-    val stateBox = StateBox(sender._2._2, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender._2._2, 0L)), state)
-    val codeBox = CodeBox(sender._2._2, 1L,  UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender._2._2, 1L)),
+    val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
+    val codeBox = CodeBox(sender, 1L,  UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
       Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBoxWithoutUUID = ExecutionBox(parties.head, 2L, null, Seq(stateUUID), Seq(codeBox.id))
-    val executionBox = ExecutionBox(parties.head, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(parties.head, 2L)), Seq(stateUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
 
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
@@ -229,7 +193,7 @@ trait ValidGenerators extends BifrostGenerators {
       .map { boxAmount => sampleUntilNonEmpty(preFeeBoxGen(boxAmount, boxAmount)) }
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
-      Map(sender._2._2 -> feeBoxes.toIndexedSeq)
+      Map(sender -> feeBoxes.toIndexedSeq)
 
     val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
@@ -239,8 +203,8 @@ trait ValidGenerators extends BifrostGenerators {
           }
       }
 
-    val senderFeePreBoxes = feePreBoxes(sender._2._2)
-    val fees = Map(sender._2._2 -> senderFeePreBoxes.map(_._2).sum)
+    val senderFeePreBoxes = feePreBoxes(sender)
+    val fees = Map(sender -> senderFeePreBoxes.map(_._2).sum)
 
     /*val parameters = executionBuilder
       .core
@@ -256,7 +220,7 @@ trait ValidGenerators extends BifrostGenerators {
     val hashNoNonces = FastCryptographicHash(
       executionBox.id ++
         methodName.getBytes ++
-        sender._2._2.pubKeyBytes ++
+        sender.pubKeyBytes ++
         parameters.noSpaces.getBytes ++
         (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
         Longs.toByteArray(timestamp) ++
@@ -264,7 +228,7 @@ trait ValidGenerators extends BifrostGenerators {
     )
 
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
-    val signature = PrivateKey25519Companion.sign(sender._2._1, messageToSign)
+    val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
 
     bifrostTransaction.ProgramMethodExecution(
       stateBox,
@@ -272,8 +236,8 @@ trait ValidGenerators extends BifrostGenerators {
       executionBox,
       methodName,
       parameters,
-      Map(sender._2._2 -> sender._1),
-      Map(sender._2._2 -> signature),
+      sender,
+      signature,
       feePreBoxes,
       fees,
       timestamp,

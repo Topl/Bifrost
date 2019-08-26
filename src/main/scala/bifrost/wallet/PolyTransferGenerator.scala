@@ -43,9 +43,6 @@ object PolyTransferGenerator {
   case class StartGeneration(delay: FiniteDuration)
 
   def generateStatic(wallet: BWallet, bfr: BFR, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = {
-    println(s"Wallet's public keys: ${wallet.publicKeys}. Encoded form: ${
-      Base58.encode(wallet.publicKeys.toSeq.head.bytes)
-    }")
 
     val pubkeys: IndexedSeq[PublicKey25519Proposition] = wallet
       .publicKeys

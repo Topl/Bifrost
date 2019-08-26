@@ -44,7 +44,6 @@ class ProgramMethodSpec extends PropSpec
         )
 
         val result = Program.execute(stateBoxUuids, Seq(codeBox), "inc")(party)(params)
-        println(s"test result: $result")
 
         result.hcursor.get[Int]("a").right.get shouldEqual 1
       }
@@ -109,10 +108,6 @@ class ProgramMethodSpec extends PropSpec
         jsre.eval("js", programCode)
 
         val preExecution: Map[String, String] = bindings.getMemberKeys.toArray.map(k => k.toString -> bindings.getMember(k.toString).toString).toMap
-        println(s"preexecution: $preExecution")
-
-
-        println(jsre.eval("js", s"""a = getFromState(${args("uuid").get}, ${args("value").get})"""))
 
         jsre.eval("js", s"""a = getFromState(${args("uuid").get}, ${args("value").get})""")
 
@@ -120,12 +115,9 @@ class ProgramMethodSpec extends PropSpec
         val output: Map[String, String] = bindings.getMemberKeys.toArray.map(k => k.toString -> bindings.getMember(k.toString).toString).toMap
         //val output: Map[String, String] = mutableState.map(s => s._1 -> bindings.getMember(s._1).toString)
 
-        println(s"output: $output")
-
         output("a").toInt shouldEqual 4
 
         //val result = Program.execute(stateBoxUuids, Seq(codeBox), "getFromState")(party)(params)
-        //println(s"test result: $result")
       }
     }
   }
@@ -219,7 +211,6 @@ class ProgramMethodSpec extends PropSpec
         val prop = c.parties.head._1
 
         val state = c.executionBuilderObj.core.variables
-        println(s"state: ${state.toString}")
 
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson

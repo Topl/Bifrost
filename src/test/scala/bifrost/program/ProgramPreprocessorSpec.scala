@@ -141,7 +141,5 @@ class ProgramPreprocessorSpec extends PropSpec
        """.stripMargin
 
     val preprocessor = ProgramPreprocessor(name, easyScript)(JsonObject.empty)
-
-    println(s">>>>>>>> preprocessor output: ${preprocessor.asJson}")
   }
 }

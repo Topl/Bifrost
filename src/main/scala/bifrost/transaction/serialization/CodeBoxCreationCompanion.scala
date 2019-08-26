@@ -59,7 +59,6 @@ object CodeBoxCreationCompanion extends Serializer[CodeCreation]{
     val dataLen: Int = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
     val data: String = new String(bytes.slice(numReadBytes + Ints.BYTES, numReadBytes + Ints.BYTES + dataLen))
 
-    println(CodeCreation(to, signature, code, fee, timestamp, data).json)
     CodeCreation(to, signature, code, fee, timestamp, data)
   }
 }

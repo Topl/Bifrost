@@ -11,11 +11,11 @@ import io.iohk.iodb.ByteArrayWrapper
 import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.{ProgramCreation, Role}
+import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}
@@ -33,34 +33,21 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     numInvestmentBoxes <- positiveTinyIntGen
     data <- stringGen
   } yield {
-    val allKeyPairs = (0 until num).map(_ => keyPairSetGen.sample.get.head)
-
-    val roles = Random.shuffle(List(Role.Producer, Role.Hub))
-    val parties = IndexedSeq(allKeyPairs.head._2 -> Role.Investor) ++ allKeyPairs.drop(1).map(_._2)
-      .zip((Stream continually roles).flatten)
-      .map(t => t._1 -> t._2)
+    val (priv: PrivateKey25519, owner: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
 
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    val allInvestorsSorted = parties.filter(_._2 == Role.Investor).sortBy(_._1.pubKeyBytes.toString)
-
-    val investmentBoxIds: IndexedSeq[Array[Byte]] = // TODO(balinskia): Which party is the investor
+    val investmentBoxIds: IndexedSeq[Array[Byte]] =
       preInvestmentBoxes.map(n => {
-        PublicKeyNoncedBox.idFromBox(allInvestorsSorted.head._1, n._1)})
+        PublicKeyNoncedBox.idFromBox(owner, n._1)})
 
-    val feePreBoxes = parties
-      .map(_._1 -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
-      .toMap
+    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
+      Map(owner -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] =
-      feePreBoxes
-        .toIndexedSeq
-        .flatMap {
-          case (prop, v) => v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
-        }
+    val feePreBoxIds: IndexedSeq[Array[Byte]] = feePreBoxes(owner).map {
+      case (nonce, _) => PublicKeyNoncedBox.idFromBox(owner, nonce)
+    }
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -74,15 +61,15 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         prop -> possibleFeeValue
     }
 
-    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feePreBoxIds
 
     val messageToSign = Bytes.concat(
       ExecutionBuilderCompanion.toBytes(executionBuilder),
-      parties.sortBy(_._1.pubKeyBytes.mkString("")).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes),
+      owner.pubKeyBytes,
       //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
       boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
-    val signatures = allKeyPairs.map(keypair => PrivateKey25519Companion.sign(keypair._1, messageToSign))
+    val signature = Map(owner -> PrivateKey25519Companion.sign(priv, messageToSign))
 
     val stateTwo =
       s"""
@@ -94,8 +81,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
          |{ "c": 0 }
          """.stripMargin.asJson
 
-    val stateBoxTwo = StateBox(parties.head._1, 1L, null, stateTwo)
-    val stateBoxThree = StateBox(parties.head._1, 2L, null, stateThree)
+    val stateBoxTwo = StateBox(owner, 1L, null, stateTwo)
+    val stateBoxThree = StateBox(owner, 2L, null, stateThree)
 
     val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
@@ -103,8 +90,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
       executionBuilder,
       readOnlyUUIDs,
       preInvestmentBoxes,
-      parties.toMap,
-      allKeyPairs.map(_._2).zip(signatures).toMap,
+      owner,
+      signature,
       feePreBoxes,
       fees,
       timestamp,
@@ -134,7 +121,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
         val codeBox = programCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
-        val returnedPolyBoxes: Traversable[PolyBox] = programCreation.newBoxes.tail.drop(3).map {
+        val returnedPolyBoxes: Traversable[PolyBox] = programCreation.newBoxes.tail.drop(2).map {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
@@ -174,19 +161,13 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           case Some(wrapper) => wrapper.data sameElements stateBoxBytes
         })
 
-       println(stateBox.json)
-
         require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements codeBoxBytes
         })
 
-        println(codeBox.json)
-
         require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements executionBoxBytes
         })
-
-        println(executionBox.json)
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
         returnedPolyBoxes.map(_.value).sum shouldEqual
@@ -197,10 +178,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         programCreation.fees.foreach { case (prop, fee) =>
-
-          var isInvestor = 0L // 0L;
-
-          if(prop == programCreation.parties.head._1) isInvestor = 1L // TODO(balinskia): Which party is the investor)
 
           val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
 
@@ -295,7 +272,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
   {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
-        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
 
@@ -324,7 +300,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
              "with the same id as an existing program should error") {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
-        val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
 

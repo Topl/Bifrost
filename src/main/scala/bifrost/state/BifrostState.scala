@@ -407,9 +407,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     /* This person belongs to program */
     if (!MultiSignature25519(cme.signatures.values.toSet).isValid(programProposition, cme.messageToSign)) {
 
-      println(s">>>>> programProposition: ${programProposition.toString}")
-      println(s">>>>> cme.signatures.keySet: ${cme.signatures.keySet}")
-      println(s">>>>> cme.parties.keySet ${cme.parties.keySet}")
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
