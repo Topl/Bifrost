@@ -124,7 +124,7 @@ class DebugRPCSpec extends WordSpec
       }
     }
 
-    "Print the full chain" in {
+    /*"Print the full chain" in {
       val requestBody = ByteString(
         s"""
            |{
@@ -141,6 +141,7 @@ class DebugRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
+     */
 
     //Currently not implemented
 //    "Check if node is synced to canonical chain" in {

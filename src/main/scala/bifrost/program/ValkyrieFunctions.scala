@@ -158,11 +158,16 @@ object ValkyrieFunctions {
       println(s">>>>>>> truffleListener")
       new ExecutionEventListener {
         println(s">>>>>>>>>> new ExecutionListener")
-        override def onEnter(context: EventContext, frame: VirtualFrame): Unit = ???
+        override def onEnter(context: EventContext, frame: VirtualFrame): Unit = {
+          println()
+          println("Entered")
+          println()
+        }
 
         override def onReturnValue(context: EventContext, frame: VirtualFrame, result: Any): Unit = {
           println(s">>>>>>>>> onReturnValue")
           val source: String = context.getInstrumentedSourceSection.getCharacters.toString
+          println(source)
           source match {
             case "assetCreated" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ca")
             case "assetTransferred" => CompilerDirectives.transferToInterpreter(); throw context.createUnwind("ta")
@@ -177,6 +182,9 @@ object ValkyrieFunctions {
         override def onUnwind(context: EventContext, frame: VirtualFrame, info: Object): Object = {
           info match {
             case "ca" => {
+              println()
+              println("Matched Valkyrie return type correctly")
+              println()
               val jsonrpcParams =
                 s"""
                    |{

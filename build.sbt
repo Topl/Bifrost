@@ -52,6 +52,9 @@ val testingDependencies = Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
+
+
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",
@@ -102,9 +105,7 @@ scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
   "-Dcom.sun.management.jmxremote",
-  "-XX:+UnlockExperimentalVMOptions",
-  "-XX:+EnableJVMCI",
-  "-XX:+UseJVMCICompiler"
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0-SNAPSHOT-jar-with-dependencies.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
