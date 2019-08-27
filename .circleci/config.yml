@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     docker:
       # specify the version you desire here
-      - image: oracle/graalvm-ce:19.1.1
+      - image: oracle/graalvm-ce:19.2.0
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -33,6 +33,10 @@ jobs:
             yum install -y sbt git
 
       - checkout
+
+      - run:
+          name: Add Valkyrie instrument to boot classpath
+          command: cp ~/bifrost/lib/ValkyrieInstrument-1.0.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
 
       # Download and cache dependencies
       - restore_cache:
