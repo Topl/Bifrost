@@ -1,7 +1,7 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
-name := "project-bifrost"
+name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.7",
@@ -105,7 +105,7 @@ scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
   "-Dcom.sun.management.jmxremote",
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0-SNAPSHOT-jar-with-dependencies.jar"
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0-SNAPSHOT.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -132,10 +132,15 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case ps if ps.endsWith(".SF")      => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".xml")     => MergeStrategy.first
+    // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.class") => MergeStrategy.discard
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
   }
 }
