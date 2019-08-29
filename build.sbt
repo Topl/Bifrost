@@ -85,13 +85,13 @@ val consoleDependencies = Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.0.0"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.0.0"
+libraryDependencies += "org.graalvm.js" % "js" % "19.2.0"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.0.0"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 
 libraryDependencies ++= consoleDependencies
 
@@ -105,7 +105,7 @@ scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
   "-Dcom.sun.management.jmxremote",
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0-SNAPSHOT.jar"
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")

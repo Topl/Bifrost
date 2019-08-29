@@ -8,6 +8,7 @@ import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
 import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import org.graalvm.polyglot.{Context, Instrument}
+import com.oracle.truffle.polyglot._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.scalatest.{Matchers, PropSpec}
@@ -59,7 +60,6 @@ class ValkyrieSpec extends PropSpec
 
   property("Valkyrie function should generate new assetInstance") {
 
-
     val context: Context = Context
       .newBuilder("js")
       .option("Valkyrie", "true")
@@ -67,6 +67,7 @@ class ValkyrieSpec extends PropSpec
 
     val valkyrieController: ProgramController = ProgramController.find(context.getEngine) //context.getEngine.getInstruments.get("Valkyrie").lookup(classOf[ProgramController])
 
+    //println(s"${Class.forName("com/oracle/truffle/api/instrumentation/TruffleInstrument").toString}")
 
     assert(valkyrieController != null)
 

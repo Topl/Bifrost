@@ -19,7 +19,7 @@ jobs:
     environment:
       SBT_VERSION: 0.13.17
       # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3600m
+      JVM_OPTS: -Xmx3600m, -Xbootclasspath/a:lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar
       #SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
       TERM: dumb
     
@@ -36,7 +36,10 @@ jobs:
 
       - run:
           name: Add Valkyrie instrument to boot classpath
-          command: cp ~/bifrost/lib/ValkyrieInstrument-1.0.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
+          command: |
+            cp lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
+            ls /opt/graalvm-ce-19.2.0/jre/lib/boot
+            java -version
 
       # Download and cache dependencies
       - restore_cache:
