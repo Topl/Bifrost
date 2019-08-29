@@ -4,7 +4,7 @@ import bifrost.program.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer, PublicKey25519Proposition}
+import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -31,19 +31,6 @@ class SerializationTests extends PropSpec
 
         parsed.m shouldBe mn.m
         parsed.setOfPubKeyBytes should contain theSameElementsAs mn.setOfPubKeyBytes
-    }
-  }
-
-  property("ProgramBox Serialization") {
-    forAll(programBoxGen) {
-      b: ProgramBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        parsed.json.noSpaces shouldBe b.json.noSpaces
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -91,20 +78,6 @@ class SerializationTests extends PropSpec
           .get
 
         val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("ProfileBox Serialization") {
-    forAll(profileBoxGen) {
-      b: ProfileBox =>
-        val json = b.json
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[ProfileBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
         serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
     }
   }
@@ -228,18 +201,6 @@ class SerializationTests extends PropSpec
     }
   }*/
 
-  property("ProfileTransaction Serialization") {
-    forAll(profileTxGen) {
-      p: ProfileTransaction =>
-        val parsed = ProfileTransactionCompanion
-          .parseBytes(ProfileTransactionCompanion.toBytes(p))
-          .get
-
-        ProfileTransactionCompanion.toBytes(parsed) sameElements
-          ProfileTransactionCompanion.toBytes(p) shouldBe true
-    }
-  }
-
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
       ac: AssetCreation =>
@@ -247,10 +208,8 @@ class SerializationTests extends PropSpec
           .parseBytes(AssetCreationCompanion.toBytes(ac))
           .get
 
-        val acToBytes = AssetCreationCompanion.toBytes(parsed)
-
-
-        acToBytes sameElements AssetCreationCompanion.toBytes(ac) shouldBe true
+        AssetCreationCompanion.toBytes(parsed) sameElements
+          AssetCreationCompanion.toBytes(ac) shouldBe true
     }
   }
 
@@ -263,6 +222,30 @@ class SerializationTests extends PropSpec
 
         AssetRedemptionCompanion.toBytes(parsed) sameElements
           AssetRedemptionCompanion.toBytes(ar) shouldBe true
+    }
+  }
+
+  property("CodeCreation Serialization") {
+    forAll(codeBoxCreationGen) {
+      ccc: CodeCreation =>
+        val parsed = CodeBoxCreationCompanion
+          .parseBytes(CodeBoxCreationCompanion.toBytes(ccc))
+          .get
+
+        CodeBoxCreationCompanion.toBytes(parsed) sameElements
+          CodeBoxCreationCompanion.toBytes(ccc) shouldBe true
+    }
+  }
+
+  property("ProgramTransfer Serialization") {
+    forAll(programTransferGen) {
+      pt: ProgramTransfer =>
+        val parsed = ProgramTransferCompanion
+          .parseBytes(ProgramTransferCompanion.toBytes(pt))
+          .get
+
+        ProgramTransferCompanion.toBytes(parsed) sameElements
+          ProgramTransferCompanion.toBytes(pt) shouldBe true
     }
   }
 

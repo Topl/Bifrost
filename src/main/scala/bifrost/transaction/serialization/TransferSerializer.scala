@@ -15,10 +15,10 @@ trait TransferSerializer {
       typeBytes,
       Longs.toByteArray(tx.fee),
       Longs.toByteArray(tx.timestamp),
-      Ints.toByteArray(tx.signatures.length),
+      Ints.toByteArray(tx.signatures.size),
       Ints.toByteArray(tx.from.length),
       Ints.toByteArray(tx.to.length),
-      tx.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b.bytes),
+      tx.signatures.foldLeft(Array[Byte]())((a, b) => a ++ b._1.bytes ++ b._2.bytes),
       tx.from.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)),
       tx.to.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2))
     )
@@ -26,7 +26,7 @@ trait TransferSerializer {
 
   def parametersParseBytes(bytes: Array[Byte]): (IndexedSeq[(PublicKey25519Proposition, Long)],
     IndexedSeq[(PublicKey25519Proposition, Long)],
-    IndexedSeq[Signature25519], Long, Long) = {
+    Map[PublicKey25519Proposition, Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
@@ -46,11 +46,13 @@ trait TransferSerializer {
     numBytesRead += 2 * Ints.BYTES
 
     val signatures = (0 until sigLength) map { i =>
-      Signature25519(bytes.slice(numBytesRead + i * Curve25519.SignatureLength,
-        numBytesRead + (i + 1) * Curve25519.SignatureLength))
+      (PublicKey25519Proposition(bytes.slice(numBytesRead + i * (Curve25519.KeyLength + Curve25519.SignatureLength),
+        numBytesRead + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength)),
+      Signature25519(bytes.slice(numBytesRead + i * (Curve25519.KeyLength + Curve25519.SignatureLength) + Curve25519.KeyLength,
+        numBytesRead + (i+1) * (Curve25519.KeyLength + Curve25519.SignatureLength))))
     }
 
-    numBytesRead += sigLength * Curve25519.SignatureLength
+    numBytesRead += sigLength * (Curve25519.SignatureLength + Curve25519.KeyLength)
 
     val elementLength = Longs.BYTES + Curve25519.KeyLength
 
@@ -70,6 +72,6 @@ trait TransferSerializer {
       )
       (PublicKey25519Proposition(pk), v)
     }
-    (from, to, signatures, fee, timestamp)
+    (from, to, signatures.toMap, fee, timestamp)
   }
 }

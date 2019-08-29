@@ -14,8 +14,8 @@ abstract class GenericBoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]
   val newBoxes: Traversable[BX]
 
   override lazy val messageToSign: Array[Byte] =
-    (if(newBoxes.nonEmpty) newBoxes.map(_.bytes).reduce(_ ++ _) else Array[Byte]()) ++
-      unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
-      Longs.toByteArray(timestamp) ++
-      Longs.toByteArray(fee)
+    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
+      //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
 }

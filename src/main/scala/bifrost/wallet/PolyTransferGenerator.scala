@@ -2,11 +2,13 @@ package bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.bfr.BFR
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.transaction.bifrostTransaction.PolyTransfer
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,7 +27,7 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       context.system.scheduler.schedule(duration, duration, viewHolderRef, GetCurrentView)
 
     case CurrentView(_, state: BifrostState, wallet: BWallet, _) =>
-      generate(wallet) match {
+      generate(wallet, state.bfr, state.nodeKeys) match {
         case Success(tx) =>
           viewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
         case Failure(e) =>
@@ -33,26 +35,25 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       }
   }
 
-  def generate(wallet: BWallet): Try[PolyTransfer] = generateStatic(wallet)
+  def generate(wallet: BWallet, bfr: BFR, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = generateStatic(wallet, bfr, nodeKeys)
 }
 
 object PolyTransferGenerator {
 
   case class StartGeneration(delay: FiniteDuration)
 
-  def generateStatic(wallet: BWallet): Try[PolyTransfer] = {
-    println(s"Wallet's public keys: ${wallet.publicKeys}. Encoded form: ${
-      Base58.encode(wallet.publicKeys.toSeq.head.bytes)
-    }")
+  def generateStatic(wallet: BWallet, bfr: BFR, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = {
 
-    val pubkeys: Seq[PublicKey25519Proposition] = wallet
+    val pubkeys: IndexedSeq[PublicKey25519Proposition] = wallet
       .publicKeys
       .flatMap {
         case pkp: PublicKey25519Proposition => Some(pkp)
         case _ => None
-      }.toSeq
+      }.toIndexedSeq
+
+    pubkeys.foreach(key => if(!nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
 
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
-    PolyTransfer.create(wallet, IndexedSeq((recipient, Random.nextInt(100))), Random.nextInt(100), "")
+    PolyTransfer.create(bfr, wallet, IndexedSeq((recipient, Random.nextInt(100))), pubkeys, Random.nextInt(100), "")
   }
 }

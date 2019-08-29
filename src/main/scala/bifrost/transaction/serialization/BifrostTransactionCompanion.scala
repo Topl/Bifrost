@@ -11,7 +11,6 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
   override def toBytes(m: BifrostTransaction): Array[Byte] = m match {
     case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
-    case r: ProfileTransaction => ProfileTransactionCompanion.toBytes(r)
     case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
     case ac: AssetCreation => AssetCreationCompanion.toBytes(ac)
     case cb: CoinbaseTransaction => CoinbaseTransactionCompanion.toBytes(cb)
@@ -24,7 +23,6 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     typeStr match {
       case "ProgramTransaction" => ProgramTransactionCompanion.parseBytes(bytes).get
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
-      case "ProfileTransaction" => ProfileTransactionCompanion.parseBytes(bytes).get
       case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
       case "AssetCreation" => AssetCreationCompanion.parseBytes(bytes).get
       case "CoinbaseTransaction" => CoinbaseTransactionCompanion.parseBytes(bytes).get

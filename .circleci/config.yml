@@ -7,7 +7,7 @@ jobs:
   unit_tests:
     docker:
       # specify the version you desire here
-      - image: tuxman/graalvm:1.0.0-rc9
+      - image: oracle/graalvm-ce:19.2.0
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -17,13 +17,29 @@ jobs:
     working_directory: ~/repo
 
     environment:
+      SBT_VERSION: 0.13.17
       # Customize the JVM maximum heap limit
-      #JVM_OPTS: -Xmx3600m
-      SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
+      JVM_OPTS: -Xmx3600m, -Xbootclasspath/a:lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar
+      #SBT_OPTS: -XX:MaxMetaspaceSize=512M -Xmx6G # <- Graal is saying this is was deprecated
       TERM: dumb
     
     steps:
+
+      - run:
+          name: Get sbt binary
+          command: |
+            yum update -y
+            curl https://bintray.com/sbt/rpm/rpm | tee /etc/yum.repos.d/bintray-sbt-rpm.repo
+            yum install -y sbt git
+
       - checkout
+
+      - run:
+          name: Add Valkyrie instrument to boot classpath
+          command: |
+            cp lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
+            ls /opt/graalvm-ce-19.2.0/jre/lib/boot
+            java -version
 
       # Download and cache dependencies
       - restore_cache:

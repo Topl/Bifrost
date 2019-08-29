@@ -11,7 +11,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box._
-import bifrost.transaction.bifrostTransaction.{ProgramMethodExecution, Role}
+import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen

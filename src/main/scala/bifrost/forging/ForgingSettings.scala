@@ -30,8 +30,6 @@ trait ForgingSettings extends Settings with ForgingConstants {
     .map(x => FiniteDuration(x, MILLISECONDS))
     .getOrElse(30.second)
 
-  lazy val sbrDirOpt = folderOpt("sbrDir")
-
   val DefaultPosAttachmentSize = 1024
 
   lazy val version = settingsJSON

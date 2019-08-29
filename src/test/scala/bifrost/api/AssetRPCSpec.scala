@@ -68,8 +68,10 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
-  // TODO asset redemption does not work
   "Asset RPC" should {
+
+    // TODO asset redemption does not work
+/*
     "Redeem some assets" in {
       val requestBody = ByteString(
         s"""
@@ -82,12 +84,13 @@ class AssetRPCSpec extends WordSpec
            |   }]
            |}
         """.stripMargin)
-      //      httpPOST(requestBody) ~> route ~> check {
-      //        val res = parse(responseAs[String]).right.get
-      //        (res \\ "error").head.asObject.isDefined shouldBe true
-      //        (res \\ "result").isEmpty shouldBe true
-      //      }
+            httpPOST(requestBody) ~> route ~> check {
+              val res = parse(responseAs[String]).right.get
+              (res \\ "error").head.asObject.isDefined shouldBe true
+              (res \\ "result").isEmpty shouldBe true
+            }
     }
+*/
 
 
     "Create some assets" in {
@@ -115,14 +118,6 @@ class AssetRPCSpec extends WordSpec
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 
-        //        val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
-        //          txInstance.newBoxes.toSet,
-        //          System.currentTimeMillis())
-        //
-        //        view().state.applyChanges(boxSC, Ints.toByteArray(99)).get
-
-        //To update wallet correctly gw.scanPersistent needs to be used to manually add a block
-        // as opposed to creating a new state change like above
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,
           System.currentTimeMillis(),
@@ -132,8 +127,34 @@ class AssetRPCSpec extends WordSpec
           10L,
           settings.version
         )
-        gw.scanPersistent(tempBlock)
+        view().state.applyModifier(tempBlock)
+        view().pool.remove(txInstance)
         //Dont need further checks here since the subsequent tests would fail if this one did
+      }
+    }
+
+    "Create assets prototype" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "createAssetsPrototype",
+           |   "params": [{
+           |     "issuer": "${publicKeys("hub")}",
+           |     "recipient": "${publicKeys("investor")}",
+           |     "amount": 10,
+           |     "assetCode": "etherAssets",
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
 
@@ -146,6 +167,7 @@ class AssetRPCSpec extends WordSpec
            |   "method": "transferAssets",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
+           |      "sender": ["${publicKeys("investor")}", "${publicKeys("hub")}", "${publicKeys("producer")}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "amount": 1,
            |     "assetCode": "etherAssets",
@@ -162,23 +184,22 @@ class AssetRPCSpec extends WordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
+        val txInstance: BifrostTransaction = view.pool.getById(Base58.decode(txHash).get).get
+        view.pool.remove(txInstance)
       }
     }
 
-    "Transfer some assets from a specified public key in wallet" in {
+    "Create transfer assets prototype" in {
       val requestBody = ByteString(
         s"""
            |{
-           |
            |   "jsonrpc": "2.0",
            |   "id": "1",
-           |   "method": "transferAssets",
+           |   "method": "transferAssetsPrototype",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
+           |     "sender": ["${publicKeys("investor")}", "${publicKeys("hub")}", "${publicKeys("producer")}"],
            |     "recipient": "${publicKeys("producer")}",
-           |     "publicKeyToSendFrom": ["${publicKeys("investor")}", "${publicKeys("hub")}"],
            |     "amount": 5,
            |     "assetCode": "etherAssets",
            |     "fee": 0,
@@ -191,76 +212,13 @@ class AssetRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
-      }
-    }
-
-    "Transfer some asset from a specified public key and specify a change address" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "transferAssets",
-           |   "params": [{
-           |     "issuer": "${publicKeys("hub")}",
-           |     "recipient": "${publicKeys("hub")}",
-           |     "publicKeyToSendFrom": ["${publicKeys("investor")}"],
-           |     "publicKeyToSendChangeTo": "${publicKeys("producer")}",
-           |     "amount": 5,
-           |     "assetCode": "etherAssets",
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
-      }
-    }
-
-    "Transfer some assets and specify a change address but no sender" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "transferAssets",
-           |   "params": [{
-           |     "issuer": "${publicKeys("hub")}",
-           |     "recipient": "${publicKeys("hub")}",
-           |     "publicKeyToSendChangeTo": "${publicKeys("producer")}",
-           |     "amount": 5,
-           |     "assetCode": "etherAssets",
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-        view().pool.remove(txInstance)
       }
     }
   }
 
-  object AssetRPCSpec {
-    val path: Path = Path("/tmp/scorex/test-data")
-    Try(path.deleteRecursively())
+  override def afterAll() {
+    view.pool.unconfirmed.clear
+    println(s"${view.pool.take(1).toList}")
+    actorSystem.terminate
   }
 }

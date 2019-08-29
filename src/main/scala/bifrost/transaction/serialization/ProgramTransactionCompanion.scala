@@ -2,8 +2,6 @@ package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.Role.Role
-import bifrost.transaction._
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
@@ -15,9 +13,9 @@ import scala.util.Try
 
 object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
 
-  val typeBytes = "ProgramTransaction".getBytes
+  val typeBytes: Array[Byte] = "ProgramTransaction".getBytes
 
-  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
+  val prefixBytes: Array[Byte] = Ints.toByteArray(typeBytes.length) ++ typeBytes
 
   override def toBytes(m: ProgramTransaction): Array[Byte] = {
     prefixBytes ++
@@ -47,25 +45,17 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
   def commonToBytes(m: ProgramTransaction): Array[Byte] = {
 
     // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keySeq = (m.signatures.keySet ++ m.fees.keySet ++ m.parties.keys).map(v => ByteArrayWrapper(v.pubKeyBytes))
+    val keySeq = (m.signatures.keySet ++ m.fees.keySet).map(v => ByteArrayWrapper(v.pubKeyBytes))
       .toSeq.zipWithIndex
     val keyMapping: Map[ByteArrayWrapper, Int] = keySeq.toMap
 
     Bytes.concat(
       Longs.toByteArray(m.timestamp),
       Ints.toByteArray(m.signatures.size),
-      Ints.toByteArray(m.parties.size),
       Ints.toByteArray(m.preFeeBoxes.size),
       Ints.toByteArray(m.fees.size),
       Ints.toByteArray(keyMapping.size),
       keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1.data),
-      m.parties.foldLeft(Array[Byte]())((a, b) => {
-        a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1.pubKeyBytes))) ++ (b._2 match {
-          case Role.Producer => Ints.toByteArray(0)
-          case Role.Investor => Ints.toByteArray(1)
-          case Role.Hub => Ints.toByteArray(2)
-        })
-      }),
       m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
         .pubKeyBytes))) ++ b
         ._2.bytes),
@@ -81,7 +71,7 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
 
   //noinspection ScalaStyle
   def commonParseBytes(bytes: Array[Byte]): (
-      Map[PublicKey25519Proposition, Role],
+      PublicKey25519Proposition,
       Map[PublicKey25519Proposition, Signature25519],
       Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
       Map[PublicKey25519Proposition, Long],
@@ -95,14 +85,13 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
     numReadBytes += Longs.BYTES
 
     val Array(sigLength: Int,
-    partiesLength: Int,
     feePreBoxLength: Int,
     feesLength: Int,
-    keyMappingSize: Int) = (0 until 5).map { i =>
+    keyMappingSize: Int) = (0 until 4).map { i =>
       Ints.fromByteArray(bytes.slice(numReadBytes + i * Ints.BYTES, numReadBytes + (i + 1) * Ints.BYTES))
     }.toArray
 
-    numReadBytes += 5 * Ints.BYTES
+    numReadBytes += 4 * Ints.BYTES
 
     val keyMapping: Map[Int, PublicKey25519Proposition] = (0 until keyMappingSize).map { i =>
       i -> PublicKey25519Proposition(bytes.slice(numReadBytes + i * Constants25519.PubKeyLength,
@@ -111,21 +100,9 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
 
     numReadBytes += keyMappingSize * Constants25519.PubKeyLength
 
-    val roleTypes = Map[Int, Role.Role](
-      0 -> Role.Producer,
-      1 -> Role.Investor,
-      2 -> Role.Hub
-    )
+    val owner = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
 
-    val parties: Map[PublicKey25519Proposition, Role.Role] = (0 until partiesLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + 2 * i * Ints.BYTES,
-        numReadBytes + (2 * i + 1) * Ints.BYTES))
-      val roleInt = Ints.fromByteArray(bytes.slice(numReadBytes + (2 * i + 1) * Ints.BYTES,
-        numReadBytes + 2 * (i + 1) * Ints.BYTES))
-      keyMapping(pkInt) -> roleTypes(roleInt)
-    }.toMap
-
-    numReadBytes += partiesLength * (Ints.BYTES * 2)
+    numReadBytes += Constants25519.PubKeyLength
 
     val signatures: Map[PublicKey25519Proposition, Signature25519] = (0 until sigLength).map { i =>
       val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Curve25519.SignatureLength),
@@ -165,6 +142,6 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
       keyMapping(pkInt) -> fee
     }.toMap
 
-    (parties, signatures, feePreBoxes, fees, timestamp)
+    (owner, signatures, feePreBoxes, fees, timestamp)
   }
 }

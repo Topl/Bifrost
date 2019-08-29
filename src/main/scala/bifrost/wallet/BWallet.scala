@@ -221,6 +221,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
           !boxIdsToRemove.exists(_.data sameElements bi)
         }).flatten
     )
+//    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
+
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
     BWallet(secrets, store, defaultKeyDir)

@@ -1,7 +1,7 @@
 
 package bifrost.fork
 
-import bifrost.BifrostNodeViewHolder
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
@@ -13,7 +13,7 @@ import bifrost.transaction.proof.Signature25519
 import bifrost.validation.DifficultyBlockValidator
 import io.circe
 import io.circe.syntax._
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
@@ -21,8 +21,9 @@ import scala.util.{Failure, Success, Try}
 
 class ForkSpec extends PropSpec
   with Matchers
+  with BeforeAndAfterAll
+  with BifrostGenerators
 {
-
   val path: Path = Path("/tmp/scorex/test-data")
   Try(path.deleteRecursively())
 
@@ -51,8 +52,6 @@ class ForkSpec extends PropSpec
       0L,
       testSettings_version3.version)
 
-    val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings_version3)
-
     history = history.append(tempBlock_version3).get._1
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
@@ -63,13 +62,13 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
   }
 
   property("Appending version3 blocks after height = forkHeight should work") {
 
+    println(s"history.height: ${history.height}")
     for(i <- 2L to testSettings_version0.forkHeight) {
       val tempBlock = BifrostBlock(history.bestBlockId,
         System.currentTimeMillis(),
@@ -120,8 +119,7 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
 
     history.height shouldEqual testSettings_version0.forkHeight
@@ -131,6 +129,7 @@ class ForkSpec extends PropSpec
 
   property("Appending version0 blocks after height = forkHeight should fail") {
 
+    println(s"history.height: ${history.height}")
     Thread.sleep(1000)
     
     val tempBlock_version0 = BifrostBlock(history.bestBlockId,
@@ -153,13 +152,13 @@ class ForkSpec extends PropSpec
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
-      ),
-      sbr
+      )
     )
   }
 
   property("Appending version3 blocks after height = forkHeight and then appending a version0 block should fail") {
 
+    println(s"history.height: ${history.height}")
     Thread.sleep(1000)
 
     val tempBlock_version3 = BifrostBlock(history.bestBlockId,
@@ -210,13 +209,15 @@ class ForkSpec extends PropSpec
             new DifficultyBlockValidator(history.storage)
             //new ParentBlockValidator(storage),
             //new SemanticBlockValidator(FastCryptographicHash)
-          ),
-          sbr
+          )
         )
 
       case Failure(_) =>
     }
   }
-  
+
+  override def afterAll() {
+    history.storage.storage.close
+  }
 }
 

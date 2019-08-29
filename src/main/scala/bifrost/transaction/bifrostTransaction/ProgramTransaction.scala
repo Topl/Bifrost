@@ -2,7 +2,6 @@ package bifrost.transaction.bifrostTransaction
 
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
-import Role.Role
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BoxUnlocker, PolyBox}
@@ -17,7 +16,7 @@ import scala.util.Try
 
 abstract class ProgramTransaction extends BifrostTransaction {
 
-  def parties: Map[PublicKey25519Proposition, Role]
+  def owner: PublicKey25519Proposition
 
   def signatures: Map[PublicKey25519Proposition, Signature25519]
 
@@ -37,7 +36,7 @@ abstract class ProgramTransaction extends BifrostTransaction {
 
   lazy val commonJson: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
-    "parties" -> parties.map(kv =>Base58.encode(kv._1.pubKeyBytes) -> kv._2.toString).asJson,
+    "parties" -> Base58.encode(owner.pubKeyBytes).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson
     }.asJson,
@@ -87,7 +86,7 @@ abstract class ProgramTransaction extends BifrostTransaction {
 }
 
 object ProgramTransaction {
-  type PTS = Map[PublicKey25519Proposition, Role]
+  type O = PublicKey25519Proposition
   type SIG = Map[PublicKey25519Proposition, Signature25519]
   type FBX = Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
   type F = Map[PublicKey25519Proposition, Long]
@@ -120,11 +119,11 @@ object ProgramTransaction {
     require(tx.timestamp >= 0, "The timestamp was invalid")
   }
 
-  def commonDecode(rawParties: Map[String, String],
+  def commonDecode(rawOwner: String,
                    rawSignatures: RP,
                    rawFeeBoxes: Map[String, IndexedSeq[(Long, Long)]],
-                   rawFees: Map[String, Long]): (PTS, SIG, FBX, F) = {
-    val parties = rawParties.map { case (key, value) => (BifrostTransaction.stringToPubKey(key), Role.withName(value)) }
+                   rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
+    val owner = BifrostTransaction.stringToPubKey(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
       if (value == "") {
         (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
@@ -134,6 +133,6 @@ object ProgramTransaction {
     }
     val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (BifrostTransaction.stringToPubKey(key), value) }
     val fees = rawFees.map { case (key, value) => (BifrostTransaction.stringToPubKey(key), value) }
-    (parties, signatures, preFeeBoxes, fees)
+    (owner, signatures, preFeeBoxes, fees)
   }
 }

@@ -1,7 +1,7 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
-name := "project-bifrost"
+name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.7",
@@ -52,6 +52,9 @@ val testingDependencies = Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
+
+
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",
@@ -82,13 +85,13 @@ val consoleDependencies = Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.0.0"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.0.0"
+libraryDependencies += "org.graalvm.js" % "js" % "19.2.0"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.0.0"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 
 libraryDependencies ++= consoleDependencies
 
@@ -102,9 +105,7 @@ scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
   "-Dcom.sun.management.jmxremote",
-  "-XX:+UnlockExperimentalVMOptions",
-  "-XX:+EnableJVMCI",
-  "-XX:+UseJVMCICompiler"
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -131,10 +132,15 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case ps if ps.endsWith(".SF")      => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".xml")     => MergeStrategy.first
+    // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.class") => MergeStrategy.discard
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
   }
 }

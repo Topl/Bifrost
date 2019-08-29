@@ -2,11 +2,10 @@ package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.Role.Role
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.transaction.box.{ExecutionBox, ExecutionBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.box.{ProgramBox, ProgramBoxSerializer}
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
@@ -65,13 +64,13 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
 
     numReadBytes += parameterJsonLength
 
-    val programBox: ProgramBox = ProgramBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
+    val execBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
       numReadBytes + programBoxLength))
       .get
 
     numReadBytes += programBoxLength
 
-    val (parties: Map[PublicKey25519Proposition, Role],
+    val (owner: PublicKey25519Proposition,
     signatures: Map[PublicKey25519Proposition, Signature25519],
     feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
     fees: Map[PublicKey25519Proposition, Long],
@@ -85,7 +84,7 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
     val executionBox = ???
 
     bifrostTransaction.ProgramMethodExecution(stateBox, codeBox, executionBox, methodName,
-      parameters, parties, signatures, feePreBoxes, fees, timestamp, data)
+      parameters, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }

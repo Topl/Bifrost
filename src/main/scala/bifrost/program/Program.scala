@@ -3,16 +3,11 @@ package bifrost.program
 import java.util.UUID
 
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
-import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
-import bifrost.srb.StateBoxRegistry
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
-import io.circe.parser._
 import org.graalvm.polyglot.Context
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import io.iohk.iodb.LSMStore
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -110,10 +105,14 @@ object Program {
   //noinspection ScalaStyle
   def execute(stateBoxes: Seq[(StateBox, UUID)], codeBoxes: Seq[CodeBox], methodName: String)
              (party: PublicKey25519Proposition)
-             (args: JsonObject): Json /*Try[Either[Json, Json]]*/ = /*Try*/ {
+             (args: JsonObject): Json = {
 
-    val mutableState = stateBoxes.head._1.value.asObject.get.toMap
-    val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.value.foldLeft("")((a,b) => a ++ (b + "\n")))
+    val chainProgramInterface = createProgramInterface(codeBoxes)
+
+    methodCheck(methodName, args, chainProgramInterface)
+
+    val mutableState = stateBoxes.head._1.state.asObject.get.toMap
+    val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
     val jsre: Context = Context.create("js")
     val bindings = jsre.getBindings("js")
@@ -121,7 +120,7 @@ object Program {
     //Pass in JSON objects for each read-only StateBox
     stateBoxes.tail.map{ sb =>
       val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
-      jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.value})""")
+      jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.state})""")
     }
 
     //Inject function to read from read only StateBoxes
@@ -139,52 +138,54 @@ object Program {
       jsre.eval("js", s"${s._1} = ${s._2}")
     }
     jsre.eval("js", programCode)
-    println(s"Right after injecting function code, a = ${bindings.getMember("a")}")
 
     val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
     val paramString: String = if(params.nonEmpty) {
-      params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"$a, $b")
+      params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"""$a, $b""")
     } else ""
 
-    println(s"mutableState: ${mutableState}")
-    println(jsre.eval("js", "a"))
-
-    val methodString: String = s"this[$methodName]($paramString)"
+    println(s"mutableState: $mutableState")
 
     println(s"$methodName($paramString)")
-    if(params.nonEmpty) {
-      println(s"getFromState try: " + jsre.eval("js", s"getFromState(${params(0)}, ${params(1)})"))
-    }
-    println(jsre.eval("js", "a"))
 
     //Evaluate the method on the built script context
     jsre.eval("js", s"""$methodName($paramString)""")
 
-    val newState: Map[String, String] = mutableState.map { s =>
-      s._1 -> bindings.getMember(s._1).toString
-    }
-
     val checkState: Json = mutableState.map{ s =>
 
-      println(s"s._2.name: ${s._2.name}")
+        println(s"s._2.name: ${s._2.name}")
 
-      s._2.name match {
-        case "Number" => println("match: "+bindings.getMember(s._1).asInt()); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
-        case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
+        s._2.name match {
+          case "Number" => println(s"match: ${bindings.getMember(s._1).asInt()}"); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
+          case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
+          case _ => throw new NoSuchElementException
+        }
+      }.asJson
+
+      checkState
+  }
+
+  def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
+    val params: Seq[String] = interface(methodName)
+
+    args.toMap.zip(params).map{ p =>
+      p._1._2.name match {
+        case p._2 =>
+        case _ => throw new Exception("Argument types do not match chain program method parameter types")
       }
-    }.asJson
+    }
+  }
 
-
-    checkState
+  def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] = {
+    codeBoxes.foldLeft(Map[String, Seq[String]]())((a, b) => a ++ b.interface)
   }
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
-  val forgingSettings = new ForgingSettings {
+  /*val forgingSettings = new ForgingSettings {
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
   val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
   val storage: BifrostHistory = BifrostHistory.readOrGenerate(forgingSettings)
-
-  //def getStatebox(): StateBox =
+   */
 }
