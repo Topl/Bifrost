@@ -8,6 +8,7 @@ import bifrost.NodeViewModifier._
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
@@ -45,7 +46,8 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
               }
             }
             parsed match {
-              case Failure(e) => println(s"bytes.head: ${bytes.head}"); log.warn("Failed to parse bytes from db", e)
+              case Failure(e) =>
+                log.warn("Failed to parse bytes from db", e)
               case _ =>
             }
             parsed.toOption

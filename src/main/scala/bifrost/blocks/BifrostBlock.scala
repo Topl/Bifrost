@@ -18,6 +18,7 @@ import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics
 
+import scala.annotation.tailrec
 import scala.collection.BitSet
 import scala.util.Try
 
@@ -186,12 +187,14 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES
 
-    def unfoldLeft[A,B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
-      f(seed) match {
-        case Some((a, b)) => a +: unfoldLeft(b)(f)
-        case None => Nil
+    def unfoldLeft[A,B](seed: B)(f: B => Option[(B, A)]): Seq[A] = {
+      @tailrec
+      def loop(seed: B)(ls: Seq[A]): Seq[A] = f(seed) match {
+        case Some((b, a)) => loop(b)(a +: ls)
+        case None => ls
       }
-    }
+      loop(seed)(Nil)
+    }.reverse
 
     val txBytes: Array[Byte] = bytes.slice(numBytesRead, bytes.length)
 
@@ -204,9 +207,9 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
           None // we're done because we can't grab the number of bytes required
         } else {
           val thisTx: Array[Byte] = b.slice(Ints.BYTES, Ints.BYTES + bytesToGrab)
-          Some((thisTx, b.slice(Ints.BYTES + bytesToGrab, b.length)))
+          Some((b.slice(Ints.BYTES + bytesToGrab, b.length), thisTx))
         }
-          }.ensuring(_.length == numTxExpected)
+    }.ensuring(_.length == numTxExpected)
 
     val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
@@ -232,14 +235,18 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES
 
-    def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
-      f(seed) match {
-        case Some((a, b)) => a +: unfoldLeft(b)(f)
-        case None => Nil
+    def unfoldLeft[A,B](seed: B)(f: B => Option[(B, A)]): Seq[A] = {
+      @tailrec
+      def loop(seed: B)(ls: Seq[A]): Seq[A] = f(seed) match {
+        case Some((b, a)) => loop(b)(a +: ls)
+        case None => ls
       }
-    }
+      loop(seed)(Nil)
+    }.reverse
 
     val txBytes: Array[Byte] = bytes.slice(numBytesRead, bytes.length)
+
+    println(s"txBytes.length: ${txBytes.length}")
 
     val txByteSeq: Seq[Array[Byte]] = unfoldLeft(txBytes) {
       case b if b.length < Ints.BYTES => None
@@ -250,7 +257,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
           None // we're done because we can't grab the number of bytes required
         } else {
           val thisTx: Array[Byte] = b.slice(Ints.BYTES, Ints.BYTES + bytesToGrab)
-          Some((thisTx, b.slice(Ints.BYTES + bytesToGrab, b.length)))
+          Some((b.slice(Ints.BYTES + bytesToGrab, b.length), thisTx))
         }
     }.ensuring(_.length == numTxExpected)
 
