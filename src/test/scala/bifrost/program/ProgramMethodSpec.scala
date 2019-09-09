@@ -37,13 +37,9 @@ class ProgramMethodSpec extends PropSpec
         val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
           Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq()))
 
-        val stateBoxUuids = Seq(
-          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
-          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
-          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
-        )
+        val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
-        val result = Program.execute(stateBoxUuids, Seq(codeBox), "inc")(party)(params)
+        val result = Program.execute(stateBoxes, Seq(codeBox), "inc")(party)(params)
 
         result.hcursor.get[Int]("a").right.get shouldEqual 1
       }
@@ -68,27 +64,27 @@ class ProgramMethodSpec extends PropSpec
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
         ), Map("changeState" -> Seq("String", "String", "String")))
 
-        val stateBoxUuids = Seq(
+        val stateBoxes = Seq(
           (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
           (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
           (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
         )
 
         val args = JsonObject.fromMap(Map(
-            "uuid" -> s"_${stateBoxUuids.drop(1).head._2.toString.replace("-","_")}".asJson,
+            "uuid" -> s"_${stateBoxes.drop(1).head._2.toString.replace("-","_")}".asJson,
             "value" -> "b".asJson,
             "state" -> "a".asJson
           ))
 
 
-        val mutableState = stateBoxUuids.head._1.state.asObject.get.toMap
+        val mutableState = stateBoxes.head._1.state.asObject.get.toMap
         val programCode: String = Seq(codeBox).foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
         val jsre: Context = Context.create("js")
         val bindings = jsre.getBindings("js")
 
         //Pass in JSON objects for each read-only StateBox
-        stateBoxUuids.tail.map{ sb =>
+        stateBoxes.tail.map{ sb =>
           val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
           jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.state})""")
         }
@@ -117,7 +113,7 @@ class ProgramMethodSpec extends PropSpec
 
         output("a").toInt shouldEqual 4
 
-        //val result = Program.execute(stateBoxUuids, Seq(codeBox), "getFromState")(party)(params)
+        //val result = Program.execute(stateBoxes, Seq(codeBox), "getFromState")(party)(params)
       }
     }
   }
@@ -148,14 +144,10 @@ class ProgramMethodSpec extends PropSpec
              |}
            """.stripMargin), Map("changeType" -> Seq()))
 
-        val stateBoxUuids = Seq(
-          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
-          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
-          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
-        )
+        val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[ClassCastException] {
-          Program.execute(stateBoxUuids, Seq(codeBox), "changeType")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "changeType")(party)(params)
         }
       }
     }
@@ -187,14 +179,10 @@ class ProgramMethodSpec extends PropSpec
              |}
            """.stripMargin), Map("deleteVar" -> Seq()))
 
-        val stateBoxUuids = Seq(
-          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
-          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
-          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
-        )
+        val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[NullPointerException] {
-          Program.execute(stateBoxUuids, Seq(codeBox), "deleteVar")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "deleteVar")(party)(params)
         }
       }
     }
@@ -224,14 +212,10 @@ class ProgramMethodSpec extends PropSpec
              |}
            """.stripMargin), Map("add" -> Seq("Number", "Number")))
 
-        val stateBoxUuids = Seq(
-          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
-          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
-          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
-        )
+        val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[Exception] {
-          Program.execute(stateBoxUuids, Seq(codeBox), "add")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "add")(party)(params)
         }
       }
     }

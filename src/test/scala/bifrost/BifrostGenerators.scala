@@ -435,8 +435,7 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
 
     val state = (0 until stateBoxes).map { _ =>
-      val stateBox = sampleUntilNonEmpty(stateBoxGen)
-      stateBox -> stateBox.value
+      sampleUntilNonEmpty(stateBoxGen)
     }
 
     val code = (0 until codeBoxes).map { _ =>
