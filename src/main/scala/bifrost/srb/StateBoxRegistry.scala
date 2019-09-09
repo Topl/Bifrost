@@ -87,10 +87,10 @@ object StateBoxRegistry extends ScorexLogging {
       ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data)
 
   def readOrGenerate(settings: ForgingSettings): StateBoxRegistry = {
-    val dataDirOpt = settings.sbrDirOpt.ensuring(_.isDefined, "sbr dir must be specified")
-    val dataDir = dataDirOpt.get
+    val sbrDirOpt = settings.sbrDirOpt.ensuring(_.isDefined, "sbr dir must be specified")
+    val sbrDir = sbrDirOpt.get
     val logDirOpt = settings.logDirOpt
-    readOrGenerate(dataDir, logDirOpt, settings)
+    readOrGenerate(sbrDir, logDirOpt, settings)
   }
 
   def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): StateBoxRegistry = {
@@ -109,5 +109,6 @@ object StateBoxRegistry extends ScorexLogging {
 
     StateBoxRegistry(storage).get
   }
+
 
 }

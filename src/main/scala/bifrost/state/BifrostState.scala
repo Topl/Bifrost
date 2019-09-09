@@ -703,9 +703,9 @@ object BifrostState extends ScorexLogging {
         .data)
     }
 
-    val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).getOrElse(null)
-    val sbr = SBR.readOrGenerate(settings, stateStorage).getOrElse(null)
-    val bfr = BFR.readOrGenerate(settings, stateStorage).getOrElse(null)
+    val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
+    val sbr = SBR.readOrGenerate(settings, stateStorage).orNull
+    val bfr = BFR.readOrGenerate(settings, stateStorage).orNull
     if(sbr == null) log.info("Initializing state without sbr") else log.info("Initializing state with sbr")
     if(bfr == null) log.info("Initializing state without bfr") else log.info("Initializing state with bfr")
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")

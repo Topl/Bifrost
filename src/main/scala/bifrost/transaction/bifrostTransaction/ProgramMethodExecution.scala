@@ -6,7 +6,9 @@ import bifrost.program.Program
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import bifrost.forging.ForgingSettings
-import bifrost.srb.{SBR, StateBoxRegistry}
+import bifrost.history.BifrostHistory
+import bifrost.srb.SBR
+import bifrost.state.BifrostState
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
@@ -45,9 +47,11 @@ case class ProgramMethodExecution(stateBox: StateBox,
   //SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as parameters to transaction class
   //See static create function in companion object below
-  val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
 
-  val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.get(v).get._2.asInstanceOf[StateBox]).zip(executionBox.stateBoxUUIDs)
+  val history = BifrostHistory.readOrGenerate(forgingSettings)
+  val sbr: SBR = SBR.readOrGenerate(forgingSettings, history.storage.storage).get
+
+  val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.getBox(v).get.asInstanceOf[StateBox]).zip(executionBox.stateBoxUUIDs)
 
   val codeBoxes = executionBox.codeBoxIds
 

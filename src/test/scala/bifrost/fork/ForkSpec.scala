@@ -24,7 +24,7 @@ class ForkSpec extends PropSpec
   with BeforeAndAfterAll
   with BifrostGenerators
 {
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"

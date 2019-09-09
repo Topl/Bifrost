@@ -13,7 +13,7 @@ import org.scalatest._
 
 class Bip39Spec extends FlatSpec with Matchers {
 
-  val keyFileDir = "/tmp/scorex/test-data/keyfiles/bip39test"
+  val keyFileDir = "/tmp/bifrost/test-data/keyfiles/bip39test"
   val path: Path = Path(keyFileDir)
 
   // sample uuid string

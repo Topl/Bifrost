@@ -35,7 +35,7 @@ class NodeViewRPCSpec extends WordSpec
   with ScalatestRouteTest
   with BifrostGenerators {
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
@@ -225,6 +225,6 @@ class NodeViewRPCSpec extends WordSpec
 
 
 object NodeViewRPCSpec {
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 }

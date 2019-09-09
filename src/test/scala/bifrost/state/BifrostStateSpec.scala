@@ -260,7 +260,7 @@ object BifrostStateSpec {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)

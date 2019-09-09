@@ -31,7 +31,7 @@ import scala.util.Try
 trait ProgramMockState extends BifrostGenerators {
 
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)

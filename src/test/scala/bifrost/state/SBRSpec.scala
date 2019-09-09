@@ -26,7 +26,7 @@ class SBRSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  val path: Path = Path("/tmp/scorex/test-data")
+  val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
   val settingsFilename = "testSettings.json"

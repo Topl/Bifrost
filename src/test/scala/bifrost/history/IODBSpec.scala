@@ -21,7 +21,7 @@ class IODBSpec extends PropSpec
   with ValidGenerators {
 
 
-  val iFile = new File(s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}")
+  val iFile = new File(s"/tmp/bifrost/scorextest-${Random.nextInt(10000000)}")
   iFile.mkdirs()
   val blocksStorage = new LSMStore(iFile)
   blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())

@@ -41,7 +41,7 @@ trait Settings extends ScorexLogging {
     f.exists()
   }
 
-  private def folderOpt(settingName: String) = {
+  private def folderOpt(settingName: String): Option[String] = {
     val res = settingsJSON.get(settingName).flatMap(_.asString)
     res.foreach(folder => new File(folder).mkdirs())
     require(res.isEmpty || new File(res.get).exists())
@@ -56,12 +56,15 @@ trait Settings extends ScorexLogging {
 
   lazy val bfrDirOpt = folderOpt("bfrDir")
 
+  lazy val walletDirOpt = settingsJSON.get("walletDir").flatMap(_.asString)
+    .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
+
   lazy val nodeKeys = settingsJSON.get("nodeKeys").flatMap(_.asArray).map(_.flatMap(_.asString)).map(_.toSet)
 
   //p2p
   lazy val DefaultPort = 9084
 
-  lazy val DefaultHandshakleTimeout = 5000
+  lazy val DefaultHandshakeTimeout = 5000
 
   lazy val p2pSettings = settingsJSON("p2p").asObject.get.toMap
 
@@ -101,17 +104,14 @@ trait Settings extends ScorexLogging {
   lazy val handshakeTimeout: Int = p2pSettings.get("handshakeTimeout")
     .flatMap(_.asNumber)
     .flatMap(_.toInt)
-    .getOrElse(DefaultHandshakleTimeout)
+    .getOrElse(DefaultHandshakeTimeout)
 
   lazy val rpcPort = settingsJSON.get("rpcPort").flatMap(_.asNumber).flatMap(_.toInt).getOrElse(DefaultRpcPort)
 
   lazy val blockGenerationDelay: FiniteDuration = settingsJSON.get("blockGenerationDelay").flatMap(_.asNumber).flatMap(_.toLong)
     .map(x => FiniteDuration(x, MILLISECONDS)).getOrElse(DefaultBlockGenerationDelay)
 
-  lazy val mininigThreads: Int = settingsJSON.get("mininigThreads").flatMap(_.asNumber).flatMap(_.toInt).getOrElse(DefaultMiningThreads)
-
-  lazy val walletDirOpt = settingsJSON.get("walletDir").flatMap(_.asString)
-    .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
+  lazy val miningThreads: Int = settingsJSON.get("miningThreads").flatMap(_.asNumber).flatMap(_.toInt).getOrElse(DefaultMiningThreads)
 
   lazy val walletPassword = settingsJSON.get("walletPassword").flatMap(_.asString).getOrElse {
     scala.io.StdIn.readLine()
