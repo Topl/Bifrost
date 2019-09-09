@@ -20,8 +20,8 @@ import io.circe.syntax._
 
 import scala.util.Try
 
-case class ProgramMethodExecution(stateBox: StateBox,
-                                  codeBox: CodeBox,
+case class ProgramMethodExecution(state: Seq[(StateBox, UUID)],
+                                  code: Seq[CodeBox],
                                   executionBox: ExecutionBox,
                                   methodName: String,
                                   parameters: Json,
@@ -55,7 +55,7 @@ case class ProgramMethodExecution(stateBox: StateBox,
 
   val codeBoxes = executionBox.codeBoxIds
 
-  lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(stateBox.id)
+  lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(state.head._1.id)
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
@@ -81,7 +81,7 @@ case class ProgramMethodExecution(stateBox: StateBox,
 
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    val programResult: Json = Program.execute(uuidStateBoxes, Seq(codeBox), methodName)(owner)(parameters.asObject.get)
+    val programResult: Json = Program.execute(uuidStateBoxes, code, methodName)(owner)(parameters.asObject.get)
 
     val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, uuidStateBoxes.head._1.value, programResult)
 
@@ -89,8 +89,12 @@ case class ProgramMethodExecution(stateBox: StateBox,
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "stateBox" -> stateBox.json,
-    "codeBox" -> codeBox.json,
+    "stateBox" -> state.map {
+      sb => sb._1.json
+    }.asJson,
+    "codeBox" -> code.map {
+      cb => cb.json
+    }.asJson,
     "methodName" -> methodName.asJson,
     "methodParams" -> parameters
   )).asJson
@@ -129,9 +133,10 @@ object ProgramMethodExecution {
              timestamp: Long,
              data: String): Try[ProgramMethodExecution] = Try {
     val execBox = sbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
-    val stateBox = sbr.getBox(execBox.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
-    val codeBox = sbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
-    ProgramMethodExecution(stateBox, codeBox, execBox, methodName, parameters, owner, signatures, preFeeBoxes, fees, timestamp, data)
+    val state: Seq[(StateBox, UUID)] = execBox.stateBoxUUIDs.map(sb => sbr.getBox(sb).get.asInstanceOf[StateBox] -> sb)
+    //val codeBox = sbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
+    val code: Seq[CodeBox] = execBox.codeBoxIds.map(cb => sbr.getBox(UUID.nameUUIDFromBytes(cb)).get.asInstanceOf[CodeBox])
+    ProgramMethodExecution(state, code, execBox, methodName, parameters, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 
   def validate(tx: ProgramMethodExecution): Try[Unit] = Try {
@@ -142,8 +147,8 @@ object ProgramMethodExecution {
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
   implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] = (c: HCursor) => for {
-    stateBox <- c.downField("stateBox").as[StateBox]
-    codeBox <- c.downField("codeBox").as[CodeBox]
+    stateBox <- c.downField("stateBox").as[Seq[(StateBox, UUID)]]
+    codeBox <- c.downField("codeBox").as[Seq[CodeBox]]
     executionBox <- c.downField("executionBox").as[ExecutionBox]
     methodName <- c.downField("methodName").as[String]
     methodParams <- c.downField("methodParams").as[Json]

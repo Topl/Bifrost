@@ -189,8 +189,8 @@ class ProgramTransactionSpec extends PropSpec
     val signature = PrivateKey25519Companion.sign(priv, messageToSign)
 
     bifrostTransaction.ProgramMethodExecution(
-      stateBox,
-      codeBox,
+      Seq((stateBox -> stateBox.value)),
+      Seq(codeBox),
       executionBox,
       methodName,
       parameters,

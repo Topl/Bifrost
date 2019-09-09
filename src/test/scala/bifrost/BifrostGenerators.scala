@@ -422,9 +422,9 @@ trait BifrostGenerators extends CoreGenerators {
 
   lazy val programMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     methodName <- stringGen
-    stateBox <- stateBoxGen
+    stateBoxes <- positiveTinyIntGen
     executionBox <- executionBoxGen
-    codeBox <- codeBoxGen
+    codeBoxes <- positiveTinyIntGen
     parameters <- jsonArrayGen()
     sig <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
@@ -433,9 +433,19 @@ trait BifrostGenerators extends CoreGenerators {
     party <- propositionGen
     data <- stringGen
   } yield {
+
+    val state = (0 until stateBoxes).map { _ =>
+      val stateBox = sampleUntilNonEmpty(stateBoxGen)
+      stateBox -> stateBox.value
+    }
+
+    val code = (0 until codeBoxes).map { _ =>
+      sampleUntilNonEmpty(codeBoxGen)
+    }
+
     ProgramMethodExecution(
-      stateBox,
-      codeBox,
+      state,
+      code,
       executionBox,
       methodName,
       parameters,

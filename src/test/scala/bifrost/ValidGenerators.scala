@@ -231,8 +231,8 @@ trait ValidGenerators extends BifrostGenerators {
     val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
 
     bifrostTransaction.ProgramMethodExecution(
-      stateBox,
-      codeBox,
+      Seq((stateBox, stateBox.value)),
+      Seq(codeBox),
       executionBox,
       methodName,
       parameters,
