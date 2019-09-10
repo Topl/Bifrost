@@ -101,7 +101,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = Gen.alphaStr suchThat (!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaNumStr suchThat (!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -237,16 +237,24 @@ trait BifrostGenerators extends CoreGenerators {
     value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
-    val stateBoxWihtouUUID = StateBox(proposition, nonce, null, value.asJson)
-    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWihtouUUID.id), value.asJson)
+    val stateBoxWithoutUUID = StateBox(proposition, nonce, null, value.asJson)
+    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), value.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
     proposition <- propositionGen
-    value <- stringGen
     nonce <- positiveLongGen
+    methodLen <- positiveTinyIntGen //Gen.choose(0, 1024)
+    paramLen <- positiveTinyIntGen //Gen.choose(0, 1024)
   } yield {
-    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(proposition, nonce)), Seq(value), Map("" -> Seq(value)))
+
+    val methods: Seq[String] = Gen.containerOfN[Seq, String](methodLen, stringGen.sample.get).sample.get
+
+    val interface: Map[String, Seq[String]] = methods.map {
+      _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
+    }.toMap
+
+    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(proposition, nonce)), methods, interface)
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {

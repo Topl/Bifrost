@@ -721,8 +721,8 @@ object CodeBoxSerializer {
     takenBytes += Longs.BYTES
 
     val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
-      Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + 2*Longs.BYTES)))
-    takenBytes += Longs.BYTES*2
+      Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + 2 * Longs.BYTES)))
+    takenBytes += 2 * Longs.BYTES
 
     val codeLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
@@ -738,18 +738,20 @@ object CodeBoxSerializer {
     val interfaceLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
+    println(s"${interfaceLength}")
+
     val interface: Map[String, Seq[String]] = (0 until interfaceLength).map{ _ =>
 
-      val functionNamelength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+      val methodNameLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
       takenBytes += Ints.BYTES
 
-      val functionName = new String(obj.slice(takenBytes, takenBytes + functionNamelength))
-      takenBytes += functionNamelength * Ints.BYTES
+      val methodName = new String(obj.slice(takenBytes, takenBytes + methodNameLength))
+      takenBytes += methodNameLength
 
       val paramsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
       takenBytes += Ints.BYTES
 
-      val params: Seq[String] = (0 until paramsLength).map { i =>
+      val params: Seq[String] = (0 until paramsLength).map { _ =>
         val strLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
         takenBytes += Ints.BYTES
 
@@ -757,7 +759,7 @@ object CodeBoxSerializer {
         takenBytes += strLength
         str
       }
-      functionName -> params
+      methodName -> params
     }.toMap
 
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
