@@ -53,7 +53,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => println(s"${failure.getMessage()}");ApiException(failure.getCause)
+              case Left(failure) => ApiException(failure.getCause)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   reqId = (request \\ "id").head.asString.get
@@ -62,7 +62,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                   require(params.size <= 5, s"size of params is ${params.size}")
 
                   (request \\ "method").head.asString.get match {
-                    case "getProgramSignature" => println(s"match getProgramSignature");getProgramSignature(params.head, reqId)
+                    case "getProgramSignature" => getProgramSignature(params.head, reqId)
                     case "createCode" => createCode(params.head, reqId)
                     case "createProgram" => createProgram(params.head, reqId)
                     case "transferProgram" => transferProgram(params.head, reqId)
@@ -92,9 +92,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state
       val tx = createProgramInstance(params, state)
-      println(s"tx: $tx")
       val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
-      println(s"signature: $signature")
       Map("signature" -> Base58.encode(signature.signature).asJson,
         "tx" -> tx.json.asJson).asJson
     }
@@ -191,14 +189,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
         case Failure(e) => throw e.getCause
       }
 
-      println(s"tx.json: ${tx.json}")
-      println(s">>>>>>>>>>>>>>>>>")
-      println(s"tx.newBoxes: ${tx.newBoxes.toSeq}")
-
       tx.newBoxes.toSet
-
-      println(s"tx.json with newBoxes: ${tx.json}")
-
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)
       tx.json
     }
