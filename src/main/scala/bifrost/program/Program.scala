@@ -112,7 +112,7 @@ object Program {
 
     val mutableState: Map[String, Json] = stateBoxes.head.state.asObject.get.toMap
     val preparedState: String = mutableState.map { st =>
-      s"${st._1} = ${st._2}"
+      s"var ${st._1} = ${st._2}"
     }.mkString("\n")
 
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
@@ -157,9 +157,6 @@ object Program {
         case _ => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
       }
     }
-
-    println(s"mutable state: ${mutableState}")
-    println(s"returnState: ${returnState}")
 
     returnState.asJson
   }
