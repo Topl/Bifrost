@@ -35,7 +35,7 @@ class ProgramMethodSpec extends PropSpec
         val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
         val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
         val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
-          Seq("function inc() { a += 1; return a; }"), Map("inc" -> Seq()))
+          Seq("function inc() { a += 1; return a }"), Map("inc" -> Seq()))
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
@@ -121,11 +121,7 @@ class ProgramMethodSpec extends PropSpec
   property("Changing the type of a variable in a mutable StateBox will error") {
     forAll(programGen) {
       c: Program => {
-        val program = c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
-        /*val params = JsonObject.fromMap(
-          Map("newStatus" -> stringGen.sample.get.asJson))
-         */
         val params = JsonObject.empty
 
         val prop = c.parties.head._1
@@ -181,7 +177,7 @@ class ProgramMethodSpec extends PropSpec
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
-        intercept[NullPointerException] {
+        intercept[NoSuchElementException] {
           Program.execute(stateBoxes, Seq(codeBox), "deleteVar")(party)(params)
         }
       }

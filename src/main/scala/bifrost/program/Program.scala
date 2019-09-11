@@ -5,7 +5,7 @@ import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsing
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
-import org.graalvm.polyglot.Context
+import org.graalvm.polyglot.{Context, Value}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
@@ -106,15 +106,9 @@ object Program {
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json = {
 
-    println(s"entering Program.execute")
-
     val chainProgramInterface = createProgramInterface(codeBoxes)
 
     methodCheck(methodName, args, chainProgramInterface)
-
-    println(s"args: ${args.asJson}")
-    println(s"mutableState: ${stateBoxes.head.state.asObject.get.toMap}")
-    println(s">>>>>>>>>>>>>>>>>>>>>")
 
     val mutableState: Map[String, Json] = stateBoxes.head.state.asObject.get.toMap
     val preparedState: String = mutableState.map { st =>
@@ -123,13 +117,8 @@ object Program {
 
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
-    println(s"programCode: ${programCode}")
-
     val jsre: Context = Context.create("js")
-    println(s"jsre created")
     val bindings = jsre.getBindings("js")
-
-    println(s"before readonly stateBoxes")
 
     //Pass in JSON objects for each read-only StateBox
     stateBoxes.drop(1).foreach { sb =>
@@ -148,41 +137,34 @@ object Program {
     jsre.eval("js", getFromState)
 
     //Pass in writable state and functions
-    println(s"preparedState: ${preparedState}")
-    println(s"programCode: ${programCode}")
     jsre.eval("js", preparedState)
     jsre.eval("js", programCode)
-
-    println(s"params 1: ${args.asJson}")
-    println(s"params end: ${args.toMap.values.toArray.map(_.noSpaces)}")
 
     val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
     val paramString: String = if(params.nonEmpty) {
       params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"""$a, $b""")
     } else ""
 
-    println(s"mutableState: $mutableState")
-
-    println(s"$methodName($paramString)")
-
     //Evaluate the method on the built script context
     jsre.eval("js", s"""$methodName($paramString)""")
 
-    val checkState: Json = mutableState.map{ s =>
 
-        println(s"s._2.name: ${s._2.name}")
+    val returnState: Map[String, Json] = mutableState.map { s =>
+      val valueType: String = jsre.eval("js", s"typeof ${s._1}").asString
 
-        s._2.name match {
-          case "Number" => println(s"match: ${bindings.getMember(s._1).asInt()}"); s._1 -> JsonNumber.fromString(bindings.getMember(s._1).toString).get.asJson
-          case "String" => s._1 -> bindings.getMember(s._1).asString.asJson
-          case _ => throw new NoSuchElementException
-        }
-      }.asJson
+      bindings.getMember(s._1) match {
+        case value: Value => s._1 -> stateTypeCheck(s, value, valueType)
+        case _ => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
+      }
+    }
 
-      checkState
+    println(s"mutable state: ${mutableState}")
+    println(s"returnState: ${returnState}")
+
+    returnState.asJson
   }
 
-  def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
+  private def methodCheck(methodName: String, args: JsonObject, interface: Map[String, Seq[String]]): Unit = {
     val params: Seq[String] = interface(methodName)
 
     args.toMap.zip(params).map{ p =>
@@ -193,16 +175,20 @@ object Program {
     }
   }
 
-  def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] = {
+  private def stateTypeCheck(variable: (String, Json), member: Value, memberType: String): Json = {
+
+    if(variable._2.name == memberType.capitalize)
+      variable._2.name match {
+        //TODO Check for all valid JS types
+        case "Number" => JsonNumber.fromString(member.toString).get.asJson
+        case "String" => member.as(classOf[String]).asJson
+        case _ => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
+      }
+    else
+      throw new ClassCastException(s"""Updated state variable ${member} with type ${memberType} does not match original variable type of ${variable._2.name}""")
+  }
+
+  private def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] = {
     codeBoxes.foldLeft(Map[String, Seq[String]]())((a, b) => a ++ b.interface)
   }
-
-  // TODO Fix instantiation to handle runtime input and/or extract to a better location
-  /*val forgingSettings = new ForgingSettings {
-    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
-  }
-
-  val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(forgingSettings)
-  val storage: BifrostHistory = BifrostHistory.readOrGenerate(forgingSettings)
-   */
 }
