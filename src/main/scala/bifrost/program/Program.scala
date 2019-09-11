@@ -112,7 +112,7 @@ object Program {
 
     val mutableState: Map[String, Json] = stateBoxes.head.state.asObject.get.toMap
     val preparedState: String = mutableState.map { st =>
-      s"var ${st._1} = ${st._2}"
+      s"${st._1} = ${st._2}"
     }.mkString("\n")
 
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
