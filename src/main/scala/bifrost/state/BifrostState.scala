@@ -91,14 +91,14 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val keyFilteredBoxesToAdd =
       if(nodeKeys != null)
         changes.toAppend
-        .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
+          .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
       else
         changes.toAppend
 
     val keyFilteredBoxIdsToRemove =
       if(nodeKeys != null)
         changes.boxIdsToRemove
-        .flatMap(closedBox(_))
+        .flatMap(closedBox)
         .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
         .map(b => b.id)
       else
@@ -386,80 +386,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(pc))
   }
 
-  /**
-    *
-    * @param cme : the ProgramMethodExecution to validate
-    * @return
-    */
-  //noinspection ScalaStyle
-  def validateContractMethodExecution(cme: ProgramMethodExecution): Try[Unit] = Try {
-
-    val executionBoxBytes = storage.get(ByteArrayWrapper(cme.executionBox.id))
-
-    /* Program exists */
-    if (executionBoxBytes.isEmpty) {
-      throw new TransactionValidationException(s"Program ${Base58.encode(cme.executionBox.id)} does not exist")
-    }
-
-    val executionBox: ExecutionBox = ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
-    val programProposition: PublicKey25519Proposition = executionBox.proposition
-
-    /* This person belongs to program */
-    if (!MultiSignature25519(cme.signatures.values.toSet).isValid(programProposition, cme.messageToSign)) {
-
-      throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
-    }
-
-    /* Roles provided by CME matches profileboxes */
-    /* TODO check roles
-    if (!roleBoxes.forall(rb => rb.value match {
-      case "producer" => cme.parties.get(Role.Producer).isDefined && (cme.parties(Role.Producer).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-      case "investor" => cme.parties.get(Role.Investor).isDefined && (cme.parties(Role.Investor).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-      case "hub" => cme.parties.get(Role.Hub).isDefined && (cme.parties(Role.Hub).pubKeyBytes sameElements rb.proposition.pubKeyBytes)
-      case _ => false
-    }))
-      throw new IllegalAccessException(s"Not all roles are valid for signers")
-    */
-    /* Handles fees */
-    val boxesSumMapTry: Try[Map[PublicKey25519Proposition, Long]] = {
-      cme.unlockers
-        .tail
-        .foldLeft[Try[Map[PublicKey25519Proposition, Long]]](Success(Map()))((partialRes, unlocker) => {
-        partialRes
-          .flatMap(_ => closedBox(unlocker.closedBoxId) match {
-            case Some(box: PolyBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, cme.messageToSign)) {
-                partialRes.get.get(box.proposition) match {
-                  case Some(total) => Success(partialRes.get + (box.proposition -> (total + box.value)))
-                  case None => Success(partialRes.get + (box.proposition -> box.value))
-                }
-              } else {
-                Failure(new TransactionValidationException("Incorrect unlocker"))
-              }
-            case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
-          })
-      })
-    }
-
-    /* Incorrect unlocker or box provided, or not enough to cover declared fees */
-    if (boxesSumMapTry.isFailure || !boxesSumMapTry.get.forall { case (prop, amount) => cme.fees.get(prop) match {
-      case Some(fee) => amount >= fee
-      case None => true
-    }
-    }) {
-      throw new TransactionValidationException("Insufficient balances provided for fees")
-    }
-
-    /* Timestamp is after most recent block, not in future */
-    if (cme.timestamp <= timestamp) {
-      throw new TransactionValidationException("ProgramMethodExecution attempts to write into the past")
-    }
-    if (cme.timestamp > Instant.now.toEpochMilli) {
-      throw new TransactionValidationException("ProgramMethodExecution timestamp is too far into the future")
-    }
-  }.flatMap(_ => semanticValidity(cme))
-
-
   //noinspection ScalaStyle
   def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
     //TODO get execution box from box registry using UUID before using its actual id to get it from storage
@@ -504,7 +430,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
 
     val statefulValid = unlockersValid flatMap { _ =>
-      //Checks that newBoxes being created dont already exists
+      //Checks that newBoxes being created don't already exist
       val boxesAreNew = pme.newBoxes.forall(curBox => storage.get(ByteArrayWrapper(curBox.id)) match {
         case Some(_) => false
         case None => true

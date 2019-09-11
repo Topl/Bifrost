@@ -115,7 +115,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        // TODO(balinskia): Which party is the investor
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
 
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]

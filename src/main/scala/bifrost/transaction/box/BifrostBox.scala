@@ -738,8 +738,6 @@ object CodeBoxSerializer {
     val interfaceLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
     takenBytes += Ints.BYTES
 
-    println(s"${interfaceLength}")
-
     val interface: Map[String, Seq[String]] = (0 until interfaceLength).map{ _ =>
 
       val methodNameLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))

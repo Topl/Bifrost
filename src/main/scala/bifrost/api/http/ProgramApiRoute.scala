@@ -7,11 +7,12 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ExecutionBox, StateBox}
+import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
 import bifrost.wallet.BWallet
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json, JsonObject}
+import io.circe.literal._
+import io.circe.{Decoder, Json, JsonObject}
 import io.swagger.annotations._
 import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
@@ -157,16 +158,30 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
   def executeProgramMethod(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-      val modifiedParams: Json = replaceBoxIdWithBox(view.state, params, "executionBox")
-      val cme = try{
-        modifiedParams.as[ProgramMethodExecution]
-      } catch {
-        case e: Exception => e.getCause
+      val signingPublicKey = (params \\ "owner").head.asString.get
+
+      //TODO Replace with method to return all boxes from program box registry
+      val executionBox = programBoxId2Box(view.state, (params \\ "programId").head.asString.get).asInstanceOf[ExecutionBox]
+      val state: Seq[StateBox] = executionBox.stateBoxUUIDs.map { sb =>
+        view.state.sbr.getBox(sb).get.asInstanceOf[StateBox]
       }
+      val code: Seq[CodeBox] = executionBox.codeBoxIds.map { cb =>
+        //programBoxId2Box(view.state, Base58.encode(cb)).asInstanceOf[CodeBox]
+        view.state.closedBox(cb).get.asInstanceOf[CodeBox]
+      }
+
+      val programJson: Json =
+        json"""{
+            "executionBox": ${executionBox.json},
+            "state": ${state.map(sb => sb.json).asJson},
+            "code": ${code.map(cb => cb.json).asJson}
+            }"""
+
+      val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
+
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ProgramMethodExecution] match {
-        case Right(c: ProgramMethodExecution) => c
+        case Right(p: ProgramMethodExecution) => p
         case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
@@ -175,7 +190,15 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
         case Success(_) => log.info("Program method execution successfully validated")
         case Failure(e) => throw e.getCause
       }
+
+      println(s"tx.json: ${tx.json}")
+      println(s">>>>>>>>>>>>>>>>>")
+      println(s"tx.newBoxes: ${tx.newBoxes.toSeq}")
+
       tx.newBoxes.toSet
+
+      println(s"tx.json with newBoxes: ${tx.json}")
+
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)
       tx.json
     }
@@ -207,12 +230,9 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     }
   }
 
-  private def replaceBoxIdWithBox(state: BifrostState, json: Json, fieldName: String): Json = {
-    val boxId = (json \\ fieldName).head.asString.get
-    val boxInstance = state.closedBox(Base58.decode(boxId).get)
-
-    val cursor: HCursor = json.hcursor
-    cursor.downField(fieldName).withFocus(b => boxInstance.get.json).top.get
+  //TODO Return ProgramBox instead of BifrostBox
+  private def programBoxId2Box(state: BifrostState, boxId: String): BifrostBox = {
+    state.closedBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle

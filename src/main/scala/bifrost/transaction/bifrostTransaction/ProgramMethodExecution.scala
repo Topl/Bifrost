@@ -8,7 +8,6 @@ import BifrostTransaction.Nonce
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.srb.SBR
-import bifrost.state.BifrostState
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
@@ -24,7 +23,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
                                   code: Seq[CodeBox],
                                   executionBox: ExecutionBox,
                                   methodName: String,
-                                  parameters: Json,
+                                  methodParams: Json,
                                   owner: PublicKey25519Proposition,
                                   signatures: Map[PublicKey25519Proposition, Signature25519],
                                   preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
@@ -45,13 +44,13 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
   //TODO do not readOrGenerate sbr here
   //SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
-  //Static function should extract necessary boxes and use those as parameters to transaction class
+  //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
   val history = BifrostHistory.readOrGenerate(forgingSettings)
   val sbr: SBR = SBR.readOrGenerate(forgingSettings, history.storage.storage).get
 
-  val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.getBox(v).get.asInstanceOf[StateBox])
+  //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.getBox(v).get.asInstanceOf[StateBox])
 
   val codeBoxes = executionBox.codeBoxIds
 
@@ -69,7 +68,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
     executionBox.id ++
       methodName.getBytes ++
       owner.pubKeyBytes ++
-      parameters.noSpaces.getBytes ++
+      methodParams.noSpaces.getBytes ++
       unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++
       fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
@@ -81,11 +80,20 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    val programResult: Json = Program.execute(uuidStateBoxes, code, methodName)(owner)(parameters.asObject.get)
+    val programResult: Json = try {
+      //println(s"programResult: ${Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)}")
+      println(s"${methodParams.asJson}")
+      println(s"methodParams object: ${methodParams.asObject.get.asJson}")
+      Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
+    } catch {
+      case e => println(s"${e.getCause}");e.getCause.toString.asJson
+    }
 
-    val updatedStateBox: StateBox = StateBox(signatures.head._1, nonce, uuidStateBoxes.head.value, programResult)
+    println(s"programResult: ${programResult}")
 
-      IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
+    val updatedStateBox: StateBox = StateBox(owner, nonce, state.head.value, programResult)
+
+    IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -96,7 +104,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
       cb => cb.json
     }.asJson,
     "methodName" -> methodName.asJson,
-    "methodParams" -> parameters
+    "methodParams" -> methodParams
   )).asJson
 
   override lazy val serializer = ProgramMethodExecutionCompanion
@@ -118,14 +126,14 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
 object ProgramMethodExecution {
 
-  //YT NOTE - example of how to use static function to construct parameters for PME tx
+  //YT NOTE - example of how to use static function to construct methodParams for PME tx
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
   def create(sbr: SBR,
              uuid: UUID,
              methodName: String,
-             parameters: Json,
+             methodParams: Json,
              owner: PublicKey25519Proposition,
              signatures: Map[PublicKey25519Proposition, Signature25519],
              preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
@@ -136,7 +144,7 @@ object ProgramMethodExecution {
     val state: Seq[StateBox] = execBox.stateBoxUUIDs.map(sb => sbr.getBox(sb).get.asInstanceOf[StateBox])
     //val codeBox = sbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
     val code: Seq[CodeBox] = execBox.codeBoxIds.map(cb => sbr.getBox(UUID.nameUUIDFromBytes(cb)).get.asInstanceOf[CodeBox])
-    ProgramMethodExecution(state, code, execBox, methodName, parameters, owner, signatures, preFeeBoxes, fees, timestamp, data)
+    ProgramMethodExecution(state, code, execBox, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 
   def validate(tx: ProgramMethodExecution): Try[Unit] = Try {
@@ -147,8 +155,8 @@ object ProgramMethodExecution {
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
   implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] = (c: HCursor) => for {
-    stateBox <- c.downField("stateBox").as[Seq[StateBox]]
-    codeBox <- c.downField("codeBox").as[Seq[CodeBox]]
+    state <- c.downField("state").as[Seq[StateBox]]
+    code <- c.downField("code").as[Seq[CodeBox]]
     executionBox <- c.downField("executionBox").as[ExecutionBox]
     methodName <- c.downField("methodName").as[String]
     methodParams <- c.downField("methodParams").as[Json]
@@ -161,8 +169,8 @@ object ProgramMethodExecution {
   } yield {
     val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
     ProgramMethodExecution(
-      stateBox,
-      codeBox,
+      state,
+      code,
       executionBox,
       methodName,
       methodParams,

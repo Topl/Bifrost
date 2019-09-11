@@ -49,8 +49,6 @@ class ProgramCallSpec extends WordSpec
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
 
-        println(s"res: $res")
-
         (res \\ "result").head.asNumber.isDefined shouldEqual true
         (res \\ "error").isEmpty shouldEqual true
       }

@@ -1,6 +1,5 @@
 package bifrost.program
 
-import java.util.UUID
 
 import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
 import bifrost.transaction.box.{CodeBox, StateBox}
@@ -107,18 +106,33 @@ object Program {
              (party: PublicKey25519Proposition)
              (args: JsonObject): Json = {
 
+    println(s"entering Program.execute")
+
     val chainProgramInterface = createProgramInterface(codeBoxes)
 
     methodCheck(methodName, args, chainProgramInterface)
 
-    val mutableState = stateBoxes.head.state.asObject.get.toMap
+    println(s"args: ${args.asJson}")
+    println(s"mutableState: ${stateBoxes.head.state.asObject.get.toMap}")
+    println(s">>>>>>>>>>>>>>>>>>>>>")
+
+    val mutableState: Map[String, Json] = stateBoxes.head.state.asObject.get.toMap
+    val preparedState: String = mutableState.map { st =>
+      s"${st._1} = ${st._2}"
+    }.mkString("\n")
+
     val programCode: String = codeBoxes.foldLeft("")((a,b) => a ++ b.code.foldLeft("")((a,b) => a ++ (b + "\n")))
 
+    println(s"programCode: ${programCode}")
+
     val jsre: Context = Context.create("js")
+    println(s"jsre created")
     val bindings = jsre.getBindings("js")
 
+    println(s"before readonly stateBoxes")
+
     //Pass in JSON objects for each read-only StateBox
-    stateBoxes.tail.map{ sb =>
+    stateBoxes.drop(1).foreach { sb =>
       val formattedUuid: String = "_" + sb.value.toString.replace("-", "_")
       jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb.state})""")
     }
@@ -134,10 +148,13 @@ object Program {
     jsre.eval("js", getFromState)
 
     //Pass in writable state and functions
-    mutableState.foreach{s =>
-      jsre.eval("js", s"${s._1} = ${s._2}")
-    }
+    println(s"preparedState: ${preparedState}")
+    println(s"programCode: ${programCode}")
+    jsre.eval("js", preparedState)
     jsre.eval("js", programCode)
+
+    println(s"params 1: ${args.asJson}")
+    println(s"params end: ${args.toMap.values.toArray.map(_.noSpaces)}")
 
     val params: Array[String] = args.toMap.values.toArray.map(_.noSpaces)
     val paramString: String = if(params.nonEmpty) {

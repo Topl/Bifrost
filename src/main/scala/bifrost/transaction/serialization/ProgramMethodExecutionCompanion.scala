@@ -27,9 +27,9 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
       Ints.toByteArray(typeBytes.length),
       typeBytes,
       Ints.toByteArray(cme.methodName.getBytes.length),
-      Ints.toByteArray(cme.parameters.noSpaces.getBytes.length),
+      Ints.toByteArray(cme.methodParams.noSpaces.getBytes.length),
       cme.methodName.getBytes,
-      cme.parameters.noSpaces.getBytes,
+      cme.methodParams.noSpaces.getBytes,
       ProgramTransactionCompanion.commonToBytes(cme),
       cme.data.getBytes,
       Ints.toByteArray(cme.data.getBytes.length)
@@ -56,7 +56,7 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
 
     numReadBytes += methodNameLength
 
-    val parameters: Json = parse(new String(bytesWithoutType.slice(numReadBytes,
+    val methodParams: Json = parse(new String(bytesWithoutType.slice(numReadBytes,
       numReadBytes + parameterJsonLength))) match {
       case Left(f) => throw f
       case Right(j: Json) => j
@@ -84,7 +84,7 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
     val executionBox = ???
 
     bifrostTransaction.ProgramMethodExecution(stateBox, codeBox, executionBox, methodName,
-      parameters, owner, signatures, feePreBoxes, fees, timestamp, data)
+      methodParams, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
 
 }
