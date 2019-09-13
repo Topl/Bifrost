@@ -203,7 +203,7 @@ object ProgramPreprocessor {
 
       val tokenStream: TokenStream = new TokenStream
 
-      val lexer = new Lexer(source, tokenStream, false, 8, false, false, true)
+      val lexer = new Lexer(source, tokenStream, false, true, false, false, true)
 
       lexer.lexify()
 
