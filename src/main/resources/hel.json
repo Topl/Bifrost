@@ -7,11 +7,12 @@
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
+      "159.89.107.174"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "genesisoo",
+  "walletSeed": "hel",
   "keyFileDir": "keyfiles/hel",
   "walletDir": ".bifrost/hel/wallet",
   "dataDir": ".bifrost/hel/data",
@@ -22,7 +23,7 @@
   "rpcAllowed": [],
   "maxRollback": 100,
   "targetBlockTime": 6000,
-  "offlineGeneration": true,
+  "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,
