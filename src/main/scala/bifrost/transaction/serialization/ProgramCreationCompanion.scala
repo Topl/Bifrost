@@ -20,8 +20,6 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
   def toChildBytes(m: ProgramCreation): Array[Byte] = {
 
-    //println(s">>>>>>> programCreation.toChildBytes: ${m.json}")
-
     val typeBytes = "ProgramCreation".getBytes
 
     val executionBuilderBytes = ExecutionBuilderCompanion.toBytes(m.executionBuilder)
@@ -41,8 +39,8 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
         Longs.toByteArray(x.getLeastSignificantBits)
         )
       },
-      m.data.getBytes,
       Ints.toByteArray(m.data.getBytes.length),
+      m.data.getBytes,
       ProgramTransactionCompanion.commonToBytes(m)
 
     )
@@ -78,20 +76,26 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
     numReadBytes += executionBuilderLength.toInt
 
-    val readOnlyStateBoxesLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
+    val readOnlyStateBoxesLength = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
     numReadBytes += Ints.BYTES
 
     var readOnlyStateBoxes = Seq[UUID]()
     for (_ <- 1 to readOnlyStateBoxesLength) {
-      val uuid = new UUID(Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES)),
-        Longs.fromByteArray(bytes.slice(numReadBytes + Longs.BYTES, numReadBytes + Longs.BYTES*2)))
-      numReadBytes += Longs.BYTES*2
+      val uuid = new UUID(Longs.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Longs.BYTES)),
+        Longs.fromByteArray(bytesWithoutType.slice(numReadBytes + Longs.BYTES, numReadBytes + 2 * Longs.BYTES)))
+      numReadBytes += 2 * Longs.BYTES
       readOnlyStateBoxes = readOnlyStateBoxes :+ uuid
     }
 
-    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
+    val dataLen: Int = Ints.fromByteArray(bytesWithoutType.slice(numReadBytes, numReadBytes + Ints.BYTES))
+
+    numReadBytes += Ints.BYTES
+
     val data: String = new String(
-      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES))
+      bytesWithoutType.slice(numReadBytes, numReadBytes + dataLen))
+
+    numReadBytes += dataLen
 
     val (owner: PublicKey25519Proposition,
     signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -99,8 +103,6 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
     fees: Map[PublicKey25519Proposition, Long],
     timestamp: Long) = ProgramTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
       bytesWithoutType.length))
-
-    //println(s">>>>>> programCreation.parseBytes: ${ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, parties, signatures, feePreBoxes, fees, timestamp, data).json}")
 
     ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
