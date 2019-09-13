@@ -246,8 +246,6 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
 
     val txBytes: Array[Byte] = bytes.slice(numBytesRead, bytes.length)
 
-    println(s"txBytes.length: ${txBytes.length}")
-
     val txByteSeq: Seq[Array[Byte]] = unfoldLeft(txBytes) {
       case b if b.length < Ints.BYTES => None
       case b =>

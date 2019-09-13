@@ -144,6 +144,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
       case asT: AssetTransfer => validateAssetTransfer(asT)
+      case prT: ProgramTransfer => validateProgramTransfer(prT)
       case cc: CodeCreation => validateCodeCreation(cc)
       case pc: ProgramCreation => validateProgramCreation(pc)
       case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
@@ -291,17 +292,41 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
   }
 
+  def validateProgramTransfer(prT: ProgramTransfer): Try[Unit] = {
+    val statefulValid: Try[Unit] = {
+      prT.newBoxes.size match {
+        case 1 => if(prT.newBoxes.head.isInstanceOf[ExecutionBox])
+          Success[Unit](Unit)
+        else
+          Failure(new Exception("Incorrect box type"))
+
+        case _ => Failure(new Exception("Incorrect number of boxes created"))
+      }
+
+      val unlocker = prT.unlockers.head
+
+      closedBox(unlocker.closedBoxId) match {
+        case Some(box: ExecutionBox) => if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
+          Success[Unit](Unit)
+        else
+          Failure(new Exception("Incorrect unlocker"))
+
+        case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+      }
+    }
+
+    statefulValid.flatMap(_ => semanticValidity(prT))
+  }
+
   def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       ac.newBoxes.size match {
           //only one box should be created
         case 1 => if (ac.newBoxes.head.isInstanceOf[AssetBox]) // the new box is an asset box
-          {
             Success[Unit](Unit)
-          }
-          else {
+          else
             Failure(new Exception("Incorrect box type"))
-          }
+
         case _ => Failure(new Exception("Incorrect number of boxes created"))
       }
     }
@@ -319,13 +344,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val statefulValid: Try[Unit] = {
       cc.newBoxes.size match {
         //only one box should be created
-        case 1 => if (cc.newBoxes.head.isInstanceOf[CodeBox]) // the new box is a code box
-        {
+        case 1 => if (cc.newBoxes.head.isInstanceOf[CodeBox])
           Success[Unit](Unit)
-        }
-        else {
+        else
           Failure(new Exception("Incorrect box type"))
-        }
+
         case _ => Failure(new Exception("Incorrect number of boxes created"))
       }
     }
@@ -545,6 +568,7 @@ object BifrostState extends ScorexLogging {
       case poT: PolyTransfer => PolyTransfer.validate(poT)
       case arT: ArbitTransfer => ArbitTransfer.validate(arT)
       case asT: AssetTransfer => AssetTransfer.validate(asT)
+      case prT: ProgramTransfer => ProgramTransfer.validate(prT)
       case ac: AssetCreation => AssetCreation.validate(ac)
       case pc: ProgramCreation => ProgramCreation.validate(pc)
       case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)

@@ -116,7 +116,9 @@ object ProgramTransfer {
   }
    */
 
- //def validate(tx: PolyTransfer): Try[Unit] = validateTx(tx)
-
-  //def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+  def validate(tx: ProgramTransfer): Try[Unit] = Try {
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+    require(tx.signature.isValid(tx.from, tx.messageToSign))
+  }
 }

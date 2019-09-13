@@ -1,5 +1,6 @@
 package bifrost.serialization
 
+import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.program.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
@@ -10,7 +11,9 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
+
 import scala.collection.BitSet
+import scala.util.{Failure, Success}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -195,8 +198,6 @@ class SerializationTests extends PropSpec
           .parseBytes(ProgramTransactionCompanion.toBytes(c))
           .get
 
-        println(s"PME: $parsed")
-
         ProgramTransactionCompanion.toBytes(parsed) sameElements
           ProgramTransactionCompanion.toBytes(c) shouldBe true
     }
@@ -251,7 +252,7 @@ class SerializationTests extends PropSpec
   }
 
   //TODO Test after all txs and state tests work
-  /*property("BifrostBlock Serialization") {
+  property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>
         val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb))
@@ -262,7 +263,7 @@ class SerializationTests extends PropSpec
           case Failure(e) => throw e
         }
     }
-  }*/
+  }
 
   property("BifrostSyncInfo Serialization") {
     forAll(bifrostSyncInfoGen) {
