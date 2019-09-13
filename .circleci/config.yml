@@ -37,7 +37,7 @@ jobs:
       - run:
           name: Add Valkyrie instrument to boot classpath
           command: |
-            cp lib/ValkyrieInstrument-1.0-jar-with-dependencies.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
+            cp lib/ValkyrieInstrument-1.0.jar /opt/graalvm-ce-19.2.0/jre/lib/boot/
             ls /opt/graalvm-ce-19.2.0/jre/lib/boot
             java -version
 
