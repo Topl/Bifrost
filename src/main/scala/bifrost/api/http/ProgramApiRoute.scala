@@ -13,8 +13,6 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.literal._
 import io.circe.{Decoder, Json, JsonObject}
-import io.swagger.annotations._
-import javax.ws.rs.Path
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
@@ -32,8 +30,6 @@ import scala.util.{Failure, Success, Try}
   * Created by cykoz on 5/26/2017.
   */
 
-@Path("/program")
-@Api(value = "/program", produces = "application/json")
 case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
   type HIS = BifrostHistory

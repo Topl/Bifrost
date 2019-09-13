@@ -43,29 +43,13 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
   }
 
   def commonToBytes(m: ProgramTransaction): Array[Byte] = {
-
-    // Used to reduce overall size in the default case where publickeys are the same across multiple maps
-    val keySeq = (m.signatures.keySet ++ m.fees.keySet).map(v => ByteArrayWrapper(v.pubKeyBytes))
-      .toSeq.zipWithIndex
-    val keyMapping: Map[ByteArrayWrapper, Int] = keySeq.toMap
-
     Bytes.concat(
       Longs.toByteArray(m.timestamp),
-      Ints.toByteArray(m.signatures.size),
-      Ints.toByteArray(m.preFeeBoxes.size),
-      Ints.toByteArray(m.fees.size),
-      Ints.toByteArray(keyMapping.size),
-      keySeq.foldLeft(Array[Byte]())((a, b) => a ++ b._1.data),
-      m.signatures.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
-        .pubKeyBytes))) ++ b
-        ._2.bytes),
-      m.preFeeBoxes.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
-        .pubKeyBytes))) ++ Ints
-        .toByteArray(b._2.length) ++
-        b._2.foldLeft(Array[Byte]())((a, b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2))),
-      m.fees.foldLeft(Array[Byte]())((a, b) => a ++ Ints.toByteArray(keyMapping(ByteArrayWrapper(b._1
-        .pubKeyBytes))) ++ Longs
-        .toByteArray(b._2))
+      m.owner.pubKeyBytes,
+      m.signatures.head._2.bytes,
+      Ints.toByteArray(m.preFeeBoxes.head._2.length),
+      m.preFeeBoxes.head._2.foldLeft(Array[Byte]())((a,b) => a ++ Longs.toByteArray(b._1) ++ Longs.toByteArray(b._2)),
+      Longs.toByteArray(m.fees.head._2)
     )
   }
 
@@ -84,63 +68,33 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
 
     numReadBytes += Longs.BYTES
 
-    val Array(sigLength: Int,
-    feePreBoxLength: Int,
-    feesLength: Int,
-    keyMappingSize: Int) = (0 until 4).map { i =>
-      Ints.fromByteArray(bytes.slice(numReadBytes + i * Ints.BYTES, numReadBytes + (i + 1) * Ints.BYTES))
-    }.toArray
-
-    numReadBytes += 4 * Ints.BYTES
-
-    val keyMapping: Map[Int, PublicKey25519Proposition] = (0 until keyMappingSize).map { i =>
-      i -> PublicKey25519Proposition(bytes.slice(numReadBytes + i * Constants25519.PubKeyLength,
-        numReadBytes + (i + 1) * Constants25519.PubKeyLength))
-    }.toMap
-
-    numReadBytes += keyMappingSize * Constants25519.PubKeyLength
-
     val owner = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
 
     numReadBytes += Constants25519.PubKeyLength
 
-    val signatures: Map[PublicKey25519Proposition, Signature25519] = (0 until sigLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Curve25519.SignatureLength),
-        numReadBytes + i * Curve25519.SignatureLength + (i + 1) * Ints.BYTES))
-      val sigBytes = bytes.slice(numReadBytes + (i + 1) * Ints.BYTES + i * Curve25519.SignatureLength,
-        numReadBytes + (i + 1) * Ints.BYTES + (i + 1) * Curve25519.SignatureLength)
-      keyMapping(pkInt) -> Signature25519(sigBytes)
-    }.toMap
+    val signatures: Map[PublicKey25519Proposition, Signature25519] = {
+      val sig = Signature25519(bytes.slice(numReadBytes, numReadBytes + Curve25519.SignatureLength))
+      Map(owner -> sig)
+    }
 
-    numReadBytes += sigLength * (Ints.BYTES + Curve25519.SignatureLength)
+    numReadBytes += Curve25519.SignatureLength
 
-    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = (0 until feePreBoxLength).map { i =>
-      var bytesSoFar = 0
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES))
-      bytesSoFar += Ints.BYTES
+    val feePreBoxesLength = Ints.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Ints.BYTES))
 
-      val length = Ints.fromByteArray(bytes.slice(numReadBytes + bytesSoFar, numReadBytes + bytesSoFar + Ints.BYTES))
-      bytesSoFar += Ints.BYTES
+    numReadBytes += Ints.BYTES
 
-      val preBoxes = (0 until length).map { j =>
-        var innerBytesSoFar = j * 2 * Longs.BYTES
-        val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar,
-          numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES))
-        val amount = Longs.fromByteArray(bytes.slice(numReadBytes + bytesSoFar + innerBytesSoFar + Longs.BYTES,
-          numReadBytes + bytesSoFar + innerBytesSoFar + 2 * Longs.BYTES))
-        nonce -> amount
-      }
-      numReadBytes += bytesSoFar + length * 2 * Longs.BYTES
-      keyMapping(pkInt) -> preBoxes
-    }.toMap
+    val preBoxes: IndexedSeq[(Nonce, Long)] = (0 until feePreBoxesLength).map { _ =>
+      val nonce: Nonce = Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES))
+      numReadBytes += Longs.BYTES
+      val amount = Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES))
+      numReadBytes += Longs.BYTES
 
-    val fees: Map[PublicKey25519Proposition, Long] = (0 until feesLength).map { i =>
-      val pkInt = Ints.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Longs.BYTES),
-        numReadBytes + i * (Ints.BYTES + Longs.BYTES) + Ints.BYTES))
-      val fee = Longs.fromByteArray(bytes.slice(numReadBytes + i * (Ints.BYTES + Longs.BYTES) + Ints.BYTES,
-        numReadBytes + (i + 1) * Ints.BYTES + (i + 1) * Longs.BYTES))
-      keyMapping(pkInt) -> fee
-    }.toMap
+      nonce -> amount
+    }
+
+    val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = Map(owner -> preBoxes)
+
+    val fees: Map[PublicKey25519Proposition, Long] = Map(owner -> Longs.fromByteArray(bytes.slice(numReadBytes, numReadBytes + Longs.BYTES)))
 
     (owner, signatures, feePreBoxes, fees, timestamp)
   }

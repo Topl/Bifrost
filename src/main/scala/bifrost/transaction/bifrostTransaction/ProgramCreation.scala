@@ -138,7 +138,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-    "executionBuilder" -> executionBuilder.json
+    "executionBuilder" -> executionBuilder.json,
+    "newBoxes" -> newBoxes.map(_.json).asJson,
+    "data" -> data.asJson
   )).asJson
 
   override lazy val serializer = ProgramCreationCompanion

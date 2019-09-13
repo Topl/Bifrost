@@ -171,8 +171,7 @@ class SerializationTests extends PropSpec
     }
   }
 
-  //TODO Fix program serialization
-  /*property("ProgramCreation Serialization") {
+  property("ProgramCreation Serialization") {
     forAll(programCreationGen) {
       c: ProgramCreation =>
         val parsed = ProgramTransactionCompanion
@@ -185,21 +184,23 @@ class SerializationTests extends PropSpec
         c.executionBuilder shouldEqual parsed.asInstanceOf[ProgramCreation].executionBuilder
         c.json shouldEqual parsed.asInstanceOf[ProgramCreation].json
 
-        //parsedBytes sameElements directParsedBytes shouldBe true
+        parsedBytes sameElements directParsedBytes shouldBe true
     }
-  }*/
+  }
 
-  /*property("ProgramMethodExecution Serialization") {
+  property("ProgramMethodExecution Serialization") {
     forAll(programMethodExecutionGen) {
       c: ProgramMethodExecution =>
         val parsed = ProgramTransactionCompanion
           .parseBytes(ProgramTransactionCompanion.toBytes(c))
           .get
 
+        println(s"PME: $parsed")
+
         ProgramTransactionCompanion.toBytes(parsed) sameElements
           ProgramTransactionCompanion.toBytes(c) shouldBe true
     }
-  }*/
+  }
 
   property("AssetCreation Serialization") {
     forAll(assetCreationGen) {
@@ -249,6 +250,7 @@ class SerializationTests extends PropSpec
     }
   }
 
+  //TODO Test after all txs and state tests work
   /*property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: BifrostBlock =>

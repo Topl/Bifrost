@@ -135,9 +135,7 @@ object ProgramPreprocessor {
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
     (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
 
-    /* Construct base module from params */
-    val jsre: Context = Context.newBuilder("js").build()
-    //val jsre: NashornScriptEngine = new NashornScriptEngineFactory().getScriptEngine.asInstanceOf[NashornScriptEngine]
+    val jsre: Context = Context.create("js")
 
     /*jsre.eval("js", objectAssignPolyfill)
     jsre.eval("js", initjs)
@@ -205,7 +203,7 @@ object ProgramPreprocessor {
 
       val tokenStream: TokenStream = new TokenStream
 
-      val lexer = new Lexer(source, tokenStream, false, true, false, false, true)
+      val lexer = new Lexer(source, tokenStream, false, 8, false, false, true)
 
       lexer.lexify()
 
@@ -323,7 +321,7 @@ object ProgramPreprocessor {
   }
 
   implicit val system = ActorSystem("QuickStart")
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 

@@ -266,6 +266,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 //    }
 //  }
 
+  //TODO Add back in when timestamps will be used for Programs
+/*
   property(
     "Attempting to validate a program creation tx with a timestamp that is before the last block timestamp should error")
   {
@@ -294,6 +296,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         newState.failed.get.getMessage shouldBe "ProgramCreation attempts to write into the past"
     }
   }
+*/
 
   property("Attempting to validate a program creation tx " +
              "with the same id as an existing program should error") {
@@ -334,31 +337,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"
-    }
-  }
-
-  property("Attempting to validate a program creation tx " +
-             "with a timestamp too far in the future should error") {
-    forAll(validProgramCreationGen) {
-      cc: ProgramCreation =>
-
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
-
-        val necessaryBoxesSC = BifrostStateChanges(
-          Set(),
-          preExistingPolyBoxes,
-          Instant.now.toEpochMilli)
-
-        val preparedState = BifrostStateSpec.genesisState.applyChanges(necessaryBoxesSC, Ints.toByteArray(32)).get
-        val randomFutureTimestamp = Instant.now.toEpochMilli + Gen.choose(10L, 1000000L).sample.get
-        val newState = preparedState.validate(cc.copy(timestamp = randomFutureTimestamp))
-
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
-          .get
-
-        newState shouldBe a[Failure[_]]
-        newState.failed.get.getMessage shouldBe "ProgramCreation timestamp is too far into the future"
     }
   }
 }

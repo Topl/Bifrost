@@ -80,11 +80,13 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    val programResult: Json = try {
+    try {
       Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
     } catch {
-      case e: Exception => e.getCause.toString.asJson
+      case e: Exception => throw e.getCause
     }
+
+    val programResult: Json = Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
 
     val updatedStateBox: StateBox = StateBox(owner, nonce, state.head.value, programResult)
 
