@@ -101,7 +101,7 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val stringGen: Gen[String] = Gen.alphaNumStr suchThat (!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
+  lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(!_.isEmpty) //nonEmptyBytesGen.map(new String(_))
 
   val jsonTypes: Seq[String] = Seq("Object", "Array", "Boolean", "String", "Number")
 
@@ -237,18 +237,16 @@ trait BifrostGenerators extends CoreGenerators {
     value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
-    val stateBoxWithoutUUID = StateBox(proposition, nonce, null, value.asJson)
-    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(stateBoxWithoutUUID.id), value.asJson)
+    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(proposition, nonce)), value.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
-    methodLen <- positiveTinyIntGen //Gen.choose(0, 1024)
-    paramLen <- positiveTinyIntGen //Gen.choose(0, 1024)
+    methodLen <- positiveTinyIntGen
+    methods <- Gen.containerOfN[Seq, String](methodLen, stringGen)
+    paramLen <- positiveTinyIntGen
   } yield {
-
-    val methods: Seq[String] = Gen.containerOfN[Seq, String](methodLen, stringGen.sample.get).sample.get
 
     val interface: Map[String, Seq[String]] = methods.map {
       _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
@@ -258,7 +256,6 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
-//    proposition <- oneOfNPropositionGen
     proposition <- propositionGen
     codeBox_1 <- codeBoxGen
     codeBox_2 <- codeBoxGen
@@ -266,20 +263,10 @@ trait BifrostGenerators extends CoreGenerators {
     stateBox_1 <- stateBoxGen
     stateBox_2 <- stateBoxGen
   } yield {
-    val executionBoxWithoutUUID = ExecutionBox(proposition,
-                  nonce,
-                  null,
-                  Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
-                      UUID.nameUUIDFromBytes(stateBox_2.id)),
-                  Seq(codeBox_1.id,
-                      codeBox_2.id))
-    ExecutionBox(proposition,
-      nonce,
-      UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, nonce)),
-      Seq(UUID.nameUUIDFromBytes(stateBox_1.id),
-        UUID.nameUUIDFromBytes(stateBox_2.id)),
-      Seq(codeBox_1.id,
-        codeBox_2.id))
+
+    ExecutionBox(proposition, nonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, nonce)),
+      Seq(UUID.nameUUIDFromBytes(stateBox_1.id), UUID.nameUUIDFromBytes(stateBox_2.id)),
+      Seq(codeBox_1.id, codeBox_2.id))
   }
 
   // TODO refactor out partiesGen and replace with proposition
@@ -410,7 +397,7 @@ trait BifrostGenerators extends CoreGenerators {
     executionBuilder <- validExecutionBuilderGen()
     readOnlyStateBoxes <- stateBoxGen
     numInvestmentBoxes <- positiveTinyIntGen
-    parties <- partiesGen
+    owner <- partiesGen
     numFeeBoxes <- positiveTinyIntGen
     timestamp <- positiveLongGen
     data <- stringGen
@@ -420,39 +407,49 @@ trait BifrostGenerators extends CoreGenerators {
       Seq(UUID.nameUUIDFromBytes(readOnlyStateBoxes.id)),
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
-      parties,
-      Map(parties -> signatureGen.sample.get),
-      Map(parties -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
-      Map(parties -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
+      owner,
+      Map(owner -> signatureGen.sample.get),
+      Map(owner -> (0 until numFeeBoxes).map { _ => sampleUntilNonEmpty(preFeeBoxGen()) }),
+      Map(owner -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
       timestamp,
       data)
   }
 
   lazy val programMethodExecutionGen: Gen[ProgramMethodExecution] = for {
-    methodName <- stringGen
+    //methodName <- stringGen
     stateBoxes <- positiveTinyIntGen
     executionBox <- executionBoxGen
     codeBoxes <- positiveTinyIntGen
-    parameters <- jsonArrayGen()
+    //parameters <- jsonArrayGen()
     sig <- signatureGen
     numFeeBoxes <- positiveTinyIntGen
-    fee <- positiveLongGen
+    stateNonce <- positiveLongGen
+    codeNonce <- positiveLongGen
     timestamp <- positiveLongGen
     party <- propositionGen
     data <- stringGen
   } yield {
 
-    val state = (0 until stateBoxes).map { _ =>
+    /*val state = (0 until stateBoxes).map { _ =>
       sampleUntilNonEmpty(stateBoxGen)
-    }
+    }*/
 
-    val code = (0 until codeBoxes).map { _ =>
+    /*val code = (0 until codeBoxes).map { _ =>
       sampleUntilNonEmpty(codeBoxGen)
-    }
+    }*/
+
+    val methodName = "inc"
+
+    val parameters = JsonObject.empty.asJson
+
+    val state = StateBox(party, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(party, stateNonce)), Map("a" -> 0).asJson)
+
+    val code = CodeBox(party, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(party, codeNonce)),
+      Seq("inc = function() { a += 1; }"), Map("inc" -> Seq()))
 
     ProgramMethodExecution(
-      state,
-      code,
+      Seq(state),
+      Seq(code),
       executionBox,
       methodName,
       parameters,
