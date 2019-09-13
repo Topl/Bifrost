@@ -134,7 +134,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
-
   }
 
 
@@ -367,19 +366,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         case None => true
       })
 
-      val inPast = pc.timestamp <= timestamp
-      val inFuture = pc.timestamp >= Instant.now().toEpochMilli
-      val txTimestampIsAcceptable = !(inPast || inFuture)
-
-
-      if (boxesAreNew && txTimestampIsAcceptable) {
+      if (boxesAreNew) {
         Success[Unit](Unit)
-      } else if (!boxesAreNew) {
-        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
-      } else if (inPast) {
-        Failure(new TransactionValidationException("ProgramCreation attempts to write into the past"))
       } else {
-        Failure(new TransactionValidationException("ProgramCreation timestamp is too far into the future"))
+        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
       }
     }
 
@@ -436,19 +426,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         case None => true
       })
 
-      //Checks that tx timestamp is after state timestamp and before current time
-      val inPast = pme.timestamp <= timestamp
-      val inFuture = pme.timestamp >= Instant.now().toEpochMilli
-      val txTimestampIsAcceptable = !(inPast || inFuture)
-
-      if (boxesAreNew && txTimestampIsAcceptable) {
+      if (boxesAreNew) {
         Success[Unit](Unit)
-      } else if (!boxesAreNew) {
-        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
-      } else if (inPast) {
-        Failure(new TransactionValidationException("ProgramCreation attempts to write into the past"))
       } else {
-        Failure(new TransactionValidationException("ProgramCreation timestamp is too far into the future"))
+        Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
       }
     }
 
