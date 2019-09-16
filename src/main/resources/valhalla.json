@@ -15,7 +15,9 @@
   "walletSeed": "valhalla",
   "keyFileDir": "keyfiles/valhalla",
   "walletDir": ".bifrost/valhalla/wallet",
-  "dataDir": ".bifrost/valhalla/data",
+  "dataDir": ".bifrost/valhalla/blockchain",
+  "pbrDir": ".bifrost/valhalla/pbr",
+  "tbrDir": ".bifrost/valhalla/tbr",
   "logDir": ".bifrost/valhalla/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
@@ -24,6 +26,8 @@
   "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
-  "cors": false,
-  "verboseAPI": true
+  "cors": true,
+  "verboseAPI": true,
+  "version": [3,0,0],
+  "forkHeight": 0
 }
