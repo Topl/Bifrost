@@ -17,7 +17,7 @@
   "walletDir": ".bifrost/hel/wallet",
   "dataDir": ".bifrost/hel/data",
   "pbrDir": ".bifrost/hel/pbr",
-  "bfrDir": ".bifrost/hel/bfr",
+  "tbrDir": ".bifrost/hel/tbr",
   "logDir": ".bifrost/hel/log",
   "rpcPort": 9585,
   "rpcAllowed": [],

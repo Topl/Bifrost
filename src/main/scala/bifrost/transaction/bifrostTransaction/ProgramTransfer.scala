@@ -105,12 +105,12 @@ object ProgramTransfer {
   }
 
   //TODO implement prototype tx
-  /*def createPrototype(bfr: BFR,
+  /*def createPrototype(tokenBoxRegistry: TokenBoxRegistry,
                       toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                       sender: IndexedSeq[PublicKey25519Proposition],
                       fee: Long, data: String): Try[PolyTransfer] = Try
   {
-    val params = parametersForCreate(bfr, toReceive, sender, fee, "ProgramTransfer")
+    val params = parametersForCreate(tokenBoxRegistry, toReceive, sender, fee, "ProgramTransfer")
     val timestamp = Instant.now.toEpochMilli
     ProgramTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }

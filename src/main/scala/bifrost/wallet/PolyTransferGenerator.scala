@@ -2,7 +2,7 @@ package bifrost.wallet
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.bfr.BFR
+import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.transaction.bifrostTransaction.PolyTransfer
@@ -27,7 +27,7 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       context.system.scheduler.schedule(duration, duration, viewHolderRef, GetCurrentView)
 
     case CurrentView(_, state: BifrostState, wallet: BWallet, _) =>
-      generate(wallet, state.bfr, state.nodeKeys) match {
+      generate(wallet, state.tbr, state.nodeKeys) match {
         case Success(tx) =>
           viewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], PolyTransfer](tx)
         case Failure(e) =>
@@ -35,14 +35,14 @@ class PolyTransferGenerator(viewHolderRef: ActorRef) extends Actor {
       }
   }
 
-  def generate(wallet: BWallet, bfr: BFR, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = generateStatic(wallet, bfr, nodeKeys)
+  def generate(wallet: BWallet, tbr: TokenBoxRegistry, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = generateStatic(wallet, tbr, nodeKeys)
 }
 
 object PolyTransferGenerator {
 
   case class StartGeneration(delay: FiniteDuration)
 
-  def generateStatic(wallet: BWallet, bfr: BFR, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = {
+  def generateStatic(wallet: BWallet, tbr: TokenBoxRegistry, nodeKeys: Set[ByteArrayWrapper]): Try[PolyTransfer] = {
 
     val pubkeys: IndexedSeq[PublicKey25519Proposition] = wallet
       .publicKeys
@@ -54,6 +54,6 @@ object PolyTransferGenerator {
     pubkeys.foreach(key => if(!nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
 
     val recipient = pubkeys(Random.nextInt(pubkeys.size))
-    PolyTransfer.create(bfr, wallet, IndexedSeq((recipient, Random.nextInt(100))), pubkeys, Random.nextInt(100), "")
+    PolyTransfer.create(tbr, wallet, IndexedSeq((recipient, Random.nextInt(100))), pubkeys, Random.nextInt(100), "")
   }
 }

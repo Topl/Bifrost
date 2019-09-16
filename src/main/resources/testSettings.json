@@ -17,7 +17,7 @@
   "walletDir": "/tmp/bifrost/test-data/wallet",
   "dataDir": "/tmp/bifrost/test-data/blockchain",
   "pbrDir": "/tmp/bifrost/test-data/pbr",
-  "bfrDir": "/tmp/bifrost/test-data/bfr",
+  "tbrDir": "/tmp/bifrost/test-data/tbr",
   "logDir": "/tmp/bifrost/test-data/log",
   "rpcPort": 9085,
   "rpcAllowed": [],

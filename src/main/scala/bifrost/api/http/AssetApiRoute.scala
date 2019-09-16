@@ -111,10 +111,10 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
       }
-      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      if(view.state.tbr == null) throw new Exception("TokenBoxRegistry not defined for node")
       if(view.state.nodeKeys != null)
         sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
-      val tx = AssetTransfer.create(view.state.bfr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
+      val tx = AssetTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
       println(tx.json)
       AssetTransfer.validate(tx) match {
         case Success(_) =>
@@ -140,10 +140,10 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
         case None => ""
       }
 
-      if(view.state.bfr == null) throw new Exception("BFR not defined for node")
+      if(view.state.tbr == null) throw new Exception("TokenBoxRegistry not defined for node")
       if(view.state.nodeKeys != null)
         sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
-      val tx = AssetTransfer.createPrototype(view.state.bfr, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data).get
+      val tx = AssetTransfer.createPrototype(view.state.tbr, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data).get
       // Update nodeView with new TX
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>

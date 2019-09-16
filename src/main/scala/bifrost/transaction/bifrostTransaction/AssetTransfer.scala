@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.{Nonce, Value}
-import bifrost.bfr.BFR
+import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{AssetBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
@@ -103,7 +103,7 @@ object AssetTransfer extends TransferUtil {
     AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-  def create(bfr:BFR,
+  def create(tbr:TokenBoxRegistry,
              w: BWallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
@@ -112,12 +112,12 @@ object AssetTransfer extends TransferUtil {
              assetCode: String,
              data: String): Try[AssetTransfer] = Try {
 
-    val params = parametersForCreate(bfr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-  def createPrototype(bfr: BFR,
+  def createPrototype(tbr: TokenBoxRegistry,
                       toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                       sender: IndexedSeq[PublicKey25519Proposition],
                       issuer: PublicKey25519Proposition,
@@ -125,7 +125,7 @@ object AssetTransfer extends TransferUtil {
                       fee: Long,
                       data: String): Try[AssetTransfer] = Try
   {
-    val params = parametersForCreate(bfr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }

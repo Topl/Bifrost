@@ -132,10 +132,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
   def transferProgram(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val bfr = view.state.bfr
+      val tbr = view.state.tbr
       val from = PublicKey25519Proposition(Base58.decode((params \\ "from").head.asString.get).get)
       val to = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
-      val executionBox = bfr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
+      val executionBox = tbr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
@@ -194,10 +194,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
   def programCall(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val pbr = view.state.pbr
-      val bfr = view.state.bfr
+      val tbr = view.state.tbr
       val programId = (params \\ "programId").head.asString.get
       val stateVar = (params \\ "stateVar").head.asString.get
-      val program: ExecutionBox = bfr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
+      val program: ExecutionBox = tbr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
       val programState: StateBox = pbr.getBox(program.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
       val result: Decoder.Result[Json] = programState.state.hcursor.downField(stateVar).as[Json]
 

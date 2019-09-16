@@ -1,7 +1,7 @@
 package bifrost.transaction.bifrostTransaction
 
 import BifrostTransaction.{Nonce, Value}
-import bifrost.bfr.BFR
+import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
@@ -49,7 +49,7 @@ trait TransferUtil {
   // sent to parametersToApply for further sanitation before tx creation
 
   //noinspection ScalaStyle
-  def parametersForCreate(bfr: BFR,
+  def parametersForCreate(tbr: TokenBoxRegistry,
                           w: BWallet,
                           toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                           sender: IndexedSeq[PublicKey25519Proposition],
@@ -64,7 +64,7 @@ trait TransferUtil {
 
           // Restrict box search to specified public keys if provided
           val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
-            bfr.boxesByKey(s))
+            tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
@@ -122,7 +122,7 @@ trait TransferUtil {
   //YT Note - for prototype transactions that don't need to be signed by node's wallet
 
   //noinspection ScalaStyle
-  def parametersForCreate(bfr: BFR,
+  def parametersForCreate(tbr: TokenBoxRegistry,
                           toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                           sender: IndexedSeq[PublicKey25519Proposition],
                           fee: Long,
@@ -136,7 +136,7 @@ trait TransferUtil {
 
           // Restrict box search to specified public keys if provided
           val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
-            bfr.boxesByKey(s))
+            tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {

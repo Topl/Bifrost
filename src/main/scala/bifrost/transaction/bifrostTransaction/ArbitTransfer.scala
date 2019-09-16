@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.{Nonce, Value}
-import bifrost.bfr.BFR
+import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
@@ -61,17 +61,17 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(bfr: BFR, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
+  def create(tbr: TokenBoxRegistry, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
 
-    val params = parametersForCreate(bfr, w, toRecieve, sender, fee, "ArbitTransfer")
+    val params = parametersForCreate(tbr, w, toRecieve, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
   }
 
-  def createPrototype(bfr: BFR, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
+  def createPrototype(tbr: TokenBoxRegistry, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
-    val params = parametersForCreate(bfr, toReceive, sender, fee, "ArbitTransfer")
+    val params = parametersForCreate(tbr, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }

@@ -122,7 +122,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
                 notifySubscribers(EventType.SuccessfulTransaction, SuccessfulTransaction[P, TX](tx, None))})
               log.debug(s"${Console.GREEN}newMemPool Size: ${newMemPool.size}${Console.RESET}")
 
-              //YT NOTE - deprecate in favor of optional nodeKeys for BFR - wallet boxes still being used by Forger
+              //YT NOTE - deprecate in favor of optional nodeKeys for TokenBoxRegistry - wallet boxes still being used by Forger
               //we consider that vault always able to perform a rollback needed
               val newVault = if (progressInfo.rollbackNeeded) {
                 vault().rollback(progressInfo.branchPoint.get).get.scanPersistent(appliedMods)

@@ -54,7 +54,7 @@ trait Settings extends ScorexLogging {
 
   lazy val pbrDirOpt = folderOpt("pbrDir")
 
-  lazy val bfrDirOpt = folderOpt("bfrDir")
+  lazy val tbrDirOpt = folderOpt("tbrDir")
 
   lazy val walletDirOpt = settingsJSON.get("walletDir").flatMap(_.asString)
     .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))

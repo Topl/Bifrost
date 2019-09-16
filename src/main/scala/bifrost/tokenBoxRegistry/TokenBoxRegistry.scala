@@ -1,4 +1,4 @@
-package bifrost.bfr
+package bifrost.tokenBoxRegistry
 
 import java.io.File
 
@@ -13,7 +13,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -26,7 +26,7 @@ case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
   //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
   def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] =
-    bfrStore
+    tbrStore
     .get(ByteArrayWrapper(pubKeyBytes))
     .map(_
       .data
@@ -50,7 +50,7 @@ case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
   /**
     * @param newVersion - block id
     * @param changes - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
-    * @return - instance of updated BFR
+    * @return - instance of updated TokenBoxRegistry
     * (Note - makes use of vars for local variables since function remains a pure function and helps achieve better runtime)
     *
     *         Runtime complexity of below function is O(MN) + O(L)
@@ -60,8 +60,8 @@ case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
     *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[BFR] = Try {
-    log.debug(s"${Console.GREEN} Update BFR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[TokenBoxRegistry] = Try {
+    log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
@@ -105,53 +105,53 @@ case class BFR(bfrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
       keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
     }
 
-    bfrStore.update(
+    tbrStore.update(
       ByteArrayWrapper(newVersion),
       Seq(),
       keysToBoxIds.map(element =>
         element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
     )
 
-    BFR(bfrStore, stateStore)
+    TokenBoxRegistry(tbrStore, stateStore)
   }
 
-  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[BFR] = Try {
-    if (bfrStore.lastVersionID.exists(_.data sameElements version)) {
+  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[TokenBoxRegistry] = Try {
+    if (tbrStore.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
-      log.debug(s"Rolling back BFR to: ${Base58.encode(version)}")
-      bfrStore.rollback(ByteArrayWrapper(version))
-      BFR(bfrStore, stateStore)
+      log.debug(s"Rolling back TokenBoxRegistry to: ${Base58.encode(version)}")
+      tbrStore.rollback(ByteArrayWrapper(version))
+      TokenBoxRegistry(tbrStore, stateStore)
     }
   }
 
 }
 
-object BFR extends ScorexLogging {
+object TokenBoxRegistry extends ScorexLogging {
 
-  def apply(s1: LSMStore, s2: LSMStore) : BFR = {
-    new BFR (s1, s2)
+  def apply(s1: LSMStore, s2: LSMStore) : TokenBoxRegistry = {
+    new TokenBoxRegistry (s1, s2)
   }
 
-  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[BFR] = {
-    val bfrDirOpt = settings.bfrDirOpt
+  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
+    val tbrDirOpt = settings.tbrDirOpt
     val logDirOpt = settings.logDirOpt
-    bfrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
+    tbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(bfrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): BFR = {
-    val iFile = new File(s"$bfrDir")
+  def readOrGenerate(tbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): TokenBoxRegistry = {
+    val iFile = new File(s"$tbrDir")
     iFile.mkdirs()
-    val bfrStore = new LSMStore(iFile)
+    val tbrStore = new LSMStore(iFile)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        log.info("Closing bfr storage...")
-        bfrStore.close()
+        log.info("Closing tokenBoxRegistry storage...")
+        tbrStore.close()
       }
     })
 
-    BFR(bfrStore, stateStore)
+    TokenBoxRegistry(tbrStore, stateStore)
   }
 
 }

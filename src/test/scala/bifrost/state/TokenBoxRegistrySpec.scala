@@ -21,7 +21,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-class BFRSpec extends PropSpec
+class TokenBoxRegistrySpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -48,7 +48,7 @@ class BFRSpec extends PropSpec
   gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
 
 
-  property("Transfer should update bfr correctly") {
+  property("Transfer should update tokenBoxRegistry correctly") {
 
     val oldArbitBoxes = gw
       .boxesByKey("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
@@ -59,9 +59,9 @@ class BFRSpec extends PropSpec
       .map(_.box.asInstanceOf[ArbitBox])
     assert(oldArbitBoxes.length == 1)
 
-    assert(genesisState.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(genesisState.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    val tx1 = ArbitTransfer.create(genesisState.bfr,
+    val tx1 = ArbitTransfer.create(genesisState.tbr,
       gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
@@ -84,19 +84,19 @@ class BFRSpec extends PropSpec
 
     val newWallet1 = gw.scanPersistent(block1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
-    val tx2 = ArbitTransfer.create(newState1.bfr,
+    val tx2 = ArbitTransfer.create(newState1.tbr,
       newWallet1,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)),
@@ -120,17 +120,17 @@ class BFRSpec extends PropSpec
     val newWallet2 = newWallet1.scanPersistent(block2)
 
 
-    assert(newState2.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 2)
 
-    assert(newState2.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState2.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox])
       .foldLeft(true) {(acc, i) => acc && (i.value == 99999995 || i.value == 4)})
 
-    assert(newState2.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 1)
 
     newState2.rollbackTo(genesisState.version)
@@ -141,7 +141,7 @@ class BFRSpec extends PropSpec
 
   property("Rollback should have worked and recreated above changes exactly") {
 
-    val tx1 = ArbitTransfer.create(genesisState.bfr,
+    val tx1 = ArbitTransfer.create(genesisState.tbr,
       gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
@@ -164,16 +164,16 @@ class BFRSpec extends PropSpec
 
     val newWallet1 = gw.scanPersistent(block1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
 
-    assert(newState1.bfr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
   }
