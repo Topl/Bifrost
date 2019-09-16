@@ -7,7 +7,7 @@ import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.srb.SBR
+import bifrost.pbr.PBR
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
@@ -42,15 +42,15 @@ case class ProgramMethodExecution(state: Seq[StateBox],
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
-  //TODO do not readOrGenerate sbr here
-  //SBR should be taken from nodeView at api level and passed as parameter to static function in companion object
+  //TODO do not readOrGenerate pbr here
+  //PBR should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
   val history = BifrostHistory.readOrGenerate(forgingSettings)
-  val sbr: SBR = SBR.readOrGenerate(forgingSettings, history.storage.storage).get
+  val pbr: PBR = PBR.readOrGenerate(forgingSettings, history.storage.storage).get
 
-  //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => sbr.getBox(v).get.asInstanceOf[StateBox])
+  //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => pbr.getBox(v).get.asInstanceOf[StateBox])
 
   val codeBoxes = executionBox.codeBoxIds
 
@@ -130,7 +130,7 @@ object ProgramMethodExecution {
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
-  def create(sbr: SBR,
+  def create(pbr: PBR,
              uuid: UUID,
              methodName: String,
              methodParams: Json,
@@ -140,10 +140,10 @@ object ProgramMethodExecution {
              fees: Map[PublicKey25519Proposition, Long],
              timestamp: Long,
              data: String): Try[ProgramMethodExecution] = Try {
-    val execBox = sbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
-    val state: Seq[StateBox] = execBox.stateBoxUUIDs.map(sb => sbr.getBox(sb).get.asInstanceOf[StateBox])
-    //val codeBox = sbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
-    val code: Seq[CodeBox] = execBox.codeBoxIds.map(cb => sbr.getBox(UUID.nameUUIDFromBytes(cb)).get.asInstanceOf[CodeBox])
+    val execBox = pbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
+    val state: Seq[StateBox] = execBox.stateBoxUUIDs.map(sb => pbr.getBox(sb).get.asInstanceOf[StateBox])
+    //val codeBox = pbr.getBox(UUID.nameUUIDFromBytes(execBox.codeBoxIds.head)).get.asInstanceOf[CodeBox]
+    val code: Seq[CodeBox] = execBox.codeBoxIds.map(cb => pbr.getBox(UUID.nameUUIDFromBytes(cb)).get.asInstanceOf[CodeBox])
     ProgramMethodExecution(state, code, execBox, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 

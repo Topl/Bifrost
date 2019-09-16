@@ -8,7 +8,7 @@ import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.srb.StateBoxRegistry
+import bifrost.pbr.ProgramBoxRegistry
 import bifrost.state.BifrostStateSpec.testSettings
 import bifrost.transaction.box.{ArbitBox, StateBox, StateBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -23,8 +23,8 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-//TODO rewrite with new SBR
-class SBRSpecOld extends PropSpec
+//TODO rewrite with new PBR
+class PBRSpecOld extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -68,9 +68,9 @@ class SBRSpecOld extends PropSpec
   val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
 
 //  var history: BifrostHistory = generateHistory
-  var sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings)
+  var pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings)
 
-  property("SBR should update correctly for new state box with same UUID") {
+  property("PBR should update correctly for new state box with same UUID") {
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -82,11 +82,11 @@ class SBRSpecOld extends PropSpec
       settings.version
     )
 
-    sbr.update(block.id, uuid, sboxOne.id)
+    pbr.update(block.id, uuid, sboxOne.id)
 
-    //Should be able to access stateBoxID from sbr by UUID
-    sbr.get(uuid).isSuccess shouldBe true
-    assert(sbr.get(uuid).get._2 sameElements sboxOne.id)
+    //Should be able to access stateBoxID from pbr by UUID
+    pbr.get(uuid).isSuccess shouldBe true
+    assert(pbr.get(uuid).get._2 sameElements sboxOne.id)
 
     Thread.sleep(1000)
 
@@ -100,14 +100,14 @@ class SBRSpecOld extends PropSpec
       settings.version
     )
 
-    sbr.update(block_2.id, uuid, sboxTwo.id)
+    pbr.update(block_2.id, uuid, sboxTwo.id)
 
-    //SBR should update correctly when replacing stateBoxID for same UUID
-    sbr.get(uuid).isSuccess shouldBe true
-    assert(sbr.get(uuid).get._2 sameElements(sboxTwo.id))
+    //PBR should update correctly when replacing stateBoxID for same UUID
+    pbr.get(uuid).isSuccess shouldBe true
+    assert(pbr.get(uuid).get._2 sameElements(sboxTwo.id))
   }
 
-  property("SBR should deterministically generate a new UUID for a new state box") {
+  property("PBR should deterministically generate a new UUID for a new state box") {
 
     Thread.sleep(1000)
     val block_3 = BifrostBlock(
@@ -122,7 +122,7 @@ class SBRSpecOld extends PropSpec
 
     val sbox_3_withoutUUID: StateBox = StateBox(pubKey, 2L, null, "c".asJson)
     val sbox_3: StateBox = StateBox(pubKey, 2L, UUID.nameUUIDFromBytes(sbox_3_withoutUUID.id),"c".asJson)
-    val uuidAndBoxID = sbr.insertNewStateBox(block_3.id, sbox_3.id)
+    val uuidAndBoxID = pbr.insertNewStateBox(block_3.id, sbox_3.id)
     uuidAndBoxID.isSuccess shouldBe true
     //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 0L))
     assert(uuidAndBoxID.get._1 == UUID.nameUUIDFromBytes(sbox_3.id))
@@ -142,7 +142,7 @@ class SBRSpecOld extends PropSpec
 
     val sbox_4_withoutUUID: StateBox = StateBox(pubKey, 3L, null, "d".asJson)
     val sbox_4: StateBox = StateBox(pubKey, 3L, UUID.nameUUIDFromBytes(sbox_4_withoutUUID.id),"d".asJson)
-    val uuidAndBoxIDTwo = sbr.insertNewStateBox(block_4.id, sbox_4.id)
+    val uuidAndBoxIDTwo = pbr.insertNewStateBox(block_4.id, sbox_4.id)
     uuidAndBoxIDTwo.isSuccess shouldBe true
 //    assert(uuidAndBoxIDTwo.get._1 == new UUID(0L, 1L))
     assert(uuidAndBoxIDTwo.get._1 == UUID.nameUUIDFromBytes(sbox_4.id))

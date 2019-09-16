@@ -16,7 +16,7 @@
   "keyFileDir": "keyfiles/node1",
   "walletDir": "/tmp/bifrost/test-data/wallet",
   "dataDir": "/tmp/bifrost/test-data/blockchain",
-  "sbrDir": "/tmp/bifrost/test-data/sbr",
+  "pbrDir": "/tmp/bifrost/test-data/pbr",
   "bfrDir": "/tmp/bifrost/test-data/bfr",
   "logDir": "/tmp/bifrost/test-data/log",
   "rpcPort": 9085,

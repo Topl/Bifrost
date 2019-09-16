@@ -6,7 +6,7 @@ import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.srb.StateBoxRegistry
+import bifrost.pbr.ProgramBoxRegistry
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
@@ -105,7 +105,7 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version3.version)
 
-    val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings_version3)
+    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version3)
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
@@ -140,7 +140,7 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version0.version)
 
-    val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings_version0)
+    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0)
 
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
@@ -200,7 +200,7 @@ class ForkSpec extends PropSpec
 
         //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
 
-        val sbr: StateBoxRegistry = StateBoxRegistry.readOrGenerate(testSettings_version0)
+        val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0)
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new BifrostHistory(history.storage,

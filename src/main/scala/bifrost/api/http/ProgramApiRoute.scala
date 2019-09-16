@@ -157,7 +157,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       //TODO Replace with method to return all boxes from program box registry
       val executionBox = programBoxId2Box(view.state, (params \\ "programId").head.asString.get).asInstanceOf[ExecutionBox]
       val state: Seq[StateBox] = executionBox.stateBoxUUIDs.map { sb =>
-        view.state.sbr.getBox(sb).get.asInstanceOf[StateBox]
+        view.state.pbr.getBox(sb).get.asInstanceOf[StateBox]
       }
       val code: Seq[CodeBox] = executionBox.codeBoxIds.map { cb =>
         //programBoxId2Box(view.state, Base58.encode(cb)).asInstanceOf[CodeBox]
@@ -193,12 +193,12 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
 
   def programCall(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val sbr = view.state.sbr
+      val pbr = view.state.pbr
       val bfr = view.state.bfr
       val programId = (params \\ "programId").head.asString.get
       val stateVar = (params \\ "stateVar").head.asString.get
       val program: ExecutionBox = bfr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
-      val programState: StateBox = sbr.getBox(program.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
+      val programState: StateBox = pbr.getBox(program.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
       val result: Decoder.Result[Json] = programState.state.hcursor.downField(stateVar).as[Json]
 
       result match {

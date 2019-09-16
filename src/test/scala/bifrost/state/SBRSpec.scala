@@ -18,7 +18,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-class SBRSpec extends PropSpec
+class PBRSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -63,31 +63,31 @@ class SBRSpec extends PropSpec
 
   assert(sboxOne.value == uuid)
 
-  property("BifrostState should update sbr with state box and rollback correctly") {
+  property("BifrostState should update pbr with state box and rollback correctly") {
 
     val changes_1: BifrostStateChanges = BifrostStateChanges(Set(), Set(sboxOne), 0L)
     newState_1 = genesisState.applyChanges(changes_1, Ints.toByteArray(1)).get
 
-    assert(newState_1.sbr.getBoxId(uuid).get sameElements sboxOne.id)
-    assert(newState_1.sbr.getBox(uuid).get.bytes sameElements sboxOne.bytes)
+    assert(newState_1.pbr.getBoxId(uuid).get sameElements sboxOne.id)
+    assert(newState_1.pbr.getBox(uuid).get.bytes sameElements sboxOne.bytes)
 
     val changes_2: BifrostStateChanges = BifrostStateChanges(Set(sboxOne.id), Set(sboxTwo), 0L)
     val newState_2 = newState_1.applyChanges(changes_2, Ints.toByteArray(2)).get
 
-    assert(newState_2.sbr.getBoxId(uuid).get sameElements sboxTwo.id)
-    assert(newState_2.sbr.getBox(uuid).get.bytes sameElements sboxTwo.bytes)
+    assert(newState_2.pbr.getBoxId(uuid).get sameElements sboxTwo.id)
+    assert(newState_2.pbr.getBox(uuid).get.bytes sameElements sboxTwo.bytes)
 
     val oldState = newState_2.rollbackTo(newState_1.version).get
 
-    assert(oldState.sbr.getBoxId(sboxOne.value).get sameElements sboxOne.id)
+    assert(oldState.pbr.getBoxId(sboxOne.value).get sameElements sboxOne.id)
   }
 
-  property("BifrostState should tombstone uuid in sbr correctly") {
+  property("BifrostState should tombstone uuid in pbr correctly") {
 
     val changes_2: BifrostStateChanges = BifrostStateChanges(Set(sboxOne.id), Set(), 0L)
     val newState_2 = newState_1.applyChanges(changes_2, Ints.toByteArray(3)).get
 
-    assert(newState_2.sbr.getBoxId(sboxOne.value).isEmpty)
+    assert(newState_2.pbr.getBoxId(sboxOne.value).isEmpty)
   }
 
   override def afterAll() {

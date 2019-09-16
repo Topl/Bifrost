@@ -52,7 +52,7 @@ trait Settings extends ScorexLogging {
 
   lazy val logDirOpt = folderOpt("logDir")
 
-  lazy val sbrDirOpt = folderOpt("sbrDir")
+  lazy val pbrDirOpt = folderOpt("pbrDir")
 
   lazy val bfrDirOpt = folderOpt("bfrDir")
 

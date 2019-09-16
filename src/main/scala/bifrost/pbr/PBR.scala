@@ -1,4 +1,4 @@
-package bifrost.srb
+package bifrost.pbr
 
 import java.io.File
 import java.util.UUID
@@ -16,7 +16,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class PBR (pbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -25,7 +25,7 @@ case class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging 
       .flatMap(_.toOption)
 
   def getBoxId(k: UUID) : Option[Array[Byte]] =
-    sbrStore.get(SBR.uuidToBaw(k))
+    pbrStore.get(PBR.uuidToBaw(k))
       .map(_.data)
 
   def getBox(k: UUID) : Option[BifrostBox] =
@@ -35,8 +35,8 @@ case class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[SBR] = Try {
-    log.debug(s"${Console.GREEN} Update SBR to version: ${Base58.encode(newVersion)}${Console.RESET}")
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[PBR] = Try {
+    log.debug(s"${Console.GREEN} Update PBR to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
@@ -54,40 +54,40 @@ case class SBR (sbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging 
         .filterNot(box => uuidsToAppend.contains(box.value))
         .map(_.value)
 
-    sbrStore.update(
+    pbrStore.update(
       ByteArrayWrapper(newVersion),
-      uuidsToRemove.map(SBR.uuidToBaw(_)),
-      uuidsToAppend.map(e => SBR.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
+      uuidsToRemove.map(PBR.uuidToBaw(_)),
+      uuidsToAppend.map(e => PBR.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
     )
 
-    SBR(sbrStore, stateStore)
+    PBR(pbrStore, stateStore)
   }
 
   //YT NOTE - implement if boxes dont have UUIDs in them
-  def updateFromState(versionTag: VersionTag, txs: Seq[BifrostTransaction]): Try[SBR] = Try {
-    SBR(sbrStore, stateStore)
+  def updateFromState(versionTag: VersionTag, txs: Seq[BifrostTransaction]): Try[PBR] = Try {
+    PBR(pbrStore, stateStore)
   }
 
 
-  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[SBR] = Try {
-    if (sbrStore.lastVersionID.exists(_.data sameElements version)) {
+  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[PBR] = Try {
+    if (pbrStore.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
-      log.debug(s"Rolling back SBR to: ${Base58.encode(version)}")
-      sbrStore.rollback(ByteArrayWrapper(version))
-      SBR(sbrStore, stateStore)
+      log.debug(s"Rolling back PBR to: ${Base58.encode(version)}")
+      pbrStore.rollback(ByteArrayWrapper(version))
+      PBR(pbrStore, stateStore)
     }
   }
 
 }
 
-object SBR extends ScorexLogging {
+object PBR extends ScorexLogging {
 
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32
 
-  def apply(s1: LSMStore, s2:LSMStore) : SBR = {
-    new SBR(s1, s2)
+  def apply(s1: LSMStore, s2:LSMStore) : PBR = {
+    new PBR(s1, s2)
   }
 
   // UUID -> ByteArrayWrapper
@@ -98,25 +98,25 @@ object SBR extends ScorexLogging {
         ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data))
   }
 
-  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[SBR] = {
-    val sbrDirOpt = settings.sbrDirOpt
+  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[PBR] = {
+    val pbrDirOpt = settings.pbrDirOpt
     val logDirOpt = settings.logDirOpt
-    sbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
+    pbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(sbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): SBR = {
-    val iFile = new File(s"$sbrDir")
+  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): PBR = {
+    val iFile = new File(s"$pbrDir")
     iFile.mkdirs()
-    val sbrStore = new LSMStore(iFile)
+    val pbrStore = new LSMStore(iFile)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        log.info("Closing sbr storage...")
-        sbrStore.close()
+        log.info("Closing pbr storage...")
+        pbrStore.close()
       }
     })
 
-    SBR(sbrStore, stateStore)
+    PBR(pbrStore, stateStore)
   }
 
 }

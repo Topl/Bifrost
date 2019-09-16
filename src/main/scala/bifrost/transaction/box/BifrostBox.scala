@@ -463,7 +463,7 @@ object CodeBoxSerializer {
 case class ExecutionBox(override val proposition: PublicKey25519Proposition,
                                 override val nonce: Long,
                                 override val value: UUID,
-                                stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from SBR
+                                stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from PBR
                                 codeBoxIds: Seq[Array[Byte]]
                                 ) extends BifrostProgramBox(proposition, nonce, value) {
 

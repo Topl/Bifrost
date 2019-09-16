@@ -14,7 +14,7 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.srb.SBR
+import bifrost.pbr.PBR
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -41,7 +41,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, sbr: SBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: PBR = null, bfr: BFR = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -73,11 +73,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
       storage.rollback(ByteArrayWrapper(version))
       bfr.rollbackTo(version, storage)
-      sbr.rollbackTo(version, storage)
+      pbr.rollbackTo(version, storage)
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history, sbr, bfr)
+      BifrostState(storage, version, timestamp, history, pbr, bfr)
     }
   }
 
@@ -120,7 +120,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
     //BFR must be updated before state since it uses the boxes from state that are being removed in the update
     if(bfr != null) bfr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
-    if(sbr != null) sbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
+    if(pbr != null) pbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
 
 
     storage.update(
@@ -130,7 +130,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, sbr, bfr, nodeKeys)
+    val newSt = BifrostState(storage, newVersion, timestamp, history, pbr, bfr, nodeKeys)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -417,7 +417,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
-    //TODO check that one of the boxIds to remove is a state box and was present in the SBR
+    //TODO check that one of the boxIds to remove is a state box and was present in the PBR
     //TODO Remember that for each pme, exactly one state box would be consumed and exactly one would be created
 
 //    pme.unlockers.foreach(unlocker =>
@@ -635,14 +635,14 @@ object BifrostState extends ScorexLogging {
     }
 
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
-    val sbr = SBR.readOrGenerate(settings, stateStorage).orNull
+    val pbr = PBR.readOrGenerate(settings, stateStorage).orNull
     val bfr = BFR.readOrGenerate(settings, stateStorage).orNull
-    if(sbr == null) log.info("Initializing state without sbr") else log.info("Initializing state with sbr")
+    if(pbr == null) log.info("Initializing state without pbr") else log.info("Initializing state with pbr")
     if(bfr == null) log.info("Initializing state without bfr") else log.info("Initializing state with bfr")
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    BifrostState(stateStorage, version, timestamp, history, sbr, bfr, nodeKeys)
+    BifrostState(stateStorage, version, timestamp, history, pbr, bfr, nodeKeys)
   }
 
   def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {
