@@ -18,7 +18,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-class PBRSpec extends PropSpec
+class ProgramBoxeRegistrySpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -63,7 +63,7 @@ class PBRSpec extends PropSpec
 
   assert(sboxOne.value == uuid)
 
-  property("BifrostState should update pbr with state box and rollback correctly") {
+  property("BifrostState should update programBoxRegistry with state box and rollback correctly") {
 
     val changes_1: BifrostStateChanges = BifrostStateChanges(Set(), Set(sboxOne), 0L)
     newState_1 = genesisState.applyChanges(changes_1, Ints.toByteArray(1)).get
@@ -82,7 +82,7 @@ class PBRSpec extends PropSpec
     assert(oldState.pbr.getBoxId(sboxOne.value).get sameElements sboxOne.id)
   }
 
-  property("BifrostState should tombstone uuid in pbr correctly") {
+  property("BifrostState should tombstone uuid in programBoxRegistry correctly") {
 
     val changes_2: BifrostStateChanges = BifrostStateChanges(Set(sboxOne.id), Set(), 0L)
     val newState_2 = newState_1.applyChanges(changes_2, Ints.toByteArray(3)).get

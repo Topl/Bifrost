@@ -1,4 +1,4 @@
-package bifrost.pbr
+package bifrost.programBoxRegistry
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.utils.ScorexLogging

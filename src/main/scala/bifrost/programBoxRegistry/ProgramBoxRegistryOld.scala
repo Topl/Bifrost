@@ -1,4 +1,4 @@
-package bifrost.pbr
+package bifrost.programBoxRegistry
 
 import java.io.File
 import java.util.UUID
@@ -16,7 +16,7 @@ import scala.util.Try
 import scala.util.{Failure, Success}
 
 //TODO remove
-class ProgramBoxRegistry(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: PBRStorage) extends ScorexLogging {
+class ProgramBoxRegistryOld(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: PBRStorage) extends ScorexLogging {
 
   var UUID2BoxID = initialMap
 
@@ -32,7 +32,7 @@ class ProgramBoxRegistry(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], st
   }
 
   def update(modifierId: ModifierId, k: UUID, v: Array[Byte]) : Unit = {
-    val k_baw = ProgramBoxRegistry.uuid2baw(k)
+    val k_baw = ProgramBoxRegistryOld.uuid2baw(k)
     val v_baw = ByteArrayWrapper(v)
     storage.update(ByteArrayWrapper(modifierId), Seq((k_baw, v_baw)))
       match {
@@ -43,10 +43,10 @@ class ProgramBoxRegistry(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], st
   }
 
   def get(k: UUID) : Try[(UUID, Array[Byte])] = Try {
-    val k_baw = ProgramBoxRegistry.uuid2baw(k)
+    val k_baw = ProgramBoxRegistryOld.uuid2baw(k)
     k -> UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get).data
 
-//    ProgramBoxRegistry.parseLine(Option(UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get)))
+//    ProgramBoxRegistryOld.parseLine(Option(UUID2BoxID.getOrElse(k_baw, storage.get(k_baw).get)))
   }
 
   def checkpoint(modifierId: ModifierId): Try[Unit] = Try { storage.checkpoint(ByteArrayWrapper(modifierId)) }
@@ -55,13 +55,13 @@ class ProgramBoxRegistry(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], st
 
 }
 
-object ProgramBoxRegistry extends ScorexLogging {
+object ProgramBoxRegistryOld extends ScorexLogging {
 
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32
 
-  def apply(s: PBRStorage) : Try[ProgramBoxRegistry] = Try {
-    new ProgramBoxRegistry(Map[ByteArrayWrapper, ByteArrayWrapper](), s)
+  def apply(s: PBRStorage) : Try[ProgramBoxRegistryOld] = Try {
+    new ProgramBoxRegistryOld(Map[ByteArrayWrapper, ByteArrayWrapper](), s)
   }
 
   //parsing a byteArrayWrapper which has UUID in bytes concatenated to boxID in bytes?
@@ -86,28 +86,28 @@ object ProgramBoxRegistry extends ScorexLogging {
       ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data ++ ByteArrayWrapper.fromLong(v.getMostSignificantBits).data
       ++ ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data)
 
-  def readOrGenerate(settings: ForgingSettings): ProgramBoxRegistry = {
-    val pbrDirOpt = settings.pbrDirOpt.ensuring(_.isDefined, "pbr dir must be specified")
+  def readOrGenerate(settings: ForgingSettings): ProgramBoxRegistryOld = {
+    val pbrDirOpt = settings.pbrDirOpt.ensuring(_.isDefined, "programBoxRegistry dir must be specified")
     val pbrDir = pbrDirOpt.get
     val logDirOpt = settings.logDirOpt
     readOrGenerate(pbrDir, logDirOpt, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): ProgramBoxRegistry = {
+  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): ProgramBoxRegistryOld = {
     val iFile = new File(s"$dataDir/map")
     iFile.mkdirs()
     val pbrStorage = new LSMStore(iFile)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        log.info("Closing pbr storage...")
+        log.info("Closing programBoxRegistry storage...")
         pbrStorage.close()
       }
     })
 
     val storage = new PBRStorage(pbrStorage)
 
-    ProgramBoxRegistry(storage).get
+    ProgramBoxRegistryOld(storage).get
   }
 
 

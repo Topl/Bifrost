@@ -14,7 +14,7 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.pbr.PBR
+import bifrost.programBoxRegistry.ProgramBoxeRegistry
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -41,7 +41,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: PBR = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxeRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -417,7 +417,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
-    //TODO check that one of the boxIds to remove is a state box and was present in the PBR
+    //TODO check that one of the boxIds to remove is a state box and was present in the ProgramBoxeRegistry
     //TODO Remember that for each pme, exactly one state box would be consumed and exactly one would be created
 
 //    pme.unlockers.foreach(unlocker =>
@@ -635,9 +635,9 @@ object BifrostState extends ScorexLogging {
     }
 
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
-    val pbr = PBR.readOrGenerate(settings, stateStorage).orNull
+    val pbr = ProgramBoxeRegistry.readOrGenerate(settings, stateStorage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull
-    if(pbr == null) log.info("Initializing state without pbr") else log.info("Initializing state with pbr")
+    if(pbr == null) log.info("Initializing state without programBoxRegistry") else log.info("Initializing state with programBoxRegistry")
     if(tbr == null) log.info("Initializing state without tokenBoxRegistry") else log.info("Initializing state with tokenBoxRegistry")
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")

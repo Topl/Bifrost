@@ -4,7 +4,7 @@ import java.io.File
 
 import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.ForgingSettings
-import bifrost.pbr.ProgramBoxRegistry
+import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier

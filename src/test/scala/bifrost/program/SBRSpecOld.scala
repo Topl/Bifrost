@@ -8,7 +8,7 @@ import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.pbr.ProgramBoxRegistry
+import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.state.BifrostStateSpec.testSettings
 import bifrost.transaction.box.{ArbitBox, StateBox, StateBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -23,8 +23,8 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-//TODO rewrite with new PBR
-class PBRSpecOld extends PropSpec
+//TODO rewrite with new ProgramBoxeRegistry
+class ProgramBoxeRegistrySpecOld extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -68,9 +68,9 @@ class PBRSpecOld extends PropSpec
   val uuidTwo: UUID = UUID.nameUUIDFromBytes(sboxTwo.id)
 
 //  var history: BifrostHistory = generateHistory
-  var pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings)
+  var pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings)
 
-  property("PBR should update correctly for new state box with same UUID") {
+  property("ProgramBoxeRegistry should update correctly for new state box with same UUID") {
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -84,7 +84,7 @@ class PBRSpecOld extends PropSpec
 
     pbr.update(block.id, uuid, sboxOne.id)
 
-    //Should be able to access stateBoxID from pbr by UUID
+    //Should be able to access stateBoxID from programBoxRegistry by UUID
     pbr.get(uuid).isSuccess shouldBe true
     assert(pbr.get(uuid).get._2 sameElements sboxOne.id)
 
@@ -102,12 +102,12 @@ class PBRSpecOld extends PropSpec
 
     pbr.update(block_2.id, uuid, sboxTwo.id)
 
-    //PBR should update correctly when replacing stateBoxID for same UUID
+    //ProgramBoxeRegistry should update correctly when replacing stateBoxID for same UUID
     pbr.get(uuid).isSuccess shouldBe true
     assert(pbr.get(uuid).get._2 sameElements(sboxTwo.id))
   }
 
-  property("PBR should deterministically generate a new UUID for a new state box") {
+  property("ProgramBoxeRegistry should deterministically generate a new UUID for a new state box") {
 
     Thread.sleep(1000)
     val block_3 = BifrostBlock(
