@@ -13,10 +13,10 @@
     "maxConnections": 10
   },
   "walletSeed": "genesiso1",
-  "walletDir": "/tmp/scorex/data2/wallet",
+  "walletDir": "/tmp/bifrost/data2/wallet",
   "keyFileDir": "keyfiles/node2",
-  "dataDir": "/tmp/scorex/data2/blockchain",
-  "logDir": "/tmp/scorex/data2/log",
+  "dataDir": "/tmp/bifrost/data2/blockchain",
+  "logDir": "/tmp/bifrost/data2/log",
   "rpcPort": 9089,
   "rpcAllowed": [],
   "maxRollback": 100,

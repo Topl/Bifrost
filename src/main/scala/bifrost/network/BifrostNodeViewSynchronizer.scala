@@ -6,12 +6,12 @@ import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo
 import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}
-import bifrost.transaction.BifrostTransaction
-import scorex.core.network.NetworkController.DataFromPeer
-import scorex.core.network._
-import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.network.NetworkController.DataFromPeer
+import bifrost.network._
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

@@ -3,14 +3,14 @@ package bifrost.scorexMod
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import scorex.core.PersistentNodeViewModifier
-import scorex.core.api.http.{ApiRoute, CompositeHttpService}
-import scorex.core.network.message._
-import scorex.core.network.peer.PeerManager
-import scorex.core.network.{NetworkController, UPnP}
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.Proposition
-import scorex.core.utils.ScorexLogging
+import bifrost.PersistentNodeViewModifier
+import bifrost.api.http.{ApiRoute, CompositeHttpService}
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network.{NetworkController, UPnP}
+import bifrost.settings.Settings
+import bifrost.transaction.box.proposition.Proposition
+import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.runtime.universe.Type

@@ -1,6 +1,6 @@
 {
   "p2p": {
-    "name": "valhalla-1.0",
+    "name": "valhalla",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
@@ -13,10 +13,12 @@
     "maxConnections": 10
   },
   "walletSeed": "valhalla",
-  "keyFileDir": "keyfiles/valhalla-1.0",
-  "walletDir": "/tmp/bifrost/valhalla-1.0/wallet",
-  "dataDir": "/tmp/bifrost/valhalla-1.0/data",
-  "logDir": "/tmp/bifrost/valhalla-1.0/log",
+  "keyFileDir": "keyfiles/valhalla",
+  "walletDir": ".bifrost/valhalla/wallet",
+  "dataDir": ".bifrost/valhalla/blockchain",
+  "pbrDir": ".bifrost/valhalla/pbr",
+  "tbrDir": ".bifrost/valhalla/tbr",
+  "logDir": ".bifrost/valhalla/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
@@ -24,6 +26,8 @@
   "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
-  "cors": false,
-  "verboseAPI": true
+  "cors": true,
+  "verboseAPI": true,
+  "version": [3,0,0],
+  "forkHeight": 0
 }

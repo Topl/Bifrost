@@ -3,19 +3,17 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.AssetCreation
+import bifrost.transaction.bifrostTransaction.AssetCreation
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
 
-/**
-  * Created by Matt Kindy on 6/7/2017.
-  */
+
 class AssetCreationValidationSpec extends BifrostStateSpec {
 
   property("A block with valid AssetCreation should result in more tokens for receiver") {
@@ -26,7 +24,9 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(assetCreation)
+          Seq(assetCreation),
+          10L,
+          settings.version
         )
 
         val assetBoxes: Traversable[AssetBox] = assetCreation.newBoxes.map {
@@ -50,13 +50,6 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           case None => false
         })
 
-        //        /* Expect none of the prexisting boxes to still be around */
-//        require(preExistingAssetBoxes
-//          .forall(pb => newState
-//            .storage
-//            .get(ByteArrayWrapper(pb.id))
-//            .isEmpty))
-
         BifrostStateSpec.genesisState = newState
           .rollbackTo(BifrostStateSpec.genesisBlockId)
           .get
@@ -69,8 +62,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
       assetCreation: AssetCreation =>
 
         val headSig = assetCreation.signatures.head
-        val wrongSig: Array[Byte] = (headSig.bytes.head + 1).toByte +: headSig.bytes.tail
-        val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetCreation.signatures.tail
+        val wrongSig: Array[Byte] = (headSig._2.bytes.head + 1).toByte +: headSig._2.bytes.tail
+        val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
@@ -90,32 +83,4 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
         newState.failed.get.getMessage shouldBe "requirement failed: Invalid signatures"
     }
   }
-//
-//  property("Attempting to validate an AssetTransfer for an amount you do not have should error") {
-//    forAll(validAssetTransferGen) {
-//      assetTransfer: AssetTransfer =>
-//
-//        val preExistingAssetBoxes: Set[BifrostBox] =
-//          assetTransfer
-//            .from
-//            .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.hub))
-//            .toSet
-//
-//        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingAssetBoxes, Instant.now.toEpochMilli)
-//
-//        val preparedState = BifrostStateSpec
-//          .genesisState
-//          .applyChanges(necessaryBoxesSC, Ints.toByteArray(10))
-//          .get
-//
-//        val newState = preparedState.validate(assetTransfer)
-//
-//        BifrostStateSpec.genesisState = preparedState
-//          .rollbackTo(BifrostStateSpec.genesisBlockId)
-//          .get
-//
-//        newState shouldBe a[Failure[_]]
-//        newState.failed.get.getMessage shouldBe "Not enough assets"
-//    }
-//  }
 }

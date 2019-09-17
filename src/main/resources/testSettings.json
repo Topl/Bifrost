@@ -14,9 +14,11 @@
   },
   "walletSeed": "genesisoo",
   "keyFileDir": "keyfiles/node1",
-  "walletDir": "/tmp/scorex/test-data/wallet",
-  "dataDir": "/tmp/scorex/test-data/blockchain",
-  "logDir": "/tmp/scorex/test-data/log",
+  "walletDir": "/tmp/bifrost/test-data/wallet",
+  "dataDir": "/tmp/bifrost/test-data/blockchain",
+  "pbrDir": "/tmp/bifrost/test-data/pbr",
+  "tbrDir": "/tmp/bifrost/test-data/tbr",
+  "logDir": "/tmp/bifrost/test-data/log",
   "rpcPort": 9085,
   "rpcAllowed": [],
   "maxRollback": 100,
@@ -25,6 +27,8 @@
   "cors": false,
   "agent": "2-Hop",
   "testnet": true,
-  "version": [0, 0, 1],
-  "verboseAPI": true
+  "version": [3,0,0],
+  "forkHeight": 0,
+  "verboseAPI": true,
+  "apiKeyHash": "66akULzvGr1wsoXGzrTTaWrfkafHBukAaTJpM5c2Jtpo"
 }

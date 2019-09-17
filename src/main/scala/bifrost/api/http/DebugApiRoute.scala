@@ -1,137 +1,141 @@
 package bifrost.api.http
 
-import javax.ws.rs.Path
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.history.BifrostSyncInfo
-import bifrost.scorexMod.GenericNodeViewHolder
+import bifrost.history.BifrostHistory
+import bifrost.mempool.BifrostMemPool
+import bifrost.state.BifrostState
+import bifrost.wallet.BWallet
+import bifrost.settings.Settings
+import io.circe.Json
 import io.circe.syntax._
-import io.swagger.annotations._
-import scorex.core.api.http.SuccessApiResponse
-import scorex.core.consensus.History.HistoryComparisonResult
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
+import io.circe.parser.parse
+import bifrost.consensus.History.HistoryComparisonResult
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success, Try}
 
-
-@Path("/debug")
-@Api(value = "/debug", description = "Useful functions", position = 3, produces = "application/json")
 case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
-  override val route: Route = pathPrefix("debug") {
-    infoRoute ~ chain ~ delay ~ myblocks ~ generators
-  }
+  type HIS = BifrostHistory
+  type MS = BifrostState
+  type VL = BWallet
+  type MP = BifrostMemPool
+  override val route: Route = pathPrefix("debug") { debugRoute }
 
-  @Path("/delay/{id}/{blockNum}")
-  @ApiOperation(value = "Average delay",
-    notes = "Average delay in milliseconds between last $blockNum blocks starting from block with $id", httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "id", value = "Base58-encoded id", required = true, dataType = "string", paramType = "path"),
-    new ApiImplicitParam(name = "blockNum", value = "Number of blocks to count delay", required = true, dataType = "string", paramType = "path")
-  ))
-  def delay: Route = {
-    path("delay" / Segment / IntNumber) { case (encodedSignature, count) =>
-      getJsonRoute {
-        viewAsync().map { view =>
-          SuccessApiResponse(Map(
-            "delay" -> Base58.decode(encodedSignature).flatMap(id => view.history.averageDelay(id, count))
-              .map(_.toString).getOrElse("Undefined")
-          ).asJson)
+  //noinspection ScalaStyle
+  def debugRoute: Route = path("") { entity(as[String]) { body =>
+    withAuth {
+      postJsonRoute {
+        viewAsync().map {
+          view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ApiException(failure.getCause)
+              case Right(request) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (request \\ "id").head.asString.get
+                  reqId = id
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
+                  require(params.size <= 5, s"size of params is ${params.size}")
+
+                  (request \\ "method").head.asString.get match {
+                    case "info" => infoRoute(params.head, id)
+                    case "delay" => delay(params.head, id)
+                    case "myBlocks" => myBlocks(params.head, id)
+                    case "generators" => generators(params.head, id)
+//                    case "chain" => chain(params.head, id)
+//                    case "sync" => sync(params.head, id)
+                  }
+                }
+                futureResponse map {
+                  response => Await.result(response, timeout.duration)
+                }
+                match {
+                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
+                }
+            }
         }
       }
     }
   }
+  }
 
-  @Path("/info")
-  @ApiOperation(value = "Info", notes = "Debug info about blockchain", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with debug info or error")
-  ))
-  def infoRoute: Route = path("info") {
-    getJsonRoute {
-      viewAsync().map { view =>
-        SuccessApiResponse( Map(
-          "height" -> view.history.height.toString.asJson,
-          "score" -> view.history.score.asJson,
-          "bestBlockId" -> Base58.encode(view.history.bestBlockId).asJson,
-          "bestBlock" -> view.history.bestBlock.json,
-          "stateVersion" -> Base58.encode(view.state.version).asJson
-        ).asJson)
+  private def infoRoute(params: Json, id: String): Future[Json] = {
+      viewAsync().map {
+        view =>
+            Map(
+              "height" -> view.history.height.toString.asJson,
+              "score" -> view.history.score.asJson,
+              "bestBlockId" -> Base58.encode(view.history.bestBlockId).asJson,
+              "bestBlock" -> view.history.bestBlock.json,
+              "stateVersion" -> Base58.encode(view.state.version).asJson
+            ).asJson
       }
+    }
+
+  private def delay(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
+        val encodedSignature: String = (params \\ "blockId").head.asString.get
+        val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
+        Map(
+          "delay" -> Base58.decode(encodedSignature).flatMap(id => view.history.averageDelay(id, count))
+            .map(_.toString).getOrElse("Undefined").asJson
+        ).asJson
     }
   }
 
-  @Path("/myblocks")
-  @ApiOperation(value = "Info", notes = "Blocks generated by this node", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with my blocks or error")
-  ))
-  def myblocks: Route = path("myblocks") {
-    getJsonRoute {
-      viewAsync().map { view =>
+  private def myBlocks(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
         val pubkeys: Set[PublicKey25519Proposition] = view.vault.publicKeys.flatMap {
           case pkp: PublicKey25519Proposition => Some(pkp)
           case _ => None
         }
-
         val count = view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
-
-        SuccessApiResponse(Map(
+        Map(
           "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
           "count" -> count.asJson
-        ).asJson)
-      }
+        ).asJson
     }
   }
 
-  @Path("/generators")
-  @ApiOperation(value = "Info", notes = "Blocks generator distribution", httpMethod = "GET")
-  def generators: Route = path("generators") {
-    getJsonRoute {
-      viewAsync().map { view =>
+  private def generators(params: Json, id: String): Future[Json] = {
+    viewAsync().map {
+      view =>
         val map: Map[String, Int] = view.history.forgerDistribution()
           .map(d => Base58.encode(d._1.pubKeyBytes) -> d._2)
-        SuccessApiResponse(map.asJson)
-      }
+        map.asJson
     }
   }
 
-  @Path("/chain")
-  @ApiOperation(value = "Chain", notes = "Print full chain", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Json with peer list or error")
-  ))
-  def chain: Route = path("chain") {
-    getJsonRoute {
-      viewAsync().map { view =>
-        SuccessApiResponse(Map(
-          "history" -> view.history.toString
-        ).asJson)
-      }
-    }
-  }
+//Removed endpoint to preclude data type overflows and response timeouts
 
-  @Path("/sync")
-  @ApiOperation(value= "sync", notes = "True if node is synced to canonical chain, false if not", httpMethod = "GET")
-  @ApiResponses(Array(
-    new ApiResponse(code = 200, message = "Synced with the chain")
-  ))
-  def sync: Route = path("sync") {
-    getJsonRoute{
-      viewAsync().map { view =>
-        val resp = {
-          if (view.history.syncInfo(false) == HistoryComparisonResult.Equal)
-            Map("synced" -> "True").asJson
-          else
-            Map("synced" -> "False").asJson
-        }
-        SuccessApiResponse(
-          resp
-        )
-      }
-    }
-  }
+//  private def chain(params: Json, id: String): Future[Json] = {
+//    viewAsync().map {
+//      view =>
+//        Map(
+//          "history" -> view.history.toString
+//        ).asJson
+//    }
+//  }
+
+  //TODO unimplemented
+//  private def sync(params: Json, id: String): Future[Json] = {
+//    viewAsync.map {
+//      view =>
+//        if(view.history.syncInfo(false) == HistoryComparisonResult.Equal)
+//          Map("synced" -> "True").asJson
+//        else
+//          Map("synced" -> "False").asJson
+//    }
+//  }
+
 }

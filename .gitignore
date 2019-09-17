@@ -3,6 +3,7 @@
 .ensime
 .ensime_cache/
 scorex.yaml
+.DS_Store
 
 # scala build folders
 target
@@ -15,10 +16,13 @@ classes
 # logs
 *.log
 
-# db files
+# compressed files
+*.zip
 
+# db files
 *.data
 .history
+.bifrost/
 
 # for temporary experiments
 sheet.scala

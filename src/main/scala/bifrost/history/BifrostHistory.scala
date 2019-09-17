@@ -4,17 +4,18 @@ import java.io.File
 
 import bifrost.blocks.{BifrostBlock, Bloom}
 import bifrost.forging.ForgingSettings
-import bifrost.transaction.BifrostTransaction
+import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.NodeViewModifier
-import scorex.core.NodeViewModifier.{ModifierId, ModifierTypeId}
-import scorex.core.block.BlockValidator
-import scorex.core.consensus.History
-import scorex.core.consensus.History.{HistoryComparisonResult, ProgressInfo}
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.PrivateKey25519
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.block.BlockValidator
+import bifrost.consensus.History
+import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.PrivateKey25519
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
@@ -81,7 +82,6 @@ class BifrostHistory(val storage: BifrostStorage,
       case Failure(e) => log.warn(s"Block validation failed", e)
       case _ =>
     }
-
     validationResults.foreach(_.get)
 
     val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
@@ -90,17 +90,12 @@ class BifrostHistory(val storage: BifrostStorage,
         storage.update(block, settings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
         (new BifrostHistory(storage, settings, validators), progInfo)
-
       } else {
         val parent = modifierById(block.parentId).get
-
         val oldDifficulty = storage.difficultyOf(block.parentId).get
         var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
-
         if (difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
-
         val builtOnBestChain = applicable(block)
-
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[BifrostBlock] = if (!builtOnBestChain) {
           log.debug(s"New orphaned block ${Base58.encode(block.id)}")
@@ -111,15 +106,12 @@ class BifrostHistory(val storage: BifrostStorage,
         } else { // we want to swap to a fork
           bestForkChanges(block)
         }
-
         storage.update(block, difficulty, builtOnBestChain)
         (new BifrostHistory(storage, settings, validators), mod)
       }
     }
-
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
                s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
-
     res
   }
 
@@ -273,7 +265,6 @@ class BifrostHistory(val storage: BifrostStorage,
     } else {
       HistoryComparisonResult.Younger
     }
-
   }
 
   private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
@@ -344,20 +335,17 @@ class BifrostHistory(val storage: BifrostStorage,
         queryBloom equals andRes
     }
     // Go through all pertinent txs to filter out false positives
-    getBlockIdsByBloom(f).flatMap(b => modifierById(b).get.txs.filter(tx =>
-                                                                        tx.bloomTopics match {
-                                                                          case Some(txBlooms) =>
-                                                                            var res = false
-                                                                            val txBloomsWrapper = txBlooms.map(
-                                                                              ByteArrayWrapper(_))
-                                                                            val queryBloomsWrapper = queryBloomTopics
-                                                                              .map(ByteArrayWrapper(_))
-                                                                            res = txBloomsWrapper.intersect(
-                                                                              queryBloomsWrapper)
-                                                                              .length == queryBloomsWrapper.length
-                                                                            res
-                                                                          case None => false
-                                                                        }
+    getBlockIdsByBloom(f).flatMap(b =>
+      modifierById(b).get.txs.filter(tx =>
+        tx.bloomTopics match {
+          case Some(txBlooms) =>
+            var res = false
+            val txBloomsWrapper = txBlooms.map(ByteArrayWrapper(_))
+            val queryBloomsWrapper = queryBloomTopics.map(ByteArrayWrapper(_))
+            res = txBloomsWrapper.intersect(queryBloomsWrapper).length == queryBloomsWrapper.length
+            res
+          case None => false
+        }
     ))
   }
 
@@ -374,7 +362,7 @@ class BifrostHistory(val storage: BifrostStorage,
     *         (None only if the parent for a block was not found) starting from the original `m`
     */
   @tailrec
-  private def chainBack(m: BifrostBlock,
+  final def chainBack(m: BifrostBlock,
                         until: BifrostBlock => Boolean,
                         limit: Int = Int.MaxValue,
                         acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {

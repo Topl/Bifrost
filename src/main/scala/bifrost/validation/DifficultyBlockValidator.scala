@@ -3,7 +3,7 @@ package bifrost.validation
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.Forger
 import bifrost.history.BifrostStorage
-import scorex.core.block.BlockValidator
+import bifrost.block.BlockValidator
 
 import scala.util.Try
 
@@ -21,7 +21,5 @@ class DifficultyBlockValidator(storage: BifrostStorage) extends BlockValidator[B
       val target = Forger.calcAdjustedTarget(difficulty, lastBlock, storage.settings.targetBlockTime.length)
       require(BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
     }
-
   }
-
 }

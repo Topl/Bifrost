@@ -14,7 +14,9 @@
   "walletSeed": "genesisoo",
   "keyFileDir": "keyfiles/private-testnet",
   "walletDir": "/tmp/bifrost/private-testnet/wallet",
-  "dataDir": "/tmp/bifrost/private-testnet/data",
+  "dataDir": "/tmp/bifrost/private-testnet/blockchain",
+  "pbrDir": "/tmp/bifrost/private-testnet/pbr",
+  "tbrDir": "/tmp/bifrost/private-testnet/tbr",
   "logDir": "/tmp/bifrost/private-testnet/log",
   "rpcPort": 9085,
   "rpcAllowed": [],
@@ -23,6 +25,8 @@
   "offlineGeneration": true,
   "testnet": true,
   "blockGenerationDelay": 2000,
-  "cors": false,
-  "verboseAPI": true
+  "cors": true,
+  "verboseAPI": true,
+  "version": [3,0,0],
+  "forkHeight": 0
 }

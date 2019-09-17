@@ -2,7 +2,7 @@ package bifrost.api.http
 
 import io.circe.Json
 import io.circe.syntax._
-import scorex.core.api.http.ScorexApiResponse
+import bifrost.api.http.ScorexApiResponse
 
 /**
   * Created by cykoz on 6/12/2017.

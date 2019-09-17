@@ -3,12 +3,12 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.AssetTransfer
+import bifrost.transaction.bifrostTransaction.AssetTransfer
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition
-import scorex.core.transaction.proof.Signature25519
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
@@ -26,7 +26,9 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
-          Seq(assetTransfer)
+          Seq(assetTransfer),
+          10L,
+          settings.version
         )
 
         val preExistingAssetBoxes: Set[BifrostBox] =

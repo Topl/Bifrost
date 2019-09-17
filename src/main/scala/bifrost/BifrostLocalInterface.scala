@@ -4,10 +4,10 @@ import akka.actor.ActorRef
 import bifrost.blocks.BifrostBlock
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.scorexMod.GenericNodeViewHolder
-import bifrost.transaction.BifrostTransaction
-import scorex.core.LocalInterface
-import scorex.core.transaction.box.proposition.ProofOfKnowledgeProposition
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.LocalInterface
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import bifrost.transaction.state.PrivateKey25519
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
   extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock] {

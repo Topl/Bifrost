@@ -7,16 +7,16 @@ import bifrost.blocks.BifrostBlock
 import bifrost.keygen.KeyFile
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
-import bifrost.transaction.BifrostTransaction
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.settings.Settings
-import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import scorex.core.utils.ScorexLogging
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.settings.Settings
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -48,30 +48,32 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   //not implemented intentionally for now
   override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
+  //Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each transaction
   override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
-    log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
-          case pb: PolyBox => pb.value > 0
-          case cb: ContractBox => true
-          case ab: ArbitBox => ab.value > 0
-          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
-          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
-            .isInstanceOf[Double]
-          case assetB: AssetBox => assetB.amount > 0
-        }
+        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => true
+//          s.value.box match {
+//          case pb: PolyBox => pb.value > 0
+//          case cb: ContractBox => true
+//          case ab: ArbitBox => ab.value > 0
+//          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
+//          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
+//            .isInstanceOf[Double]
+//          case assetB: AssetBox => assetB.amount > 0
+//        }
         case _ => false
       }
       .map(_.get)
   }
 
-  //Only returns asset arbit and poly boxes by public key
+  //Only returns asset, arbit and poly boxes by public key
    def boxesByKey(publicKeyString: String): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
-    log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
@@ -79,13 +81,13 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .filter {
         case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
           case pb: PolyBox =>
-            pb.value > 0 &&
+//            pb.value > 0 &&
             publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
           case ab: ArbitBox =>
-            ab.value > 0 &&
+//            ab.value > 0 &&
               publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
           case assetB: AssetBox =>
-            assetB.amount > 0 &&
+//            assetB.amount > 0 &&
               publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
         }
         case _ => false
@@ -163,7 +165,13 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   def generateNewSecret(password: String): PublicKey25519Proposition = {
-    val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    val privKey = KeyFile(password = password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    secrets += privKey
+    privKey.publicImage
+  }
+
+  def generateNewSecret(password: String, importSeed: String): PublicKey25519Proposition = {
+    val privKey = KeyFile(password,seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
     secrets += privKey
     privKey.publicImage
   }
@@ -213,6 +221,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
           !boxIdsToRemove.exists(_.data sameElements bi)
         }).flatten
     )
+//    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
+
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
     BWallet(secrets, store, defaultKeyDir)

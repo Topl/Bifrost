@@ -1,10 +1,10 @@
 package bifrost.transaction.box.proposition
 
 import com.google.common.primitives.{Bytes, Ints}
-import scorex.core.serialization.Serializer
-import scorex.core.transaction.box.proposition.PublicKey25519Proposition._
-import scorex.core.transaction.box.proposition._
-import scorex.core.transaction.state.PrivateKey25519
+import bifrost.serialization.Serializer
+import bifrost.transaction.box.proposition.PublicKey25519Proposition._
+import bifrost.transaction.box.proposition._
+import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519

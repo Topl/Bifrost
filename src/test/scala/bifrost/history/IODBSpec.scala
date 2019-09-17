@@ -3,12 +3,12 @@ package bifrost.history
 import java.io.File
 
 import bifrost.blocks.BifrostBlock
-import bifrost.transaction.BifrostTransaction
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.core.NodeViewModifier._
+import bifrost.NodeViewModifier._
+import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import scorex.crypto.encode.Base58
 
 import scala.util.Random
@@ -21,7 +21,7 @@ class IODBSpec extends PropSpec
   with ValidGenerators {
 
 
-  val iFile = new File(s"/tmp/scorex/scorextest-${Random.nextInt(10000000)}")
+  val iFile = new File(s"/tmp/bifrost/scorextest-${Random.nextInt(10000000)}")
   iFile.mkdirs()
   val blocksStorage = new LSMStore(iFile)
   blocksStorage.update(ByteArrayWrapper(Array[Byte](1)), Seq(), Seq())

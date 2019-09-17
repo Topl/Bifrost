@@ -2,6 +2,7 @@ package bifrost.transaction
 
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.state.BifrostState
+import bifrost.transaction.bifrostTransaction.ArbitTransfer
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
@@ -12,7 +13,7 @@ class ArbitTransferSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  property("Generated ArbitTransfer Tx should be valid") {
+  property("Randomly generated ArbitTransfer Tx should be valid") {
     forAll(validArbitTransferGen) {
       at: ArbitTransfer => BifrostState.semanticValidity(at).isSuccess shouldBe true
     }

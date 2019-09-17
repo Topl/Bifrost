@@ -1,17 +1,17 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
-name := "project-bifrost"
+name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.7",
   organization := "co.topl",
-  version := "0.1.0-alpha.1.0"
+  version := "1.0.0"
 )
 
 scalaVersion := "2.12.7"
 organization := "co.topl"
-version := "0.2.2-alpha"
+version := "1.0.0"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
 
@@ -20,7 +20,7 @@ test in assembly := {}
 val circeVersion = "0.7+"
 
 val networkDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.4.17",
+  "com.typesafe.akka" %% "akka-actor" % "2.5.19",
   "org.bitlet" % "weupnp" % "0.1.+",
   "commons-net" % "commons-net" % "3.+"
 )
@@ -29,6 +29,7 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
+  "io.circe" %% "circe-literal" % circeVersion,
   "io.swagger" %% "swagger-scala-module" % "1.0.3",
   // "io.swagger" % "swagger-core" % "1.5.10",
   // "io.swagger" % "swagger-annotations" % "1.5.10",
@@ -52,6 +53,9 @@ val testingDependencies = Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
+resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
+
+
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",
@@ -66,6 +70,9 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
 
+libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
+
+
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
 
@@ -78,9 +85,14 @@ val consoleDependencies = Seq(
   "org.apache.commons" % "commons-pool2" % "2.4.2"
 )
 
-libraryDependencies += "org.graalvm" % "graal-sdk" % "1.0.0+"
-// https://mvnrepository.com/artifact/com.oracle.truffle/truffle-api
-libraryDependencies += "com.oracle.truffle" % "truffle-api" % "1.0.0-rc7"
+// https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
+
+// https://mvnrepository.com/artifact/org.graalvm.js/js
+libraryDependencies += "org.graalvm.js" % "js" % "19.2.0"
+
+// https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 
 libraryDependencies ++= consoleDependencies
 
@@ -93,7 +105,8 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-Dcom.sun.management.jmxremote"
+  "-Dcom.sun.management.jmxremote",
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -120,10 +133,15 @@ homepage := Some(url("https://github.com/Topl/Bifrost"))
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
+    case ps if ps.endsWith(".SF")      => MergeStrategy.discard
+    case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".RSA")     => MergeStrategy.discard
+    case ps if ps.endsWith(".xml")     => MergeStrategy.first
+    // https://github.com/sbt/sbt-assembly/issues/370
+    case PathList("module-info.class") => MergeStrategy.discard
+    case PathList("module-info.java")  => MergeStrategy.discard
+    case "META-INF/truffle/instrument" => MergeStrategy.concat
+    case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
   }
 }
@@ -143,7 +161,7 @@ outputStrategy := Some(StdoutOutput)
 lazy val bifrost = Project(id = "project-bifrost", base = file("."))
   .settings(commonSettings: _*)
 
-lazy val contractModules = Project(id = "contract-modules", base = file("contract-modules"))
+lazy val programModules = Project(id = "program-modules", base = file("program-modules"))
   .settings(commonSettings: _*)
   .enablePlugins(ScalaJSPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)

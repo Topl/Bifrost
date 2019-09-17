@@ -7,22 +7,27 @@
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
+      "159.89.107.174:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "genesisoo",
+  "walletSeed": "hel",
   "keyFileDir": "keyfiles/hel",
-  "walletDir": "/tmp/bifrost/hel/wallet",
-  "dataDir": "/tmp/bifrost/hel/data",
-  "logDir": "/tmp/bifrost/hel/log",
+  "walletDir": ".bifrost/hel/wallet",
+  "dataDir": ".bifrost/hel/blockchain",
+  "pbrDir": ".bifrost/hel/pbr",
+  "tbrDir": ".bifrost/hel/tbr",
+  "logDir": ".bifrost/hel/log",
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
   "targetBlockTime": 6000,
-  "offlineGeneration": true,
+  "offlineGeneration": false,
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,
-  "verboseAPI": true
+  "verboseAPI": true,
+  "version": [3,0,0],
+  "forkHeight": 0
 }

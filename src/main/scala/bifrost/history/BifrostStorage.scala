@@ -4,10 +4,11 @@ import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.core.NodeViewModifier._
-import scorex.core.crypto.hash.FastCryptographicHash
-import scorex.core.transaction.Transaction
-import scorex.core.utils.ScorexLogging
+import bifrost.NodeViewModifier._
+import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.transaction.Transaction
+import bifrost.utils.ScorexLogging
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
@@ -38,9 +39,15 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
-            val parsed = BifrostBlockCompanion.parseBytes(bytes.tail)
+            val parsed = {
+              heightOf(blockId) match {
+                case Some(x) if (x <= settings.forkHeight) => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+              }
+            }
             parsed match {
-              case Failure(e) => log.warn("Failed to parse bytes from db", e)
+              case Failure(e) =>
+                log.warn("Failed to parse bytes from db", e)
               case _ =>
             }
             parsed.toOption
