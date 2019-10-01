@@ -9,12 +9,14 @@ import bifrost.blocks.BifrostBlock
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.proof.MultiSignature25519
+import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxeRegistry
+import bifrost.transaction.account.PublicKeyNoncedBox
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
@@ -163,7 +165,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
 
     val statefulValid: Try[Unit] = {
-
       val boxesSumTry: Try[Long] = {
         poT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
@@ -576,6 +577,17 @@ object BifrostState extends ScorexLogging {
       case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
+    }
+  }
+
+  def generateUnlockers(from: Map[PublicKey25519Proposition, Nonce], signatures: Map[PublicKey25519Proposition, Signature25519]):
+  Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map{
+      case (prop, nonce) =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
+          override val boxKey: Signature25519 = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
+        }
     }
   }
 
