@@ -298,6 +298,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   def validateProgramTransfer(prT: ProgramTransfer): Try[Unit] = {
+    val from = Seq((prT.from, prT.executionBox.nonce))
+    val signature = Map(prT.from -> prT.signature)
+    val unlocker = generateUnlockers(from, signature).head
+
     val statefulValid: Try[Unit] = {
       prT.newBoxes.size match {
         case 1 => if(prT.newBoxes.head.isInstanceOf[ExecutionBox])
@@ -307,8 +311,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
         case _ => Failure(new Exception("Incorrect number of boxes created"))
       }
-
-      val unlocker = prT.unlockers.head
 
       closedBox(unlocker.closedBoxId) match {
         case Some(box: ExecutionBox) => if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
