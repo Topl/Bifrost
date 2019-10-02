@@ -567,12 +567,22 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   def generateUnlockers(from: Seq[(PublicKey25519Proposition, Nonce)], signatures: Map[PublicKey25519Proposition, Signature25519]):
   Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map{
+    from.map {
       case (prop, nonce) =>
         new BoxUnlocker[PublicKey25519Proposition] {
           override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
           override val boxKey: Signature25519 = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
         }
+    }
+  }
+
+  def generateUnlockers(boxIds: Seq[Array[Byte]], signature: Signature25519):
+  Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    boxIds.map { id =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signature
+      }
     }
   }
 }
