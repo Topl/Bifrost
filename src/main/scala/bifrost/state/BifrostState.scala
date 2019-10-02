@@ -472,10 +472,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     */
   //noinspection ScalaStyle
   def validateAssetRedemption(ar: AssetRedemption): Try[Unit] = {
-    val statefulValid: Try[Unit] = {
+    val unlockers = ar.boxIdsToOpen.map {
+      boxId =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] = boxId
+          override val boxKey: Signature25519 = ar.redemptionGroup(ByteArrayWrapper(boxId))
+        }
+    }
 
+    val statefulValid: Try[Unit] = {
       /* First check that all the proposed boxes exist */
-      val availableAssetsTry: Try[Map[String, Long]] = ar.unlockers
+      val availableAssetsTry: Try[Map[String, Long]] = unlockers
         .foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
 
         partialRes.flatMap(partialMap =>
