@@ -252,11 +252,12 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
+
+    val unlockers = generateUnlockers(asT.from, asT.signatures)
+
     val statefulValid: Try[Unit] = {
-
       val boxesSumTry: Try[Long] = {
-        asT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-
+        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
           partialRes.flatMap(partialSum =>
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
