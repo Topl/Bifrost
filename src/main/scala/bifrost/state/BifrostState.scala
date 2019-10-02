@@ -371,7 +371,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   //noinspection ScalaStyle
   def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
 
-    val unlockersValid: Try[Unit] = pc.unlockers
+    val unlockers = generateUnlockers(pc.boxIdsToOpen, pc.signatures.head._2)
+
+    val unlockersValid: Try[Unit] = unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { (unlockerValidity) =>
