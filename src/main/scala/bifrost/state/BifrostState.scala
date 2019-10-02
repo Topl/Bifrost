@@ -426,15 +426,9 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
     }
 
-    //TODO check that one of the boxIds to remove is a state box and was present in the ProgramBoxeRegistry
-    //TODO Remember that for each pme, exactly one state box would be consumed and exactly one would be created
+    val unlockers = generateUnlockers(pme.boxIdsToOpen, pme.signatures.head._2)
 
-//    pme.unlockers.foreach(unlocker =>
-//      if(closedBox(unlocker.closedBoxId)).isInstanceOf[StateBox] {
-//      return true
-//    })
-//
-    val unlockersValid: Try[Unit] = pme.unlockers
+    val unlockersValid: Try[Unit] = unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { (unlockerValidity) =>
