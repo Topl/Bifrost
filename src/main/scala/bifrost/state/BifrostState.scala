@@ -519,7 +519,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
       /* Handles fees */
       val boxesSumTry: Try[Long] = {
-        ar.unlockers
+        unlockers
           .tail
           .foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) => {
           partialRes
