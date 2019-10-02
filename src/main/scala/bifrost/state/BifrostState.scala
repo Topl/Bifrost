@@ -164,9 +164,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     */
   def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
 
+    val unlockers = generateUnlockers(poT.from, poT.signatures)
+
     val statefulValid: Try[Unit] = {
       val boxesSumTry: Try[Long] = {
-        poT.unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
 
           partialRes.flatMap(partialSum =>
             /* Checks if unlocker is valid and if so adds to current running total */
@@ -551,6 +553,17 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     }
     validConstruction
   }
+
+  def generateUnlockers(from: Seq[(PublicKey25519Proposition, Nonce)], signatures: Map[PublicKey25519Proposition, Signature25519]):
+  Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map{
+      case (prop, nonce) =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
+          override val boxKey: Signature25519 = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
+        }
+    }
+  }
 }
 
 object BifrostState extends ScorexLogging {
@@ -577,17 +590,6 @@ object BifrostState extends ScorexLogging {
       case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
-    }
-  }
-
-  def generateUnlockers(from: Map[PublicKey25519Proposition, Nonce], signatures: Map[PublicKey25519Proposition, Signature25519]):
-  Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map{
-      case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
-        }
     }
   }
 
