@@ -6,11 +6,10 @@ import bifrost.program.ExecutionBuilder
 import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox, ExecutionBox, PolyBox, StateBox}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramCreationCompanion
-import bifrost.transaction.state.PrivateKey25519
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
@@ -53,18 +52,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = investmentBoxIds
-    .map(id =>
-           new BoxUnlocker[PublicKey25519Proposition] {
-             override val closedBoxId: Array[Byte] = id
-             override val boxKey: Signature25519 = signatures(owner)
-           }
-    ) ++ feeBoxUnlockers
-
   lazy val hashNoNonces = FastCryptographicHash(
     ExecutionBuilderCompanion.toBytes(executionBuilder) ++
       owner.pubKeyBytes ++
-      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 

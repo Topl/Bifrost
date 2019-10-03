@@ -1,7 +1,6 @@
 package bifrost.state
 
 import java.io.File
-import java.time.Instant
 
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.history.BifrostHistory
@@ -9,7 +8,7 @@ import bifrost.blocks.BifrostBlock
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction.box._
-import bifrost.transaction.proof.{MultiSignature25519, Proof, Signature25519}
+import bifrost.transaction.proof.{MultiSignature25519, Signature25519}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
@@ -344,7 +343,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     * Check the code is valid chain code and the newly created CodeBox is
     * formed properly
     *
-    * @param cc
+    * @param cc : CodeCreation object
     * @return
     */
   def validateCodeCreation(cc: CodeCreation): Try[Unit] = {
@@ -376,7 +375,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val unlockersValid: Try[Unit] = unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
-        .flatMap { (unlockerValidity) =>
+        .flatMap { unlockerValidity =>
           closedBox(unlocker.closedBoxId) match {
             case Some(box) =>
               if (unlocker.boxKey.isValid(

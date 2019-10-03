@@ -67,7 +67,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
       ExecutionBuilderCompanion.toBytes(executionBuilder),
       owner.pubKeyBytes,
       data.getBytes)
-      //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
+      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
     val signature = Map(owner -> PrivateKey25519Companion.sign(priv, messageToSign))
 

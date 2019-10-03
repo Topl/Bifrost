@@ -6,7 +6,7 @@ import java.util.UUID
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, ExecutionBox}
+import bifrost.transaction.box.{BifrostBox, ExecutionBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramTransferCompanion
@@ -40,14 +40,6 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
   )
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
-
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
-    if(signature.isInstanceOf[Signature25519])
-    Seq(new BoxUnlocker[PublicKey25519Proposition] {
-      override val closedBoxId: Array[Byte] = executionBox.id
-      override val boxKey: Signature25519 = signature
-    })
-    else Traversable()
 
   override lazy val newBoxes: Traversable[BifrostBox] = {
 

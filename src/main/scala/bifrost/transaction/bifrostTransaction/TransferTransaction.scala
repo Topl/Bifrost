@@ -3,7 +3,6 @@ package bifrost.transaction.bifrostTransaction
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.box.BoxUnlocker
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.Longs
@@ -22,20 +21,8 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] =
-    if (signatures.size > 0)
-      from.map {
-        case (prop, nonce) =>
-          new BoxUnlocker[PublicKey25519Proposition] {
-            override val closedBoxId: Array[Byte] = PublicKeyNoncedBox.idFromBox(prop, nonce)
-            override val boxKey: Signature25519 = signatures.get(prop).getOrElse(throw new Exception("Signature not provided"))
-        }
-    }
-  else Traversable()
-
   lazy val hashNoNonces = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-      //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
       //Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
       data.getBytes

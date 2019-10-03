@@ -4,7 +4,7 @@ import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.box.{BoxUnlocker, PolyBox}
+import bifrost.transaction.box.PolyBox
 import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
@@ -51,18 +51,6 @@ abstract class ProgramTransaction extends BifrostTransaction {
     "fees" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
     "timestamp" -> timestamp.asJson
   ).asJson
-
-  lazy val feeBoxUnlockers: IndexedSeq[BoxUnlocker[PublicKey25519Proposition]] = feeBoxIdKeyPairs
-    .map {
-      case (boxId: Array[Byte], owner: PublicKey25519Proposition) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] = boxId
-          override val boxKey: Signature25519 = signatures.get(owner) match {
-            case Some(sig) => sig
-            case None => Signature25519(Array[Byte]())
-          }
-        }
-    }
 
   def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
     val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)

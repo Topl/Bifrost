@@ -6,11 +6,11 @@ import java.util.UUID
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.program.ProgramPreprocessor
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.{BifrostBox, BoxUnlocker, CodeBox}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.box.{BifrostBox, CodeBox}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.CodeBoxCreationCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Json, JsonObject}
@@ -33,8 +33,6 @@ case class CodeCreation(to: PublicKey25519Proposition,
   override def toString: String = s"CodeCreation(${json.noSpaces})"
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
-
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes ++

@@ -3,10 +3,10 @@ package bifrost.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{AssetBox, BifrostBox, BoxUnlocker}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.{AssetBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.serialization.AssetCreationCompanion
 import bifrost.wallet.BWallet
@@ -20,10 +20,10 @@ import scala.util.Try
 case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                           signatures: Map[PublicKey25519Proposition, Signature25519],
                           assetCode: String,
-                          val issuer: PublicKey25519Proposition,
+                          issuer: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long,
-                          val data: String) extends BifrostTransaction {
+                          data: String) extends BifrostTransaction {
 
 
   override type M = AssetCreation
@@ -33,8 +33,6 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
   override def toString: String = s"AssetCreation(${json.noSpaces})"
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
-
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces = FastCryptographicHash(

@@ -9,10 +9,9 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxeRegistry
 import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramMethodExecutionCompanion
-import bifrost.transaction.state.PrivateKey25519
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
@@ -58,18 +57,11 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] =
-    Seq(new BoxUnlocker[PublicKey25519Proposition] {
-    override val closedBoxId: Array[Byte] = executionBox.id
-    override val boxKey: Signature25519 = signatures.getOrElse(owner, throw new Exception("Signature not provided"))
-  }) ++ feeBoxUnlockers
-
   lazy val hashNoNonces = FastCryptographicHash(
     executionBox.id ++
       methodName.getBytes ++
       owner.pubKeyBytes ++
       methodParams.noSpaces.getBytes ++
-      unlockers.flatMap(_.closedBoxId) ++
       Longs.toByteArray(timestamp) ++
       fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )

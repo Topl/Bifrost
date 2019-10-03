@@ -2,7 +2,6 @@ package bifrost.scorexMod
 
 import com.google.common.primitives.Longs
 import bifrost.transaction.Transaction
-import bifrost.transaction.box.BoxUnlocker
 import bifrost.transaction.box.proposition.Proposition
 
 /**
@@ -10,7 +9,6 @@ import bifrost.transaction.box.proposition.Proposition
   */
 abstract class GenericBoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] extends Transaction[P] {
 
-  val unlockers: Traversable[BoxUnlocker[P]]
   val newBoxes: Traversable[BX]
 
   override lazy val messageToSign: Array[Byte] =

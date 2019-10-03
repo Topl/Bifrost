@@ -4,10 +4,10 @@ import java.time.Instant
 
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.box.{ArbitBox, BifrostBox, BoxUnlocker}
+import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
@@ -30,8 +30,6 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
-
-  override lazy val unlockers: Traversable[BoxUnlocker[ProofOfKnowledgeProposition[PrivateKey25519]]] = Traversable()
 
   lazy val hashNoNonces = FastCryptographicHash(
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed

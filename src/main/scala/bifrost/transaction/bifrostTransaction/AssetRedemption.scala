@@ -4,7 +4,7 @@ import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.box.{AssetBox, BifrostBox, BoxUnlocker}
+import bifrost.transaction.box.{AssetBox, BifrostBox}
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.AssetRedemptionCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -49,18 +49,8 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
     .map(_.data)
     .sortBy(Base58.encode)
 
-  override lazy val unlockers: Traversable[BoxUnlocker[PublicKey25519Proposition]] = boxIdsToOpen
-    .map {
-      boxId =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] = boxId
-          override val boxKey: Signature25519 = redemptionGroup(ByteArrayWrapper(boxId))
-        }
-    }
-
   lazy val hashNoNonces = FastCryptographicHash(
     remainderAllocations.values.foldLeft(Array[Byte]())((a, b) => a ++ b.flatMap(_._1.pubKeyBytes)) ++
-      unlockers.map(_.closedBoxId).foldLeft(Array[Byte]())(_ ++ _) ++
       issuer.pubKeyBytes ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
