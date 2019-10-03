@@ -155,7 +155,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderCompanion.toBytes(executionBuilder),
     owner.pubKeyBytes,
-    unlockers.toArray.flatMap(_.closedBoxId),
     data.getBytes
     //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _)
   )

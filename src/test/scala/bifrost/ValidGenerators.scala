@@ -116,7 +116,7 @@ trait ValidGenerators extends BifrostGenerators {
       val messageToSign = Bytes.concat(
         ExecutionBuilderCompanion.toBytes(executionBuilder),
         sender.pubKeyBytes,
-        (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
+        //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
         data.getBytes
       )
 
