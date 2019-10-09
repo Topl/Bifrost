@@ -51,7 +51,7 @@ To keep up with our development
 
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-- Join us on our Riot Chat [Riot](https://riot.im/app/#/room/#technical:matrix.topl.co)
+- Join chat with us on [Zulip](https://impact.zulipchat.com/join/register/)!
 
 
 License
