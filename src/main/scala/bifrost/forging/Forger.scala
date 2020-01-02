@@ -40,7 +40,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   val TransactionsInBlock = 100
 
   // inflation query actor
-  private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
+  //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
 
   //set to true for initial generator
   private var forging = forgerSettings.offlineGeneration
@@ -58,7 +58,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                       ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
-    val infVal = Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
     if (CB.newBoxes.size > 0) {
