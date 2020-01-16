@@ -13,7 +13,7 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxeRegistry
+import bifrost.programBoxRegistry.ProgramBoxRegistry
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
@@ -42,7 +42,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxeRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
+case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
 
@@ -666,7 +666,7 @@ object BifrostState extends ScorexLogging {
     }
 
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
-    val pbr = ProgramBoxeRegistry.readOrGenerate(settings, stateStorage).orNull
+    val pbr = ProgramBoxRegistry.readOrGenerate(settings, stateStorage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull
     if(pbr == null) log.info("Initializing state without programBoxRegistry") else log.info("Initializing state with programBoxRegistry")
     if(tbr == null) log.info("Initializing state without tokenBoxRegistry") else log.info("Initializing state with tokenBoxRegistry")

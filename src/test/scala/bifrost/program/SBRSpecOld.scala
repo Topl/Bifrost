@@ -23,8 +23,8 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-//TODO rewrite with new ProgramBoxeRegistry
-class ProgramBoxeRegistrySpecOld extends PropSpec
+//TODO rewrite with new ProgramBoxRegistry
+class ProgramBoxRegistrySpecOld extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -70,7 +70,7 @@ class ProgramBoxeRegistrySpecOld extends PropSpec
 //  var history: BifrostHistory = generateHistory
   var pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings)
 
-  property("ProgramBoxeRegistry should update correctly for new state box with same UUID") {
+  property("ProgramBoxRegistry should update correctly for new state box with same UUID") {
 
     val block = BifrostBlock(
       Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
@@ -102,12 +102,12 @@ class ProgramBoxeRegistrySpecOld extends PropSpec
 
     pbr.update(block_2.id, uuid, sboxTwo.id)
 
-    //ProgramBoxeRegistry should update correctly when replacing stateBoxID for same UUID
+    //ProgramBoxRegistry should update correctly when replacing stateBoxID for same UUID
     pbr.get(uuid).isSuccess shouldBe true
     assert(pbr.get(uuid).get._2 sameElements(sboxTwo.id))
   }
 
-  property("ProgramBoxeRegistry should deterministically generate a new UUID for a new state box") {
+  property("ProgramBoxRegistry should deterministically generate a new UUID for a new state box") {
 
     Thread.sleep(1000)
     val block_3 = BifrostBlock(

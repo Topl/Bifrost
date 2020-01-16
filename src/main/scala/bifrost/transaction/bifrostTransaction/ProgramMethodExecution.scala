@@ -7,7 +7,7 @@ import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.programBoxRegistry.ProgramBoxeRegistry
+import bifrost.programBoxRegistry.ProgramBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
@@ -42,12 +42,12 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   }
 
   //TODO do not readOrGenerate programBoxRegistry here
-  //ProgramBoxeRegistry should be taken from nodeView at api level and passed as parameter to static function in companion object
+  //ProgramBoxRegistry should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
   val history = BifrostHistory.readOrGenerate(forgingSettings)
-  val pbr: ProgramBoxeRegistry = ProgramBoxeRegistry.readOrGenerate(forgingSettings, history.storage.storage).get
+  val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(forgingSettings, history.storage.storage).get
 
   //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => programBoxRegistry.getBox(v).get.asInstanceOf[StateBox])
 
@@ -122,7 +122,7 @@ object ProgramMethodExecution {
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
-  def create(pbr: ProgramBoxeRegistry,
+  def create(pbr: ProgramBoxRegistry,
              uuid: UUID,
              methodName: String,
              methodParams: Json,

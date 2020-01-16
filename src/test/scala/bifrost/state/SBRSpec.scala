@@ -18,7 +18,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.Try
 
-class ProgramBoxeRegistrySpec extends PropSpec
+class ProgramBoxRegistrySpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
