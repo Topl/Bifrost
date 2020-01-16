@@ -22,7 +22,7 @@ class CoinbaseTransactionSpec extends PropSpec
     }
 
     // test inflation val stuff works
-    val preparedState = BifrostStateSpec.genesisState
+    /*val preparedState = BifrostStateSpec.genesisState
     val testPrivKeyBytes = BifrostStateSpec.gw.secrets.head.privKeyBytes
     val testPubKeyBytes = BifrostStateSpec.gw.secrets.head.publicKeyBytes
     val test25519 = PrivateKey25519(testPrivKeyBytes, testPubKeyBytes)
@@ -35,6 +35,7 @@ class CoinbaseTransactionSpec extends PropSpec
     preparedState.changes(testBlock)
     BifrostStateSpec.history.append(testBlock)
     preparedState.validate(CB).isSuccess shouldBe true
+     */
 
   }
 }
