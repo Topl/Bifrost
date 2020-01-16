@@ -12,8 +12,8 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.ArbitBox
+import bifrost.transaction.bifrostTransaction.{AssetCreation, BifrostTransaction}
+import bifrost.transaction.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
@@ -68,6 +68,8 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
+  var asset: Option[AssetBox] = None
+
   "Asset RPC" should {
 
     // TODO asset redemption does not work
@@ -117,6 +119,7 @@ class AssetRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
         val tempBlock = BifrostBlock(history.bestBlockId,
@@ -145,6 +148,30 @@ class AssetRPCSpec extends WordSpec
            |     "recipient": "${publicKeys("investor")}",
            |     "amount": 10,
            |     "assetCode": "etherAssets",
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "Transfer a target asset" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "transferTargetAssets",
+           |   "params": [{
+           |     "recipient": "${publicKeys("producer")}",
+           |     "assetId": "${Base58.encode(asset.get.id)}",
+           |     "amount": 1,
            |     "fee": 0,
            |     "data": ""
            |   }]
