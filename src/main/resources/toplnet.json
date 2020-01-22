@@ -1,6 +1,6 @@
 {
   "p2p": {
-    "name": "production-alpha",
+    "name": "toplnet",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
@@ -12,11 +12,14 @@
     "addedMaxDelay": 2000,
     "maxConnections": 10
   },
-  "walletSeed": "production-alpha",
-  "keyFileDir": "keyfiles/production-alpha",
-  "walletDir": ".bifrost/production-alpha/wallet",
-  "dataDir": ".bifrost/production-alpha/data",
-  "logDir": ".bifrost/production-alpha/log",
+  "walletSeed": "toplnet",
+  "keyFileDir": "keyfiles/toplnet",
+  "walletDir": ".bifrost/toplnet/wallet",
+  "dataDir": ".bifrost/toplnet/data",
+  "tbrDir": ".bifrost/toplnet/tbr",
+  "pbrDir": ".bifrost/toplnet/pbr",
+  "logDir": ".bifrost/toplnet/log",
+
   "rpcPort": 9585,
   "rpcAllowed": [],
   "maxRollback": 100,
@@ -25,5 +28,7 @@
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,
-  "verboseAPI": true
+  "verboseAPI": true,
+  "version": [3,0,0],
+  "forkHeight": 0
 }
