@@ -14,14 +14,15 @@ class InflationQuery extends Actor {
   var infUpdateVal = 1L
   var infUpdateBlock = 1L
   implicit val ec = ExecutionContext.global // gives the actor a context so we can use the scheduler
-  self ! constantQuery() // starts the scheduled updater
+  //self ! constantQuery() // starts the scheduled updater
 
   @throws(classOf[java.io.IOException])
   private def get(url: String)= scala.io.Source.fromURL(url).mkString
 
   private def getUpdatedVals() = {
     try {
-      val resp = get("http://167.99.135.150/") // returns a string "infVal,###,infUpdateVal,###,infUpdateBlock,###"
+      //TODO Replace inflation query server
+      val resp = get("") // returns a string "infVal,###,infUpdateVal,###,infUpdateBlock,###"
       val parts = resp.split(',')
       if (parts.length == 6 && parts(0) == "infVal" && parts(2) == "infUpdateVal" && parts(4) == "infUpdateBlock") {
         infVal = parts(1).toLong
