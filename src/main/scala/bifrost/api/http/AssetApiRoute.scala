@@ -58,6 +58,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
                   case "transferAssets" => transferAssets(params.head, id)
                   case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
                   case "transferTargetAssets" => transferTargetAssets(params.head, id)
+                  case "transferTargetAssetsPrototype" => transferTargetAssetsPrototype(params.head, id)
                   case "createAssets" => createAssets(params.head, id)
                   case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
                 }
@@ -178,6 +179,31 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
+          tx.json
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  private def transferTargetAssetsPrototype(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      val asset = view.state.closedBox(Base58.decode(assetId).get).get.asInstanceOf[AssetBox]
+      val timestamp = Instant.now.toEpochMilli
+      val from: IndexedSeq[(PublicKey25519Proposition, Nonce)] = IndexedSeq((asset.proposition, asset.nonce))
+      val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq((recipient, amount))
+
+      val tx = AssetTransfer(from, to, Map(), asset.proposition, asset.assetCode, fee, timestamp, data)
+      AssetTransfer.validatePrototype(tx) match {
+        case Success(_) =>
           tx.json
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }

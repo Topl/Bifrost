@@ -161,6 +161,31 @@ class AssetRPCSpec extends WordSpec
       }
     }
 
+    "Transfer target asset prototype" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "1",
+           |   "method": "transferTargetAssetsPrototype",
+           |   "params": [{
+           |     "recipient": "${publicKeys("producer")}",
+           |     "assetId": "${Base58.encode(asset.get.id)}",
+           |     "amount": 1,
+           |     "fee": 0,
+           |     "data": ""
+           |   }]
+           |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(res)
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
     "Transfer a target asset" in {
       val requestBody = ByteString(
         s"""
@@ -180,6 +205,7 @@ class AssetRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
