@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.AssetApiRoute
+import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -20,6 +20,8 @@ import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
+import bifrost.transaction.state.PrivateKey25519Companion
+import io.circe.Json
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -43,6 +45,7 @@ class AssetRPCSpec extends WordSpec
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
   nodeViewHolderRef
   val route = AssetApiRoute(settings, nodeViewHolderRef).route
+  val walletRoute = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -69,11 +72,12 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var asset: Option[AssetBox] = None
+  var tx: String = ""
 
   "Asset RPC" should {
 
     // TODO asset redemption does not work
-/*
+    /*
     "Redeem some assets" in {
       val requestBody = ByteString(
         s"""
@@ -141,7 +145,7 @@ class AssetRPCSpec extends WordSpec
         s"""
            |{
            |   "jsonrpc": "2.0",
-           |   "id": "1",
+           |   "id": "2",
            |   "method": "createAssetsPrototype",
            |   "params": [{
            |     "issuer": "${publicKeys("hub")}",
@@ -160,6 +164,60 @@ class AssetRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
+
+    /*
+    "Sign createAssets Prototype transaction" in {
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "1",
+           |  "method": "signTx",
+           |  "params": [{
+           |    "signingKeys": "${publicKeys("hub")}",
+           |    "tx": "$tx"
+           |  }]
+           |}
+          """.stripMargin)
+
+      println(requestBody.utf8String)
+
+      httpPOST(requestBody) ~> walletRoute ~> check {
+        val res = parse(responseAs[String]).right.get
+        tx = (res \\ "result").head.asString.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+     */
+
+      /*
+      "Broadcast createAssetsPrototype transaction" in {
+
+        val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+        val tempTx = parse(tx).asInstanceOf[AssetCreation]
+        val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
+        val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+
+        val requestBody = ByteString(
+          s"""
+             |{
+             |  "jsonrpc": "2.0",
+             |  "id": "1",
+             |  "method": "broadCastTx",
+             |  "params": [{
+             |    "tx": "${signedTx.json.asString.get}"
+             |}
+          """.stripMargin)
+
+      httpPOST(requestBody) ~> walletRoute ~> check {
+        val res = parse(responseAs[String]).right.get
+        tx = (res \\ "result").head.asString.get
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+       */
 
     "Transfer target asset prototype" in {
       val requestBody = ByteString(
@@ -180,7 +238,6 @@ class AssetRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -205,7 +262,6 @@ class AssetRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
