@@ -151,7 +151,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       // Update nodeView with new TX
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
+          tx.json.deepMerge(Map("messageToSign" -> Base58.encode(tx.messageToSign)).asJson)
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
@@ -204,7 +204,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       val tx = AssetTransfer(from, to, Map(), asset.proposition, asset.assetCode, fee, timestamp, data)
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
+          tx.json.deepMerge(Map("messageToSign" -> Base58.encode(tx.messageToSign)).asJson)
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
@@ -248,7 +248,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
+          tx.json.deepMerge(Map("messageToSign" -> Base58.encode(tx.messageToSign)).asJson)
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
