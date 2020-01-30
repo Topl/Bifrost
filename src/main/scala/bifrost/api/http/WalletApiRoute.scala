@@ -13,7 +13,6 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.Bip39
-import bifrost.exceptions.JsonParsingException
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation, AssetTransfer, BifrostTransaction, PolyTransfer, TransferTransaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -303,8 +302,11 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val tx = (params \\ "tx").head
-      val txInstance: BifrostTransaction = (tx \\ "txType").head.asString.get match {
+      val txType = (tx \\ "txType").head.asString.get
+      val txInstance: BifrostTransaction = txType match {
         case "AssetCreation" => tx.as[AssetCreation].right.get
+        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+        case _ => throw new Exception(s"Could not find valid transaction type $txType")
       }
 
       view.state.semanticValidity(txInstance)
