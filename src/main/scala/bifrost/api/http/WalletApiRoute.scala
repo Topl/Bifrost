@@ -302,12 +302,14 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
 
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val tx = (params \\ "tx").head.asInstanceOf[BifrostTransaction]
+      val tx = (params \\ "tx").head
+      val txInstance: BifrostTransaction = (tx \\ "txType").head.asString.get match {
+        case "AssetCreation" => tx.as[AssetCreation].right.get
+      }
 
-      view.state.validate(tx)
-
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction](tx)
-      tx.json
+      view.state.semanticValidity(txInstance)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction](txInstance)
+      txInstance.json
     }
   }
 }
