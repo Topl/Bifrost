@@ -13,7 +13,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.{AssetCreation, BifrostTransaction}
+import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
 import bifrost.transaction.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
@@ -248,8 +248,52 @@ class AssetRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
+      }
+    }
+
+    "Broadcast transferTargetAssetsPrototype" in {
+      val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
+      val secret = view().vault.secretByPublicImage(
+        PublicKey25519Proposition(Base58.decode(prop).get))
+      val tempTx = tx.as[AssetTransfer].right.get
+      val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
+      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "1",
+           |  "method": "broadcastTx",
+           |  "params": [{
+           |    "tx": ${signedTx.json}
+           |  }]
+           |}
+        """.stripMargin)
+
+      walletHttpPOST(requestBody) ~> walletRoute ~> check {
+        val res = parse(responseAs[String]).right.get
+        println(res)
+        (res \\ "error").isEmpty shouldBe true
+        (res \\ "result").head.asObject.isDefined shouldBe true
+        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
+        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+
+        val history = view().history
+        val tempBlock = BifrostBlock(history.bestBlockId,
+          System.currentTimeMillis(),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          Seq(txInstance),
+          10L,
+          settings.version
+        )
+        view().state.applyModifier(tempBlock)
+        view().pool.remove(txInstance)
+        //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }
 
@@ -337,7 +381,6 @@ class AssetRPCSpec extends WordSpec
 
   override def afterAll() {
     view.pool.unconfirmed.clear
-    println(s"${view.pool.take(1).toList}")
     actorSystem.terminate
   }
 }
