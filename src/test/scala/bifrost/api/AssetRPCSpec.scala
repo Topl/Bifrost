@@ -8,6 +8,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.blocks.BifrostBlock
+import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -22,6 +23,7 @@ import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519Companion
 import io.circe.Json
+import io.circe.syntax._
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -55,6 +57,14 @@ class AssetRPCSpec extends WordSpec
     ).withHeaders(RawHeader("api_key", "test_key"))
   }
 
+  def walletHttpPOST(jsonRequest: ByteString): HttpRequest = {
+    HttpRequest(
+      HttpMethods.POST,
+      uri = "/wallet/",
+      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
+    ).withHeaders(RawHeader("api_key", "test_key"))
+  }
+
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
@@ -72,7 +82,7 @@ class AssetRPCSpec extends WordSpec
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var asset: Option[AssetBox] = None
-  var tx: String = ""
+  var tx: Json = "".asJson
 
   "Asset RPC" should {
 
@@ -160,6 +170,7 @@ class AssetRPCSpec extends WordSpec
 
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
+        tx = ((res \\ "result").head \\ "formattedTx").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
@@ -191,33 +202,32 @@ class AssetRPCSpec extends WordSpec
     }
      */
 
-      /*
-      "Broadcast createAssetsPrototype transaction" in {
 
-        val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
-        val tempTx = parse(tx).asInstanceOf[AssetCreation]
-        val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
-        val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+    "Broadcast createAssetsPrototype transaction" in {
+      val secret = view().vault.secretByPublicImage(
+        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+      val tempTx = tx.as[AssetCreation].right.get
+      val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
+      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
 
-        val requestBody = ByteString(
-          s"""
-             |{
-             |  "jsonrpc": "2.0",
-             |  "id": "1",
-             |  "method": "broadCastTx",
-             |  "params": [{
-             |    "tx": "${signedTx.json.asString.get}"
-             |}
-          """.stripMargin)
+      val requestBody = ByteString(
+        s"""
+           |{
+           |  "jsonrpc": "2.0",
+           |  "id": "1",
+           |  "method": "broadcastTx",
+           |  "params": [{
+           |    "tx": ${signedTx.json}
+           |  }]
+           |}
+        """.stripMargin)
 
-      httpPOST(requestBody) ~> walletRoute ~> check {
+      walletHttpPOST(requestBody) ~> walletRoute ~> check {
         val res = parse(responseAs[String]).right.get
-        tx = (res \\ "result").head.asString.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-       */
 
     "Transfer target asset prototype" in {
       val requestBody = ByteString(
