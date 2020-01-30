@@ -12,7 +12,7 @@ import bifrost.transaction.serialization.AssetTransferCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Ints}
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
@@ -134,4 +134,36 @@ object AssetTransfer extends TransferUtil {
 
   def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
 
+  implicit val decodeAssetTransfer: Decoder[AssetTransfer] = (c: HCursor) => for {
+    rawFrom <- c.downField("from").as[IndexedSeq[(String, Nonce)]]
+    rawTo <- c.downField("to").as[IndexedSeq[(String, Long)]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    rawIssuer <- c.downField("issuer").as[String]
+    assetCode <- c.downField("assetCode").as[String]
+    fee <- c.downField("fee").as[Long]
+    timestamp<- c.downField("timestamp").as[Long]
+    data <- c.downField("data").as[String]
+  } yield {
+    val from = rawFrom.map { case (prop, nonce) =>
+        BifrostTransaction.stringToPubKey(prop) -> nonce
+    }
+    val to = rawTo.map { case (prop, value) =>
+        BifrostTransaction.stringToPubKey(prop) -> value
+    }
+    val signatures = rawSignatures.map { case (prop, sig) =>
+        BifrostTransaction.stringToPubKey(prop) -> BifrostTransaction.stringToSignature(sig)
+    }
+    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+
+      AssetTransfer(
+        from,
+        to,
+        signatures,
+        issuer,
+        assetCode,
+        fee,
+        timestamp,
+        data
+      )
+  }
 }
