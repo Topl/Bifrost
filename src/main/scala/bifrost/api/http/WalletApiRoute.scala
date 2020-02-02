@@ -288,10 +288,14 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     viewAsync().map { view =>
       val wallet = view.vault
       val props = (params \\ "signingKeys").head.asArray.get.map(k => PublicKey25519Proposition(Base58.decode(k.asString.get).get))
-      val tx = (params \\ "tx").head.asJson match {
-        case btx: BifrostTransaction => btx
+      val tx = (params \\ "tx").head
+      val txType = (tx \\ "txType").head.asString.get
+      val txInstance = txType match {
+        case "AssetCreation" => tx.as[AssetCreation].right.get
+        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+        case _ => throw new Exception(s"Could not find valid transaction type $txType")
       }
-      val signatures: Json = BifrostTransaction.signTx(wallet, props, tx.messageToSign).map(sig => {
+      val signatures: Json = BifrostTransaction.signTx(wallet, props, txInstance.messageToSign).map(sig => {
         Base58.encode(sig._1.pubKeyBytes) -> Base58.encode(sig._2.signature).asJson
       }).asJson
 
