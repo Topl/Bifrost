@@ -41,7 +41,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         postJsonRoute {
           viewAsync().map { view =>
             var reqId = ""
-            println(s"parse(body): ${parse(body)}")
             parse(body) match {
               case Left(failure) => ApiException(failure.getCause)
               case Right(request) =>
@@ -154,7 +153,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       val tx = ArbitTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
-      println(tx.json)
       ArbitTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
