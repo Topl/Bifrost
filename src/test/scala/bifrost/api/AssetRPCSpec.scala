@@ -232,6 +232,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "transferTargetAssetsPrototype",
            |   "params": [{
+           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "assetId": "${Base58.encode(asset.get.id)}",
            |     "amount": 1,
@@ -273,21 +274,6 @@ class AssetRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
-
-        val history = view().history
-        val tempBlock = BifrostBlock(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(txInstance),
-          10L,
-          settings.version
-        )
-        view().state.applyModifier(tempBlock)
-        view().pool.remove(txInstance)
-        //Dont need further checks here since the subsequent tests would fail if this one did
       }
     }
 
@@ -299,6 +285,7 @@ class AssetRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "transferTargetAssets",
            |   "params": [{
+           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
            |     "recipient": "${publicKeys("producer")}",
            |     "assetId": "${Base58.encode(asset.get.id)}",
            |     "amount": 1,

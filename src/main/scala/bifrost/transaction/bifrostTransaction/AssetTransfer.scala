@@ -100,9 +100,10 @@ object AssetTransfer extends TransferUtil {
              fee: Long,
              issuer: PublicKey25519Proposition,
              assetCode: String,
-             data: String): Try[AssetTransfer] = Try {
+             data: String,
+             assetId: Option[String] = None): Try[AssetTransfer] = Try {
 
-    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
@@ -113,9 +114,10 @@ object AssetTransfer extends TransferUtil {
                       issuer: PublicKey25519Proposition,
                       assetCode: String,
                       fee: Long,
-                      data: String): Try[AssetTransfer] = Try
+                      data: String,
+                      assetId: Option[String] = None): Try[AssetTransfer] = Try
   {
-    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }

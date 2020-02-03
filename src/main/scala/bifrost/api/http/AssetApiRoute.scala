@@ -163,6 +163,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   private def transferTargetAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key =>
+        PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -173,12 +175,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       }
 
       val asset = view.state.closedBox(Base58.decode(assetId).get).get.asInstanceOf[AssetBox]
-      val selectedSecret: PrivateKey25519 = wallet.secretByPublicImage(asset.proposition).get
-      val timestamp = Instant.now.toEpochMilli
-      val from: IndexedSeq[(PrivateKey25519, Nonce)] = IndexedSeq((selectedSecret, asset.nonce))
-      val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq((recipient, amount))
 
-      val tx = AssetTransfer.apply(from, to, asset.proposition, asset.assetCode, fee, timestamp, data)
+      val tx = AssetTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, asset.issuer, asset.assetCode, data).get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
@@ -190,6 +188,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
   private def transferTargetAssetsPrototype(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key =>
+        PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -200,11 +200,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       }
 
       val asset = view.state.closedBox(Base58.decode(assetId).get).get.asInstanceOf[AssetBox]
-      val timestamp = Instant.now.toEpochMilli
-      val from: IndexedSeq[(PublicKey25519Proposition, Nonce)] = IndexedSeq((asset.proposition, asset.nonce))
-      val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq((recipient, amount))
 
-      val tx = AssetTransfer(from, to, Map(), asset.proposition, asset.assetCode, fee, timestamp, data)
+      val tx = AssetTransfer.createPrototype(view.state.tbr, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data).get
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
           Map(
