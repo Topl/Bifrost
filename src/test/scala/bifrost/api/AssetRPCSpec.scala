@@ -176,32 +176,27 @@ class AssetRPCSpec extends WordSpec
       }
     }
 
-    /*
     "Sign createAssets Prototype transaction" in {
       val requestBody = ByteString(
         s"""
            |{
            |  "jsonrpc": "2.0",
-           |  "id": "1",
+           |  "id": "3",
            |  "method": "signTx",
            |  "params": [{
-           |    "signingKeys": "${publicKeys("hub")}",
-           |    "tx": "$tx"
+           |    "signingKeys": ["${publicKeys("hub")}"],
+           |    "tx": $tx
            |  }]
            |}
           """.stripMargin)
 
-      println(requestBody.utf8String)
-
-      httpPOST(requestBody) ~> walletRoute ~> check {
+      walletHttpPOST(requestBody) ~> walletRoute ~> check {
         val res = parse(responseAs[String]).right.get
-        tx = (res \\ "result").head.asString.get
+        tx = (res \\ "result").head
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
       }
     }
-     */
-
 
     "Broadcast createAssetsPrototype transaction" in {
       val secret = view().vault.secretByPublicImage(
@@ -257,7 +252,7 @@ class AssetRPCSpec extends WordSpec
     "Broadcast transferTargetAssetsPrototype" in {
       val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
       val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(prop).get))
+        PublicKey25519Proposition(Base58.decode(prop).get)).get
       val tempTx = tx.as[AssetTransfer].right.get
       val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
       val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
@@ -276,7 +271,6 @@ class AssetRPCSpec extends WordSpec
 
       walletHttpPOST(requestBody) ~> walletRoute ~> check {
         val res = parse(responseAs[String]).right.get
-        println(res)
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
