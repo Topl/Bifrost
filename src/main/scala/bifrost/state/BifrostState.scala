@@ -123,7 +123,6 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     if(tbr != null) tbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
     if(pbr != null) pbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
 
-
     storage.update(
       ByteArrayWrapper(newVersion),
       boxIdsToRemove,
@@ -375,7 +374,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val unlockersValid: Try[Unit] = unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
-        .flatMap { unlockerValidity =>
+        .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
             case Some(box) =>
               if (unlocker.boxKey.isValid(
@@ -430,7 +429,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val unlockersValid: Try[Unit] = unlockers
       .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
       unlockersValid
-        .flatMap { (unlockerValidity) =>
+        .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
             case Some(box) =>
               if (unlocker.boxKey.isValid(box.proposition, pme.messageToSign)) {
@@ -546,18 +545,21 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 
   def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
-    val t = history.modifierById(cb.blockID).get
-    def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
+    //val t = history.modifierById(cb.blockID).get
+    //def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
     val validConstruction: Try[Unit] = {
+      /*
       assert(cb.fee == 0L) // no fee for a coinbase tx
-      //assert(cb.newBoxes.size == 1) // one one new box
-      //assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
-      // This will be implemented at a consensus level
+      assert(cb.newBoxes.size == 1) // one one new box
+      assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
+       This will be implemented at a consensus level
+       */
       Try {
         // assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value == history.modifierById(history.chainBack(history.bestBlock, helper).get.reverse(1)._2).get.inflation)
       }
     }
     validConstruction
+
   }
 
   def generateUnlockers(from: Seq[(PublicKey25519Proposition, Nonce)], signatures: Map[PublicKey25519Proposition, Signature25519]):
@@ -610,10 +612,9 @@ object BifrostState extends ScorexLogging {
     }
   }
 
-  //YT NOTE - byte array set quality is incorrectly overloaded (shallow not deep), consider using bytearraywrapper instead
+  //YT NOTE - byte array set quality is incorrectly overloaded (shallow not deep), consider using ByteArrayWrapper instead
   //YT NOTE - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
   def changes(mod: BPMOD) : Try[GSC] = Try {
-    val initial = (Set(): Set[Array[Byte]], Set(): Set[BX], 0L)
 
     val gen = mod.forgerBox.proposition
 
@@ -628,6 +629,7 @@ object BifrostState extends ScorexLogging {
 
     val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
 
+    //TODO Change to immutable val
     var finalToAdd = toAdd
     if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
 

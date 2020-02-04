@@ -58,6 +58,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
                   case "transferAssets" => transferAssets(params.head, id)
                   case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
                   case "transferTargetAssets" => transferTargetAssets(params.head, id)
+                  case "transferTargetAssetsPrototype" => transferTargetAssetsPrototype(params.head, id)
                   case "createAssets" => createAssets(params.head, id)
                   case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
                 }
@@ -150,7 +151,10 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       // Update nodeView with new TX
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
@@ -159,6 +163,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   private def transferTargetAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key =>
+        PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
       val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
@@ -169,16 +175,39 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
       }
 
       val asset = view.state.closedBox(Base58.decode(assetId).get).get.asInstanceOf[AssetBox]
-      val selectedSecret: PrivateKey25519 = wallet.secretByPublicImage(asset.proposition).get
-      val timestamp = Instant.now.toEpochMilli
-      val from: IndexedSeq[(PrivateKey25519, Nonce)] = IndexedSeq((selectedSecret, asset.nonce))
-      val to: IndexedSeq[(PublicKey25519Proposition, Long)] = IndexedSeq((recipient, amount))
 
-      val tx = AssetTransfer.apply(from, to, asset.proposition, asset.assetCode, fee, timestamp, data)
+      val tx = AssetTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, asset.issuer, asset.assetCode, data).get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
           tx.json
+        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  private def transferTargetAssetsPrototype(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key =>
+        PublicKey25519Proposition(Base58.decode(key.asString.get).get))
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None => ""
+      }
+
+      val asset = view.state.closedBox(Base58.decode(assetId).get).get.asInstanceOf[AssetBox]
+
+      val tx = AssetTransfer.createPrototype(view.state.tbr, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data).get
+      AssetTransfer.validatePrototype(tx) match {
+        case Success(_) =>
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }
@@ -222,7 +251,10 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
 
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
     }

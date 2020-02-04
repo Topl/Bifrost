@@ -7,9 +7,10 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 
@@ -57,4 +58,11 @@ object BifrostTransaction {
   def stringToSignature(rawString: String): Signature25519 = Signature25519(Base58.decode(rawString).get)
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+
+  def signTx(w: BWallet, props: IndexedSeq[PublicKey25519Proposition], message: Array[Byte]):
+  Map[PublicKey25519Proposition, Signature25519] = props.map { prop =>
+    val secret = w.secretByPublicImage(prop).get
+    val signature = PrivateKey25519Companion.sign(secret, message)
+    prop -> signature
+  }.toMap
 }

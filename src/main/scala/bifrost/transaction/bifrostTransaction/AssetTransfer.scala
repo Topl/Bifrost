@@ -12,7 +12,7 @@ import bifrost.transaction.serialization.AssetTransferCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Ints}
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
@@ -56,25 +56,15 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "nonce" -> s._2.asJson
-      ).asJson
+        Base58.encode(s._1.pubKeyBytes) -> s._2
     }.asJson,
     "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.asJson
-      ).asJson
+        Base58.encode(s._1.pubKeyBytes) -> s._2
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
-    "signatures" -> signatures
-      .map { s =>
-        Map(
-          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-          "signature" -> Base58.encode(s._2.signature).asJson
-        ).asJson
+    "signatures" -> signatures.map { s =>
+          Base58.encode(s._1.pubKeyBytes) -> Base58.encode(s._2.signature)
       }.asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson,
@@ -110,9 +100,10 @@ object AssetTransfer extends TransferUtil {
              fee: Long,
              issuer: PublicKey25519Proposition,
              assetCode: String,
-             data: String): Try[AssetTransfer] = Try {
+             data: String,
+             assetId: Option[String] = None): Try[AssetTransfer] = Try {
 
-    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
@@ -123,9 +114,10 @@ object AssetTransfer extends TransferUtil {
                       issuer: PublicKey25519Proposition,
                       assetCode: String,
                       fee: Long,
-                      data: String): Try[AssetTransfer] = Try
+                      data: String,
+                      assetId: Option[String] = None): Try[AssetTransfer] = Try
   {
-    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode)
+    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }
@@ -134,4 +126,36 @@ object AssetTransfer extends TransferUtil {
 
   def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
 
+  implicit val decodeAssetTransfer: Decoder[AssetTransfer] = (c: HCursor) => for {
+    rawFrom <- c.downField("from").as[IndexedSeq[(String, Nonce)]]
+    rawTo <- c.downField("to").as[IndexedSeq[(String, Long)]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    rawIssuer <- c.downField("issuer").as[String]
+    assetCode <- c.downField("assetCode").as[String]
+    fee <- c.downField("fee").as[Long]
+    timestamp<- c.downField("timestamp").as[Long]
+    data <- c.downField("data").as[String]
+  } yield {
+    val from = rawFrom.map { case (prop, nonce) =>
+        BifrostTransaction.stringToPubKey(prop) -> nonce
+    }
+    val to = rawTo.map { case (prop, value) =>
+        BifrostTransaction.stringToPubKey(prop) -> value
+    }
+    val signatures = rawSignatures.map { case (prop, sig) =>
+        BifrostTransaction.stringToPubKey(prop) -> BifrostTransaction.stringToSignature(sig)
+    }
+    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+
+      AssetTransfer(
+        from,
+        to,
+        signatures,
+        issuer,
+        assetCode,
+        fee,
+        timestamp,
+        data
+      )
+  }
 }

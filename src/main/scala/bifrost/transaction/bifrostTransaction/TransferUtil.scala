@@ -8,6 +8,7 @@ import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
+import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -79,14 +80,22 @@ trait TransferUtil {
                 case _ => None
               })
             case "AssetTransfer" =>
-              keyFilteredBoxes.flatMap(_ match {
-                case a: AssetBox
-                  if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                    (a.issuer equals extraArgs(0)
-                      .asInstanceOf[PublicKey25519Proposition]) =>
-                  Some(a)
-                case _ => None
-              })
+              if(extraArgs(2).asInstanceOf[Option[String]].isDefined) {
+                keyFilteredBoxes.flatMap(_ match {
+                  case a: AssetBox
+                    if(Base58.encode(a.id) equals extraArgs(2).asInstanceOf[Option[String]].get) =>
+                      Some(a)
+                })
+              } else {
+                keyFilteredBoxes.flatMap(_ match {
+                  case a: AssetBox
+                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
+                      (a.issuer equals extraArgs(0)
+                        .asInstanceOf[PublicKey25519Proposition]) =>
+                    Some(a)
+                  case _ => None
+                })
+              }
           }
 
           if(keyAndTypeFilteredBoxes.length < 1) throw new Exception("No boxes found to fund transaction")
@@ -151,14 +160,22 @@ trait TransferUtil {
                 case _ => None
               })
             case "AssetTransfer" =>
-              keyFilteredBoxes.flatMap(_ match {
-                case a: AssetBox
-                  if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
-                    (a.issuer equals extraArgs(0)
-                      .asInstanceOf[PublicKey25519Proposition]) =>
-                  Some(a)
-                case _ => None
-              })
+              if(extraArgs(2).asInstanceOf[Option[String]].isDefined) {
+                keyFilteredBoxes.flatMap(_ match {
+                  case a: AssetBox
+                    if(Base58.encode(a.id) equals extraArgs(2).asInstanceOf[Option[String]].get) =>
+                    Some(a)
+                })
+              } else {
+                keyFilteredBoxes.flatMap(_ match {
+                  case a: AssetBox
+                    if (a.assetCode equals extraArgs(1).asInstanceOf[String]) &&
+                      (a.issuer equals extraArgs(0)
+                        .asInstanceOf[PublicKey25519Proposition]) =>
+                    Some(a)
+                  case _ => None
+                })
+              }
           }
 
           if(keyAndTypeFilteredBoxes.length < 1) throw new Exception("No boxes found to fund transaction")

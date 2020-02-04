@@ -14,7 +14,7 @@ import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.Bip39
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, PolyTransfer}
+import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation, AssetTransfer, BifrostTransaction, PolyTransfer, TransferTransaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
 import io.iohk.iodb.ByteArrayWrapper
@@ -63,6 +63,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                     case "generateKeyfile" => generateKeyfile(params.head, id)
                     case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
                     case "importSeedPhrase" => importKeyfile(params.head, id)
+                    case "signTx" => signTx(params.head, id)
+                    case "broadcastTx" => broadcastTx(params.head, id)
                   }
                 }
                 futureResponse map {
@@ -151,7 +153,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
       val tx = ArbitTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, data).get
       // Update nodeView with new TX
-      println(tx.json)
       ArbitTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ArbitTransfer](tx)
@@ -279,6 +280,41 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         case pkp: PrivateKey25519 => Some(Base58.encode(pkp.publicKeyBytes))
         case _ => None
       }).asJson
+    }
+  }
+
+  private def signTx(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val props = (params \\ "signingKeys").head.asArray.get.map(k => PublicKey25519Proposition(Base58.decode(k.asString.get).get))
+      val tx = (params \\ "tx").head
+      val txType = (tx \\ "txType").head.asString.get
+      val txInstance = txType match {
+        case "AssetCreation" => tx.as[AssetCreation].right.get
+        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+        case _ => throw new Exception(s"Could not find valid transaction type $txType")
+      }
+      val signatures: Json = Map("signatures" -> BifrostTransaction.signTx(wallet, props, txInstance.messageToSign).map(sig => {
+        Base58.encode(sig._1.pubKeyBytes) -> Base58.encode(sig._2.signature).asJson
+      })).asJson
+
+      tx.deepMerge(signatures)
+    }
+  }
+
+  private def broadcastTx(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val tx = (params \\ "tx").head
+      val txType = (tx \\ "txType").head.asString.get
+      val txInstance: BifrostTransaction = txType match {
+        case "AssetCreation" => tx.as[AssetCreation].right.get
+        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+        case _ => throw new Exception(s"Could not find valid transaction type $txType")
+      }
+
+      view.state.semanticValidity(txInstance)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction](txInstance)
+      txInstance.json
     }
   }
 }

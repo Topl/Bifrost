@@ -57,6 +57,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
+  //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces = FastCryptographicHash(
     executionBox.id ++
       methodName.getBytes ++

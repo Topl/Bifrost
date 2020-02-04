@@ -11,9 +11,10 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.serialization.AssetCreationCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.Json
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -61,21 +62,15 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     "txHash" -> Base58.encode(id).asJson,
     "txType" -> "AssetCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-        "value" -> s._2.asJson
-      ).asJson
+    "to" -> to.map { case (prop, value) =>
+      Base58.encode(prop.pubKeyBytes) -> value
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
-    "signatures" -> signatures
-      .map { s =>
-        Map(
-          "proposition" -> Base58.encode(s._1.pubKeyBytes).asJson,
-          "signature" -> Base58.encode(s._2.signature).asJson
-        ).asJson
-      }.asJson,    "fee" -> fee.asJson,
+    "signatures" -> signatures.map { case (prop, sig) =>
+      Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.signature)
+    }.asJson,
+    "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson,
     "data" -> data.asJson
   ).asJson
@@ -143,5 +138,35 @@ object AssetCreation {
     val timestamp = Instant.now.toEpochMilli
 
     AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data)
+  }
+
+  implicit val decodeAssetCreation: Decoder[AssetCreation] = (c: HCursor) => for {
+    rawTo <- c.downField("to").as[IndexedSeq[(String, Long)]]
+    rawSignatures <- c.downField("signatures").as[Map[String, String]]
+    assetCode <- c.downField("assetCode").as[String]
+    rawIssuer <- c.downField("issuer").as[String]
+    fee <- c.downField("fee").as[Long]
+    timestamp <- c.downField("timestamp").as[Long]
+    data <- c.downField("data").as[String]
+  } yield {
+    val to = rawTo.map(t => BifrostTransaction.stringToPubKey(t._1) -> t._2)
+    val signatures = rawSignatures.map { case (key, value) =>
+        if(value == "") {
+          (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+        } else {
+          (BifrostTransaction.stringToPubKey(key), BifrostTransaction.stringToSignature(value))
+        }
+    }
+    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+
+    AssetCreation(
+      to,
+      signatures,
+      assetCode,
+      issuer,
+      fee,
+      timestamp,
+      data
+    )
   }
 }
