@@ -11,7 +11,7 @@ import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.AssetTransferCompanion
 import bifrost.transaction.state.PrivateKey25519
 import bifrost.wallet.BWallet
-import com.google.common.primitives.{Bytes, Ints}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -56,10 +56,10 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
-        Base58.encode(s._1.pubKeyBytes) -> s._2
+        Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
     }.asJson,
     "to" -> to.map { s =>
-        Base58.encode(s._1.pubKeyBytes) -> s._2
+        Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
@@ -127,8 +127,8 @@ object AssetTransfer extends TransferUtil {
   def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
 
   implicit val decodeAssetTransfer: Decoder[AssetTransfer] = (c: HCursor) => for {
-    rawFrom <- c.downField("from").as[IndexedSeq[(String, Nonce)]]
-    rawTo <- c.downField("to").as[IndexedSeq[(String, Long)]]
+    rawFrom <- c.downField("from").as[IndexedSeq[(String, String)]]
+    rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     rawIssuer <- c.downField("issuer").as[String]
     assetCode <- c.downField("assetCode").as[String]
@@ -137,10 +137,10 @@ object AssetTransfer extends TransferUtil {
     data <- c.downField("data").as[String]
   } yield {
     val from = rawFrom.map { case (prop, nonce) =>
-        BifrostTransaction.stringToPubKey(prop) -> nonce
+        BifrostTransaction.stringToPubKey(prop) -> nonce.toLong
     }
     val to = rawTo.map { case (prop, value) =>
-        BifrostTransaction.stringToPubKey(prop) -> value
+        BifrostTransaction.stringToPubKey(prop) -> value.toLong
     }
     val signatures = rawSignatures.map { case (prop, sig) =>
         BifrostTransaction.stringToPubKey(prop) -> BifrostTransaction.stringToSignature(sig)

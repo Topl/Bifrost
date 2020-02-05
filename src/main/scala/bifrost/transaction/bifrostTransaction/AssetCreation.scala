@@ -63,7 +63,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     "txType" -> "AssetCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
     "to" -> to.map { case (prop, value) =>
-      Base58.encode(prop.pubKeyBytes) -> value
+      Base58.encode(prop.pubKeyBytes) -> value.toString.asJson
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
@@ -141,7 +141,7 @@ object AssetCreation {
   }
 
   implicit val decodeAssetCreation: Decoder[AssetCreation] = (c: HCursor) => for {
-    rawTo <- c.downField("to").as[IndexedSeq[(String, Long)]]
+    rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     assetCode <- c.downField("assetCode").as[String]
     rawIssuer <- c.downField("issuer").as[String]
@@ -149,7 +149,7 @@ object AssetCreation {
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {
-    val to = rawTo.map(t => BifrostTransaction.stringToPubKey(t._1) -> t._2)
+    val to = rawTo.map(t => BifrostTransaction.stringToPubKey(t._1) -> t._2.toLong)
     val signatures = rawSignatures.map { case (key, value) =>
         if(value == "") {
           (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
