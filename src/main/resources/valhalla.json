@@ -10,7 +10,8 @@
       "165.227.159.180:9584"
     ],
     "addedMaxDelay": 2000,
-    "maxConnections": 10
+    "maxConnections": 10,
+    "handshakeTimeout": 2000
   },
   "walletSeed": "valhalla",
   "keyFileDir": "keyfiles/valhalla",
@@ -28,6 +29,7 @@
   "blockGenerationDelay": 2000,
   "cors": true,
   "verboseAPI": true,
+  "apiKeyHash": "",
   "version": [3,0,0],
   "forkHeight": 0
 }
