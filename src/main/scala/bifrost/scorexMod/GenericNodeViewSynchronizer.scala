@@ -127,10 +127,12 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
           juniors.add(remoteHost)
           //TODO Decide how to handle receiving empty extensions
           //assert(extOpt.isDefined)
-          val ext = extOpt.get
-          ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
-            case (mid, mods) =>
-              networkControllerRef ! SendToNetwork(Message(InvSpec, Right(mid -> mods), None), SendToPeer(remote))
+          if(extOpt.isDefined) {
+            val ext = extOpt.get
+            ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
+              case (mid, mods) =>
+                networkControllerRef ! SendToNetwork(Message(InvSpec, Right(mid -> mods), None), SendToPeer(remote))
+            }
           }
         case Equal =>
           equals.add(remoteHost)
