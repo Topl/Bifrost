@@ -47,7 +47,7 @@ trait ApiRoute extends Directives {
   }
 
   def withAuth(route: => Route): Route = {
-    optionalHeaderValueByName("api_key") { case keyOpt =>
+    optionalHeaderValueByName("x-api-key") { case keyOpt =>
       if (isValid(keyOpt)) route
       else complete(HttpEntity(ContentTypes.`application/json`, ApiError.apiKeyNotValid.toString()))
     }
