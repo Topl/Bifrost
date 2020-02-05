@@ -125,7 +125,8 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
 
         case Younger =>
           juniors.add(remoteHost)
-          assert(extOpt.isDefined)
+          //TODO Decide how to handle receiving empty extensions
+          //assert(extOpt.isDefined)
           val ext = extOpt.get
           ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
             case (mid, mods) =>
