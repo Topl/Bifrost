@@ -190,26 +190,28 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
 
   private def balances(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
-      // Optionally specify the publickey to get balances for. If empty string or not specified return all boxes
-      val boxes: Seq[GenericWalletBox[Any, wallet.PI, BifrostBox]] = (params \\ "publicKey").headOption match {
-        case Some(key) => if (key.asString.get != "") wallet.boxesByKey(key.asString.get) else wallet.boxes()
-        case _ => wallet.boxes()
+      val tbr = view.state.tbr
+      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => PublicKey25519Proposition(Base58.decode(k.asString.get).get))
+      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[BifrostBox]]] = publicKeys
+        .map(k => k -> tbr.boxesByKey(k).groupBy[String](_.typeOfBox)).toMap
+      val balances: Map[PublicKey25519Proposition, (String, String)] = boxes.map { case (prop, boxes) =>
+          val sums = (
+            if(boxes.contains("Poly")) boxes("Poly").foldLeft(0L)((a,b) => a + b.value.asInstanceOf[Long]).toString else "0",
+            if(boxes.contains("Arbit")) boxes("Arbit").foldLeft(0L)((a,b) => a + b.value.asInstanceOf[Long]).toString else "0"
+          )
+        prop -> sums
       }
-      Map("polyBalance" -> boxes.flatMap(_.box match {
-        case pb: PolyBox => Some(pb.value)
-        case _ => None
-      }).sum.toString.asJson,
-        "arbitBalance" -> boxes.flatMap(_.box match {
-          case ab: ArbitBox => Some(ab.value)
-          case _ => None
-        }).sum.toString.asJson,
-        "publicKeys" -> wallet.publicKeys.flatMap(_ match {
-          case pkp: PublicKey25519Proposition => Some(Base58.encode(pkp.pubKeyBytes))
-          case _ => None
-        }).asJson,
-        "boxes" -> boxes.map(_.box.json).asJson
-      ).asJson
+
+      boxes.map { case (prop, boxes) =>
+        Base58.encode(prop.pubKeyBytes) -> Map(
+          "Balances" -> Map(
+            "Polys" -> balances(prop)._1,
+            "Arbits" -> balances(prop)._2
+          ).asJson,
+          "Boxes" -> boxes.map(b => b._1 -> b._2.map(_.json).asJson).asJson
+        )
+      }.asJson
+
     }
   }
 
