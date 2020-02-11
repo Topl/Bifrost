@@ -78,7 +78,7 @@ trait ProgramMockState extends BifrostGenerators {
       HttpMethods.POST,
       uri = "/program/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   protected def view() = Await.result(

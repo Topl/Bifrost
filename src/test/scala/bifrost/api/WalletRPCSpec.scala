@@ -44,7 +44,7 @@ class WalletRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/wallet/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   implicit val timeout = Timeout(10.seconds)

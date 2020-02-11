@@ -26,7 +26,7 @@ class UtilsRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/utils/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   val seedLength: Int = 10
