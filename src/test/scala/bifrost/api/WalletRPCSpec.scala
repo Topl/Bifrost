@@ -74,7 +74,9 @@ class WalletRPCSpec extends WordSpec
            |   "jsonrpc": "2.0",
            |   "id": "1",
            |   "method": "balances",
-           |   "params": [{}]
+           |   "params": [{
+           |      "publicKeys": ["${publicKeys("investor")}"]
+           |   }]
            |}
         """.stripMargin)
 
@@ -82,26 +84,6 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-
-    "Get balances by public key" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "balances",
-           |   "params": [{"publicKey": "${publicKeys("hub")}"}]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val boxes = ((res \\ "result").head \\ "boxes").head.asArray
-        boxes.get.foreach(b => (b \\ "proposition").head.asString.get shouldEqual publicKeys("investor"))
       }
     }
 
