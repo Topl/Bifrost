@@ -58,15 +58,15 @@ case class PeerConnectionHandler(settings: Settings,
 
     case cc: ConnectionClosed =>
       peerManager ! PeerManager.Disconnected(remote)
-      log.info("Connection closed to : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
+      log.debug("Connection closed to : " + remote + ": " + cc.getErrorCause + s" in state $stateName")
       context stop self
 
     case CloseConnection =>
-      log.info(s"Enforced to abort communication with: " + remote + s" in state $stateName")
+      log.debug(s"Enforced to abort communication with: " + remote + s" in state $stateName")
       connection ! Close
 
     case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd + s" in state $stateName")
+      log.debug("Failed to execute command : " + cmd + s" in state $stateName")
       connection ! ResumeReading
   }
 
@@ -89,7 +89,7 @@ case class PeerConnectionHandler(settings: Settings,
       ).bytes
 
       connection ! Write(ByteString(hb))
-      log.info(s"Handshake sent to $remote")
+      log.debug(s"Handshake sent to $remote")
       handshakeSent = true
       if (handshakeGot && handshakeSent){
         self ! HandshakeDone
@@ -101,12 +101,12 @@ case class PeerConnectionHandler(settings: Settings,
       HandshakeSerializer.parseBytes(data.toArray) match {
         case Success(handshake) =>
           peerManager ! Handshaked(remote, handshake)
-          log.info(s"Got a Handshake from $remote")
+          log.debug(s"Got a Handshake from $remote")
           connection ! ResumeReading
           handshakeGot = true
           if (handshakeGot && handshakeSent) self ! HandshakeDone
         case Failure(t) =>
-          log.info(s"Error during parsing a handshake", t)
+          log.debug(s"Error during parsing a handshake", t)
           //todo: blacklist?
           connection ! Close
       }
@@ -125,7 +125,7 @@ case class PeerConnectionHandler(settings: Settings,
     case msg: message.Message[_] =>
       def sendOutMessage() {
         val bytes = msg.bytes
-        log.info("Send message " + msg.spec + " to " + remote)
+        log.debug("Send message " + msg.spec + " to " + remote)
         connection ! Write(ByteString(Ints.toByteArray(bytes.length) ++ bytes))
       }
 
@@ -138,7 +138,7 @@ case class PeerConnectionHandler(settings: Settings,
       }
 
     case Blacklist =>
-      log.info(s"Going to blacklist " + remote)
+      log.debug(s"Going to blacklist " + remote)
       peerManager ! AddToBlacklist(remote)
       connection ! Close
   }
@@ -154,12 +154,12 @@ case class PeerConnectionHandler(settings: Settings,
       t._1.find { packet =>
         messagesHandler.parseBytes(packet.toByteBuffer, Some(selfPeer)) match {
           case Success(message) =>
-            log.info("Received message " + message.spec + " from " + remote)
+            log.debug("Received message " + message.spec + " from " + remote)
             networkControllerRef ! message
             false
 
           case Failure(e) =>
-            log.info(s"Corrupted data from: " + remote, e)
+            log.debug(s"Corrupted data from: " + remote, e)
             //  connection ! Close
             //  context stop self
             true
