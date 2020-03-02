@@ -85,7 +85,7 @@ class PeerManager(settings: Settings) extends Actor with ScorexLogging {
         log.info(s"Got handshake from blacklisted $address")
       } else {
         val toUpdate = connectedPeers.filter { case (cp, h) =>
-          cp.socketAddress == address || h.map(_.nodeNonce == handshake.nodeNonce).getOrElse(true)
+          cp.socketAddress == address || h.forall(_.nodeNonce == handshake.nodeNonce)
         }
 
         if (toUpdate.isEmpty) {
