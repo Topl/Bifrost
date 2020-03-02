@@ -68,9 +68,9 @@ trait Settings extends ScorexLogging {
 
   lazy val nodeNonce: Long = (Random.nextInt(1000) + 1000) * Random.nextInt(1000) + Random.nextInt(1000)
 
-  lazy val addedMaxDelay: Option[Int] = p2pSettings.get("addedMaxDelay").flatMap(_.asNumber).flatMap(_.toInt).map { i =>
+  lazy val addedMaxDelay: Option[Int] = p2pSettings.get("addedMaxDelay").flatMap(_.asNumber).flatMap(_.toInt).flatMap { i =>
     if (i == 0) None else Some(i)
-  }.getOrElse(None)
+  }
 
   lazy val nodeName: String = p2pSettings.get("name").flatMap(_.asString)
     .getOrElse(Random.nextPrintableChar().toString + nodeNonce)
