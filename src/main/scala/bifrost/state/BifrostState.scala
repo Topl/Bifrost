@@ -667,6 +667,7 @@ object BifrostState extends ScorexLogging {
         .data)
     }
 
+    //TODO clean up nulls
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
     val pbr = ProgramBoxRegistry.readOrGenerate(settings, stateStorage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull
