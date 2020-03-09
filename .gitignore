@@ -4,6 +4,7 @@
 .ensime_cache/
 scorex.yaml
 .DS_Store
+.project
 
 # scala build folders
 target

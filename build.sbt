@@ -1,5 +1,6 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
+import com.github.tkawachi.sbtlock._
 
 name := "bifrost"
 
@@ -16,6 +17,12 @@ version := "1.1.0"
 mainClass in assembly := Some("bifrost.BifrostApp")
 
 test in assembly := {}
+
+//TODO Update iodb in sbt.lock
+excludeDependencies in SbtLockKeys.lock := Seq(
+  "org.scorexfoundation" %% "iodb"
+)
+dependencyOverrides += "org.scorexfoundation" %% "iodb" % "0.3.2"
 
 val circeVersion = "0.7+"
 
@@ -63,7 +70,7 @@ libraryDependencies ++= Seq(
 ) ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
-  "org.scorexfoundation" %% "iodb" % "0.3.+",
+  "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
@@ -105,8 +112,17 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-Dcom.sun.management.jmxremote",
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar"
+  "-J-Dcom.sun.management.jmxremote",
+  "-J-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
+  // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
+  "-J-XX:+UseG1GC",
+  "-J-XX:+UseNUMA",
+  "-J-XX:+AlwaysPreTouch",
+  "-J-XX:+PerfDisableSharedMem",
+  "-J-XX:+ParallelRefProcEnabled",
+  "-J-XX:+UseStringDeduplication",
+  "-J-XX:+ExitOnOutOfMemoryError",
+  "-J-Xss64m"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
