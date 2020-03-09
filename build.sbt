@@ -121,7 +121,8 @@ javaOptions ++= Seq(
   "-J-XX:+PerfDisableSharedMem",
   "-J-XX:+ParallelRefProcEnabled",
   "-J-XX:+UseStringDeduplication",
-  "-J-XX:+ExitOnOutOfMemoryError"
+  "-J-XX:+ExitOnOutOfMemoryError",
+  "-J-Xss64m"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
