@@ -112,5 +112,6 @@ object ProgramTransfer {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signature.isValid(tx.from, tx.messageToSign))
+    require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)))
   }
 }
