@@ -6,17 +6,16 @@ resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/release
 
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.5")
 
-addSbtPlugin("com.github.tkawachi" % "sbt-lock" % "0.3.0")
+addSbtPlugin("com.github.tkawachi" % "sbt-lock" % "0.6.2")
 
-addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")
+addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 
 //addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.3.5")
 
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.3")
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 
 libraryDependencies += "com.typesafe" % "config" % "1.3.0"
 
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
-//sbt dependencyTree
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.26")
