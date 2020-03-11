@@ -8,6 +8,7 @@ import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -204,21 +205,24 @@ trait TransferUtil {
   }
 
   def validateTx(tx: TransferTransaction): Try[Unit] = Try {
-    require(tx.from.forall {
-      case (prop, nonce) => tx.signatures.contains(prop)
-    })
     require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signatures.forall {
       case (prop, sign) => sign.isValid(prop, tx.messageToSign)
     })
-
+    require(tx.from.forall {
+      case (prop, nonce) => tx.signatures.contains(prop)
+    })
+    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
+    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }
 
   def validateTxWithoutSignatures(tx: TransferTransaction): Try[Unit] = Try {
     require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
+    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
+    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }
 }
