@@ -15,6 +15,7 @@ import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
+import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -112,5 +113,7 @@ object ProgramTransfer {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
     require(tx.signature.isValid(tx.from, tx.messageToSign))
+    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
+    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }
 }
