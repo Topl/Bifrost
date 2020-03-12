@@ -174,8 +174,3 @@ outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "project-bifrost", base = file("."))
   .settings(commonSettings: _*)
-
-lazy val programModules = Project(id = "program-modules", base = file("program-modules"))
-  .settings(commonSettings: _*)
-  .enablePlugins(ScalaJSPlugin)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
