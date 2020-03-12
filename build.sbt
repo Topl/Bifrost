@@ -5,12 +5,12 @@ import com.github.tkawachi.sbtlock._
 name := "bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.9",
+  scalaVersion := "2.12.10",
   organization := "co.topl",
   version := "1.1.0"
 )
 
-scalaVersion := "2.12.9"
+scalaVersion := "2.12.10"
 organization := "co.topl"
 version := "1.1.0"
 
