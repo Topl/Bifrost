@@ -74,7 +74,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "io.kamon" %% "kamon-bundle" % "2.0.6",
+  "io.kamon" %% "kamon-apm-reporter" % "2.0.0"
 )
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
