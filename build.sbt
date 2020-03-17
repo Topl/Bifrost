@@ -138,6 +138,8 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
+Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+
 fork := false
 
 pomIncludeRepository := { _ => false }
