@@ -76,7 +76,8 @@ libraryDependencies ++= Seq(
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
   "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-influxdb" % "2.0.0"
+  "io.kamon" %% "kamon-influxdb" % "2.0.0",
+  "io.kamon" %% "kamon-zipkin" % "2.0.1"
 )
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
