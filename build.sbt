@@ -5,12 +5,12 @@ import com.github.tkawachi.sbtlock._
 name := "bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.7",
+  scalaVersion := "2.12.10",
   organization := "co.topl",
   version := "1.1.0"
 )
 
-scalaVersion := "2.12.7"
+scalaVersion := "2.12.10"
 organization := "co.topl"
 version := "1.1.0"
 
@@ -57,7 +57,6 @@ val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.0.+",
   "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
-  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
 )
 
 resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
@@ -143,6 +142,8 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
+Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+
 fork := false
 
 pomIncludeRepository := { _ => false }
@@ -179,8 +180,3 @@ outputStrategy := Some(StdoutOutput)
 
 lazy val bifrost = Project(id = "project-bifrost", base = file("."))
   .settings(commonSettings: _*)
-
-lazy val programModules = Project(id = "program-modules", base = file("program-modules"))
-  .settings(commonSettings: _*)
-  .enablePlugins(ScalaJSPlugin)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
