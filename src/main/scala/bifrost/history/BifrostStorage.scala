@@ -2,26 +2,53 @@ package bifrost.history
 
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
+import com.typesafe.config.Config
 import com.google.common.primitives.Longs
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
-import scorex.crypto.encode.Base58
+//import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Try}
+import scala.concurrent.duration.MINUTES
+import com.typesafe.config.ConfigFactory
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
   private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
+  // --------------------------------------------------------------------------------------
+  // ---------------------------Initialize cache-------------------------------------------
+  val conf: Config = ConfigFactory.load("application")
+  val expireTime: Int = conf.getInt("cache.expireTime")
+  val cacheSize: Int = conf.getInt("cache.cacheSize")
+  val cacheOrNot: Boolean = conf.getBoolean("cache.cacheOrNot")
+  type KEY = ByteArrayWrapper
+  type VAL = ByteArrayWrapper
+
+  private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
+    def load(key: KEY): Option[VAL] = {
+      storage.get(key) match {
+        case Some(blockData: VAL) => Some(blockData)
+        case _ => None
+      }
+    }
+  }
+
+  private val blockCache = CacheBuilder.newBuilder()
+    .expireAfterAccess(expireTime,MINUTES)
+    .maximumSize(cacheSize)
+    .build[KEY, Option[VAL]](blockLoader)
+  // --------------------------------------------------------------------------------------
+  // --------------------------------------------------------------------------------------
 
   def height: Long = heightOf(bestBlockId).getOrElse(0L)
 
-  def bestBlockId: Array[Byte] = storage
-    .get(bestBlockIdKey)
+  def bestBlockId: Array[Byte] = (if (cacheOrNot) blockCache.get(bestBlockIdKey) else storage.get(bestBlockIdKey))
     .map(_.data)
     .getOrElse(settings.GenesisParentId)
 
@@ -33,15 +60,14 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   }
 
   def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
-    storage
-      .get(ByteArrayWrapper(blockId))
+    (if (cacheOrNot) blockCache.get(ByteArrayWrapper(blockId)) else storage.get(ByteArrayWrapper(blockId)))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
           case BifrostBlock.ModifierTypeId =>
             val parsed = {
               heightOf(blockId) match {
-                case Some(x) if (x <= settings.forkHeight) => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case Some(x) if x <= settings.forkHeight => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
                 case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
               }
             }
@@ -103,10 +129,17 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
         Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
     )
+
+    // update the cache the in the same way
+    (blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
+      Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes)))
+      .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 
   def rollback(modifierId: ModifierId): Try[Unit] = Try {
     storage.rollback(ByteArrayWrapper(modifierId))
+    // not flushing the cache and letting them expire
+    // blockCache.invalidateAll()
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
@@ -119,7 +152,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
   private def blockParentKey(blockId: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(Sha256("parentId"
-                                                                                                 .getBytes ++ blockId))
+    .getBytes ++ blockId))
 
   def blockTimestampKey: ByteArrayWrapper =
     ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
@@ -127,26 +160,32 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))
 
-  def scoreOf(blockId: ModifierId): Option[Long] = storage.get(blockScoreKey(blockId)).map(b => Longs.fromByteArray(b
-                                                                                                                      .data))
+  def scoreOf(blockId: ModifierId): Option[Long] =
+    (if (cacheOrNot) blockCache.get(blockScoreKey(blockId)) else storage.get(blockScoreKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
 
-  def heightOf(blockId: ModifierId): Option[Long] = storage.get(blockHeightKey(blockId)).map(b => Longs.fromByteArray(b
-                                                                                                                        .data))
+  def heightOf(blockId: ModifierId): Option[Long] =
+    (if (cacheOrNot) blockCache.get(blockHeightKey(blockId)) else storage.get(blockHeightKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
 
   def difficultyOf(blockId: ModifierId): Option[Long] = if (blockId sameElements settings.GenesisParentId) {
     Some(settings.InitialDifficulty)
   } else {
-    storage.get(blockDiffKey(blockId)).map(b => Longs.fromByteArray(b.data))
+    (if (cacheOrNot) blockCache.get(blockDiffKey(blockId)) else storage.get(blockDiffKey(blockId)))
+      .map(b => Longs.fromByteArray(b.data))
   }
 
-  def bloomOf(blockId: ModifierId): Option[BitSet] = storage.get(blockBloomKey(blockId)).map(b => {
-    BitSet() ++ BloomTopics.parseFrom(b.data).topics
-  })
+  def bloomOf(blockId: ModifierId): Option[BitSet] =
+    (if (cacheOrNot) blockCache.get(blockBloomKey(blockId)) else storage.get(blockBloomKey(blockId)))
+      .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
 
-  def parentIdOf(blockId: ModifierId): Option[ModifierId] = storage.get(blockParentKey(blockId)).map(_.data)
+  def parentIdOf(blockId: ModifierId): Option[ModifierId] =
+    (if (cacheOrNot) blockCache.get(blockParentKey(blockId)) else storage.get(blockParentKey(blockId)))
+      .map(_.data)
 
-  def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] = storage.get(ByteArrayWrapper(transactionId)).map(_
-                                                                                                                     .data)
+  def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] =
+    (if (cacheOrNot) blockCache.get(ByteArrayWrapper(transactionId)) else storage.get(ByteArrayWrapper(transactionId)))
+      .map(_.data)
 
   def parentChainScore(b: BifrostBlock): Long = scoreOf(b.parentId).getOrElse(0L)
 
