@@ -113,17 +113,16 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-J-Dcom.sun.management.jmxremote",
-  "-J-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
-  "-J-XX:+UseG1GC",
-  "-J-XX:+UseNUMA",
-  "-J-XX:+AlwaysPreTouch",
-  "-J-XX:+PerfDisableSharedMem",
-  "-J-XX:+ParallelRefProcEnabled",
-  "-J-XX:+UseStringDeduplication",
-  "-J-XX:+ExitOnOutOfMemoryError",
-  "-J-Xss64m"
+  "-XX:+UseG1GC",
+  "-XX:+UseNUMA",
+  "-XX:+AlwaysPreTouch",
+  "-XX:+PerfDisableSharedMem",
+  "-XX:+ParallelRefProcEnabled",
+  "-XX:+UseStringDeduplication",
+  "-XX:+ExitOnOutOfMemoryError",
+  "-Xss64m"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -143,7 +142,9 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.l
 
 Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
-fork := false
+Test / fork := false
+
+Compile / run / fork := true
 
 pomIncludeRepository := { _ => false }
 
