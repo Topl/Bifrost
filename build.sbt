@@ -30,7 +30,6 @@ dependencyOverrides += "org.scorexfoundation" %% "iodb" % "0.3.2"
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
 )
 //TODO Update akka-http in sbt.lock
