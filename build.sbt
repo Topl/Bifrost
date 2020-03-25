@@ -45,6 +45,8 @@ val apiDependencies = Seq(
   "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.+",
   "com.typesafe.akka" %% "akka-http" % "10.+"
 )
+//TODO Update akka-http in sbt.lock
+dependencyOverrides += "com.typesafe.akka" %% "akka-http" % "10.0.15"
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.+",
@@ -141,6 +143,8 @@ logBuffered in Test := false
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
 Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+
+Compile / run / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
 Test / fork := false
 
