@@ -17,3 +17,5 @@ addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
 libraryDependencies += "com.typesafe" % "config" % "1.3.0"
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
+
+addSbtPlugin("io.kamon" % "sbt-kanela-runner" % "2.0.6")
