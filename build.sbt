@@ -45,6 +45,8 @@ val apiDependencies = Seq(
   "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.+",
   "com.typesafe.akka" %% "akka-http" % "10.+"
 )
+//TODO Update akka-http in sbt.lock
+dependencyOverrides += "com.typesafe.akka" %% "akka-http" % "10.0.15"
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.+",
@@ -72,7 +74,10 @@ libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "io.kamon" %% "kamon-bundle" % "2.0.6",
+  "io.kamon" %% "kamon-influxdb" % "2.0.0",
+  "io.kamon" %% "kamon-zipkin" % "2.0.1"
 )
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
@@ -110,17 +115,16 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq("-feature", "-deprecation")
 
 javaOptions ++= Seq(
-  "-J-Dcom.sun.management.jmxremote",
-  "-J-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
+  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
-  "-J-XX:+UseG1GC",
-  "-J-XX:+UseNUMA",
-  "-J-XX:+AlwaysPreTouch",
-  "-J-XX:+PerfDisableSharedMem",
-  "-J-XX:+ParallelRefProcEnabled",
-  "-J-XX:+UseStringDeduplication",
-  "-J-XX:+ExitOnOutOfMemoryError",
-  "-J-Xss64m"
+  "-XX:+UseG1GC",
+  "-XX:+UseNUMA",
+  "-XX:+AlwaysPreTouch",
+  "-XX:+PerfDisableSharedMem",
+  "-XX:+ParallelRefProcEnabled",
+  "-XX:+UseStringDeduplication",
+  "-XX:+ExitOnOutOfMemoryError",
+  "-Xss64m"
 )
 
 testOptions in Test += Tests.Argument("-oD", "-u", "target/test-reports")
@@ -140,7 +144,11 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.l
 
 Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
-fork := false
+Compile / run / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+
+Test / fork := false
+
+Compile / run / fork := true
 
 pomIncludeRepository := { _ => false }
 

@@ -18,4 +18,4 @@ libraryDependencies += "com.typesafe" % "config" % "1.3.0"
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.26")
+addSbtPlugin("io.kamon" % "sbt-kanela-runner" % "2.0.6")
