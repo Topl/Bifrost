@@ -1,14 +1,5 @@
 package bifrost
 
-/*
-
-* @startuml
-
-* car --|> wheel
-
-* @enduml
-
-*/
 
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
@@ -32,13 +23,6 @@ import kamon.Kamon
 import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends GenericApplication with Runnable {
-  // use for debug only
-  // val path: Path = Path ("/tmp")
-  // Try(path.deleteRecursively()
-  //
-  //
-  //
-  // )
 
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox
@@ -108,35 +92,6 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   // What compiler is selected?
          val compiler = System.getProperty("jvmci.Compiler")
          System.out.printf("jvmci.Compiler = %s%n", compiler)
-
-  //touching lazy vals
-  forger
-  localInterface
-  nodeViewSynchronizer
-
-  /*val scheduler = actorSystem.scheduler
-  val task = new Runnable {
-    def run(): Unit = {
-      networkController ! Message(ProducerNotifySpec, Left(
-        ProducerProposal(
-          ByteString.copyFrom("testProducer".getBytes),
-          ProposalDetails(assetCode = "assetCode"),
-          ByteString.copyFrom("signature".getBytes),
-          Instant.now.toEpochMilli
-        ).toByteArray
-      ), Some(null))
-    }
-  }
-  implicit val executor = actorSystem.dispatcher
-
-  scheduler.schedule(initialDelay = Duration(10000, TimeUnit.MILLISECONDS), interval = Duration(7000, TimeUnit.MILLISECONDS), task)*/
-
-
-  //  if (settings.nodeName == "node1") {
-  //    log.info("Starting transactions generation")
-  //    val generator: ActorRef = actorSystem.actorOf(Props(classOf[PolyTransferGenerator], nodeViewHolderRef))
-  //    generator ! StartGeneration(FiniteDuration(5, SECONDS))
-  //  }
 }
 
 object BifrostApp extends App {
