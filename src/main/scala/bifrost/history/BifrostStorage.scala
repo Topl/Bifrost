@@ -10,7 +10,6 @@ import bifrost.NodeViewModifier._
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
-//import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
