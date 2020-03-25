@@ -30,7 +30,7 @@ dependencyOverrides += "org.scorexfoundation" %% "iodb" % "0.3.2"
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
 )
 //TODO Update akka-http in sbt.lock
 dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
@@ -60,9 +60,9 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.0.+",
-  "org.scalatest" %% "scalatest" % "3.0.+" % "test",
-  "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
+  "org.scalactic" %% "scalactic" % "3.0.+" % Test,
+  "org.scalatest" %% "scalatest" % "3.0.+" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
 )
 
 resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
