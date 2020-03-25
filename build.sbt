@@ -15,8 +15,11 @@ organization := "co.topl"
 version := "1.1.0"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
-
 test in assembly := {}
+
+val akkaVersion = "2.5.19"
+val akkaHttpVersion = "10.0.15"
+val circeVersion = "0.7+"
 
 //TODO Update iodb in sbt.lock
 excludeDependencies in SbtLockKeys.lock := Seq(
@@ -24,10 +27,16 @@ excludeDependencies in SbtLockKeys.lock := Seq(
 )
 dependencyOverrides += "org.scorexfoundation" %% "iodb" % "0.3.2"
 
-val circeVersion = "0.7+"
+val akkaDependencies = Seq(
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
+  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
+)
+//TODO Update akka-http in sbt.lock
+dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 
 val networkDependencies = Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.5.19",
   "org.bitlet" % "weupnp" % "0.1.+",
   "commons-net" % "commons-net" % "3.+"
 )
@@ -43,10 +52,7 @@ val apiDependencies = Seq(
   // "io.swagger" % "swagger-models" % "1.5.10",
   // "io.swagger" % "swagger-jaxrs" % "1.5.10",
   "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.+",
-  "com.typesafe.akka" %% "akka-http" % "10.+"
 )
-//TODO Update akka-http in sbt.lock
-dependencyOverrides += "com.typesafe.akka" %% "akka-http" % "10.0.15"
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.+",
@@ -55,7 +61,6 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "org.scalactic" %% "scalactic" % "3.0.+",
   "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
@@ -68,20 +73,15 @@ libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",
   "io.circe" %% "circe-optics" % circeVersion
-) ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
-  "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
   "io.kamon" %% "kamon-bundle" % "2.0.6",
   "io.kamon" %% "kamon-influxdb" % "2.0.0",
   "io.kamon" %% "kamon-zipkin" % "2.0.1"
 )
-
-libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
-
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
