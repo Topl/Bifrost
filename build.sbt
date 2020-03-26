@@ -50,7 +50,7 @@ val apiDependencies = Seq(
   // "io.swagger" % "swagger-annotations" % "1.5.10",
   // "io.swagger" % "swagger-models" % "1.5.10",
   // "io.swagger" % "swagger-jaxrs" % "1.5.10",
-  "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.+",
+  "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.9.2",
 )
 
 val loggingDependencies = Seq(
