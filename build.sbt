@@ -54,8 +54,8 @@ val apiDependencies = Seq(
 )
 
 val loggingDependencies = Seq(
-  "ch.qos.logback" % "logback-classic" % "1.+",
-  "ch.qos.logback" % "logback-core" % "1.+",
+  "ch.qos.logback" % "logback-classic" % "1.2.3",
+  "ch.qos.logback" % "logback-core" % "1.2.3",
   "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17"
 )
 
