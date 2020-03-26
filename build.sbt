@@ -21,19 +21,11 @@ val akkaVersion = "2.5.26"
 val akkaHttpVersion = "10.0.15"
 val circeVersion = "0.11.1"
 
-//TODO Update iodb in sbt.lock
-excludeDependencies in SbtLockKeys.lock := Seq(
-  "org.scorexfoundation" %% "iodb"
-)
-dependencyOverrides += "org.scorexfoundation" %% "iodb" % "0.3.2"
-
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
 )
-//TODO Update akka-http in sbt.lock
-dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
