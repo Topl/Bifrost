@@ -65,9 +65,6 @@ val testingDependencies = Seq(
   "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
 )
 
-resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
-
-
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.+",
   "org.consensusresearch" %% "scrypto" % "1.2.+",
