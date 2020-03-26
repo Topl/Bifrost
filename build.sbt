@@ -36,7 +36,7 @@ val akkaDependencies = Seq(
 dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 
 val networkDependencies = Seq(
-  "org.bitlet" % "weupnp" % "0.1.+",
+  "org.bitlet" % "weupnp" % "0.1.4",
   "commons-net" % "commons-net" % "3.+"
 )
 
