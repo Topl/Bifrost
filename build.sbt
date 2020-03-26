@@ -19,7 +19,7 @@ test in assembly := {}
 
 val akkaVersion = "2.5.26"
 val akkaHttpVersion = "10.0.15"
-val circeVersion = "0.7.1"
+val circeVersion = "0.8.0"
 
 //TODO Update iodb in sbt.lock
 excludeDependencies in SbtLockKeys.lock := Seq(
