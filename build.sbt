@@ -17,7 +17,7 @@ version := "1.1.0"
 mainClass in assembly := Some("bifrost.BifrostApp")
 test in assembly := {}
 
-val akkaVersion = "2.5.26"
+val akkaVersion = "2.5.30"
 val akkaHttpVersion = "10.1.11"
 val circeVersion = "0.11.1"
 
