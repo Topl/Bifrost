@@ -18,12 +18,14 @@ mainClass in assembly := Some("bifrost.BifrostApp")
 test in assembly := {}
 
 val akkaVersion = "2.5.26"
-val akkaHttpVersion = "10.0.15"
+val akkaHttpVersion = "10.1.5"
 val circeVersion = "0.11.1"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
 )
 

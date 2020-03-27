@@ -33,13 +33,14 @@ dependencyOverrides in Compile ++= {
       "com.thesamet.scalapb" % "scalapb-runtime_2.12" % "0.7.4",
       "com.thoughtworks.paranamer" % "paranamer" % "2.8",
       "com.typesafe" % "config" % "1.3.3",
-      "com.typesafe" % "ssl-config-core_2.12" % "0.2.1",
+      "com.typesafe" % "ssl-config-core_2.12" % "0.3.8",
       "com.typesafe.akka" % "akka-actor_2.12" % "2.5.26",
-      "com.typesafe.akka" % "akka-http-core_2.12" % "10.0.15",
-      "com.typesafe.akka" % "akka-http_2.12" % "10.0.15",
-      "com.typesafe.akka" % "akka-parsing_2.12" % "10.0.15",
+      "com.typesafe.akka" % "akka-http-core_2.12" % "10.1.5",
+      "com.typesafe.akka" % "akka-http_2.12" % "10.1.5",
+      "com.typesafe.akka" % "akka-parsing_2.12" % "10.1.5",
+      "com.typesafe.akka" % "akka-protobuf_2.12" % "2.5.26",
       "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17",
-      "com.typesafe.akka" % "akka-stream_2.12" % "2.4.20",
+      "com.typesafe.akka" % "akka-stream_2.12" % "2.5.26",
       "commons-net" % "commons-net" % "3.6",
       "io.circe" % "circe-core_2.12" % "0.13.0",
       "io.circe" % "circe-generic_2.12" % "0.11.1",
@@ -84,11 +85,11 @@ dependencyOverrides in Compile ++= {
       "org.ow2.asm" % "asm-commons" % "6.2.1",
       "org.ow2.asm" % "asm-tree" % "6.2.1",
       "org.ow2.asm" % "asm-util" % "6.2.1",
-      "org.reactivestreams" % "reactive-streams" % "1.0.0",
+      "org.reactivestreams" % "reactive-streams" % "1.0.2",
       "org.reflections" % "reflections" % "0.9.10",
       "org.scala-lang.modules" % "scala-collection-compat_2.12" % "2.1.1",
       "org.scala-lang.modules" % "scala-java8-compat_2.12" % "0.8.0",
-      "org.scala-lang.modules" % "scala-parser-combinators_2.12" % "1.0.4",
+      "org.scala-lang.modules" % "scala-parser-combinators_2.12" % "1.1.2",
       "org.scala-lang.modules" % "scala-xml_2.12" % "1.2.0",
       "org.scalanlp" % "breeze-macros_2.12" % "1.0",
       "org.scalanlp" % "breeze_2.12" % "1.0",
@@ -113,4 +114,4 @@ dependencyOverrides in Compile ++= {
     )
   }
 }
-// LIBRARY_DEPENDENCIES_HASH 1a3a6ef9c89eb4cbf6efe5682743d995bc326e90
+// LIBRARY_DEPENDENCIES_HASH d22bc89ef568efd14841e67ad6af6b7e4767c697
