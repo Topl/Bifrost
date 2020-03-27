@@ -25,6 +25,7 @@ val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
 )
@@ -40,13 +41,12 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-parser" % circeVersion,
   "io.circe" %% "circe-literal" % circeVersion,
   "io.swagger" %% "swagger-scala-module" % "1.0.3",
-  "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.9.2",
+  "com.github.swagger-akka-http" %% "swagger-akka-http" % "0.9.2"
 )
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "ch.qos.logback" % "logback-core" % "1.2.3",
-  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17"
+  "ch.qos.logback" % "logback-core" % "1.2.3"
 )
 
 val testingDependencies = Seq(

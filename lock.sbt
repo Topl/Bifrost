@@ -34,13 +34,13 @@ dependencyOverrides in Compile ++= {
       "com.thoughtworks.paranamer" % "paranamer" % "2.8",
       "com.typesafe" % "config" % "1.3.3",
       "com.typesafe" % "ssl-config-core_2.12" % "0.3.8",
-      "com.typesafe.akka" % "akka-actor_2.12" % "2.5.26",
-      "com.typesafe.akka" % "akka-http-core_2.12" % "10.1.5",
-      "com.typesafe.akka" % "akka-http_2.12" % "10.1.5",
-      "com.typesafe.akka" % "akka-parsing_2.12" % "10.1.5",
-      "com.typesafe.akka" % "akka-protobuf_2.12" % "2.5.26",
-      "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17",
-      "com.typesafe.akka" % "akka-stream_2.12" % "2.5.26",
+      "com.typesafe.akka" % "akka-actor_2.12" % "2.5.30",
+      "com.typesafe.akka" % "akka-http-core_2.12" % "10.1.11",
+      "com.typesafe.akka" % "akka-http_2.12" % "10.1.11",
+      "com.typesafe.akka" % "akka-parsing_2.12" % "10.1.11",
+      "com.typesafe.akka" % "akka-protobuf_2.12" % "2.5.30",
+      "com.typesafe.akka" % "akka-slf4j_2.12" % "2.5.30",
+      "com.typesafe.akka" % "akka-stream_2.12" % "2.5.30",
       "commons-net" % "commons-net" % "3.6",
       "io.circe" % "circe-core_2.12" % "0.13.0",
       "io.circe" % "circe-generic_2.12" % "0.11.1",
@@ -114,4 +114,4 @@ dependencyOverrides in Compile ++= {
     )
   }
 }
-// LIBRARY_DEPENDENCIES_HASH d22bc89ef568efd14841e67ad6af6b7e4767c697
+// LIBRARY_DEPENDENCIES_HASH 030f39f6da15f26ece1fc919b46fd18ac448847e
