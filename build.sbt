@@ -19,7 +19,7 @@ test in assembly := {}
 
 val akkaVersion = "2.5.30"
 val akkaHttpVersion = "10.1.11"
-val circeVersion = "0.12.1"
+val circeVersion = "0.13.0"
 
 val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,

@@ -38,12 +38,12 @@ dependencyOverrides in Compile ++= {
       "com.typesafe.akka" % "akka-stream_2.12" % "2.5.30",
       "commons-net" % "commons-net" % "3.6",
       "io.circe" % "circe-core_2.12" % "0.13.0",
-      "io.circe" % "circe-generic_2.12" % "0.12.1",
-      "io.circe" % "circe-jawn_2.12" % "0.12.1",
-      "io.circe" % "circe-literal_2.12" % "0.12.1",
+      "io.circe" % "circe-generic_2.12" % "0.13.0",
+      "io.circe" % "circe-jawn_2.12" % "0.13.0",
+      "io.circe" % "circe-literal_2.12" % "0.13.0",
       "io.circe" % "circe-numbers_2.12" % "0.13.0",
       "io.circe" % "circe-optics_2.12" % "0.13.0",
-      "io.circe" % "circe-parser_2.12" % "0.12.1",
+      "io.circe" % "circe-parser_2.12" % "0.13.0",
       "io.kamon" % "kamon-bundle_2.12" % "2.0.6",
       "io.kamon" % "kamon-core_2.12" % "2.0.4",
       "io.kamon" % "kamon-influxdb_2.12" % "2.0.0",
@@ -86,7 +86,7 @@ dependencyOverrides in Compile ++= {
       "org.typelevel" % "cats-free_2.12" % "2.1.0",
       "org.typelevel" % "cats-kernel_2.12" % "2.1.0",
       "org.typelevel" % "cats-macros_2.12" % "2.1.0",
-      "org.typelevel" % "jawn-parser_2.12" % "0.14.2",
+      "org.typelevel" % "jawn-parser_2.12" % "1.0.0",
       "org.typelevel" % "machinist_2.12" % "0.6.8",
       "org.typelevel" % "macro-compat_2.12" % "1.1.1",
       "org.typelevel" % "spire-macros_2.12" % "0.17.0-M1",
@@ -98,4 +98,4 @@ dependencyOverrides in Compile ++= {
     )
   }
 }
-// LIBRARY_DEPENDENCIES_HASH 09968c3b01bdfa327117c95215b8b09f2c2822ec
+// LIBRARY_DEPENDENCIES_HASH 41de71aa721eb76eb8e20291b719d6885a3aa55b
