@@ -38,7 +38,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
     }
   }
 
-  private val blockCache = CacheBuilder.newBuilder()
+  val blockCache = CacheBuilder.newBuilder()
     .expireAfterAccess(expireTime,MINUTES)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
