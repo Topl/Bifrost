@@ -67,10 +67,6 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-zipkin" % "2.0.1"
 )
 
-libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
-libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
-
-
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
 libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
 
