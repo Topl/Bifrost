@@ -16,6 +16,9 @@ version := "1.1.0"
 mainClass in assembly := Some("bifrost.BifrostApp")
 test in assembly := {}
 
+// The Typesafe repository
+resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
+
 val akkaVersion = "2.5.30"
 val akkaHttpVersion = "10.1.11"
 val circeVersion = "0.13.0"
@@ -24,6 +27,7 @@ val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+  "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
   "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
@@ -43,7 +47,8 @@ val apiDependencies = Seq(
 
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.2.3",
-  "ch.qos.logback" % "logback-core" % "1.2.3"
+  "ch.qos.logback" % "logback-core" % "1.2.3",
+  "org.slf4j" % "slf4j-api" % "1.7.25"
 )
 
 val testingDependencies = Seq(
@@ -54,13 +59,16 @@ val testingDependencies = Seq(
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
-  "org.scorexfoundation" %% "scrypto" % "1.2.3"
+  "org.scorexfoundation" %% "scrypto" % "1.2.3",
+  "com.google.guava" % "guava" % "19.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.whispersystems" % "curve25519-java" % "0.4.1",
   "io.kamon" %% "kamon-bundle" % "2.0.6",
+  "io.kamon" %% "kamon-core" % "2.0.4",
   "io.kamon" %% "kamon-influxdb" % "2.0.0",
   "io.kamon" %% "kamon-zipkin" % "2.0.1"
 )
@@ -76,8 +84,11 @@ libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 
 
 libraryDependencies  ++= Seq(
-  // Last snapshot
-  "org.scalanlp" %% "breeze" % "1.0"
+  "org.scalanlp" %% "breeze" % "1.0",
+  "com.google.protobuf" % "protobuf-java" % "3.5.1",
+  "com.thesamet.scalapb" %% "lenses" % "0.7.0",
+  "com.typesafe" % "config" % "1.3.3",
+
 )
 
 scalacOptions ++= Seq("-feature", "-deprecation")
