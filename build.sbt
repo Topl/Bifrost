@@ -1,6 +1,5 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
-import com.github.tkawachi.sbtlock._
 
 name := "bifrost"
 
