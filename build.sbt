@@ -99,7 +99,7 @@ libraryDependencies ++= consoleDependencies
 
 libraryDependencies  ++= Seq(
   // Last snapshot
-  "org.scalanlp" %% "breeze" % "latest.integration"
+  "org.scalanlp" %% "breeze" % "1.0"
 )
 
 scalacOptions ++= Seq("-feature", "-deprecation")
