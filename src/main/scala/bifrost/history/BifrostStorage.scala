@@ -81,9 +81,23 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       }
   }
 
+  /* << EXAMPLE >>
+      For version "b00123123":
+      ADD
+      {
+        "b00123123": "BifrostBlock" | b,
+        "diffb00123123": diff,
+        "heightb00123123": parentHeight(b00123123) + 1,
+        "scoreb00123123": parentChainScore(b00123123) + diff,
+        "bestBlock": b00123123
+      }
+    */
   def update(b: BifrostBlock, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.encodedId}")
     val typeByte = BifrostBlock.ModifierTypeId
+
+    val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
@@ -96,13 +110,11 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
 
-    val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = {
-      if (b.parentId sameElements settings.GenesisParentId) {
-        Seq()
-      } else {
-        Seq(blockParentKey(b.id) -> ByteArrayWrapper(b.parentId))
+    val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      (b.parentId sameElements settings.GenesisParentId) match {
+        case true => Seq()
+        case false => Seq(blockParentKey(b.id) -> ByteArrayWrapper(b.parentId))
       }
-    }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockBloomKey(b.id) -> ByteArrayWrapper(BifrostBlock.createBloom(b.txs)))
@@ -111,34 +123,53 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
     )
 
-    /* << EXAMPLE >>
-      For version "b00123123":
-      ADD
-      {
-        "diffb00123123": diff,
-        "heightb00123123": parentHeight(b00123123) + 1,
-        "scoreb00123123": parentChainScore(b00123123) + diff,
-        "bestBlock": b00123123,
-        "b00123123": "BifrostBlock" | b
-      }
-    */
+    // update storage
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
-      blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
-        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+      blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
 
     // update the cache the in the same way
-    (blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock ++
-      Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes)))
+    (blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
       .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 
+  /** rollback storage to have the parent block as the last block
+    *
+    * @param modifierId is the parent id of the block intended to be removed
+    */
   def rollback(modifierId: ModifierId): Try[Unit] = Try {
     storage.rollback(ByteArrayWrapper(modifierId))
-    // not flushing the cache and letting them expire
-    // blockCache.invalidateAll()
+
+
+    blockCache.invalidate(ByteArrayWrapper(modifierId))
+  }
+
+  /** Invalidate the entries related to the block that gets rolled back, this happens when history calls drop()
+    *
+    * @param blockId  is the id of the block intended to be removed
+    * @param parentId is the parent id of the block intended to be removed
+    */
+  def cacheBack(blockId: ModifierId, parentId: ModifierId) {
+    val blockK: Iterable[ByteArrayWrapper] = Seq(ByteArrayWrapper(blockId))
+    val blockH: Iterable[ByteArrayWrapper] = Seq(blockHeightKey(blockId))
+    val blockDiff: Iterable[ByteArrayWrapper] = Seq(blockDiffKey(blockId))
+    val blockScore: Iterable[ByteArrayWrapper] = Seq(blockScoreKey(blockId))
+    val bestBlock: Iterable[ByteArrayWrapper] = Seq(bestBlockIdKey)
+    val blockBloom: Iterable[ByteArrayWrapper] = Seq(blockBloomKey(blockId))
+
+    val parentBlock: Iterable[ByteArrayWrapper] = (parentId sameElements settings.GenesisParentId) match {
+      case true => Seq()
+      case false => Seq(blockParentKey(blockId))
+    }
+
+    val newTransactionsToBlockIds: Iterable[ByteArrayWrapper] = modifierById(blockId).get.transactions.get.map(
+      tx => ByteArrayWrapper(tx.id)
+    )
+
+    (blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
+      .foreach(key => blockCache.invalidate(key))
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
