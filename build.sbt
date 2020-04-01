@@ -30,7 +30,7 @@ val apiDependencies = Seq(
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "io.circe" %% "circe-literal" % circeVersion,
-  "io.swagger" %% "swagger-scala-module" % "1.0.3",
+  "io.swagger" %% "swagger-scala-module" % "1.0.6",
   // "io.swagger" % "swagger-core" % "1.5.10",
   // "io.swagger" % "swagger-annotations" % "1.5.10",
   // "io.swagger" % "swagger-models" % "1.5.10",
