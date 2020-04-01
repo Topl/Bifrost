@@ -80,7 +80,7 @@ val consoleDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
   "org.apache.httpcomponents" % "httpclient" % "4.5.3",
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpasyncclient
-  "org.apache.httpcomponents" % "httpasyncclient" % "4.1.3",
+  "org.apache.httpcomponents" % "httpasyncclient" % "4.1.4",
   // https://mvnrepository.com/artifact/org.apache.commons/commons-pool2
   "org.apache.commons" % "commons-pool2" % "2.4.2"
 )
