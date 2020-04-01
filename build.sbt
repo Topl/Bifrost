@@ -78,7 +78,7 @@ libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
 
 val consoleDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient
-  "org.apache.httpcomponents" % "httpclient" % "4.5.3",
+  "org.apache.httpcomponents" % "httpclient" % "4.5.12",
   // https://mvnrepository.com/artifact/org.apache.httpcomponents/httpasyncclient
   "org.apache.httpcomponents" % "httpasyncclient" % "4.1.3",
   // https://mvnrepository.com/artifact/org.apache.commons/commons-pool2
