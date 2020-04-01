@@ -73,7 +73,7 @@ libraryDependencies ++= Seq(
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.5.19"
 
 
-libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.2"
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.5.5"
 libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.7.0"
 
 val consoleDependencies = Seq(
