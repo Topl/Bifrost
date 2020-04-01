@@ -65,7 +65,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.+",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
-  "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
+  "com.typesafe.akka" %% "akka-http-testkit" % "10.0.15",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
