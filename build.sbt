@@ -17,7 +17,7 @@ mainClass in assembly := Some("bifrost.BifrostApp")
 
 test in assembly := {}
 
-val circeVersion = "0.7+"
+val circeVersion = "0.7.1"
 
 val networkDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.5.19",
