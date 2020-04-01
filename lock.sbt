@@ -32,7 +32,7 @@ dependencyOverrides in ThisBuild ++= Set(
   "com.typesafe.akka" % "akka-http-testkit_2.12" % "10.0.7",
   "com.typesafe.akka" % "akka-http_2.12" % "10.0.9",
   "com.typesafe.akka" % "akka-parsing_2.12" % "10.0.9",
-  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17",
+  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.20",
   "com.typesafe.akka" % "akka-stream-testkit_2.12" % "2.4.18",
   "com.typesafe.akka" % "akka-stream_2.12" % "2.4.19",
   "com.typesafe.akka" % "akka-testkit_2.12" % "2.4.18",

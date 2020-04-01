@@ -42,11 +42,11 @@ val apiDependencies = Seq(
 val loggingDependencies = Seq(
   "ch.qos.logback" % "logback-classic" % "1.+",
   "ch.qos.logback" % "logback-core" % "1.+",
-  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.17"
+  "com.typesafe.akka" % "akka-slf4j_2.12" % "2.4.20"
 )
 
 val testingDependencies = Seq(
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.20" % "test",
   "org.scalactic" %% "scalactic" % "3.0.+",
   "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
@@ -64,7 +64,7 @@ libraryDependencies ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.+",
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.20" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
   "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
