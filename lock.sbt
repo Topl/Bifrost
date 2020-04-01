@@ -64,7 +64,7 @@ dependencyOverrides in ThisBuild ++= Set(
   "org.apache.httpcomponents" % "httpcore" % "4.4.6",
   "org.apache.httpcomponents" % "httpcore-nio" % "4.4.6",
   "org.bitlet" % "weupnp" % "0.1.4",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.64",
   "org.consensusresearch" % "scrypto_2.12" % "1.2.0-RC3",
   "org.javassist" % "javassist" % "3.18.2-GA",
   "org.reactivestreams" % "reactive-streams" % "1.0.0",
