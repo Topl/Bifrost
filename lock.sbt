@@ -58,7 +58,7 @@ dependencyOverrides in ThisBuild ++= Set(
   "net.sourceforge.f2j" % "arpack_combined_all" % "0.1",
   "org.apache.commons" % "commons-lang3" % "3.2.1",
   "org.apache.commons" % "commons-math3" % "3.2",
-  "org.apache.commons" % "commons-pool2" % "2.4.2",
+  "org.apache.commons" % "commons-pool2" % "2.4.3",
   "org.apache.httpcomponents" % "httpasyncclient" % "4.1.3",
   "org.apache.httpcomponents" % "httpclient" % "4.5.3",
   "org.apache.httpcomponents" % "httpcore" % "4.4.6",
