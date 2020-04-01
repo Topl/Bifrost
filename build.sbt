@@ -50,7 +50,7 @@ val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.0.+",
   "org.scalatest" %% "scalatest" % "3.0.+" % "test",
   "org.scalacheck" %% "scalacheck" % "1.13.+" % "test",
-  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test"
+  "net.databinder.dispatch" %% "dispatch-core" % "0.13.4" % "test"
 )
 
 resolvers += "Local Maven Repository" at "file://"+Path.userHome.absolutePath+"/Desktop/ValkyrieInstrument"
@@ -66,7 +66,7 @@ libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.+",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.17" % "test",
   "com.typesafe.akka" %% "akka-http-testkit" % "10.0.7",
-  "net.databinder.dispatch" %% "dispatch-core" % "+" % "test",
+  "net.databinder.dispatch" %% "dispatch-core" % "0.13.4" % "test",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54"
 )
 
