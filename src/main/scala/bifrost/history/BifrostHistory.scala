@@ -118,6 +118,8 @@ class BifrostHistory(val storage: BifrostStorage,
   /**
     * Removes this block (and its children) from the history and rolls back to the state after the parent block
     *
+    * Maybe we should check drop the id passed in is the best block's id? or just get rid of the arg
+    *
     * @param modifierId the id of the block to chop off
     * @return a new history which is the current history ending at the parent of the dropped block
     */

@@ -19,13 +19,11 @@ import scala.concurrent.duration.MINUTES
 import com.typesafe.config.ConfigFactory
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
-  private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
-  // --------------------------------------------------------------------------------------
-  // ---------------------------Initialize cache-------------------------------------------
-  val conf: Config = ConfigFactory.load("application")
-  val expireTime: Int = conf.getInt("cache.expireTime")
-  val cacheSize: Int = conf.getInt("cache.cacheSize")
-  val cacheOrNot: Boolean = conf.getBoolean("cache.cacheOrNot")
+  /* ------------------------------- Cache Initialization ------------------------------- */
+  private val conf: Config = ConfigFactory.load("application")
+  private val expireTime: Int = conf.getInt("cache.expireTime")
+  private val cacheSize: Int = conf.getInt("cache.cacheSize")
+  private val cacheOrNot: Boolean = conf.getBoolean("cache.cacheOrNot")
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
@@ -39,11 +37,12 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   }
 
   val blockCache = CacheBuilder.newBuilder()
-    .expireAfterAccess(expireTime,MINUTES)
+    .expireAfterAccess(expireTime, MINUTES)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
-  // --------------------------------------------------------------------------------------
-  // --------------------------------------------------------------------------------------
+  /* ------------------------------------------------------------------------------------- */
+
+  private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
 
   def height: Long = heightOf(bestBlockId).getOrElse(0L)
 
@@ -91,7 +90,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
         "scoreb00123123": parentChainScore(b00123123) + diff,
         "bestBlock": b00123123
       }
-    */
+   */
   def update(b: BifrostBlock, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.encodedId}")
     val typeByte = BifrostBlock.ModifierTypeId
@@ -123,27 +122,24 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
     )
 
-    // update storage
+    /* update storage */
     storage.update(
       ByteArrayWrapper(b.id),
       Seq(),
       blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
 
-    // update the cache the in the same way
+    /* update the cache the in the same way */
     (blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
       .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 
   /** rollback storage to have the parent block as the last block
     *
-    * @param modifierId is the parent id of the block intended to be removed
+    * @param parentBlockId is the parent id of the block intended to be removed
     */
-  def rollback(modifierId: ModifierId): Try[Unit] = Try {
-    storage.rollback(ByteArrayWrapper(modifierId))
-
-
-    blockCache.invalidate(ByteArrayWrapper(modifierId))
+  def rollback(parentBlockId: ModifierId): Try[Unit] = Try {
+    storage.rollback(ByteArrayWrapper(parentBlockId))
   }
 
   /** Invalidate the entries related to the block that gets rolled back, this happens when history calls drop()
