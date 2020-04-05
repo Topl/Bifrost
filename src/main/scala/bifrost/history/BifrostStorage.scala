@@ -15,7 +15,7 @@ import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Try}
-import scala.concurrent.duration.MINUTES
+import scala.concurrent.duration.MILLISECONDS
 import com.typesafe.config.ConfigFactory
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends ScorexLogging {
@@ -37,7 +37,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   }
 
   val blockCache = CacheBuilder.newBuilder()
-    .expireAfterAccess(expireTime, MINUTES)
+    .expireAfterAccess(expireTime, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
   /* ------------------------------------------------------------------------------------- */
