@@ -70,7 +70,7 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-bundle" % "2.0.6",
   "io.kamon" %% "kamon-core" % "2.0.4",
   "io.kamon" %% "kamon-influxdb" % "2.0.0",
-  "io.kamon" %% "kamon-zipkin" % "2.0.1"
+  "io.kamon" %% "kamon-zipkin" % "2.0.2"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
