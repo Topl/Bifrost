@@ -82,7 +82,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
 
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "availableToRedeem" -> availableToRedeem
       .map { case (assetCode: String, preBoxes: IndexedSeq[(PublicKey25519Proposition, Nonce)]) =>
