@@ -174,5 +174,4 @@ class StorageCacheSpec extends PropSpec
     /* This may not be the case */
     (cacheDuration < storageDuration) shouldBe true
   }
-
 }
