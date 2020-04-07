@@ -153,7 +153,7 @@ class StorageCacheSpec extends PropSpec
     }
     val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
 
-    /* just a test */
+    /* Testing only accessing the storage and cache, not parsing the serialized data */
 //    val t3 = System.currentTimeMillis
 //    for (_ <- 1 to 10000) {
 //      val smt = history.storage.storage.get(ByteArrayWrapper(tempCurBlockId))
@@ -170,6 +170,8 @@ class StorageCacheSpec extends PropSpec
 //
 //
 //    println(s"cache:$cacheDuration---storage:$storageDuration")
+
+    /* This may not be the case */
     (cacheDuration < storageDuration) shouldBe true
   }
 
