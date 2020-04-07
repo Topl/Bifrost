@@ -117,32 +117,33 @@ class StorageCacheSpec extends PropSpec
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
   }
 
-  property("Load 100 block and read the last 50 and compare the performance between cache and storage") {
-    val numOfBlocks:Int = 1000
+  property("Load 1000 blocks and read the last 50 and compare the performance between cache and storage") {
+    val numOfBlocks:Int = 55
     for (i <- 1 to numOfBlocks) {
-      println(s"forging====$i")
       val oneBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
       history = history.append(oneBlock).get._1
+//      println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}")
     }
 
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
     var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
     var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+    var tempCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
 
     /* Read from storage */
     val t1 = System.currentTimeMillis
-    for (i <- 1 to 500) {
+    for (i <- 1 to 50) {
       val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
         val bytes = bw.data
         BifrostBlockCompanion.parseBytes(bytes.tail).get
       }.get
       storageCurBlockId = currentBlock.parentId
     }
-    val storageDuration = (System.currentTimeMillis - t1) / 1e6d
+    val storageDuration = (System.currentTimeMillis - t1) / 1e3d
 
     /* Read from cache */
     val t2 = System.currentTimeMillis
-    for (i <- 1 to 500) {
+    for (i <- 1 to 50) {
       val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
         bw =>
           val bytes = bw.data
@@ -150,9 +151,25 @@ class StorageCacheSpec extends PropSpec
       }.get
       cacheCurBlockId = currentBlock.parentId
     }
-    val cacheDuration = (System.currentTimeMillis - t2) / 1e6d
+    val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
 
-    println(s"cache:$cacheDuration---storage:$storageDuration")
+    /* just a test */
+//    val t3 = System.currentTimeMillis
+//    for (_ <- 1 to 10000) {
+//      val smt = history.storage.storage.get(ByteArrayWrapper(tempCurBlockId))
+//    }
+//    val tempStorageDuration = (System.currentTimeMillis - t3) / 1e3d
+//    println(s"temp storage duration:$tempStorageDuration")
+//
+//    val t4 = System.currentTimeMillis
+//    for (_ <- 1 to 10000) {
+//      val smt = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tempCurBlockId))
+//    }
+//    val tempCacheDuration = (System.currentTimeMillis - t4) / 1e3d
+//    println(s"temp cache duration:$tempCacheDuration")
+//
+//
+//    println(s"cache:$cacheDuration---storage:$storageDuration")
     (cacheDuration < storageDuration) shouldBe true
   }
 
