@@ -2,7 +2,8 @@ package bifrost.history
 
 
 import bifrost.BifrostGenerators
-import bifrost.blocks.BifrostBlock
+import bifrost.NodeViewModifier.ModifierId
+import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}
@@ -82,7 +83,7 @@ class StorageCacheSpec extends PropSpec
 
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
     /* Append one block */
-    val fstBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) should not be null
@@ -114,6 +115,45 @@ class StorageCacheSpec extends PropSpec
     Thread.sleep(timeToWait)
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
+  }
+
+  property("Load 100 block and read the last 50 and compare the performance between cache and storage") {
+    val numOfBlocks:Int = 1000
+    for (i <- 1 to numOfBlocks) {
+      println(s"forging====$i")
+      val oneBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+      history = history.append(oneBlock).get._1
+    }
+
+    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+    var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+    var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+
+    /* Read from storage */
+    val t1 = System.currentTimeMillis
+    for (i <- 1 to 500) {
+      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
+        val bytes = bw.data
+        BifrostBlockCompanion.parseBytes(bytes.tail).get
+      }.get
+      storageCurBlockId = currentBlock.parentId
+    }
+    val storageDuration = (System.currentTimeMillis - t1) / 1e6d
+
+    /* Read from cache */
+    val t2 = System.currentTimeMillis
+    for (i <- 1 to 500) {
+      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
+        bw =>
+          val bytes = bw.data
+          BifrostBlockCompanion.parseBytes(bytes.tail).get
+      }.get
+      cacheCurBlockId = currentBlock.parentId
+    }
+    val cacheDuration = (System.currentTimeMillis - t2) / 1e6d
+
+    println(s"cache:$cacheDuration---storage:$storageDuration")
+    (cacheDuration < storageDuration) shouldBe true
   }
 
 }
