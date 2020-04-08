@@ -694,9 +694,21 @@ trait BifrostGenerators extends CoreGenerators {
     BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
   }
 
+  lazy val genesisBlockGen: Gen[BifrostBlock] = for {
+    keyPair ← key25519Gen
+  } yield {
+    BifrostBlock.create(
+      settings.GenesisParentId,
+      1478164225796L,
+      Seq(),
+      ArbitBox(keyPair._2, 0L, 0L),
+      keyPair._1,
+      10L,
+      settings.version)
+  }
 
   def generateHistory: BifrostHistory = {
-    val dataDir = s"/tmp/bifrost/scorextest-${Random.nextInt(10000000)}"
+    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
@@ -708,14 +720,7 @@ trait BifrostGenerators extends CoreGenerators {
 
     var history = new BifrostHistory(storage, settings, validators)
 
-    val keyPair = sampleUntilNonEmpty(key25519Gen)
-    val genesisBlock = BifrostBlock.create(
-      settings.GenesisParentId,
-      1478164225796L,
-      Seq(),
-      ArbitBox(keyPair._2, 0L, 0L),
-      keyPair._1, 10L,
-      settings.version)  // genesis block has 10 Arbits of inflation
+    val genesisBlock = genesisBlockGen.sample.get
 
     history = history.append(genesisBlock).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
