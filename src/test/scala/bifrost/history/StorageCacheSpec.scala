@@ -98,24 +98,6 @@ class StorageCacheSpec extends PropSpec
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
   }
 
-  /* Make sure the expireTime in application.conf is set to a small value for shorter wait time */
-  /* eg. expireTime = 2000 */
-  property("Cache entries should expire if it is not accessed after a certain time") {
-    /* Wait for 2 seconds more than the expiration time */
-    /* Wait time is calculated assuming expireTime uses minutes */
-    assert(expireTime < 5000)
-    val timeToWait = expireTime + 2000
-    val fstBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
-
-    history = history.append(fstBlock).get._1
-
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) should not be null
-
-    Thread.sleep(timeToWait)
-
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
-  }
-
   /* TODO: Benchmarking */
 //  property("Load 1000 blocks and read the last 50 and compare the performance between cache and storage") {
 //    val numOfBlocks:Int = 55
