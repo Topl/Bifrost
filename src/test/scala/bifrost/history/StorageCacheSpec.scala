@@ -26,7 +26,7 @@ class StorageCacheSpec extends PropSpec
     history.storage.blockCache.getIfPresent(genesisBlockId) shouldEqual history.storage.storage.get(genesisBlockId)
   }
 
-  property("Cache should invalidate the entry when it's rolled back in storage") {
+  property("Cache should invalidate all entry when it's rolled back in storage") {
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
     val genesisBlockId = history.storage.storage.get(bestBlockIdKey).get
 
@@ -62,10 +62,7 @@ class StorageCacheSpec extends PropSpec
     }
     /* Same checks as above */
     history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldBe null
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(history.bestBlockId)) shouldEqual
-      history.storage.storage.get(genesisBlockId)
-    history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldEqual
-      history.storage.storage.get(bestBlockIdKey)
+
     /* Maybe also check other entries like blockScore */
   }
 
