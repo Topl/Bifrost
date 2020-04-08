@@ -708,7 +708,7 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   def generateHistory: BifrostHistory = {
-    val dataDir = s"/tmp/bifrost/scorextest-${Random.nextInt(10000000)}"
+    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
