@@ -137,36 +137,11 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
   /** rollback storage to have the parent block as the last block
     *
-    * @param parentBlockId is the parent id of the block intended to be removed
-    */
-  def rollback(parentBlockId: ModifierId): Try[Unit] = Try {
-    storage.rollback(ByteArrayWrapper(parentBlockId))
-  }
-
-  /** Invalidate the entries related to the block that gets rolled back, this happens when history calls drop()
-    *
-    * @param blockId  is the id of the block intended to be removed
     * @param parentId is the parent id of the block intended to be removed
     */
-  def cacheBack(blockId: ModifierId, parentId: ModifierId) {
-    val blockK: Iterable[ByteArrayWrapper] = Seq(ByteArrayWrapper(blockId))
-    val blockH: Iterable[ByteArrayWrapper] = Seq(blockHeightKey(blockId))
-    val blockDiff: Iterable[ByteArrayWrapper] = Seq(blockDiffKey(blockId))
-    val blockScore: Iterable[ByteArrayWrapper] = Seq(blockScoreKey(blockId))
-    val bestBlock: Iterable[ByteArrayWrapper] = Seq(bestBlockIdKey)
-    val blockBloom: Iterable[ByteArrayWrapper] = Seq(blockBloomKey(blockId))
-
-    val parentBlock: Iterable[ByteArrayWrapper] = (parentId sameElements settings.GenesisParentId) match {
-      case true => Seq()
-      case false => Seq(blockParentKey(blockId))
-    }
-
-    val newTransactionsToBlockIds: Iterable[ByteArrayWrapper] = modifierById(blockId).get.transactions.get.map(
-      tx => ByteArrayWrapper(tx.id)
-    )
-
-    (blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
-      .foreach(key => blockCache.invalidate(key))
+  def rollback(parentId: ModifierId): Try[Unit] = Try {
+    blockCache.invalidateAll()
+    storage.rollback(ByteArrayWrapper(parentId))
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =

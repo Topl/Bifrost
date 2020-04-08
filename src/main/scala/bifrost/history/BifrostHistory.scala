@@ -132,7 +132,6 @@ class BifrostHistory(val storage: BifrostStorage,
       Base58
         .encode(block.id)
     }")
-    storage.cacheBack(block.id, parentBlock.id)
     storage.rollback(parentBlock.id)
     new BifrostHistory(storage, settings, validators)
   }
