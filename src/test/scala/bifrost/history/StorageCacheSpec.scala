@@ -19,7 +19,6 @@ class StorageCacheSpec extends PropSpec
   private val conf: Config = ConfigFactory.load("application")
   private val expireTime: Int = conf.getInt("cache.expireTime")
   private val cacheSize: Int = conf.getInt("cache.cacheSize")
-  private val cacheOrNot: Boolean = conf.getBoolean("cache.cacheOrNot")
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))

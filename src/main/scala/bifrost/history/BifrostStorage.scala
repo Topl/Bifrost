@@ -23,7 +23,6 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
   private val conf: Config = ConfigFactory.load("application")
   private val expireTime: Int = conf.getInt("cache.expireTime")
   private val cacheSize: Int = conf.getInt("cache.cacheSize")
-  private val cacheOrNot: Boolean = conf.getBoolean("cache.cacheOrNot")
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
