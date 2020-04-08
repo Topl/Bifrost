@@ -42,12 +42,6 @@ class StorageCacheSpec extends PropSpec
     /* The block Id for best block in cache should be invalidated */
     history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldBe null
 
-    /* We still get history.bestBlockId because it uses .get() which access the LSMStore if nothing is found in cache */
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(history.bestBlockId)) shouldEqual
-      history.storage.storage.get(genesisBlockId)
-    history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldEqual
-      history.storage.storage.get(bestBlockIdKey)
-
     /* Append multiple times */
     forAll(bifrostBlockGen) { blockTemp =>
       val block:BifrostBlock = blockTemp.copy(parentId = history.bestBlockId)
