@@ -60,7 +60,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id).asJson,
     "txType" -> "CodeCreation".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> Base58.encode(to.pubKeyBytes).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "code" -> code.asJson,
