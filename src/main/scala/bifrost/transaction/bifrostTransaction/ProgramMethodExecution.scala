@@ -97,7 +97,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
     "methodParams" -> methodParams,
     "newBoxes" -> newBoxes.map {
       nb => nb.json
-    }.asJson
+    }.toSeq.asJson
   )).asJson
 
   override lazy val serializer = ProgramMethodExecutionCompanion

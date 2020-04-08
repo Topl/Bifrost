@@ -129,7 +129,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
     "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
     "executionBuilder" -> executionBuilder.json,
-    "newBoxes" -> newBoxes.map(_.json).asJson,
+    "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
     "data" -> data.asJson
   )).asJson
 
