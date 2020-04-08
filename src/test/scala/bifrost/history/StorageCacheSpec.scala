@@ -116,43 +116,44 @@ class StorageCacheSpec extends PropSpec
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
   }
 
-  property("Load 1000 blocks and read the last 50 and compare the performance between cache and storage") {
-    val numOfBlocks:Int = 55
-    for (i <- 1 to numOfBlocks) {
-      val oneBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
-      history = history.append(oneBlock).get._1
+  /* TODO: Benchmarking */
+//  property("Load 1000 blocks and read the last 50 and compare the performance between cache and storage") {
+//    val numOfBlocks:Int = 55
+//    for (i <- 1 to numOfBlocks) {
+//      val oneBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+//      history = history.append(oneBlock).get._1
 //      println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}")
-    }
-
-    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
-    var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-    var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-    var tempCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-
-    /* Read from storage */
-    val t1 = System.currentTimeMillis
-    for (i <- 1 to 50) {
-      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
-        val bytes = bw.data
-        BifrostBlockCompanion.parseBytes(bytes.tail).get
-      }.get
-      storageCurBlockId = currentBlock.parentId
-    }
-    val storageDuration = (System.currentTimeMillis - t1) / 1e3d
-
-    /* Read from cache */
-    val t2 = System.currentTimeMillis
-    for (i <- 1 to 50) {
-      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
-        bw =>
-          val bytes = bw.data
-          BifrostBlockCompanion.parseBytes(bytes.tail).get
-      }.get
-      cacheCurBlockId = currentBlock.parentId
-    }
-    val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
-
-    /* Testing only accessing the storage and cache, not parsing the serialized data */
+//    }
+//
+//    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+//    var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//    var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//    var tempCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//
+//    /* Read from storage */
+//    val t1 = System.currentTimeMillis
+//    for (i <- 1 to 50) {
+//      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
+//        val bytes = bw.data
+//        BifrostBlockCompanion.parseBytes(bytes.tail).get
+//      }.get
+//      storageCurBlockId = currentBlock.parentId
+//    }
+//    val storageDuration = (System.currentTimeMillis - t1) / 1e3d
+//
+//    /* Read from cache */
+//    val t2 = System.currentTimeMillis
+//    for (i <- 1 to 50) {
+//      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
+//        bw =>
+//          val bytes = bw.data
+//          BifrostBlockCompanion.parseBytes(bytes.tail).get
+//      }.get
+//      cacheCurBlockId = currentBlock.parentId
+//    }
+//    val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
+//
+//    /* Testing only accessing the storage and cache, not parsing the serialized data */
 //    val t3 = System.currentTimeMillis
 //    for (_ <- 1 to 10000) {
 //      val smt = history.storage.storage.get(ByteArrayWrapper(tempCurBlockId))
@@ -169,8 +170,8 @@ class StorageCacheSpec extends PropSpec
 //
 //
 //    println(s"cache:$cacheDuration---storage:$storageDuration")
-
-    /* This may not be the case */
-    (cacheDuration < storageDuration) shouldBe true
-  }
+//
+//    /* This may not be the case */
+//    (cacheDuration < storageDuration) shouldBe true
+//  }
 }
