@@ -5,6 +5,8 @@
 scorex.yaml
 .DS_Store
 .project
+.metals/
+.bloop/
 
 # scala build folders
 target
@@ -24,8 +26,6 @@ classes
 *.data
 .history
 .bifrost/
-.metals/
-.bloop/
 
 # for temporary experiments
 sheet.scala
