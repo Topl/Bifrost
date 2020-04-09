@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import bifrost.api.http.swagger.{CorsSupport, SwaggerDocService}
+import bifrost.api.http.swagger.CorsSupport
 import bifrost.settings.Settings
 
 import scala.reflect.runtime.universe.Type
@@ -15,15 +15,14 @@ case class CompositeHttpService(system: ActorSystem, apiTypes: Seq[Type], routes
 
   implicit val actorSystem = system
 
-  val swaggerService = new SwaggerDocService(system, apiTypes, settings)
-
-  val redirectToSwagger: Route = {
-    redirect("/swagger", StatusCodes.PermanentRedirect)
+  val redirectToStatus: Route = {
+    redirect("/status", StatusCodes.PermanentRedirect)
   }
 
-  val compositeRoute = routes.map(_.route).reduce(_ ~ _) ~ corsHandler(swaggerService.routes) ~
-    path("swagger") {
+  //TODO Replace with simple status page
+  val compositeRoute = routes.map(_.route).reduce(_ ~ _) ~
+    path("status") {
       getFromResource("swagger-ui/index.html")
-    } ~ getFromResourceDirectory("swagger-ui") ~ redirectToSwagger
+    } ~ getFromResourceDirectory("swagger-ui") ~ redirectToStatus
 
 }

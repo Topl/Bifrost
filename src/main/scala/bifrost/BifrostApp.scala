@@ -77,25 +77,26 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
 
   // Am I running on a JDK that supports JVMCI?
-         val vm_version = System.getProperty("java.vm.version")
-         System.out.printf("java.vm.version = %s%n", vm_version)
+  val vm_version = System.getProperty("java.vm.version")
 
-         val bean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
+  System.out.printf("java.vm.version = %s%n", vm_version)
+
+  val bean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
   // Is JVMCI enabled?
-          val enableJVMCI = bean.getVMOption("EnableJVMCI")
-          System.out.println(enableJVMCI)
+  val enableJVMCI = bean.getVMOption("EnableJVMCI")
+  System.out.println(enableJVMCI)
 
   // Is the system using the JVMCI compiler for normal compilations?
-          val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
-          System.out.println(useJVMCICompiler)
+  val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
+  System.out.println(useJVMCICompiler)
 
   // What compiler is selected?
-         val compiler = System.getProperty("jvmci.Compiler")
-         System.out.printf("jvmci.Compiler = %s%n", compiler)
+  val compiler = System.getProperty("jvmci.Compiler")
+  System.out.printf("jvmci.Compiler = %s%n", compiler)
 }
 
 object BifrostApp extends App {
-  Kamon.init()
+//  Kamon.init()
   val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }

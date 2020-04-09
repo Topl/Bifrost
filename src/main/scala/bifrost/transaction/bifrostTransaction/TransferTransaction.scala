@@ -32,7 +32,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     Map(
       "txHash" -> Base58.encode(id).asJson,
       "txType" -> txType.asJson,
-      "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).asJson,
+      "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
       "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
       "from" -> from.map { s =>
         Map(
