@@ -2,8 +2,7 @@ package bifrost.history
 
 
 import bifrost.BifrostGenerators
-import bifrost.NodeViewModifier.ModifierId
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.blocks.BifrostBlock
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}
@@ -17,7 +16,6 @@ class StorageCacheSpec extends PropSpec
   var history: BifrostHistory = generateHistory
 
   private val conf: Config = ConfigFactory.load("application")
-  private val expireTime: Int = conf.getInt("cache.expireTime")
   private val cacheSize: Int = conf.getInt("cache.cacheSize")
 
   property("The genesis block is stored in cache") {
@@ -28,7 +26,6 @@ class StorageCacheSpec extends PropSpec
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
-    val genesisBlockId = history.storage.storage.get(bestBlockIdKey).get
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock:BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
@@ -87,6 +84,14 @@ class StorageCacheSpec extends PropSpec
     }
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
+  }
+
+  property("blockLoader should correctly return a block from storage not found in cache") {
+    val block: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val tempHistory = history.append(block).get._1
+
+    tempHistory.storage.blockCache.invalidateAll()
+    tempHistory.storage.modifierById(block.id) should not be empty
   }
 
   /* TODO: Benchmarking */
