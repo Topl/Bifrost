@@ -24,6 +24,8 @@ classes
 *.data
 .history
 .bifrost/
+.metals/
+.bloop/
 
 # for temporary experiments
 sheet.scala
