@@ -12,13 +12,13 @@ import scala.reflect.runtime.universe.Type
 case class CompositeHttpService(system: ActorSystem, apiTypes: Seq[Type], routes: Seq[ApiRoute], settings: Settings)
   extends CorsSupport {
 
-  implicit val actorSystem = system
+  implicit val actorSystem: ActorSystem = system
 
   val redirectToStatus: Route = {
     redirect("/status", StatusCodes.PermanentRedirect)
   }
 
-  val compositeRoute = routes.map(_.route).reduce(_ ~ _) ~
+  val compositeRoute: Route = routes.map(_.route).reduce(_ ~ _) ~
     path("status") {
       getFromResource("index.html")
     } ~ redirectToStatus
