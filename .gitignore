@@ -5,6 +5,8 @@
 scorex.yaml
 .DS_Store
 .project
+.metals/
+.bloop/
 
 # scala build folders
 target

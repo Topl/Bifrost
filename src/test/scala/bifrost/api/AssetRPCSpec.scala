@@ -185,7 +185,7 @@ class AssetRPCSpec extends WordSpec
            |  "method": "signTx",
            |  "params": [{
            |    "signingKeys": ["${publicKeys("hub")}"],
-           |    "tx": $tx
+           |    "protoTx": $tx
            |  }]
            |}
           """.stripMargin)
