@@ -18,6 +18,7 @@ import java.lang.management.ManagementFactory
 
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import com.sun.management.HotSpotDiagnosticMXBean
+import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.reflect.runtime.universe._
@@ -96,7 +97,9 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-//  Kamon.init()
+  private val conf: Config = ConfigFactory.load("application")
+  if (conf.getBoolean("kamon.enable"))
+    Kamon.init()
   val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }
