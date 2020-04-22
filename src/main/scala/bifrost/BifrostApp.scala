@@ -98,10 +98,8 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 
 object BifrostApp extends App {
   private val conf: Config = ConfigFactory.load("application")
-  conf.getBoolean("kamon.enable") match {
-    case true => Kamon.init()
-    case false =>
-  }
+  if (conf.getBoolean("kamon.enable"))
+    Kamon.init()
   val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }
