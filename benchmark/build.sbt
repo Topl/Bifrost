@@ -1,9 +1,4 @@
-
-name := "benchmarking"
-
-scalaVersion := "2.12.8"
-
-enablePlugins(JmhPlugin)
+name := "benchmark"
 
 sourceDirectory in Jmh := (sourceDirectory in Test).value
 classDirectory in Jmh := (classDirectory in Test).value
