@@ -55,7 +55,7 @@ trait GenericApplication extends ScorexLogging {
   val localInterface: ActorRef
 
 
-  val peerManagerRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
+  val peerManagerRef = actorSystem.actorOf(Props(classOf[PeerManager], settings), "peerManager")
 
   val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
   val networkController = actorSystem.actorOf(nProps, "networkController")

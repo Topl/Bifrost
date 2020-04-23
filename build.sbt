@@ -73,6 +73,8 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-zipkin" % "2.0.2"
 )
 
+libraryDependencies += "de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
+
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
 libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
 
