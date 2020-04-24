@@ -23,7 +23,7 @@
   "maxRollback": 100,
   "targetBlockTime": 6000,
   "offlineGeneration": false,
-  "testnet": true,
+  "localTestnet": true,
   "blockGenerationDelay": 2000,
   "cors": true,
   "verboseAPI": true,

@@ -117,9 +117,11 @@ class NetworkController(settings: Settings,
       }
 
     case SendToNetwork(message, sendingStrategy) =>
-      (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
-        .map(_.asInstanceOf[Seq[ConnectedPeer]])
-        .foreach(_.foreach(_.handlerRef ! message))
+      if (!settings.isTestnet) {
+        (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
+          .map(_.asInstanceOf[Seq[ConnectedPeer]])
+          .foreach(_.foreach(_.handlerRef ! message))
+      }
   }
 
   def peerLogic: Receive = {
@@ -153,17 +155,22 @@ class NetworkController(settings: Settings,
       context stop self
   }
 
-  override def receive: Receive = bindingLogic orElse businessLogic orElse peerLogic orElse interfaceCalls orElse {
-    case RegisterMessagesHandler(specs, handler) =>
-      log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
-      messageHandlers += specs.map(_.messageCode) -> handler
+  override def receive: Receive =
+    bindingLogic orElse
+      businessLogic orElse
+      peerLogic orElse
+      interfaceCalls orElse
+      {
+        case RegisterMessagesHandler(specs, handler) =>
+          log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
+          messageHandlers += specs.map(_.messageCode) -> handler
 
-    case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd)
+        case CommandFailed(cmd: Tcp.Command) =>
+          log.info("Failed to execute command : " + cmd)
 
-    case nonsense: Any =>
-      log.warn(s"NetworkController: got something strange $nonsense")
-  }
+        case nonsense: Any =>
+          log.warn(s"NetworkController: got something strange $nonsense")
+      }
 }
 
 object NetworkController {

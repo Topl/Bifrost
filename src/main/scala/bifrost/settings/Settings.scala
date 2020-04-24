@@ -126,7 +126,7 @@ trait Settings extends ScorexLogging {
 
   lazy val corsAllowed: Boolean = settingsJSON.get("cors").flatMap(_.asBoolean).getOrElse(false)
 
-  lazy val isTestnet: Boolean = settingsJSON.get("testnet").flatMap(_.asBoolean).getOrElse(false)
+  lazy val isTestnet: Boolean = settingsJSON.get("localTestnet").flatMap(_.asBoolean).getOrElse(false)
 
   //NETWORK
   private val DefaultMaxConnections = 20
@@ -138,7 +138,6 @@ trait Settings extends ScorexLogging {
   //API
 
   private val DefaultRpcPort = 9085
-
   private val DefaultBlockGenerationDelay: FiniteDuration = 1.second
   private val DefaultMiningThreads: Int = 1
 

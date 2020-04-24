@@ -49,6 +49,7 @@ class PeerManager(settings: Settings) extends Actor with ScorexLogging {
       sender() ! randomPeer()
 
     case RandomPeers(howMany: Int) =>
+      kamon.Kamon.currentSpan().tag("peerSynch", "true")
       sender() ! Random.shuffle(peerDatabase.knownPeers(false).keys.toSeq).take(howMany)
 
     case FilterPeers(sendingStrategy: SendingStrategy) =>
@@ -140,7 +141,7 @@ object PeerManager {
 
   case object RandomPeer
 
-  case class RandomPeers(hawMany: Int)
+  case class RandomPeers(howMany: Int)
 
   case object CheckPeers
 
