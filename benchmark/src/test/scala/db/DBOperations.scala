@@ -36,32 +36,34 @@ class DBOperations extends BifrostGenerators {
   }).take(numLastBlocks).toList
 
   val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
-  var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-  var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+  val storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+  val cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
 
 
   /* Read from storage */
   @Benchmark
   def storageTest {
+    var tmpStorageBlockId: ModifierId = storageCurBlockId
     for (i <- 1 to numLastBlocks) {
-      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
+      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId)).map { bw =>
         val bytes = bw.data
         BifrostBlockCompanion.parseBytes(bytes.tail).get
       }.get
-      storageCurBlockId = currentBlock.parentId
+      tmpStorageBlockId = currentBlock.parentId
     }
   }
 
   /* Read from cache */
   @Benchmark
   def cacheTest {
+    var tmpCacheBlockId: ModifierId = cacheCurBlockId
     for (i <- 1 to numLastBlocks) {
-      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
+      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId)).map {
         bw =>
           val bytes = bw.data
           BifrostBlockCompanion.parseBytes(bytes.tail).get
       }.get
-      cacheCurBlockId = currentBlock.parentId
+      tmpCacheBlockId = currentBlock.parentId
     }
   }
 

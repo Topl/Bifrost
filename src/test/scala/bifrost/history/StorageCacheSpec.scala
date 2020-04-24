@@ -97,59 +97,59 @@ class StorageCacheSpec extends PropSpec
 
   /* TODO: Benchmarking */
 
-  //  property("Load blocks and read the last ones and compare the performance between cache and storage") {
-  //    val numOfBlocks:Int = 550
-  //    val numToGoBack:Int = 500
-  //    val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
-  //      val oneBlock: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
-  //      history = history.append(oneBlock).get._1
-  //      println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}")
-  //      ByteArrayWrapper(oneBlock.id)
-  //    }).take(numToGoBack).toList
-  //
-  //    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
-  //    var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-  //    var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-  //    var tempCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-  //
-  //    /* Read from storage */
-  //    val t1 = System.currentTimeMillis
-  //    for (i <- 1 to numToGoBack) {
-  //      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
-  //        val bytes = bw.data
-  //        BifrostBlockCompanion.parseBytes(bytes.tail).get
-  //      }.get
-  //      storageCurBlockId = currentBlock.parentId
-  //    }
-  //    val storageDuration = (System.currentTimeMillis - t1) / 1e3d
-  //
-  //    /* Read from cache */
-  //    val t2 = System.currentTimeMillis
-  //    for (i <- 1 to numToGoBack) {
-  //      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
-  //        bw =>
-  //          val bytes = bw.data
-  //          BifrostBlockCompanion.parseBytes(bytes.tail).get
-  //      }.get
-  //      cacheCurBlockId = currentBlock.parentId
-  //    }
-  //    val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
-  //
-  //    println(s"cache------:$cacheDuration---storage------:$storageDuration")
-  //
-  //    /* Testing only accessing the storage and cache, not parsing the serialized data */
-  //    val t3 = System.currentTimeMillis
-  //    for (id <- listBlockId) {
-  //      val smt = history.storage.storage.get(id)
-  //    }
-  //    val tempStorageDuration = (System.currentTimeMillis - t3) / 1e3d
-  //
-  //    val t4 = System.currentTimeMillis
-  //    for (id <- listBlockId) {
-  //      val smt = history.storage.blockCache.getIfPresent(id)
-  //    }
-  //    val tempCacheDuration = (System.currentTimeMillis - t4) / 1e3d
-  //
-  //    println(s"only  cache:$tempCacheDuration---only storage:$tempStorageDuration")
-}
+//  property("Load blocks and read the last ones and compare the performance between cache and storage") {
+//    val numOfBlocks:Int = 550
+//    val numToGoBack:Int = 500
+//    val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
+//      val oneBlock: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+//      history = history.append(oneBlock).get._1
+//      println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}")
+//      ByteArrayWrapper(oneBlock.id)
+//    }).take(numToGoBack).toList
+//
+//    val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+//    var storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//    var cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//    var tempCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+//
+//    /* Read from storage */
+//    val t1 = System.currentTimeMillis
+//    for (i <- 1 to numToGoBack) {
+//      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(storageCurBlockId)).map { bw =>
+//        val bytes = bw.data
+//        BifrostBlockCompanion.parseBytes(bytes.tail).get
+//      }.get
+//      storageCurBlockId = currentBlock.parentId
+//    }
+//    val storageDuration = (System.currentTimeMillis - t1) / 1e3d
+//
+//    /* Read from cache */
+//    val t2 = System.currentTimeMillis
+//    for (i <- 1 to numToGoBack) {
+//      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(cacheCurBlockId)).map {
+//        bw =>
+//          val bytes = bw.data
+//          BifrostBlockCompanion.parseBytes(bytes.tail).get
+//      }.get
+//      cacheCurBlockId = currentBlock.parentId
+//    }
+//    val cacheDuration = (System.currentTimeMillis - t2) / 1e3d
+//
+//    println(s"cache------:$cacheDuration---storage------:$storageDuration")
+//
+//    /* Testing only accessing the storage and cache, not parsing the serialized data */
+//    val t3 = System.currentTimeMillis
+//    for (id <- listBlockId) {
+//      val smt = history.storage.storage.get(id)
+//    }
+//    val tempStorageDuration = (System.currentTimeMillis - t3) / 1e3d
+//
+//    val t4 = System.currentTimeMillis
+//    for (id <- listBlockId) {
+//      val smt = history.storage.blockCache.getIfPresent(id)
+//    }
+//    val tempCacheDuration = (System.currentTimeMillis - t4) / 1e3d
+//
+//    println(s"only  cache:$tempCacheDuration---only storage:$tempStorageDuration")
+//  }
 }
