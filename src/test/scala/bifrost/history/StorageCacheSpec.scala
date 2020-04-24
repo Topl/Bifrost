@@ -2,8 +2,7 @@ package bifrost.history
 
 
 import bifrost.BifrostGenerators
-import bifrost.NodeViewModifier.ModifierId
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.blocks.BifrostBlock
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}

@@ -1,32 +1,32 @@
 package db
 
-import java.io.File
+//import java.io.File
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+//import java.util.concurrent.atomic.AtomicLong
 
 import org.openjdk.jmh.annotations._
-import org.openjdk.jmh.infra.Blackhole
-import bifrost.forging.ForgingSettings
+//import org.openjdk.jmh.infra.Blackhole
+//import bifrost.forging.ForgingSettings
 import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
 import bifrost.BifrostGenerators
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.history._
 
-import io.circe.Json
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+//import io.circe.Json
+import io.iohk.iodb.{ByteArrayWrapper}
 
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Threads(1)
 @Fork(1)
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
+@Warmup(iterations = 2)
+@Measurement(iterations = 10)
 @State(Scope.Benchmark)
 class DBOperations extends BifrostGenerators {
   var history: BifrostHistory = generateHistory
-  val numOfBlocks: Int = 10
-  val numLastBlocks: Int = 5
+  val numOfBlocks: Int = 550
+  val numLastBlocks: Int = 500
 
   val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
     val oneBlock: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
