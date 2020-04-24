@@ -29,7 +29,7 @@ Testing
 -------
 Go to the project directory
 
-`cd Project-Bifrost`
+`cd Bifrost`
 
 Type
 
