@@ -117,7 +117,7 @@ class NetworkController(settings: Settings,
       }
 
     case SendToNetwork(message, sendingStrategy) =>
-      if (!settings.isTestnet) {
+      if (!settings.localOnly) {
         (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
           .map(_.asInstanceOf[Seq[ConnectedPeer]])
           .foreach(_.foreach(_.handlerRef ! message))

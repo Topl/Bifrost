@@ -61,7 +61,6 @@ trait Settings extends ScorexLogging {
 
   //p2p
   lazy val DefaultPort = 9084
-
   lazy val DefaultHandshakeTimeout = 5000
 
   lazy val p2pSettings: Map[String, Json] = settingsJSON("p2p").asObject.get.toMap
@@ -126,17 +125,13 @@ trait Settings extends ScorexLogging {
 
   lazy val corsAllowed: Boolean = settingsJSON.get("cors").flatMap(_.asBoolean).getOrElse(false)
 
-  lazy val isTestnet: Boolean = settingsJSON.get("localTestnet").flatMap(_.asBoolean).getOrElse(false)
-
   //NETWORK
   private val DefaultMaxConnections = 20
   private val DefaultConnectionTimeout = 60
   private val DefaultBindAddress = "127.0.0.1"
-
   private val DefaultNetworkChunkSize = 100
 
   //API
-
   private val DefaultRpcPort = 9085
   private val DefaultBlockGenerationDelay: FiniteDuration = 1.second
   private val DefaultMiningThreads: Int = 1
