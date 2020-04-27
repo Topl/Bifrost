@@ -24,3 +24,8 @@ services:
     ports:
       - 8080:8080
       - 60009:60009/udp
+
+  influxdb:
+    image: influxdb/influxdb
+    ports:
+      - 8086:8086
