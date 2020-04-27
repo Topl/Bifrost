@@ -1,0 +1,26 @@
+version: '3.7'
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.1.0
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - 9411:9411
+
+  visualMailbox:
+    image: ouven/akka-visual-mailbox-visualization
+    ports:
+      - 8080:8080
+      - 60009:60009/udp
