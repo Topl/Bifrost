@@ -1,31 +1,52 @@
 version: '3.7'
 
 services:
-
   prometheus:
-    image: prom/prometheus:v2.1.0
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart:
+      always
     ports:
       - 9090:9090
 
+# If you want to save grafana data you must start the container
+# as outlined https://community.grafana.com/t/new-docker-install-with-persistent-storage-permission-problem/10896
+# where user is your 'id' found by 'id -u'
   grafana:
     image: grafana/grafana
-    depends_on:
-      - prometheus
+    container_name: grafana
+    restart: always
+    env_file:
+    - 'env.grafana'
     ports:
       - 3000:3000
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+      - ./data/grafana:/var/lib/grafana
+    user: "1000"
+    
     
   zipkin:
-    image: openzipkin/zipkin
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    restart: always
     ports:
       - 9411:9411
+
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    restart: always
+    env_file:
+    - 'env.influxdb'
+    ports:
+      - 8086:8086
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb
 
   visualMailbox:
     image: ouven/akka-visual-mailbox-visualization
     ports:
       - 8080:8080
       - 60009:60009/udp
-
-  influxdb:
-    image: influxdb/influxdb
-    ports:
-      - 8086:8086
+    
