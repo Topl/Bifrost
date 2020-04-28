@@ -15,7 +15,7 @@
     "port": 9084,
     "knownPeers": []
   },
-  "walletSeed": "genesiso1",
+  "walletSeed": "genesisoo",
   "keyFileDir": "keyfiles/private-testnet",
   "walletDir": "/tmp/bifrost/private-testnet/wallet",
   "dataDir": "/tmp/bifrost/private-testnet/blockchain",
