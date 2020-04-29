@@ -31,7 +31,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   override type PMOD = BifrostBlock
   override type NVHT = BifrostNodeViewHolder
 
-  implicit lazy val settings = new ForgingSettings {
+  implicit val settings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
   log.debug(s"Starting application with settings \n$settings")
