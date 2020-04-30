@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-# If you want to save grafana data you must start the container
-# as outlined https://community.grafana.com/t/new-docker-install-with-persistent-storage-permission-problem/10896
+# If you want to save grafana data you must start the container as discussed here
+# https://community.grafana.com/t/new-docker-install-with-persistent-storage-permission-problem/10896
 # where user is your 'id' found by 'id -u'
   grafana:
     image: grafana/grafana:latest
@@ -32,8 +32,8 @@ services:
     - ./provisioning/influxdb/env
     ports:
       - 8086:8086
-    volumes:
-      # - ./data/influxdb:/var/lib/influxdb
+    # volumes:
+    #    - ./data/influxdb:/var/lib/influxdb
 
   # visualMailbox:
   #   image: ouven/akka-visual-mailbox-visualization
