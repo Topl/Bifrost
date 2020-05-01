@@ -430,12 +430,6 @@
               "key": "service",
               "operator": "=",
               "value": "bifrost"
-            },
-            {
-              "condition": "AND",
-              "key": "host",
-              "operator": "=",
-              "value": "Rutherford"
             }
           ]
         }
@@ -734,7 +728,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
+        "w": 3,
         "x": 2,
         "y": 6
       },
@@ -820,6 +814,103 @@
         }
       ],
       "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "datasource": null,
+      "description": "The average and standard deviation of processed messages over the specified time period",
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 5,
+        "y": 6
+      },
+      "id": 87,
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "defaults": {
+            "mappings": [
+              {
+                "$$hashKey": "object:1597",
+                "id": 0,
+                "op": "=",
+                "text": "N/A",
+                "type": 1,
+                "value": "null"
+              }
+            ],
+            "nullValueMode": "connected",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "none"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal"
+      },
+      "pluginVersion": "6.7.3",
+      "targets": [
+        {
+          "groupBy": [],
+          "measurement": "akka.system.processed-messages",
+          "orderByTime": "ASC",
+          "policy": "autogen",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "mean"
+              }
+            ],
+            [
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [],
+                "type": "stddev"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "tracked",
+              "operator": "=",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Average number of processed messages",
+      "type": "stat"
     },
     {
       "content": "### Number of processed messages by actor\n---\nShows the total number of processed messages for each actor in each interval\n\n#### Metric details\n* Name: akka.group.processing-time\n* Type: timer\n* Description: Tracks the time taken for a member actor to process the receive function.\n\n\n",
