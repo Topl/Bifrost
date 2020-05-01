@@ -17,6 +17,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
+  "id": 2,
+  "iteration": 1588353914151,
   "links": [],
   "panels": [
     {
@@ -34,322 +36,6 @@
       "type": "row"
     },
     {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
-      ],
-      "datasource": null,
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 0,
-        "y": 1
-      },
-      "id": 28,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "$$hashKey": "object:216",
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "$$hashKey": "object:217",
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true,
-        "ymax": null,
-        "ymin": null
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "groupBy": [],
-          "measurement": "akka.system.unhandled-messages",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "service",
-              "operator": "=",
-              "value": "bifrost"
-            }
-          ]
-        }
-      ],
-      "thresholds": "",
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Unhandled Messages",
-      "type": "singlestat",
-      "valueFontSize": "200%",
-      "valueMaps": [
-        {
-          "$$hashKey": "object:219",
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
-      ],
-      "datasource": null,
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 2,
-        "x": 2,
-        "y": 1
-      },
-      "id": 29,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "$$hashKey": "object:216",
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "$$hashKey": "object:217",
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true,
-        "ymax": null,
-        "ymin": null
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "groupBy": [],
-          "measurement": "akka.system.dead-letters",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "service",
-              "operator": "=",
-              "value": "bifrost"
-            }
-          ]
-        }
-      ],
-      "thresholds": "",
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Dead Letters",
-      "type": "singlestat",
-      "valueFontSize": "200%",
-      "valueMaps": [
-        {
-          "$$hashKey": "object:219",
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "current"
-    },
-    {
-      "cacheTimeout": null,
-      "colorBackground": false,
-      "colorValue": true,
-      "colors": [
-        "#299c46",
-        "rgba(237, 129, 40, 0.89)",
-        "#d44a3a"
-      ],
-      "datasource": null,
-      "format": "none",
-      "gauge": {
-        "maxValue": 100,
-        "minValue": 0,
-        "show": false,
-        "thresholdLabels": false,
-        "thresholdMarkers": true
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 4,
-        "y": 1
-      },
-      "id": 34,
-      "interval": null,
-      "links": [],
-      "mappingType": 1,
-      "mappingTypes": [
-        {
-          "$$hashKey": "object:7864",
-          "name": "value to text",
-          "value": 1
-        },
-        {
-          "$$hashKey": "object:7865",
-          "name": "range to text",
-          "value": 2
-        }
-      ],
-      "maxDataPoints": 100,
-      "nullPointMode": "connected",
-      "nullText": null,
-      "pluginVersion": "6.7.3",
-      "postfix": "",
-      "postfixFontSize": "50%",
-      "prefix": "",
-      "prefixFontSize": "50%",
-      "rangeMaps": [
-        {
-          "$$hashKey": "object:8116",
-          "from": "null",
-          "text": "N/A",
-          "to": "null"
-        }
-      ],
-      "sparkline": {
-        "fillColor": "rgba(31, 118, 189, 0.18)",
-        "full": false,
-        "lineColor": "rgb(31, 120, 193)",
-        "show": true,
-        "ymax": null,
-        "ymin": null
-      },
-      "tableColumn": "",
-      "targets": [
-        {
-          "groupBy": [],
-          "limit": "",
-          "measurement": "akka.system.active-actors",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "mean"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "slimit": "",
-          "tags": []
-        }
-      ],
-      "thresholds": "",
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Active Actors",
-      "type": "singlestat",
-      "valueFontSize": "200%",
-      "valueMaps": [
-        {
-          "$$hashKey": "object:7867",
-          "op": "=",
-          "text": "N/A",
-          "value": "null"
-        }
-      ],
-      "valueName": "avg"
-    },
-    {
       "aliasColors": {},
       "bars": true,
       "cacheTimeout": null,
@@ -363,7 +49,7 @@
       "gridPos": {
         "h": 10,
         "w": 9,
-        "x": 8,
+        "x": 0,
         "y": 1
       },
       "hiddenSeries": false,
@@ -427,9 +113,15 @@
           ],
           "tags": [
             {
-              "key": "service",
-              "operator": "=",
-              "value": "bifrost"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
             }
           ]
         }
@@ -479,32 +171,363 @@
       }
     },
     {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 9,
+        "y": 1
+      },
+      "id": 34,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "$$hashKey": "object:7864",
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "$$hashKey": "object:7865",
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "pluginVersion": "6.7.3",
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "$$hashKey": "object:8116",
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [],
+          "limit": "",
+          "measurement": "akka.system.active-actors",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "mean"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "slimit": "",
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Active Actors",
+      "type": "singlestat",
+      "valueFontSize": "200%",
+      "valueMaps": [
+        {
+          "$$hashKey": "object:7867",
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "avg"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": null,
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 2,
+        "x": 11,
+        "y": 1
+      },
+      "id": 28,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "$$hashKey": "object:216",
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "$$hashKey": "object:217",
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [],
+          "measurement": "akka.system.unhandled-messages",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Unhandled Messages",
+      "type": "singlestat",
+      "valueFontSize": "200%",
+      "valueMaps": [
+        {
+          "$$hashKey": "object:219",
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorPrefix": false,
+      "colorValue": true,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": null,
+      "description": "The number of messages that were processed in the latest time interval.",
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 13,
+        "y": 1
+      },
+      "id": 30,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "$$hashKey": "object:216",
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "$$hashKey": "object:217",
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "pluginVersion": "6.7.3",
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": true,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "groupBy": [],
+          "measurement": "akka.system.processed-messages",
+          "orderByTime": "ASC",
+          "policy": "autogen",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "tracked",
+              "operator": "=",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Processed Messages",
+      "type": "singlestat",
+      "valueFontSize": "200%",
+      "valueMaps": [
+        {
+          "$$hashKey": "object:219",
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
       "aliasColors": {},
       "bars": true,
       "dashLength": 10,
       "dashes": false,
       "datasource": "InfluxDB",
-      "description": "The distribution of queue time by actors over the entire time of interest. This is useful to show which actors may be taking a long time to get to processing messages. ",
+      "description": "The distribution of processing time for the NodeViewHolder over the entire time of interest. ",
       "fill": 1,
       "fillGradient": 1,
       "gridPos": {
         "h": 10,
-        "w": 7,
-        "x": 17,
+        "w": 8,
+        "x": 16,
         "y": 1
       },
       "hiddenSeries": false,
-      "id": 6,
+      "id": 88,
       "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": true,
-        "min": true,
-        "rightSide": true,
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": false,
         "show": false,
         "total": false,
-        "values": true
+        "values": false
       },
       "lines": false,
       "linewidth": 2,
@@ -530,7 +553,7 @@
               "type": "tag"
             }
           ],
-          "measurement": "akka.actor.time-in-mailbox",
+          "measurement": "akka.actor.processing-time",
           "orderByTime": "ASC",
           "policy": "default",
           "refId": "A",
@@ -545,20 +568,32 @@
               },
               {
                 "params": [
-                  " / 1000"
+                  " / 1000000"
                 ],
                 "type": "math"
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=",
+              "value": "bifrost.BifrostNodeViewHolder"
+            }
+          ]
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Occurrence of time spent queued in a mailbox (us)",
+      "title": "Occurrence of time spent processing messages for NodeViewHolder (ms)",
       "tooltip": {
         "shared": false,
         "sort": 2,
@@ -566,8 +601,8 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
-        "max": null,
+        "buckets": 100,
+        "max": 50,
         "min": null,
         "mode": "histogram",
         "name": null,
@@ -620,7 +655,7 @@
       "gridPos": {
         "h": 5,
         "w": 2,
-        "x": 0,
+        "x": 9,
         "y": 6
       },
       "id": 32,
@@ -683,9 +718,15 @@
           ],
           "tags": [
             {
-              "key": "service",
-              "operator": "=",
-              "value": "bifrost"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
             }
           ]
         }
@@ -709,7 +750,6 @@
     {
       "cacheTimeout": null,
       "colorBackground": false,
-      "colorPrefix": false,
       "colorValue": true,
       "colors": [
         "#299c46",
@@ -717,7 +757,7 @@
         "#d44a3a"
       ],
       "datasource": null,
-      "description": "The number of messages that were processed in the latest time interval.",
+      "decimals": null,
       "format": "none",
       "gauge": {
         "maxValue": 100,
@@ -728,11 +768,11 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 2,
+        "w": 2,
+        "x": 11,
         "y": 6
       },
-      "id": 30,
+      "id": 29,
       "interval": null,
       "links": [],
       "mappingType": 1,
@@ -751,7 +791,6 @@
       "maxDataPoints": 100,
       "nullPointMode": "connected",
       "nullText": null,
-      "pluginVersion": "6.7.3",
       "postfix": "",
       "postfixFontSize": "50%",
       "prefix": "",
@@ -775,9 +814,9 @@
       "targets": [
         {
           "groupBy": [],
-          "measurement": "akka.system.processed-messages",
+          "measurement": "akka.system.dead-letters",
           "orderByTime": "ASC",
-          "policy": "autogen",
+          "policy": "default",
           "refId": "A",
           "resultFormat": "time_series",
           "select": [
@@ -792,17 +831,17 @@
           ],
           "tags": [
             {
-              "key": "tracked",
-              "operator": "=",
-              "value": "true"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
       ],
-      "thresholds": "",
+      "thresholds": "5, 10",
       "timeFrom": null,
       "timeShift": null,
-      "title": "Processed Messages",
+      "title": "Dead Letters",
       "type": "singlestat",
       "valueFontSize": "200%",
       "valueMaps": [
@@ -822,7 +861,7 @@
       "gridPos": {
         "h": 5,
         "w": 3,
-        "x": 5,
+        "x": 13,
         "y": 6
       },
       "id": 87,
@@ -903,6 +942,12 @@
               "key": "tracked",
               "operator": "=",
               "value": "true"
+            },
+            {
+              "condition": "AND",
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -913,13 +958,279 @@
       "type": "stat"
     },
     {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "InfluxDB",
+      "description": "The distribution of queue time by actors over the entire time of interest. This is useful to show which actors may be taking a long time to get to processing messages. ",
+      "fill": 1,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "hiddenSeries": false,
+      "id": 6,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": true,
+        "rightSide": true,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 2,
+      "nullPointMode": "null as zero",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": true,
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "path"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "akka.actor.time-in-mailbox",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "mean"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [
+                  " / 1000"
+                ],
+                "type": "math"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Occurrence of time spent queued in a mailbox (us)",
+      "tooltip": {
+        "shared": false,
+        "sort": 2,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": 150,
+        "max": 300,
+        "min": null,
+        "mode": "histogram",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:4493",
+          "format": "short",
+          "label": "Counts",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:4494",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "InfluxDB",
+      "description": "The distribution of processing time by actors over the entire time of interest. This is useful to show which actors may be taking a long time to process messages. ",
+      "fill": 1,
+      "fillGradient": 1,
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "hiddenSeries": false,
+      "id": 89,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": true,
+        "rightSide": true,
+        "show": false,
+        "total": false,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 2,
+      "nullPointMode": "null as zero",
+      "options": {
+        "dataLinks": []
+      },
+      "percentage": false,
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": true,
+      "targets": [
+        {
+          "groupBy": [
+            {
+              "params": [
+                "path"
+              ],
+              "type": "tag"
+            }
+          ],
+          "measurement": "akka.actor.processing-time",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "refId": "A",
+          "resultFormat": "time_series",
+          "select": [
+            [
+              {
+                "params": [
+                  "mean"
+                ],
+                "type": "field"
+              },
+              {
+                "params": [
+                  " / 1000"
+                ],
+                "type": "math"
+              }
+            ]
+          ],
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Occurrence of time spent processing messages (us)",
+      "tooltip": {
+        "shared": false,
+        "sort": 2,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": 500,
+        "max": 1000,
+        "min": null,
+        "mode": "histogram",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:4493",
+          "format": "short",
+          "label": "Counts",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:4494",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": false
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
       "content": "### Number of processed messages by actor\n---\nShows the total number of processed messages for each actor in each interval\n\n#### Metric details\n* Name: akka.group.processing-time\n* Type: timer\n* Description: Tracks the time taken for a member actor to process the receive function.\n\n\n",
       "datasource": null,
       "gridPos": {
         "h": 10,
         "w": 3,
         "x": 0,
-        "y": 11
+        "y": 22
       },
       "id": 50,
       "mode": "markdown",
@@ -942,7 +1253,7 @@
         "h": 10,
         "w": 21,
         "x": 3,
-        "y": 11
+        "y": 22
       },
       "hiddenSeries": false,
       "id": 51,
@@ -996,7 +1307,19 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1050,7 +1373,7 @@
         "h": 11,
         "w": 3,
         "x": 0,
-        "y": 21
+        "y": 32
       },
       "id": 46,
       "mode": "markdown",
@@ -1072,7 +1395,7 @@
         "h": 11,
         "w": 21,
         "x": 3,
-        "y": 21
+        "y": 32
       },
       "hiddenSeries": false,
       "id": 2,
@@ -1130,7 +1453,19 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1184,7 +1519,7 @@
         "h": 11,
         "w": 3,
         "x": 0,
-        "y": 32
+        "y": 43
       },
       "id": 49,
       "mode": "markdown",
@@ -1206,7 +1541,7 @@
         "h": 11,
         "w": 21,
         "x": 3,
-        "y": 32
+        "y": 43
       },
       "hiddenSeries": false,
       "id": 48,
@@ -1260,7 +1595,19 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1314,7 +1661,7 @@
         "h": 11,
         "w": 3,
         "x": 0,
-        "y": 43
+        "y": 54
       },
       "id": 52,
       "mode": "markdown",
@@ -1336,7 +1683,7 @@
         "h": 11,
         "w": 21,
         "x": 3,
-        "y": 43
+        "y": 54
       },
       "hiddenSeries": false,
       "id": 53,
@@ -1390,7 +1737,19 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            },
+            {
+              "condition": "AND",
+              "key": "class",
+              "operator": "=~",
+              "value": "/^$class$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1417,7 +1776,7 @@
           "decimals": null,
           "format": "ns",
           "label": "Time in mailbox",
-          "logBase": 1,
+          "logBase": 10,
           "max": null,
           "min": null,
           "show": true
@@ -1444,7 +1803,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 65
       },
       "id": 44,
       "panels": [],
@@ -1458,7 +1817,7 @@
         "h": 12,
         "w": 4,
         "x": 0,
-        "y": 55
+        "y": 66
       },
       "id": 55,
       "options": {
@@ -1518,9 +1877,9 @@
           ],
           "tags": [
             {
-              "key": "type",
-              "operator": "=",
-              "value": "ThreadPoolExecutor"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -1537,7 +1896,7 @@
         "h": 12,
         "w": 4,
         "x": 4,
-        "y": 55
+        "y": 66
       },
       "id": 57,
       "options": {
@@ -1597,9 +1956,9 @@
           ],
           "tags": [
             {
-              "key": "type",
-              "operator": "=",
-              "value": "ThreadPoolExecutor"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -1622,7 +1981,7 @@
         "h": 12,
         "w": 16,
         "x": 8,
-        "y": 55
+        "y": 66
       },
       "hiddenSeries": false,
       "id": 56,
@@ -1678,7 +2037,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "alias": "",
@@ -1705,7 +2070,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1765,7 +2136,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 67
+        "y": 78
       },
       "hiddenSeries": false,
       "id": 20,
@@ -1827,7 +2198,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "groupBy": [
@@ -1887,7 +2264,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -1913,7 +2296,7 @@
           "$$hashKey": "object:11708",
           "format": "µs",
           "label": null,
-          "logBase": 1,
+          "logBase": 10,
           "max": null,
           "min": null,
           "show": true
@@ -1925,7 +2308,7 @@
           "label": "Count",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         }
       ],
@@ -1946,7 +2329,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 67
+        "y": 78
       },
       "hiddenSeries": false,
       "id": 24,
@@ -2000,9 +2383,9 @@
           ],
           "tags": [
             {
-              "key": "type",
-              "operator": "=",
-              "value": "ThreadPoolExecutor"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -2065,7 +2448,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 75
+        "y": 86
       },
       "hiddenSeries": false,
       "id": 59,
@@ -2135,7 +2518,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -2194,7 +2583,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 75
+        "y": 86
       },
       "hiddenSeries": false,
       "id": 58,
@@ -2248,9 +2637,9 @@
           ],
           "tags": [
             {
-              "key": "type",
-              "operator": "=",
-              "value": "ThreadPoolExecutor"
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -2300,376 +2689,395 @@
       }
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 83
+        "y": 94
       },
       "id": 40,
-      "panels": [],
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "InfluxDB",
+          "fill": 1,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 95
+          },
+          "hiddenSeries": false,
+          "id": 26,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "groupBy": [
+                {
+                  "params": [
+                    "http.status_code"
+                  ],
+                  "type": "tag"
+                }
+              ],
+              "measurement": "http.server.requests",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "count"
+                    ],
+                    "type": "field"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "instance",
+                  "operator": "=~",
+                  "value": "/^$instance$/"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Http Requests",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:12983",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:12984",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 95
+          },
+          "hiddenSeries": false,
+          "id": 63,
+          "legend": {
+            "alignAsTable": true,
+            "avg": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "groupBy": [
+                {
+                  "params": [
+                    "interface"
+                  ],
+                  "type": "tag"
+                }
+              ],
+              "measurement": "http.server.connection.open",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "refId": "A",
+              "resultFormat": "table",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "min"
+                    ],
+                    "type": "field"
+                  }
+                ],
+                [
+                  {
+                    "params": [
+                      "max"
+                    ],
+                    "type": "field"
+                  }
+                ],
+                [
+                  {
+                    "params": [
+                      "mean"
+                    ],
+                    "type": "field"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "instance",
+                  "operator": "=~",
+                  "value": "/^$instance$/"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "HTTP connections",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:13988",
+              "decimals": 0,
+              "format": "none",
+              "label": "Connections",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:13989",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 103
+          },
+          "hiddenSeries": false,
+          "id": 65,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": true,
+            "hideEmpty": false,
+            "hideZero": false,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "nullPointMode": "null as zero",
+          "options": {
+            "dataLinks": []
+          },
+          "percentage": false,
+          "pluginVersion": "6.7.3",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "groupBy": [],
+              "measurement": "http.server.response.size",
+              "orderByTime": "ASC",
+              "policy": "default",
+              "refId": "A",
+              "resultFormat": "time_series",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "mean"
+                    ],
+                    "type": "field"
+                  }
+                ]
+              ],
+              "tags": [
+                {
+                  "key": "instance",
+                  "operator": "=~",
+                  "value": "/^$instance$/"
+                }
+              ]
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Server response size",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:16703",
+              "format": "bytes",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:16704",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
       "title": "Akka HTTP",
       "type": "row"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "InfluxDB",
-      "fill": 1,
-      "fillGradient": 1,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 84
-      },
-      "hiddenSeries": false,
-      "id": 26,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": true,
-        "min": true,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 2,
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "groupBy": [
-            {
-              "params": [
-                "http.status_code"
-              ],
-              "type": "tag"
-            }
-          ],
-          "measurement": "http.server.requests",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": []
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Http Requests",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:12983",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:12984",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": null,
-      "fill": 1,
-      "fillGradient": 1,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 84
-      },
-      "hiddenSeries": false,
-      "id": 63,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": true,
-        "max": true,
-        "min": true,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 2,
-      "nullPointMode": "null",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": true,
-      "targets": [
-        {
-          "groupBy": [
-            {
-              "params": [
-                "interface"
-              ],
-              "type": "tag"
-            }
-          ],
-          "measurement": "http.server.connection.open",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "table",
-          "select": [
-            [
-              {
-                "params": [
-                  "min"
-                ],
-                "type": "field"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "max"
-                ],
-                "type": "field"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "mean"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": []
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "HTTP connections",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:13988",
-          "decimals": 0,
-          "format": "none",
-          "label": "Connections",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:13989",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": null,
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 92
-      },
-      "hiddenSeries": false,
-      "id": 65,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "hideEmpty": false,
-        "hideZero": false,
-        "max": true,
-        "min": true,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 2,
-      "nullPointMode": "null as zero",
-      "options": {
-        "dataLinks": []
-      },
-      "percentage": false,
-      "pluginVersion": "6.7.3",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": true,
-      "targets": [
-        {
-          "groupBy": [],
-          "measurement": "http.server.response.size",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "mean"
-                ],
-                "type": "field"
-              }
-            ]
-          ],
-          "tags": []
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Server response size",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:16703",
-          "format": "bytes",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:16704",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
       "collapsed": false,
       "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 100
+        "y": 95
       },
       "id": 38,
       "panels": [],
@@ -2688,7 +3096,7 @@
         "h": 16,
         "w": 7,
         "x": 0,
-        "y": 101
+        "y": 96
       },
       "hiddenSeries": false,
       "id": 68,
@@ -2743,7 +3151,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -2801,7 +3215,7 @@
         "h": 16,
         "w": 7,
         "x": 7,
-        "y": 101
+        "y": 96
       },
       "hiddenSeries": false,
       "id": 69,
@@ -2856,7 +3270,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -2914,7 +3334,7 @@
         "h": 16,
         "w": 10,
         "x": 14,
-        "y": 101
+        "y": 96
       },
       "hiddenSeries": false,
       "id": 67,
@@ -2968,7 +3388,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3026,7 +3452,7 @@
         "h": 16,
         "w": 7,
         "x": 0,
-        "y": 117
+        "y": 112
       },
       "hiddenSeries": false,
       "id": 70,
@@ -3081,7 +3507,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3139,7 +3571,7 @@
         "h": 16,
         "w": 7,
         "x": 7,
-        "y": 117
+        "y": 112
       },
       "hiddenSeries": false,
       "id": 71,
@@ -3194,7 +3626,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3252,7 +3690,7 @@
         "h": 16,
         "w": 10,
         "x": 14,
-        "y": 117
+        "y": 112
       },
       "hiddenSeries": false,
       "id": 72,
@@ -3306,7 +3744,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3364,7 +3808,7 @@
         "h": 8,
         "w": 14,
         "x": 0,
-        "y": 133
+        "y": 128
       },
       "hiddenSeries": false,
       "id": 61,
@@ -3411,7 +3855,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "groupBy": [],
@@ -3430,7 +3880,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "groupBy": [],
@@ -3449,7 +3905,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3507,7 +3969,7 @@
         "h": 8,
         "w": 10,
         "x": 14,
-        "y": 133
+        "y": 128
       },
       "hiddenSeries": false,
       "id": 74,
@@ -3559,7 +4021,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3612,7 +4080,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 141
+        "y": 136
       },
       "id": 42,
       "panels": [],
@@ -3631,7 +4099,7 @@
         "h": 11,
         "w": 14,
         "x": 0,
-        "y": 142
+        "y": 137
       },
       "hiddenSeries": false,
       "id": 78,
@@ -3685,7 +4153,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3743,7 +4217,7 @@
         "h": 11,
         "w": 10,
         "x": 14,
-        "y": 142
+        "y": 137
       },
       "hiddenSeries": false,
       "id": 76,
@@ -3806,7 +4280,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -3858,7 +4338,7 @@
         "h": 16,
         "w": 3,
         "x": 0,
-        "y": 153
+        "y": 148
       },
       "id": 82,
       "options": {
@@ -3915,7 +4395,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "timeFrom": null,
@@ -3938,7 +4424,7 @@
         "h": 16,
         "w": 8,
         "x": 3,
-        "y": 153
+        "y": 148
       },
       "hiddenSeries": false,
       "id": 84,
@@ -3985,7 +4471,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "groupBy": [],
@@ -4004,7 +4496,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -4062,7 +4560,7 @@
         "h": 16,
         "w": 13,
         "x": 11,
-        "y": 153
+        "y": 148
       },
       "hiddenSeries": false,
       "id": 86,
@@ -4108,7 +4606,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         },
         {
           "groupBy": [],
@@ -4127,7 +4631,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=~",
+              "value": "/^$instance$/"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -4185,7 +4695,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 169
+        "y": 164
       },
       "hiddenSeries": false,
       "id": 79,
@@ -4239,7 +4749,13 @@
               }
             ]
           ],
-          "tags": []
+          "tags": [
+            {
+              "key": "instance",
+              "operator": "=",
+              "value": "bifrost@heisenberg"
+            }
+          ]
         }
       ],
       "thresholds": [],
@@ -4290,9 +4806,72 @@
   "refresh": "1m",
   "schemaVersion": 22,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "kamon",
+    "akka"
+  ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": "InfluxDB",
+        "definition": "SHOW TAG VALUES WITH KEY = \"instance\"",
+        "hide": 0,
+        "includeAll": true,
+        "index": -1,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": "SHOW TAG VALUES WITH KEY = \"instance\"",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": "InfluxDB",
+        "definition": "SHOW TAG VALUES WITH KEY = class",
+        "hide": 0,
+        "includeAll": true,
+        "index": -1,
+        "label": "Actor path",
+        "multi": true,
+        "name": "class",
+        "options": [],
+        "query": "SHOW TAG VALUES WITH KEY = class",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "SHOW TAG VALUES WITH KEY = class WHERE instance = '$tag'",
+        "tags": [
+          "bifrost@heisenberg",
+          "bifrost@michelson"
+        ],
+        "tagsQuery": "SHOW TAG VALUES WITH KEY = instance",
+        "type": "query",
+        "useTags": true
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
@@ -4314,7 +4893,7 @@
   },
   "timezone": "",
   "title": "Bifrost Monitor",
-  "uid": "o7NfL2qWz",
+  "uid": "o7NfL2qWy",
   "variables": {
     "list": []
   },
