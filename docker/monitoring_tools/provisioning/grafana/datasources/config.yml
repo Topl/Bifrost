@@ -7,8 +7,8 @@ datasources:
     type: "influxdb"
     typeLogoUrl: "public/app/plugins/datasource/influxdb/img/influxdb_logo.svg"
     database: "mydb"
-    access: "direct"
-    url: "http://localhost:8086"
+    access: "proxy"
+    url: "http://influxdb:8086"
     password: ""
     user: ""
     basicAuth: false
