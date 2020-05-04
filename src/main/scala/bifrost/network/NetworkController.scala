@@ -117,9 +117,11 @@ class NetworkController(settings: Settings,
       }
 
     case SendToNetwork(message, sendingStrategy) =>
-      (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
-        .map(_.asInstanceOf[Seq[ConnectedPeer]])
-        .foreach(_.foreach(_.handlerRef ! message))
+      if (!settings.localOnly) {
+        (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
+          .map(_.asInstanceOf[Seq[ConnectedPeer]])
+          .foreach(_.foreach(_.handlerRef ! message))
+      }
   }
 
   def peerLogic: Receive = {
@@ -131,7 +133,7 @@ class NetworkController(settings: Settings,
       val connection = sender()
       val props = Props(classOf[PeerConnectionHandler], settings, self, peerManagerRef,
         messageHandler, connection, externalSocketAddress, remote)
-      val handler = context.actorOf(props)
+      val handler = context.actorOf(props, "peerConnectionHandler")
       connection ! Register(handler, keepOpenOnPeerClosed = false, useResumeWriting = true)
       val newPeer = ConnectedPeer(remote, handler)
       peerManagerRef ! PeerManager.Connected(newPeer)
@@ -153,17 +155,22 @@ class NetworkController(settings: Settings,
       context stop self
   }
 
-  override def receive: Receive = bindingLogic orElse businessLogic orElse peerLogic orElse interfaceCalls orElse {
-    case RegisterMessagesHandler(specs, handler) =>
-      log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
-      messageHandlers += specs.map(_.messageCode) -> handler
+  override def receive: Receive =
+    bindingLogic orElse
+      businessLogic orElse
+      peerLogic orElse
+      interfaceCalls orElse
+      {
+        case RegisterMessagesHandler(specs, handler) =>
+          log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
+          messageHandlers += specs.map(_.messageCode) -> handler
 
-    case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd)
+        case CommandFailed(cmd: Tcp.Command) =>
+          log.info("Failed to execute command : " + cmd)
 
-    case nonsense: Any =>
-      log.warn(s"NetworkController: got something strange $nonsense")
-  }
+        case nonsense: Any =>
+          log.warn(s"NetworkController: got something strange $nonsense")
+      }
 }
 
 object NetworkController {

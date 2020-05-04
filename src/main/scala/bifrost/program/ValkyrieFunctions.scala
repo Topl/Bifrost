@@ -86,7 +86,7 @@ object ValkyrieFunctions {
   implicit val actorSystem: ActorSystem = ActorSystem(settings.agentName)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = actorSystem.dispatcher
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)), "vlk_nodeViewHolder")
   nodeViewHolderRef
 
   val assetRoute: Route = AssetApiRoute(settings, nodeViewHolderRef)(actorSystem).route

@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
   */
 
 case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
-                          (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
+                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -120,10 +120,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     viewAsync().map { view =>
       val state = view.state
       val tx = createProgramInstance(params, state)
-      ProgramCreation.validate(tx) match {
-        case Success(_) => log.info("Program creation validated successfully")
-        case Failure(e) => throw e
-      }
+//      ProgramCreation.validate(tx) match {
+//        case Success(_) => log.info("Program creation validated successfully")
+//        case Failure(e) => throw e
+//      }
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramCreation](tx)
       tx.json
     }
@@ -180,10 +180,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       }
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
-      ProgramMethodExecution.validate(tx) match {
-        case Success(_) => log.info("Program method execution successfully validated")
-        case Failure(e) => throw e.getCause
-      }
+//      ProgramMethodExecution.validate(tx) match {
+//        case Success(_) => log.info("Program method execution successfully validated")
+//        case Failure(e) => throw e.getCause
+//      }
 
       tx.newBoxes.toSet
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)

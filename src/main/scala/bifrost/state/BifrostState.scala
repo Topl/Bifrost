@@ -668,6 +668,7 @@ object BifrostState extends ScorexLogging {
     }
 
     //TODO clean up nulls
+    //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
     val pbr = ProgramBoxRegistry.readOrGenerate(settings, stateStorage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull
