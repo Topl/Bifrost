@@ -43,12 +43,13 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
 
   //set to true for initial generator
+  private val initialForging = forgerSettings.offlineGeneration
   private var forging = forgerSettings.offlineGeneration
 
   private val hash = FastCryptographicHash
 
   override def preStart(): Unit = {
-    if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
+    if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
   def pickTransactions( memPool: BifrostMemPool,
@@ -78,9 +79,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   override def receive: Receive = {
     case StartForging =>
-      log.info("No Better Neighbor. Forger starts forging now.")
-      forging = true
-      viewHolderRef ! GetCurrentView
+      if(initialForging) {
+        log.info("No Better Neighbor. Forger starts forging now.")
+        forging = true
+        viewHolderRef ! GetCurrentView
+      }
 
     case StopForging =>
       forging = false
