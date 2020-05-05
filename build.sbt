@@ -166,5 +166,11 @@ PB.pythonExe := "C:\\Python27\\python.exe"
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
-lazy val bifrost = Project(id = "project-bifrost", base = file("."))
+lazy val bifrost = Project(id = "bifrost", base = file("."))
   .settings(commonSettings: _*)
+
+lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
+  .settings(commonSettings: _*)
+  .dependsOn(bifrost % "compile->compile;test->test")
+  .enablePlugins(JmhPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
