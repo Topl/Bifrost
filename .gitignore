@@ -5,6 +5,8 @@
 scorex.yaml
 .DS_Store
 .project
+.metals/
+.bloop/
 
 # scala build folders
 target
@@ -33,3 +35,6 @@ keyfiles/
 dumps/
 
 docker/project-bifrost-assembly-0.1.1-alpha.jar
+
+# monitoring persistent data files
+docker/monitoring_tools/data/

@@ -18,6 +18,7 @@ import java.lang.management.ManagementFactory
 
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import com.sun.management.HotSpotDiagnosticMXBean
+import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.reflect.runtime.universe._
@@ -38,12 +39,12 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] =
     Seq(BifrostSyncInfoMessageSpec)
 
-  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
+  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)), "nodeViewHolder")
 
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
+  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef), "forger")
 
   override val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings), "localInterface"
   )
 
   override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
@@ -51,7 +52,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
       networkController,
       nodeViewHolderRef,
       localInterface,
-      BifrostSyncInfoMessageSpec)
+      BifrostSyncInfoMessageSpec), "nodeViewSynchronizer"
   )
 
   override val apiRoutes: Seq[ApiRoute] = Seq(
@@ -96,7 +97,9 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
 }
 
 object BifrostApp extends App {
-//  Kamon.init()
+  private val conf: Config = ConfigFactory.load("application")
+  if (conf.getBoolean("kamon.enable"))
+    Kamon.init()
   val settingsFilename = args.headOption.getOrElse("testnet-private.json")
   new BifrostApp(settingsFilename).run()
 }

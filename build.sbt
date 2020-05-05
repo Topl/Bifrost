@@ -67,10 +67,16 @@ libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
   "org.whispersystems" % "curve25519-java" % "0.4.1",
-  "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-core" % "2.0.4",
-  "io.kamon" %% "kamon-influxdb" % "2.0.0",
-  "io.kamon" %% "kamon-zipkin" % "2.0.2"
+)
+
+// monitoring dependencies
+libraryDependencies ++= Seq(
+  "io.kamon" %% "kamon-bundle" % "2.0.5",
+  "io.kamon" %% "kamon-core" % "2.1.0",
+  "io.kamon" %% "kamon-influxdb" % "2.1.0",
+  "io.kamon" %% "kamon-zipkin" % "2.1.0",
+  //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
+  //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
@@ -88,7 +94,6 @@ libraryDependencies  ++= Seq(
   "com.google.protobuf" % "protobuf-java" % "3.5.1",
   "com.thesamet.scalapb" %% "lenses" % "0.7.0",
   "com.typesafe" % "config" % "1.3.3",
-
 )
 
 scalacOptions ++= Seq("-feature", "-deprecation")
