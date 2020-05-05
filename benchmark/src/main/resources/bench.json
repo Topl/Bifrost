@@ -1,6 +1,6 @@
 {
   "p2p": {
-    "name": "benchmark"
+    "name": "benchmark",
     "bindAddress": "0.0.0.0",
     "upnp": false,
     "upnpGatewayTimeout": 7000,
