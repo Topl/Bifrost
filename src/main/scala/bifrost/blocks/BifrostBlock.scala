@@ -187,7 +187,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES
 
-    require(numTxExpected>=0)
+    require(numTxExpected >= 0)
 
     def unfoldLeft[A,B](seed: B)(f: B => Option[(B, A)]): Seq[A] = {
       @tailrec
@@ -205,7 +205,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       case b =>
         val bytesToGrab = Ints.fromByteArray(b.take(Ints.BYTES))
 
-        require(bytesToGrab>=0)
+        require(bytesToGrab >= 0)
 
         if (b.length - Ints.BYTES < bytesToGrab) {
           None // we're done because we can't grab the number of bytes required
@@ -239,7 +239,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES
 
-    require(numTxExpected>=0)
+    require(numTxExpected >= 0)
 
     def unfoldLeft[A,B](seed: B)(f: B => Option[(B, A)]): Seq[A] = {
       @tailrec
@@ -257,7 +257,7 @@ object BifrostBlockCompanion extends Serializer[BifrostBlock] {
       case b =>
         val bytesToGrab = Ints.fromByteArray(b.take(Ints.BYTES))
 
-        require(bytesToGrab>=0)
+        require(bytesToGrab >= 0)
 
         if (b.length - Ints.BYTES < bytesToGrab) {
           None // we're done because we can't grab the number of bytes required
