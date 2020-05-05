@@ -12,14 +12,14 @@ Begin interacting with the Topl network with the Bifrost client [alpha testnet r
 Whitepaper
 ----------
 The latest version of the Topl whitepaper can be found [here](https://topl.co/whitepaper).
--->
+
 
 Documentation
 -------------
 [Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
 
 [Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
-
+-->
 
 Installation
 -------------------
