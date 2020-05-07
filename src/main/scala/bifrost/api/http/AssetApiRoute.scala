@@ -82,9 +82,9 @@ case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,

@@ -71,9 +71,9 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                 futureResponse map {
                   response => Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(e, 500, reqId)
+                    ErrorResponse(e, 500, reqId)
                 }
             }
           }

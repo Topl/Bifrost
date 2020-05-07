@@ -15,7 +15,7 @@ trait ApiResponse {
 
 }
 
-case class BifrostSuccessResponse(override val data: Json, id: String) extends ApiResponse {
+case class SuccessResponse(override val data: Json, id: String) extends ApiResponse {
   override val success: Boolean = true
   override def toJson: Json = Map(
     "jsonrpc" -> "2.0".asJson,
@@ -24,7 +24,7 @@ case class BifrostSuccessResponse(override val data: Json, id: String) extends A
   ).asJson
 }
 
-case class BifrostErrorResponse(e: Throwable, code: Int, id: String, verbose: Boolean = false) extends ApiResponse {
+case class ErrorResponse(e: Throwable, code: Int, id: String, verbose: Boolean = false) extends ApiResponse {
   override val success: Boolean = false
   override val data: Json = e.getMessage.asJson
   val trace: Option[(String, Json)] = if(verbose) Some("trace" -> e.getStackTrace.map(f => f.toString.asJson).asJson) else None

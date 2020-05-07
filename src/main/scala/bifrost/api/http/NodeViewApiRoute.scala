@@ -55,9 +55,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,
@@ -114,7 +114,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     viewAsync().map { view =>
       getMempool() match {
         case Success(pool: MP) => pool.take(100).map(_.json).asJson
-        //Failure is caught by BifrostErrorResponse in the nodeViewRoute function when the Await does not receive a response
+        //Failure is caught by ErrorResponse in the nodeViewRoute function when the Await does not receive a response
       }
     }
   }

@@ -51,9 +51,9 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
                 }
               }
               response match {
-                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Success(resp) => SuccessResponse(resp, reqId)
                 case Failure(e) =>
-                  BifrostErrorResponse(
+                  ErrorResponse(
                     e,
                     500,
                     reqId,

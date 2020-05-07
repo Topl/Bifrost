@@ -146,7 +146,7 @@
     <node x="285.0" y="1901.0">bifrost.transaction.serialization.ProgramCreationCompanion</node>
     <node x="988.0" y="1998.0">bifrost.program.FulfilmentFunction$</node>
     <node x="1544.5" y="1167.0">bifrost.serialization.BytesSerializable</node>
-    <node x="0.0" y="1804.0">bifrost.api.http.BifrostErrorResponse</node>
+    <node x="0.0" y="1804.0">bifrost.api.http.ErrorResponse</node>
     <node x="8114.0" y="1998.0">bifrost.transaction.box.BoxUnlocker$class</node>
     <node x="8343.0" y="1998.0">bifrost.api.http.CorsSupport$class</node>
     <node x="10235.000000000002" y="776.0">bifrost.LocalInterface.LocallyGeneratedModifier</node>
@@ -159,7 +159,7 @@
     <node x="12012.0" y="1901.0">bifrost.crypto.hash.FastCryptographicHash</node>
     <node x="4504.0" y="1901.0">bifrost.transaction.box.ExecutionBoxSerializer$</node>
     <node x="14410.0" y="1702.0">bifrost.SimpleSyncInfoSerializer</node>
-    <node x="4781.0" y="1901.0">bifrost.api.http.BifrostSuccessResponse$</node>
+    <node x="4781.0" y="1901.0">bifrost.api.http.SuccessResponse$</node>
     <node x="0.0" y="2095.0">bifrost.settings.Settings$class</node>
     <node x="12266.5" y="1371.0">bifrost.api.http.ProgramApiRoute</node>
     <node x="2565.0" y="1901.0">bifrost.NodeViewComponent$class</node>
@@ -167,7 +167,7 @@
     <node x="14582.0" y="1901.0">bifrost.program.ProgramPreprocessor$</node>
     <node x="14112.5" y="1279.0">bifrost.network.SendToPeers</node>
     <node x="8130.0" y="2095.0">bifrost.api.client.ApiClient$</node>
-    <node x="12273.0" y="1901.0">bifrost.api.http.BifrostErrorResponse$</node>
+    <node x="12273.0" y="1901.0">bifrost.api.http.ErrorResponse$</node>
     <node x="2358.000000000002" y="404.0">bifrost.history.BifrostHistory</node>
     <node x="4163.000000000002" y="404.0">bifrost.scorexMod.GenericNodeViewSynchronizer</node>
     <node x="11131.5" y="1167.0">bifrost.transaction.box.NoncedBoxSerializer</node>
@@ -445,7 +445,7 @@
     <node x="11171.0" y="1702.0">bifrost.transaction.account.AccountTransactionsHistory</node>
     <node x="6177.5" y="1439.0">bifrost.transaction.serialization.AssetRedemptionCompanion$</node>
     <node x="1325.0" y="1804.0">bifrost.forging.Forger.TryForging</node>
-    <node x="524.0" y="1804.0">bifrost.api.http.BifrostSuccessResponse</node>
+    <node x="524.0" y="1804.0">bifrost.api.http.SuccessResponse</node>
     <node x="13435.5" y="1279.0">bifrost.transaction.bifrostTransaction.ProgramTransfer</node>
     <node x="11680.0" y="2095.0">bifrost.network.peer.PeerInfo</node>
     <node x="12094.5" y="1371.0">bifrost.api.http.DebugApiRoute</node>
@@ -520,7 +520,7 @@
       <point x="12988.716666666669" y="566.0" />
       <point x="91.79999999999927" y="26.0" />
     </edge>
-    <edge source="bifrost.api.http.BifrostSuccessResponse" target="bifrost.api.http.ScorexApiResponse">
+    <edge source="bifrost.api.http.SuccessResponse" target="bifrost.api.http.ScorexApiResponse">
       <point x="0.0" y="-26.0" />
       <point x="636.0" y="1784.0" />
       <point x="468.8" y="1784.0" />
@@ -1932,7 +1932,7 @@
       <point x="7544.161290322581" y="264.0" />
       <point x="-58.8387096774195" y="26.0" />
     </edge>
-    <edge source="bifrost.api.http.BifrostErrorResponse" target="bifrost.api.http.ScorexApiResponse">
+    <edge source="bifrost.api.http.ErrorResponse" target="bifrost.api.http.ScorexApiResponse">
       <point x="0.0" y="-26.0" />
       <point x="104.0" y="1774.0" />
       <point x="358.4" y="1774.0" />
