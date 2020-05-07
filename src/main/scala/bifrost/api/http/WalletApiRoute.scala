@@ -4,34 +4,23 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericWalletBox
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
+import bifrost.transaction.box.BifrostBox
 import bifrost.wallet.BWallet
-import io.circe.Json
-import io.circe.parser.parse
-import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.Bip39
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{
-  ArbitTransfer,
-  AssetCreation,
-  AssetTransfer,
-  BifrostTransaction,
-  PolyTransfer,
-  TransferTransaction
-}
-import bifrost.transaction.box.proposition.{
-  ProofOfKnowledgeProposition,
-  PublicKey25519Proposition
-}
+import bifrost.transaction.bifrostTransaction._
+import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
+import io.circe.Json
+import io.circe.parser.parse
+import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
@@ -64,10 +53,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                   (request \\ "method").head.asString.get match {
                     case "transferPolys"  => transferPolys(params.head, id)
                     case "transferArbits" => transferArbits(params.head, id)
-                    case "transferArbitsPrototype" =>
-                      transferArbitsPrototype(params.head, id)
-                    case "transferPolysPrototype" =>
-                      transferPolysPrototype(params.head, id)
+                    case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
+                    case "transferPolysPrototype" => transferPolysPrototype(params.head, id)
                     case "balances"         => balances(params.head, id)
                     case "unlockKeyfile"    => unlockKeyfile(params.head, id)
                     case "lockKeyfile"      => lockKeyfile(params.head, id)
