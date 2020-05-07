@@ -23,20 +23,20 @@ trait ApiRoute extends Directives {
 
   def actorRefFactory: ActorRefFactory = context
 
-  def getJsonRoute(fn: Future[ScorexApiResponse]): Route =
+  def getJsonRoute(fn: Future[ApiResponse]): Route =
     jsonRoute(Await.result(fn, timeout.duration), get)
 
-  def getJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, get)
+  def getJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, get)
 
-  def postJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, post)
+  def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
-  def postJsonRoute(fn: Future[ScorexApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), post)
+  def postJsonRoute(fn: Future[ApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), post)
 
-  def deleteJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, delete)
+  def deleteJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, delete)
 
-  def deleteJsonRoute(fn: Future[ScorexApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), delete)
+  def deleteJsonRoute(fn: Future[ApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), delete)
 
-  private def jsonRoute(fn: ScorexApiResponse, method: Directive0): Route = method {
+  private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
     val resp = complete(HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2))
     withCors(resp)
   }
@@ -49,7 +49,7 @@ trait ApiRoute extends Directives {
   def withAuth(route: => Route): Route = {
     optionalHeaderValueByName("x-api-key") { case keyOpt =>
       if (isValid(keyOpt)) route
-      else complete(HttpEntity(ContentTypes.`application/json`, ApiError.apiKeyNotValid.toString()))
+      else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
     }
   }
 
