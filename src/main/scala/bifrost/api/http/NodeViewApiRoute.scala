@@ -216,17 +216,3 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 }
-//TODO Open surface was written in the REST api route but the openSurface method remains unimplemented
-//  @Path("/openSurface")
-//  @ApiOperation(value = "Ids of open surface", notes = "Ids of open surface in history", httpMethod = "GET")
-//  def openSurface: Route = path("openSurface") {
-//    getJsonRoute {
-//      getHistory() match {
-//        case Success(history: HIS) => SuccessApiResponse(history
-//          .openSurfaceIds()
-//          .map(Base58.encode)
-//          .asJson)
-//        case Failure(e) => ApiException(e)
-//      }
-//    }
-//  }
