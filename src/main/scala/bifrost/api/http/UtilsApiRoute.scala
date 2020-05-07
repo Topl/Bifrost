@@ -2,7 +2,7 @@ package bifrost.api.http
 
 import java.security.SecureRandom
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.history.BifrostHistory
