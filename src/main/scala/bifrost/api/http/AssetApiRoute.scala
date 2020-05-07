@@ -57,7 +57,7 @@ case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: Act
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   val id = (request \\ "id").head.asString.get

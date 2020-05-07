@@ -35,7 +35,7 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
         postJsonRoute {
           var reqId = ""
           parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
+            case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
             case Right(request) =>
               val response: Try[Json] = Try {
                 val id = (request \\ "id").head.asString.get

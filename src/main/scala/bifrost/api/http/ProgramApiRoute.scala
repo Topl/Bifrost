@@ -49,7 +49,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   reqId = (request \\ "id").head.asString.get
