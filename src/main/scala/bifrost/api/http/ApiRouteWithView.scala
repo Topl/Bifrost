@@ -7,7 +7,6 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-// import bifrost.api.http.ApiRoute
 
 import scala.concurrent.Future
 
