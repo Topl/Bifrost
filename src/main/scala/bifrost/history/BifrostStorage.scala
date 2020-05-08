@@ -8,7 +8,7 @@ import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.transaction.Transaction
+import bifrost.transaction.bifrostTransaction.Transaction
 import bifrost.utils.Logging
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics

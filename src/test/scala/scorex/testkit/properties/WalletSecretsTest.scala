@@ -3,9 +3,9 @@ package scorex.testkit.properties
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.PersistentNodeViewModifier
-import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.scorexMod.Wallet
+import bifrost.transaction.bifrostTransaction.Transaction
 
 trait WalletSecretsTest[P <: Proposition,
 TX <: Transaction[P],

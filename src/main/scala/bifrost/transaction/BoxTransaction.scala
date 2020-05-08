@@ -1,5 +1,6 @@
 package bifrost.transaction
 
+import bifrost.transaction.bifrostTransaction.Transaction
 import com.google.common.primitives.Longs
 import bifrost.transaction.box.{Box, BoxUnlocker}
 import bifrost.transaction.box.proposition.Proposition

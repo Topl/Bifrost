@@ -2,7 +2,7 @@ package scorex.testkit.properties
 
 import org.scalacheck.Gen
 import bifrost.PersistentNodeViewModifier
-import bifrost.transaction.Transaction
+import bifrost.transaction.bifrostTransaction.Transaction
 import bifrost.transaction.box.Box
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.state.{MinimalState, StateChanges}

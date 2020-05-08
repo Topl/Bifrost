@@ -4,10 +4,10 @@ package bifrost.scorexMod
   * Created by cykoz on 4/13/17.
   */
 
-import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.state.MinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.transaction.bifrostTransaction.Transaction
 
 import scala.util.Try
 

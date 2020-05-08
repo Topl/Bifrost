@@ -3,7 +3,7 @@ package bifrost
 import com.typesafe.config.ConfigFactory
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable, Serializer}
-import bifrost.transaction.Transaction
+import bifrost.transaction.bifrostTransaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 

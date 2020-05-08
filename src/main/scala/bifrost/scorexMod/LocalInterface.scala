@@ -2,10 +2,10 @@ package bifrost
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
+import bifrost.transaction.bifrostTransaction.Transaction
 // import bifrost.NodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder._
-import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.utils.Logging
 

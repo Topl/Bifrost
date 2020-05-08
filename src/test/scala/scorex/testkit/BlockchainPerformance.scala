@@ -3,10 +3,10 @@ package scorex.testkit
 import bifrost.PersistentNodeViewModifier
 import bifrost.consensus.{History, SyncInfo}
 import bifrost.mempool.MemoryPool
+import bifrost.transaction.bifrostTransaction.Transaction
 import bifrost.transaction.box.Box
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.state.MinimalState
-import bifrost.transaction.Transaction
 import scorex.testkit.properties._
 
 /**

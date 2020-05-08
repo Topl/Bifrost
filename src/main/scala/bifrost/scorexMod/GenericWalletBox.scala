@@ -2,10 +2,10 @@ package bifrost.scorexMod
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.serialization.{BytesSerializable, Serializer}
-import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.transaction.state.Secret
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.transaction.bifrostTransaction.Transaction
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 

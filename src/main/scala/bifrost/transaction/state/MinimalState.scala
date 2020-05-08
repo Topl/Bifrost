@@ -5,6 +5,7 @@ import bifrost.transaction.box.Box
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.state.MinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.transaction.bifrostTransaction.Transaction
 
 import scala.util.Try
 

@@ -11,8 +11,7 @@ import bifrost.wallet.BWallet
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.serialization.Serializer
-import bifrost.transaction.Transaction
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer}
+import bifrost.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
