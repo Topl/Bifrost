@@ -5,8 +5,8 @@ import bifrost.serialization.{BytesSerializable, Serializer}
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.transaction.state.Secret
-import bifrost.transaction.wallet.Vault
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

@@ -11,10 +11,10 @@ import bifrost.network.ConnectedPeer
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.wallet.Vault
 import bifrost.transaction.{MemoryPool, Transaction}
 import bifrost.utils.Logging
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
