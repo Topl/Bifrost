@@ -5,11 +5,15 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.{MemoryPool, Transaction}
-import bifrost.utils._
+import scorex.testkit.TestkitHelpers
 
 trait MempoolFilterPerformanceTest[P <: Proposition,
 TX <: Transaction[P],
-MPool <: MemoryPool[TX, MPool]] extends PropSpec with GeneratorDrivenPropertyChecks with Matchers with PropertyChecks {
+MPool <: MemoryPool[TX, MPool]] extends PropSpec
+  with GeneratorDrivenPropertyChecks
+  with Matchers
+  with PropertyChecks
+  with TestkitHelpers {
 
   val mempool: MPool
   val transactionGenerator: Gen[TX]
