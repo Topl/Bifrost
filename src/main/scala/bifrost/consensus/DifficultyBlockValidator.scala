@@ -1,4 +1,4 @@
-package bifrost.validation
+package bifrost.consensus
 
 import bifrost.block.{Block, BlockValidator}
 import bifrost.forging.Forger

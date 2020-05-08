@@ -5,11 +5,10 @@ import java.io.File
 import bifrost.block.{Block, BlockValidator, Bloom}
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
-import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.History
+import bifrost.consensus.{DifficultyBlockValidator, History}
 import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
