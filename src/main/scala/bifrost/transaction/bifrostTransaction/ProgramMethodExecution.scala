@@ -3,8 +3,8 @@ package bifrost.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.program.Program
-import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
+import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistry

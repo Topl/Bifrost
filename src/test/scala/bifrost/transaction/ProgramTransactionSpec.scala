@@ -10,12 +10,12 @@ import bifrost.program.ExecutionBuilder
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{CodeBox, ExecutionBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.FastCryptographicHash
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition

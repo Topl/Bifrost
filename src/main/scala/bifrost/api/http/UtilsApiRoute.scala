@@ -4,7 +4,7 @@ import java.security.SecureRandom
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.settings.Settings

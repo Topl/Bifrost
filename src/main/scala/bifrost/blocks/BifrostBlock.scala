@@ -7,7 +7,7 @@ import io.circe.syntax._
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.block.Block
 import bifrost.block.Block._
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition

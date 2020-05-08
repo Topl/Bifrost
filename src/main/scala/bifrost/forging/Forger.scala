@@ -14,7 +14,6 @@ import bifrost.wallet.BWallet
 import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
 import bifrost.LocalInterface.LocallyGeneratedModifier
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.settings.Settings
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
@@ -25,6 +24,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.block.Block.Version
+import bifrost.crypto.FastCryptographicHash
 import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try

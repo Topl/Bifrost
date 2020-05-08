@@ -2,8 +2,8 @@ package bifrost.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.{Nonce, Value}
+import bifrost.crypto.FastCryptographicHash
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BifrostBox, PolyBox}

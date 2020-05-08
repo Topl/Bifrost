@@ -7,7 +7,7 @@ import com.google.common.primitives.Longs
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.transaction.Transaction
 import bifrost.utils.ScorexLogging
 import scorex.crypto.hash.Sha256

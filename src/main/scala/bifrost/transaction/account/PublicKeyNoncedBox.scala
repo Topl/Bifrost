@@ -1,7 +1,7 @@
 package bifrost.transaction.account
 
+import bifrost.crypto.FastCryptographicHash
 import com.google.common.primitives.Longs
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.box.Box
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 

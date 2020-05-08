@@ -3,8 +3,8 @@ package bifrost.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.program.ExecutionBuilder
-import bifrost.crypto.hash.FastCryptographicHash
 import BifrostTransaction.Nonce
+import bifrost.crypto.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}

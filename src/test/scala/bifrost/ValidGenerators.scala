@@ -2,6 +2,7 @@ package bifrost
 
 import java.util.UUID
 
+import bifrost.crypto.FastCryptographicHash
 import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction
@@ -9,7 +10,6 @@ import bifrost.transaction.box._
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition

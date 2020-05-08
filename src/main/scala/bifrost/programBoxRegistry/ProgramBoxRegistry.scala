@@ -4,7 +4,7 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.NodeViewModifier.ModifierId
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.state.BifrostState.GSC

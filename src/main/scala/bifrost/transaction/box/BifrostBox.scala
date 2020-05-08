@@ -2,12 +2,12 @@ package bifrost.transaction.box
 
 import java.util.UUID
 
+import bifrost.crypto.FastCryptographicHash
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.serialization.Serializer
 import bifrost.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519

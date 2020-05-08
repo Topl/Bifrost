@@ -4,8 +4,8 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.blocks.BifrostBlock
+import bifrost.crypto.FastCryptographicHash
 import bifrost.program.Program
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld

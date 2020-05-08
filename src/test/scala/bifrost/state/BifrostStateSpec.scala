@@ -8,12 +8,12 @@ import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.wallet.PolyTransferGenerator
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.state.PrivateKey25519Companion

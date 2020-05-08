@@ -1,6 +1,6 @@
 package bifrost.transaction.box.proposition
 
-import bifrost.crypto.hash.FastCryptographicHash._
+import bifrost.crypto.FastCryptographicHash._
 import bifrost.serialization.Serializer
 import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58

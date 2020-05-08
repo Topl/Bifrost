@@ -4,6 +4,7 @@ import java.io.File
 import java.security.SecureRandom
 
 import bifrost.blocks.BifrostBlock
+import bifrost.crypto.FastCryptographicHash
 import bifrost.keygen.KeyFile
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
@@ -11,7 +12,6 @@ import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}

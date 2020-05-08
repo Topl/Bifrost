@@ -3,7 +3,7 @@ package bifrost.transaction.bifrostTransaction
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{BifrostBox, ExecutionBox}
