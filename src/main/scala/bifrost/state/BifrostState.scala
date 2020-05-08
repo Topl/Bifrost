@@ -5,11 +5,10 @@ import java.io.File
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.history.BifrostHistory
 import bifrost.block.Block
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
 import bifrost.transaction.box.{PublicKeyNoncedBox, _}
-import bifrost.transaction.proof.MultiSignature25519
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
