@@ -30,8 +30,6 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   override type S = PrivateKey25519
   override type PI = ProofOfKnowledgeProposition[S]
 
-  private val SecretsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(2: Byte))
-
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
   def boxIds: Seq[Array[Byte]] = store
