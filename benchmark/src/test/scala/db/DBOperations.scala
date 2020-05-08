@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 //import org.openjdk.jmh.infra.Blackhole
 //import bifrost.forging.ForgingSettings
-import bifrost.block.{Block, BifrostBlockCompanion}
+import bifrost.block.{Block, BlockCompanion}
 import bifrost.BifrostGenerators
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.history._
@@ -47,7 +47,7 @@ class DBOperations extends BifrostGenerators {
     for (i <- 1 to numLastBlocks) {
       val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId)).map { bw =>
         val bytes = bw.data
-        BifrostBlockCompanion.parseBytes(bytes.tail).get
+        BlockCompanion.parseBytes(bytes.tail).get
       }.get
       tmpStorageBlockId = currentBlock.parentId
     }
@@ -61,7 +61,7 @@ class DBOperations extends BifrostGenerators {
       val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId)).map {
         bw =>
           val bytes = bw.data
-          BifrostBlockCompanion.parseBytes(bytes.tail).get
+          BlockCompanion.parseBytes(bytes.tail).get
       }.get
       tmpCacheBlockId = currentBlock.parentId
     }

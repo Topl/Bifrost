@@ -1,6 +1,6 @@
 package bifrost.history
 
-import bifrost.block.{Block, BifrostBlockCompanion}
+import bifrost.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import com.typesafe.config.Config
 import com.google.common.primitives.Longs
@@ -66,8 +66,8 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
           case Block.ModifierTypeId =>
             val parsed = {
               heightOf(blockId) match {
-                case Some(x) if x <= settings.forkHeight => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
-                case _ => BifrostBlockCompanion.parseBytes(bytes.tail)
+                case Some(x) if x <= settings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case _ => BlockCompanion.parseBytes(bytes.tail)
               }
             }
             parsed match {

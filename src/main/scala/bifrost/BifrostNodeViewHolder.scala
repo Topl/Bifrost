@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.block.{Block, BifrostBlockCompanion}
+import bifrost.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import bifrost.mempool.BifrostMemPool
@@ -30,7 +30,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(Block.ModifierTypeId -> BifrostBlockCompanion,
+    Map(Block.ModifierTypeId -> BlockCompanion,
     Transaction.ModifierTypeId -> BifrostTransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {

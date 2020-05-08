@@ -1,6 +1,6 @@
 package bifrost.serialization
 
-import bifrost.block.{Block, BifrostBlockCompanion}
+import bifrost.block.{Block, BlockCompanion}
 import bifrost.program.ExecutionBuilder
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
@@ -255,11 +255,11 @@ class SerializationTests extends PropSpec
   property("BifrostBlock Serialization") {
     forAll(bifrostBlockGen) {
       bb: Block =>
-        val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb))
+        val parsed = BlockCompanion.parseBytes(BlockCompanion.toBytes(bb))
 
         parsed match {
-          case Success(p) => BifrostBlockCompanion.toBytes(p) sameElements
-            BifrostBlockCompanion.toBytes(bb) shouldBe true
+          case Success(p) => BlockCompanion.toBytes(p) sameElements
+            BlockCompanion.toBytes(bb) shouldBe true
           case Failure(e) => throw e
         }
     }
