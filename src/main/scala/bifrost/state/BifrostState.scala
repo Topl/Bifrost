@@ -8,13 +8,12 @@ import bifrost.block.Block
 import bifrost.crypto.FastCryptographicHash
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
-import bifrost.transaction.box._
+import bifrost.transaction.box.{PublicKeyNoncedBox, _}
 import bifrost.transaction.proof.{MultiSignature25519, Signature25519}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistry
-import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
