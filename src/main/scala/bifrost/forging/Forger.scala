@@ -3,7 +3,6 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import akka.pattern.ask
 import bifrost.blocks.BifrostBlock
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
@@ -11,7 +10,6 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.transaction.box.ArbitBox
 import bifrost.wallet.BWallet
-import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
 import bifrost.LocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
@@ -20,7 +18,6 @@ import bifrost.transaction.state.PrivateKey25519
 import bifrost.utils.ScorexLogging
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.block.Block.Version
@@ -45,8 +42,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   //set to true for initial generator
   private var forging = forgerSettings.offlineGeneration
 
-  private val hash = FastCryptographicHash
-
   override def preStart(): Unit = {
     if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
@@ -61,7 +56,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    if (CB.newBoxes.size > 0) {
+    if (CB.newBoxes.nonEmpty) {
       print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
     } else {
       print("\n\n" + "No boxes created by 0 value coinbase transaction" + "\n\n")
@@ -78,9 +73,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     }
     CB +: regTxs
   }
-
-  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
-    if (value < min) min else if (value > max) max else value
 
   override def receive: Receive = {
     case StartForging =>
@@ -157,7 +149,7 @@ object Forger extends ScorexLogging {
 
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
-    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.size > 0) {
+    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
         BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
           txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
       }
