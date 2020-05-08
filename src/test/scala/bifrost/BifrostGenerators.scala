@@ -16,11 +16,10 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.testkit.CoreGenerators
 

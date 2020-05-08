@@ -1,11 +1,12 @@
 package bifrost.transaction.bifrostTransaction
 
 import BifrostTransaction.{Nonce, Value}
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper

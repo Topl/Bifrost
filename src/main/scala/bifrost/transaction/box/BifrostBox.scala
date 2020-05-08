@@ -2,7 +2,7 @@ package bifrost.transaction.box
 
 import java.util.UUID
 
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
 import bifrost.scorexMod.GenericBox
 import io.circe.{Decoder, HCursor, Json}
@@ -10,7 +10,6 @@ import io.circe.parser._
 import io.circe.syntax._
 import bifrost.serialization.Serializer
 import bifrost.transaction.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

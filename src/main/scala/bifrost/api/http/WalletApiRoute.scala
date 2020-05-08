@@ -8,11 +8,10 @@ import bifrost.state.BifrostState
 import bifrost.transaction.box.BifrostBox
 import bifrost.wallet.BWallet
 import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.Bip39
+import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.PrivateKey25519
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._

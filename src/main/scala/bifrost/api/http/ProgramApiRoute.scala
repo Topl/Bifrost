@@ -14,11 +14,12 @@ import io.circe.syntax._
 import io.circe.literal._
 import io.circe.{Decoder, Json, JsonObject}
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

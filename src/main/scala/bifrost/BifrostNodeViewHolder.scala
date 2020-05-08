@@ -10,11 +10,12 @@ import bifrost.transaction.box.{ArbitBox, BifrostBox}
 import bifrost.wallet.BWallet
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.serialization.BifrostTransactionCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

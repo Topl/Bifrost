@@ -10,9 +10,9 @@ import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.{DifficultyBlockValidator, History}
 import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
+import bifrost.crypto.PrivateKey25519
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.PrivateKey25519
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

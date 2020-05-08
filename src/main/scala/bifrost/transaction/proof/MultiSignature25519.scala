@@ -1,11 +1,11 @@
 package bifrost.transaction.proof
 
+import bifrost.crypto.PrivateKey25519
 import bifrost.transaction.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import bifrost.serialization.Serializer
 import bifrost.transaction.box.proposition.{Proposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.{ProofOfKnowledge, Signature25519}
-import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

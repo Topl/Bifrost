@@ -2,7 +2,7 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program._
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction
@@ -14,7 +14,7 @@ import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

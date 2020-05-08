@@ -3,14 +3,13 @@ package bifrost.transaction.bifrostTransaction
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion}
 import bifrost.program.ProgramPreprocessor
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{BifrostBox, CodeBox}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.CodeBoxCreationCompanion
-import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Json, JsonObject}

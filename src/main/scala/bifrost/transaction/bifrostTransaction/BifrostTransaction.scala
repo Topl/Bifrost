@@ -1,13 +1,14 @@
 package bifrost.transaction.bifrostTransaction
 
 import bifrost.BifrostApp
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, HCursor, Json}

@@ -13,9 +13,9 @@ import io.circe
 import bifrost.api.http.{ApiRoute, UtilsApiRoute}
 import bifrost.network.message.MessageSpec
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
-import bifrost.transaction.state.PrivateKey25519
 import java.lang.management.ManagementFactory
 
+import bifrost.crypto.PrivateKey25519
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}

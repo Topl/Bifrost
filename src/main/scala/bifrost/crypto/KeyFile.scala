@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import io.circe.syntax._

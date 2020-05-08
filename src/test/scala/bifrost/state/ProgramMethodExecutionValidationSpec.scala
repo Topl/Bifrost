@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.block.Block
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion}
 import bifrost.program.Program
 import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
@@ -16,7 +16,6 @@ import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
 import bifrost.transaction.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519Companion
 import io.circe.Json
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

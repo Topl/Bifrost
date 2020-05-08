@@ -7,13 +7,12 @@ import io.circe.syntax._
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.block.Block._
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.BifrostTransactionCompanion
-import bifrost.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics

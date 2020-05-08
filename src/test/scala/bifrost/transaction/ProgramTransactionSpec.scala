@@ -10,7 +10,7 @@ import bifrost.program.ExecutionBuilder
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -19,7 +19,7 @@ import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.transaction.state.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
 
