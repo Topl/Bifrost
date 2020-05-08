@@ -1,10 +1,11 @@
 package scorex.testkit.properties
 
+import bifrost.mempool.MemoryPool
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.{MemoryPool, Transaction}
+import bifrost.transaction.Transaction
 
 trait MempoolTransactionsTest[P <: Proposition,
 TX <: Transaction[P],

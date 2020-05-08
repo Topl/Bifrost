@@ -2,7 +2,6 @@ package bifrost.mempool
 
 import io.iohk.iodb.ByteArrayWrapper
 import bifrost.NodeViewModifier.ModifierId
-import bifrost.transaction.MemoryPool
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.utils.Logging
 
