@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.block.{Block, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import bifrost.mempool.BifrostMemPool
@@ -20,7 +20,7 @@ import bifrost.utils.ScorexLogging
 import scorex.crypto.encode.Base58
 
 class BifrostNodeViewHolder(settings: ForgingSettings)
-  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
+  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, Block] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
@@ -30,7 +30,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion,
+    Map(Block.ModifierTypeId -> BifrostBlockCompanion,
     Transaction.ModifierTypeId -> BifrostTransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
@@ -127,7 +127,7 @@ object BifrostNodeViewHolder extends ScorexLogging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
+    val genesisBlock = Block.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
 
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1

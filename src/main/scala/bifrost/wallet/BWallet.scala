@@ -3,7 +3,7 @@ package bifrost.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
@@ -22,7 +22,7 @@ import scala.util.{Failure, Success, Try}
 
 
 case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BWallet]
+  extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, BWallet]
     with ScorexLogging {
 
   import bifrost.wallet.BWallet._
@@ -185,7 +185,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   override def scanOffchain(txs: Seq[BifrostTransaction]): BWallet = this
 
-  override def scanPersistent(modifier: BifrostBlock): BWallet = {
+  override def scanPersistent(modifier: Block): BWallet = {
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
@@ -315,7 +315,7 @@ object BWallet {
     }
 
   //wallet with applied initialBlocks
-  def genesisWallet(settings: Settings, initialBlocks: Seq[BifrostBlock]): BWallet = {
+  def genesisWallet(settings: Settings, initialBlocks: Seq[Block]): BWallet = {
     initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
       a.scanPersistent(b)
     }

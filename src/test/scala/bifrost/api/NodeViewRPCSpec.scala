@@ -16,8 +16,7 @@ import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.block.Block
-import bifrost.blocks.BifrostBlock
+import bifrost.block.{Block, Block}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition

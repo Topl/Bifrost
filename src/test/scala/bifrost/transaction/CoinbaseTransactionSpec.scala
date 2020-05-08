@@ -1,6 +1,6 @@
 package bifrost.transaction
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.state.{BifrostState, BifrostStateSpec}
 import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}

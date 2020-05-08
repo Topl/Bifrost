@@ -3,7 +3,7 @@ package bifrost
 
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
@@ -28,7 +28,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox
   override type TX = BifrostTransaction
-  override type PMOD = BifrostBlock
+  override type PMOD = Block
   override type NVHT = BifrostNodeViewHolder
 
   implicit lazy val settings = new ForgingSettings {

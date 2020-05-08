@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.{Block, Block}
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
@@ -16,7 +16,6 @@ import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import bifrost.block.Block
 import bifrost.crypto.FastCryptographicHash
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
@@ -671,7 +670,7 @@ trait BifrostGenerators extends CoreGenerators {
     .listOfN(length, Arbitrary.arbitrary[Byte])
     .map(_.toArray)
 
-  lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
+  lazy val bifrostBlockGen: Gen[Block] = for {
     parentId <- specificLengthBytesGen(Block.BlockIdLength)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
@@ -690,10 +689,10 @@ trait BifrostGenerators extends CoreGenerators {
     BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
   }
 
-  lazy val genesisBlockGen: Gen[BifrostBlock] = for {
+  lazy val genesisBlockGen: Gen[Block] = for {
     keyPair ← key25519Gen
   } yield {
-    BifrostBlock.create(
+    Block.create(
       settings.GenesisParentId,
       1478164225796L,
       Seq(),

@@ -4,7 +4,7 @@ package bifrost.history
   * Created by cykoz on 7/11/2017.
   */
 
-import bifrost.blocks.{BifrostBlock, Bloom}
+import bifrost.block.{Block, Bloom}
 import bifrost.state.BifrostStateSpec
 import bifrost.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}

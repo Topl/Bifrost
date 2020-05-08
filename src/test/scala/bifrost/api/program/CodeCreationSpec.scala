@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition

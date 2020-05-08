@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -80,11 +80,11 @@ class IODBSpec extends PropSpec
       * @param b the block to write tx boxes to storage
       */
 
-    def writeBlock(b: BifrostBlock): Unit = {
+    def writeBlock(b: Block): Unit = {
       blocksStorage.update(
         ByteArrayWrapper(b.id),
         Seq(),
-        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(BifrostBlock.ModifierTypeId +: b.bytes))
+        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(Block.ModifierTypeId +: b.bytes))
       )
     }
 

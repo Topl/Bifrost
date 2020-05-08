@@ -7,7 +7,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool

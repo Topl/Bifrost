@@ -3,7 +3,7 @@ package bifrost.fork
 
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld

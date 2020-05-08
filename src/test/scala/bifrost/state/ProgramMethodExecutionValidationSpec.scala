@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.crypto.FastCryptographicHash
 import bifrost.program.Program
 import bifrost.exceptions.JsonParsingException

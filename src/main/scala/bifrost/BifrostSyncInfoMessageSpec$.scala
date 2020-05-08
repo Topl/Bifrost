@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.NodeViewModifier
 import bifrost.consensus.SyncInfo
 import bifrost.serialization.Serializer
@@ -11,7 +11,7 @@ import scala.util.Try
 case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BigInt)
   extends SyncInfo {
   override def startingPoints: Seq[(NodeViewModifier.ModifierTypeId, NodeViewModifier.ModifierId)] = {
-    Seq(BifrostBlock.ModifierTypeId -> lastBlockID)
+    Seq(Block.ModifierTypeId -> lastBlockID)
   }
 
   override type M = SimpleSyncInfo

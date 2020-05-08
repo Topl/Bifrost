@@ -1,6 +1,6 @@
 package bifrost.history
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import com.google.common.primitives.Longs
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
@@ -14,7 +14,7 @@ case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[Modif
   extends SyncInfo {
 
   override def startingPoints: Seq[(ModifierTypeId, ModifierId)] =
-    lastBlockIds.map(b => BifrostBlock.ModifierTypeId -> b)
+    lastBlockIds.map(b => Block.ModifierTypeId -> b)
 
   override type M = BifrostSyncInfo
 

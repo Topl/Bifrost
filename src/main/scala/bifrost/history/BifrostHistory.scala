@@ -2,14 +2,13 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.blocks.{BifrostBlock, Bloom}
+import bifrost.block.{Block, BlockValidator, Bloom}
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.validation.DifficultyBlockValidator
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.block.BlockValidator
 import bifrost.consensus.History
 import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
@@ -31,10 +30,10 @@ import scala.util.{Failure, Try}
   */
 class BifrostHistory(val storage: BifrostStorage,
                      settings: ForgingSettings,
-                     validators: Seq[BlockValidator[BifrostBlock]])
+                     validators: Seq[BlockValidator[Block]])
   extends History[ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostTransaction,
-    BifrostBlock,
+    Block,
     BifrostSyncInfo,
     BifrostHistory
     ] with ScorexLogging {
@@ -47,7 +46,7 @@ class BifrostHistory(val storage: BifrostStorage,
   lazy val score: Long = storage.bestChainScore
   lazy val bestBlockId: Array[Byte] = storage.bestBlockId
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
-  lazy val bestBlock: BifrostBlock = storage.bestBlock
+  lazy val bestBlock: Block = storage.bestBlock
 
 
   /**
@@ -57,11 +56,11 @@ class BifrostHistory(val storage: BifrostStorage,
     */
   override def isEmpty: Boolean = height <= 0
 
-  override def applicable(block: BifrostBlock): Boolean = {
+  override def applicable(block: Block): Boolean = {
     contains(block.parentId)
   }
 
-  override def modifierById(id: ModifierId): Option[BifrostBlock] = storage.modifierById(id)
+  override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
     if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined
@@ -72,8 +71,8 @@ class BifrostHistory(val storage: BifrostStorage,
     * @param block block to append
     * @return the update history including `block` as the most recent block
     */
-  override def append(block: BifrostBlock):
-  Try[(BifrostHistory, ProgressInfo[BifrostBlock])] = Try {
+  override def append(block: Block):
+  Try[(BifrostHistory, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${Base58.encode(block.id)} to history")
     val validationResults = validators.map(_.validate(block))
@@ -84,7 +83,7 @@ class BifrostHistory(val storage: BifrostStorage,
     }
     validationResults.foreach(_.get)
 
-    val res: (BifrostHistory, ProgressInfo[BifrostBlock]) = {
+    val res: (BifrostHistory, ProgressInfo[Block]) = {
 
       if (isGenesis(block)) {
         storage.update(block, settings.InitialDifficulty, isBest = true)
@@ -97,7 +96,7 @@ class BifrostHistory(val storage: BifrostStorage,
         if (difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
-        val mod: ProgressInfo[BifrostBlock] = if (!builtOnBestChain) {
+        val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
           log.debug(s"New orphaned block ${Base58.encode(block.id)}")
           ProgressInfo(None, Seq(), Seq())
         } else if (block.parentId sameElements storage.bestBlockId) { // new block parent is best block so far
@@ -142,7 +141,7 @@ class BifrostHistory(val storage: BifrostStorage,
     * @param block the block that has a parent on the canonical chain but is not on the chain
     * @return ProgressInfo that specifies the blocks to delete (worse fork) and blocks to add (better fork)
     */
-  def bestForkChanges(block: BifrostBlock): ProgressInfo[BifrostBlock] = {
+  def bestForkChanges(block: Block): ProgressInfo[Block] = {
 
     /* Get the two branches of the fork including their common block */
     val (newSuffix, oldSuffix) = commonBlockThenSuffixes(modifierById(block.parentId).get)
@@ -161,7 +160,7 @@ class BifrostHistory(val storage: BifrostStorage,
     require(applyBlocks.nonEmpty)
     require(throwBlocks.nonEmpty)
 
-    ProgressInfo[BifrostBlock](rollbackPoint, throwBlocks, applyBlocks)
+    ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks)
   }
 
   private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt = max.min(value.max(min))
@@ -190,7 +189,7 @@ class BifrostHistory(val storage: BifrostStorage,
                                size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
     /* Whether m is a genesis block or is in `from` */
-    def inList(m: BifrostBlock): Boolean = idInList(m.id) || isGenesis(m)
+    def inList(m: Block): Boolean = idInList(m.id) || isGenesis(m)
 
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 sameElements id)
 
@@ -210,15 +209,15 @@ class BifrostHistory(val storage: BifrostStorage,
     * @param count - how many blocks to return
     * @return PoW blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Int, startBlock: BifrostBlock): Seq[BifrostBlock] = if (isEmpty) {
+  def lastBlocks(count: Int, startBlock: Block): Seq[Block] = if (isEmpty) {
     Seq()
   } else {
     @tailrec
-    def loop(b: BifrostBlock, acc: Seq[BifrostBlock] = Seq()): Seq[BifrostBlock] = if (acc.length >= count) {
+    def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = if (acc.length >= count) {
       acc
     } else {
       modifierById(b.parentId) match {
-        case Some(parent: BifrostBlock) => loop(parent, b +: acc)
+        case Some(parent: Block) => loop(parent, b +: acc)
         case _ => b +: acc
       }
     }
@@ -269,9 +268,9 @@ class BifrostHistory(val storage: BifrostStorage,
     }
   }
 
-  private def isGenesis(b: BifrostBlock): Boolean = storage.isGenesis(b)
+  private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
 
-  def blockForger(m: BifrostBlock): PublicKey25519Proposition = m.forgerBox.proposition
+  def blockForger(m: Block): PublicKey25519Proposition = m.forgerBox.proposition
 
   /**
     * Calculates the distribution of blocks to forgers
@@ -287,7 +286,7 @@ class BifrostHistory(val storage: BifrostStorage,
       * @param m the current block for which to increment the forger entry
       */
     @tailrec
-    def loopBackAndIncrementForger(m: BifrostBlock): Unit = {
+    def loopBackAndIncrementForger(m: Block): Unit = {
       val forger = blockForger(m)
       map.update(forger, map(forger) + 1)
       parentBlock(m) match {
@@ -300,11 +299,11 @@ class BifrostHistory(val storage: BifrostStorage,
     map.toMap
   }
 
-  def count(f: BifrostBlock => Boolean): Int = filter(f).length
+  def count(f: Block => Boolean): Int = filter(f).length
 
-  def filter(f: BifrostBlock => Boolean): Seq[BifrostBlock] = {
+  def filter(f: Block => Boolean): Seq[Block] = {
     @tailrec
-    def loop(m: BifrostBlock, acc: Seq[BifrostBlock]): Seq[BifrostBlock] = parentBlock(m) match {
+    def loop(m: Block, acc: Seq[Block]): Seq[Block] = parentBlock(m) match {
       case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
       case None => if (f(m)) m +: acc else acc
     }
@@ -351,7 +350,7 @@ class BifrostHistory(val storage: BifrostStorage,
     ))
   }
 
-  def parentBlock(m: BifrostBlock): Option[BifrostBlock] = modifierById(m.parentId)
+  def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
   /**
     * Go back through chain and get block ids until condition `until` is satisfied
@@ -364,12 +363,12 @@ class BifrostHistory(val storage: BifrostStorage,
     *         (None only if the parent for a block was not found) starting from the original `m`
     */
   @tailrec
-  final def chainBack(m: BifrostBlock,
-                        until: BifrostBlock => Boolean,
-                        limit: Int = Int.MaxValue,
-                        acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+  final def chainBack(m: Block,
+                      until: Block => Boolean,
+                      limit: Int = Int.MaxValue,
+                      acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
-    val sum: Seq[(ModifierTypeId, ModifierId)] = (BifrostBlock.ModifierTypeId -> m.id) +: acc
+    val sum: Seq[(ModifierTypeId, ModifierId)] = (Block.ModifierTypeId -> m.id) +: acc
 
     /* Check if the limit has been reached or if condition satisfied */
     if (limit <= 0 || until(m)) {
@@ -392,14 +391,14 @@ class BifrostHistory(val storage: BifrostStorage,
     * @param limit     how far back to check for a common block
     * @return sequences which contain the last common block and variant blocks for the chains
     */
-  final def commonBlockThenSuffixes(forkBlock: BifrostBlock,
+  final def commonBlockThenSuffixes(forkBlock: Block,
                                     limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
     /* The entire chain that was "best" */
     val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
 
     /* `in` specifies whether `loserChain` has this block */
-    def in(m: BifrostBlock): Boolean = loserChain.exists(s => s sameElements m.id)
+    def in(m: Block): Boolean = loserChain.exists(s => s sameElements m.id)
 
     /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
     val winnerChain = chainBack(forkBlock, in, limit).get.map(_._2)

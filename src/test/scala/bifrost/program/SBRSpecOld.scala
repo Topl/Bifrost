@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
@@ -73,10 +73,10 @@ class ProgramBoxRegistrySpecOld extends PropSpec
   property("ProgramBoxRegistry should update correctly for new state box with same UUID") {
 
     val block = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(),
       10L,
       settings.version
@@ -91,10 +91,10 @@ class ProgramBoxRegistrySpecOld extends PropSpec
     Thread.sleep(1000)
 
     val block_2 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(),
       10L,
       settings.version
@@ -111,10 +111,10 @@ class ProgramBoxRegistrySpecOld extends PropSpec
 
     Thread.sleep(1000)
     val block_3 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(),
       10L,
       settings.version
@@ -131,10 +131,10 @@ class ProgramBoxRegistrySpecOld extends PropSpec
     //Test to make sure counters update correctly
     Thread.sleep(1000)
     val block_4 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(),
       10L,
       settings.version

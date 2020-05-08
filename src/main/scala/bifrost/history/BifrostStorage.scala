@@ -1,6 +1,6 @@
 package bifrost.history
 
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.block.{Block, BifrostBlockCompanion}
 import bifrost.forging.ForgingSettings
 import com.typesafe.config.Config
 import com.google.common.primitives.Longs
@@ -52,18 +52,18 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
-  def bestBlock: BifrostBlock = {
+  def bestBlock: Block = {
     require(height > 0, "History is empty")
     modifierById(bestBlockId).get
   }
 
-  def modifierById(blockId: ModifierId): Option[BifrostBlock] = {
+  def modifierById(blockId: ModifierId): Option[Block] = {
     blockCache
       .get(ByteArrayWrapper(blockId))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
-          case BifrostBlock.ModifierTypeId =>
+          case Block.ModifierTypeId =>
             val parsed = {
               heightOf(blockId) match {
                 case Some(x) if x <= settings.forkHeight => BifrostBlockCompanion.parseBytes2xAndBefore(bytes.tail)
@@ -92,9 +92,9 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
         "bestBlock": b00123123
       }
    */
-  def update(b: BifrostBlock, diff: Long, isBest: Boolean) {
+  def update(b: Block, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.encodedId}")
-    val typeByte = BifrostBlock.ModifierTypeId
+    val typeByte = Block.ModifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
@@ -117,7 +117,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(BifrostBlock.createBloom(b.txs)))
+      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
       tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
@@ -196,11 +196,11 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       .get(ByteArrayWrapper(transactionId))
       .map(_.data)
 
-  def parentChainScore(b: BifrostBlock): Long = scoreOf(b.parentId).getOrElse(0L)
+  def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 
-  def parentHeight(b: BifrostBlock): Long = heightOf(b.parentId).getOrElse(0L)
+  def parentHeight(b: Block): Long = heightOf(b.parentId).getOrElse(0L)
 
-  def parentDifficulty(b: BifrostBlock): Long = difficultyOf(b.parentId).getOrElse(0L)
+  def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: BifrostBlock): Boolean = b.parentId sameElements settings.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId sameElements settings.GenesisParentId
 }

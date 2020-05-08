@@ -4,7 +4,7 @@ import java.io.File
 
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.history.BifrostHistory
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.crypto.FastCryptographicHash
 import bifrost.exceptions.TransactionValidationException
 import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
@@ -44,7 +44,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+    BifrostBox, BifrostTransaction, Block, BifrostState] with ScorexLogging {
 
   override type NVCT = BifrostState
   type P = BifrostState.P
@@ -590,7 +590,7 @@ object BifrostState extends ScorexLogging {
   type TX = BifrostTransaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = BifrostBox
-  type BPMOD = BifrostBlock
+  type BPMOD = Block
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 

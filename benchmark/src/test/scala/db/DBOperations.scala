@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 //import org.openjdk.jmh.infra.Blackhole
 //import bifrost.forging.ForgingSettings
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.block.{Block, BifrostBlockCompanion}
 import bifrost.BifrostGenerators
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.history._
@@ -29,7 +29,7 @@ class DBOperations extends BifrostGenerators {
   val numLastBlocks: Int = 500
 
   val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
-    val oneBlock: BifrostBlock = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val oneBlock: Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(oneBlock).get._1
     /* println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}") */
     ByteArrayWrapper(oneBlock.id)
@@ -45,7 +45,7 @@ class DBOperations extends BifrostGenerators {
   def storageTest {
     var tmpStorageBlockId: ModifierId = storageCurBlockId
     for (i <- 1 to numLastBlocks) {
-      val currentBlock: BifrostBlock = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId)).map { bw =>
+      val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId)).map { bw =>
         val bytes = bw.data
         BifrostBlockCompanion.parseBytes(bytes.tail).get
       }.get
@@ -58,7 +58,7 @@ class DBOperations extends BifrostGenerators {
   def cacheTest {
     var tmpCacheBlockId: ModifierId = cacheCurBlockId
     for (i <- 1 to numLastBlocks) {
-      val currentBlock: BifrostBlock = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId)).map {
+      val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId)).map {
         bw =>
           val bytes = bw.data
           BifrostBlockCompanion.parseBytes(bytes.tail).get

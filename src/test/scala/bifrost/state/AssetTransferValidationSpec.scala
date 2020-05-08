@@ -2,7 +2,7 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.blocks.BifrostBlock
+import bifrost.block.Block
 import bifrost.transaction.bifrostTransaction.AssetTransfer
 import bifrost.transaction.box._
 import com.google.common.primitives.Ints
