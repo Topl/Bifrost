@@ -136,7 +136,7 @@ class AssetRPCSpec extends WordSpec
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
-        val tempBlock = BifrostBlock(history.bestBlockId,
+        val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

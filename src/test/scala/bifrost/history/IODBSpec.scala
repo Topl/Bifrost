@@ -90,7 +90,7 @@ class IODBSpec extends PropSpec
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(bifrostBlockGen) { block =>
+    forAll(BlockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(ByteArrayWrapper(block.id)).isDefined shouldBe true

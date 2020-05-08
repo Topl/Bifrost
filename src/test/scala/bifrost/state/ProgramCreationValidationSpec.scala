@@ -105,7 +105,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     // Create block with program creation
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val block = BifrostBlock(
+        val block = Block(
           Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -307,7 +307,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
-        val firstCCAddBlock = BifrostBlock(
+        val firstCCAddBlock = Block(
           Array.fill(Block.SignatureLength)(1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),

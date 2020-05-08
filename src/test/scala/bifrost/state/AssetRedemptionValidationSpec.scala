@@ -2,7 +2,7 @@
 //
 //import java.time.Instant
 //
-//import bifrost.blocks.BifrostBlock
+//import bifrost.blocks.Block
 //import bifrost.transaction.bifrostTransaction.AssetRedemption
 //import bifrost.transaction.box._
 //import com.google.common.primitives.Ints
@@ -21,11 +21,11 @@
 //  property("A block with valid AssetRedemption should result in the appropriate amount of tokens") {
 //    forAll(validAssetRedemptionGen) {
 //      ar: AssetRedemption =>
-//        val block = BifrostBlock(
-//          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+//        val block = Block(
+//          Array.fill(Block.SignatureLength)(-1: Byte),
 //          Instant.now.toEpochMilli,
 //          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-//          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+//          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
 //          Seq(ar),
 //          10L,
 //          settings.version

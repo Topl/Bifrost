@@ -51,7 +51,7 @@ class CodeCreationSpec extends WordSpec
         val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
 
         /*val history = view().history
-        val tempBlock = BifrostBlock(history.bestBlockId,
+        val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

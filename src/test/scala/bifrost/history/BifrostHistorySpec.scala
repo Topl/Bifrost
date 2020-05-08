@@ -19,7 +19,7 @@ class BifrostHistorySpec extends PropSpec
     var ids: Seq[ModifierId] = Seq()
 
     /* Apply blocks and ensure that they are stored */
-    forAll(bifrostBlockGen) { blockTemp =>
+    forAll(BlockGen) { blockTemp =>
 
       val block = blockTemp.copy(parentId = history.bestBlockId)
 

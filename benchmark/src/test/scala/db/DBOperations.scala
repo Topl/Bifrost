@@ -29,7 +29,7 @@ class DBOperations extends BifrostGenerators {
   val numLastBlocks: Int = 500
 
   val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
-    val oneBlock: Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(oneBlock).get._1
     /* println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}") */
     ByteArrayWrapper(oneBlock.id)

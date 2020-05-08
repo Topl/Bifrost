@@ -69,7 +69,7 @@ class TokenBoxRegistrySpec extends PropSpec
       ""
     ).get
 
-    val block1 = BifrostBlock(
+    val block1 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -104,7 +104,7 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block2 = BifrostBlock(
+    val block2 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -149,7 +149,7 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block1 = BifrostBlock(
+    val block1 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),

@@ -28,7 +28,7 @@ class StorageCacheSpec extends PropSpec
     val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
 
     /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock:Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock:Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(bestBlockIdKey) should not be null
@@ -40,7 +40,7 @@ class StorageCacheSpec extends PropSpec
     history.storage.blockCache.getIfPresent(bestBlockIdKey) shouldBe null
 
     /* Append multiple times */
-    forAll(bifrostBlockGen) { blockTemp =>
+    forAll(BlockGen) { blockTemp =>
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
@@ -59,7 +59,7 @@ class StorageCacheSpec extends PropSpec
 
   property("The new block updated is stored in cache") {
 
-    forAll(bifrostBlockGen) { blockTemp =>
+    forAll(BlockGen) { blockTemp =>
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
@@ -70,7 +70,7 @@ class StorageCacheSpec extends PropSpec
 
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
     /* Append one block */
-    val fstBlock: Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) should not be null
@@ -79,7 +79,7 @@ class StorageCacheSpec extends PropSpec
     /* Assuming an average new block creates more than 50 entries */
     val numOfBlocks:Int = cacheSize / 50
     (1 to numOfBlocks) foreach { _ =>
-      val oneBlock:Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+      val oneBlock:Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
       history = history.append(oneBlock).get._1
     }
 
@@ -87,7 +87,7 @@ class StorageCacheSpec extends PropSpec
   }
 
   property("blockLoader should correctly return a block from storage not found in cache") {
-    val block: Block = bifrostBlockGen.sample.get.copy(parentId = history.bestBlockId)
+    val block: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     val tempHistory = history.append(block).get._1
 
     tempHistory.storage.blockCache.invalidateAll()

@@ -546,7 +546,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
     //val t = history.modifierById(cb.blockID).get
-    //def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
+    //def helper(m: Block): Boolean = { m.id sameElements t.id }
     val validConstruction: Try[Unit] = {
       /*
       assert(cb.fee == 0L) // no fee for a coinbase tx

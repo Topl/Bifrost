@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.block.{Block, Block}
+import bifrost.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
@@ -670,14 +670,14 @@ trait BifrostGenerators extends CoreGenerators {
     .listOfN(length, Arbitrary.arbitrary[Byte])
     .map(_.toArray)
 
-  lazy val bifrostBlockGen: Gen[Block] = for {
+  lazy val BlockGen: Gen[Block] = for {
     parentId <- specificLengthBytesGen(Block.BlockIdLength)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    BifrostBlock(parentId, timestamp, generatorBox, signature, txs, 10L, settings.version)
+    Block(parentId, timestamp, generatorBox, signature, txs, 10L, settings.version)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {

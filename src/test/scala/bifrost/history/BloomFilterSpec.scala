@@ -38,7 +38,7 @@ class BloomFilterSpec extends PropSpec
     "test_2",
     ""
     ).get
-    val block = BifrostBlock(history.bestBlockId,
+    val block = Block(history.bestBlockId,
     System.currentTimeMillis(),
     arbitBoxGen.sample.get,
     signatureGen.sample.get,
@@ -46,7 +46,7 @@ class BloomFilterSpec extends PropSpec
     10L
 
     forAll(validBifrostTransactionSeqGen) { txs =>
-      val block = BifrostBlock(history.bestBlockId,
+      val block = Block(history.bestBlockId,
                                System.currentTimeMillis(),
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,

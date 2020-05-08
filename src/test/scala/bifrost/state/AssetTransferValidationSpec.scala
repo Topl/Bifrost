@@ -21,11 +21,11 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
   /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(assetTransfer),
           10L,
           settings.version

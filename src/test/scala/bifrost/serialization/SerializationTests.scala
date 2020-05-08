@@ -252,8 +252,8 @@ class SerializationTests extends PropSpec
   }
 
   //TODO Test after all txs and state tests work
-  property("BifrostBlock Serialization") {
-    forAll(bifrostBlockGen) {
+  property("Block Serialization") {
+    forAll(BlockGen) {
       bb: Block =>
         val parsed = BlockCompanion.parseBytes(BlockCompanion.toBytes(bb))
 

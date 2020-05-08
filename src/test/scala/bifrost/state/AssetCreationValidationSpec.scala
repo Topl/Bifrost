@@ -19,7 +19,7 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
   property("A block with valid AssetCreation should result in more tokens for receiver") {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
-        val block = BifrostBlock(
+        val block = Block(
           Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box

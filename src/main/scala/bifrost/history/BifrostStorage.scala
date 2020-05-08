@@ -85,7 +85,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       For version "b00123123":
       ADD
       {
-        "b00123123": "BifrostBlock" | b,
+        "b00123123": "Block" | b,
         "diffb00123123": diff,
         "heightb00123123": parentHeight(b00123123) + 1,
         "scoreb00123123": parentChainScore(b00123123) + diff,

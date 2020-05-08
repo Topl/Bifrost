@@ -44,7 +44,7 @@ class ForkSpec extends PropSpec
   var gw: VL = gs._3
 
   property("Appending version3 blocks before height = forkHeight should fail") {
-    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -70,7 +70,7 @@ class ForkSpec extends PropSpec
 
     println(s"history.height: ${history.height}")
     for(i <- 2L to testSettings_version0.forkHeight) {
-      val tempBlock = BifrostBlock(history.bestBlockId,
+      val tempBlock = Block(history.bestBlockId,
         System.currentTimeMillis(),
         ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -84,7 +84,7 @@ class ForkSpec extends PropSpec
       assert(history.modifierById(tempBlock.id).isDefined)
     }
 
-    val tempBlock_version3_1 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3_1 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -97,7 +97,7 @@ class ForkSpec extends PropSpec
 
     Thread.sleep(1000)
 
-    val tempBlock_version3_2 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3_2 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -132,7 +132,7 @@ class ForkSpec extends PropSpec
     println(s"history.height: ${history.height}")
     Thread.sleep(1000)
     
-    val tempBlock_version0 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -161,7 +161,7 @@ class ForkSpec extends PropSpec
     println(s"history.height: ${history.height}")
     Thread.sleep(1000)
 
-    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -172,7 +172,7 @@ class ForkSpec extends PropSpec
     history = history.append(tempBlock_version3).get._1
     assert(history.modifierById(tempBlock_version3.id).isDefined)
 
-    val tempBlock_version0 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

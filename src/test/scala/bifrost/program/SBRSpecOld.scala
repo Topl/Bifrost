@@ -72,7 +72,7 @@ class ProgramBoxRegistrySpecOld extends PropSpec
 
   property("ProgramBoxRegistry should update correctly for new state box with same UUID") {
 
-    val block = BifrostBlock(
+    val block = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -90,7 +90,7 @@ class ProgramBoxRegistrySpecOld extends PropSpec
 
     Thread.sleep(1000)
 
-    val block_2 = BifrostBlock(
+    val block_2 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -110,7 +110,7 @@ class ProgramBoxRegistrySpecOld extends PropSpec
   property("ProgramBoxRegistry should deterministically generate a new UUID for a new state box") {
 
     Thread.sleep(1000)
-    val block_3 = BifrostBlock(
+    val block_3 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
@@ -130,7 +130,7 @@ class ProgramBoxRegistrySpecOld extends PropSpec
 
     //Test to make sure counters update correctly
     Thread.sleep(1000)
-    val block_4 = BifrostBlock(
+    val block_4 = Block(
       Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
