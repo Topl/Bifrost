@@ -2,7 +2,6 @@ package bifrost.transaction.box
 
 import java.util.UUID
 
-import bifrost.transaction.account.PublicKeyNoncedBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._

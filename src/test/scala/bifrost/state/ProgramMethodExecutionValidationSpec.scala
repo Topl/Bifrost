@@ -9,8 +9,7 @@ import bifrost.program.Program
 import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.box._
+import bifrost.transaction.box.{PublicKeyNoncedBox, _}
 import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
