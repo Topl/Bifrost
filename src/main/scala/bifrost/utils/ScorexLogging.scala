@@ -1,7 +1,7 @@
 package bifrost.utils
 
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging.StrictLogging
 
-trait ScorexLogging {
-  protected def log = LoggerFactory.getLogger(this.getClass)
+trait ScorexLogging extends StrictLogging {
+  protected def log = logger
 }
