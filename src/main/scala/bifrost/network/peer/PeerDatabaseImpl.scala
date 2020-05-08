@@ -1,14 +1,13 @@
 package bifrost.network.peer
 
 import java.net.InetSocketAddress
-
 import bifrost.settings.Settings
-
 import scala.collection.mutable
 
+case class PeerInfo(lastSeen: Long, nonce: Option[Long] = None, nodeName: Option[String] = None)
 
 //todo: persistence
-class PeerDatabaseImpl(settings: Settings, filename: Option[String]) extends PeerDatabase {
+class PeerDatabase(settings: Settings, filename: Option[String]) {
 
   private val whitelistPersistence = mutable.Map[InetSocketAddress, PeerInfo]()
 
@@ -16,7 +15,7 @@ class PeerDatabaseImpl(settings: Settings, filename: Option[String]) extends Pee
 
   private lazy val ownNonce = settings.nodeNonce
 
-  override def addOrUpdateKnownPeer(address: InetSocketAddress, peerInfo: PeerInfo): Unit = {
+  def addOrUpdateKnownPeer(address: InetSocketAddress, peerInfo: PeerInfo): Unit = {
     val updatedPeerInfo = whitelistPersistence.get(address).map { dbPeerInfo =>
       val nonceOpt = peerInfo.nonce.orElse(dbPeerInfo.nonce)
       val nodeNameOpt = peerInfo.nodeName.orElse(dbPeerInfo.nodeName)
@@ -25,22 +24,22 @@ class PeerDatabaseImpl(settings: Settings, filename: Option[String]) extends Pee
     whitelistPersistence.put(address, updatedPeerInfo)
   }
 
-  override def blacklistPeer(address: InetSocketAddress): Unit = {
+  def blacklistPeer(address: InetSocketAddress): Unit = {
     whitelistPersistence.remove(address)
     if (!isBlacklisted(address)) blacklist += address.getHostName -> System.currentTimeMillis()
   }
 
-  override def isBlacklisted(address: InetSocketAddress): Boolean = {
+  def isBlacklisted(address: InetSocketAddress): Boolean = {
     blacklist.synchronized(blacklist.contains(address.getHostName))
   }
 
-  override def knownPeers(excludeSelf: Boolean): Map[InetSocketAddress, PeerInfo] =
+  def knownPeers(excludeSelf: Boolean): Map[InetSocketAddress, PeerInfo] =
     (excludeSelf match {
       case true => knownPeers(false).filter(_._2.nonce.getOrElse(-1) != ownNonce)
       case false => whitelistPersistence.keys.flatMap(k => whitelistPersistence.get(k).map(v => k -> v))
     }).toMap
 
-  override def blacklistedPeers(): Seq[String] = blacklist.keys.toSeq
+  def blacklistedPeers(): Seq[String] = blacklist.keys.toSeq
 
-  override def isEmpty(): Boolean = whitelistPersistence.isEmpty
+  def isEmpty(): Boolean = whitelistPersistence.isEmpty
 }

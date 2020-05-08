@@ -22,7 +22,7 @@ class PeerManager(settings: Settings) extends Actor with Logging {
   private val connectedPeers = mutable.Map[ConnectedPeer, Option[Handshake]]()
   private var connectingPeer: Option[InetSocketAddress] = None
 
-  private lazy val peerDatabase = new PeerDatabaseImpl(settings, settings.dataDirOpt.map(_ + "/peers.dat"))
+  private lazy val peerDatabase = new PeerDatabase(settings, settings.dataDirOpt.map(_ + "/peers.dat"))
 
   if (peerDatabase.isEmpty()) {
     settings.knownPeers.foreach { address =>
