@@ -2,13 +2,13 @@ package bifrost
 
 import bifrost.blocks.BifrostBlock
 import bifrost.NodeViewModifier
-import bifrost.consensus.{BlockChain, SyncInfo}
+import bifrost.consensus.SyncInfo
 import bifrost.serialization.Serializer
 import bifrost.network.message.SyncInfoMessageSpec
 
 import scala.util.Try
 
-case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BlockChain.Score)
+case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.ModifierId, score: BigInt)
   extends SyncInfo {
   override def startingPoints: Seq[(NodeViewModifier.ModifierTypeId, NodeViewModifier.ModifierId)] = {
     Seq(BifrostBlock.ModifierTypeId -> lastBlockID)
