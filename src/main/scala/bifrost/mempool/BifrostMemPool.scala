@@ -29,7 +29,7 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def put(tx: BifrostTransaction): Try[BifrostMemPool] = Try {
     unconfirmed.put(key(tx.id), tx)
     tx.boxIdsToOpen.foreach(boxId => {
-      val exists = boxesInMempool.get(key(boxId)).isDefined
+      val exists = boxesInMempool.contains(key(boxId))
       require(!exists)
     })
     tx.boxIdsToOpen.foreach(boxId => {
@@ -41,7 +41,7 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def put(txs: Iterable[BifrostTransaction]): Try[BifrostMemPool] = Try {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach(boxId => {
-      val exists = boxesInMempool.get(key(boxId)).isDefined
+      val exists = boxesInMempool.contains(key(boxId))
       require(!exists)
     }))
     txs.foreach(tx => {
@@ -70,8 +70,8 @@ case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransact
   override def take(limit: Int): Iterable[BifrostTransaction] =
     unconfirmed.values.toSeq.sortBy(-_.fee).take(limit)
 
-  override def filter(condition: (BifrostTransaction) => Boolean): BifrostMemPool = {
-    unconfirmed.retain { (k, v) =>
+  override def filter(condition: BifrostTransaction => Boolean): BifrostMemPool = {
+    unconfirmed.retain { (_, v) =>
       if (condition(v)) {
         true
       } else {
