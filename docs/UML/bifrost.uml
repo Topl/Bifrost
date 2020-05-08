@@ -65,7 +65,7 @@
     <node x="14515.0" y="1998.0">bifrost.program.ShareFunction$</node>
     <node x="14768.5" y="1279.0">bifrost.network.SendToRandom$</node>
     <node x="1552.0000000000018" y="776.0">bifrost.network.PeerConnectionHandler.CloseConnection$</node>
-    <node x="7455.0" y="1702.0">bifrost.app.ApplicationVersionSerializer</node>
+    <node x="7455.0" y="1702.0">bifrost.version.ApplicationVersionSerializer</node>
     <node x="1834.0" y="1804.0">bifrost.transaction.bifrostTransaction.ArbitTransfer$</node>
     <node x="2431.0" y="1702.0">bifrost.transaction.state.SecretCompanion</node>
     <node x="13287.0" y="2095.0">bifrost.network.Ack$</node>
@@ -186,7 +186,7 @@
     <node x="10869.5" y="1439.0">bifrost.transaction.box.PolyBoxSerializer$</node>
     <node x="360.0" y="1804.0">bifrost.api.http.ApiException</node>
     <node x="0.0" y="1299.0">bifrost.program.ProgramPreprocessor</node>
-    <node x="896.5" y="1299.0">bifrost.app.ApplicationVersion</node>
+    <node x="896.5" y="1299.0">bifrost.version.ApplicationVersion</node>
     <node x="3232.0" y="2095.0">bifrost.transaction.state.MinimalState$</node>
     <node x="3861.499999999999" y="1439.0">bifrost.block.BlockCompanion</node>
     <node x="4615.0" y="1998.0">bifrost.transaction.account.BalanceSheet$class</node>
@@ -217,13 +217,13 @@
     <node x="1915.3235294117646" y="1401.0">bifrost.transaction.box.BifrostBox</node>
     <node x="4852.0" y="1998.0">bifrost.transaction.box.CodeBoxSerializer$</node>
     <node x="3131.000000000002" y="404.0">bifrost.settings.Settings</node>
-    <node x="1478.0" y="1998.0">bifrost.app.ApplicationVersion$</node>
+    <node x="1478.0" y="1998.0">bifrost.version.ApplicationVersion$</node>
     <node x="13238.0" y="1702.0">bifrost.transaction.state.PrivateKey25519Serializer</node>
     <node x="4041.499999999999" y="1439.0">bifrost.history.BifrostSyncInfoSerializer$</node>
     <node x="10581.0" y="2095.0">bifrost.program.Program$</node>
     <node x="13933.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent$class</node>
     <node x="5178.0" y="2095.0">bifrost.network.SendToPeers$</node>
-    <node x="4317.499999999999" y="1439.0">bifrost.app.ApplicationVersionSerializer$</node>
+    <node x="4317.499999999999" y="1439.0">bifrost.version.ApplicationVersionSerializer$</node>
     <node x="9181.000000000002" y="404.0">bifrost.crypto.Bip39</node>
     <node x="13013.0" y="2095.0">bifrost.block.Block$</node>
     <node x="3429.0" y="2095.0">bifrost.transaction.state.StateChanges$</node>
@@ -640,7 +640,7 @@
       <point x="7534.354838709678" y="244.0" />
       <point x="-68.6451612903229" y="26.0" />
     </edge>
-    <edge source="bifrost.app.ApplicationVersionSerializer$" target="bifrost.serialization.Serializer">
+    <edge source="bifrost.version.ApplicationVersionSerializer$" target="bifrost.serialization.Serializer">
       <point x="0.0" y="-26.0" />
       <point x="4457.499999999999" y="1329.0" />
       <point x="6915.735294117646" y="1329.0" />
@@ -1146,7 +1146,7 @@
       <point x="6734.789473684212" y="716.0" />
       <point x="35.78947368421086" y="26.0" />
     </edge>
-    <edge source="bifrost.app.ApplicationVersion" target="bifrost.serialization.BytesSerializable">
+    <edge source="bifrost.version.ApplicationVersion" target="bifrost.serialization.BytesSerializable">
       <point x="0.0" y="-26.0" />
       <point x="992.5" y="1259.0" />
       <point x="1586.3181818181818" y="1259.0" />

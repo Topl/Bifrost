@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import org.scalacheck.{Arbitrary, Gen}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierId
-import bifrost.app.ApplicationVersion
+import bifrost.version.ApplicationVersion
 import bifrost.network.message.BasicMsgDataTypes._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}

@@ -1,4 +1,4 @@
-package bifrost.app
+package bifrost.version
 
 import com.google.common.primitives.Ints
 import bifrost.serialization.{BytesSerializable, Serializer}

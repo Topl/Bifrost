@@ -3,7 +3,7 @@ package bifrost.network
 import java.net.{InetAddress, InetSocketAddress}
 
 import com.google.common.primitives.{Ints, Longs}
-import bifrost.app.{ApplicationVersion, ApplicationVersionSerializer}
+import bifrost.version.{ApplicationVersion, ApplicationVersionSerializer}
 import bifrost.serialization.{BytesSerializable, Serializer}
 
 import scala.util.Try
