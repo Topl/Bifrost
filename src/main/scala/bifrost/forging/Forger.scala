@@ -15,7 +15,7 @@ import bifrost.LocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -117,7 +117,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   }
 }
 
-object Forger extends ScorexLogging {
+object Forger extends Logging {
 
 
   val MaxTarget = Long.MaxValue

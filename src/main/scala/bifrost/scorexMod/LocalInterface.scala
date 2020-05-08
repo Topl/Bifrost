@@ -7,13 +7,13 @@ import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 /**
   *
   */
 trait LocalInterface[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging {
+  extends Actor with Logging {
 
   val viewHolderRef: ActorRef
 

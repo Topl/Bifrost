@@ -6,7 +6,7 @@ import bifrost.PersistentNodeViewModifier
 import bifrost.consensus.{History, SyncInfo}
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.testkit.TestkitHelpers
 
 trait HistoryAppendBlockTest[P <: Proposition,
@@ -14,7 +14,7 @@ TX <: Transaction[P],
 PM <: PersistentNodeViewModifier[P, TX],
 SI <: SyncInfo,
 HT <: History[P, TX, PM, SI, HT]] extends PropSpec with GeneratorDrivenPropertyChecks with Matchers with PropertyChecks
-  with ScorexLogging with TestkitHelpers {
+  with Logging with TestkitHelpers {
   val history: HT
 
   def genValidModifier(history: HT): PM

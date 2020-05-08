@@ -13,7 +13,7 @@ import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
@@ -35,7 +35,7 @@ class BifrostHistory(val storage: BifrostStorage,
     Block,
     BifrostSyncInfo,
     BifrostHistory
-    ] with ScorexLogging {
+    ] with Logging {
 
   override type NVCT = BifrostHistory
 
@@ -427,7 +427,7 @@ class BifrostHistory(val storage: BifrostStorage,
 }
 
 
-object BifrostHistory extends ScorexLogging {
+object BifrostHistory extends Logging {
 
   def readOrGenerate(settings: ForgingSettings): BifrostHistory = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")

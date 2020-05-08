@@ -10,7 +10,7 @@ import bifrost.network.message.BasicMsgDataTypes._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.transaction.Transaction
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import bifrost.{LocalInterface, NodeViewModifier}
 import scorex.crypto.encode.Base58
 
@@ -33,7 +33,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
 (networkControllerRef: ActorRef,
  viewHolderRef: ActorRef,
  localInterfaceRef: ActorRef,
- syncInfoSpec: SIS) extends Actor with ScorexLogging {
+ syncInfoSpec: SIS) extends Actor with Logging {
 
   import GenericNodeViewSynchronizer._
   import History.HistoryComparisonResult._

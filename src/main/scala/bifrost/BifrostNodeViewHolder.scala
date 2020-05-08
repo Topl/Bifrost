@@ -16,7 +16,7 @@ import bifrost.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 class BifrostNodeViewHolder(settings: ForgingSettings)
@@ -63,7 +63,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   }
 }
 
-object BifrostNodeViewHolder extends ScorexLogging {
+object BifrostNodeViewHolder extends Logging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet

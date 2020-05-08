@@ -7,7 +7,7 @@ import io.circe.Json
 import io.circe.parser.parse
 import bifrost.version.ApplicationVersion
 import bifrost.transaction.box.proposition.Constants25519._
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._
@@ -16,7 +16,7 @@ import scala.util.{Random, Try}
 /**
   * Settings
   */
-trait Settings extends ScorexLogging {
+trait Settings extends Logging {
 
   def settingsFromFile(filename: String): Map[String, Json] = Try {
     val jsonString = scala.io.Source.fromFile(filename).mkString

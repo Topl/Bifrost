@@ -1,14 +1,14 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 //todo: break a connection if no score message from remote for some time?
 
-class ScoreObserver(historySynchronizer: ActorRef) extends Actor with ScorexLogging {
+class ScoreObserver(historySynchronizer: ActorRef) extends Actor with Logging {
 
   import ScoreObserver._
 

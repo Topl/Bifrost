@@ -4,14 +4,14 @@ import io.iohk.iodb.ByteArrayWrapper
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.transaction.MemoryPool
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
 
 case class BifrostMemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
-  extends MemoryPool[BifrostTransaction, BifrostMemPool] with ScorexLogging {
+  extends MemoryPool[BifrostTransaction, BifrostMemPool] with Logging {
   override type NVCT = BifrostMemPool
 
   private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)

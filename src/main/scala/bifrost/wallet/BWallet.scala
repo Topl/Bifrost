@@ -15,7 +15,7 @@ import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -23,7 +23,7 @@ import scala.util.{Failure, Success, Try}
 
 case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
   extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, BWallet]
-    with ScorexLogging {
+    with Logging {
 
   import bifrost.wallet.BWallet._
 

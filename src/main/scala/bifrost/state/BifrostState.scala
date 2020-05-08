@@ -20,7 +20,7 @@ import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.transaction.state.MinimalState.VersionTag
 import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -44,7 +44,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, Block, BifrostState] with ScorexLogging {
+    BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
 
   override type NVCT = BifrostState
   type P = BifrostState.P
@@ -584,7 +584,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 }
 
-object BifrostState extends ScorexLogging {
+object BifrostState extends Logging {
 
   type T = Any
   type TX = BifrostTransaction

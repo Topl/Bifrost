@@ -1,12 +1,12 @@
 package bifrost.programBoxRegistry
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.util.Try
 
 //TODO remove
-class PBRStorage(val storage: LSMStore) extends ScorexLogging {
+class PBRStorage(val storage: LSMStore) extends Logging {
 
   def rollback(versionID: ByteArrayWrapper): Try[Unit] = Try { storage.rollback(versionID) }
 

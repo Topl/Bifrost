@@ -13,7 +13,7 @@ import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.wallet.Vault
 import bifrost.transaction.{MemoryPool, Transaction}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
@@ -21,7 +21,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging {
+  extends Actor with Logging {
 
   import GenericNodeViewHolder._
 

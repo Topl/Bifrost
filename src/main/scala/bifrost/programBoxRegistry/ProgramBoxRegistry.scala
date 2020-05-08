@@ -11,12 +11,12 @@ import bifrost.state.BifrostState.GSC
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -81,7 +81,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
 
 }
 
-object ProgramBoxRegistry extends ScorexLogging {
+object ProgramBoxRegistry extends Logging {
 
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32

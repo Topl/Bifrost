@@ -9,14 +9,14 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.StateBox
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.hash.Sha256
 
 import scala.util.Try
 import scala.util.{Failure, Success}
 
 //TODO remove
-class ProgramBoxRegistryOld(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: PBRStorage) extends ScorexLogging {
+class ProgramBoxRegistryOld(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper], storage: PBRStorage) extends Logging {
 
   var UUID2BoxID = initialMap
 
@@ -55,7 +55,7 @@ class ProgramBoxRegistryOld(initialMap: Map[ByteArrayWrapper, ByteArrayWrapper],
 
 }
 
-object ProgramBoxRegistryOld extends ScorexLogging {
+object ProgramBoxRegistryOld extends Logging {
 
   final val bytesInAUUID = 16
   final val bytesInABoxID = 32

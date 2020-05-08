@@ -7,13 +7,13 @@ import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.state.BifrostState.{BX, GSC}
 import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends ScorexLogging {
+case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
   def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
     stateStore.get(ByteArrayWrapper(boxId))
@@ -127,7 +127,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Sc
 
 }
 
-object TokenBoxRegistry extends ScorexLogging {
+object TokenBoxRegistry extends Logging {
 
   def apply(s1: LSMStore, s2: LSMStore) : TokenBoxRegistry = {
     new TokenBoxRegistry (s1, s2)
