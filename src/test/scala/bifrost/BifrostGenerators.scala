@@ -44,14 +44,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   val settings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
-
-    override lazy val Difficulty: BigInt = 1
   }
 
   val settings_version0: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
-
-    override lazy val Difficulty: BigInt = 1
   }
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
