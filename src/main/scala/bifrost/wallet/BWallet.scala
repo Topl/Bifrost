@@ -4,8 +4,7 @@ import java.io.File
 import java.security.SecureRandom
 
 import bifrost.blocks.BifrostBlock
-import bifrost.crypto.FastCryptographicHash
-import bifrost.keygen.KeyFile
+import bifrost.crypto.{FastCryptographicHash, KeyFile}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
 import bifrost.transaction.box._

@@ -1,6 +1,5 @@
 package bifrost.crypto
 
-import bifrost.keygen.KeyFile
 import bifrost.keygen.KeyFile.uuid
 
 import scala.reflect.io.Path

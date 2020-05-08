@@ -1,4 +1,4 @@
-package bifrost.keygen
+package bifrost.crypto
 
 import java.io.{BufferedWriter, FileWriter}
 import java.lang.reflect.Constructor
@@ -6,18 +6,16 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import bifrost.crypto.FastCryptographicHash
-import bifrost.keygen.KeyFile._
+import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Keccak256
 
@@ -32,6 +30,8 @@ case class KeyFile(pubKeyBytes: Array[Byte],
                    mac: Array[Byte],
                    salt: Array[Byte],
                    iv: Array[Byte]) {
+
+  import KeyFile._
 
   def getPrivateKey(password: String): Try[PrivateKey25519] = Try {
     val derivedKey = getDerivedKey(password, salt)
