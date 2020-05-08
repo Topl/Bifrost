@@ -1,8 +1,8 @@
 package bifrost.transaction.state.authenticated
 
 import bifrost.PersistentNodeViewModifier
+import bifrost.transaction.bifrostTransaction.BoxTransaction
 import bifrost.transaction.box.Box
-import bifrost.transaction.BoxTransaction
 import bifrost.transaction.box.proposition.Proposition
 import bifrost.transaction.state.MinimalState
 import scorex.utils._
