@@ -6,7 +6,6 @@ import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.transaction._
 import bifrost.transaction.box._
-import bifrost.wallet.PolyTransferGenerator
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
