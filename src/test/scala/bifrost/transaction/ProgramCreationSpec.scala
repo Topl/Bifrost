@@ -6,10 +6,10 @@ package bifrost.transaction
 import bifrost.state.BifrostState
 import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.Signature25519
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 
 import scala.util.Success
 

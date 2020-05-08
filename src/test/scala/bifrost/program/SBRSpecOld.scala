@@ -6,13 +6,13 @@ import java.util.UUID
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.block.Block
+import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.state.BifrostStateSpec.testSettings
 import bifrost.transaction.box.{ArbitBox, StateBox, StateBoxSerializer}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import io.circe
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper

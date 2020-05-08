@@ -7,14 +7,13 @@ import bifrost.forging.ForgingSettings
 import bifrost.transaction._
 import bifrost.transaction.box._
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion}
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path

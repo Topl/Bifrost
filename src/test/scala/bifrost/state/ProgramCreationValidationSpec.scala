@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.block.Block
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Ints}
@@ -13,7 +13,6 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.transaction.state.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519

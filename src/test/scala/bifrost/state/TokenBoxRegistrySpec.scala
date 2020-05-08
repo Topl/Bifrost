@@ -9,8 +9,8 @@ import bifrost.state.BifrostStateSpec.gw
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.crypto.Signature25519
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}

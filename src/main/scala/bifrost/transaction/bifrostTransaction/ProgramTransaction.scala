@@ -1,10 +1,9 @@
 package bifrost.transaction.bifrostTransaction
 
 import BifrostTransaction.Nonce
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{PolyBox, PublicKeyNoncedBox}
-import bifrost.transaction.proof.Signature25519
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._

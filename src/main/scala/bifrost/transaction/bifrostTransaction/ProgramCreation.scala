@@ -4,10 +4,9 @@ import java.util.UUID
 
 import bifrost.program.ExecutionBuilder
 import BifrostTransaction.Nonce
-import bifrost.crypto.FastCryptographicHash
+import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
-import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.ProgramCreationCompanion
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}

@@ -17,11 +17,10 @@ import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Bif
 import bifrost.transaction.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58

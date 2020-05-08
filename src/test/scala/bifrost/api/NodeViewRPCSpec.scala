@@ -17,10 +17,10 @@ import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.block.Block
+import bifrost.crypto.Signature25519
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.box.ArbitBox
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

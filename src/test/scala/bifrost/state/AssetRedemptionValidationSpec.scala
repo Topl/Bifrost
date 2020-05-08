@@ -8,7 +8,7 @@
 //import com.google.common.primitives.Ints
 //import io.iohk.iodb.ByteArrayWrapper
 //import bifrost.transaction.box.proposition.PublicKey25519Proposition
-//import bifrost.transaction.proof.Signature25519
+//import bifrost.crypto.Signature25519
 //import scorex.crypto.signatures.Curve25519
 //
 //import scala.util.Failure

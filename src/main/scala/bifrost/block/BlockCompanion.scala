@@ -2,9 +2,9 @@ package bifrost.block
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.proof.Signature25519
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.crypto.Signature25519
 import bifrost.transaction.box.{ArbitBox, BifrostBoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
