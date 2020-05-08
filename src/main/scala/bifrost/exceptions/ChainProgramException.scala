@@ -1,6 +1,6 @@
 package bifrost.exceptions
 
-class InvalidProvidedProgramArgumentsException(message: String) extends Exception(message) {
+class ChainProgramException(message: String) extends Exception(message) {
 
   def this(message: String, cause: Throwable) {
     this(message)

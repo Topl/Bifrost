@@ -1,7 +1,7 @@
 package bifrost.program
 
 
-import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
+import bifrost.exceptions.{ChainProgramException, JsonParsingException}
 import bifrost.transaction.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
@@ -28,7 +28,7 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
   val MAX_PARTIES: Int = 1024
 
   if (parties.size < MIN_PARTIES || parties.size > MAX_PARTIES) {
-    throw new InvalidProvidedProgramArgumentsException("An invalid number of parties was specified for the program " +
+    throw new ChainProgramException("An invalid number of parties was specified for the program " +
       "(must be between 2 and 1024).")
   }
 
