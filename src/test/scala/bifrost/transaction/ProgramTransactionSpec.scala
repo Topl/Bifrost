@@ -6,7 +6,7 @@ package bifrost.transaction
 
 import java.util.UUID
 
-import bifrost.program.ExecutionBuilder
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
@@ -18,7 +18,6 @@ import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq

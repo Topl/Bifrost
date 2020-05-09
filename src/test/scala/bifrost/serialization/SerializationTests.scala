@@ -1,7 +1,7 @@
 package bifrost.serialization
 
 import bifrost.block.{Block, BlockCompanion}
-import bifrost.program.ExecutionBuilder
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box._

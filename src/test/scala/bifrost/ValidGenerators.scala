@@ -3,7 +3,7 @@ package bifrost
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.program._
+import bifrost.program.{ExecutionBuilderCompanion, _}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.box.{PublicKeyNoncedBox, _}
@@ -12,7 +12,6 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

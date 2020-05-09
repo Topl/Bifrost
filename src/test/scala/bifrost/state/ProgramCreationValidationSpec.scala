@@ -13,8 +13,8 @@ import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.ProgramCreation
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
 import bifrost.crypto.PrivateKey25519Companion
+import bifrost.program.ExecutionBuilderCompanion
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}

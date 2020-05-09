@@ -3,6 +3,7 @@ package bifrost.transaction.serialization
 import java.util.UUID
 
 import bifrost.crypto.Signature25519
+import bifrost.program.ExecutionBuilderCompanion
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.ProgramCreation
