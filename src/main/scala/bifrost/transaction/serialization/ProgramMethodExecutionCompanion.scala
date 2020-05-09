@@ -2,10 +2,10 @@ package bifrost.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction
+import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
-import bifrost.transaction.box.{CodeBox, CodeBoxSerializer, ExecutionBox, ExecutionBoxSerializer, StateBox, StateBoxSerializer}
+import bifrost.transaction.box._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
