@@ -20,7 +20,6 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
-import scorex.testkit.CoreGenerators
 
 import scala.util.{Random, Try}
 
