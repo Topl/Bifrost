@@ -6,7 +6,6 @@ import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
