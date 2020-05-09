@@ -19,7 +19,7 @@ import org.scalatest.{Matchers, PropSpec}
 import bifrost.transaction.bifrostTransaction._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
 

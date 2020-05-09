@@ -19,7 +19,7 @@ import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreproce
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

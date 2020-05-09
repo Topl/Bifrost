@@ -9,7 +9,7 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.version.ApplicationVersion
 import bifrost.network.message.BasicMsgDataTypes._
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.signatures.Curve25519
 
 //Generators of objects from scorex-core

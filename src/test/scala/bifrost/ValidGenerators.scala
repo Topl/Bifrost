@@ -13,7 +13,7 @@ import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
