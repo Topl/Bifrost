@@ -7,16 +7,16 @@ import bifrost.history.BifrostHistory
 import bifrost.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
+import bifrost.scorexMod.{GenericBoxMinimalState, GenericMinimalState, GenericStateChanges}
 import bifrost.transaction.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistry
+import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

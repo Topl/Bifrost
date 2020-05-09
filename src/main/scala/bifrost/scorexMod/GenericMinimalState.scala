@@ -5,7 +5,7 @@ package bifrost.scorexMod
   */
 
 import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.state.MinimalState.VersionTag
+import GenericMinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.transaction.bifrostTransaction.Transaction
 
