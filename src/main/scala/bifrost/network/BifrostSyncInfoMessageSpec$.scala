@@ -1,10 +1,9 @@
-package bifrost
+package bifrost.network
 
 import bifrost.modifier.block.Block
 import bifrost.NodeViewModifier
-import bifrost.serialization.Serializer
 import bifrost.network.message.SyncInfoMessageSpec
-import bifrost.network.SyncInfo
+import bifrost.serialization.Serializer
 
 import scala.util.Try
 
