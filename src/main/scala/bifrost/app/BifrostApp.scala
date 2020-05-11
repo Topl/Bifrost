@@ -1,24 +1,23 @@
-package bifrost
+package bifrost.app
 
-
-import akka.actor.{ActorRef, Props}
-import bifrost.api.http._
-import bifrost.modifier.block.Block
-import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.BifrostSyncInfoMessageSpec
-import bifrost.network.BifrostNodeViewSynchronizer
-import bifrost.scorexMod.GenericApplication
-import modifier.box.BifrostBox
-import io.circe
-import bifrost.api.http.{ApiRoute, UtilsApiRoute}
-import bifrost.network.message.MessageSpec
-import modifier.box.proposition.ProofOfKnowledgeProposition
 import java.lang.management.ManagementFactory
 
+import akka.actor.{ActorRef, Props}
+import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
+import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
+import bifrost.forging.{Forger, ForgingSettings}
+import bifrost.history.BifrostSyncInfoMessageSpec
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.network.BifrostNodeViewSynchronizer
+import bifrost.network.message.MessageSpec
+import bifrost.scorexMod.GenericApplication
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe
 import kamon.Kamon
 
 import scala.reflect.runtime.universe._

@@ -1,6 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.BifrostApp
+import bifrost.app.BifrostApp
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.settings.Settings
