@@ -7,7 +7,7 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
+import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
 import bifrost.wallet.BWallet
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -18,7 +18,7 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
-import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 

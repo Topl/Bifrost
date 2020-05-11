@@ -4,8 +4,8 @@ import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import modifier.box.proposition.PublicKey25519Proposition
-import modifier.box.{ArbitBox, BifrostBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{ArbitBox, BifrostBox}
 import bifrost.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}

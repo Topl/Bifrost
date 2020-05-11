@@ -6,13 +6,13 @@ import java.util.UUID
 import bifrost.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.ProgramCreation
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.program.ExecutionBuilderCompanion
 import scorex.crypto.signatures.Curve25519

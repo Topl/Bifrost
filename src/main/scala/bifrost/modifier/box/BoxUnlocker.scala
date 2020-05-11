@@ -1,7 +1,7 @@
-package modifier.box
+package bifrost.modifier.box
 
 import bifrost.crypto.Proof
-import modifier.box.proposition.Proposition
+import bifrost.modifier.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 trait BoxUnlocker[+P <: Proposition] {

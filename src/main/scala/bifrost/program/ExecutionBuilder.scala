@@ -1,6 +1,6 @@
 package bifrost.program
 
-import modifier.box.StateBox
+import bifrost.modifier.box.StateBox
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 

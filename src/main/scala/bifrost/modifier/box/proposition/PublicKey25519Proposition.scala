@@ -1,4 +1,4 @@
-package modifier.box.proposition
+package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519

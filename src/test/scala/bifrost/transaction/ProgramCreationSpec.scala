@@ -9,7 +9,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.util.Success
 

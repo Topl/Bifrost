@@ -11,7 +11,7 @@ import bifrost.network.NetworkController.DataFromPeer
 import bifrost.network._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import modifier.box.proposition.ProofOfKnowledgeProposition
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

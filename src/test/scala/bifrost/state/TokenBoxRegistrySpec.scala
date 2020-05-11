@@ -7,8 +7,8 @@ import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.state.BifrostStateSpec.gw
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
-import modifier.box.ArbitBox
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.Signature25519
 import com.google.common.primitives.Ints

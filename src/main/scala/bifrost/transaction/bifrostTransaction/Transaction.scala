@@ -3,7 +3,7 @@ package bifrost.transaction.bifrostTransaction
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
-import modifier.box.proposition.Proposition
+import bifrost.modifier.box.proposition.Proposition
 
 
 /**

@@ -1,6 +1,6 @@
 package bifrost.block
 
-import modifier.box.{ArbitBox, BifrostBoxSerializer}
+import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -10,7 +10,7 @@ import bifrost.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import modifier.box.proposition.ProofOfKnowledgeProposition
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

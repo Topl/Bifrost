@@ -4,8 +4,8 @@ import bifrost.block.{Block, BlockCompanion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.transaction.bifrostTransaction._
-import modifier.box._
-import modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}

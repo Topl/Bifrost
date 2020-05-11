@@ -4,8 +4,8 @@ import java.util.UUID
 
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.forging.ForgingSettings
-import modifier.box.StateBox
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.StateBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe

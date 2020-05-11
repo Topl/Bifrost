@@ -4,10 +4,10 @@
 //
 //import bifrost.blocks.Block
 //import bifrost.transaction.bifrostTransaction.AssetRedemption
-//import modifier.box._
+//import bifrost.modifier.box._
 //import com.google.common.primitives.Ints
 //import io.iohk.iodb.ByteArrayWrapper
-//import modifier.box.proposition.PublicKey25519Proposition
+//import bifrost.modifier.box.proposition.PublicKey25519Proposition
 //import bifrost.crypto.Signature25519
 //import scorex.crypto.signatures.Curve25519
 //

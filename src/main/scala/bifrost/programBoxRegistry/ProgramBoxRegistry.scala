@@ -9,7 +9,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.state.BifrostState.GSC
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import modifier.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
+import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58

@@ -5,13 +5,13 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import modifier.box.BifrostBox
+import bifrost.modifier.box.BifrostBox
 import bifrost.wallet.BWallet
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction._
-import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._

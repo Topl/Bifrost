@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
-import modifier.box.BifrostBox
+import bifrost.modifier.box.BifrostBox
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58

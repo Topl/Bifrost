@@ -3,8 +3,8 @@ package bifrost.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.ProgramTransfer
-import modifier.box.{ExecutionBox, ExecutionBoxSerializer}
-import modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.modifier.box.{ExecutionBox, ExecutionBoxSerializer}
+import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 

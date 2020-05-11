@@ -2,7 +2,7 @@ package bifrost.scorexMod
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import bifrost.serialization.{BytesSerializable, Serializer}
-import modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.crypto.Secret
 import bifrost.transaction.bifrostTransaction.Transaction

@@ -5,8 +5,8 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519
 import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import modifier.box._
-import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs

@@ -6,7 +6,7 @@ import java.util.UUID
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.forging.ForgingSettings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import modifier.box.StateBox
+import bifrost.modifier.box.StateBox
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.utils.Logging

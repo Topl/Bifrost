@@ -2,11 +2,11 @@ package bifrost.state
 
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.transaction.bifrostTransaction.ProgramCreation
-import modifier.box.BifrostBox
-import modifier.box.PolyBox
+import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.PolyBox
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 class ProgramSpec extends PropSpec
   with PropertyChecks

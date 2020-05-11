@@ -7,8 +7,8 @@ import bifrost.api.http.ProgramApiRoute
 import bifrost.block.Block
 import bifrost.crypto.Signature25519
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import modifier.box.ArbitBox
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58

@@ -5,7 +5,7 @@ import java.time.Instant
 import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.transaction._
-import modifier.box._
+import bifrost.modifier.box._
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.scorexMod.GenericMinimalState
@@ -14,7 +14,7 @@ import io.circe
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path

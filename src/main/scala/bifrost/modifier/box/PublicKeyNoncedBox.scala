@@ -1,7 +1,7 @@
-package modifier.box
+package bifrost.modifier.box
 
 import bifrost.crypto.FastCryptographicHash
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 
 trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends Box[PKP] {

@@ -9,8 +9,8 @@ import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
-import modifier.box.ArbitBox
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}

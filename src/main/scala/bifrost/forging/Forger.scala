@@ -8,12 +8,12 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import modifier.box.ArbitBox
+import bifrost.modifier.box.ArbitBox
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
 import bifrost.LocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
-import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global

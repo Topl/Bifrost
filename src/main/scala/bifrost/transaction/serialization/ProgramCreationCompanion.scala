@@ -7,7 +7,7 @@ import bifrost.program.ExecutionBuilderCompanion
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.ProgramCreation
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try

@@ -1,7 +1,7 @@
 package bifrost.transaction.bifrostTransaction
 
-import modifier.box.{Box, BoxUnlocker}
-import modifier.box.proposition.Proposition
+import bifrost.modifier.box.{Box, BoxUnlocker}
+import bifrost.modifier.box.proposition.Proposition
 import com.google.common.primitives.Longs
 
 

@@ -5,8 +5,8 @@ import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
-import modifier.box._
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
 import io.circe.parser.parse

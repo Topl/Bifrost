@@ -1,4 +1,4 @@
-package modifier.box
+package bifrost.modifier.box
 
 import java.util.UUID
 
@@ -9,7 +9,7 @@ import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._
 import bifrost.serialization.Serializer
-import modifier.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

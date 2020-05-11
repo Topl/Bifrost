@@ -14,13 +14,13 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
-import modifier.box.{ArbitBox, AssetBox}
+import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58

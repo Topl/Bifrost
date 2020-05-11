@@ -1,7 +1,7 @@
 package bifrost.crypto
 
 import bifrost.serialization.Serializer
-import modifier.box.proposition.{Proposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{Proposition, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

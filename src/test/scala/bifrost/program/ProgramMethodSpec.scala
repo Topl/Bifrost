@@ -2,7 +2,7 @@ package bifrost.program
 
 import java.util.UUID
 
-import modifier.box.{CodeBox, StateBox}
+import bifrost.modifier.box.{CodeBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._

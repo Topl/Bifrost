@@ -1,9 +1,9 @@
-package modifier.box
+package bifrost.modifier.box
 
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
 
 /**
