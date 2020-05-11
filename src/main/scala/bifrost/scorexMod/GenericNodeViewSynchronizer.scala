@@ -3,7 +3,7 @@ package bifrost.scorexMod
 import akka.actor.{Actor, ActorRef}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.{History, SyncInfo}
+import bifrost.consensus.History
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network._
 import bifrost.network.message.BasicMsgDataTypes._

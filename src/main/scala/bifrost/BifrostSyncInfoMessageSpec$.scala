@@ -2,9 +2,9 @@ package bifrost
 
 import bifrost.modifier.block.Block
 import bifrost.NodeViewModifier
-import bifrost.consensus.SyncInfo
 import bifrost.serialization.Serializer
 import bifrost.network.message.SyncInfoMessageSpec
+import bifrost.network.SyncInfo
 
 import scala.util.Try
 

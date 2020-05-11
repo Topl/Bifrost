@@ -5,9 +5,9 @@ import bifrost.history.BifrostHistory
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.History.HistoryComparisonResult
-import bifrost.consensus.{History, SyncInfo}
+import bifrost.consensus.History
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import bifrost.network.ConnectedPeer
+import bifrost.network.{ConnectedPeer, SyncInfo}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition

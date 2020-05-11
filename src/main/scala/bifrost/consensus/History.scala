@@ -5,6 +5,7 @@ import bifrost.{NodeViewComponent, NodeViewModifier}
 import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.network.SyncInfo
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
