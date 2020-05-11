@@ -10,7 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.programBoxRegistry.ProgramBoxRegistry
+import bifrost.state.ProgramBoxRegistry
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}

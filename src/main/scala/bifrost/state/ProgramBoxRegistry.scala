@@ -1,17 +1,15 @@
-package bifrost.programBoxRegistry
+package bifrost.state
 
 import java.io.File
 import java.util.UUID
 
-import bifrost.NodeViewModifier.ModifierId
 import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.scorexMod.GenericMinimalState.VersionTag
-import bifrost.state.BifrostState.GSC
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.utils.Logging
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

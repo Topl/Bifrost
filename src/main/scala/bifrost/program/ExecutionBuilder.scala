@@ -36,5 +36,9 @@ object ExecutionBuilder {
   } yield {
     ExecutionBuilder(terms, assetCode, core)
   }
+
+  def validate(a: ExecutionBuilder): Try[Unit] = Try {
+
+  }
 }
 

@@ -11,7 +11,6 @@ import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxRegistry
 import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
