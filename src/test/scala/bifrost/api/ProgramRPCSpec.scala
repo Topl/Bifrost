@@ -25,7 +25,7 @@ import org.scalatest.{Matchers, WordSpec}
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await

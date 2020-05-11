@@ -1,7 +1,7 @@
 package bifrost.state
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.box.BifrostBox
 import bifrost.modifier.box.PolyBox
 import org.scalatest.{Matchers, PropSpec}

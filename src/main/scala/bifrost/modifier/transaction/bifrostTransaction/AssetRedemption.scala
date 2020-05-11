@@ -1,7 +1,7 @@
-package bifrost.transaction.bifrostTransaction
+package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, BifrostBox, PublicKeyNoncedBox}
 import bifrost.transaction.serialization.AssetRedemptionCompanion

@@ -2,7 +2,7 @@ package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
 import bifrost.transaction._
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer, PolyTransfer, TransferTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer, PolyTransfer, TransferTransaction}
 import com.google.common.primitives.Ints
 
 import scala.util.Try

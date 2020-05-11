@@ -1,7 +1,7 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.PolyTransfer
+import bifrost.modifier.transaction.bifrostTransaction.PolyTransfer
 import com.google.common.primitives.Ints
 
 import scala.util.Try

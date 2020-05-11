@@ -8,7 +8,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.scorexMod.GenericMinimalState.VersionTag
 import bifrost.state.BifrostState.GSC
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.utils.Logging

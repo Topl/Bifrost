@@ -10,7 +10,7 @@ import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}
 import bifrost.network.NetworkController.DataFromPeer
 import bifrost.network._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 
 import scala.concurrent.ExecutionContext.Implicits.global

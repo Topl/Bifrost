@@ -1,7 +1,7 @@
 package bifrost.block
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519

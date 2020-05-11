@@ -1,7 +1,7 @@
 package bifrost.wallet
 
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.Proposition
 
 import scala.util.Try

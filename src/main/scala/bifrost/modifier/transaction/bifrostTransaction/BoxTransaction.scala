@@ -1,4 +1,4 @@
-package bifrost.transaction.bifrostTransaction
+package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.modifier.box.{Box, BoxUnlocker}
 import bifrost.modifier.box.proposition.Proposition

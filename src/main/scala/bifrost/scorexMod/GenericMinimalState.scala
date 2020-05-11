@@ -7,7 +7,7 @@ package bifrost.scorexMod
 import bifrost.modifier.box.proposition.Proposition
 import GenericMinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 
 import scala.util.Try
 

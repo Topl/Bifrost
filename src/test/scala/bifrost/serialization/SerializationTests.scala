@@ -3,7 +3,7 @@ package bifrost.serialization
 import bifrost.block.{Block, BlockCompanion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
-import bifrost.transaction.bifrostTransaction._
+import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.transaction.serialization._

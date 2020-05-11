@@ -3,7 +3,7 @@ package bifrost.consensus
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.{NodeViewComponent, NodeViewModifier}
 import bifrost.PersistentNodeViewModifier
-import bifrost.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 

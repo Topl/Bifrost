@@ -2,9 +2,9 @@ package bifrost.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.modifier.transaction.bifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints}

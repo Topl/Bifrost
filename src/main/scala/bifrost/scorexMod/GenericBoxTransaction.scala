@@ -1,6 +1,6 @@
 package bifrost.scorexMod
 
-import bifrost.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import com.google.common.primitives.Longs
 import bifrost.modifier.box.proposition.Proposition
 

@@ -12,7 +12,7 @@ import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.iohk.iodb.ByteArrayWrapper

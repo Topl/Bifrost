@@ -11,7 +11,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 import bifrost.{LocalInterface, NodeViewModifier}
-import bifrost.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable

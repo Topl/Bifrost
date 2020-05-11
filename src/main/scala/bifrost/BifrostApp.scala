@@ -16,7 +16,7 @@ import modifier.box.proposition.ProofOfKnowledgeProposition
 import java.lang.management.ManagementFactory
 
 import bifrost.crypto.PrivateKey25519
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon

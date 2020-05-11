@@ -6,7 +6,7 @@ import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.state.BifrostStateSpec.gw
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}

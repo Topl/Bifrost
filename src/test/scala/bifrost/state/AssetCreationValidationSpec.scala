@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.transaction.bifrostTransaction.AssetCreation
+import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
 import bifrost.modifier.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper

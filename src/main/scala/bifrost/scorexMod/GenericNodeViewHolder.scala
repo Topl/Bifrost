@@ -9,7 +9,7 @@ import bifrost.consensus.{History, SyncInfo}
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
 import bifrost.network.ConnectedPeer
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}

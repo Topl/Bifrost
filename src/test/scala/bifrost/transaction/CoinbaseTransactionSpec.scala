@@ -4,7 +4,7 @@ import bifrost.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.PrivateKey25519
 import bifrost.state.{BifrostState, BifrostStateSpec}
-import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import bifrost.modifier.box.ArbitBox
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}

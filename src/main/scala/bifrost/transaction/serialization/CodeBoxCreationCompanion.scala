@@ -2,7 +2,7 @@ package bifrost.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.CodeCreation
+import bifrost.modifier.transaction.bifrostTransaction.CodeCreation
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519

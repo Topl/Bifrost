@@ -1,11 +1,11 @@
-package bifrost.transaction.bifrostTransaction
+package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.{BifrostBox, ExecutionBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.ProgramTransferCompanion

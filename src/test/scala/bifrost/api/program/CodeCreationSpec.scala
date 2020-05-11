@@ -6,7 +6,7 @@ import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
 import bifrost.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse

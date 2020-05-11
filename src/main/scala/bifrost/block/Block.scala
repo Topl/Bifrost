@@ -9,7 +9,7 @@ import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.transaction.serialization.BifrostTransactionCompanion
 import scorex.crypto.encode.Base58

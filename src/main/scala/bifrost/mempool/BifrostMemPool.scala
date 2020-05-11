@@ -2,7 +2,7 @@ package bifrost.mempool
 
 import io.iohk.iodb.ByteArrayWrapper
 import bifrost.NodeViewModifier.ModifierId
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.utils.Logging
 
 import scala.collection.concurrent.TrieMap

@@ -6,7 +6,7 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.LocalInterface
 import bifrost.crypto.PrivateKey25519
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import modifier.box.proposition.ProofOfKnowledgeProposition
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)

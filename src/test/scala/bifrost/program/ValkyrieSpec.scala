@@ -3,7 +3,7 @@ package bifrost.program
 import java.time.Instant
 import java.util
 
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
 import bifrost.modifier.box.{ArbitBox, AssetBox, BifrostBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import org.graalvm.polyglot.{Context, Instrument}

@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.block.Block.Version
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try
 

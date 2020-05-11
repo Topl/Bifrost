@@ -4,7 +4,7 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}

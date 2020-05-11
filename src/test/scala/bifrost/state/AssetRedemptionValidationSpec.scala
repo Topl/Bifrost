@@ -3,7 +3,7 @@
 //import java.time.Instant
 //
 //import bifrost.blocks.Block
-//import bifrost.transaction.bifrostTransaction.AssetRedemption
+//import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
 //import bifrost.modifier.box._
 //import com.google.common.primitives.Ints
 //import io.iohk.iodb.ByteArrayWrapper

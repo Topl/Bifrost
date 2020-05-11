@@ -1,4 +1,4 @@
-package bifrost.transaction.bifrostTransaction
+package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier._

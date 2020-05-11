@@ -1,7 +1,7 @@
 package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.AssetTransfer
+import bifrost.modifier.transaction.bifrostTransaction.AssetTransfer
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.Ints
 

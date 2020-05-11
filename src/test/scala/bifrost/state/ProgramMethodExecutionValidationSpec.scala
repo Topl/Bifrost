@@ -10,7 +10,7 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
