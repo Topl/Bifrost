@@ -5,6 +5,7 @@ import bifrost.serialization.{BytesSerializable, Serializer}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.crypto.Secret
+import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58

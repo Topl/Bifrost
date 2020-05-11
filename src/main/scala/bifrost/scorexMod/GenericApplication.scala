@@ -10,6 +10,7 @@ import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.settings.Settings
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.box.GenericBox
 import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global

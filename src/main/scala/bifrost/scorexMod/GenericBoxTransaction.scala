@@ -3,6 +3,7 @@ package bifrost.scorexMod
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import com.google.common.primitives.Longs
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.box.GenericBox
 
 /**
   * Created by cykoz on 4/13/17.

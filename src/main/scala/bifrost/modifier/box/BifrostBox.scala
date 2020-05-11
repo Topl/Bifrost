@@ -4,7 +4,6 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
-import bifrost.scorexMod.GenericBox
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser._
 import io.circe.syntax._

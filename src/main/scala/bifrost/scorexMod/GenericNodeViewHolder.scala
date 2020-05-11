@@ -13,6 +13,7 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.mempool.MemoryPool
+import bifrost.modifier.box.GenericBox
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
