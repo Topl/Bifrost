@@ -1,10 +1,10 @@
-package modifier.box.proposition
+package bifrost.transaction.proposition
 
 import bifrost.BifrostGenerators
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import modifier.box.proposition.MofNProposition
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.crypto.PrivateKey25519Companion
+import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 
 class MofNPropositionSpec extends PropSpec
   with PropertyChecks
