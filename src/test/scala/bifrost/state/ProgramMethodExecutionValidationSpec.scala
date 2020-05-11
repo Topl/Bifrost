@@ -10,6 +10,7 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.state.ProgramBoxRegistry
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
@@ -30,7 +31,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
-  val pbr = ProgramBoxRegistryOld.readOrGenerate(forgingSettings)
+  //val pbr = ProgramBoxRegistry.readOrGenerate(forgingSettings)
 
   //noinspection ScalaStyle
   /*def arbitraryPartyProgramMethodExecutionGen(num: Int, numInProgram: Int): Gen[ProgramMethodExecution] = for {
