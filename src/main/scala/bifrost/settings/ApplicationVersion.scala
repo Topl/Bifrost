@@ -1,7 +1,7 @@
-package bifrost.app
+package bifrost.settings
 
-import com.google.common.primitives.Ints
 import bifrost.serialization.{BytesSerializable, Serializer}
+import com.google.common.primitives.Ints
 
 import scala.util.Try
 

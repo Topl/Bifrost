@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 
 import io.circe.Json
 import io.circe.parser.parse
-import bifrost.app.ApplicationVersion
 import bifrost.modifier.box.proposition.Constants25519._
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
