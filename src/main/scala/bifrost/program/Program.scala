@@ -84,7 +84,7 @@ object Program {
     }
 
     new Program(
-      parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
+      parties, //TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("executionBuilder")

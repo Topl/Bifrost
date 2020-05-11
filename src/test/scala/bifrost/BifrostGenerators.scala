@@ -177,8 +177,6 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen(2).map(PiecewiseLinearMultiple)
-
   def seqLongDoubleGen(minLength: Int): Gen[Seq[(Long, Double)]] = for {
     seqLen <- Gen.choose(minLength, minLength + sampleUntilNonEmpty(positiveTinyIntGen))
   } yield {
@@ -265,12 +263,6 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     a
   }
-
-  lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen)).map(seq => {
-    val first: Double = samplePositiveDouble / 2
-    val second: Double = samplePositiveDouble / 2
-    PiecewiseLinearMultiple((0.0, (first, second, 1 - first - second)) +: seq)
-  })
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
     size <- Gen.choose(1, 1024-1)
