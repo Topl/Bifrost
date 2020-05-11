@@ -7,6 +7,7 @@ package bifrost.scorexMod
 import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
+import bifrost.modifier.transaction.GenericBoxTransaction
 
 import scala.util.Try
 

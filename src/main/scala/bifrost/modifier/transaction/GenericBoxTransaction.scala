@@ -1,9 +1,9 @@
-package bifrost.scorexMod
+package bifrost.modifier.transaction
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import com.google.common.primitives.Longs
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import com.google.common.primitives.Longs
 
 /**
   * Created by cykoz on 4/13/17.

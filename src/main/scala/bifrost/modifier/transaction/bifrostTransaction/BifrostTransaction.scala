@@ -1,7 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.scorexMod.GenericBoxTransaction
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box._
@@ -9,6 +8,7 @@ import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey2
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import bifrost.BifrostApp
+import bifrost.modifier.transaction.GenericBoxTransaction
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
