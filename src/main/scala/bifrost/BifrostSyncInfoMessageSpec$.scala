@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.NodeViewModifier
 import bifrost.consensus.SyncInfo
 import bifrost.serialization.Serializer

@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}

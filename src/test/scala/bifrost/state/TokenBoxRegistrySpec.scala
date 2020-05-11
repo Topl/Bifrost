@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.state.BifrostStateSpec.gw
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}

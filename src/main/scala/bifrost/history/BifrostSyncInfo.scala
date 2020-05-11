@@ -1,6 +1,6 @@
 package bifrost.history
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import com.google.common.primitives.Longs
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}

@@ -16,7 +16,7 @@ import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.ArbitBox

@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 //import org.openjdk.jmh.infra.Blackhole
 //import bifrost.forging.ForgingSettings
-import bifrost.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.BifrostGenerators
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.history._

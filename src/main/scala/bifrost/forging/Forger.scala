@@ -3,7 +3,7 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
@@ -19,7 +19,7 @@ import bifrost.utils.Logging
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import akka.util.Timeout
-import bifrost.block.Block.Version
+import bifrost.modifier.block.Block.Version
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 

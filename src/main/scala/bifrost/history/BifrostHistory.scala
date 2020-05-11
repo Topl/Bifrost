@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.block.{Block, BlockValidator, Bloom}
+import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.forging.ForgingSettings
 import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}

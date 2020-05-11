@@ -2,7 +2,7 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.transaction._
 import bifrost.modifier.box._

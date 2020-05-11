@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.ArbitBox

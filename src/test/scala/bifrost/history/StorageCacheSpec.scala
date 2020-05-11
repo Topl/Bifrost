@@ -2,7 +2,7 @@ package bifrost.history
 
 
 import bifrost.BifrostGenerators
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatest.{Matchers, PropSpec}

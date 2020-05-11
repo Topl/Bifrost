@@ -1,4 +1,4 @@
-package bifrost.block
+package bifrost.modifier.block
 
 import scorex.crypto.hash.Keccak256
 

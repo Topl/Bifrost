@@ -1,6 +1,6 @@
 package bifrost.history
 
-import bifrost.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import com.typesafe.config.Config
 import com.google.common.primitives.Longs

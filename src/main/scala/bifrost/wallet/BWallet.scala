@@ -3,7 +3,7 @@ package bifrost.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState

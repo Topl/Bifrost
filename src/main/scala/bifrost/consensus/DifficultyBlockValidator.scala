@@ -1,6 +1,6 @@
 package bifrost.consensus
 
-import bifrost.block.{Block, BlockValidator}
+import bifrost.modifier.block.{Block, BlockValidator}
 import bifrost.forging.Forger
 import bifrost.history.BifrostStorage
 

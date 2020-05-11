@@ -1,7 +1,7 @@
 package bifrost
 
 import akka.actor.ActorRef
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.LocalInterface

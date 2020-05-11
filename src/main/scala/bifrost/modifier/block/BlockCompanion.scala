@@ -1,4 +1,4 @@
-package bifrost.block
+package bifrost.modifier.block
 
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction

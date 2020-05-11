@@ -4,7 +4,7 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}

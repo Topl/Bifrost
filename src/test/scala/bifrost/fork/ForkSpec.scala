@@ -3,7 +3,7 @@ package bifrost.fork
 
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings

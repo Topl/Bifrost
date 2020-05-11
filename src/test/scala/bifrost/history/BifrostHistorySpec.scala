@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.BifrostGenerators
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.{Matchers, PropSpec}

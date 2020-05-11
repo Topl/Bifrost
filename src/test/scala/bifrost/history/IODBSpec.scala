@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}

@@ -1,6 +1,6 @@
 package bifrost.serialization
 
-import bifrost.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.modifier.transaction.bifrostTransaction._

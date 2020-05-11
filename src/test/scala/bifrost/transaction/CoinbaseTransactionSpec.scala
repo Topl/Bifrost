@@ -1,6 +1,6 @@
 package bifrost.transaction
 
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.PrivateKey25519
 import bifrost.state.{BifrostState, BifrostStateSpec}

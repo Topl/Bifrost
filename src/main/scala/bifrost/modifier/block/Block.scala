@@ -1,4 +1,4 @@
-package bifrost.block
+package bifrost.modifier.block
 
 import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -6,7 +6,7 @@ import io.circe.Json
 import io.circe.syntax._
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.block.Block._
+import bifrost.modifier.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction

@@ -3,7 +3,7 @@ package bifrost
 
 import akka.actor.{ActorRef, Props}
 import bifrost.api.http._
-import bifrost.block.Block
+import bifrost.modifier.block.Block
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer

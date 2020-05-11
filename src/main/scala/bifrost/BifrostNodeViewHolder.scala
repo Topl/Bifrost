@@ -1,6 +1,6 @@
 package bifrost
 
-import bifrost.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostSyncInfo}
 import bifrost.mempool.BifrostMemPool
