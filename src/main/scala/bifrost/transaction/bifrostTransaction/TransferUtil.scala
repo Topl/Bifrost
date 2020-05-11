@@ -69,7 +69,7 @@ trait TransferUtil {
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
-          val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[BifrostNoncedBox] = txType match {
             case "PolyTransfer" =>
               keyFilteredBoxes.flatMap(_ match {
                 case p: PolyBox => Some(p)
@@ -149,7 +149,7 @@ trait TransferUtil {
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
-          val keyAndTypeFilteredBoxes: Seq[BifrostPublic25519NoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[BifrostNoncedBox] = txType match {
             case "PolyTransfer" =>
               keyFilteredBoxes.flatMap(_ match {
                 case p: PolyBox => Some(p)

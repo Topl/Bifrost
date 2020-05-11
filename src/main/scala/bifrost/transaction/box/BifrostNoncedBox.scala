@@ -10,13 +10,13 @@ import scorex.crypto.encode.Base58
   * Created by cykoz on 5/15/2017.
   */
 
-abstract class BifrostPublic25519NoncedBox(override val proposition: PublicKey25519Proposition,
-                                           override val nonce: Long,
-                                           override val value: Long) extends BifrostBox(proposition, nonce, value) {
+abstract class BifrostNoncedBox(override val proposition: PublicKey25519Proposition,
+                                override val nonce: Long,
+                                override val value: Long) extends BifrostBox(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
-  lazy val typeOfBox: String = "BifrostPublic25519NoncedBox"
+  lazy val typeOfBox: String = "BifrostNoncedBox"
 
   lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
@@ -30,7 +30,7 @@ abstract class BifrostPublic25519NoncedBox(override val proposition: PublicKey25
 
 trait NoncedBoxSerializer {
 
-  def noncedBoxToBytes(obj: BifrostPublic25519NoncedBox, boxType: String): Array[Byte] = {
+  def noncedBoxToBytes(obj: BifrostNoncedBox, boxType: String): Array[Byte] = {
     Bytes.concat(
       Ints.toByteArray(boxType.getBytes.length),
       boxType.getBytes,

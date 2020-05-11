@@ -76,7 +76,7 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
 
 case class PolyBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,
-                   override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {
+                   override val value: Long) extends BifrostNoncedBox(proposition, nonce, value) {
   override lazy val typeOfBox: String = "Poly"
 }
 
@@ -95,7 +95,7 @@ object PolyBoxSerializer extends Serializer[PolyBox] with NoncedBoxSerializer {
 
 case class ArbitBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
-                    override val value: Long) extends BifrostPublic25519NoncedBox(proposition, nonce, value) {
+                    override val value: Long) extends BifrostNoncedBox(proposition, nonce, value) {
   override lazy val typeOfBox: String = "Arbit"
 }
 
@@ -117,7 +117,7 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
                     amount: Long,
                     assetCode: String,
                     issuer: PublicKey25519Proposition,
-                    data: String) extends BifrostPublic25519NoncedBox(proposition, nonce, amount) {
+                    data: String) extends BifrostNoncedBox(proposition, nonce, amount) {
   override lazy val typeOfBox: String = "Asset"
 
   override lazy val json: Json = Map(
