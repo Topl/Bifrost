@@ -8,9 +8,9 @@ import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.programBoxRegistry.ProgramBoxRegistry
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
@@ -105,7 +105,7 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version3.version)
 
-    val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version3)
+    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version3, history.storage.storage).get
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
@@ -140,7 +140,7 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version0.version)
 
-    val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version0)
+    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
@@ -200,7 +200,7 @@ class ForkSpec extends PropSpec
 
         //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
 
-        val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version0)
+        val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new BifrostHistory(history.storage,

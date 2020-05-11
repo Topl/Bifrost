@@ -4,7 +4,6 @@ import java.io.File
 
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
