@@ -3,7 +3,6 @@ package bifrost.network
 import java.net.{InetAddress, InetSocketAddress}
 
 import com.google.common.primitives.{Ints, Longs}
-import bifrost.app.ApplicationVersionSerializer
 import bifrost.serialization.{BytesSerializable, Serializer}
 import bifrost.settings.{ApplicationVersion, ApplicationVersionSerializer}
 
