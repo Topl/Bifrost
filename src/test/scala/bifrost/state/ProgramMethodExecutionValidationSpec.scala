@@ -8,7 +8,6 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import bifrost.program.Program
 import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxRegistryOld
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import com.google.common.primitives.{Bytes, Ints, Longs}
