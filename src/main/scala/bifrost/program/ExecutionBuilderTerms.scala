@@ -47,10 +47,4 @@ object ExecutionBuilderTerms {
       ExecutionBuilderTerms(terms)
     }
   }
-
-
-  // def validate(terms: ExecutionBuilderTerms): Try[Unit] = Try {
-  //   require(terms.pledge > 0)
-  //   require(terms.xrate > 0)
-  // }
 }

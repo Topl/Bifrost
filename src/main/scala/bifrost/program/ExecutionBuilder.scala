@@ -36,11 +36,5 @@ object ExecutionBuilder {
   } yield {
     ExecutionBuilder(terms, assetCode, core)
   }
-
-  //def getStateBox: StateBox =
-
-  def validate(a: ExecutionBuilder): Try[Unit] = Try {
-
-  }
 }
 
