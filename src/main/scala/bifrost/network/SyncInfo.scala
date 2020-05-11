@@ -1,6 +1,6 @@
 package bifrost.network
 
-import bifrost.consensus.History
+import bifrost.history.History
 import bifrost.serialization.BytesSerializable
 
 /**

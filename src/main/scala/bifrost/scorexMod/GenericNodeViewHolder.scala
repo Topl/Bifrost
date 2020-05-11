@@ -1,11 +1,10 @@
 package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.history.BifrostHistory
+import bifrost.history.{BifrostHistory, History}
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.History.HistoryComparisonResult
-import bifrost.consensus.History
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
 import bifrost.network.{ConnectedPeer, SyncInfo}
 import bifrost.serialization.Serializer

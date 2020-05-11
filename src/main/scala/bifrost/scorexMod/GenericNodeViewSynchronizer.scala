@@ -3,7 +3,6 @@ package bifrost.scorexMod
 import akka.actor.{Actor, ActorRef}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.History
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network._
 import bifrost.network.message.BasicMsgDataTypes._
@@ -11,6 +10,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 import bifrost.{LocalInterface, NodeViewModifier}
+import bifrost.history.History
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
