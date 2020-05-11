@@ -5,8 +5,8 @@ import java.util.UUID
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import BifrostTransaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
+import modifier.box.proposition.PublicKey25519Proposition
+import modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
 import bifrost.transaction.serialization.ProgramCreationCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._

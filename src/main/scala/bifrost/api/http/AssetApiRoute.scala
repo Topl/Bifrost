@@ -13,8 +13,8 @@ import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
-import bifrost.transaction.box.AssetBox
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import modifier.box.AssetBox
+import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 

@@ -8,11 +8,11 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericApplication
-import bifrost.transaction.box.BifrostBox
+import modifier.box.BifrostBox
 import io.circe
 import bifrost.api.http.{ApiRoute, UtilsApiRoute}
 import bifrost.network.message.MessageSpec
-import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import modifier.box.proposition.ProofOfKnowledgeProposition
 import java.lang.management.ManagementFactory
 
 import bifrost.crypto.PrivateKey25519

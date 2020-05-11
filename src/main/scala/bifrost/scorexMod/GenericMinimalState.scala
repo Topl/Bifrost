@@ -4,7 +4,7 @@ package bifrost.scorexMod
   * Created by cykoz on 4/13/17.
   */
 
-import bifrost.transaction.box.proposition.Proposition
+import modifier.box.proposition.Proposition
 import GenericMinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.transaction.bifrostTransaction.Transaction

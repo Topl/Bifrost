@@ -1,7 +1,7 @@
 package bifrost.crypto
 
 import bifrost.serialization.BytesSerializable
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 
 /**
   * The most general abstraction of fact a prover can provide a non-interactive proof

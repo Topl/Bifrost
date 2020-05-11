@@ -7,7 +7,7 @@ import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.LocalInterface
 import bifrost.crypto.PrivateKey25519
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
+import modifier.box.proposition.ProofOfKnowledgeProposition
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
   extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block] {

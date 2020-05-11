@@ -1,7 +1,7 @@
 package bifrost.crypto
 
 import bifrost.serialization.Serializer
-import bifrost.transaction.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
+import modifier.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

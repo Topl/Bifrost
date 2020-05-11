@@ -1,8 +1,8 @@
-package bifrost.transaction.box
+package modifier.box
 
 import java.util.UUID
 
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58

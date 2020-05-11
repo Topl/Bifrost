@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.network.message.BasicMsgDataTypes.{InvData, ModifiersData}
 import bifrost.NodeViewModifier.ModifierId
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.version.ApplicationVersion
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.signatures.Curve25519

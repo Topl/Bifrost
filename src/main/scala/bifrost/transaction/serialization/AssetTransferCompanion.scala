@@ -2,7 +2,7 @@ package bifrost.transaction.serialization
 
 import bifrost.serialization.Serializer
 import bifrost.transaction.bifrostTransaction.AssetTransfer
-import bifrost.transaction.box.proposition.{Constants25519, PublicKey25519Proposition}
+import modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.Ints
 
 import scala.util.Try

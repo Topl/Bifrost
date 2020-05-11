@@ -9,7 +9,7 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.settings.Settings
-import bifrost.transaction.box.proposition.Proposition
+import modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global

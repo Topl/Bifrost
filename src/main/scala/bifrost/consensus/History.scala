@@ -4,7 +4,7 @@ import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.{NodeViewComponent, NodeViewModifier}
 import bifrost.PersistentNodeViewModifier
 import bifrost.transaction.bifrostTransaction.Transaction
-import bifrost.transaction.box.proposition.Proposition
+import modifier.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

@@ -1,4 +1,4 @@
-package bifrost.transaction.box.proposition
+package modifier.box.proposition
 
 import bifrost.BifrostGenerators
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}

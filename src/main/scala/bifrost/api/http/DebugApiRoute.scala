@@ -10,7 +10,7 @@ import bifrost.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

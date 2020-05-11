@@ -6,12 +6,12 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Co
 import bifrost.program.{ExecutionBuilderCompanion, _}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import bifrost.transaction.bifrostTransaction
-import bifrost.transaction.box.{PublicKeyNoncedBox, _}
+import modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

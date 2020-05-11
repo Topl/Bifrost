@@ -5,7 +5,7 @@ package bifrost.scorexMod
   */
 
 import bifrost.PersistentNodeViewModifier
-import bifrost.transaction.box.proposition.Proposition
+import modifier.box.proposition.Proposition
 
 import scala.util.Try
 

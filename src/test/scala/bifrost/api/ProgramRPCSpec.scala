@@ -14,7 +14,7 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.network.BifrostNodeViewSynchronizer
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.box._
+import modifier.box._
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints

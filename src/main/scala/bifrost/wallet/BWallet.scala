@@ -7,13 +7,13 @@ import bifrost.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNProposition
+import modifier.box._
+import modifier.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.settings.Settings
 import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58

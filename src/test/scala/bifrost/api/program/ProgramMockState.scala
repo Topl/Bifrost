@@ -16,8 +16,8 @@ import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSp
 import bifrost.network.peer.PeerManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58

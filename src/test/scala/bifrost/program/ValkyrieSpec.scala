@@ -4,8 +4,8 @@ import java.time.Instant
 import java.util
 
 import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
-import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.{ArbitBox, AssetBox, BifrostBox}
+import modifier.box.proposition.PublicKey25519Proposition
 import org.graalvm.polyglot.{Context, Instrument}
 import com.oracle.truffle.polyglot._
 import bifrost.{BifrostGenerators, ValidGenerators}

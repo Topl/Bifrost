@@ -8,8 +8,8 @@ import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistry
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box._
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.ProgramMethodExecutionCompanion
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Decoder, HCursor, Json}

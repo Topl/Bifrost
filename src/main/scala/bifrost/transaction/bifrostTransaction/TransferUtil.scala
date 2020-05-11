@@ -3,8 +3,8 @@ package bifrost.transaction.bifrostTransaction
 import BifrostTransaction.{Nonce, Value}
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.tokenBoxRegistry.TokenBoxRegistry
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box._
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs

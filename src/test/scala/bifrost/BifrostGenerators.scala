@@ -9,8 +9,8 @@ import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNProposition
+import modifier.box._
+import modifier.box.proposition.MofNProposition
 import io.circe
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
@@ -18,7 +18,7 @@ import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.{Random, Try}

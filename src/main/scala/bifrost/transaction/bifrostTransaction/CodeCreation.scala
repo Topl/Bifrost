@@ -6,8 +6,8 @@ import java.util.UUID
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.program.ProgramPreprocessor
 import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.{BifrostBox, CodeBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import modifier.box.{BifrostBox, CodeBox}
+import modifier.box.proposition.PublicKey25519Proposition
 import bifrost.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
