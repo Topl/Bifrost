@@ -185,8 +185,6 @@ trait BifrostGenerators extends CoreGenerators {
     (0 until seqLen) map { _ => (sampleUntilNonEmpty(positiveLongGen), samplePositiveDouble) }
   }
 
-  lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(2).map(PiecewiseLinearSingle)
-
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
@@ -273,9 +271,6 @@ trait BifrostGenerators extends CoreGenerators {
     val second: Double = samplePositiveDouble / 2
     PiecewiseLinearMultiple((0.0, (first, second, 1 - first - second)) +: seq)
   })
-
-  lazy val validFulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen))
-    .map(seq => PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq))
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
     size <- Gen.choose(1, 1024-1)
