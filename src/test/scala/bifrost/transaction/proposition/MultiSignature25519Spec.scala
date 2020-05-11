@@ -1,4 +1,4 @@
-package bifrost.transaction.proof
+package bifrost.transaction.proposition
 
 import bifrost.BifrostGenerators
 import bifrost.crypto.{MultiSignature25519, PrivateKey25519, PrivateKey25519Companion}
