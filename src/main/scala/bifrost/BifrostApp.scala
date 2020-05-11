@@ -1,9 +1,8 @@
-package bifrost.app
+package bifrost
 
 import java.lang.management.ManagementFactory
 
 import akka.actor.{ActorRef, Props}
-import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
 import bifrost.forging.{Forger, ForgingSettings}
