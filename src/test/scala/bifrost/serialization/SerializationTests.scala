@@ -6,7 +6,7 @@ import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.serialization._
+import bifrost.modifier.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}

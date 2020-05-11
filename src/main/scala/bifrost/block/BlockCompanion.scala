@@ -2,7 +2,7 @@ package bifrost.block
 
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.serialization.BifrostTransactionCompanion
+import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}

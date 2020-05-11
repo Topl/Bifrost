@@ -7,7 +7,7 @@ import BifrostTransaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
-import bifrost.transaction.serialization.ProgramCreationCompanion
+import bifrost.modifier.transaction.serialization.ProgramCreationCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}

@@ -8,7 +8,7 @@ import bifrost.program.ProgramPreprocessor
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.{BifrostBox, CodeBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.CodeBoxCreationCompanion
+import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Json, JsonObject}

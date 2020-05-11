@@ -11,7 +11,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.transaction.serialization.BifrostTransactionCompanion
+import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics

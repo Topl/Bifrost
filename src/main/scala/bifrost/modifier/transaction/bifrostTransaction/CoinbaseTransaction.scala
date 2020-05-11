@@ -6,7 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, BifrostBox}
-import bifrost.transaction.serialization.CoinbaseTransactionCompanion
+import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json

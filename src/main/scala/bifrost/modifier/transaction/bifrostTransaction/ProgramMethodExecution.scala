@@ -10,7 +10,7 @@ import bifrost.history.BifrostHistory
 import bifrost.programBoxRegistry.ProgramBoxRegistry
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.ProgramMethodExecutionCompanion
+import bifrost.modifier.transaction.serialization.ProgramMethodExecutionCompanion
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._

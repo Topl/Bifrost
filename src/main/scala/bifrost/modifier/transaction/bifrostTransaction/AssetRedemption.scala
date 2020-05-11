@@ -4,7 +4,7 @@ import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, BifrostBox, PublicKeyNoncedBox}
-import bifrost.transaction.serialization.AssetRedemptionCompanion
+import bifrost.modifier.transaction.serialization.AssetRedemptionCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._

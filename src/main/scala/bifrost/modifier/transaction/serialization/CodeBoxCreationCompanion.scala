@@ -1,4 +1,4 @@
-package bifrost.transaction.serialization
+package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer

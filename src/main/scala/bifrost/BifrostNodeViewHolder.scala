@@ -14,7 +14,7 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
 import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.serialization.BifrostTransactionCompanion
+import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
