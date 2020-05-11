@@ -7,12 +7,11 @@ import bifrost.{BifrostLocalInterface, BifrostNodeViewHolder}
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
 import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.BifrostBox
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.network.BifrostNodeViewSynchronizer
+import bifrost.network.{BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec}
 import bifrost.network.message.MessageSpec
 import bifrost.scorexMod.GenericApplication
 import com.sun.management.HotSpotDiagnosticMXBean

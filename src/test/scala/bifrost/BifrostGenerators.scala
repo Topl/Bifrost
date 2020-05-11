@@ -7,7 +7,7 @@ import java.util.UUID
 import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
+import bifrost.history.{BifrostHistory, BifrostStorage}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import modifier.box._
 import modifier.box.proposition.MofNProposition
@@ -18,6 +18,7 @@ import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.network.BifrostSyncInfo
 import modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 

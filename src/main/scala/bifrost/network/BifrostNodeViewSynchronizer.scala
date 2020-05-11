@@ -3,7 +3,7 @@ package bifrost.network
 import akka.actor.ActorRef
 import bifrost.BifrostNodeViewHolder
 import bifrost.crypto.PrivateKey25519
-import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
+import bifrost.history.BifrostSyncInfoMessageSpec
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo
 import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}

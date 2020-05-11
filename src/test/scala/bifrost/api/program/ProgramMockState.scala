@@ -9,9 +9,9 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
 import bifrost.forging.Forger
-import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
+import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostNodeViewSynchronizer, NetworkController, UPnP}
+import bifrost.network.{BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}

@@ -9,9 +9,9 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
-import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
+import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.BifrostNodeViewSynchronizer
+import bifrost.network.{BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box._
@@ -24,7 +24,6 @@ import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
-import bifrost.network.{NetworkController, UPnP}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import scorex.crypto.encode.Base58
 

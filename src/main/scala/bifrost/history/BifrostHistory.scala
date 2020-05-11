@@ -12,6 +12,7 @@ import bifrost.consensus.History.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.network.BifrostSyncInfo
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

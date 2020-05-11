@@ -2,7 +2,7 @@ package bifrost
 
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostSyncInfo}
+import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
@@ -16,6 +16,7 @@ import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTr
 import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.crypto.PrivateKey25519Companion
+import bifrost.network.BifrostSyncInfo
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

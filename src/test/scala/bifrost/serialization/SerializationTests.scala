@@ -2,12 +2,13 @@ package bifrost.serialization
 
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
+import bifrost.history.BifrostSyncInfoSerializer
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.modifier.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
