@@ -6,21 +6,19 @@ package bifrost.transaction
 
 import java.util.UUID
 
-import bifrost.program.ExecutionBuilder
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box.{CodeBox, ExecutionBox, StateBox}
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction._
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
 
@@ -188,7 +186,7 @@ class ProgramTransactionSpec extends PropSpec
         data.getBytes)
     val signature = PrivateKey25519Companion.sign(priv, messageToSign)
 
-    bifrostTransaction.ProgramMethodExecution(
+    ProgramMethodExecution(
       Seq(stateBox),
       Seq(codeBox),
       executionBox,

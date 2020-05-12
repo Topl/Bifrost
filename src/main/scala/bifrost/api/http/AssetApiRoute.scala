@@ -1,10 +1,7 @@
 package bifrost.api.http
 
-import java.time.Instant
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
@@ -13,19 +10,11 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.{
-  AssetCreation,
-  AssetRedemption,
-  AssetTransfer
-}
-import bifrost.transaction.box.AssetBox
-import bifrost.transaction.box.proposition.{
-  ProofOfKnowledgeProposition,
-  PublicKey25519Proposition
-}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
+import bifrost.modifier.box.AssetBox
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
@@ -33,9 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Created by cykoz on 7/3/2017.
-  */
+
 /** Class route for managing assets using JSON-RPC requests
   *
   * @param settings
@@ -57,7 +44,7 @@ case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: Act
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   val id = (request \\ "id").head.asString.get
@@ -82,9 +69,9 @@ case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,

@@ -2,9 +2,9 @@ package bifrost.api.http
 
 import java.security.SecureRandom
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.hash.FastCryptographicHash
+import bifrost.crypto.FastCryptographicHash
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.settings.Settings
@@ -35,7 +35,7 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
         postJsonRoute {
           var reqId = ""
           parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
+            case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
             case Right(request) =>
               val response: Try[Json] = Try {
                 val id = (request \\ "id").head.asString.get
@@ -51,9 +51,9 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
                 }
               }
               response match {
-                case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                case Success(resp) => SuccessResponse(resp, reqId)
                 case Failure(e) =>
-                  BifrostErrorResponse(
+                  ErrorResponse(
                     e,
                     500,
                     reqId,

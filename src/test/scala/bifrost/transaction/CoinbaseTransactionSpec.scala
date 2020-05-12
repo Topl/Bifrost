@@ -1,13 +1,13 @@
 package bifrost.transaction
 
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.PrivateKey25519
 import bifrost.state.{BifrostState, BifrostStateSpec}
-import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
-import bifrost.transaction.box.ArbitBox
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.box.ArbitBox
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.transaction.state.PrivateKey25519
 
 class CoinbaseTransactionSpec extends PropSpec
   with PropertyChecks
@@ -27,11 +27,11 @@ class CoinbaseTransactionSpec extends PropSpec
     val testPubKeyBytes = BifrostStateSpec.gw.secrets.head.publicKeyBytes
     val test25519 = PrivateKey25519(testPrivKeyBytes, testPubKeyBytes)
     val forgerBox = ArbitBox(test25519.publicImage, 123456789, 100)
-    val parentBlock = BifrostBlock.create(BifrostStateSpec.genesisBlockId, 10000L, Seq.empty[BifrostTransaction], forgerBox, test25519, 10, settings.version)
+    val parentBlock = Block.create(BifrostStateSpec.genesisBlockId, 10000L, Seq.empty[BifrostTransaction], forgerBox, test25519, 10, settings.version)
     preparedState.changes(parentBlock)
     BifrostStateSpec.history.append(parentBlock)
     val CB = CoinbaseTransaction.createAndApply(BifrostStateSpec.gw, IndexedSeq((test25519.publicImage, 666L)), parentBlock.id).get
-    val testBlock = BifrostBlock.create(parentBlock.id, 10001L, Seq(CB), forgerBox, test25519, 666, settings.version)
+    val testBlock = Block.create(parentBlock.id, 10001L, Seq(CB), forgerBox, test25519, 666, settings.version)
     preparedState.changes(testBlock)
     BifrostStateSpec.history.append(testBlock)
     preparedState.validate(CB).isSuccess shouldBe true

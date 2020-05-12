@@ -4,12 +4,12 @@ import java.net.InetAddress
 
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover}
 import bifrost.settings.Settings
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.JavaConversions._
 import scala.util.Try
 
-class UPnP(settings: Settings) extends ScorexLogging {
+class UPnP(settings: Settings) extends Logging {
 
   private var gateway: Option[GatewayDevice] = None
 

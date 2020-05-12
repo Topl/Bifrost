@@ -1053,7 +1053,7 @@
 <path fill="none" stroke="#000000" d="M8607.6763,-437.111C8618.6992,-435.0909 8630.1628,-433.2583 8640.9942,-432 8912.1051,-400.5052 9776.5971,-383.0577 10003.1898,-378.9508"/>
 <polygon fill="#000000" stroke="#000000" points="10003.5575,-382.4448 10013.4929,-378.7653 10003.4315,-375.446 10003.5575,-382.4448"/>
 </g>
-<!-- BifrostErrorResponse -->
+<!-- ErrorResponse -->
 <g id="node86" class="node">
 <title>BifrostErrorResponse</title>
 <ellipse fill="#deb887" stroke="#000000" cx="18688.9942" cy="-450" rx="87.1846" ry="18"/>
@@ -1065,7 +1065,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="19041.9942" cy="-378" rx="81.7856" ry="18"/>
 <text text-anchor="middle" x="19041.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexApiResponse</text>
 </g>
-<!-- BifrostErrorResponse&#45;&gt;ScorexApiResponse -->
+<!-- ErrorResponse&#45;&gt;ScorexApiResponse -->
 <g id="edge67" class="edge">
 <title>BifrostErrorResponse&#45;&gt;ScorexApiResponse</title>
 <path fill="none" stroke="#000000" d="M18751.291,-437.2936C18813.0087,-424.7053 18907.3752,-405.4577 18971.7315,-392.3312"/>
@@ -1785,13 +1785,13 @@
 <path fill="none" stroke="#000000" d="M15668.0927,-433.4817C15638.6109,-422.1305 15599.5248,-407.0813 15569.4988,-395.5205"/>
 <polygon fill="#000000" stroke="#000000" points="15570.6819,-392.2256 15560.0921,-391.8987 15568.1667,-398.7581 15570.6819,-392.2256"/>
 </g>
-<!-- BifrostSuccessResponse -->
+<!-- SuccessResponse -->
 <g id="node148" class="node">
 <title>BifrostSuccessResponse</title>
 <ellipse fill="#deb887" stroke="#000000" cx="19318.9942" cy="-450" rx="96.6831" ry="18"/>
 <text text-anchor="middle" x="19318.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostSuccessResponse</text>
 </g>
-<!-- BifrostSuccessResponse&#45;&gt;ScorexApiResponse -->
+<!-- SuccessResponse&#45;&gt;ScorexApiResponse -->
 <g id="edge141" class="edge">
 <title>BifrostSuccessResponse&#45;&gt;ScorexApiResponse</title>
 <path fill="none" stroke="#000000" d="M19262.6053,-435.3429C19216.8243,-423.4432 19152.31,-406.6741 19104.8687,-394.3428"/>

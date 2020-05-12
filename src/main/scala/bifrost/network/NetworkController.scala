@@ -10,7 +10,7 @@ import akka.util.Timeout
 import bifrost.network.message.{Message, MessageHandler, MessageSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.settings.Settings
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -28,7 +28,7 @@ class NetworkController(settings: Settings,
                         messageHandler: MessageHandler,
                         upnp: UPnP,
                         peerManagerRef: ActorRef
-                       ) extends Actor with ScorexLogging {
+                       ) extends Actor with Logging {
 
   import NetworkController._
 

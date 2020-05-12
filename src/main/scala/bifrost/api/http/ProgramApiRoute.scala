@@ -7,19 +7,19 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
+import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
 import bifrost.wallet.BWallet
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.literal._
 import io.circe.{Decoder, Json, JsonObject}
 import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -49,7 +49,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   reqId = (request \\ "id").head.asString.get
@@ -71,9 +71,9 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                 futureResponse map {
                   response => Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(e, 500, reqId)
+                    ErrorResponse(e, 500, reqId)
                 }
             }
           }

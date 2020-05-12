@@ -7,10 +7,11 @@ import bifrost.settings.Settings
 
 import scala.concurrent.duration._
 
-trait ForgingSettings extends Settings with ForgingConstants {
+trait ForgingSettings extends Settings {
 
   val InitialDifficulty = 15000000L
   val MinimumDifficulty = 100L
+  lazy val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
 
   lazy val offlineGeneration = settingsJSON
     .get("offlineGeneration")

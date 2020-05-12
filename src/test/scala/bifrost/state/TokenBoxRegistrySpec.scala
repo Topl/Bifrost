@@ -3,14 +3,14 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.state.BifrostStateSpec.gw
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
-import bifrost.transaction.box.ArbitBox
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.crypto.Signature25519
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
@@ -69,11 +69,11 @@ class TokenBoxRegistrySpec extends PropSpec
       ""
     ).get
 
-    val block1 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block1 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)
@@ -104,11 +104,11 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block2 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block2 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx2), 10L, settings.version)
 
     require(newState1.validate(tx2).isSuccess)
@@ -149,11 +149,11 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block1 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block1 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)

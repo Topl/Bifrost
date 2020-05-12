@@ -3,35 +3,32 @@ package bifrost.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import bifrost.blocks.BifrostBlock
-import bifrost.keygen.KeyFile
+import bifrost.modifier.block.Block
+import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
 import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNProposition
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.crypto.PrivateKey25519Companion
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
 
 case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock, BWallet]
-    with ScorexLogging {
+  extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, BWallet]
+    with Logging {
 
   import bifrost.wallet.BWallet._
 
   override type S = PrivateKey25519
   override type PI = ProofOfKnowledgeProposition[S]
-
-  private val SecretsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(2: Byte))
 
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
@@ -186,7 +183,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
   override def scanOffchain(txs: Seq[BifrostTransaction]): BWallet = this
 
-  override def scanPersistent(modifier: BifrostBlock): BWallet = {
+  override def scanPersistent(modifier: Block): BWallet = {
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
@@ -316,7 +313,7 @@ object BWallet {
     }
 
   //wallet with applied initialBlocks
-  def genesisWallet(settings: Settings, initialBlocks: Seq[BifrostBlock]): BWallet = {
+  def genesisWallet(settings: Settings, initialBlocks: Seq[Block]): BWallet = {
     initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
       a.scanPersistent(b)
     }

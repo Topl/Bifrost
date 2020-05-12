@@ -16,12 +16,11 @@ import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.block.Block
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.ArbitBox
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.block.Block
+import bifrost.crypto.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -134,7 +133,7 @@ class NodeViewRPCSpec extends WordSpec
         assetTxInstance = view().pool.getById(Base58.decode(txHash).get).get
         val history = view().history
         //Create a block with the above created createAssets transaction
-        val tempBlock = BifrostBlock(history.bestBlockId,
+        val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

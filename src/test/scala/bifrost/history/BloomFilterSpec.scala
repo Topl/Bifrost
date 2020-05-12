@@ -4,14 +4,14 @@ package bifrost.history
   * Created by cykoz on 7/11/2017.
   */
 
-import bifrost.blocks.{BifrostBlock, Bloom}
+import bifrost.modifier.block.{Block, Bloom}
 import bifrost.state.BifrostStateSpec
-import bifrost.transaction.bifrostTransaction.{AssetCreation}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.encode.Base58
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.collection.BitSet
 import scala.util.Try
@@ -38,7 +38,7 @@ class BloomFilterSpec extends PropSpec
     "test_2",
     ""
     ).get
-    val block = BifrostBlock(history.bestBlockId,
+    val block = Block(history.bestBlockId,
     System.currentTimeMillis(),
     arbitBoxGen.sample.get,
     signatureGen.sample.get,
@@ -46,7 +46,7 @@ class BloomFilterSpec extends PropSpec
     10L
 
     forAll(validBifrostTransactionSeqGen) { txs =>
-      val block = BifrostBlock(history.bestBlockId,
+      val block = Block(history.bestBlockId,
                                System.currentTimeMillis(),
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,

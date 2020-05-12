@@ -6,9 +6,9 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.UtilsApiRoute
 import bifrost.BifrostGenerators
+import bifrost.crypto.FastCryptographicHash
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.crypto.hash.FastCryptographicHash
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success}

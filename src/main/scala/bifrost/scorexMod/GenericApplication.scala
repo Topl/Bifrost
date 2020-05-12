@@ -9,13 +9,15 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.settings.Settings
-import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.transaction.GenericBoxTransaction
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.runtime.universe.Type
 
-trait GenericApplication extends ScorexLogging {
+trait GenericApplication extends Logging {
 
   type P <: Proposition
   type TX <: GenericBoxTransaction[P, _, BX]

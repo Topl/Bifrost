@@ -2,20 +2,17 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.program._
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.bifrostTransaction
-import bifrost.transaction.box._
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.program.{ExecutionBuilderCompanion, _}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.modifier.transaction.bifrostTransaction
+import modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
