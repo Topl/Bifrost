@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, BifrostBox}
 import bifrost.modifier.transaction.serialization.ArbitTransferCompanion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.Json
 
@@ -59,7 +59,7 @@ object ArbitTransfer extends TransferUtil {
     ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create(tbr: TokenBoxRegistry, w: BWallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
+  def create(tbr: TokenBoxRegistry, w: Wallet, toRecieve: IndexedSeq[(PublicKey25519Proposition, Long)], sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String): Try[ArbitTransfer] = Try
   {
 
     val params = parametersForCreate(tbr, w, toRecieve, sender, fee, "ArbitTransfer")

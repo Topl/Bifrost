@@ -981,7 +981,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="18189.9942" cy="-378" rx="89.8845" ry="18"/>
 <text text-anchor="middle" x="18189.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">PublicKeyNoncedBox</text>
 </g>
-<!-- Wallet -->
+<!-- WalletTrait -->
 <g id="node77" class="node">
 <title>Wallet</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="18359.9942" cy="-378" rx="34.394" ry="18"/>
@@ -1017,13 +1017,13 @@
 <path fill="none" stroke="#000000" d="M8403.8736,-437.034C8421.546,-435.0871 8439.7923,-433.2997 8456.9942,-432 9062.4618,-386.2535 9799.6717,-379.2597 10003.5257,-378.192"/>
 <polygon fill="#000000" stroke="#000000" points="10003.6893,-381.6914 10013.6717,-378.1415 10003.6544,-374.6914 10003.6893,-381.6914"/>
 </g>
-<!-- BWallet -->
+<!-- Wallet -->
 <g id="node82" class="node">
 <title>BWallet</title>
 <ellipse fill="#deb887" stroke="#000000" cx="18359.9942" cy="-450" rx="40.0939" ry="18"/>
 <text text-anchor="middle" x="18359.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">BWallet</text>
 </g>
-<!-- BWallet&#45;&gt;Wallet -->
+<!-- Wallet&#45;&gt;WalletTrait -->
 <g id="edge61" class="edge">
 <title>BWallet&#45;&gt;Wallet</title>
 <path fill="none" stroke="#000000" d="M18359.9942,-431.8314C18359.9942,-424.131 18359.9942,-414.9743 18359.9942,-406.4166"/>

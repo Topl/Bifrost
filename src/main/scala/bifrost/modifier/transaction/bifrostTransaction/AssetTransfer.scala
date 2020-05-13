@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, BifrostBox}
 import bifrost.modifier.transaction.serialization.AssetTransferCompanion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
@@ -92,7 +92,7 @@ object AssetTransfer extends TransferUtil {
   }
 
   def create(tbr:TokenBoxRegistry,
-             w: BWallet,
+             w: Wallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
              fee: Long,

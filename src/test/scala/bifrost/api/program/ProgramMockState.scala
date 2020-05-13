@@ -18,7 +18,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
@@ -83,7 +83,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   protected def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
 
   def manuallyApplyBoxes(boxes: Set[BifrostBox], version: Int): Unit = {
     // Manually manipulate state

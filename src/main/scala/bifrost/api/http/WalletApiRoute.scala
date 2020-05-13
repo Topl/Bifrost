@@ -6,7 +6,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
 import bifrost.modifier.box.BifrostBox
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.LocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.settings.Settings
@@ -26,7 +26,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                          (implicit val context: ActorRefFactory)extends ApiRouteWithView {
   type HIS = BifrostHistory
   type MS = BifrostState
-  type VL = BWallet
+  type VL = Wallet
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("wallet") {
     walletRoute

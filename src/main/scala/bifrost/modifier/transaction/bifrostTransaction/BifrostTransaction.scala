@@ -6,7 +6,7 @@ import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.BifrostApp
 import bifrost.modifier.transaction.GenericBoxTransaction
 import com.google.common.primitives.Longs
@@ -59,7 +59,7 @@ object BifrostTransaction {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  def signTx(w: BWallet, props: IndexedSeq[PublicKey25519Proposition], message: Array[Byte]):
+  def signTx(w: Wallet, props: IndexedSeq[PublicKey25519Proposition], message: Array[Byte]):
   Map[PublicKey25519Proposition, Signature25519] = props.map { prop =>
     val secret = w.secretByPublicImage(prop).get
     val signature = PrivateKey25519Companion.sign(secret, message)

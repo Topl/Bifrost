@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
@@ -22,7 +22,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
 
   type HIS = BifrostHistory
   type MS = BifrostState
-  type VL = BWallet
+  type VL = Wallet
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("debug") { debugRoute }
 

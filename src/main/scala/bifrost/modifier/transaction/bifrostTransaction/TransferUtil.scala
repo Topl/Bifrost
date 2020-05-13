@@ -6,7 +6,7 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
@@ -52,7 +52,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate(tbr: TokenBoxRegistry,
-                          w: BWallet,
+                          w: Wallet,
                           toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                           sender: IndexedSeq[PublicKey25519Proposition],
                           fee: Long,

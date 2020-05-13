@@ -5,7 +5,6 @@ import java.security.SecureRandom
 
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
-import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
 import bifrost.state.BifrostState
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.MofNProposition
@@ -21,14 +20,14 @@ import scorex.crypto.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 
-case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Wallet[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, BWallet]
+case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
+  extends Vault[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, Wallet]
     with Logging {
 
-  import bifrost.wallet.BWallet._
+  import bifrost.wallet.Wallet._
 
-  override type S = PrivateKey25519
-  override type PI = ProofOfKnowledgeProposition[S]
+  type S = PrivateKey25519
+  type PI = ProofOfKnowledgeProposition[S]
 
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
@@ -40,20 +39,21 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
            .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-  private lazy val walletBoxSerializer = new GenericWalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
+  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
 
   //not implemented intentionally for now
-  override def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
+  def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
-  //Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each transaction
-  override def boxes(): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
+  // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
+  // transaction
+  def boxes(): Seq[WalletBox[Any, PI, BifrostBox]] = {
     //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => true
+        case s: Success[WalletBox[Any, PI, BifrostBox]] => true
 //          s.value.box match {
 //          case pb: PolyBox => pb.value > 0
 //          case cb: ContractBox => true
@@ -69,14 +69,14 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   //Only returns asset, arbit and poly boxes by public key
-   def boxesByKey(publicKeyString: String): Seq[GenericWalletBox[Any, PI, BifrostBox]] = {
+   def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, BifrostBox]] = {
     //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[GenericWalletBox[Any, PI, BifrostBox]] => s.value.box match {
+        case s: Success[WalletBox[Any, PI, BifrostBox]] => s.value.box match {
           case pb: PolyBox =>
 //            pb.value > 0 &&
             publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
@@ -92,7 +92,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
       .map(_.get)
   }
 
-  override def publicKeys: Set[PI] = {
+  def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
@@ -113,7 +113,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
-      // secrets.empty // should empty the current set of secrets meaning unlock only allows a single key to be unlocked at once
+      // secrets.empty // should empty the current set of secrets meaning unlock only allows a single key to be unlocked
+      // at once
       secrets += privKey.head
     } else {
       log.warn(s"$publicKeyString is already unlocked")
@@ -140,14 +141,14 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     }
   }
 
-  override def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
+  def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
     case mn: MofNProposition => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(
       _)))
     case _ => None
   }
 
-  def generateNewSecret(): BWallet = {
+  def generateNewSecret(): Wallet = {
     // Avoid characters that could be easily mistaken for one another (e.g. 1 and l)
     val letters = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$%&*?"
     val secureRng = SecureRandom.getInstanceStrong
@@ -158,7 +159,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
     log.warn(s"Generated Password is <<$password>>. Make sure to record this since this will never appear again!")
     val privKey = KeyFile(password, defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
 
-    BWallet(secrets + privKey, store, defaultKeyDir)
+    Wallet(secrets + privKey, store, defaultKeyDir)
   }
 
   def generateNewSecret(password: String): PublicKey25519Proposition = {
@@ -168,7 +169,8 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   def generateNewSecret(password: String, importSeed: String): PublicKey25519Proposition = {
-    val privKey = KeyFile(password,seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir).getPrivateKey(password).get
+    val privKey = KeyFile(password,seed = FastCryptographicHash(importSeed), defaultKeyDir = defaultKeyDir)
+      .getPrivateKey(password).get
     secrets += privKey
     privKey.publicImage
   }
@@ -179,11 +181,11 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
-  override def scanOffchain(tx: BifrostTransaction): BWallet = this
+  override def scanOffchain(tx: BifrostTransaction): Wallet = this
 
-  override def scanOffchain(txs: Seq[BifrostTransaction]): BWallet = this
+  override def scanOffchain(txs: Seq[BifrostTransaction]): Wallet = this
 
-  override def scanPersistent(modifier: Block): BWallet = {
+  override def scanPersistent(modifier: Block): Wallet = {
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
     val changes = BifrostState.changes(modifier).get
 
@@ -204,7 +206,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
           .map(_.timestamp)
           .getOrElse(modifier.timestamp)
 
-        val wb = GenericWalletBox[Any, PI, BifrostBox](box, txId, ts)(BifrostBoxSerializer)
+        val wb = WalletBox[Any, PI, BifrostBox](box, txId, ts)(BifrostBoxSerializer)
         ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
       }
 
@@ -222,16 +224,16 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
     store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
-    BWallet(secrets, store, defaultKeyDir)
+    Wallet(secrets, store, defaultKeyDir)
   }
 
-  override def rollback(to: VersionTag): Try[BWallet] = Try {
+  override def rollback(to: VersionTag): Try[Wallet] = Try {
     if (store.lastVersionID.exists(_.data sameElements to)) {
       this
     } else {
       log.debug(s"Rolling back wallet to: ${Base58.encode(to)}")
       store.rollback(ByteArrayWrapper(to))
-      BWallet(secrets, store, defaultKeyDir)
+      Wallet(secrets, store, defaultKeyDir)
     }
   }
 
@@ -239,7 +241,7 @@ case class BWallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKe
 
 }
 
-object BWallet {
+object Wallet {
 
   def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
@@ -266,7 +268,7 @@ object BWallet {
     f.exists()
   }
 
-  def readOrGenerate(settings: Settings, seed: String): BWallet = {
+  def readOrGenerate(settings: Settings, seed: String): Wallet = {
     val wFile = walletFile(settings)
     wFile.mkdirs()
     val boxesStorage = new LSMStore(wFile)
@@ -283,10 +285,10 @@ object BWallet {
       .flatMap(_.asString)
       .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
 
-    BWallet(Set(), boxesStorage, keyFileDir.get)
+    Wallet(Set(), boxesStorage, keyFileDir.get)
   }
 
-  def readOrGenerate(settings: Settings): BWallet = {
+  def readOrGenerate(settings: Settings): Wallet = {
     val gw = readOrGenerate(settings, Base58.encode(settings.walletSeed))
     if (Base58.encode(settings.walletSeed).startsWith("genesis")) {
       val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(c)))
@@ -302,18 +304,18 @@ object BWallet {
     gw
   }
 
-  def readOrGenerate(settings: Settings, seed: String, accounts: Int): BWallet =
+  def readOrGenerate(settings: Settings, seed: String, accounts: Int): Wallet =
     (1 to accounts).foldLeft(readOrGenerate(settings, seed)) { case (w, _) =>
       w.generateNewSecret()
     }
 
-  def readOrGenerate(settings: Settings, accounts: Int): BWallet =
+  def readOrGenerate(settings: Settings, accounts: Int): Wallet =
     (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
       w
     }
 
   //wallet with applied initialBlocks
-  def genesisWallet(settings: Settings, initialBlocks: Seq[Block]): BWallet = {
+  def genesisWallet(settings: Settings, initialBlocks: Seq[Block]): Wallet = {
     initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
       a.scanPersistent(b)
     }

@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{BifrostBox, PolyBox}
 import bifrost.modifier.transaction.serialization.PolyTransferCompanion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.Json
 
@@ -60,7 +60,7 @@ object PolyTransfer extends TransferUtil {
   }
 
   def create(tbr: TokenBoxRegistry,
-             w: BWallet,
+             w: Wallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
              fee: Long, data: String): Try[PolyTransfer] = Try {

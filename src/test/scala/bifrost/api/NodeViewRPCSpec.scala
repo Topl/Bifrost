@@ -11,7 +11,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.Json
 import io.circe.parser.parse
@@ -63,7 +63,7 @@ class NodeViewRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -72,7 +72,7 @@ class NodeViewRPCSpec extends WordSpec
   )
 
   // Unlock Secrets
-  val gw: BWallet = view().vault
+  val gw: Wallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")

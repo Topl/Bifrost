@@ -15,7 +15,7 @@ import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, Bifr
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box._
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
 import io.circe._
@@ -101,10 +101,10 @@ class ProgramRPCSpec extends WordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
 
   // Unlock Secrets
-  val gw: BWallet = view().vault
+  val gw: Wallet = view().vault
   //gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")

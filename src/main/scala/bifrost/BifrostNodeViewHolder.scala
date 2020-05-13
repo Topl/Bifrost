@@ -7,7 +7,7 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import modifier.box.{ArbitBox, BifrostBox}
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
@@ -27,7 +27,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type SI = BifrostSyncInfo
   override type HIS = BifrostHistory
   override type MS = BifrostState
-  override type VL = BWallet
+  override type VL = Wallet
   override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
@@ -45,13 +45,13 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
     * (e.g. if it is a first launch of a node) None is to be returned
     */
   override def restoreState(): Option[NodeView] = {
-    if (BWallet.exists(settings)) {
+    if (Wallet.exists(settings)) {
       val x = BifrostHistory.readOrGenerate(settings)
       Some(
         (
           x,
           BifrostState.readOrGenerate(settings, true, x),
-          BWallet.readOrGenerate(settings, 1),
+          Wallet.readOrGenerate(settings, 1),
           BifrostMemPool.emptyPool
         )
       )
@@ -67,7 +67,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
 object BifrostNodeViewHolder extends Logging {
   type HIS = BifrostHistory
   type MS = BifrostState
-  type VL = BWallet
+  type VL = Wallet
   type MP = BifrostMemPool
 
   type NodeView = (HIS, MS, VL, MP)
@@ -134,7 +134,7 @@ object BifrostNodeViewHolder extends Logging {
     history = history.append(genesisBlock).get._1
 
     val gs = BifrostState.genesisState(settings, Seq(genesisBlock), history)
-    val gw = BWallet.genesisWallet(settings, Seq(genesisBlock))
+    val gw = Wallet.genesisWallet(settings, Seq(genesisBlock))
 
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
       case ab: ArbitBox => Some(ab.value)

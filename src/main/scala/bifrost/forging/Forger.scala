@@ -9,7 +9,7 @@ import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.modifier.box.ArbitBox
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import bifrost.LocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
@@ -48,7 +48,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   def pickTransactions(memPool: BifrostMemPool,
                        state: BifrostState,
                        parent: Block,
-                       view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
+                       view: (BifrostHistory, BifrostState, Wallet, BifrostMemPool)
                       ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
@@ -82,10 +82,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     case StopForging =>
       forging = false
 
-    case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+    case CurrentView(h: BifrostHistory, s: BifrostState, w: Wallet, m: BifrostMemPool) =>
       self ! TryForging(h, s, w, m)
 
-    case TryForging(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+    case TryForging(h: BifrostHistory, s: BifrostState, w: Wallet, m: BifrostMemPool) =>
       if (forging) {
         log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
         log.info("chain difficulty: " + h.difficulty)

@@ -17,7 +17,7 @@ import InstrumentClasses.TokenClasses._
 import bifrost.crypto.FastCryptographicHash
 import bifrost.settings.Settings
 import bifrost.state.BifrostStateSpec
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 
 class ValkyrieSpec extends PropSpec
   with Matchers
@@ -176,7 +176,7 @@ class ValkyrieSpec extends PropSpec
 
     assert(valkyrieController != null)
 
-    val wallet: BWallet = BWallet.readOrGenerate(BifrostStateSpec.testSettings)
+    val wallet: Wallet = Wallet.readOrGenerate(BifrostStateSpec.testSettings)
 
     assert(!wallet.boxesByKey(publicKeys("investor")).isEmpty)
 

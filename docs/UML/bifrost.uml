@@ -97,7 +97,7 @@
     <node x="10609.0" y="1998.0">bifrost.serialization.Serializer$class</node>
     <node x="13024.0" y="1998.0">bifrost.mempool.BifrostMemPool$</node>
     <node x="1161.0" y="1804.0">bifrost.forging.Forger.StopForging$</node>
-    <node x="2242.000000000002" y="404.0">bifrost.scorexMod.Wallet</node>
+    <node x="2242.000000000002" y="404.0">bifrost.wallet.Wallet</node>
     <node x="2084.000000000002" y="776.0">bifrost.forging.ForgingSettings</node>
     <node x="3396.0" y="1901.0">bifrost.serialization.BytesSerializable$class</node>
     <node x="13570.0" y="1901.0">bifrost.block.BlockCompanion$class</node>
@@ -318,7 +318,7 @@
     <node x="1425.0" y="1901.0">bifrost.transaction.bifrostTransaction.BifrostTransaction$class</node>
     <node x="12102.5" y="1269.0">bifrost.api.http.UtilsApiRoute</node>
     <node x="3483.0" y="1804.0">bifrost.program.ValkyrieFunctions.reservedFunctions$</node>
-    <node x="4611.0" y="2095.0">bifrost.scorexMod.Wallet$class</node>
+    <node x="4611.0" y="2095.0">bifrost.wallet.Wallet$class</node>
     <node x="13317.0" y="1901.0">bifrost.forging.ForgerSettings$class</node>
     <node x="6211.000000000002" y="776.0">bifrost.network.peer.PeerManager.GetConnectedPeers</node>
     <node x="8303.0" y="2095.0">bifrost.network.Broadcast</node>
@@ -646,7 +646,7 @@
       <point x="6915.735294117646" y="1329.0" />
       <point x="-35.764705882353155" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.Wallet" target="bifrost.transaction.wallet.Vault">
+    <edge source="bifrost.wallet.Wallet" target="bifrost.transaction.wallet.Vault">
       <point x="0.0" y="-26.0" />
       <point x="2290.000000000002" y="224.0" />
       <point x="2524.2837135637783" y="224.0" />
@@ -1650,7 +1650,7 @@
       <point x="11388.296759603552" y="756.0" />
       <point x="-15.33333333333394" y="26.0" />
     </edge>
-    <edge source="bifrost.wallet.BWallet" target="bifrost.scorexMod.Wallet">
+    <edge source="bifrost.wallet.BWallet" target="bifrost.wallet.Wallet">
       <point x="-26.0" y="-26.0" />
       <point x="2457.250000000002" y="746.0" />
       <point x="2290.000000000002" y="746.0" />

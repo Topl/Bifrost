@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -33,7 +33,7 @@ case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
   type MS = BifrostState
-  type VL = BWallet
+  type VL = Wallet
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("asset") { assetRoute }
   

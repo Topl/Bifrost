@@ -7,7 +7,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, BifrostBox}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationCompanion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
@@ -106,11 +106,11 @@ object AssetCreation {
 
   /**
     * Route here from AssetApiRoute
-    * Assumes that the Wallet contains the issuer's key information
-    * Takes Wallet from current view, and generates signature from issuer's public key
+    * Assumes that the WalletTrait contains the issuer's key information
+    * Takes WalletTrait from current view, and generates signature from issuer's public key
     * Forms corresponding AssetCreation transaction
     */
-  def createAndApply(w: BWallet,
+  def createAndApply(w: Wallet,
                      to: IndexedSeq[(PublicKey25519Proposition, Long)],
                      fee: Long,
                      issuer: PublicKey25519Proposition,

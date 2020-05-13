@@ -9,7 +9,7 @@ import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.{BifrostBox, ExecutionBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.ProgramTransferCompanion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -78,7 +78,7 @@ object ProgramTransfer {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  def createAndApply(w: BWallet,
+  def createAndApply(w: Wallet,
                      from: PublicKey25519Proposition,
                      to: PublicKey25519Proposition,
                      executionBox: ExecutionBox,

@@ -8,7 +8,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.state.BifrostState
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.literal._
@@ -34,7 +34,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
   type MS = BifrostState
-  type VL = BWallet
+  type VL = Wallet
   type MP = BifrostMemPool
 
   override val route: Route = pathPrefix("program") {
