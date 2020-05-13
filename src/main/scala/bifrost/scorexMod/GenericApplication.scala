@@ -27,10 +27,10 @@ trait GenericApplication extends Logging {
 
   val ApplicationNameLimit = 50
 
-  //settings
+  // settings
   implicit val settings: Settings
 
-  //api
+  // api
   val apiRoutes: Seq[ApiRoute]
   val apiTypes: Seq[Type]
 
@@ -38,7 +38,7 @@ trait GenericApplication extends Logging {
 
   protected val additionalMessageSpecs: Seq[MessageSpec[_]]
 
-  //p2p
+  // p2p
   lazy val upnp = new UPnP(settings)
 
   private lazy val basicSpecs =
@@ -74,7 +74,7 @@ trait GenericApplication extends Logging {
     implicit val materializer = ActorMaterializer()
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 
-    //on unexpected shutdown
+    // on unexpected shutdown
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run() {
         log.error("Unexpected shutdown")
