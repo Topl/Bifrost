@@ -11,7 +11,7 @@ import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
+import bifrost.network.{BifrostLocalInterface, NodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box._
@@ -74,7 +74,7 @@ class ProgramRPCSpec extends WordSpec
   )
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
+    Props(classOf[NodeViewSynchronizer],
           networkController,
           nodeViewHolderRef,
           localInterface,

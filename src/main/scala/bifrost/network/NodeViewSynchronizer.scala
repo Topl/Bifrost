@@ -1,17 +1,14 @@
-package bifrost.scorexMod
+package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.scorexMod.GenericNodeViewHolder._
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
-import bifrost.network._
-import bifrost.network.message.BasicMsgDataTypes._
-import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.utils.Logging
 import bifrost.{LocalInterface, NodeViewModifier}
-import bifrost.history.History
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.scorexMod.GenericNodeViewHolder._
+import bifrost.scorexMod.GenericNodeViewHolder
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
+import bifrost.network.message.BasicMsgDataTypes.{InvData, ModifiersData}
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
@@ -25,34 +22,29 @@ import scala.concurrent.duration._
   * @param viewHolderRef
   * @param localInterfaceRef
   * @param syncInfoSpec
-  * @tparam P
-  * @tparam TX
-  * @tparam SIS
   */
-class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: SyncInfo, SIS <: SyncInfoMessageSpec[SI]]
-(networkControllerRef: ActorRef,
- viewHolderRef: ActorRef,
- localInterfaceRef: ActorRef,
- syncInfoSpec: SIS) extends Actor with Logging {
+class NodeViewSynchronizer(networkControllerRef: ActorRef,
+                           viewHolderRef: ActorRef,
+                           localInterfaceRef: ActorRef,
+                           syncInfoSpec: BifrostSyncInfoMessageSpec.type) extends Actor with Logging {
 
-  import GenericNodeViewSynchronizer._
-  import History.HistoryComparisonResult._
+  import NodeViewSynchronizer._
+  import bifrost.history.History.HistoryComparisonResult._
   import bifrost.NodeViewModifier._
 
-  //modifier ids asked from other nodes are kept in order to check then
-  //against objects sent
+  /* modifier ids asked from other nodes are kept in order to check then */
+  /* against objects sent */
   private val asked = mutable.Map[ModifierTypeId, mutable.Set[ModifierId]]()
-
   private val seniors = mutable.Set[String]()
   private val juniors = mutable.Set[String]()
   private val equals = mutable.Set[String]()
 
   override def preStart(): Unit = {
-    //register as a handler for some types of messages
+    /* register as a handler for some types of messages */
     val messageSpecs = Seq(InvSpec, RequestModifierSpec, ModifiersSpec, syncInfoSpec)
     networkControllerRef ! NetworkController.RegisterMessagesHandler(messageSpecs, self)
 
-    //subscribe for failed transaction,
+    /* subscribe for failed transaction */
     val events = Seq(
       GenericNodeViewHolder.EventType.FailedTransaction,
       GenericNodeViewHolder.EventType.FailedPersistentModifier,
@@ -85,25 +77,25 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       viewHolderRef ! GenericNodeViewHolder.GetSyncInfo
   }
 
-  //sending out sync message to a random peer
+  /* sending out sync message to a random peer */
   private def syncSend: Receive = {
-    case CurrentSyncInfo(syncInfo: SI) =>
+    case CurrentSyncInfo(syncInfo: BifrostSyncInfo) =>
       networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(syncInfo), None), SendToRandom)
   }
 
 
-  //sync info is coming from another node
+  /* sync info is coming from another node */
   private def processSync: Receive = {
-    case DataFromPeer(spec, syncData: SI, remote)
+    case DataFromPeer(spec, syncData: BifrostSyncInfo, remote)
       if spec.messageCode == syncInfoSpec.messageCode =>
 
       viewHolderRef ! OtherNodeSyncingInfo(remote, syncData)
   }
 
-  //noinspection ScalaStyle
-  //view holder is telling other node status
+  // noinspection ScalaStyle
+  /* view holder is telling other node status */
   private def processSyncStatus: Receive = {
-    case OtherNodeSyncingStatus(remote, status, remoteSyncInfo, localSyncInfo: SI, extOpt) =>
+    case OtherNodeSyncingStatus(remote, status, remoteSyncInfo, localSyncInfo: BifrostSyncInfo, extOpt) =>
       if (!remoteSyncInfo.answer) {
         networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(localSyncInfo), None), SendToRandom)
       }
@@ -149,7 +141,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       }
   }
 
-  //object ids coming from other node
+  /* object ids coming from other node */
   private def processInv: Receive = {
     case DataFromPeer(spec, invData: InvData@unchecked, remote)
       if spec.messageCode == InvSpec.messageCode =>
@@ -157,7 +149,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       viewHolderRef ! CompareViews(remote, invData._1, invData._2)
   }
 
-  //other node asking for objects by their ids
+  /* other node asking for objects by their ids */
   private def modifiersReq: Receive = {
     case DataFromPeer(spec, invData: InvData@unchecked, remote)
       if spec.messageCode == RequestModifierSpec.messageCode =>
@@ -165,7 +157,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       viewHolderRef ! GetLocalObjects(remote, invData._1, invData._2)
   }
 
-  //other node is sending objects
+  /* other node is sending objects */
   private def modifiersFromRemote: Receive = {
     case DataFromPeer(spec, data: ModifiersData@unchecked, remote)
       if spec.messageCode == ModifiersSpec.messageCode =>
@@ -192,10 +184,9 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       viewHolderRef ! msg
   }
 
-  //local node sending object ids to remote
+  /* local node sending object ids to remote */
   private def requestFromLocal: Receive = {
     case RequestFromLocal(peer, modifierTypeId, modifierIds) =>
-
       if (modifierIds.nonEmpty) {
         val msg = Message(RequestModifierSpec, Right(modifierTypeId -> modifierIds), None)
         peer.handlerRef ! msg
@@ -204,7 +195,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
       asked.put(modifierTypeId, newIds)
   }
 
-  //local node sending out objects requested to remote
+  /* local node sending out objects requested to remote */
   private def responseFromLocal: Receive = {
     case ResponseFromLocal(peer, typeId, modifiers: Seq[NodeViewModifier]) =>
       println("Entered response from local")
@@ -231,20 +222,13 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
     }
 }
 
-object GenericNodeViewSynchronizer {
-
+object NodeViewSynchronizer {
   case object GetLocalSyncInfo
 
   case class CompareViews(source: ConnectedPeer, modifierTypeId: ModifierTypeId, modifierIds: Seq[ModifierId])
-
   case class GetLocalObjects(source: ConnectedPeer, modifierTypeId: ModifierTypeId, modifierIds: Seq[ModifierId])
-
   case class RequestFromLocal(source: ConnectedPeer, modifierTypeId: ModifierTypeId, modifierIds: Seq[ModifierId])
-
   case class ResponseFromLocal[M <: NodeViewModifier](source: ConnectedPeer, modifierTypeId: ModifierTypeId, localObjects: Seq[M])
-
   case class ModifiersFromRemote(source: ConnectedPeer, modifierTypeId: ModifierTypeId, remoteObjects: Seq[Array[Byte]])
-
   case class OtherNodeSyncingInfo[SI <: SyncInfo](peer: ConnectedPeer, syncInfo: SI)
-
 }

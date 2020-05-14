@@ -957,11 +957,11 @@
 <path fill="none" stroke="#000000" d="M274.51,-4968C342.4126,-4968 436.7051,-4968 503.0386,-4968"/>
 <polygon fill="#000000" stroke="#000000" points="503.4364,-4971.5001 513.4364,-4968 503.4363,-4964.5001 503.4364,-4971.5001"/>
 </g>
-<!-- BifrostNodeViewSynchronizer -->
+<!-- NodeViewSynchronizer -->
 <g id="node83" class="node">
-<title>BifrostNodeViewSynchronizer</title>
+<title>NodeViewSynchronizer</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="189.1332" cy="-5022" rx="152.1731" ry="18"/>
-<text text-anchor="middle" x="189.1332" y="-5018.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostNodeViewSynchronizer</text>
+<text text-anchor="middle" x="189.1332" y="-5018.3" font-family="Times,serif" font-size="14.00" fill="#000000">NodeViewSynchronizer</text>
 </g>
 <!-- Buffering -->
 <g id="node84" class="node">

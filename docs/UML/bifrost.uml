@@ -322,7 +322,7 @@
     <node x="13317.0" y="1901.0">bifrost.forging.ForgerSettings$class</node>
     <node x="6211.000000000002" y="776.0">bifrost.network.peer.PeerManager.GetConnectedPeers</node>
     <node x="8303.0" y="2095.0">bifrost.network.Broadcast</node>
-    <node x="8723.0" y="1702.0">bifrost.network.BifrostNodeViewSynchronizer</node>
+    <node x="8723.0" y="1702.0">bifrost.network.NodeViewSynchronizer</node>
     <node x="15195.72744393027" y="898.0">bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome</node>
     <node x="13824.0" y="1702.0">bifrost.transaction.serialization.ExecutionBuilderCompanion</node>
     <node x="12359.0" y="1702.0">bifrost.state.BifrostTransactionChanges</node>

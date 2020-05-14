@@ -12,7 +12,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box.BifrostBox
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
+import bifrost.network.{BifrostLocalInterface, NodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.utils.Logging
@@ -78,7 +78,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   /* -------------- */
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
+    Props(classOf[NodeViewSynchronizer],
       networkController,
       nodeViewHolderRef,
       localInterface,
@@ -134,7 +134,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     implicit val materializer = ActorMaterializer()
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 
-    // on unexpected shutdown
+    /* on unexpected shutdown */
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run() {
         log.error("Unexpected shutdown")

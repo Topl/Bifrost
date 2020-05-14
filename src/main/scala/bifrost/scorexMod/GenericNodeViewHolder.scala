@@ -5,8 +5,7 @@ import bifrost.history.History
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.history.History.HistoryComparisonResult
-import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import bifrost.network.{ConnectedPeer, SyncInfo}
+import bifrost.network.{NodeViewSynchronizer, ConnectedPeer, SyncInfo}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition
@@ -15,6 +14,7 @@ import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.GenericBoxTransaction
+import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
@@ -24,7 +24,7 @@ import scala.util.{Failure, Success}
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
   extends Actor with Logging {
 
-  import GenericNodeViewHolder._
+  import NodeViewSynchronizer._
 
   type SI <: SyncInfo
   type HIS <: History[P, TX, PMOD, SI, HIS]
