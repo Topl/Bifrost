@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, NodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
@@ -83,7 +83,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   protected def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
 
   def manuallyApplyBoxes(boxes: Set[BifrostBox], version: Int): Unit = {
     // Manually manipulate state

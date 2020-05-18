@@ -6,7 +6,7 @@ import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.settings.Settings
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
@@ -21,7 +21,7 @@ case class UtilsApiRoute(override val settings: Settings)(implicit val context: 
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = Wallet
-  type MP = BifrostMemPool
+  type MP = MemPool
 
   val SeedSize = 32
 

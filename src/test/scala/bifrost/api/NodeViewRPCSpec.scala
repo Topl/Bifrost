@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
@@ -63,7 +63,7 @@ class NodeViewRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",

@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, NodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
@@ -101,7 +101,7 @@ class ProgramRPCSpec extends WordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
 
   // Unlock Secrets
   val gw: Wallet = view().vault

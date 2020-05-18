@@ -3,7 +3,7 @@ package bifrost
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import modifier.box.{ArbitBox, BifrostBox}
@@ -28,7 +28,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type HIS = BifrostHistory
   override type MS = BifrostState
   override type VL = Wallet
-  override type MP = BifrostMemPool
+  override type MP = MemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
     Map(Block.ModifierTypeId -> BlockCompanion,
@@ -52,7 +52,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
           x,
           BifrostState.readOrGenerate(settings, true, x),
           Wallet.readOrGenerate(settings, 1),
-          BifrostMemPool.emptyPool
+          MemPool.emptyPool
         )
       )
     } else None
@@ -68,7 +68,7 @@ object BifrostNodeViewHolder extends Logging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = Wallet
-  type MP = BifrostMemPool
+  type MP = MemPool
 
   type NodeView = (HIS, MS, VL, MP)
 
@@ -143,6 +143,6 @@ object BifrostNodeViewHolder extends Logging {
 
     gw.boxes().foreach(b => assert(gs.closedBox(b.box.id).isDefined))
 
-    (history, gs, gw, BifrostMemPool.emptyPool)
+    (history, gs, gw, MemPool.emptyPool)
   }
 }

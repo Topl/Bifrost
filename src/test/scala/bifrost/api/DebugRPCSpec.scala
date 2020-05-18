@@ -9,7 +9,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
@@ -46,7 +46,7 @@ class DebugRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
 
   "Debug RPC" should {
     "Get chain information" in {
