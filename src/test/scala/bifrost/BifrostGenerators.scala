@@ -7,7 +7,7 @@ import java.util.UUID
 import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.history.{BifrostHistory, Storage}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import modifier.box._
 import modifier.box.proposition.MofNProposition
@@ -694,7 +694,7 @@ trait BifrostGenerators extends CoreGenerators {
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
 
-    val storage = new BifrostStorage(blockStorage, settings)
+    val storage = new Storage(blockStorage, settings)
     //we don't care about validation here
     val validators = Seq()
 

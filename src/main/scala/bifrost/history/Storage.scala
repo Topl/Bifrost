@@ -18,7 +18,7 @@ import scala.util.{Failure, Try}
 import scala.concurrent.duration.MILLISECONDS
 import com.typesafe.config.ConfigFactory
 
-class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
+class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   private val conf: Config = ConfigFactory.load("application")
   private val expireTime: Int = conf.getInt("cache.expireTime")

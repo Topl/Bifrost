@@ -27,7 +27,7 @@ import scala.util.{Failure, Try}
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class BifrostHistory(val storage: BifrostStorage,
+class BifrostHistory(val storage: Storage,
                      settings: ForgingSettings,
                      validators: Seq[BlockValidator[Block]])
   extends History[ProofOfKnowledgeProposition[PrivateKey25519],
@@ -448,7 +448,7 @@ object BifrostHistory extends Logging {
       }
     })
 
-    val storage = new BifrostStorage(blockStorage, settings)
+    val storage = new Storage(blockStorage, settings)
 
     val validators = Seq(
       new DifficultyBlockValidator(storage)
