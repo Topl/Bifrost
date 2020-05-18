@@ -4,7 +4,6 @@ import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import modifier.box.{ArbitBox, BifrostBox}
 import bifrost.wallet.Wallet
@@ -16,7 +15,7 @@ import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Prop
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.network.BifrostSyncInfo
-import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.{GenericNodeViewHolder, NodeViewModifier}
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
