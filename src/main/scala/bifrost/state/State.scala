@@ -20,8 +20,8 @@ import scorex.crypto.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 
-case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
-                               override val toAppend: Set[BifrostBox], timestamp: Long)
+case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
+                        override val toAppend: Set[BifrostBox], timestamp: Long)
   extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
 
 /**
@@ -108,7 +108,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
-    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
+    val timestamp: Long = changes.asInstanceOf[StateChanges].timestamp
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
@@ -585,7 +585,7 @@ object State extends Logging {
   type BX = BifrostBox
   type BPMOD = Block
   type GSC = GenericStateChanges[T, P, BX]
-  type BSC = BifrostStateChanges
+  type BSC = StateChanges
 
   //noinspection ScalaStyle
   def semanticValidity(tx: TX): Try[Unit] = {
@@ -627,7 +627,7 @@ object State extends Logging {
     if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
 
     //no reward additional to tx fees
-    BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
+    StateChanges(toRemove, finalToAdd, mod.timestamp)
   }
 
 

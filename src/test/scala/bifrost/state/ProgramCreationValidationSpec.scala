@@ -128,7 +128,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
         val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
 
-        val necessaryBoxesSC = BifrostStateChanges(
+        val necessaryBoxesSC = StateChanges(
           Set(),
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
@@ -212,7 +212,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
 
-        val necessaryBoxesSC = BifrostStateChanges(
+        val necessaryBoxesSC = StateChanges(
           Set(),
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
@@ -304,7 +304,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
+        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
         val firstCCAddBlock = Block(
           Array.fill(Block.SignatureLength)(1: Byte),

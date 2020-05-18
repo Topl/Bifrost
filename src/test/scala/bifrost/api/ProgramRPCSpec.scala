@@ -13,7 +13,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{State, BifrostStateChanges}
+import bifrost.state.{State, StateChanges}
 import bifrost.modifier.box._
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
@@ -136,7 +136,7 @@ class ProgramRPCSpec extends WordSpec
           executionBox = Some(b)
         case _ =>
       }
-      val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+      val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
         txInstance.newBoxes.toSet,
         System.currentTimeMillis())
 

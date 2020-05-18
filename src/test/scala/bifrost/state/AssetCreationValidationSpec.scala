@@ -34,7 +34,7 @@ class AssetCreationValidationSpec extends StateSpec {
           case _ => throw new Exception("Was expecting AssetBoxes but found something else")
         }
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
         val preparedState = StateSpec
           .genesisState
@@ -66,7 +66,7 @@ class AssetCreationValidationSpec extends StateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
         val preparedState = StateSpec
           .genesisState
