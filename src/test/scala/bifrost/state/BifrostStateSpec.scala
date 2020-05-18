@@ -6,7 +6,7 @@ import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
 import bifrost.transaction._
 import bifrost.modifier.box._
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import com.google.common.primitives.Ints
 import io.circe

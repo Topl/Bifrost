@@ -12,7 +12,7 @@ import bifrost.mempool.MemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
@@ -21,6 +21,7 @@ import bifrost.crypto.Signature25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.BifrostNodeViewHolder
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

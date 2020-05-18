@@ -1,7 +1,7 @@
 
 package bifrost.fork
 
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator

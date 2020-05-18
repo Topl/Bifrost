@@ -6,10 +6,11 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
+import bifrost.nodeView.BifrostNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet

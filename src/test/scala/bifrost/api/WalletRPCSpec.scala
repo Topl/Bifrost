@@ -15,7 +15,8 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.wallet.Wallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
+import bifrost.nodeView.BifrostNodeViewHolder
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58

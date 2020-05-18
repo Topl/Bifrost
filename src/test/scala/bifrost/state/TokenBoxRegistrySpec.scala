@@ -9,7 +9,7 @@ import bifrost.state.BifrostStateSpec.gw
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
 import com.google.common.primitives.Ints
 import io.circe

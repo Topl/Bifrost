@@ -11,12 +11,12 @@ import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.network.{BifrostLocalInterface, NodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
+import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box._
 import bifrost.wallet.Wallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
@@ -25,6 +25,7 @@ import org.scalatest.{Matchers, WordSpec}
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.nodeView.BifrostNodeViewHolder
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
