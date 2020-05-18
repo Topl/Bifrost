@@ -5,7 +5,7 @@ import bifrost.history.History
 import bifrost.history.History.HistoryComparisonResult
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.Box
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.transaction.BoxTransaction
 import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
@@ -20,7 +20,7 @@ import scorex.crypto.encode.Base58
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 
-trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
+trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX], BX <: Box[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
   extends Actor with Logging {
 
   import NodeViewSynchronizer._

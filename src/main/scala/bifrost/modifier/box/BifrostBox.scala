@@ -18,7 +18,7 @@ import scala.util.Try
   */
 abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
                           val nonce: Long,
-                          value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
+                          value: Any) extends Box[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
 
   override type M = BifrostBox
 

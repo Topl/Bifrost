@@ -4,7 +4,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 
-trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends Box[PKP] {
+trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends Box[PKP, Long] {
   val nonce: Long
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)

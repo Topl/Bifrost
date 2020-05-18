@@ -453,13 +453,13 @@
 <path fill="none" stroke="#000000" d="M14717.9871,-362.1993C14735.8133,-351.7645 14759.3584,-337.982 14778.6701,-326.6776"/>
 <polygon fill="#000000" stroke="#000000" points="14780.6252,-329.5887 14787.4872,-321.5163 14777.0889,-323.5476 14780.6252,-329.5887"/>
 </g>
-<!-- GenericBox -->
+<!-- Box -->
 <g id="node50" class="node">
 <title>GenericBox</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="14436.9942" cy="-234" rx="53.0913" ry="18"/>
 <text text-anchor="middle" x="14436.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">GenericBox</text>
 </g>
-<!-- BifrostBox&#45;&gt;GenericBox -->
+<!-- BifrostBox&#45;&gt;Box -->
 <g id="edge138" class="edge">
 <title>BifrostBox&#45;&gt;GenericBox</title>
 <path fill="none" stroke="#000000" d="M14766.9677,-299.6296C14705.1111,-290.8651 14593.2151,-273.6805 14498.9942,-252 14494.8777,-251.0528 14490.6294,-249.9943 14486.3775,-248.8779"/>

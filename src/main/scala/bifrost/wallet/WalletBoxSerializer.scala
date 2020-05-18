@@ -1,6 +1,6 @@
 package bifrost.wallet
 
-import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
 import bifrost.serialization.Serializer
@@ -8,7 +8,7 @@ import com.google.common.primitives.{Bytes, Longs}
 
 import scala.util.Try
 
-class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: Serializer[B])
+class WalletBoxSerializer[T, P <: Proposition, B <: Box[P, T]](subclassDeser: Serializer[B])
   extends Serializer[WalletBox[T, P, B]] {
 
   override def toBytes(box: WalletBox[T, P, B]): Array[Byte] = {

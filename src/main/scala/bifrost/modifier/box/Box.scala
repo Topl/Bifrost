@@ -1,18 +1,14 @@
 package bifrost.modifier.box
 
-import bifrost.serialization.BytesSerializable
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.serialization.BytesSerializable
 
 /**
-  * Box is a state element locked by some proposition.
+  * Created by cykoz on 4/13/17.
   */
-trait Box[P <: Proposition] extends BytesSerializable {
-  val value: Box.Amount
+trait Box[P <: Proposition, T] extends BytesSerializable {
+  val value: T
   val proposition: P
 
   val id: Array[Byte]
-}
-
-object Box {
-  type Amount = Long
 }

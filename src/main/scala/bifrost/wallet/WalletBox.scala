@@ -1,11 +1,11 @@
 package bifrost.wallet
 
-import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.serialization.{BytesSerializable, Serializer}
 import scorex.crypto.encode.Base58
 
-case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]]
+case class WalletBox[T, P <: Proposition, B <: Box[P, T]]
   (box: B, transactionId: Array[Byte], createdAt: Long)(subclassDeser: Serializer[B])
   extends BytesSerializable {
 
