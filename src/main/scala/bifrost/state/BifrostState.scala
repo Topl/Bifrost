@@ -6,7 +6,7 @@ import bifrost.history.BifrostHistory
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.GenericStateChanges
+import bifrost.scorexMod.StateChanges
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -24,7 +24,7 @@ case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[Bi
 
 case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
                                override val toAppend: Set[BifrostBox], timestamp: Long)
-  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
+  extends StateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -586,7 +586,7 @@ object BifrostState extends Logging {
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = BifrostBox
   type BPMOD = Block
-  type GSC = GenericStateChanges[T, P, BX]
+  type GSC = StateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 
   //noinspection ScalaStyle

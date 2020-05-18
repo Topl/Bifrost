@@ -8,7 +8,7 @@ import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.scorexMod.GenericStateChanges
+import bifrost.scorexMod.StateChanges
 import bifrost.state.MinimalState.VersionTag
 
 import scala.util.Try
@@ -38,9 +38,9 @@ MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
 
   //def boxesOf(proposition: P): Seq[BX]
 
-  def changes(mod: M): Try[GenericStateChanges[T, P, BX]]
+  def changes(mod: M): Try[StateChanges[T, P, BX]]
 
-  def applyChanges(changes: GenericStateChanges[T, P, BX], newVersion: VersionTag): Try[MS]
+  def applyChanges(changes: StateChanges[T, P, BX], newVersion: VersionTag): Try[MS]
 
   def applyModifier(mod: M): Try[MS] = {
     validate(mod) flatMap { r =>
