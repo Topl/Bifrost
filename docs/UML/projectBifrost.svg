@@ -81,25 +81,25 @@
 <path fill="none" stroke="#000000" d="M253.2264,-1530.2038C317.908,-1521.3268 418.3949,-1507.5359 491.3743,-1497.5201"/>
 <polygon fill="#000000" stroke="#000000" points="492.0516,-1500.9601 501.4828,-1496.1328 491.0998,-1494.0251 492.0516,-1500.9601"/>
 </g>
-<!-- BifrostSuccessResponse -->
+<!-- SuccessResponse -->
 <g id="node7" class="node">
 <title>BifrostSuccessResponse</title>
 <ellipse fill="#deb887" stroke="#000000" cx="189.1332" cy="-1485" rx="124.5782" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-1481.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostSuccessResponse</text>
 </g>
-<!-- BifrostSuccessResponse&#45;&gt;ScorexApiResponse -->
+<!-- SuccessResponse&#45;&gt;ScorexApiResponse -->
 <g id="edge5" class="edge">
 <title>BifrostSuccessResponse&#45;&gt;ScorexApiResponse</title>
 <path fill="none" stroke="#000000" d="M314.1697,-1485C363.9593,-1485 420.8466,-1485 469.3985,-1485"/>
 <polygon fill="#000000" stroke="#000000" points="469.627,-1488.5001 479.6269,-1485 469.6269,-1481.5001 469.627,-1488.5001"/>
 </g>
-<!-- BifrostErrorResponse -->
+<!-- ErrorResponse -->
 <g id="node8" class="node">
 <title>BifrostErrorResponse</title>
 <ellipse fill="#deb887" stroke="#000000" cx="189.1332" cy="-1431" rx="112.3801" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-1427.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostErrorResponse</text>
 </g>
-<!-- BifrostErrorResponse&#45;&gt;ScorexApiResponse -->
+<!-- ErrorResponse&#45;&gt;ScorexApiResponse -->
 <g id="edge6" class="edge">
 <title>BifrostErrorResponse&#45;&gt;ScorexApiResponse</title>
 <path fill="none" stroke="#000000" d="M274.51,-1442.7172C338.4436,-1451.4915 425.7721,-1463.4766 491.131,-1472.4465"/>

@@ -46,6 +46,7 @@ val apiDependencies = Seq(
 )
 
 val loggingDependencies = Seq(
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "ch.qos.logback" % "logback-core" % "1.2.3",
   "org.slf4j" % "slf4j-api" % "1.7.25"
@@ -67,10 +68,16 @@ libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
   "org.whispersystems" % "curve25519-java" % "0.4.1",
-  "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-core" % "2.0.4",
-  "io.kamon" %% "kamon-influxdb" % "2.0.0",
-  "io.kamon" %% "kamon-zipkin" % "2.0.2"
+)
+
+// monitoring dependencies
+libraryDependencies ++= Seq(
+  "io.kamon" %% "kamon-bundle" % "2.0.5",
+  "io.kamon" %% "kamon-core" % "2.1.0",
+  "io.kamon" %% "kamon-influxdb" % "2.1.0",
+  "io.kamon" %% "kamon-zipkin" % "2.1.0",
+  //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
+  //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
@@ -88,7 +95,6 @@ libraryDependencies  ++= Seq(
   "com.google.protobuf" % "protobuf-java" % "3.5.1",
   "com.thesamet.scalapb" %% "lenses" % "0.7.0",
   "com.typesafe" % "config" % "1.3.3",
-
 )
 
 scalacOptions ++= Seq("-feature", "-deprecation")
@@ -161,5 +167,11 @@ PB.pythonExe := "C:\\Python27\\python.exe"
 connectInput in run := true
 outputStrategy := Some(StdoutOutput)
 
-lazy val bifrost = Project(id = "project-bifrost", base = file("."))
+lazy val bifrost = Project(id = "bifrost", base = file("."))
   .settings(commonSettings: _*)
+
+lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
+  .settings(commonSettings: _*)
+  .dependsOn(bifrost % "compile->compile;test->test")
+  .enablePlugins(JmhPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)

@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.Actor
 import bifrost.network._
 import bifrost.settings.Settings
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -15,14 +15,14 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also choose a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: Settings) extends Actor with ScorexLogging {
+class PeerManager(settings: Settings) extends Actor with Logging {
 
   import PeerManager._
 
   private val connectedPeers = mutable.Map[ConnectedPeer, Option[Handshake]]()
   private var connectingPeer: Option[InetSocketAddress] = None
 
-  private lazy val peerDatabase = new PeerDatabaseImpl(settings, settings.dataDirOpt.map(_ + "/peers.dat"))
+  private lazy val peerDatabase = new PeerDatabase(settings, settings.dataDirOpt.map(_ + "/peers.dat"))
 
   if (peerDatabase.isEmpty()) {
     settings.knownPeers.foreach { address =>
@@ -49,6 +49,7 @@ class PeerManager(settings: Settings) extends Actor with ScorexLogging {
       sender() ! randomPeer()
 
     case RandomPeers(howMany: Int) =>
+      kamon.Kamon.currentSpan().tag("peerSynch", "true")
       sender() ! Random.shuffle(peerDatabase.knownPeers(false).keys.toSeq).take(howMany)
 
     case FilterPeers(sendingStrategy: SendingStrategy) =>
@@ -140,7 +141,7 @@ object PeerManager {
 
   case object RandomPeer
 
-  case class RandomPeers(hawMany: Int)
+  case class RandomPeers(howMany: Int)
 
   case object CheckPeers
 

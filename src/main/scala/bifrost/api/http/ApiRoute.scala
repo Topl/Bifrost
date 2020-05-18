@@ -16,27 +16,18 @@ trait ApiRoute extends Directives {
   val context: ActorRefFactory
   val route: Route
 
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout = Timeout(5.seconds)
 
-  lazy val corsAllowed = settings.corsAllowed
-  lazy val apiKeyHash = settings.apiKeyHash
+  lazy val corsAllowed: Boolean = settings.corsAllowed
+  lazy val apiKeyHash: Option[Array[Byte]] = settings.apiKeyHash
 
   def actorRefFactory: ActorRefFactory = context
 
-  def getJsonRoute(fn: Future[ScorexApiResponse]): Route =
-    jsonRoute(Await.result(fn, timeout.duration), get)
+  def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
-  def getJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, get)
+  def postJsonRoute(fn: Future[ApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), post)
 
-  def postJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, post)
-
-  def postJsonRoute(fn: Future[ScorexApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), post)
-
-  def deleteJsonRoute(fn: ScorexApiResponse): Route = jsonRoute(fn, delete)
-
-  def deleteJsonRoute(fn: Future[ScorexApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), delete)
-
-  private def jsonRoute(fn: ScorexApiResponse, method: Directive0): Route = method {
+  private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
     val resp = complete(HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2))
     withCors(resp)
   }
@@ -47,9 +38,9 @@ trait ApiRoute extends Directives {
   }
 
   def withAuth(route: => Route): Route = {
-    optionalHeaderValueByName("x-api-key") { case keyOpt =>
+    optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
-      else complete(HttpEntity(ContentTypes.`application/json`, ApiError.apiKeyNotValid.toString()))
+      else complete(HttpEntity(ContentTypes.`application/json`, "Provided API key is not correct"))
     }
   }
 

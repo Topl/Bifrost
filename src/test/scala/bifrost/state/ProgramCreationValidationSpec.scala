@@ -3,19 +3,18 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box._
+import bifrost.modifier.block.Block
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import io.circe.syntax._
 import org.scalacheck.Gen
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.ProgramCreation
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
+import bifrost.program.ExecutionBuilderCompanion
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}
@@ -105,11 +104,11 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     // Create block with program creation
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(programCreation),
           10L,
           settings.version
@@ -307,11 +306,11 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
-        val firstCCAddBlock = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(1: Byte),
+        val firstCCAddBlock = Block(
+          Array.fill(Block.SignatureLength)(1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(cc),
           10L,
           settings.version

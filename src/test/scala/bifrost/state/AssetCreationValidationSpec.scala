@@ -2,13 +2,13 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.AssetCreation
-import bifrost.transaction.box._
+import bifrost.modifier.block.Block
+import bifrost.crypto.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
+import bifrost.modifier.box._
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure
@@ -19,11 +19,11 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
   property("A block with valid AssetCreation should result in more tokens for receiver") {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(assetCreation),
           10L,
           settings.version

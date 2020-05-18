@@ -1,27 +1,28 @@
 package bifrost.scorexMod
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.History.HistoryComparisonResult
-import bifrost.consensus.{History, SyncInfo}
+import bifrost.history.History.HistoryComparisonResult
 import bifrost.scorexMod.GenericNodeViewSynchronizer._
-import bifrost.network.ConnectedPeer
+import bifrost.network.{ConnectedPeer, SyncInfo}
 import bifrost.serialization.Serializer
-import bifrost.transaction.bifrostTransaction.CoinbaseTransaction
-import bifrost.transaction.box.proposition.Proposition
-import bifrost.transaction.wallet.Vault
-import bifrost.transaction.{MemoryPool, Transaction}
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.utils.Logging
 import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.mempool.MemoryPool
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.transaction.GenericBoxTransaction
+import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging {
+  extends Actor with Logging {
 
   import GenericNodeViewHolder._
 

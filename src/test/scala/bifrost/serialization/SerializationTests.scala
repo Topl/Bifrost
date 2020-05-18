@@ -1,13 +1,13 @@
 package bifrost.serialization
 
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
-import bifrost.program.ExecutionBuilder
-import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoSerializer}
-import bifrost.transaction.bifrostTransaction._
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.transaction.serialization._
+import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import bifrost.modifier.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
@@ -252,14 +252,14 @@ class SerializationTests extends PropSpec
   }
 
   //TODO Test after all txs and state tests work
-  property("BifrostBlock Serialization") {
-    forAll(bifrostBlockGen) {
-      bb: BifrostBlock =>
-        val parsed = BifrostBlockCompanion.parseBytes(BifrostBlockCompanion.toBytes(bb))
+  property("Block Serialization") {
+    forAll(BlockGen) {
+      bb: Block =>
+        val parsed = BlockCompanion.parseBytes(BlockCompanion.toBytes(bb))
 
         parsed match {
-          case Success(p) => BifrostBlockCompanion.toBytes(p) sameElements
-            BifrostBlockCompanion.toBytes(bb) shouldBe true
+          case Success(p) => BlockCompanion.toBytes(p) sameElements
+            BlockCompanion.toBytes(bb) shouldBe true
           case Failure(e) => throw e
         }
     }

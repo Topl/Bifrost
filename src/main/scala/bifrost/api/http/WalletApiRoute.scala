@@ -4,34 +4,22 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericWalletBox
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
+import bifrost.modifier.box.BifrostBox
 import bifrost.wallet.BWallet
+import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.crypto.{Bip39, PrivateKey25519}
+import bifrost.settings.Settings
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.Bip39
-import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{
-  ArbitTransfer,
-  AssetCreation,
-  AssetTransfer,
-  BifrostTransaction,
-  PolyTransfer,
-  TransferTransaction
-}
-import bifrost.transaction.box.proposition.{
-  ProofOfKnowledgeProposition,
-  PublicKey25519Proposition
-}
-import bifrost.transaction.state.PrivateKey25519
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
@@ -51,7 +39,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   val id = (request \\ "id").head.asString.get
@@ -64,10 +52,8 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                   (request \\ "method").head.asString.get match {
                     case "transferPolys"  => transferPolys(params.head, id)
                     case "transferArbits" => transferArbits(params.head, id)
-                    case "transferArbitsPrototype" =>
-                      transferArbitsPrototype(params.head, id)
-                    case "transferPolysPrototype" =>
-                      transferPolysPrototype(params.head, id)
+                    case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
+                    case "transferPolysPrototype" => transferPolysPrototype(params.head, id)
                     case "balances"         => balances(params.head, id)
                     case "unlockKeyfile"    => unlockKeyfile(params.head, id)
                     case "lockKeyfile"      => lockKeyfile(params.head, id)
@@ -81,9 +67,9 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,

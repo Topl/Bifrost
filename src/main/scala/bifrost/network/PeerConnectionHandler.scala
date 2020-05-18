@@ -11,7 +11,7 @@ import bifrost.network.message.MessageHandler
 import bifrost.network.peer.PeerManager
 import bifrost.network.peer.PeerManager.{AddToBlacklist, Handshaked}
 import bifrost.settings.Settings
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.util.{Failure, Random, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,7 +35,7 @@ case class PeerConnectionHandler(settings: Settings,
                                  messagesHandler: MessageHandler,
                                  connection: ActorRef,
                                  ownSocketAddress: Option[InetSocketAddress],
-                                 remote: InetSocketAddress) extends Actor with Buffering with ScorexLogging {
+                                 remote: InetSocketAddress) extends Actor with Buffering with Logging {
 
   import PeerConnectionHandler._
 

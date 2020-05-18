@@ -3,10 +3,9 @@ package bifrost.program
 import java.time.Instant
 import java.util
 
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
-import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.modifier.box.{ArbitBox, AssetBox, BifrostBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import org.graalvm.polyglot.{Context, Instrument}
 import com.oracle.truffle.polyglot._
 import bifrost.{BifrostGenerators, ValidGenerators}
@@ -15,6 +14,7 @@ import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.encode.Base58
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
+import bifrost.crypto.FastCryptographicHash
 import bifrost.settings.Settings
 import bifrost.state.BifrostStateSpec
 import bifrost.wallet.BWallet

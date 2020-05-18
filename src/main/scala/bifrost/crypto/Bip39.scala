@@ -1,6 +1,6 @@
 package bifrost.crypto
 
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import scorex.crypto.hash.Sha256
 
 import scala.io.Source
@@ -24,7 +24,7 @@ import scala.math.BigInt
  * https://github.com/bitcoin/bips/tree/master/bip-0039
  */
 
-case class Bip39 (phraseLanguage: String) extends ScorexLogging {
+case class Bip39 (phraseLanguage: String) extends Logging {
 
   val iso639_1_toFile: Map[String,String] = Map(
     "zh-hans"->"chinese_simplified.txt",

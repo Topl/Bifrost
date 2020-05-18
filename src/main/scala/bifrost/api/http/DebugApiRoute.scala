@@ -10,8 +10,7 @@ import bifrost.settings.Settings
 import io.circe.Json
 import io.circe.syntax._
 import io.circe.parser.parse
-import bifrost.consensus.History.HistoryComparisonResult
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,7 +33,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   val id = (request \\ "id").head.asString.get
@@ -53,9 +52,9 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,

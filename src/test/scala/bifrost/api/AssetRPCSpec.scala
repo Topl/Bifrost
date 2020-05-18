@@ -7,21 +7,20 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
-import bifrost.transaction.box.{ArbitBox, AssetBox}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
+import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -136,7 +135,7 @@ class AssetRPCSpec extends WordSpec
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
-        val tempBlock = BifrostBlock(history.bestBlockId,
+        val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

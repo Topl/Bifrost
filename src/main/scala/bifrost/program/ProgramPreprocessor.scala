@@ -6,12 +6,12 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import bifrost.crypto.Signature25519
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import bifrost.serialization.JsonSerializable
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}

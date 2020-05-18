@@ -3,15 +3,15 @@ package bifrost.scorexMod
 import akka.actor.{Actor, ActorRef}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.{History, SyncInfo}
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network._
 import bifrost.network.message.BasicMsgDataTypes._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
-import bifrost.transaction.Transaction
-import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.utils.Logging
 import bifrost.{LocalInterface, NodeViewModifier}
+import bifrost.history.History
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
@@ -33,7 +33,7 @@ class GenericNodeViewSynchronizer[P <: Proposition, TX <: Transaction[P], SI <: 
 (networkControllerRef: ActorRef,
  viewHolderRef: ActorRef,
  localInterfaceRef: ActorRef,
- syncInfoSpec: SIS) extends Actor with ScorexLogging {
+ syncInfoSpec: SIS) extends Actor with Logging {
 
   import GenericNodeViewSynchronizer._
   import History.HistoryComparisonResult._

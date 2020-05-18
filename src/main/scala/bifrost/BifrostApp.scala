@@ -1,24 +1,21 @@
 package bifrost
 
-
-import akka.actor.{ActorRef, Props}
-import bifrost.api.http._
-import bifrost.blocks.BifrostBlock
-import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.history.BifrostSyncInfoMessageSpec
-import bifrost.network.BifrostNodeViewSynchronizer
-import bifrost.scorexMod.GenericApplication
-import bifrost.transaction.box.BifrostBox
-import io.circe
-import bifrost.api.http.{ApiRoute, UtilsApiRoute}
-import bifrost.network.message.MessageSpec
-import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
-import bifrost.transaction.state.PrivateKey25519
 import java.lang.management.ManagementFactory
 
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import akka.actor.{ActorRef, Props}
+import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
+import bifrost.crypto.PrivateKey25519
+import bifrost.forging.{Forger, ForgingSettings}
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec}
+import bifrost.network.message.MessageSpec
+import bifrost.scorexMod.GenericApplication
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe
 import kamon.Kamon
 
 import scala.reflect.runtime.universe._
@@ -28,7 +25,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   override type P = ProofOfKnowledgeProposition[PrivateKey25519]
   override type BX = BifrostBox
   override type TX = BifrostTransaction
-  override type PMOD = BifrostBlock
+  override type PMOD = Block
   override type NVHT = BifrostNodeViewHolder
 
   implicit lazy val settings = new ForgingSettings {
@@ -39,12 +36,12 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
   override protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] =
     Seq(BifrostSyncInfoMessageSpec)
 
-  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)))
+  override val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)), "nodeViewHolder")
 
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
+  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef), "forger")
 
   override val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings), "localInterface"
   )
 
   override val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
@@ -52,7 +49,7 @@ class BifrostApp(val settingsFilename: String) extends GenericApplication with R
       networkController,
       nodeViewHolderRef,
       localInterface,
-      BifrostSyncInfoMessageSpec)
+      BifrostSyncInfoMessageSpec), "nodeViewSynchronizer"
   )
 
   override val apiRoutes: Seq[ApiRoute] = Seq(

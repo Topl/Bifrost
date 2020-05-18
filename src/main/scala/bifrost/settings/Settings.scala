@@ -5,9 +5,8 @@ import java.net.InetSocketAddress
 
 import io.circe.Json
 import io.circe.parser.parse
-import bifrost.app.ApplicationVersion
-import bifrost.transaction.box.proposition.Constants25519._
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.box.proposition.Constants25519._
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._
@@ -16,7 +15,7 @@ import scala.util.{Random, Try}
 /**
   * Settings
   */
-trait Settings extends ScorexLogging {
+trait Settings extends Logging {
 
   def settingsFromFile(filename: String): Map[String, Json] = Try {
     val jsonString = scala.io.Source.fromFile(filename).mkString
@@ -61,7 +60,6 @@ trait Settings extends ScorexLogging {
 
   //p2p
   lazy val DefaultPort = 9084
-
   lazy val DefaultHandshakeTimeout = 5000
 
   lazy val p2pSettings: Map[String, Json] = settingsJSON("p2p").asObject.get.toMap
@@ -126,19 +124,14 @@ trait Settings extends ScorexLogging {
 
   lazy val corsAllowed: Boolean = settingsJSON.get("cors").flatMap(_.asBoolean).getOrElse(false)
 
-  lazy val isTestnet: Boolean = settingsJSON.get("testnet").flatMap(_.asBoolean).getOrElse(false)
-
   //NETWORK
   private val DefaultMaxConnections = 20
   private val DefaultConnectionTimeout = 60
   private val DefaultBindAddress = "127.0.0.1"
-
   private val DefaultNetworkChunkSize = 100
 
   //API
-
   private val DefaultRpcPort = 9085
-
   private val DefaultBlockGenerationDelay: FiniteDuration = 1.second
   private val DefaultMiningThreads: Int = 1
 

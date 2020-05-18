@@ -7,17 +7,17 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.forging.Forger
-import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
+import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostNodeViewSynchronizer, NetworkController, UPnP}
+import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58

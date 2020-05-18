@@ -2,18 +2,18 @@ package bifrost
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 // import bifrost.NodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder._
-import bifrost.transaction.Transaction
-import bifrost.transaction.box.proposition.Proposition
-import bifrost.utils.ScorexLogging
+import modifier.box.proposition.Proposition
+import bifrost.utils.Logging
 
 /**
   *
   */
 trait LocalInterface[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
-  extends Actor with ScorexLogging {
+  extends Actor with Logging {
 
   val viewHolderRef: ActorRef
 

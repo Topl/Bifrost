@@ -35,7 +35,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   val id = (request \\ "id").head.asString.get
@@ -55,9 +55,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
                 futureResponse map { response =>
                   Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(
+                    ErrorResponse(
                       e,
                       500,
                       reqId,
@@ -114,7 +114,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     viewAsync().map { view =>
       getMempool() match {
         case Success(pool: MP) => pool.take(100).map(_.json).asJson
-        //Failure is caught by BifrostErrorResponse in the nodeViewRoute function when the Await does not receive a response
+        //Failure is caught by ErrorResponse in the nodeViewRoute function when the Await does not receive a response
       }
     }
   }
@@ -216,17 +216,3 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 }
-//TODO Open surface was written in the REST api route but the openSurface method remains unimplemented
-//  @Path("/openSurface")
-//  @ApiOperation(value = "Ids of open surface", notes = "Ids of open surface in history", httpMethod = "GET")
-//  def openSurface: Route = path("openSurface") {
-//    getJsonRoute {
-//      getHistory() match {
-//        case Success(history: HIS) => SuccessApiResponse(history
-//          .openSurfaceIds()
-//          .map(Base58.encode)
-//          .asJson)
-//        case Failure(e) => ApiException(e)
-//      }
-//    }
-//  }

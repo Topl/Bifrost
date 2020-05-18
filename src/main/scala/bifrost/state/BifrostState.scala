@@ -2,25 +2,20 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.tokenBoxRegistry.TokenBoxRegistry
 import bifrost.history.BifrostHistory
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
+import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxMinimalState, GenericStateChanges}
-import bifrost.transaction.box._
-import bifrost.transaction.proof.{MultiSignature25519, Signature25519}
+import bifrost.scorexMod.{GenericBoxMinimalState, GenericMinimalState, GenericStateChanges}
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxRegistry
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.MinimalState.VersionTag
-import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
+import bifrost.scorexMod.GenericMinimalState.VersionTag
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -44,7 +39,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, BifrostBlock, BifrostState] with ScorexLogging {
+    BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
 
   override type NVCT = BifrostState
   type P = BifrostState.P
@@ -546,7 +541,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
   def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
     //val t = history.modifierById(cb.blockID).get
-    //def helper(m: BifrostBlock): Boolean = { m.id sameElements t.id }
+    //def helper(m: Block): Boolean = { m.id sameElements t.id }
     val validConstruction: Try[Unit] = {
       /*
       assert(cb.fee == 0L) // no fee for a coinbase tx
@@ -584,13 +579,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 }
 
-object BifrostState extends ScorexLogging {
+object BifrostState extends Logging {
 
   type T = Any
   type TX = BifrostTransaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = BifrostBox
-  type BPMOD = BifrostBlock
+  type BPMOD = Block
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 
@@ -668,6 +663,7 @@ object BifrostState extends ScorexLogging {
     }
 
     //TODO clean up nulls
+    //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys.map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get))).orNull
     val pbr = ProgramBoxRegistry.readOrGenerate(settings, stateStorage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull

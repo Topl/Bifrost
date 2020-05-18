@@ -1,17 +1,13 @@
 package bifrost.network
 
 import akka.actor.ActorRef
-import bifrost.BifrostNodeViewHolder
-import bifrost.history.{BifrostSyncInfo, BifrostSyncInfoMessageSpec}
+import bifrost.crypto.PrivateKey25519
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo
 import bifrost.scorexMod.{GenericNodeViewHolder, GenericNodeViewSynchronizer}
-import bifrost.network.NetworkController.DataFromPeer
-import bifrost.network._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.proposition.ProofOfKnowledgeProposition
-import bifrost.transaction.state.PrivateKey25519
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

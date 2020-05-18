@@ -1,26 +1,27 @@
 package bifrost
 
-import bifrost.blocks.{BifrostBlock, BifrostBlockCompanion}
+import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostSyncInfo}
+import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
-import bifrost.transaction.box.{ArbitBox, BifrostBox}
+import modifier.box.{ArbitBox, BifrostBox}
 import bifrost.wallet.BWallet
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.serialization.Serializer
-import bifrost.transaction.Transaction
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.serialization.BifrostTransactionCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
+import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
+import bifrost.crypto.PrivateKey25519Companion
+import bifrost.network.BifrostSyncInfo
+import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 class BifrostNodeViewHolder(settings: ForgingSettings)
-  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, BifrostBlock] {
+  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, Block] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
@@ -30,7 +31,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   override type MP = BifrostMemPool
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(BifrostBlock.ModifierTypeId -> BifrostBlockCompanion,
+    Map(Block.ModifierTypeId -> BlockCompanion,
     Transaction.ModifierTypeId -> BifrostTransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
@@ -63,7 +64,7 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
   }
 }
 
-object BifrostNodeViewHolder extends ScorexLogging {
+object BifrostNodeViewHolder extends Logging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = BWallet
@@ -127,7 +128,7 @@ object BifrostNodeViewHolder extends ScorexLogging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = BifrostBlock.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
+    val genesisBlock = Block.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
 
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1

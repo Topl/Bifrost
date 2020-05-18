@@ -3,8 +3,8 @@ package bifrost
 import com.typesafe.config.ConfigFactory
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable, Serializer}
-import bifrost.transaction.Transaction
-import bifrost.transaction.box.proposition.Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import modifier.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

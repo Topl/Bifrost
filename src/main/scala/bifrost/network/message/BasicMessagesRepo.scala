@@ -7,8 +7,8 @@ import java.util
 import com.google.common.primitives.{Bytes, Ints}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.SyncInfo
 import bifrost.network.message.Message._
+import bifrost.network.SyncInfo
 
 import scala.util.Try
 

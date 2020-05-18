@@ -3,29 +3,25 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import akka.pattern.ask
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.transaction.box.ArbitBox
+import bifrost.modifier.box.ArbitBox
 import bifrost.wallet.BWallet
-import bifrost.inflation.InflationQuery
 import com.google.common.primitives.Longs
 import bifrost.LocalInterface.LocallyGeneratedModifier
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.settings.Settings
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.PrivateKey25519
-import bifrost.utils.ScorexLogging
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
-import bifrost.block.Block.Version
-import bifrost.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.block.Block.Version
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 
 import scala.util.Try
 
@@ -46,16 +42,14 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   private val initialForging = forgerSettings.offlineGeneration
   private var forging = forgerSettings.offlineGeneration
 
-  private val hash = FastCryptographicHash
-
   override def preStart(): Unit = {
     if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions( memPool: BifrostMemPool,
-                        state: BifrostState,
-                        parent: BifrostBlock,
-                        view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
+  def pickTransactions(memPool: BifrostMemPool,
+                       state: BifrostState,
+                       parent: Block,
+                       view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
                       ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
@@ -73,9 +67,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     }
     CB +: regTxs
   }
-
-  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt =
-    if (value < min) min else if (value > max) max else value
 
   override def receive: Receive = {
     case StartForging =>
@@ -113,7 +104,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
-              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBlock](block)
+              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block](block)
           case None =>
             log.debug(s"Failed to generate block")
         }
@@ -122,7 +113,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   }
 }
 
-object Forger extends ScorexLogging {
+object Forger extends Logging {
 
 
   val MaxTarget = Long.MaxValue
@@ -133,17 +124,17 @@ object Forger extends ScorexLogging {
 
   case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
-  def hit(lastBlock: BifrostBlock)(box: ArbitBox): Long = {
+  def hit(lastBlock: Block)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
 
-  def iteration(parent: BifrostBlock,
+  def iteration(parent: Block,
                 boxKeys: Seq[(ArbitBox, PrivateKey25519)],
                 txsToInclude: Seq[BifrostTransaction],
                 target: BigInt,
-                version: Version): Option[BifrostBlock] = {
+                version: Version): Option[Block] = {
 
     log.debug("in the iteration function")
     val successfulHits = boxKeys.map { boxKey =>
@@ -154,18 +145,18 @@ object Forger extends ScorexLogging {
 
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
-    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.size > 0) {
-        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
+    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
+        Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
           txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
       }
     else {
-        BifrostBlock.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0, version)
+        Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0, version)
       }
     }
   }
 
   def calcAdjustedTarget(difficulty: Long,
-                         parent: BifrostBlock,
+                         parent: Block,
                          targetBlockDelay: Long): BigInt = {
     val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp

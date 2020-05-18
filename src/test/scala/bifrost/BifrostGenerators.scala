@@ -4,26 +4,23 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostStorage, BifrostSyncInfo}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.transaction.box._
-import bifrost.transaction.box.proposition.MofNProposition
+import bifrost.history.{BifrostHistory, BifrostStorage}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import modifier.box._
+import modifier.box.proposition.MofNProposition
 import io.circe
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import bifrost.block.Block
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.network.BifrostSyncInfo
+import modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
-import scorex.testkit.CoreGenerators
 
 import scala.util.{Random, Try}
 
@@ -44,14 +41,10 @@ trait BifrostGenerators extends CoreGenerators {
 
   val settings: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
-
-    override lazy val Difficulty: BigInt = 1
   }
 
   val settings_version0: ForgingSettings = new ForgingSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
-
-    override lazy val Difficulty: BigInt = 1
   }
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
@@ -185,15 +178,11 @@ trait BifrostGenerators extends CoreGenerators {
     }
   }
 
-  lazy val shareFuncGen: Gen[ShareFunction] = seqDoubleGen(2).map(PiecewiseLinearMultiple)
-
   def seqLongDoubleGen(minLength: Int): Gen[Seq[(Long, Double)]] = for {
     seqLen <- Gen.choose(minLength, minLength + sampleUntilNonEmpty(positiveTinyIntGen))
   } yield {
     (0 until seqLen) map { _ => (sampleUntilNonEmpty(positiveLongGen), samplePositiveDouble) }
   }
-
-  lazy val fulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(2).map(PiecewiseLinearSingle)
 
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
@@ -275,15 +264,6 @@ trait BifrostGenerators extends CoreGenerators {
   } yield {
     a
   }
-
-  lazy val validShareFuncGen: Gen[ShareFunction] = seqDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen)).map(seq => {
-    val first: Double = samplePositiveDouble / 2
-    val second: Double = samplePositiveDouble / 2
-    PiecewiseLinearMultiple((0.0, (first, second, 1 - first - second)) +: seq)
-  })
-
-  lazy val validFulfilFuncGen: Gen[FulfilmentFunction] = seqLongDoubleGen(sampleUntilNonEmpty(positiveTinyIntGen))
-    .map(seq => PiecewiseLinearSingle((0L, samplePositiveDouble) +: seq))
 
   lazy val validExecutionBuilderTermsGen: Gen[ExecutionBuilderTerms] = for {
     size <- Gen.choose(1, 1024-1)
@@ -675,14 +655,14 @@ trait BifrostGenerators extends CoreGenerators {
     .listOfN(length, Arbitrary.arbitrary[Byte])
     .map(_.toArray)
 
-  lazy val bifrostBlockGen: Gen[BifrostBlock] = for {
+  lazy val BlockGen: Gen[Block] = for {
     parentId <- specificLengthBytesGen(Block.BlockIdLength)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    BifrostBlock(parentId, timestamp, generatorBox, signature, txs, 10L, settings.version)
+    Block(parentId, timestamp, generatorBox, signature, txs, 10L, settings.version)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
@@ -694,10 +674,10 @@ trait BifrostGenerators extends CoreGenerators {
     BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
   }
 
-  lazy val genesisBlockGen: Gen[BifrostBlock] = for {
+  lazy val genesisBlockGen: Gen[Block] = for {
     keyPair ← key25519Gen
   } yield {
-    BifrostBlock.create(
+    Block.create(
       settings.GenesisParentId,
       1478164225796L,
       Seq(),
