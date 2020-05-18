@@ -39,10 +39,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
 
   //set to true for initial generator
+  private val initialForging = forgerSettings.offlineGeneration
   private var forging = forgerSettings.offlineGeneration
 
   override def preStart(): Unit = {
-    if (forging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
+    if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
   def pickTransactions(memPool: MemPool,
@@ -53,13 +54,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
-    print("infVal being used in forger: " + infVal + "\n")
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    if (CB.newBoxes.nonEmpty) {
-      print("\n\n" + CB.newBoxes.head.typeOfBox + " : " + CB.newBoxes.head.json + " : " + CB.newBoxes + "\n\n")
-    } else {
-      print("\n\n" + "No boxes created by 0 value coinbase transaction" + "\n\n")
-    }
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
@@ -75,9 +70,11 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   override def receive: Receive = {
     case StartForging =>
-      log.info("No Better Neighbor. Forger starts forging now.")
-      forging = true
-      viewHolderRef ! GetCurrentView
+      if(initialForging) {
+        log.info("No Better Neighbor. Forger starts forging now.")
+        forging = true
+        viewHolderRef ! GetCurrentView
+      }
 
     case StopForging =>
       forging = false

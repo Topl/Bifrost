@@ -1,9 +1,6 @@
 version: '3.8'
 
 services:
-# If you want to save grafana data you must start the container as discussed here
-# https://community.grafana.com/t/new-docker-install-with-persistent-storage-permission-problem/10896
-# where user is your 'id' found by 'id -u'
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -14,8 +11,6 @@ services:
       - 3000:3000
     volumes:
       - ./provisioning/grafana:/etc/grafana/provisioning
-    #   - ./data/grafana:/var/lib/grafana
-    # user: "1000"
     
   zipkin:
     image: openzipkin/zipkin:latest

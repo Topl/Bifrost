@@ -197,7 +197,6 @@ class NodeViewSynchronizer(networkControllerRef: ActorRef,
   /* local node sending out objects requested to remote */
   private def responseFromLocal: Receive = {
     case ResponseFromLocal(peer, typeId, modifiers: Seq[NodeViewModifier]) =>
-      println("Entered response from local")
       if (modifiers.nonEmpty) {
         val modType = modifiers.head.modifierTypeId
         val m = modType -> modifiers.map(m => m.id -> m.bytes).toMap
