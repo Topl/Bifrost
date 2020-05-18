@@ -25,7 +25,7 @@ import org.scalatest.{Matchers, WordSpec}
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
@@ -46,7 +46,7 @@ class ProgramRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p

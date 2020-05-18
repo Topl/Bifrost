@@ -21,7 +21,7 @@ import bifrost.crypto.Signature25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -39,7 +39,7 @@ class NodeViewRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 

@@ -18,7 +18,7 @@ import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
@@ -36,7 +36,7 @@ trait ProgramMockState extends BifrostGenerators {
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p

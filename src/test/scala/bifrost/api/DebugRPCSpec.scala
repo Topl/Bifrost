@@ -10,7 +10,7 @@ import bifrost.BifrostGenerators
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
@@ -32,7 +32,7 @@ class DebugRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = DebugApiRoute(settings, nodeViewHolderRef).route
 

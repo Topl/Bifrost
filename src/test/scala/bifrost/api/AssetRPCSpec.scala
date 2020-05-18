@@ -21,7 +21,7 @@ import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -44,7 +44,7 @@ class AssetRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute = WalletApiRoute(settings, nodeViewHolderRef).route

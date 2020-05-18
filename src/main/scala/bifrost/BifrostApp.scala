@@ -15,7 +15,7 @@ import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import bifrost.utils.Logging
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
@@ -31,7 +31,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   type BX = BifrostBox
   type TX = BifrostTransaction
   type PMOD = Block
-  type NVHT = BifrostNodeViewHolder
+  type NVHT = NodeViewHolder
 
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")

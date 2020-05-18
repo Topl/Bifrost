@@ -16,7 +16,7 @@ import bifrost.state.BifrostState
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
-import bifrost.nodeView.BifrostNodeViewHolder
+import bifrost.nodeView.NodeViewHolder
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
@@ -36,7 +36,7 @@ class WalletRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = WalletApiRoute(settings, nodeViewHolderRef).route
 

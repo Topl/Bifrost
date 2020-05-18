@@ -17,7 +17,7 @@ import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
-class BifrostNodeViewHolder(settings: ForgingSettings)
+class NodeViewHolder(settings: ForgingSettings)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, BifrostBox, Block] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
@@ -57,11 +57,11 @@ class BifrostNodeViewHolder(settings: ForgingSettings)
 
   //noinspection ScalaStyle
   override protected def genesisState: NodeView = {
-    BifrostNodeViewHolder.initializeGenesis(settings)
+    NodeViewHolder.initializeGenesis(settings)
   }
 }
 
-object BifrostNodeViewHolder extends Logging {
+object NodeViewHolder extends Logging {
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = Wallet
