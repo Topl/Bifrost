@@ -1,7 +1,7 @@
 package bifrost.mempool
 
-import bifrost.NodeViewComponent
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewComponent
 
 import scala.util.Try
 

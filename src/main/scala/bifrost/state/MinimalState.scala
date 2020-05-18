@@ -4,10 +4,11 @@ package bifrost.state
   * Created by cykoz on 4/13/17.
   */
 
-import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewComponent
 import bifrost.state.MinimalState.VersionTag
 
 import scala.util.Try
