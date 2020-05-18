@@ -6,12 +6,11 @@ import bifrost.history.BifrostHistory
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxMinimalState, GenericMinimalState, GenericStateChanges}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.scorexMod.GenericMinimalState.VersionTag
+import bifrost.state.MinimalState.VersionTag
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -24,7 +23,7 @@ case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[Bi
 
 case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
                                override val toAppend: Set[BifrostBox], timestamp: Long)
-  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
+  extends StateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -38,7 +37,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   */
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
-  extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
+  extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
 
   override type NVCT = BifrostState
@@ -52,7 +51,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
 
 
-  override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
+  def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
@@ -586,7 +585,7 @@ object BifrostState extends Logging {
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = BifrostBox
   type BPMOD = Block
-  type GSC = GenericStateChanges[T, P, BX]
+  type GSC = StateChanges[T, P, BX]
   type BSC = BifrostStateChanges
 
   //noinspection ScalaStyle

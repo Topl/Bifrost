@@ -8,7 +8,6 @@ import bifrost.transaction._
 import bifrost.modifier.box._
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.scorexMod.GenericMinimalState
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalacheck.Gen
@@ -251,7 +250,7 @@ class BifrostStateSpec extends PropSpec
 object BifrostStateSpec {
 
   import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-  import GenericMinimalState.VersionTag
+  import MinimalState.VersionTag
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {

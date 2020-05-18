@@ -5,14 +5,14 @@ import java.io.File
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.forging.ForgingSettings
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.NodeViewModifier
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.history.History.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.network.BifrostSyncInfo
+import bifrost.nodeView.NodeViewModifier
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

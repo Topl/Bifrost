@@ -1,7 +1,7 @@
 package bifrost.mempool
 
-import bifrost.NodeViewComponent
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewComponent
 
 import scala.util.Try
 
@@ -12,7 +12,7 @@ import scala.util.Try
   */
 trait MemoryPool[TX <: Transaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
 
-  import bifrost.NodeViewModifier.ModifierId
+  import bifrost.nodeView.NodeViewModifier.ModifierId
 
   //getters
   def getById(id: ModifierId): Option[TX]

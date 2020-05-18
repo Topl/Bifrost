@@ -3,7 +3,7 @@ package bifrost.api.http
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.state.BifrostState
 import bifrost.modifier.box.BifrostBox
 import bifrost.wallet.Wallet
@@ -27,7 +27,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = Wallet
-  type MP = BifrostMemPool
+  type MP = MemPool
   override val route: Route = pathPrefix("wallet") {
     walletRoute
   }

@@ -3,6 +3,7 @@ package bifrost
 import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.PersistentNodeViewModifier
 // import bifrost.NodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder._

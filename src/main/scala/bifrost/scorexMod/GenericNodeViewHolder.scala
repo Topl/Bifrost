@@ -3,18 +3,19 @@ package bifrost.scorexMod
 import akka.actor.{Actor, ActorRef}
 import bifrost.history.History
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.history.History.HistoryComparisonResult
-import bifrost.network.{NodeViewSynchronizer, ConnectedPeer, SyncInfo}
+import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.GenericBoxTransaction
+import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.scorexMod.GenericNodeViewHolder._
+import bifrost.state.MinimalState
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
@@ -28,7 +29,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   type SI <: SyncInfo
   type HIS <: History[P, TX, PMOD, SI, HIS]
-  type MS <: GenericBoxMinimalState[T, P, BX, TX, PMOD, MS]
+  type MS <: MinimalState[T, P, BX, TX, PMOD, MS]
   type VL <: Vault[P, TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]
 

@@ -3,7 +3,7 @@ package bifrost.api.http
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.mempool.MemPool
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
 import bifrost.settings.Settings
@@ -23,7 +23,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
   type HIS = BifrostHistory
   type MS = BifrostState
   type VL = Wallet
-  type MP = BifrostMemPool
+  type MP = MemPool
   override val route: Route = pathPrefix("debug") { debugRoute }
 
   def debugRoute: Route = path("") {
