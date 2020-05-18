@@ -1719,7 +1719,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="189.1332" cy="-8370" rx="157.0724" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8366.3" font-family="Times,serif" font-size="14.00" fill="#000000">AuthenticatedBoxMinimalState</text>
 </g>
-<!-- GenericBoxTransaction -->
+<!-- BoxTransaction -->
 <g id="node164" class="node">
 <title>GenericBoxTransaction</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="1010.5167" cy="-8478" rx="120.4791" ry="18"/>
@@ -2109,7 +2109,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="582.6015" cy="-8478" rx="98.2828" ry="18"/>
 <text text-anchor="middle" x="582.6015" y="-8474.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransaction</text>
 </g>
-<!-- BifrostTransaction&#45;&gt;GenericBoxTransaction -->
+<!-- BifrostTransaction&#45;&gt;BoxTransaction -->
 <g id="edge134" class="edge">
 <title>BifrostTransaction&#45;&gt;GenericBoxTransaction</title>
 <path fill="none" stroke="#000000" d="M680.7739,-8478C739.7969,-8478 815.6425,-8478 879.7089,-8478"/>

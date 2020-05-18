@@ -8,7 +8,7 @@ import com.google.common.primitives.Longs
 /**
   * Created by cykoz on 4/13/17.
   */
-abstract class GenericBoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] extends Transaction[P] {
+abstract class BoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] extends Transaction[P] {
 
   val newBoxes: Traversable[BX]
 

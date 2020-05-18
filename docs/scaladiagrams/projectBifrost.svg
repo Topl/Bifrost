@@ -123,13 +123,13 @@
 <path fill="none" stroke="#000000" d="M4177.7846,-435.6028C4218.4697,-423.8384 4276.0457,-407.1899 4318.8438,-394.8146"/>
 <polygon fill="#000000" stroke="#000000" points="4319.9269,-398.1449 4328.5611,-392.0048 4317.9824,-391.4203 4319.9269,-398.1449"/>
 </g>
-<!-- GenericBoxTransaction -->
+<!-- BoxTransaction -->
 <g id="node59" class="node">
 <title>GenericBoxTransaction</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="4376.9942" cy="-306" rx="94.7833" ry="18"/>
 <text text-anchor="middle" x="4376.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">GenericBoxTransaction</text>
 </g>
-<!-- BifrostTransaction&#45;&gt;GenericBoxTransaction -->
+<!-- BifrostTransaction&#45;&gt;BoxTransaction -->
 <g id="edge42" class="edge">
 <title>BifrostTransaction&#45;&gt;GenericBoxTransaction</title>
 <path fill="none" stroke="#000000" d="M4376.9942,-359.8314C4376.9942,-352.131 4376.9942,-342.9743 4376.9942,-334.4166"/>

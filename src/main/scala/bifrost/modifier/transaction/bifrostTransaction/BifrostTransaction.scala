@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey2
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.wallet.Wallet
 import bifrost.BifrostApp
-import bifrost.modifier.transaction.GenericBoxTransaction
+import bifrost.modifier.transaction.BoxTransaction
 import com.google.common.primitives.Longs
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
@@ -20,7 +20,7 @@ import scala.util.Try
 trait TransactionSettings extends Settings
 
 trait BifrostTransaction
-  extends GenericBoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
+  extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
