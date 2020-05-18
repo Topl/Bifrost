@@ -1,7 +1,6 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.LocalInterface
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewHolder
@@ -134,11 +133,11 @@ class NodeViewSynchronizer(networkControllerRef: ActorRef,
       val seniorsAfter = seniors.size
 
       if (seniorsBefore > 0 && seniorsAfter == 0){
-        localInterfaceRef ! LocalInterface.NoBetterNeighbour
+        localInterfaceRef ! BifrostLocalInterface.NoBetterNeighbour
       }
 
       if (seniorsBefore == 0 && seniorsAfter > 0){
-        localInterfaceRef ! LocalInterface.BetterNeighbourAppeared
+        localInterfaceRef ! BifrostLocalInterface.BetterNeighbourAppeared
       }
   }
 
