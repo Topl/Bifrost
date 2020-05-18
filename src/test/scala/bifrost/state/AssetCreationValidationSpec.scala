@@ -14,7 +14,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.util.Failure
 
 
-class AssetCreationValidationSpec extends BifrostStateSpec {
+class AssetCreationValidationSpec extends StateSpec {
 
   property("A block with valid AssetCreation should result in more tokens for receiver") {
     forAll(validAssetCreationGen) {
@@ -36,7 +36,7 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
           .get
@@ -50,8 +50,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           case None => false
         })
 
-        BifrostStateSpec.genesisState = newState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = newState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
     }
@@ -68,15 +68,15 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
 
         val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
           .get
 
         val newState = preparedState.validate(invalidAC)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]

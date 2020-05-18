@@ -13,7 +13,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges}
+import bifrost.state.{State, BifrostStateChanges}
 import bifrost.modifier.box._
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
@@ -102,7 +102,7 @@ class ProgramRPCSpec extends WordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
+      .mapTo[CurrentView[BifrostHistory, State, Wallet, MemPool]], 10.seconds)
 
   // Unlock Secrets
   val gw: Wallet = view().vault

@@ -3,7 +3,7 @@ package bifrost.transaction
 import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.PrivateKey25519
-import bifrost.state.{BifrostState, BifrostStateSpec}
+import bifrost.state.{State, StateSpec}
 import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import bifrost.modifier.box.ArbitBox
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -18,7 +18,7 @@ class CoinbaseTransactionSpec extends PropSpec
 
   property("Generated Coinbase Tx should be valid") {
     forAll(validCoinbaseTransactionGen) {
-      cb: CoinbaseTransaction => BifrostState.semanticValidity(cb).isSuccess shouldBe true
+      cb: CoinbaseTransaction => State.semanticValidity(cb).isSuccess shouldBe true
     }
 
     // test inflation val stuff works

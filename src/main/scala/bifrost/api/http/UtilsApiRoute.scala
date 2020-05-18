@@ -8,7 +8,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.settings.Settings
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
 
 case class UtilsApiRoute(override val settings: Settings)(implicit val context: ActorRefFactory) extends ApiRoute {
   type HIS = BifrostHistory
-  type MS = BifrostState
+  type MS = State
   type VL = Wallet
   type MP = MemPool
 

@@ -12,7 +12,7 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
@@ -47,7 +47,7 @@ class DebugRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, Wallet, MemPool]], 10.seconds)
+    .mapTo[CurrentView[BifrostHistory, State, Wallet, MemPool]], 10.seconds)
 
   "Debug RPC" should {
     "Get chain information" in {

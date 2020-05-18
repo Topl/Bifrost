@@ -60,7 +60,7 @@ class ProgramBoxRegistrySpec extends PropSpec
   val sboxOne: StateBox = StateBox(pubKey, 0L, uuid, stateOne)
   val sboxTwo: StateBox = StateBox(pubKey, 1L, uuid, stateTwo)
 
-  var newState_1: BifrostState = null
+  var newState_1: State = null
 
   assert(sboxOne.value == uuid)
 

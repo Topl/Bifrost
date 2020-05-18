@@ -36,22 +36,22 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
+case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
+    BifrostBox, BifrostTransaction, Block, State] with Logging {
 
-  override type NVCT = BifrostState
-  type P = BifrostState.P
-  type T = BifrostState.T
-  type TX = BifrostState.TX
-  type BX = BifrostState.BX
-  type BPMOD = BifrostState.BPMOD
-  type GSC = BifrostState.GSC
-  type BSC = BifrostState.BSC
+  override type NVCT = State
+  type P = State.P
+  type T = State.T
+  type TX = State.TX
+  type BX = State.BX
+  type BPMOD = State.BPMOD
+  type GSC = State.GSC
+  type BSC = State.BSC
 
 
 
-  def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
+  def semanticValidity(tx: BifrostTransaction): Try[Unit] = State.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
@@ -72,11 +72,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history, pbr, tbr)
+      State(storage, version, timestamp, history, pbr, tbr)
     }
   }
 
-  override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
+  override def changes(mod: BPMOD): Try[GSC] = State.changes(mod)
 
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
@@ -124,7 +124,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
+    val newSt = State(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -578,7 +578,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 }
 
-object BifrostState extends Logging {
+object State extends Logging {
 
   type T = Any
   type TX = BifrostTransaction
@@ -632,7 +632,7 @@ object BifrostState extends Logging {
   }
 
 
-  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
+  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): State = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
@@ -671,10 +671,10 @@ object BifrostState extends Logging {
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    BifrostState(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
-  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {
+  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
         (state, mod) => state

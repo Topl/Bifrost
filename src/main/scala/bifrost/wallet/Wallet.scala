@@ -5,7 +5,7 @@ import java.security.SecureRandom
 
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
@@ -187,7 +187,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   override def scanPersistent(modifier: Block): Wallet = {
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
-    val changes = BifrostState.changes(modifier).get
+    val changes = State.changes(modifier).get
 
     val newBoxes = changes
       .toAppend

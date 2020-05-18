@@ -12,7 +12,7 @@ import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.serialization.Serializer
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
@@ -23,7 +23,7 @@ class NodeViewHolder(settings: ForgingSettings)
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
   override type HIS = BifrostHistory
-  override type MS = BifrostState
+  override type MS = State
   override type VL = Wallet
   override type MP = MemPool
 
@@ -47,7 +47,7 @@ class NodeViewHolder(settings: ForgingSettings)
       Some(
         (
           x,
-          BifrostState.readOrGenerate(settings, true, x),
+          State.readOrGenerate(settings, true, x),
           Wallet.readOrGenerate(settings, 1),
           MemPool.emptyPool
         )
@@ -63,7 +63,7 @@ class NodeViewHolder(settings: ForgingSettings)
 
 object NodeViewHolder extends Logging {
   type HIS = BifrostHistory
-  type MS = BifrostState
+  type MS = State
   type VL = Wallet
   type MP = MemPool
 
@@ -130,7 +130,7 @@ object NodeViewHolder extends Logging {
     var history = BifrostHistory.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
 
-    val gs = BifrostState.genesisState(settings, Seq(genesisBlock), history)
+    val gs = State.genesisState(settings, Seq(genesisBlock), history)
     val gw = Wallet.genesisWallet(settings, Seq(genesisBlock))
 
     assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {

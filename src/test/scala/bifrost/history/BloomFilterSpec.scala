@@ -5,7 +5,7 @@ package bifrost.history
   */
 
 import bifrost.modifier.block.{Block, Bloom}
-import bifrost.state.BifrostStateSpec
+import bifrost.state.StateSpec
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}

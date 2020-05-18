@@ -133,7 +133,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(23))
           .get
@@ -192,8 +192,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         preExistingPolyBoxes
           .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
-        BifrostStateSpec.genesisState = newState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = newState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
     }
   }
@@ -217,15 +217,15 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
           .get
 
         val newState = preparedState.validate(invalidPC)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]
@@ -316,7 +316,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        val necessaryState = BifrostStateSpec
+        val necessaryState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(29))
           .get
@@ -330,8 +330,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val newState = preparedState.validate(cc)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]

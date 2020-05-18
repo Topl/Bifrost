@@ -20,7 +20,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.reflect.io.Path
 import scala.util.{Failure, Random, Try}
 
-class BifrostStateSpec extends PropSpec
+class StateSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers
@@ -244,11 +244,11 @@ class BifrostStateSpec extends PropSpec
   }*/
 
   override def afterAll() {
-    BifrostStateSpec.history.storage.storage.close()
+    StateSpec.history.storage.storage.close()
   }
 }
 
-object BifrostStateSpec {
+object StateSpec {
 
   import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
   import MinimalState.VersionTag

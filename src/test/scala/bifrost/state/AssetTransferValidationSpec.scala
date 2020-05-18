@@ -16,7 +16,7 @@ import scala.util.Failure
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
-class AssetTransferValidationSpec extends BifrostStateSpec {
+class AssetTransferValidationSpec extends StateSpec {
 
   /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
     forAll(validAssetTransferGen) {

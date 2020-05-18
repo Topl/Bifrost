@@ -5,7 +5,7 @@ import java.time.Instant
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
-import bifrost.state.BifrostStateSpec.gw
+import bifrost.state.StateSpec.gw
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition

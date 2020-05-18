@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
@@ -33,7 +33,7 @@ import scala.util.{Failure, Success, Try}
 case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = BifrostHistory
-  type MS = BifrostState
+  type MS = State
   type VL = Wallet
   type MP = MemPool
 
@@ -218,12 +218,12 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
   }
 
   //TODO Return ProgramBox instead of BifrostBox
-  private def programBoxId2Box(state: BifrostState, boxId: String): BifrostBox = {
+  private def programBoxId2Box(state: State, boxId: String): BifrostBox = {
     state.closedBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle
-  def createProgramInstance(json: Json, state: BifrostState): ProgramCreation = {
+  def createProgramInstance(json: Json, state: State): ProgramCreation = {
     val program = (json \\ "program").head.asString.get
     val preProcess = ProgramPreprocessor("program", program)(JsonObject.empty)
     val builder = Map("executionBuilder" -> ExecutionBuilder(ExecutionBuilderTerms(""), "", preProcess).json).asJson
