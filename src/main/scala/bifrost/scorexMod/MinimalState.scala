@@ -5,7 +5,7 @@ package bifrost.scorexMod
   */
 
 import bifrost.modifier.box.proposition.Proposition
-import GenericMinimalState.VersionTag
+import MinimalState.VersionTag
 import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
@@ -16,11 +16,11 @@ import scala.util.Try
   * Abstract functional interface of state which is a result of a sequential blocks applying
   */
 
-trait GenericMinimalState[T, P <: Proposition,
+trait MinimalState[T, P <: Proposition,
 BX <: GenericBox[P, T],
 TX <: Transaction[P],
 M <: PersistentNodeViewModifier[P, TX],
-MS <: GenericMinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
+MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
   self: MS =>
 
   def version: VersionTag
@@ -55,6 +55,6 @@ MS <: GenericMinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
   def rollbackTo(version: VersionTag): Try[MS]
 }
 
-object GenericMinimalState {
+object MinimalState {
   type VersionTag = NodeViewModifier.ModifierId
 }

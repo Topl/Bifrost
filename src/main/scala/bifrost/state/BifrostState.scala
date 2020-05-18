@@ -6,12 +6,12 @@ import bifrost.history.BifrostHistory
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericMinimalState, GenericStateChanges}
+import bifrost.scorexMod.{MinimalState, GenericStateChanges}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.scorexMod.GenericMinimalState.VersionTag
+import bifrost.scorexMod.MinimalState.VersionTag
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -38,7 +38,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   */
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
-  extends GenericMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
+  extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
 
   override type NVCT = BifrostState

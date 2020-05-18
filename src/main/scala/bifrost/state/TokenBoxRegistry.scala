@@ -5,7 +5,7 @@ import java.io.File
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.scorexMod.GenericMinimalState.VersionTag
+import bifrost.scorexMod.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
