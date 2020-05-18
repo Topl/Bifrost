@@ -1,4 +1,4 @@
-package bifrost.scorexMod
+package bifrost.state
 
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
