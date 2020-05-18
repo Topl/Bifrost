@@ -8,7 +8,6 @@ import bifrost.transaction._
 import bifrost.modifier.box._
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.scorexMod.MinimalState
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalacheck.Gen

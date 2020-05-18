@@ -5,7 +5,7 @@ import bifrost.history.History
 import bifrost.LocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.history.History.HistoryComparisonResult
-import bifrost.network.{NodeViewSynchronizer, ConnectedPeer, SyncInfo}
+import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition
@@ -15,6 +15,7 @@ import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.GenericBoxTransaction
 import bifrost.scorexMod.GenericNodeViewHolder._
+import bifrost.state.MinimalState
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 

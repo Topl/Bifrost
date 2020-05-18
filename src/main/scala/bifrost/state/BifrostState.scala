@@ -6,7 +6,7 @@ import bifrost.history.BifrostHistory
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{MinimalState, GenericStateChanges}
+import bifrost.scorexMod.GenericStateChanges
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
