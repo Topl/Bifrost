@@ -5,7 +5,6 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer

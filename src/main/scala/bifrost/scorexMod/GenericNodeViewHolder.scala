@@ -10,7 +10,6 @@ import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.utils.Logging
-import bifrost.PersistentNodeViewModifier
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.GenericBoxTransaction

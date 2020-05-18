@@ -4,7 +4,6 @@ package bifrost.state
   * Created by cykoz on 4/13/17.
   */
 
-import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction

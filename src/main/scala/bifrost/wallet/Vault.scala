@@ -1,6 +1,5 @@
 package bifrost.wallet
 
-import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}

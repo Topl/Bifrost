@@ -1,7 +1,6 @@
 package bifrost.history
 
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.SyncInfo
