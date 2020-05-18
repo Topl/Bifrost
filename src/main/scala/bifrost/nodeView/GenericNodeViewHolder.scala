@@ -9,6 +9,7 @@ import bifrost.modifier.box.GenericBox
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.modifier.transaction.GenericBoxTransaction
 import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
+import bifrost.network.BifrostLocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.serialization.Serializer
 import bifrost.state.MinimalState
@@ -23,6 +24,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
   extends Actor with Logging {
 
   import NodeViewSynchronizer._
+  import bifrost.nodeView.GenericNodeViewHolder._
 
   type SI <: SyncInfo
   type HIS <: History[P, TX, PMOD, SI, HIS]

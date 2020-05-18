@@ -11,7 +11,7 @@ import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.nodeView.NodeViewHolder
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
 import io.circe.parser.parse

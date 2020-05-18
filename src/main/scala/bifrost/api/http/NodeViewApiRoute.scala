@@ -8,7 +8,7 @@ import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

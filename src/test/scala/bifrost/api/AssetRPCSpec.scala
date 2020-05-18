@@ -11,7 +11,7 @@ import bifrost.modifier.block.Block
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
 import bifrost.modifier.box.{ArbitBox, AssetBox}

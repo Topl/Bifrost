@@ -2,7 +2,7 @@
 package bifrost.fork
 
 import bifrost.BifrostGenerators
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
@@ -10,6 +10,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
 import bifrost.state.ProgramBoxRegistry
 import io.circe
 import io.circe.syntax._
@@ -38,7 +39,7 @@ class ForkSpec extends PropSpec
       ("forkHeight" -> 3.asJson)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3

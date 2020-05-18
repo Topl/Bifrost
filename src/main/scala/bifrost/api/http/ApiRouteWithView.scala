@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
 

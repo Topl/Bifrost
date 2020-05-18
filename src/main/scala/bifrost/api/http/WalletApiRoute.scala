@@ -7,7 +7,7 @@ import bifrost.mempool.MemPool
 import bifrost.state.BifrostState
 import bifrost.modifier.box.BifrostBox
 import bifrost.wallet.Wallet
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction._

@@ -14,6 +14,7 @@ import org.scalacheck.Gen
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
@@ -249,7 +250,7 @@ class BifrostStateSpec extends PropSpec
 
 object BifrostStateSpec {
 
-  import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+  import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
   import MinimalState.VersionTag
 
   val settingsFilename = "testSettings.json"
@@ -260,7 +261,7 @@ object BifrostStateSpec {
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3

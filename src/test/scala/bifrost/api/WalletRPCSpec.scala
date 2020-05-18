@@ -11,7 +11,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.api.http.WalletApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.wallet.Wallet

@@ -9,7 +9,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators

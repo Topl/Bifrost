@@ -9,7 +9,7 @@ import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}

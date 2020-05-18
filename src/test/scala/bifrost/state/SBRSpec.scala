@@ -2,11 +2,12 @@ package bifrost.state
 
 import java.util.UUID
 
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box.StateBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.nodeView.NodeViewHolder
 import com.google.common.primitives.Ints
 import io.circe
 import io.circe.syntax._
@@ -34,7 +35,7 @@ class ProgramBoxRegistrySpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3

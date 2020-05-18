@@ -13,7 +13,7 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.literal._
 import io.circe.{Decoder, Json, JsonObject}
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings

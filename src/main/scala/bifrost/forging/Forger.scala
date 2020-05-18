@@ -6,12 +6,12 @@ import akka.actor._
 import bifrost.modifier.block.Block
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.modifier.box.ArbitBox
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import bifrost.LocalInterface.LocallyGeneratedModifier
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.utils.Logging

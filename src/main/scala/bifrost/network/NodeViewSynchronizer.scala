@@ -2,7 +2,7 @@ package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.scorexMod.GenericNodeViewHolder._
+import bifrost.nodeView.GenericNodeViewHolder._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network.message.BasicMsgDataTypes.{InvData, ModifiersData}

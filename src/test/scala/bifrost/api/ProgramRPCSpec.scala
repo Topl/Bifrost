@@ -12,7 +12,7 @@ import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
 import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box._
 import bifrost.wallet.Wallet

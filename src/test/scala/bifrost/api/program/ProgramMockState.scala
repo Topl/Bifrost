@@ -14,7 +14,7 @@ import bifrost.mempool.MemPool
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
 import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
