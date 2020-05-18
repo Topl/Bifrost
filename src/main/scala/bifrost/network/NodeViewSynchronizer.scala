@@ -1,13 +1,14 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.{LocalInterface, NodeViewModifier}
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.LocalInterface
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.scorexMod.GenericNodeViewHolder._
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network.message.BasicMsgDataTypes.{InvData, ModifiersData}
+import bifrost.nodeView.NodeViewModifier
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
@@ -30,7 +31,7 @@ class NodeViewSynchronizer(networkControllerRef: ActorRef,
 
   import NodeViewSynchronizer._
   import bifrost.history.History.HistoryComparisonResult._
-  import bifrost.NodeViewModifier._
+  import bifrost.nodeView.NodeViewModifier._
 
   /* modifier ids asked from other nodes are kept in order to check then */
   /* against objects sent */

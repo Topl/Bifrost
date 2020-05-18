@@ -1,11 +1,11 @@
 package bifrost.history
 
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.SyncInfo
-import bifrost.nodeView.NodeViewComponent
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -29,7 +29,7 @@ SI <: SyncInfo,
 HT <: History[P, TX, PM, SI, HT]] extends NodeViewComponent {
 
   import History._
-  import NodeViewModifier.ModifierId
+  import bifrost.nodeView.NodeViewModifier.ModifierId
 
   /**
     * Is there's no history, even genesis block

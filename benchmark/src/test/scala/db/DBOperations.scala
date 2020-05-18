@@ -9,7 +9,7 @@ import org.openjdk.jmh.annotations._
 //import bifrost.forging.ForgingSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.BifrostGenerators
-import bifrost.NodeViewModifier.ModifierId
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.history._
 
 //import io.circe.Json

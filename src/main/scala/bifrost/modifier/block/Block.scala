@@ -4,14 +4,15 @@ import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import bifrost.NodeViewModifier.ModifierTypeId
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.PersistentNodeViewModifier
 import bifrost.modifier.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
+import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics

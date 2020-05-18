@@ -8,8 +8,7 @@ import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import modifier.box.{ArbitBox, BifrostBox}
 import bifrost.wallet.Wallet
-import bifrost.NodeViewModifier
-import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
@@ -17,6 +16,7 @@ import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Prop
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.network.BifrostSyncInfo
+import bifrost.nodeView.NodeViewModifier
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 

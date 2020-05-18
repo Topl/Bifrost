@@ -1,8 +1,8 @@
 package bifrost.wallet
 
-import bifrost.NodeViewModifier
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewModifier
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try

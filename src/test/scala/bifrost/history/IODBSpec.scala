@@ -7,7 +7,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.NodeViewModifier._
+import bifrost.nodeView.NodeViewModifier._
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import scorex.crypto.encode.Base58
 

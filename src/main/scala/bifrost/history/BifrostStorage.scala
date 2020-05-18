@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 import com.google.common.primitives.Longs
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.NodeViewModifier._
+import bifrost.nodeView.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.utils.Logging
