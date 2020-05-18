@@ -19,7 +19,6 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[BifrostBox], minerReward: Long)
 
 case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
                                override val toAppend: Set[BifrostBox], timestamp: Long)
