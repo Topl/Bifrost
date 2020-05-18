@@ -28,7 +28,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: GenericBoxTransaction[P, 
 
   type SI <: SyncInfo
   type HIS <: History[P, TX, PMOD, SI, HIS]
-  type MS <: GenericBoxMinimalState[T, P, BX, TX, PMOD, MS]
+  type MS <: GenericMinimalState[T, P, BX, TX, PMOD, MS]
   type VL <: Vault[P, TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]
 

@@ -6,7 +6,7 @@ import bifrost.history.BifrostHistory
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxMinimalState, GenericMinimalState, GenericStateChanges}
+import bifrost.scorexMod.{GenericMinimalState, GenericStateChanges}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -38,7 +38,7 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   */
 //noinspection ScalaStyle
 case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
-  extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
+  extends GenericMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
 
   override type NVCT = BifrostState
@@ -52,7 +52,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
 
 
 
-  override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
+  def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
