@@ -9,7 +9,7 @@ import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
@@ -28,7 +28,7 @@ import scala.reflect.runtime.universe._
 class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = BifrostBox
+  type BX = Box
   type TX = BifrostTransaction
   type PMOD = Block
   type NVHT = NodeViewHolder

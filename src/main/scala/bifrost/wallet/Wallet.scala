@@ -39,21 +39,21 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
            .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, BifrostBox](BifrostBoxSerializer)
+  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BifrostBoxSerializer)
 
   //not implemented intentionally for now
   def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction
-  def boxes(): Seq[WalletBox[Any, PI, BifrostBox]] = {
+  def boxes(): Seq[WalletBox[Any, PI, Box]] = {
     //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[WalletBox[Any, PI, BifrostBox]] => true
+        case s: Success[WalletBox[Any, PI, Box]] => true
 //          s.value.box match {
 //          case pb: PolyBox => pb.value > 0
 //          case cb: ContractBox => true
@@ -69,14 +69,14 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   }
 
   //Only returns asset, arbit and poly boxes by public key
-   def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, BifrostBox]] = {
+   def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, Box]] = {
     //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
       .map(_.data)
       .map(ba => walletBoxSerializer.parseBytes(ba))
       .filter {
-        case s: Success[WalletBox[Any, PI, BifrostBox]] => s.value.box match {
+        case s: Success[WalletBox[Any, PI, Box]] => s.value.box match {
           case pb: PolyBox =>
 //            pb.value > 0 &&
             publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
@@ -206,7 +206,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
           .map(_.timestamp)
           .getOrElse(modifier.timestamp)
 
-        val wb = WalletBox[Any, PI, BifrostBox](box, txId, ts)(BifrostBoxSerializer)
+        val wb = WalletBox[Any, PI, Box](box, txId, ts)(BifrostBoxSerializer)
         ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
       }
 

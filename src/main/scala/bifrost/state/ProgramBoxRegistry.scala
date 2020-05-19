@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, ProgramBox}
+import bifrost.modifier.box.{Box, BifrostBoxSerializer, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -16,7 +16,7 @@ import scala.util.Try
 
 case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
-  def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
+  def closedBox(boxId: Array[Byte]): Option[Box] =
     stateStore.get(ByteArrayWrapper(boxId))
       .map(_.data)
       .map(BifrostBoxSerializer.parseBytes)
@@ -26,14 +26,14 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
     pbrStore.get(ProgramBoxRegistry.uuidToBaw(k))
       .map(_.data)
 
-  def getBox(k: UUID) : Option[BifrostBox] =
+  def getBox(k: UUID) : Option[Box] =
     getBoxId(k).flatMap(closedBox(_))
 
 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[ProgramBoxRegistry] = Try {
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] = Try {
     log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)

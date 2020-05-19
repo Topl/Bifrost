@@ -114,7 +114,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
@@ -210,7 +210,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val invalidPC = programCreation.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
         val necessaryBoxesSC = StateChanges(
           Set(),
@@ -241,7 +241,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 //      cc: ProgramCreation =>
 //        val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
 //
-//        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
+//        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
 //      val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
 //
 //        val necessaryBoxesSC = BifrostStateChanges(
@@ -273,7 +273,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -302,7 +302,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
         val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 

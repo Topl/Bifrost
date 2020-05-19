@@ -21,8 +21,8 @@ import scala.util.{Failure, Success, Try}
 
 
 case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
-                        override val toAppend: Set[BifrostBox], timestamp: Long)
-  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
+                        override val toAppend: Set[Box], timestamp: Long)
+  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -37,7 +37,7 @@ case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
 //noinspection ScalaStyle
 case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: History, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, Block, State] with Logging {
+    Box, BifrostTransaction, Block, State] with Logging {
 
   override type NVCT = State
   type P = State.P
@@ -582,7 +582,7 @@ object State extends Logging {
   type T = Any
   type TX = BifrostTransaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = BifrostBox
+  type BX = Box
   type BPMOD = Block
   type GSC = GenericStateChanges[T, P, BX]
   type BSC = StateChanges

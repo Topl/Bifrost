@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{AssetBox, BifrostBox, PublicKeyNoncedBox}
+import bifrost.modifier.box.{AssetBox, Box, PublicKeyNoncedBox}
 import bifrost.modifier.transaction.serialization.AssetRedemptionCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
@@ -54,7 +54,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
       Longs.toByteArray(fee)
   )
 
-  override val newBoxes: Traversable[BifrostBox] = remainderAllocations.flatMap { case (assetCode, remainder) =>
+  override val newBoxes: Traversable[Box] = remainderAllocations.flatMap { case (assetCode, remainder) =>
     remainder.zipWithIndex.map { case (r, i) =>
 
       val nonce = AssetRedemption.nonceFromDigest(

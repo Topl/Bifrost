@@ -14,7 +14,7 @@ import scala.util.Try
 
 case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Logging {
 
-  def closedBox(boxId: Array[Byte]): Option[BifrostBox] =
+  def closedBox(boxId: Array[Byte]): Option[Box] =
     stateStore.get(ByteArrayWrapper(boxId))
       .map(_.data)
       .map(BifrostBoxSerializer.parseBytes)
@@ -33,14 +33,14 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
       .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-    def boxesByKey(publicKey: PublicKey25519Proposition): Seq[BifrostBox] =
+    def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] =
     boxesByKey(publicKey.pubKeyBytes)
 
-  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[BifrostBox] = {
+  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[Box] = {
     boxIdsByKey(pubKeyBytes)
       .map(id => closedBox(id))
       .filter {
-        case box: Some[BifrostBox] => true
+        case box: Some[Box] => true
         case None => false
       }
       .map(_.get)
@@ -59,7 +59,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[BifrostBox]): Try[TokenBoxRegistry] = Try {
+  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] = Try {
     log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */

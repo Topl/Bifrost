@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{AssetBox, BifrostBox}
+import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationCompanion
 import bifrost.wallet.Wallet
@@ -40,7 +40,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     Longs.toByteArray(fee)
   )
 
-   override lazy val newBoxes: Traversable[BifrostBox] = to
+   override lazy val newBoxes: Traversable[Box] = to
      .filter(toInstance => toInstance._2 > 0L)
      .zipWithIndex
      .map {

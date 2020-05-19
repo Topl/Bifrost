@@ -16,13 +16,13 @@ import scala.util.Try
 /**
   * Created by Matthew on 4/11/2017.
   */
-abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
-                          val nonce: Long,
-                          value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
+abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
+                   val nonce: Long,
+                   value: Any) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
 
-  override type M = BifrostBox
+  override type M = Box
 
-  override def serializer: Serializer[BifrostBox] = BifrostBoxSerializer
+  override def serializer: Serializer[Box] = BifrostBoxSerializer
 
   // lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
@@ -33,7 +33,7 @@ abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey255
   val json: Json
 
   override def equals(obj: Any): Boolean = obj match {
-    case acc: BifrostBox => (acc.id sameElements this.id) && acc.value == this.value
+    case acc: Box => (acc.id sameElements this.id) && acc.value == this.value
     case _ => false
   }
 
@@ -42,9 +42,9 @@ abstract class BifrostBox(proposition: ProofOfKnowledgeProposition[PrivateKey255
 }
 
 
-object BifrostBoxSerializer extends Serializer[BifrostBox] {
+object BifrostBoxSerializer extends Serializer[Box] {
 
-  override def toBytes(obj: BifrostBox): Array[Byte] = obj match {
+  override def toBytes(obj: Box): Array[Byte] = obj match {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
     case as: AssetBox => AssetBoxSerializer.toBytes(as)
@@ -52,14 +52,14 @@ object BifrostBoxSerializer extends Serializer[BifrostBox] {
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
     case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
     case eb: ExecutionBox => ExecutionBoxSerializer.toBytes(eb)
-    case _ => throw new Exception("Unanticipated BifrostBox type")
+    case _ => throw new Exception("Unanticipated Box type")
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[BifrostBox] = {
+  override def parseBytes(bytes: Array[Byte]): Try[Box] = {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-    
+
     typeStr match {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
       case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
@@ -165,7 +165,7 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
 
 case class ReputationBox(override val proposition: PublicKey25519Proposition,
                          override val nonce: Long,
-                         value: (Double, Double)) extends BifrostBox(proposition, nonce, value) {
+                         value: (Double, Double)) extends Box(proposition, nonce, value) {
   val typeOfBox: String = "Reputation"
   val id = ReputationBox.idFromBox(proposition, nonce)
 

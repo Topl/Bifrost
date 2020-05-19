@@ -65,7 +65,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
@@ -145,7 +145,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType

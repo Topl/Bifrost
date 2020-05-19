@@ -124,7 +124,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme
+        val preExistingPolyBoxes: Set[Box] = cme
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -213,7 +213,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
         val invalidCME = programMethodExecution.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -253,7 +253,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     /*forAll(arbitraryPartyProgramMethodExecutionGen(num = 1, numInProgram = 0)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -282,7 +282,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     /*forAll(arbitraryPartyProgramMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInProgram = 1)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -315,7 +315,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -365,7 +365,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -414,7 +414,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
   /*property("Attempting to validate a CME with a timestamp too far in the future should error") {
     forAll(semanticallyValidProgramMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
       programMethodExecution: ProgramMethodExecution =>
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -462,7 +462,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           settings.version
         )
 
-        val profileBoxes: Set[BifrostBox] = programMethodExecution
+        val profileBoxes: Set[Box] = programMethodExecution
           .parties
           .map {
             case (p: PublicKey25519Proposition, r: Role.Role) =>

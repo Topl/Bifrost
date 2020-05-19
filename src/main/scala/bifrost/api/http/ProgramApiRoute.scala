@@ -7,7 +7,7 @@ import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.state.State
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -217,8 +217,8 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     }
   }
 
-  //TODO Return ProgramBox instead of BifrostBox
-  private def programBoxId2Box(state: State, boxId: String): BifrostBox = {
+  //TODO Return ProgramBox instead of Box
+  private def programBoxId2Box(state: State, boxId: String): Box = {
     state.closedBox(Base58.decode(boxId).get).get
   }
 

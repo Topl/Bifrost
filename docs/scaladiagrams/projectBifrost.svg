@@ -441,13 +441,13 @@
 <ellipse fill="#deb887" stroke="#000000" cx="14690.9942" cy="-378" rx="55.7903" ry="18"/>
 <text text-anchor="middle" x="14690.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramBox</text>
 </g>
-<!-- BifrostBox -->
+<!-- Box -->
 <g id="node33" class="node">
 <title>BifrostBox</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="14813.9942" cy="-306" rx="50.0912" ry="18"/>
 <text text-anchor="middle" x="14813.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostBox</text>
 </g>
-<!-- ProgramBox&#45;&gt;BifrostBox -->
+<!-- ProgramBox&#45;&gt;Box -->
 <g id="edge21" class="edge">
 <title>ProgramBox&#45;&gt;BifrostBox</title>
 <path fill="none" stroke="#000000" d="M14717.9871,-362.1993C14735.8133,-351.7645 14759.3584,-337.982 14778.6701,-326.6776"/>
@@ -459,7 +459,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="14436.9942" cy="-234" rx="53.0913" ry="18"/>
 <text text-anchor="middle" x="14436.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">GenericBox</text>
 </g>
-<!-- BifrostBox&#45;&gt;GenericBox -->
+<!-- Box&#45;&gt;GenericBox -->
 <g id="edge138" class="edge">
 <title>BifrostBox&#45;&gt;GenericBox</title>
 <path fill="none" stroke="#000000" d="M14766.9677,-299.6296C14705.1111,-290.8651 14593.2151,-273.6805 14498.9942,-252 14494.8777,-251.0528 14490.6294,-249.9943 14486.3775,-248.8779"/>
@@ -471,7 +471,7 @@
 <ellipse fill="none" stroke="#000000" cx="15002.9942" cy="-234" rx="29.4969" ry="18"/>
 <text text-anchor="middle" x="15002.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">Long</text>
 </g>
-<!-- BifrostBox&#45;&gt;Long -->
+<!-- Box&#45;&gt;Long -->
 <g id="edge136" class="edge">
 <title>BifrostBox&#45;&gt;Long</title>
 <path fill="none" stroke="#000000" d="M14851.307,-293.8048C14882.1074,-283.465 14926.8005,-267.8297 14964.9942,-252 14966.815,-251.2454 14968.6744,-250.4497 14970.5441,-249.63"/>
@@ -483,7 +483,7 @@
 <ellipse fill="none" stroke="#000000" cx="14695.9942" cy="-234" rx="187.6668" ry="18"/>
 <text text-anchor="middle" x="14695.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProofOfKnowledgeProposition[PrivateKey25519]</text>
 </g>
-<!-- BifrostBox&#45;&gt;ProofOfKnowledgeProposition[PrivateKey25519] -->
+<!-- Box&#45;&gt;ProofOfKnowledgeProposition[PrivateKey25519] -->
 <g id="edge135" class="edge">
 <title>BifrostBox&#45;&gt;ProofOfKnowledgeProposition[PrivateKey25519]</title>
 <path fill="none" stroke="#000000" d="M14788.39,-290.3771C14772.5744,-280.7269 14751.985,-268.1638 14734.2574,-257.347"/>
@@ -495,7 +495,7 @@
 <ellipse fill="none" stroke="#000000" cx="14928.9942" cy="-234" rx="27" ry="18"/>
 <text text-anchor="middle" x="14928.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">Any</text>
 </g>
-<!-- BifrostBox&#45;&gt;Any -->
+<!-- Box&#45;&gt;Any -->
 <g id="edge137" class="edge">
 <title>BifrostBox&#45;&gt;Any</title>
 <path fill="none" stroke="#000000" d="M14838.9475,-290.3771C14857.0824,-279.0231 14881.6575,-263.6369 14900.5531,-251.8066"/>
@@ -801,7 +801,7 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="15002.9942" cy="-378" rx="121.5784" ry="18"/>
 <text text-anchor="middle" x="15002.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostPublic25519NoncedBox</text>
 </g>
-<!-- BifrostPublic25519NoncedBox&#45;&gt;BifrostBox -->
+<!-- BifrostPublic25519NoncedBox&#45;&gt;Box -->
 <g id="edge48" class="edge">
 <title>BifrostPublic25519NoncedBox&#45;&gt;BifrostBox</title>
 <path fill="none" stroke="#000000" d="M14958.6821,-361.1192C14928.3589,-349.5675 14888.3234,-334.3159 14858.0542,-322.7848"/>
@@ -1905,7 +1905,7 @@
 <ellipse fill="#deb887" stroke="#000000" cx="14813.9942" cy="-378" rx="49.2915" ry="18"/>
 <text text-anchor="middle" x="14813.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProfileBox</text>
 </g>
-<!-- ProfileBox&#45;&gt;BifrostBox -->
+<!-- ProfileBox&#45;&gt;Box -->
 <g id="edge154" class="edge">
 <title>ProfileBox&#45;&gt;BifrostBox</title>
 <path fill="none" stroke="#000000" d="M14813.9942,-359.8314C14813.9942,-352.131 14813.9942,-342.9743 14813.9942,-334.4166"/>

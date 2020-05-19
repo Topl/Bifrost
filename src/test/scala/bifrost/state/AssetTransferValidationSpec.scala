@@ -31,7 +31,7 @@ class AssetTransferValidationSpec extends StateSpec {
           settings.version
         )
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -81,7 +81,7 @@ class AssetTransferValidationSpec extends StateSpec {
         val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetTransfer.signatures.tail
         val invalidAR = assetTransfer.copy(signatures = wrongSigs)
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -109,7 +109,7 @@ class AssetTransferValidationSpec extends StateSpec {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))

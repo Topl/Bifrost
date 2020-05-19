@@ -16,7 +16,7 @@ import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSp
 import bifrost.network.peer.PeerManager
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{State, StateChanges}
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.wallet.Wallet
@@ -86,7 +86,7 @@ trait ProgramMockState extends BifrostGenerators {
     (nodeViewHolderRef ? GetCurrentView)
       .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
-  def manuallyApplyBoxes(boxes: Set[BifrostBox], version: Int): Unit = {
+  def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
     // Manually manipulate state
     val boxSC = StateChanges(Set(),
       boxes,

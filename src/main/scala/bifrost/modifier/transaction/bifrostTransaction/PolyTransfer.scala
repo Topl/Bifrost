@@ -5,7 +5,7 @@ import java.time.Instant
 import BifrostTransaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{BifrostBox, PolyBox}
+import bifrost.modifier.box.{Box, PolyBox}
 import bifrost.modifier.transaction.serialization.PolyTransferCompanion
 import bifrost.state.TokenBoxRegistry
 import bifrost.wallet.Wallet
@@ -28,7 +28,7 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
 
   override def toString: String = s"PolyTransfer(${json.noSpaces})"
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to
+  override lazy val newBoxes: Traversable[Box] = to
     .filter(toInstance => toInstance._2 > 0L)
     .zipWithIndex
     .map {

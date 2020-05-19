@@ -12,7 +12,7 @@ import scorex.crypto.encode.Base58
 
 abstract class NoncedBox(override val proposition: PublicKey25519Proposition,
                          override val nonce: Long,
-                         override val value: Long) extends BifrostBox(proposition, nonce, value) {
+                         override val value: Long) extends Box(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 

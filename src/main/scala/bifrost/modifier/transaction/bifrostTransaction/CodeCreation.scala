@@ -6,7 +6,7 @@ import java.util.UUID
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.program.ProgramPreprocessor
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.box.{BifrostBox, CodeBox}
+import bifrost.modifier.box.{Box, CodeBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.wallet.Wallet
@@ -39,7 +39,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
       Longs.toByteArray(timestamp)
   )
 
-  override val newBoxes: Traversable[BifrostBox] = {
+  override val newBoxes: Traversable[Box] = {
 
     val nonce = CodeCreation.nonceFromDigest(FastCryptographicHash(
       "CodeCreation".getBytes ++

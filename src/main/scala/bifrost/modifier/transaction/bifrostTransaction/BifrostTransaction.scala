@@ -20,7 +20,7 @@ import scala.util.Try
 trait TransactionSettings extends Settings
 
 trait BifrostTransaction
-  extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, BifrostBox] {
+  extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
   val boxIdsToOpen: IndexedSeq[Array[Byte]]

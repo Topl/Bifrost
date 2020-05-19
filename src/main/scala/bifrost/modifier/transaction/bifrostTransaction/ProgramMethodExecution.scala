@@ -66,7 +66,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
       fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )
 
-  override lazy val newBoxes: Traversable[BifrostBox] = {
+  override lazy val newBoxes: Traversable[Box] = {
 //    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
 

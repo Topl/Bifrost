@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.state.State
-import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.Box
 import bifrost.wallet.Wallet
 import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{Bip39, PrivateKey25519}
@@ -426,7 +426,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k =>
         PublicKey25519Proposition(Base58.decode(k.asString.get).get)
       )
-      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[BifrostBox]]] =
+      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[Box]]] =
         publicKeys
           .map(k => k -> tbr.boxesByKey(k).groupBy[String](_.typeOfBox))
           .toMap

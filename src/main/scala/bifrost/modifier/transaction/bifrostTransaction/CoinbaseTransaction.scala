@@ -5,7 +5,7 @@ import java.time.Instant
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ArbitBox, BifrostBox}
+import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
@@ -39,7 +39,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
-  lazy val newBoxes: Traversable[BifrostBox] =
+  lazy val newBoxes: Traversable[Box] =
     if(to.head._2 > 0L) {
       Traversable(ArbitBox(to.head._1, nonce, to.head._2))
     }
