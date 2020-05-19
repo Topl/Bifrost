@@ -1701,7 +1701,7 @@
 <path fill="none" stroke="#000000" d="M1608.8128,-1495.6363C1655.724,-1495.0544 1709.1334,-1485.7009 1745.8547,-1453 1841.0111,-1368.2617 1894.0792,-950.3455 1906.8505,-837.2587"/>
 <polygon fill="#000000" stroke="#000000" points="1910.3325,-837.6137 1907.9607,-827.2878 1903.3755,-836.839 1910.3325,-837.6137"/>
 </g>
-<!-- Box -->
+<!-- GenericBox -->
 <g id="node161" class="node">
 <title>GenericBox</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="1507.9758" cy="-8099" rx="64.9885" ry="18"/>
@@ -2205,7 +2205,7 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="1010.5167" cy="-8163" rx="59.5901" ry="18"/>
 <text text-anchor="middle" x="1010.5167" y="-8159.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostBox</text>
 </g>
-<!-- BifrostBox&#45;&gt;Box -->
+<!-- BifrostBox&#45;&gt;GenericBox -->
 <g id="edge142" class="edge">
 <title>BifrostBox&#45;&gt;GenericBox</title>
 <path fill="none" stroke="#000000" d="M1067.2409,-8157.0651C1112.5622,-8151.9813 1177.6192,-8143.9175 1234.0969,-8134 1250.2402,-8131.1652 1253.9315,-8128.7058 1270.0969,-8126 1325.2829,-8116.7629 1388.2101,-8109.7743 1435.4758,-8105.2237"/>
@@ -2493,7 +2493,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="189.1332" cy="-11448" rx="109.381" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-11444.3" font-family="Times,serif" font-size="14.00" fill="#000000">NoncedBoxSerializer</text>
 </g>
-<!-- Box -->
+<!-- GenericBox -->
 <g id="node252" class="node">
 <title>Box</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-11502" rx="28.6953" ry="18"/>

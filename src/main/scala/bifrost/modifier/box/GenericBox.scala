@@ -6,7 +6,7 @@ import bifrost.serialization.BytesSerializable
 /**
   * Created by cykoz on 4/13/17.
   */
-trait Box[P <: Proposition, T] extends BytesSerializable {
+trait GenericBox[P <: Proposition, T] extends BytesSerializable {
   val value: T
   val proposition: P
 
