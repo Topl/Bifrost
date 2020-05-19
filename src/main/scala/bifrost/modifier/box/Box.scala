@@ -37,10 +37,8 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
     case _ => false
   }
 
-
   override def hashCode(): Int = proposition.hashCode()
 }
-
 
 object BoxSerializer extends Serializer[Box] {
 
@@ -568,9 +566,6 @@ object ExecutionBoxSerializer {
     }
     takenBytes += Longs.BYTES * 4 * codeBoxIdsLength
 
-
-
     ExecutionBox(prop, nonce, uuid, stateBoxUUIDs, codeBoxIds)
   }
 }
-
