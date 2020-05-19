@@ -2307,13 +2307,13 @@
 <path fill="none" stroke="#000000" d="M17546.5442,-437.7544C17538.7451,-435.6954 17530.65,-433.6835 17522.9942,-432 17437.7284,-413.2498 17338.4753,-397.4648 17273.167,-387.8943"/>
 <polygon fill="#000000" stroke="#000000" points="17273.3841,-384.3891 17262.9842,-386.4122 17272.3758,-391.3161 17273.3841,-384.3891"/>
 </g>
-<!-- BifrostBoxSerializer -->
+<!-- BoxSerializer -->
 <g id="node188" class="node">
 <title>BifrostBoxSerializer</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="13529.9942" cy="-450" rx="83.3857" ry="18"/>
 <text text-anchor="middle" x="13529.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostBoxSerializer</text>
 </g>
-<!-- BifrostBoxSerializer&#45;&gt;Serializer -->
+<!-- BoxSerializer&#45;&gt;Serializer -->
 <g id="edge194" class="edge">
 <title>BifrostBoxSerializer&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M13471.8271,-437.0048C13460.6513,-434.9671 13449.0008,-433.1554 13437.9942,-432 13094.2187,-395.9117 10520.5478,-380.5124 10112.4428,-378.2867"/>

@@ -1,6 +1,6 @@
 package bifrost.modifier.block
 
-import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
+import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -61,7 +61,7 @@ case class Block(parentId: BlockId,
     "id" -> Base58.encode(id).asJson,
     "parentId" -> Base58.encode(parentId).asJson,
     "timestamp" -> timestamp.asJson,
-    "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(forgerBox)).asJson,
+    "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson,
     "inflation" -> inflation.asJson,

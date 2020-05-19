@@ -17,7 +17,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
   def closedBox(boxId: Array[Byte]): Option[Box] =
     stateStore.get(ByteArrayWrapper(boxId))
       .map(_.data)
-      .map(BifrostBoxSerializer.parseBytes)
+      .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
   def boxIdsByKey(publicKey: PublicKey25519Proposition): Seq[Array[Byte]] =

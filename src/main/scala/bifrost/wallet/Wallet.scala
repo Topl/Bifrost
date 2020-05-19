@@ -39,7 +39,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
            .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BifrostBoxSerializer)
+  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
 
   //not implemented intentionally for now
   def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
@@ -206,7 +206,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
           .map(_.timestamp)
           .getOrElse(modifier.timestamp)
 
-        val wb = WalletBox[Any, PI, Box](box, txId, ts)(BifrostBoxSerializer)
+        val wb = WalletBox[Any, PI, Box](box, txId, ts)(BoxSerializer)
         ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
       }
 

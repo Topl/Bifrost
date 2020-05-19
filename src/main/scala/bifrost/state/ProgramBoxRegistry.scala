@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.modifier.box.{Box, BifrostBoxSerializer, ProgramBox}
+import bifrost.modifier.box.{Box, BoxSerializer, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -19,7 +19,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
   def closedBox(boxId: Array[Byte]): Option[Box] =
     stateStore.get(ByteArrayWrapper(boxId))
       .map(_.data)
-      .map(BifrostBoxSerializer.parseBytes)
+      .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
   def getBoxId(k: UUID) : Option[Array[Byte]] =

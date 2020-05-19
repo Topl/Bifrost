@@ -5,7 +5,7 @@ import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
+import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec
@@ -15,7 +15,7 @@ object BlockCompanion extends Serializer[Block] {
 
   def commonMessage(block: Block): Array[Byte] = {
     val numTx = Ints.toByteArray(block.txs.length)
-    val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.forgerBox)
+    val generatorBoxBytes = BoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
       block.parentId,
@@ -31,7 +31,7 @@ object BlockCompanion extends Serializer[Block] {
 
   def commonMessage2xAndBefore(block: Block): Array[Byte] = {
     val numTx = Ints.toByteArray(block.txs.length)
-    val generatorBoxBytes = BifrostBoxSerializer.toBytes(block.forgerBox)
+    val generatorBoxBytes = BoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
       block.parentId,
@@ -86,7 +86,7 @@ object BlockCompanion extends Serializer[Block] {
 
     var numBytesRead = Block.BlockIdLength + Longs.BYTES*2 + 1
 
-    val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
+    val generatorBox = BoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
 
     val inflation = bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Longs.BYTES)
 
@@ -142,7 +142,7 @@ object BlockCompanion extends Serializer[Block] {
 
     var numBytesRead = Block.BlockIdLength + Longs.BYTES * 2 + 1
 
-    val generatorBox = BifrostBoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
+    val generatorBox = BoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
     val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Signature25519.SignatureSize))
 
     numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize

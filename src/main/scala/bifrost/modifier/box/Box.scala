@@ -22,7 +22,7 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
 
   override type M = Box
 
-  override def serializer: Serializer[Box] = BifrostBoxSerializer
+  override def serializer: Serializer[Box] = BoxSerializer
 
   // lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
@@ -42,7 +42,7 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
 }
 
 
-object BifrostBoxSerializer extends Serializer[Box] {
+object BoxSerializer extends Serializer[Box] {
 
   override def toBytes(obj: Box): Array[Byte] = obj match {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)

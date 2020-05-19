@@ -57,7 +57,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
   override def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
-      .map(BifrostBoxSerializer.parseBytes)
+      .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
