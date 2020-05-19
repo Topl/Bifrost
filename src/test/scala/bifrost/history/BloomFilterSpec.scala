@@ -23,7 +23,7 @@ class BloomFilterSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   property("Verify Bloom Calculation is correct") {
     val set = Bloom.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))

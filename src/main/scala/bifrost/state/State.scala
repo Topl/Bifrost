@@ -2,7 +2,7 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
@@ -35,7 +35,7 @@ case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
+case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: History, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostBox, BifrostTransaction, Block, State] with Logging {
 
@@ -631,7 +631,7 @@ object State extends Logging {
   }
 
 
-  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): State = {
+  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: History): State = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
@@ -673,7 +673,7 @@ object State extends Logging {
     State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
-  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): State = {
+  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: History): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
         (state, mod) => state

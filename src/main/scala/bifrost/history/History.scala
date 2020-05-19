@@ -27,17 +27,17 @@ import scala.util.{Failure, Try}
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class BifrostHistory(val storage: Storage,
-                     settings: ForgingSettings,
-                     validators: Seq[BlockValidator[Block]])
+class History(val storage: Storage,
+              settings: ForgingSettings,
+              validators: Seq[BlockValidator[Block]])
   extends GenericHistory[ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostTransaction,
     Block,
     BifrostSyncInfo,
-    BifrostHistory
+    History
     ] with Logging {
 
-  override type NVCT = BifrostHistory
+  override type NVCT = History
 
   require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
 
@@ -71,7 +71,7 @@ class BifrostHistory(val storage: Storage,
     * @return the update history including `block` as the most recent block
     */
   override def append(block: Block):
-  Try[(BifrostHistory, ProgressInfo[Block])] = Try {
+  Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${Base58.encode(block.id)} to history")
     val validationResults = validators.map(_.validate(block))
@@ -82,12 +82,12 @@ class BifrostHistory(val storage: Storage,
     }
     validationResults.foreach(_.get)
 
-    val res: (BifrostHistory, ProgressInfo[Block]) = {
+    val res: (History, ProgressInfo[Block]) = {
 
       if (isGenesis(block)) {
         storage.update(block, settings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
-        (new BifrostHistory(storage, settings, validators), progInfo)
+        (new History(storage, settings, validators), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
         val oldDifficulty = storage.difficultyOf(block.parentId).get
@@ -105,7 +105,7 @@ class BifrostHistory(val storage: Storage,
           bestForkChanges(block)
         }
         storage.update(block, difficulty, builtOnBestChain)
-        (new BifrostHistory(storage, settings, validators), mod)
+        (new History(storage, settings, validators), mod)
       }
     }
     log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
@@ -121,7 +121,7 @@ class BifrostHistory(val storage: Storage,
     * @param modifierId the id of the block to chop off
     * @return a new history which is the current history ending at the parent of the dropped block
     */
-  override def drop(modifierId: ModifierId): BifrostHistory = {
+  override def drop(modifierId: ModifierId): History = {
 
     val block = storage.modifierById(modifierId).get
     val parentBlock = storage.modifierById(block.parentId).get
@@ -131,7 +131,7 @@ class BifrostHistory(val storage: Storage,
         .encode(block.id)
     }")
     storage.rollback(parentBlock.id)
-    new BifrostHistory(storage, settings, validators)
+    new History(storage, settings, validators)
   }
 
   /**
@@ -427,16 +427,16 @@ class BifrostHistory(val storage: Storage,
 }
 
 
-object BifrostHistory extends Logging {
+object History extends Logging {
 
-  def readOrGenerate(settings: ForgingSettings): BifrostHistory = {
+  def readOrGenerate(settings: ForgingSettings): History = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
     val logDirOpt = settings.logDirOpt
     readOrGenerate(dataDir, logDirOpt, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): BifrostHistory = {
+  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): History = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
@@ -456,6 +456,6 @@ object BifrostHistory extends Logging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    new BifrostHistory(storage, settings, validators)
+    new History(storage, settings, validators)
   }
 }

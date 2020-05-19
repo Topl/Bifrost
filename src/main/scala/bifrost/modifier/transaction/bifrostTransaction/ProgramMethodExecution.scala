@@ -6,7 +6,7 @@ import bifrost.program.Program
 import BifrostTransaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionCompanion
@@ -45,7 +45,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
-  val history = BifrostHistory.readOrGenerate(forgingSettings)
+  val history = History.readOrGenerate(forgingSettings)
   val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(forgingSettings, history.storage.storage).get
 
   //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => programBoxRegistry.getBox(v).get.asInstanceOf[StateBox])

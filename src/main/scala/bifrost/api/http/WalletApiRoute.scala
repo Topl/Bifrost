@@ -2,7 +2,7 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.state.State
 import bifrost.modifier.box.BifrostBox
@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory)extends ApiRouteWithView {
-  type HIS = BifrostHistory
+  type HIS = History
   type MS = State
   type VL = Wallet
   type MP = MemPool

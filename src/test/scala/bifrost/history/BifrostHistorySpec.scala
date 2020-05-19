@@ -13,7 +13,7 @@ class BifrostHistorySpec extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()

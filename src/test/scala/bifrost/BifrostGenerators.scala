@@ -7,7 +7,7 @@ import java.util.UUID
 import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, Storage}
+import bifrost.history.{History, Storage}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
 import modifier.box._
 import modifier.box.proposition.MofNProposition
@@ -687,7 +687,7 @@ trait BifrostGenerators extends CoreGenerators {
       settings.version)
   }
 
-  def generateHistory: BifrostHistory = {
+  def generateHistory: History = {
     val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
@@ -698,7 +698,7 @@ trait BifrostGenerators extends CoreGenerators {
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new BifrostHistory(storage, settings, validators)
+    var history = new History(storage, settings, validators)
 
     val genesisBlock = genesisBlockGen.sample.get
 

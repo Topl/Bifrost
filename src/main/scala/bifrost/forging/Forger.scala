@@ -4,7 +4,7 @@ import java.time.Instant
 
 import akka.actor._
 import bifrost.modifier.block.Block
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.State
@@ -49,7 +49,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
   def pickTransactions(memPool: MemPool,
                        state: State,
                        parent: Block,
-                       view: (BifrostHistory, State, Wallet, MemPool)
+                       view: (History, State, Wallet, MemPool)
                       ): Try[Seq[BifrostTransaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
@@ -79,10 +79,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     case StopForging =>
       forging = false
 
-    case CurrentView(h: BifrostHistory, s: State, w: Wallet, m: MemPool) =>
+    case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
       self ! TryForging(h, s, w, m)
 
-    case TryForging(h: BifrostHistory, s: State, w: Wallet, m: MemPool) =>
+    case TryForging(h: History, s: State, w: Wallet, m: MemPool) =>
       if (forging) {
         log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
         log.info("chain difficulty: " + h.difficulty)

@@ -9,7 +9,7 @@ import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.modifier.block.Block
 import bifrost.exceptions.JsonParsingException
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.State
@@ -68,7 +68,7 @@ class AssetRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, State, Wallet, MemPool]], 10.seconds)
+    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",

@@ -24,7 +24,7 @@ import io.iohk.iodb.{ByteArrayWrapper}
 @Measurement(iterations = 10)
 @State(Scope.Benchmark)
 class DBOperations extends BifrostGenerators {
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
   val numOfBlocks: Int = 550
   val numLastBlocks: Int = 500
 

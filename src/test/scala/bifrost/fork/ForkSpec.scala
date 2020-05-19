@@ -7,7 +7,7 @@ import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
@@ -57,7 +57,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version3.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -114,7 +114,7 @@ class ForkSpec extends PropSpec
     history.height shouldEqual testSettings_version0.forkHeight + 2
 
     history.storage.rollback(tempBlock_version3_1.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -147,7 +147,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version0.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -204,7 +204,7 @@ class ForkSpec extends PropSpec
         val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
         history.storage.rollback(tempBlock_version3.parentId)
-        history = new BifrostHistory(history.storage,
+        history = new History(history.storage,
           testSettings_version3,
           Seq(
             new DifficultyBlockValidator(history.storage)

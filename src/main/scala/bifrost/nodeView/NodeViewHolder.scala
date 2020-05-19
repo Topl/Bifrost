@@ -2,7 +2,7 @@ package bifrost.nodeView
 
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.box.{ArbitBox, BifrostBox}
@@ -22,7 +22,7 @@ class NodeViewHolder(settings: ForgingSettings)
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo
-  override type HIS = BifrostHistory
+  override type HIS = History
   override type MS = State
   override type VL = Wallet
   override type MP = MemPool
@@ -43,7 +43,7 @@ class NodeViewHolder(settings: ForgingSettings)
     */
   override def restoreState(): Option[NodeView] = {
     if (Wallet.exists(settings)) {
-      val x = BifrostHistory.readOrGenerate(settings)
+      val x = History.readOrGenerate(settings)
       Some(
         (
           x,
@@ -62,7 +62,7 @@ class NodeViewHolder(settings: ForgingSettings)
 }
 
 object NodeViewHolder extends Logging {
-  type HIS = BifrostHistory
+  type HIS = History
   type MS = State
   type VL = Wallet
   type MP = MemPool
@@ -127,7 +127,7 @@ object NodeViewHolder extends Logging {
 
     val genesisBlock = Block.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
 
-    var history = BifrostHistory.readOrGenerate(settings)
+    var history = History.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
 
     val gs = State.genesisState(settings, Seq(genesisBlock), history)

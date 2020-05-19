@@ -5,7 +5,7 @@ import java.security.SecureRandom
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.settings.Settings
 import bifrost.state.State
@@ -18,7 +18,7 @@ import scorex.crypto.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 case class UtilsApiRoute(override val settings: Settings)(implicit val context: ActorRefFactory) extends ApiRoute {
-  type HIS = BifrostHistory
+  type HIS = History
   type MS = State
   type VL = Wallet
   type MP = MemPool
