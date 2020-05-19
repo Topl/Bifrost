@@ -73,7 +73,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
       boxIdsToRemove
         .flatMap(boxId => closedBox(boxId.data))
         .foreach(box => box match {
-          case box: BifrostNoncedBox =>
+          case box: NoncedBox =>
             boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
           //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
           case _ =>
@@ -81,7 +81,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
 
       keyFilteredBoxesToAdd
         .foreach({
-          case box: BifrostNoncedBox =>
+          case box: NoncedBox =>
             boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
           //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
           case _ =>
