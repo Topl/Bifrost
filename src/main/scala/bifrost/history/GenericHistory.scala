@@ -21,13 +21,13 @@ import scala.util.Try
   * function has been used instead, even in PoW systems.
   */
 
-trait History[P <: Proposition,
+trait GenericHistory[P <: Proposition,
 TX <: Transaction[P],
 PM <: PersistentNodeViewModifier[P, TX],
 SI <: SyncInfo,
-HT <: History[P, TX, PM, SI, HT]] extends NodeViewComponent {
+HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
 
-  import History._
+  import GenericHistory._
   import bifrost.nodeView.NodeViewModifier.ModifierId
 
   /**
@@ -91,7 +91,7 @@ HT <: History[P, TX, PM, SI, HT]] extends NodeViewComponent {
   def compare(other: SI): HistoryComparisonResult.Value
 }
 
-object History {
+object GenericHistory {
 
   type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
 

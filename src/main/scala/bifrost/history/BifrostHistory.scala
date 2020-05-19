@@ -7,7 +7,7 @@ import bifrost.forging.ForgingSettings
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.DifficultyBlockValidator
-import bifrost.history.History.{HistoryComparisonResult, ProgressInfo}
+import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -30,7 +30,7 @@ import scala.util.{Failure, Try}
 class BifrostHistory(val storage: Storage,
                      settings: ForgingSettings,
                      validators: Seq[BlockValidator[Block]])
-  extends History[ProofOfKnowledgeProposition[PrivateKey25519],
+  extends GenericHistory[ProofOfKnowledgeProposition[PrivateKey25519],
     BifrostTransaction,
     Block,
     BifrostSyncInfo,

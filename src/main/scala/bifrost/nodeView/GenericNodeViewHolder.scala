@@ -1,8 +1,8 @@
 package bifrost.nodeView
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.history.History
-import bifrost.history.History.HistoryComparisonResult
+import bifrost.history.GenericHistory
+import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.Box
@@ -27,7 +27,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   import bifrost.nodeView.GenericNodeViewHolder._
 
   type SI <: SyncInfo
-  type HIS <: History[P, TX, PMOD, SI, HIS]
+  type HIS <: GenericHistory[P, TX, PMOD, SI, HIS]
   type MS <: MinimalState[T, P, BX, TX, PMOD, MS]
   type VL <: Vault[P, TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]
@@ -304,7 +304,7 @@ object GenericNodeViewHolder {
   trait NodeViewHolderEvent
 
   case class OtherNodeSyncingStatus[SI <: SyncInfo](peer: ConnectedPeer,
-                                                    status: History.HistoryComparisonResult.Value,
+                                                    status: GenericHistory.HistoryComparisonResult.Value,
                                                     remoteSyncInfo: SI,
                                                     localSyncInfo: SI,
                                                     extension: Option[Seq[(ModifierTypeId, ModifierId)]])

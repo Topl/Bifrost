@@ -28,7 +28,7 @@ class NodeViewSynchronizer(networkControllerRef: ActorRef,
                            syncInfoSpec: BifrostSyncInfoMessageSpec.type) extends Actor with Logging {
 
   import NodeViewSynchronizer._
-  import bifrost.history.History.HistoryComparisonResult._
+  import bifrost.history.GenericHistory.HistoryComparisonResult._
   import bifrost.nodeView.NodeViewModifier._
 
   /* modifier ids asked from other nodes are kept in order to check then */
