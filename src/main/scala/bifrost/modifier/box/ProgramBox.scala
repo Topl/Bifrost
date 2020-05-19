@@ -7,13 +7,13 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-abstract class BifrostProgramBox (override val proposition: PublicKey25519Proposition,
-                                             override val nonce: Long,
-                                             override val value: UUID) extends BifrostBox(proposition, nonce, value) {
+abstract class ProgramBox(override val proposition: PublicKey25519Proposition,
+                          override val nonce: Long,
+                          override val value: UUID) extends BifrostBox(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
-  lazy val typeOfBox: String = "BifrostProgramBox"
+  lazy val typeOfBox: String = "ProgramBox"
 
   lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,

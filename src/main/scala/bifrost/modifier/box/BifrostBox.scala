@@ -251,7 +251,7 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
                             override val nonce: Long,
                             override val value: UUID,
                             state: Json //  JSON representation of JS Variable Declarations
-                            ) extends BifrostProgramBox(proposition, nonce, value) {
+                            ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "StateBox"
 
@@ -340,7 +340,7 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
                            override val value: UUID,
                            code: Seq[String], // List of strings of JS functions
                            interface: Map[String, Seq[String]]
-                           ) extends BifrostProgramBox(proposition, nonce, value) {
+                           ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "CodeBox"
 
@@ -463,7 +463,7 @@ case class ExecutionBox(override val proposition: PublicKey25519Proposition,
                                 override val value: UUID,
                                 stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from ProgramBoxRegistry
                                 codeBoxIds: Seq[Array[Byte]]
-                                ) extends BifrostProgramBox(proposition, nonce, value) {
+                                ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "ExecutionBox"
 

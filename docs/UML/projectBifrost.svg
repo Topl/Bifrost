@@ -2391,31 +2391,31 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8154" rx="53.0913" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8150.3" font-family="Times,serif" font-size="14.00" fill="#000000">StateBox</text>
 </g>
-<!-- BifrostProgramBox -->
+<!-- ProgramBox -->
 <g id="node243" class="node">
 <title>BifrostProgramBox</title>
 <ellipse fill="#ff8c00" stroke="#000000" cx="582.6015" cy="-8107" rx="100.9827" ry="18"/>
 <text text-anchor="middle" x="582.6015" y="-8103.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostProgramBox</text>
 </g>
-<!-- StateBox&#45;&gt;BifrostProgramBox -->
+<!-- StateBox&#45;&gt;ProgramBox -->
 <g id="edge151" class="edge">
 <title>StateBox&#45;&gt;BifrostProgramBox</title>
 <path fill="none" stroke="#000000" d="M239.7668,-8147.9518C302.4375,-8140.4657 410.423,-8127.5668 488.4801,-8118.2428"/>
 <polygon fill="#000000" stroke="#000000" points="489.2919,-8121.6709 498.8062,-8117.0094 488.4616,-8114.7203 489.2919,-8121.6709"/>
 </g>
-<!-- BifrostProgramBox&#45;&gt;BifrostBox -->
+<!-- ProgramBox&#45;&gt;BifrostBox -->
 <g id="edge161" class="edge">
 <title>BifrostProgramBox&#45;&gt;BifrostBox</title>
 <path fill="none" stroke="#000000" d="M663.6376,-8117.753C701.1503,-8122.7191 746.3115,-8128.6813 786.9366,-8134 840.2245,-8140.9765 900.6676,-8148.8117 945.2613,-8154.5776"/>
 <polygon fill="#000000" stroke="#000000" points="945.0166,-8158.075 955.3828,-8155.886 945.914,-8151.1328 945.0166,-8158.075"/>
 </g>
-<!-- BifrostProgramBox&#45;&gt;Long -->
+<!-- ProgramBox&#45;&gt;Long -->
 <g id="edge159" class="edge">
 <title>BifrostProgramBox&#45;&gt;Long</title>
 <path fill="none" stroke="#000000" d="M615.9443,-8124.0423C655.5931,-8143.4727 724.2983,-8174.5389 786.9366,-8190 1037.1066,-8251.7498 1348.6094,-8260.1378 1463.0919,-8261.0247"/>
 <polygon fill="#000000" stroke="#000000" points="1463.2085,-8264.5254 1473.2299,-8261.0872 1463.2517,-8257.5255 1463.2085,-8264.5254"/>
 </g>
-<!-- BifrostProgramBox&#45;&gt;PublicKey25519Proposition -->
+<!-- ProgramBox&#45;&gt;PublicKey25519Proposition -->
 <g id="edge158" class="edge">
 <title>BifrostProgramBox&#45;&gt;PublicKey25519Proposition</title>
 <path fill="none" stroke="#000000" d="M683.4696,-8107C736.2582,-8107 801.9356,-8107 860.5546,-8107"/>
@@ -2427,7 +2427,7 @@
 <ellipse fill="none" stroke="#000000" cx="1010.5167" cy="-7994" rx="37.8943" ry="18"/>
 <text text-anchor="middle" x="1010.5167" y="-7990.3" font-family="Times,serif" font-size="14.00" fill="#000000">UUID</text>
 </g>
-<!-- BifrostProgramBox&#45;&gt;UUID -->
+<!-- ProgramBox&#45;&gt;UUID -->
 <g id="edge160" class="edge">
 <title>BifrostProgramBox&#45;&gt;UUID</title>
 <path fill="none" stroke="#000000" d="M615.2251,-8089.9082C654.745,-8070.0045 723.8786,-8037.7259 786.9366,-8021 846.1883,-8005.2836 916.7263,-7998.6907 962.5011,-7995.941"/>
@@ -2445,7 +2445,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8100" rx="51.9908" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8096.3" font-family="Times,serif" font-size="14.00" fill="#000000">CodeBox</text>
 </g>
-<!-- CodeBox&#45;&gt;BifrostProgramBox -->
+<!-- CodeBox&#45;&gt;ProgramBox -->
 <g id="edge152" class="edge">
 <title>CodeBox&#45;&gt;BifrostProgramBox</title>
 <path fill="none" stroke="#000000" d="M241.3828,-8100.9295C300.0011,-8101.9724 396.76,-8103.6938 472.2995,-8105.0377"/>
@@ -2463,7 +2463,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8046" rx="75.2868" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8042.3" font-family="Times,serif" font-size="14.00" fill="#000000">ExecutionBox</text>
 </g>
-<!-- ExecutionBox&#45;&gt;BifrostProgramBox -->
+<!-- ExecutionBox&#45;&gt;ProgramBox -->
 <g id="edge153" class="edge">
 <title>ExecutionBox&#45;&gt;BifrostProgramBox</title>
 <path fill="none" stroke="#000000" d="M254.8358,-8054.9997C291.2391,-8060.0816 337.2923,-8066.6673 378.2664,-8073 418.2246,-8079.1757 462.4969,-8086.4848 499.587,-8092.7406"/>

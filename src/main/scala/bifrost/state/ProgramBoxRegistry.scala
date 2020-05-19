@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
-import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, BifrostProgramBox}
+import bifrost.modifier.box.{BifrostBox, BifrostBoxSerializer, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -40,15 +40,15 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
 
     //Getting all uuids being updated
     val uuidsToAppend: Map[UUID, Array[Byte]] =
-      keyFilteredBoxesToAdd.filter(_.isInstanceOf[BifrostProgramBox]).map(_.asInstanceOf[BifrostProgramBox])
+      keyFilteredBoxesToAdd.filter(_.isInstanceOf[ProgramBox]).map(_.asInstanceOf[ProgramBox])
         .map(box => box.value -> box.id).toMap
 
     //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
     val uuidsToRemove: Set[UUID] =
       boxIdsToRemove
         .flatMap(boxId => closedBox(boxId.data))
-        .filter(box => box.isInstanceOf[BifrostProgramBox])
-        .map(_.asInstanceOf[BifrostProgramBox])
+        .filter(box => box.isInstanceOf[ProgramBox])
+        .map(_.asInstanceOf[ProgramBox])
         .filterNot(box => uuidsToAppend.contains(box.value))
         .map(_.value)
 
