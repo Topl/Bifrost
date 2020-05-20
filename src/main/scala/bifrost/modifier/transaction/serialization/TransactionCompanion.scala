@@ -6,7 +6,7 @@ import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object BifrostTransactionCompanion extends Serializer[Transaction] {
+object TransactionCompanion extends Serializer[Transaction] {
 
   override def toBytes(m: Transaction): Array[Byte] = m match {
     case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)

@@ -2247,13 +2247,13 @@
 <path fill="none" stroke="#000000" d="M3598.2848,-289.3008C3547.5945,-276.2194 3478.1986,-258.3108 3432.2802,-246.4609"/>
 <polygon fill="#000000" stroke="#000000" points="3433.1256,-243.0645 3422.5682,-243.9546 3431.3764,-249.8424 3433.1256,-243.0645"/>
 </g>
-<!-- BifrostTransactionCompanion -->
+<!-- TransactionCompanion -->
 <g id="node183" class="node">
 <title>BifrostTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="12512.9942" cy="-450" rx="118.0794" ry="18"/>
 <text text-anchor="middle" x="12512.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransactionCompanion</text>
 </g>
-<!-- BifrostTransactionCompanion&#45;&gt;Serializer -->
+<!-- TransactionCompanion&#45;&gt;Serializer -->
 <g id="edge187" class="edge">
 <title>BifrostTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M12430.8686,-437.0088C12415.6515,-435.0122 12399.8679,-433.2142 12384.9942,-432 11922.7679,-394.2657 10418.7664,-380.7865 10112.6663,-378.4024"/>

@@ -8,7 +8,7 @@ import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, Transaction, PolyTransfer, GenericTransaction}
-import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
+import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.serialization.Serializer
@@ -29,7 +29,7 @@ class NodeViewHolder(settings: ForgingSettings)
 
   override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
     Map(Block.ModifierTypeId -> BlockCompanion,
-    GenericTransaction.ModifierTypeId -> BifrostTransactionCompanion)
+    GenericTransaction.ModifierTypeId -> TransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)

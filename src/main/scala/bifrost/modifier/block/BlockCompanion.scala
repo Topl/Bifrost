@@ -2,7 +2,7 @@ package bifrost.modifier.block
 
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
+import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
@@ -53,9 +53,9 @@ object BlockCompanion extends Serializer[Block] {
     }
     //noinspection ScalaStyle
     if (block.parentId sameElements Array.fill(32)(1: Byte)) {
-      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ tx.messageToSign)
+      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++ tx.messageToSign)
     } else {
-      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++ BifrostTransactionCompanion.toBytes(tx))
+      commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++ TransactionCompanion.toBytes(tx))
     }
   }
 
@@ -64,13 +64,13 @@ object BlockCompanion extends Serializer[Block] {
       case 0 =>
         commonMessage2xAndBefore(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
           bytes ++
-            Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
-            BifrostTransactionCompanion.toBytes(tx))
+            Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++
+            TransactionCompanion.toBytes(tx))
       case _ =>
         commonMessage(block) ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) =>
           bytes ++
-            Ints.toByteArray(BifrostTransactionCompanion.toBytes(tx).length) ++
-            BifrostTransactionCompanion.toBytes(tx))
+            Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++
+            TransactionCompanion.toBytes(tx))
     }
   }
 
@@ -126,7 +126,7 @@ object BlockCompanion extends Serializer[Block] {
         }
     }.ensuring(_.length == numTxExpected)
 
-    val tx: Seq[Transaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+    val tx: Seq[Transaction] = txByteSeq.map(tx => TransactionCompanion.parseBytes(tx).get)
 
     Block(parentId, timestamp, generatorBox, signature, tx, Longs.fromByteArray(inflation), version)
   }
@@ -178,7 +178,7 @@ object BlockCompanion extends Serializer[Block] {
         }
     }.ensuring(_.length == numTxExpected)
 
-    val tx: Seq[Transaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+    val tx: Seq[Transaction] = txByteSeq.map(tx => TransactionCompanion.parseBytes(tx).get)
 
     Block(parentId, timestamp, generatorBox, signature, tx, protocolVersion = version)
   }
