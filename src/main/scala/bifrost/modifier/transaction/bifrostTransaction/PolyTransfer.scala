@@ -2,7 +2,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import BifrostTransaction.{Nonce, Value}
+import Transaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, PolyBox}

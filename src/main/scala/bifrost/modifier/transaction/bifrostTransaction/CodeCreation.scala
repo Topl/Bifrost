@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.program.ProgramPreprocessor
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.{Box, CodeBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
@@ -22,7 +22,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
                         code: String,
                         override val fee: Long,
                         override val timestamp: Long,
-                        data: String) extends BifrostTransaction {
+                        data: String) extends Transaction {
 
   override type M = CodeCreation
 

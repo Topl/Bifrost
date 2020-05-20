@@ -8,7 +8,7 @@ import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.modifier.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
@@ -40,16 +40,16 @@ case class Block(parentId: BlockId,
                  timestamp: Timestamp,
                  forgerBox: ArbitBox,
                  signature: Signature25519,
-                 txs: Seq[BifrostTransaction],
+                 txs: Seq[Transaction],
                  inflation: Long = 0L,
                  protocolVersion: Version)
-  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
+  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction] {
 
   type M = Block
 
   lazy val modifierTypeId: Byte = Block.ModifierTypeId
 
-  lazy val transactions: Option[Seq[BifrostTransaction]] = Some(txs)
+  lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
   lazy val serializer = BlockCompanion
 
@@ -83,7 +83,7 @@ object Block {
 
   def create(parentId: BlockId,
              timestamp: Block.Timestamp,
-             txs: Seq[BifrostTransaction],
+             txs: Seq[Transaction],
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
@@ -102,7 +102,7 @@ object Block {
     }
   }
 
-  def createBloom(txs: Seq[BifrostTransaction]): Array[Byte] = {
+  def createBloom(txs: Seq[Transaction]): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       (total, b) =>
         b.bloomTopics match {

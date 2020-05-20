@@ -111,13 +111,13 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="4127.9942" cy="-450" rx="82.5854" ry="18"/>
 <text text-anchor="middle" x="4127.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransaction</text>
 </g>
-<!-- BifrostTransaction -->
+<!-- Transaction -->
 <g id="node6" class="node">
 <title>BifrostTransaction</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="4376.9942" cy="-378" rx="76.8869" ry="18"/>
 <text text-anchor="middle" x="4376.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransaction</text>
 </g>
-<!-- ProgramTransaction&#45;&gt;BifrostTransaction -->
+<!-- ProgramTransaction&#45;&gt;Transaction -->
 <g id="edge3" class="edge">
 <title>ProgramTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M4177.7846,-435.6028C4218.4697,-423.8384 4276.0457,-407.1899 4318.8438,-394.8146"/>
@@ -129,7 +129,7 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="4376.9942" cy="-306" rx="94.7833" ry="18"/>
 <text text-anchor="middle" x="4376.9942" y="-302.3" font-family="Times,serif" font-size="14.00" fill="#000000">GenericBoxTransaction</text>
 </g>
-<!-- BifrostTransaction&#45;&gt;BoxTransaction -->
+<!-- Transaction&#45;&gt;BoxTransaction -->
 <g id="edge42" class="edge">
 <title>BifrostTransaction&#45;&gt;GenericBoxTransaction</title>
 <path fill="none" stroke="#000000" d="M4376.9942,-359.8314C4376.9942,-352.131 4376.9942,-342.9743 4376.9942,-334.4166"/>
@@ -1131,7 +1131,7 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="4295.9942" cy="-450" rx="67.6881" ry="18"/>
 <text text-anchor="middle" x="4295.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">TestTransaction</text>
 </g>
-<!-- TestTransaction&#45;&gt;BifrostTransaction -->
+<!-- TestTransaction&#45;&gt;Transaction -->
 <g id="edge75" class="edge">
 <title>TestTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M4315.6021,-432.5708C4325.7746,-423.5286 4338.3687,-412.3338 4349.4974,-402.4417"/>
@@ -1431,7 +1431,7 @@
 <ellipse fill="#deb887" stroke="#000000" cx="4457.9942" cy="-450" rx="76.0865" ry="18"/>
 <text text-anchor="middle" x="4457.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProfileTransaction</text>
 </g>
-<!-- ProfileTransaction&#45;&gt;BifrostTransaction -->
+<!-- ProfileTransaction&#45;&gt;Transaction -->
 <g id="edge101" class="edge">
 <title>ProfileTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M4438.3864,-432.5708C4428.2139,-423.5286 4415.6198,-412.3338 4404.4911,-402.4417"/>
@@ -1473,7 +1473,7 @@
 <ellipse fill="#deb887" stroke="#000000" cx="4660.9942" cy="-450" rx="109.381" ry="18"/>
 <text text-anchor="middle" x="4660.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">TokenExchangeTransaction</text>
 </g>
-<!-- TokenExchangeTransaction&#45;&gt;BifrostTransaction -->
+<!-- TokenExchangeTransaction&#45;&gt;Transaction -->
 <g id="edge105" class="edge">
 <title>TokenExchangeTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M4601.4585,-434.9064C4553.8297,-422.8315 4487.2591,-405.9545 4438.9926,-393.7179"/>

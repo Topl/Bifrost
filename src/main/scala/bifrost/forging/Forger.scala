@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.modifier.block.Block.Version
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{Transaction, CoinbaseTransaction}
 
 import scala.util.Try
 
@@ -50,12 +50,12 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                        state: State,
                        parent: Block,
                        view: (History, State, Wallet, MemPool)
-                      ): Try[Seq[BifrostTransaction]] = Try {
+                      ): Try[Seq[Transaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
       if (txValid.isFailure) {
@@ -104,7 +104,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
-              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block](block)
+              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Block](block)
           case None =>
             log.debug(s"Failed to generate block")
         }
@@ -132,7 +132,7 @@ object Forger extends Logging {
 
   def iteration(parent: Block,
                 boxKeys: Seq[(ArbitBox, PrivateKey25519)],
-                txsToInclude: Seq[BifrostTransaction],
+                txsToInclude: Seq[Transaction],
                 target: BigInt,
                 version: Version): Option[Block] = {
 

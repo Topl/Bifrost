@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.{Box, ExecutionBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.ProgramTransferCompanion
@@ -24,7 +24,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
                            executionBox: ExecutionBox,
                            fee: Long,
                            timestamp: Long,
-                           data: String) extends BifrostTransaction {
+                           data: String) extends Transaction {
 
   override type M = ProgramTransfer
 

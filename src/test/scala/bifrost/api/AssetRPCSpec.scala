@@ -13,7 +13,7 @@ import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.State
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
 import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
@@ -132,7 +132,7 @@ class AssetRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
@@ -328,7 +328,7 @@ class AssetRPCSpec extends WordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view.pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view.pool.getById(Base58.decode(txHash).get).get
         view.pool.remove(txInstance)
       }
     }

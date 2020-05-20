@@ -13,7 +13,7 @@ import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.State
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
 import bifrost.nodeView.NodeViewHolder
@@ -111,7 +111,7 @@ class WalletRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
     }
@@ -162,7 +162,7 @@ class WalletRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
     }

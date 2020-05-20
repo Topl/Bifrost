@@ -1,7 +1,7 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box, PublicKeyNoncedBox}
 import bifrost.modifier.transaction.serialization.AssetRedemptionCompanion
@@ -20,7 +20,7 @@ case class AssetRedemption(availableToRedeem: Map[String, IndexedSeq[(PublicKey2
                            issuer: PublicKey25519Proposition,
                            fee: Long,
                            timestamp: Long,
-                           data: String) extends BifrostTransaction {
+                           data: String) extends Transaction {
 
   override type M = AssetRedemption
 
@@ -143,7 +143,7 @@ object AssetRedemption {
   } yield {
     def convertToProp(value: IndexedSeq[(String, Long)]) = value.map {
       case (pubKeyString, nonce) =>
-        (BifrostTransaction.stringToPubKey(pubKeyString), nonce)
+        (Transaction.stringToPubKey(pubKeyString), nonce)
     }
 
     val availableToRedeem = availableToRedeemRaw.map { case (key, value) => (key, convertToProp(value)) }
@@ -154,7 +154,7 @@ object AssetRedemption {
           Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte))
         } else {
 
-          BifrostTransaction.stringToSignature(value)
+          Transaction.stringToSignature(value)
         }
       )
       (key, newValues)

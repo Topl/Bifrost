@@ -11,7 +11,7 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
@@ -29,7 +29,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
-  type TX = BifrostTransaction
+  type TX = Transaction
   type PMOD = Block
   type NVHT = NodeViewHolder
 

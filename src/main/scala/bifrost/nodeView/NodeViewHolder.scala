@@ -7,7 +7,7 @@ import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, GenericTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, Transaction, PolyTransfer, GenericTransaction}
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
@@ -18,7 +18,7 @@ import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
 class NodeViewHolder(settings: ForgingSettings)
-  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Box, Block] {
+  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Box, Block] {
 
   override val networkChunkSize: Int = settings.networkChunkSize
   override type SI = BifrostSyncInfo

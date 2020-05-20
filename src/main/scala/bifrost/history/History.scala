@@ -9,7 +9,7 @@ import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
@@ -31,7 +31,7 @@ class History(val storage: Storage,
               settings: ForgingSettings,
               validators: Seq[BlockValidator[Block]])
   extends GenericHistory[ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostTransaction,
+    Transaction,
     Block,
     BifrostSyncInfo,
     History
@@ -327,7 +327,7 @@ class History(val storage: Storage,
     loop(storage.bestBlockId, Seq())
   }
 
-  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[BifrostTransaction] = {
+  def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
       blockBloom =>

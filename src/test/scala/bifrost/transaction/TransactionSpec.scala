@@ -4,7 +4,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
 
-class BifrostTransactionSpec extends PropSpec
+class TransactionSpec extends PropSpec
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
   with Matchers

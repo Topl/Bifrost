@@ -5,7 +5,7 @@ import java.util.UUID
 
 import bifrost.modifier.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper

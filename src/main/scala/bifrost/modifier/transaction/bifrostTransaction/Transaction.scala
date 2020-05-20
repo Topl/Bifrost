@@ -2,7 +2,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
@@ -19,7 +19,7 @@ import scala.util.Try
 
 trait TransactionSettings extends Settings
 
-trait BifrostTransaction
+trait Transaction
   extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
@@ -48,7 +48,7 @@ trait BifrostTransaction
 
 }
 
-object BifrostTransaction {
+object Transaction {
   type Nonce = Long
   type Value = Long
 

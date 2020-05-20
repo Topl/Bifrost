@@ -6,9 +6,9 @@ import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
+object BifrostTransactionCompanion extends Serializer[Transaction] {
 
-  override def toBytes(m: BifrostTransaction): Array[Byte] = m match {
+  override def toBytes(m: Transaction): Array[Byte] = m match {
     case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)
     case prT: ProgramTransfer => ProgramTransferCompanion.toBytes(prT)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
@@ -17,7 +17,7 @@ object BifrostTransactionCompanion extends Serializer[BifrostTransaction] {
     case cb: CoinbaseTransaction => CoinbaseTransactionCompanion.toBytes(cb)
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[BifrostTransaction] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[Transaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.slice(0, Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 

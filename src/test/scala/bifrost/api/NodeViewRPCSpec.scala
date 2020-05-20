@@ -18,7 +18,7 @@ import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
@@ -80,7 +80,7 @@ class NodeViewRPCSpec extends WordSpec
 
   var txHash: String = ""
   var assetTxHash: String = ""
-  var assetTxInstance: BifrostTransaction = null
+  var assetTxInstance: Transaction = null
   var blockId: Block.BlockId = Array[Byte]()
 
   val requestBody = ByteString(

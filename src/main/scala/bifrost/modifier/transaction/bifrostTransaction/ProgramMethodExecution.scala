@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.program.Program
-import BifrostTransaction.Nonce
+import Transaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.forging.ForgingSettings
 import bifrost.history.History

@@ -2103,13 +2103,13 @@
 <path fill="none" stroke="#000000" d="M1099.4524,-803.3459C1200.83,-792.3412 1363.6243,-774.6696 1449.9182,-765.3022"/>
 <polygon fill="#000000" stroke="#000000" points="1450.4894,-768.7609 1460.0533,-764.2021 1449.734,-761.8018 1450.4894,-768.7609"/>
 </g>
-<!-- BifrostTransaction -->
+<!-- Transaction -->
 <g id="node217" class="node">
 <title>BifrostTransaction</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="582.6015" cy="-8478" rx="98.2828" ry="18"/>
 <text text-anchor="middle" x="582.6015" y="-8474.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransaction</text>
 </g>
-<!-- BifrostTransaction&#45;&gt;BoxTransaction -->
+<!-- Transaction&#45;&gt;BoxTransaction -->
 <g id="edge134" class="edge">
 <title>BifrostTransaction&#45;&gt;GenericBoxTransaction</title>
 <path fill="none" stroke="#000000" d="M680.7739,-8478C739.7969,-8478 815.6425,-8478 879.7089,-8478"/>
@@ -2121,7 +2121,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8532" rx="75.2868" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8528.3" font-family="Times,serif" font-size="14.00" fill="#000000">CodeCreation</text>
 </g>
-<!-- CodeCreation&#45;&gt;BifrostTransaction -->
+<!-- CodeCreation&#45;&gt;Transaction -->
 <g id="edge135" class="edge">
 <title>CodeCreation&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M254.5482,-8523.0224C319.978,-8514.0427 421.0721,-8500.1685 493.7413,-8490.1953"/>
@@ -2175,7 +2175,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8478" rx="106.6812" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8474.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransaction</text>
 </g>
-<!-- ProgramTransaction&#45;&gt;BifrostTransaction -->
+<!-- ProgramTransaction&#45;&gt;Transaction -->
 <g id="edge137" class="edge">
 <title>ProgramTransaction&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M295.8708,-8478C351.146,-8478 418.5032,-8478 474.0405,-8478"/>
@@ -2187,7 +2187,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-8424" rx="90.9839" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-8420.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransfer</text>
 </g>
-<!-- ProgramTransfer&#45;&gt;BifrostTransaction -->
+<!-- ProgramTransfer&#45;&gt;Transaction -->
 <g id="edge138" class="edge">
 <title>ProgramTransfer&#45;&gt;BifrostTransaction</title>
 <path fill="none" stroke="#000000" d="M264.0677,-8434.2841C329.5237,-8443.2673 424.6363,-8456.3207 493.8791,-8465.8236"/>

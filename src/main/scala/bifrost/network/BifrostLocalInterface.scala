@@ -5,7 +5,7 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, GenericTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{Transaction, GenericTransaction}
 import bifrost.nodeView.{GenericNodeViewHolder, PersistentNodeViewModifier}
 import bifrost.utils.Logging
 
@@ -15,7 +15,7 @@ class BifrostLocalInterface(viewHolderRef: ActorRef, forgerRef: ActorRef, forgin
   import BifrostLocalInterface._
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type TX = BifrostTransaction
+  type TX = Transaction
   type PMOD = Block
 
   override def preStart(): Unit = {
@@ -48,11 +48,11 @@ class BifrostLocalInterface(viewHolderRef: ActorRef, forgerRef: ActorRef, forgin
 
   protected def onStartingPersistentModifierApplication(pmod: Block): Unit = {}
 
-  protected def onFailedTransaction(tx: BifrostTransaction): Unit = {}
+  protected def onFailedTransaction(tx: Transaction): Unit = {}
 
   protected def onFailedModification(mod: Block): Unit = {}
 
-  protected def onSuccessfulTransaction(tx: BifrostTransaction): Unit = {}
+  protected def onSuccessfulTransaction(tx: Transaction): Unit = {}
 
   protected def onSuccessfulModification(mod: Block): Unit = {}
 

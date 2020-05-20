@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import BifrostTransaction.Nonce
+import Transaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
@@ -132,7 +132,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override lazy val serializer = ProgramCreationCompanion
 
-//  println("BifrostTransaction")
+//  println("Transaction")
   //println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
   //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
 //  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))

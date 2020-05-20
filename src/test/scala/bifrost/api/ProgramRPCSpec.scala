@@ -24,7 +24,7 @@ import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 
@@ -130,7 +130,7 @@ class ProgramRPCSpec extends WordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+      val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
       txInstance.newBoxes.foreach {
         case b: ExecutionBox =>
           executionBox = Some(b)

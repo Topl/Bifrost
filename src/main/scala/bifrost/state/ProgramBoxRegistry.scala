@@ -6,7 +6,7 @@ import java.util.UUID
 import bifrost.crypto.FastCryptographicHash
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box.{Box, BoxSerializer, ProgramBox}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -62,7 +62,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
   }
 
   //YT NOTE - implement if boxes dont have UUIDs in them
-  def updateFromState(versionTag: VersionTag, txs: Seq[BifrostTransaction]): Try[ProgramBoxRegistry] = Try {
+  def updateFromState(versionTag: VersionTag, txs: Seq[Transaction]): Try[ProgramBoxRegistry] = Try {
     ProgramBoxRegistry(pbrStore, stateStore)
   }
 

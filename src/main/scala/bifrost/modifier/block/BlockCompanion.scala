@@ -1,7 +1,7 @@
 package bifrost.modifier.block
 
 import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519
@@ -126,7 +126,7 @@ object BlockCompanion extends Serializer[Block] {
         }
     }.ensuring(_.length == numTxExpected)
 
-    val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+    val tx: Seq[Transaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
     Block(parentId, timestamp, generatorBox, signature, tx, Longs.fromByteArray(inflation), version)
   }
@@ -178,7 +178,7 @@ object BlockCompanion extends Serializer[Block] {
         }
     }.ensuring(_.length == numTxExpected)
 
-    val tx: Seq[BifrostTransaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
+    val tx: Seq[Transaction] = txByteSeq.map(tx => BifrostTransactionCompanion.parseBytes(tx).get)
 
     Block(parentId, timestamp, generatorBox, signature, tx, protocolVersion = version)
   }

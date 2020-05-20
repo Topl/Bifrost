@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.MofNProposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.utils.Logging
@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 
 
 case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Vault[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block, Wallet]
+  extends Vault[ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Block, Wallet]
     with Logging {
 
   import bifrost.wallet.Wallet._
@@ -42,7 +42,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
 
   //not implemented intentionally for now
-  def historyTransactions: Seq[WalletTransaction[PI, BifrostTransaction]] = ???
+  def historyTransactions: Seq[WalletTransaction[PI, Transaction]] = ???
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction
@@ -181,9 +181,9 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
-  override def scanOffchain(tx: BifrostTransaction): Wallet = this
+  override def scanOffchain(tx: Transaction): Wallet = this
 
-  override def scanOffchain(txs: Seq[BifrostTransaction]): Wallet = this
+  override def scanOffchain(txs: Seq[Transaction]): Wallet = this
 
   override def scanPersistent(modifier: Block): Wallet = {
     log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")

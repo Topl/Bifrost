@@ -2,15 +2,15 @@ package bifrost.mempool
 
 import io.iohk.iodb.ByteArrayWrapper
 import bifrost.nodeView.NodeViewModifier.ModifierId
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.utils.Logging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try
 
 
-case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
-  extends MemoryPool[BifrostTransaction, MemPool] with Logging {
+case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
+  extends MemoryPool[Transaction, MemPool] with Logging {
   override type NVCT = MemPool
 
   private def key(id: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(id)
@@ -18,14 +18,14 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
   private val boxesInMempool = new TrieMap[ByteArrayWrapper, ByteArrayWrapper]()
 
   //getters
-  override def getById(id: ModifierId): Option[BifrostTransaction] = unconfirmed.get(key(id))
+  override def getById(id: ModifierId): Option[Transaction] = unconfirmed.get(key(id))
 
   override def contains(id: ModifierId): Boolean = unconfirmed.contains(key(id))
 
-  override def getAll(ids: Seq[ModifierId]): Seq[BifrostTransaction] = ids.flatMap(getById)
+  override def getAll(ids: Seq[ModifierId]): Seq[Transaction] = ids.flatMap(getById)
 
   //modifiers
-  override def put(tx: BifrostTransaction): Try[MemPool] = Try {
+  override def put(tx: Transaction): Try[MemPool] = Try {
     unconfirmed.put(key(tx.id), tx)
     tx.boxIdsToOpen.foreach(boxId => {
       val exists = boxesInMempool.contains(key(boxId))
@@ -37,7 +37,7 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
     this
   }
 
-  override def put(txs: Iterable[BifrostTransaction]): Try[MemPool] = Try {
+  override def put(txs: Iterable[Transaction]): Try[MemPool] = Try {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach(boxId => {
       val exists = boxesInMempool.contains(key(boxId))
@@ -51,7 +51,7 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
     this
   }
 
-  override def putWithoutCheck(txs: Iterable[BifrostTransaction]): MemPool = {
+  override def putWithoutCheck(txs: Iterable[Transaction]): MemPool = {
     txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
     txs.foreach(tx => {
       tx.boxIdsToOpen.map(boxId => {
@@ -61,15 +61,15 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, BifrostTransaction])
     this
   }
 
-  override def remove(tx: BifrostTransaction): MemPool = {
+  override def remove(tx: Transaction): MemPool = {
     unconfirmed.remove(key(tx.id))
     this
   }
 
-  override def take(limit: Int): Iterable[BifrostTransaction] =
+  override def take(limit: Int): Iterable[Transaction] =
     unconfirmed.values.toSeq.sortBy(-_.fee).take(limit)
 
-  override def filter(condition: BifrostTransaction => Boolean): MemPool = {
+  override def filter(condition: Transaction => Boolean): MemPool = {
     unconfirmed.retain { (_, v) =>
       if (condition(v)) {
         true

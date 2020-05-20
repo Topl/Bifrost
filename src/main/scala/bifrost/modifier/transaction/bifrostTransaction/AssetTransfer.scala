@@ -2,7 +2,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import BifrostTransaction.{Nonce, Value}
+import Transaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
@@ -135,15 +135,15 @@ object AssetTransfer extends TransferUtil {
     data <- c.downField("data").as[String]
   } yield {
     val from = rawFrom.map { case (prop, nonce) =>
-        BifrostTransaction.stringToPubKey(prop) -> nonce.toLong
+        Transaction.stringToPubKey(prop) -> nonce.toLong
     }
     val to = rawTo.map { case (prop, value) =>
-        BifrostTransaction.stringToPubKey(prop) -> value.toLong
+        Transaction.stringToPubKey(prop) -> value.toLong
     }
     val signatures = rawSignatures.map { case (prop, sig) =>
-        BifrostTransaction.stringToPubKey(prop) -> BifrostTransaction.stringToSignature(sig)
+        Transaction.stringToPubKey(prop) -> Transaction.stringToSignature(sig)
     }
-    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+    val issuer = Transaction.stringToPubKey(rawIssuer)
 
       AssetTransfer(
         from,

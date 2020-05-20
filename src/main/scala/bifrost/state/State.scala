@@ -11,7 +11,7 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
 import bifrost.state.MinimalState.VersionTag
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.utils.Logging
@@ -37,7 +37,7 @@ case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
 //noinspection ScalaStyle
 case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: History, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
   extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    Box, BifrostTransaction, Block, State] with Logging {
+    Box, Transaction, Block, State] with Logging {
 
   override type NVCT = State
   type P = State.P
@@ -50,7 +50,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
 
 
 
-  def semanticValidity(tx: BifrostTransaction): Try[Unit] = State.semanticValidity(tx)
+  def semanticValidity(tx: Transaction): Try[Unit] = State.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
@@ -185,7 +185,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     statefulValid.flatMap(_ => semanticValidity(poT))
   }
 
-  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
     boxesSumTry flatMap { openSum =>
       if (tx.newBoxes.map {
         case p: PolyBox => p.value
@@ -275,7 +275,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     statefulValid.flatMap(_ => semanticValidity(asT))
   }
 
-  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
     boxesSumTry flatMap { openSum =>
       if (tx.newBoxes.map {
         case a: AssetBox => a.value
@@ -580,7 +580,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
 object State extends Logging {
 
   type T = Any
-  type TX = BifrostTransaction
+  type TX = Transaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block

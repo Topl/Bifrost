@@ -1,6 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import BifrostTransaction.{Nonce, Value}
+import Transaction.{Nonce, Value}
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition

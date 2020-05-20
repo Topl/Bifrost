@@ -5,7 +5,7 @@ import java.time.Instant
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationCompanion
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -22,7 +22,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                           issuer: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long,
-                          data: String) extends BifrostTransaction {
+                          data: String) extends Transaction {
 
 
   override type M = AssetCreation
@@ -147,15 +147,15 @@ object AssetCreation {
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {
-    val to = rawTo.map(t => BifrostTransaction.stringToPubKey(t._1) -> t._2.toLong)
+    val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
     val signatures = rawSignatures.map { case (key, value) =>
         if(value == "") {
-          (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+          (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
         } else {
-          (BifrostTransaction.stringToPubKey(key), BifrostTransaction.stringToSignature(value))
+          (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
         }
     }
-    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+    val issuer = Transaction.stringToPubKey(rawIssuer)
 
     AssetCreation(
       to,

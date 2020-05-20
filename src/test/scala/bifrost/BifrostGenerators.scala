@@ -8,7 +8,7 @@ import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{History, Storage}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import modifier.box._
 import modifier.box.proposition.MofNProposition
 import io.circe
@@ -622,11 +622,11 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   //TODO Add programCreationGen after fixing serialization
-  val transactionTypes: Seq[Gen[BifrostTransaction]] =
+  val transactionTypes: Seq[Gen[Transaction]] =
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen,
       assetCreationGen, programCreationGen, programMethodExecutionGen, programTransferGen)
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
