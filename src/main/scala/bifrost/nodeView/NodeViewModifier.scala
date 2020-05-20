@@ -1,7 +1,7 @@
 package bifrost.nodeView
 
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import com.typesafe.config.ConfigFactory
@@ -39,7 +39,7 @@ object NodeViewModifier {
 
 
 
-trait PersistentNodeViewModifier[P <: Proposition, TX <: Transaction[P]] extends NodeViewModifier {
+trait PersistentNodeViewModifier[P <: Proposition, TX <: GenericTransaction[P]] extends NodeViewModifier {
 
   def parentId: ModifierId
 

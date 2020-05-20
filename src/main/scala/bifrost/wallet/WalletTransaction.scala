@@ -1,22 +1,22 @@
 package bifrost.wallet
 
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try
 
-case class WalletTransaction[P <: Proposition, TX <: Transaction[P]](proposition: P,
-                                                                     tx: TX,
-                                                                     blockId: Option[NodeViewModifier.ModifierId],
-                                                                     createdAt: Long)
+case class WalletTransaction[P <: Proposition, TX <: GenericTransaction[P]](proposition: P,
+                                                                            tx: TX,
+                                                                            blockId: Option[NodeViewModifier.ModifierId],
+                                                                            createdAt: Long)
 
 object WalletTransaction {
-  def parse[P <: Proposition, TX <: Transaction[P]](bytes: Array[Byte])
-                                                   (propDeserializer: Array[Byte] => Try[P],
-                                                    txDeserializer: Array[Byte] => Try[TX]
-                                                   ): Try[WalletTransaction[P, TX]] = Try {
+  def parse[P <: Proposition, TX <: GenericTransaction[P]](bytes: Array[Byte])
+                                                          (propDeserializer: Array[Byte] => Try[P],
+                                                           txDeserializer: Array[Byte] => Try[TX]
+                                                          ): Try[WalletTransaction[P, TX]] = Try {
     val propLength = Ints.fromByteArray(bytes.slice(0, 4))
     var pos = 4
     val propTry = propDeserializer(bytes.slice(pos, pos + propLength))
@@ -43,7 +43,7 @@ object WalletTransaction {
     WalletTransaction[P, TX](propTry.get, txTry.get, blockIdOpt, createdAt)
   }
 
-  def bytes[P <: Proposition, TX <: Transaction[P]](wt: WalletTransaction[P, TX]): Array[Byte] = {
+  def bytes[P <: Proposition, TX <: GenericTransaction[P]](wt: WalletTransaction[P, TX]): Array[Byte] = {
     val propBytes = wt.proposition.bytes
     val txBytes = wt.tx.bytes
     val bIdBytes = wt.blockId.map(id => Array(1: Byte) ++ id).getOrElse(Array(0: Byte))

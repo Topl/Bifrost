@@ -10,8 +10,8 @@ import bifrost.nodeView.NodeViewModifier
   * A transaction is an atomic state modifier
   */
 
-abstract class Transaction[P <: Proposition] extends NodeViewModifier {
-  override val modifierTypeId: Byte = Transaction.ModifierTypeId
+abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
+  override val modifierTypeId: Byte = GenericTransaction.ModifierTypeId
 
   val fee: Long
 
@@ -23,7 +23,7 @@ abstract class Transaction[P <: Proposition] extends NodeViewModifier {
 }
 
 
-object Transaction {
+object GenericTransaction {
   val ModifierTypeId = 2: Byte
   type TransactionId = NodeViewModifier.ModifierId
 }

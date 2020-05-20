@@ -8,7 +8,7 @@ import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.nodeView.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.utils.Logging
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
@@ -120,7 +120,7 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
       Seq(blockBloomKey(b.id) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
+      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(GenericTransaction.ModifierTypeId +: b.id))
     )
 
     /* update storage */

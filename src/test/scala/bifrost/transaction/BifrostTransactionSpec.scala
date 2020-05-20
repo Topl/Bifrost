@@ -11,7 +11,7 @@ class BifrostTransactionSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  property("Transaction boxes are deterministic") {
+  property("GenericTransaction boxes are deterministic") {
     /*val GenesisAccountsNum = 10
     val GenesisBalance = 100000L
 

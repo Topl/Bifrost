@@ -2913,7 +2913,7 @@
 <ellipse fill="#deb887" stroke="#000000" cx="189.1332" cy="-12096" rx="76.0865" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-12092.3" font-family="Times,serif" font-size="14.00" fill="#000000">StateChanges</text>
 </g>
-<!-- Transaction -->
+<!-- GenericTransaction -->
 <g id="node293" class="node">
 <title>Transaction</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-12150" rx="66.0889" ry="18"/>

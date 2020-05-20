@@ -6,7 +6,7 @@ package bifrost.state
 
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.state.MinimalState.VersionTag
 
@@ -18,7 +18,7 @@ import scala.util.Try
 
 trait MinimalState[T, P <: Proposition,
 BX <: GenericBox[P, T],
-TX <: Transaction[P],
+TX <: GenericTransaction[P],
 M <: PersistentNodeViewModifier[P, TX],
 MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
   self: MS =>

@@ -6,7 +6,7 @@ import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
-import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, GenericTransaction}
 import bifrost.modifier.transaction.BoxTransaction
 import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.network.BifrostLocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
@@ -162,7 +162,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   private def compareViews: Receive = {
     case CompareViews(sid, modifierTypeId, modifierIds) =>
       val ids = modifierTypeId match {
-        case typeId: Byte if typeId == Transaction.ModifierTypeId =>
+        case typeId: Byte if typeId == GenericTransaction.ModifierTypeId =>
           memoryPool().notIn(modifierIds)
         case _ =>
           modifierIds.filterNot(mid => history().contains(mid) || modifiersCache.contains(mid))
@@ -174,7 +174,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   private def readLocalObjects: Receive = {
     case GetLocalObjects(sid, modifierTypeId, modifierIds) =>
       val objs: Seq[NodeViewModifier] = modifierTypeId match {
-        case typeId: Byte if typeId == Transaction.ModifierTypeId =>
+        case typeId: Byte if typeId == GenericTransaction.ModifierTypeId =>
           memoryPool().getAll(modifierIds)
         case typeId: Byte =>
           modifierIds.flatMap(id => history().modifierById(id))
@@ -188,7 +188,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
     case ModifiersFromRemote(remote, modifierTypeId, remoteObjects) =>
       modifierCompanions.get(modifierTypeId) foreach { companion =>
         remoteObjects.flatMap(r => companion.parseBytes(r).toOption).foreach {
-          case (tx: TX@unchecked) if tx.modifierTypeId == Transaction.ModifierTypeId =>
+          case (tx: TX@unchecked) if tx.modifierTypeId == GenericTransaction.ModifierTypeId =>
             txModify(tx, Some(remote))
 
           case pmod: PMOD@unchecked =>
@@ -310,23 +310,23 @@ object GenericNodeViewHolder {
                                                     extension: Option[Seq[(ModifierTypeId, ModifierId)]])
 
   //node view holder starting persistent modifier application
-  case class StartingPersistentModifierApplication[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]](modifier: PMOD) extends NodeViewHolderEvent
+  case class StartingPersistentModifierApplication[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]](modifier: PMOD) extends NodeViewHolderEvent
 
   //hierarchy of events regarding modifiers application outcome
   trait ModificationOutcome extends NodeViewHolderEvent {
     val source: Option[ConnectedPeer]
   }
 
-  case class FailedTransaction[P <: Proposition, TX <: Transaction[P]]
+  case class FailedTransaction[P <: Proposition, TX <: GenericTransaction[P]]
   (transaction: TX, error: Throwable, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
-  case class FailedModification[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class FailedModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
   (modifier: PMOD, error: Throwable, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
-  case class SuccessfulTransaction[P <: Proposition, TX <: Transaction[P]]
+  case class SuccessfulTransaction[P <: Proposition, TX <: GenericTransaction[P]]
   (transaction: TX, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
-  case class SuccessfulModification[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class SuccessfulModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
   (modifier: PMOD, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
 

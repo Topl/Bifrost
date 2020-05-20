@@ -1,6 +1,6 @@
 package bifrost.mempool
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewComponent
 
 import scala.util.Try
@@ -10,7 +10,7 @@ import scala.util.Try
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemoryPool[TX <: Transaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
+trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
 
   import bifrost.nodeView.NodeViewModifier.ModifierId
 

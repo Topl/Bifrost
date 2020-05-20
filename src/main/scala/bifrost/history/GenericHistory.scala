@@ -2,7 +2,7 @@ package bifrost.history
 
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.network.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
@@ -22,7 +22,7 @@ import scala.util.Try
   */
 
 trait GenericHistory[P <: Proposition,
-TX <: Transaction[P],
+TX <: GenericTransaction[P],
 PM <: PersistentNodeViewModifier[P, TX],
 SI <: SyncInfo,
 HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {

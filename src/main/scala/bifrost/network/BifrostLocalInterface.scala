@@ -5,7 +5,7 @@ import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, Transaction}
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, GenericTransaction}
 import bifrost.nodeView.{GenericNodeViewHolder, PersistentNodeViewModifier}
 import bifrost.utils.Logging
 
@@ -75,8 +75,8 @@ object BifrostLocalInterface {
 
   case object BetterNeighbourAppeared
 
-  case class LocallyGeneratedTransaction[P <: Proposition, TX <: Transaction[P]](tx: TX)
+  case class LocallyGeneratedTransaction[P <: Proposition, TX <: GenericTransaction[P]](tx: TX)
 
-  case class LocallyGeneratedModifier[P <: Proposition, TX <: Transaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class LocallyGeneratedModifier[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
   (pmod: PMOD)
 }
