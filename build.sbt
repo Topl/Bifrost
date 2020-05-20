@@ -97,7 +97,7 @@ libraryDependencies  ++= Seq(
   "com.typesafe" % "config" % "1.3.3",
 )
 
-scalacOptions ++= Seq("-feature", "-deprecation")
+scalacOptions ++= Seq("-feature", "-deprecation", "-Xfatal-warnings")
 
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
