@@ -133,11 +133,11 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   override lazy val serializer = ProgramCreationCompanion
 
 //  println("Transaction")
-  //println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
-  //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+//  println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
+//  println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
 //  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 //  println(preInvestmentBoxes)
-  //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+//  println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderCompanion.toBytes(executionBuilder),

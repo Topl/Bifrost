@@ -1,6 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.crypto.{PrivateKey25519, Signature25519}
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box._
@@ -10,7 +10,7 @@ import bifrost.wallet.Wallet
 import bifrost.BifrostApp
 import bifrost.modifier.transaction.BoxTransaction
 import com.google.common.primitives.Longs
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{Json}
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 
