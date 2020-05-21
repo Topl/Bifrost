@@ -59,8 +59,6 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 //          case cb: ContractBox => true
 //          case ab: ArbitBox => ab.value > 0
 //          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
-//          case reputationB: ReputationBox => reputationB.value._1.isInstanceOf[Double] && reputationB.value._2
-//            .isInstanceOf[Double]
 //          case assetB: AssetBox => assetB.amount > 0
 //        }
         case _ => false

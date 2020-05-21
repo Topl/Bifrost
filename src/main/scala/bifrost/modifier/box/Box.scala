@@ -46,7 +46,6 @@ object BoxSerializer extends Serializer[Box] {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
     case a: ArbitBox => ArbitBoxSerializer.toBytes(a)
     case as: AssetBox => AssetBoxSerializer.toBytes(as)
-    case repBox: ReputationBox => ReputationBoxSerializer.toBytes(repBox)
     case sb: StateBox => StateBoxSerializer.toBytes(sb)
     case cb: CodeBox => CodeBoxSerializer.toBytes(cb)
     case eb: ExecutionBox => ExecutionBoxSerializer.toBytes(eb)
@@ -62,7 +61,6 @@ object BoxSerializer extends Serializer[Box] {
       case "ArbitBox" => ArbitBoxSerializer.parseBytes(bytes)
       case "AssetBox" => AssetBoxSerializer.parseBytes(bytes)
       case "PolyBox" => PolyBoxSerializer.parseBytes(bytes)
-      case "ReputationBox" => ReputationBoxSerializer.parseBytes(bytes)
       case "StateBox" => StateBoxSerializer.parseBytes(bytes)
       case "CodeBox" => CodeBoxSerializer.parseBytes(bytes)
       case "ExecutionBox" => ExecutionBoxSerializer.parseBytes(bytes)
@@ -158,90 +156,6 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
     )
 
     AssetBox(params._1, params._2, params._3, asset, issuer, data)
-  }
-}
-
-case class ReputationBox(override val proposition: PublicKey25519Proposition,
-                         override val nonce: Long,
-                         value: (Double, Double)) extends Box(proposition, nonce, value) {
-  val typeOfBox: String = "Reputation"
-  val id = ReputationBox.idFromBox(proposition, nonce)
-
-  override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "type" -> "Reputation".asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "value" -> value.asJson,
-    "nonce" -> nonce.toString.asJson
-  ).asJson
-}
-
-object ReputationBox {
-
-  val byteSize = Constants25519.PubKeyLength + Longs.BYTES + 2 * Doubles.BYTES
-
-  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
-    FastCryptographicHash(prop.pubKeyBytes ++ "reputation".getBytes ++ Longs.toByteArray(nonce))
-
-  implicit val decodeReputationBox: Decoder[ReputationBox] = (c: HCursor) => for {
-    proposition <- c.downField("proposition").as[String]
-    value <- c.downField("value").as[(Double, Double)]
-    nonce <- c.downField("nonce").as[Long]
-  } yield {
-    val preparedPubKey = Base58.decode(proposition).get
-    val prop = PublicKey25519Proposition(preparedPubKey)
-    ReputationBox(prop, nonce, value)
-  }
-}
-
-object ReputationBoxSerializer extends Serializer[ReputationBox] {
-
-  def doubleToByteArray(x: Double): Array[Byte] = {
-    val l = java.lang.Double.doubleToLongBits(x)
-    val a = Array.fill(8)(0.toByte)
-    for (i <- 0 to 7) a(i) = ((l >> ((7 - i) * 8)) & 0xff).toByte
-    a
-  }
-
-  def byteArrayToDouble(x: Array[scala.Byte]): Double = {
-    var i = 0
-    var res = 0.toLong
-    for (i <- 0 to 7) {
-      res += ((x(i) & 0xff).toLong << ((7 - i) * 8))
-    }
-    java.lang.Double.longBitsToDouble(res)
-  }
-
-  def toBytes(obj: ReputationBox): Array[Byte] = {
-
-    val boxType = "ReputationBox"
-
-    Bytes.concat(
-      Ints.toByteArray(boxType.getBytes.length),
-      boxType.getBytes,
-      Longs.toByteArray(obj.nonce),
-      doubleToByteArray(obj.value._1),
-      doubleToByteArray(obj.value._2),
-      obj.proposition.pubKeyBytes
-    )
-  }
-
-  override def parseBytes(bytes: Array[Byte]): Try[ReputationBox] = Try {
-
-    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-
-    val newBytes = bytes.slice(Ints.BYTES + typeLen, bytes.length)
-
-    val nonce = Longs.fromByteArray(newBytes.take(Longs.BYTES))
-    val Array(alpha: Double, beta: Double) = (0 until 2).map {
-      i => byteArrayToDouble(newBytes.slice(Longs.BYTES + i * Doubles.BYTES, Longs.BYTES + (i + 1) * Doubles.BYTES))
-    }.toArray
-    val proposition = PublicKey25519Proposition(
-      newBytes.slice(Longs.BYTES + 2 * Doubles.BYTES, Longs.BYTES + 2 * Doubles.BYTES + Constants25519.PubKeyLength)
-    )
-
-    ReputationBox(proposition, nonce, (alpha, beta))
   }
 }
 

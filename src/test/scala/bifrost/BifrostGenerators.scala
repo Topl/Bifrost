@@ -213,13 +213,6 @@ trait BifrostGenerators extends CoreGenerators {
 
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
 
-  lazy val reputationBoxGen: Gen[ReputationBox] = for {
-    proposition <- propositionGen
-    nonce <- positiveLongGen
-  } yield {
-    ReputationBox(proposition, nonce, (sampleUntilNonEmpty(doubleGen), sampleUntilNonEmpty(doubleGen)))
-  }
-
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
     value <- stringGen
