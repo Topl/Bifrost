@@ -1,8 +1,8 @@
 package bifrost.wallet
 
-import bifrost.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 
 import scala.util.Try
 
@@ -10,7 +10,7 @@ import scala.util.Try
   * Abstract interface for Vault, a storage for node-specific information
   */
 
-trait Vault[P <: Proposition, TX <: Transaction[P],
+trait Vault[P <: Proposition, TX <: GenericTransaction[P],
             PMOD <: PersistentNodeViewModifier[P, TX], V <: Vault[P, TX, PMOD, V]] extends NodeViewComponent {
   self: V =>
 

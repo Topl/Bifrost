@@ -31,7 +31,7 @@
     <node x="5531.250000000002" y="404.0">bifrost.network.UPnP</node>
     <node x="12066.0" y="1702.0">bifrost.scorexMod.GenericMinimalState$class</node>
     <node x="863.6300929368863" y="112.0">bifrost.network.Buffering</node>
-    <node x="12640.33371356378" y="898.0">bifrost.scorexMod.GenericNodeViewHolder.StartingPersistentModifierApplication</node>
+    <node x="12640.33371356378" y="898.0">bifrost.nodeView.GenericNodeViewHolder.StartingPersistentModifierApplication</node>
     <node x="7885.0" y="1998.0">bifrost.network.message.MessageSpec$class</node>
     <node x="10895.0" y="2095.0">bifrost.transaction.box.AssetBox</node>
     <node x="3035.0" y="2095.0">bifrost.api.http.ApiException$</node>
@@ -39,7 +39,7 @@
     <node x="13450.0" y="1998.0">bifrost.transaction.bifrostTransaction.ProgramCreation</node>
     <node x="14695.0" y="1702.0">bifrost.scorexMod.GenericApplication$class</node>
     <node x="6887.499999999999" y="1167.0">bifrost.serialization.Serializer</node>
-    <node x="14484.003777147414" y="404.0">bifrost.scorexMod.GenericNodeViewHolder$class</node>
+    <node x="14484.003777147414" y="404.0">bifrost.nodeView.GenericNodeViewHolder$class</node>
     <node x="14302.0" y="1998.0">bifrost.transaction.box.proposition.Constants25519$</node>
     <node x="6465.5" y="1551.0">bifrost.network.message.GetPeersSpec$</node>
     <node x="11906.5" y="1269.0">bifrost.api.http.ApiRouteWithView</node>
@@ -47,7 +47,7 @@
     <node x="12479.5" y="1279.0">bifrost.transaction.bifrostTransaction.CodeCreation</node>
     <node x="10167.0" y="1998.0">bifrost.history.BifrostSyncInfo$</node>
     <node x="2022.0" y="1702.0">bifrost.transaction.bifrostTransaction.TransferUtil</node>
-    <node x="14612.946759603556" y="1070.0">bifrost.scorexMod.GenericNodeViewHolder.FailedModification</node>
+    <node x="14612.946759603556" y="1070.0">bifrost.nodeView.GenericNodeViewHolder.FailedModification</node>
     <node x="5612.0" y="1901.0">bifrost.NodeViewModifier$class</node>
     <node x="253.0" y="1998.0">bifrost.scorexMod.GenericStateChanges</node>
     <node x="6740.0" y="1998.0">bifrost.consensus.ConsensusSettings</node>
@@ -85,8 +85,8 @@
     <node x="8805.230092936887" y="404.0">bifrost.network.ScoreObserver</node>
     <node x="12731.0" y="2095.0">bifrost.crypto.Bip39$</node>
     <node x="4800.0" y="2095.0">bifrost.network.SendToRandom</node>
-    <node x="12937.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo</node>
-    <node x="14824.946759603556" y="1070.0">bifrost.scorexMod.GenericNodeViewHolder.FailedTransaction</node>
+    <node x="12937.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo</node>
+    <node x="14824.946759603556" y="1070.0">bifrost.nodeView.GenericNodeViewHolder.FailedTransaction</node>
     <node x="4378.0" y="1998.0">bifrost.transaction.state.MinimalState$class</node>
     <node x="7414.0" y="2095.0">bifrost.transaction.proof.Proof$class</node>
     <node x="12284.0" y="2095.0">bifrost.network.message.InvSpec</node>
@@ -97,13 +97,13 @@
     <node x="10609.0" y="1998.0">bifrost.serialization.Serializer$class</node>
     <node x="13024.0" y="1998.0">bifrost.mempool.BifrostMemPool$</node>
     <node x="1161.0" y="1804.0">bifrost.forging.Forger.StopForging$</node>
-    <node x="2242.000000000002" y="404.0">bifrost.scorexMod.Wallet</node>
+    <node x="2242.000000000002" y="404.0">bifrost.wallet.Wallet</node>
     <node x="2084.000000000002" y="776.0">bifrost.forging.ForgingSettings</node>
     <node x="3396.0" y="1901.0">bifrost.serialization.BytesSerializable$class</node>
     <node x="13570.0" y="1901.0">bifrost.block.BlockCompanion$class</node>
     <node x="2969.0" y="1702.0">bifrost.wallet.PolyTransferGenerator</node>
     <node x="8302.0" y="1901.0">bifrost.api.http.ApiRouteWithView$class</node>
-    <node x="12633.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.CurrentView</node>
+    <node x="12633.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.CurrentView</node>
     <node x="9057.000000000002" y="404.0">bifrost.forging.Forger$</node>
     <node x="4499.000000000002" y="776.0">bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalSyncInfo$</node>
     <node x="14720.0" y="1998.0">bifrost.transaction.BoxTransaction</node>
@@ -208,7 +208,7 @@
     <node x="2038.0000000000018" y="404.0">bifrost.forging.ForgingConstants</node>
     <node x="1025.0" y="2095.0">bifrost.network.message.MessageHandler</node>
     <node x="13056.0" y="1901.0">bifrost.transaction.state.authenticated.BoxMinimalState$class</node>
-    <node x="12413.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent</node>
+    <node x="12413.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent</node>
     <node x="8840.0" y="1901.0">bifrost.crypto.hash.FastCryptographicHash$</node>
     <node x="9469.000000000002" y="404.0">bifrost.tokenBoxRegistry.TokenBoxRegistry$</node>
     <node x="12811.0" y="1998.0">bifrost.SimpleSyncInfo$</node>
@@ -221,7 +221,7 @@
     <node x="13238.0" y="1702.0">bifrost.transaction.state.PrivateKey25519Serializer</node>
     <node x="4041.499999999999" y="1439.0">bifrost.history.BifrostSyncInfoSerializer$</node>
     <node x="10581.0" y="2095.0">bifrost.program.Program$</node>
-    <node x="13933.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent$class</node>
+    <node x="13933.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent$class</node>
     <node x="5178.0" y="2095.0">bifrost.network.SendToPeers$</node>
     <node x="4317.499999999999" y="1439.0">bifrost.version.ApplicationVersionSerializer$</node>
     <node x="9181.000000000002" y="404.0">bifrost.crypto.Bip39</node>
@@ -239,7 +239,7 @@
     <node x="1341.0" y="1702.0">bifrost.forging.Forger</node>
     <node x="228.0" y="1804.0">bifrost.api.http.ApiError</node>
     <node x="855.0" y="1901.0">bifrost.transaction.serialization.ProgramTransferCompanion</node>
-    <node x="12789.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.EventType$</node>
+    <node x="12789.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.EventType$</node>
     <node x="8963.0" y="2095.0">bifrost.api.client.ApiClient</node>
     <node x="12534.0" y="1901.0">bifrost.transaction.state.SecretCompanion$class</node>
     <node x="4861.5" y="1439.0">bifrost.SimpleSyncInfoSerializer$</node>
@@ -263,7 +263,7 @@
     <node x="6857.499999999999" y="1551.0">bifrost.network.message.ModifiersSpec$</node>
     <node x="2480.2837135637783" y="112.0">bifrost.transaction.wallet.Vault</node>
     <node x="9293.0" y="2095.0">bifrost.network.message.PeersSpec</node>
-    <node x="14545.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.EventType</node>
+    <node x="14545.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.EventType</node>
     <node x="15341.0" y="1901.0">bifrost.transaction.box.BifrostBoxSerializer</node>
     <node x="5335.0" y="1901.0">bifrost.transaction.box.ReputationBoxSerializer</node>
     <node x="3823.0" y="2095.0">bifrost.transaction.bifrostTransaction.ArbitTransfer</node>
@@ -286,7 +286,7 @@
     <node x="6415.000000000002" y="776.0">bifrost.network.peer.PeerManager.GetBlacklistedPeers</node>
     <node x="4217.0" y="2095.0">bifrost.network.message.ModifiersSpec</node>
     <node x="13035.5" y="1279.0">bifrost.transaction.bifrostTransaction.ProgramTransaction</node>
-    <node x="14365.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView</node>
+    <node x="14365.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.GetCurrentView</node>
     <node x="11531.000000000002" y="776.0">bifrost.network.NetworkController.DataFromPeer</node>
     <node x="4354.0" y="1702.0">bifrost.transaction.box.proposition.PublicKey25519PropositionSerializer</node>
     <node x="10617.3607772636" y="404.0">bifrost.history.BifrostHistory$</node>
@@ -303,7 +303,7 @@
     <node x="14487.16666666667" y="0.0">bifrost.NodeViewComponent</node>
     <node x="1447.3235294117646" y="1299.0">bifrost.consensus.SyncInfo</node>
     <node x="8551.000000000002" y="776.0">bifrost.network.ScoreObserver.GetScore</node>
-    <node x="14201.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo$</node>
+    <node x="14201.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo$</node>
     <node x="2775.5" y="1167.0">bifrost.transaction.serialization.TransferSerializer</node>
     <node x="1140.0" y="1901.0">bifrost.transaction.proof.Signature25519Serializer</node>
     <node x="5687.000000000002" y="776.0">bifrost.network.peer.PeerManager.GetConnectedPeers$</node>
@@ -313,17 +313,17 @@
     <node x="5556.0" y="2095.0">bifrost.network.peer.PeerManager$</node>
     <node x="14089.0" y="1998.0">bifrost.transaction.proof.Signature25519$</node>
     <node x="11714.0" y="1998.0">bifrost.transaction.bifrostTransaction.ProgramCreation$</node>
-    <node x="14685.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView$</node>
+    <node x="14685.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.GetCurrentView$</node>
     <node x="14873.91666666667" y="776.0">bifrost.state.BifrostState</node>
     <node x="1425.0" y="1901.0">bifrost.transaction.bifrostTransaction.BifrostTransaction$class</node>
     <node x="12102.5" y="1269.0">bifrost.api.http.UtilsApiRoute</node>
     <node x="3483.0" y="1804.0">bifrost.program.ValkyrieFunctions.reservedFunctions$</node>
-    <node x="4611.0" y="2095.0">bifrost.scorexMod.Wallet$class</node>
+    <node x="4611.0" y="2095.0">bifrost.wallet.Wallet$class</node>
     <node x="13317.0" y="1901.0">bifrost.forging.ForgerSettings$class</node>
     <node x="6211.000000000002" y="776.0">bifrost.network.peer.PeerManager.GetConnectedPeers</node>
     <node x="8303.0" y="2095.0">bifrost.network.Broadcast</node>
-    <node x="8723.0" y="1702.0">bifrost.network.BifrostNodeViewSynchronizer</node>
-    <node x="15195.72744393027" y="898.0">bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome</node>
+    <node x="8723.0" y="1702.0">bifrost.network.NodeViewSynchronizer</node>
+    <node x="15195.72744393027" y="898.0">bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome</node>
     <node x="13824.0" y="1702.0">bifrost.transaction.serialization.ExecutionBuilderCompanion</node>
     <node x="12359.0" y="1702.0">bifrost.state.BifrostTransactionChanges</node>
     <node x="2538.000000000002" y="404.0">bifrost.consensus.BlockChain</node>
@@ -339,7 +339,7 @@
     <node x="1535.3607772636005" y="404.0">bifrost.consensus.History.HistoryComparisonResult$</node>
     <node x="790.5" y="1299.0">bifrost.transaction.box.Box</node>
     <node x="3119.0" y="1901.0">bifrost.consensus.ConsensusSettings$class</node>
-    <node x="13093.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.Subscribe</node>
+    <node x="13093.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.Subscribe</node>
     <node x="1435.0" y="2095.0">bifrost.api.http.DebugApiRoute$</node>
     <node x="5745.0" y="2095.0">bifrost.transaction.state.StateChanges</node>
     <node x="9983.000000000002" y="776.0">bifrost.LocalInterface.BetterNeighbourAppeared</node>
@@ -350,7 +350,7 @@
     <node x="4115.000000000002" y="776.0">bifrost.scorexMod.GenericNodeViewSynchronizer.GetLocalObjects</node>
     <node x="11523.0" y="2095.0">bifrost.network.message.Message$</node>
     <node x="6123.0" y="2095.0">bifrost.transaction.state.Secret$class</node>
-    <node x="6688.0" y="1901.0">bifrost.scorexMod.GenericNodeViewHolder$</node>
+    <node x="6688.0" y="1901.0">bifrost.nodeView.GenericNodeViewHolder$</node>
     <node x="2099.323529411765" y="1299.0">bifrost.transaction.state.Secret</node>
     <node x="298.5" y="1401.0">bifrost.transaction.Transaction</node>
     <node x="386.5" y="1299.0">bifrost.NodeViewModifier</node>
@@ -384,7 +384,7 @@
     <node x="1108.5" y="1299.0">bifrost.transaction.box.proposition.Proposition</node>
     <node x="2247.0" y="2095.0">bifrost.program.ShareFunction</node>
     <node x="7595.0" y="2095.0">bifrost.transaction.wallet.Vault$class</node>
-    <node x="13689.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.OtherNodeSyncingStatus</node>
+    <node x="13689.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.OtherNodeSyncingStatus</node>
     <node x="15392.737490711192" y="404.0">bifrost.scorexMod.GenericBoxMinimalState</node>
     <node x="7486.960777263601" y="404.0">bifrost.network.PeerSynchronizer</node>
     <node x="2703.0" y="1998.0">bifrost.transaction.account.PublicKeyNoncedBox$</node>
@@ -398,7 +398,7 @@
     <node x="8683.000000000002" y="776.0">bifrost.network.ScoreObserver.ConsideredValue</node>
     <node x="1710.0" y="1901.0">bifrost.transaction.account.PublicKeyNoncedBox$class</node>
     <node x="3887.000000000002" y="776.0">bifrost.scorexMod.GenericNodeViewSynchronizer.OtherNodeSyncingInfo</node>
-    <node x="13233.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome$class</node>
+    <node x="13233.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome$class</node>
     <node x="1995.0" y="1901.0">bifrost.transaction.serialization.AssetRedemptionCompanion</node>
     <node x="1719.3235294117646" y="1299.0">bifrost.scorexMod.GenericWalletBox</node>
     <node x="1367.0274439302675" y="112.0">bifrost.consensus.History$class</node>
@@ -453,7 +453,7 @@
     <node x="5441.0" y="1702.0">bifrost.PersistentNodeViewModifier$class</node>
     <node x="11229.0" y="1901.0">bifrost.forging.ForgingSettings$class</node>
     <node x="12582.0" y="2095.0">bifrost.transaction.box.CodeBox</node>
-    <node x="15264.946759603556" y="1070.0">bifrost.scorexMod.GenericNodeViewHolder.SuccessfulModification</node>
+    <node x="15264.946759603556" y="1070.0">bifrost.nodeView.GenericNodeViewHolder.SuccessfulModification</node>
     <node x="13868.5" y="1279.0">bifrost.network.SendToRandomFromChosen</node>
     <node x="2251.323529411765" y="1401.0">bifrost.transaction.proof.ProofOfKnowledge</node>
     <node x="6274.0" y="1998.0">bifrost.network.message.BasicMsgDataTypes$</node>
@@ -487,10 +487,10 @@
     <node x="14878.003777147414" y="404.0">bifrost.transaction.state.authenticated.BoxMinimalState</node>
     <node x="8406.0" y="1702.0">bifrost.transaction.serialization.TransferTransactionCompanion</node>
     <node x="7957.0" y="2095.0">bifrost.network.Handshake$</node>
-    <node x="13501.91666666667" y="776.0">bifrost.scorexMod.GenericNodeViewHolder.CurrentSyncInfo</node>
-    <node x="15028.946759603556" y="1070.0">bifrost.scorexMod.GenericNodeViewHolder.SuccessfulTransaction</node>
+    <node x="13501.91666666667" y="776.0">bifrost.nodeView.GenericNodeViewHolder.CurrentSyncInfo</node>
+    <node x="15028.946759603556" y="1070.0">bifrost.nodeView.GenericNodeViewHolder.SuccessfulTransaction</node>
     <node x="340.0" y="1702.0">bifrost.api.http.ScorexApiResponse</node>
-    <node x="12788.91666666667" y="404.0">bifrost.scorexMod.GenericNodeViewHolder</node>
+    <node x="12788.91666666667" y="404.0">bifrost.nodeView.GenericNodeViewHolder</node>
     <node x="2948.0" y="1998.0">bifrost.api.http.SuccessApiResponse$</node>
     <node x="1160.0000000000018" y="776.0">bifrost.network.PeerConnectionHandler.HandshakeTimeout$</node>
     <node x="6501.0" y="2095.0">bifrost.network.message.GetPeersSpec</node>
@@ -508,13 +508,13 @@
       <point x="0.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.OtherNodeSyncingStatus" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.OtherNodeSyncingStatus" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-56.0" y="-26.0" />
       <point x="13745.91666666667" y="606.0" />
       <point x="12945.51666666667" y="606.0" />
       <point x="48.600000000000364" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.EventType" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.EventType" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-30.0" y="-26.0" />
       <point x="14575.91666666667" y="566.0" />
       <point x="12988.716666666669" y="566.0" />
@@ -526,7 +526,7 @@
       <point x="468.8" y="1784.0" />
       <point x="36.80000000000001" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome">
       <point x="0.0" y="-26.0" />
       <point x="15136.946759603556" y="1030.0" />
       <point x="15320.72744393027" y="1030.0" />
@@ -646,25 +646,25 @@
       <point x="6915.735294117646" y="1329.0" />
       <point x="-35.764705882353155" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.Wallet" target="bifrost.transaction.wallet.Vault">
+    <edge source="bifrost.wallet.Wallet" target="bifrost.transaction.wallet.Vault">
       <point x="0.0" y="-26.0" />
       <point x="2290.000000000002" y="224.0" />
       <point x="2524.2837135637783" y="224.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-50.0" y="-26.0" />
       <point x="12463.91666666667" y="626.0" />
       <point x="12869.91666666667" y="626.0" />
       <point x="-27.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedTransaction" target="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedTransaction" target="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome">
       <point x="0.0" y="-26.0" />
       <point x="14916.946759603556" y="1020.0" />
       <point x="15270.72744393027" y="1020.0" />
       <point x="-25.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedTransaction" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedTransaction" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="61.33333333333394" y="-26.0" />
       <point x="14978.28009293689" y="1040.0" />
       <point x="15406.22744393027" y="1040.0" />
@@ -722,7 +722,7 @@
       <point x="2142.0" y="1779.0" />
       <point x="48.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent">
       <point x="0.0" y="-26.0" />
       <point x="12812.33371356378" y="868.0" />
       <point x="12463.91666666667" y="868.0" />
@@ -770,7 +770,7 @@
       <point x="1720.1363636363635" y="1239.0" />
       <point x="83.63636363636351" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedModification" target="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedModification" target="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome">
       <point x="64.0" y="-26.0" />
       <point x="14772.946759603556" y="1010.0" />
       <point x="15220.72744393027" y="1010.0" />
@@ -860,7 +860,7 @@
       <point x="1016.9028202096133" y="736.0" />
       <point x="39.27272727272725" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="72.0" y="-26.0" />
       <point x="15208.946759603556" y="1050.0" />
       <point x="15433.833333333338" y="1050.0" />
@@ -914,7 +914,7 @@
       <point x="6749.105263157897" y="696.0" />
       <point x="50.105263157895024" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome" target="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome" target="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent">
       <point x="0.0" y="-26.0" />
       <point x="15295.72744393027" y="848.0" />
       <point x="12563.91666666667" y="848.0" />
@@ -954,13 +954,13 @@
       <point x="14378.5" y="1249.0" />
       <point x="-42.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="34.0" y="-26.0" />
       <point x="13039.91666666667" y="686.0" />
       <point x="14532.635356094783" y="686.0" />
       <point x="-83.36842105263167" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetCurrentView" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="40.0" y="-26.0" />
       <point x="14485.91666666667" y="756.0" />
       <point x="14629.89851398952" y="756.0" />
@@ -982,7 +982,7 @@
       <point x="1493.6941105969345" y="194.0" />
       <point x="50.66666666666674" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedModification" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedModification" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-64.0" y="-26.0" />
       <point x="14644.946759603556" y="1050.0" />
       <point x="11881.500000000002" y="1050.0" />
@@ -990,7 +990,7 @@
       <point x="12794.31666666667" y="556.0" />
       <point x="-102.60000000000036" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.OtherNodeSyncingStatus" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.OtherNodeSyncingStatus" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="56.0" y="-26.0" />
       <point x="13857.91666666667" y="726.0" />
       <point x="14588.214303463204" y="726.0" />
@@ -1038,7 +1038,7 @@
       <point x="7563.774193548388" y="304.0" />
       <point x="-39.2258064516127" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder" target="bifrost.utils.ScorexLogging">
       <point x="0.0" y="-26.0" />
       <point x="12896.91666666667" y="254.0" />
       <point x="7666.741935483873" y="254.0" />
@@ -1050,7 +1050,7 @@
       <point x="1686.6818181818182" y="1259.0" />
       <point x="50.181818181818244" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="50.0" y="-26.0" />
       <point x="12563.91666666667" y="656.0" />
       <point x="14490.951145568468" y="656.0" />
@@ -1068,7 +1068,7 @@
       <point x="7676.548387096776" y="234.0" />
       <point x="73.5483870967746" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView$" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetCurrentView$" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="42.0" y="-26.0" />
       <point x="14811.91666666667" y="546.0" />
       <point x="14657.68798767373" y="546.0" />
@@ -1086,7 +1086,7 @@
       <point x="6663.21052631579" y="716.0" />
       <point x="-35.78947368421086" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome$class" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome$class" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="62.0" y="-26.0" />
       <point x="13419.91666666667" y="706.0" />
       <point x="14560.424829778993" y="706.0" />
@@ -1104,7 +1104,7 @@
       <point x="7009.852941176469" y="1259.0" />
       <point x="58.35294117647027" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.Subscribe" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.Subscribe" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="30.0" y="-26.0" />
       <point x="13183.91666666667" y="696.0" />
       <point x="14546.530092936888" y="696.0" />
@@ -1116,7 +1116,7 @@
       <point x="14615.966666666669" y="92.0" />
       <point x="36.79999999999927" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo$" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo$" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-36.0" y="-26.0" />
       <point x="14237.91666666667" y="586.0" />
       <point x="12967.11666666667" y="586.0" />
@@ -1182,7 +1182,7 @@
       <point x="6904.441176470587" y="1299.0" />
       <point x="-47.05882352941171" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo$" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo$" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="36.0" y="-26.0" />
       <point x="14309.91666666667" y="746.0" />
       <point x="14616.003777147414" y="746.0" />
@@ -1206,7 +1206,7 @@
       <point x="1603.0454545454545" y="1269.0" />
       <point x="-33.454545454545496" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulTransaction" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-72.0" y="-26.0" />
       <point x="15064.946759603556" y="980.0" />
       <point x="12229.233333333335" y="980.0" />
@@ -1214,7 +1214,7 @@
       <point x="12826.716666666669" y="586.0" />
       <point x="-70.20000000000073" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView$" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetCurrentView$" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-42.0" y="-26.0" />
       <point x="14727.91666666667" y="556.0" />
       <point x="12999.51666666667" y="556.0" />
@@ -1238,7 +1238,7 @@
       <point x="6677.526315789475" y="736.0" />
       <point x="-21.4736842105267" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulModification" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulModification" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-74.66666666666606" y="-26.0" />
       <point x="15302.28009293689" y="970.0" />
       <point x="12353.300000000003" y="970.0" />
@@ -1250,7 +1250,7 @@
       <point x="-54.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedModification" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedModification" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="0.0" y="-26.0" />
       <point x="14708.946759603556" y="1000.0" />
       <point x="15067.833333333338" y="1000.0" />
@@ -1270,13 +1270,13 @@
       <point x="1408.2" y="1784.0" />
       <point x="19.200000000000045" y="26.0" />
     </edge>
-    <edge source="bifrost.BifrostNodeViewHolder" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.BifrostNodeViewHolder" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="0.0" y="-26.0" />
       <point x="12110.733333333335" y="576.0" />
       <point x="12815.91666666667" y="576.0" />
       <point x="-81.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="66.66666666666606" y="-26.0" />
       <point x="15362.394110596935" y="878.0" />
       <point x="15359.013806500665" y="878.0" />
@@ -1296,7 +1296,7 @@
       <point x="6908.2058823529405" y="1309.0" />
       <point x="-43.294117647058556" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent$class" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent$class" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="62.0" y="-26.0" />
       <point x="14119.91666666667" y="736.0" />
       <point x="14602.10904030531" y="736.0" />
@@ -1360,7 +1360,7 @@
       <point x="11164.833333333334" y="1419.0" />
       <point x="-66.66666666666606" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetSyncInfo" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetSyncInfo" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-34.0" y="-26.0" />
       <point x="12971.91666666667" y="646.0" />
       <point x="12902.31666666667" y="646.0" />
@@ -1406,7 +1406,7 @@
       <point x="6727.63157894737" y="726.0" />
       <point x="28.631578947368325" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-114.66666666666606" y="-26.0" />
       <point x="12697.667046897113" y="878.0" />
       <point x="12392.616666666669" y="878.0" />
@@ -1426,7 +1426,7 @@
       <point x="6756.2631578947385" y="686.0" />
       <point x="57.26315789473665" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.GetCurrentView" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.GetCurrentView" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-40.0" y="-26.0" />
       <point x="14405.91666666667" y="576.0" />
       <point x="12977.91666666667" y="576.0" />
@@ -1454,19 +1454,19 @@
       <point x="8820.430092936887" y="686.0" />
       <point x="-60.79999999999927" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome$class" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome$class" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-62.0" y="-26.0" />
       <point x="13295.91666666667" y="626.0" />
       <point x="12923.91666666667" y="626.0" />
       <point x="27.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.CurrentSyncInfo" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.CurrentSyncInfo" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="42.0" y="-26.0" />
       <point x="13627.91666666667" y="716.0" />
       <point x="14574.3195666211" y="716.0" />
       <point x="-41.68421052631493" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.NodeViewHolderEvent$class" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.NodeViewHolderEvent$class" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-62.0" y="-26.0" />
       <point x="13995.91666666667" y="596.0" />
       <point x="12956.31666666667" y="596.0" />
@@ -1490,7 +1490,7 @@
       <point x="14652.76666666667" y="82.0" />
       <point x="73.60000000000036" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulModification" target="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulModification" target="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome">
       <point x="0.0" y="-26.0" />
       <point x="15376.946759603556" y="1030.0" />
       <point x="15370.72744393027" y="1030.0" />
@@ -1534,7 +1534,7 @@
       <point x="238.0" y="1279.0" />
       <point x="22.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.CurrentView" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.CurrentView" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-34.0" y="-26.0" />
       <point x="12667.91666666667" y="636.0" />
       <point x="12880.716666666669" y="636.0" />
@@ -1598,13 +1598,13 @@
       <point x="7002.323529411764" y="1279.0" />
       <point x="50.823529411764866" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.Subscribe" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.Subscribe" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-30.0" y="-26.0" />
       <point x="13123.91666666667" y="636.0" />
       <point x="12913.11666666667" y="636.0" />
       <point x="16.200000000000728" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.SuccessfulModification" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.SuccessfulModification" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="74.66666666666606" y="-26.0" />
       <point x="15451.613426270222" y="1050.0" />
       <point x="15560.66666666667" y="1050.0" />
@@ -1624,7 +1624,7 @@
       <point x="1056.1755474823403" y="716.0" />
       <point x="78.5454545454545" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.ModificationOutcome" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.ModificationOutcome" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-66.66666666666606" y="-26.0" />
       <point x="15229.060777263603" y="858.0" />
       <point x="12403.41666666667" y="858.0" />
@@ -1650,7 +1650,7 @@
       <point x="11388.296759603552" y="756.0" />
       <point x="-15.33333333333394" y="26.0" />
     </edge>
-    <edge source="bifrost.wallet.BWallet" target="bifrost.scorexMod.Wallet">
+    <edge source="bifrost.wallet.BWallet" target="bifrost.wallet.Wallet">
       <point x="-26.0" y="-26.0" />
       <point x="2457.250000000002" y="746.0" />
       <point x="2290.000000000002" y="746.0" />
@@ -1682,7 +1682,7 @@
       <point x="7583.387096774195" y="344.0" />
       <point x="-19.612903225806804" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.CurrentSyncInfo" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.CurrentSyncInfo" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-42.0" y="-26.0" />
       <point x="13543.91666666667" y="616.0" />
       <point x="12934.716666666669" y="616.0" />
@@ -1814,7 +1814,7 @@
       <point x="6684.684210526317" y="746.0" />
       <point x="-14.315789473684163" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.StartingPersistentModifierApplication" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="114.66666666666606" y="-26.0" />
       <point x="12927.000380230445" y="878.0" />
       <point x="15028.41666666667" y="878.0" />
@@ -1822,7 +1822,7 @@
       <point x="14671.582724515836" y="526.0" />
       <point x="55.57894736842172" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.EventType" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.EventType" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="30.0" y="-26.0" />
       <point x="14635.91666666667" y="756.0" />
       <point x="14643.793250831624" y="756.0" />
@@ -1890,7 +1890,7 @@
       <point x="1110.5" y="1483.0" />
       <point x="-66.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.EventType$" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.EventType$" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="32.0" y="-26.0" />
       <point x="12885.91666666667" y="676.0" />
       <point x="14518.740619252678" y="676.0" />
@@ -2044,7 +2044,7 @@
       <point x="4179.500000000002" y="726.0" />
       <point x="-115.5" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.FailedTransaction" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.FailedTransaction" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-61.33333333333394" y="-26.0" />
       <point x="14855.613426270222" y="990.0" />
       <point x="11992.233333333335" y="990.0" />
@@ -2068,7 +2068,7 @@
       <point x="6987.264705882352" y="1319.0" />
       <point x="35.764705882353155" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.CurrentView" target="bifrost.scorexMod.GenericNodeViewHolder$class">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.CurrentView" target="bifrost.nodeView.GenericNodeViewHolder$class">
       <point x="34.0" y="-26.0" />
       <point x="12735.91666666667" y="666.0" />
       <point x="14504.845882410573" y="666.0" />
@@ -2112,7 +2112,7 @@
       <point x="7588.290322580646" y="354.0" />
       <point x="-14.709677419355103" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewHolder.EventType$" target="bifrost.scorexMod.GenericNodeViewHolder">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder.EventType$" target="bifrost.nodeView.GenericNodeViewHolder">
       <point x="-32.0" y="-26.0" />
       <point x="12821.91666666667" y="646.0" />
       <point x="12891.51666666667" y="646.0" />

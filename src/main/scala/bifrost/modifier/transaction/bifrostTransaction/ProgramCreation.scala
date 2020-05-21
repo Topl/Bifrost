@@ -3,10 +3,10 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import BifrostTransaction.Nonce
+import Transaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, PolyBox, PublicKeyNoncedBox, StateBox}
 import bifrost.modifier.transaction.serialization.ProgramCreationCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
@@ -68,7 +68,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     IndexedSeq(stateBox)
   }
 
-  override lazy val newBoxes: Traversable[BifrostBox] = {
+  override lazy val newBoxes: Traversable[Box] = {
 
     val digest = FastCryptographicHash(owner.pubKeyBytes ++ hashNoNonces)
 
@@ -132,12 +132,12 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override lazy val serializer = ProgramCreationCompanion
 
-//  println("BifrostTransaction")
-  //println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
-  //println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
+//  println("Transaction")
+//  println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
+//  println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
 //  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 //  println(preInvestmentBoxes)
-  //println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
+//  println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderCompanion.toBytes(executionBuilder),

@@ -1,6 +1,6 @@
 package bifrost.network
 
-import bifrost.history.History
+import bifrost.history.GenericHistory
 import bifrost.serialization.BytesSerializable
 
 /**
@@ -9,5 +9,5 @@ import bifrost.serialization.BytesSerializable
   */
 trait SyncInfo extends BytesSerializable {
   def answer: Boolean
-  def startingPoints: History.ModifierIds
+  def startingPoints: GenericHistory.ModifierIds
 }

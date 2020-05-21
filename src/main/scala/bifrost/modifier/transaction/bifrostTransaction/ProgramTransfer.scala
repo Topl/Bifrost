@@ -5,11 +5,11 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.box.{BifrostBox, ExecutionBox}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.box.{Box, ExecutionBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.serialization.ProgramTransferCompanion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -24,7 +24,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
                            executionBox: ExecutionBox,
                            fee: Long,
                            timestamp: Long,
-                           data: String) extends BifrostTransaction {
+                           data: String) extends Transaction {
 
   override type M = ProgramTransfer
 
@@ -40,7 +40,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
 
-  override lazy val newBoxes: Traversable[BifrostBox] = {
+  override lazy val newBoxes: Traversable[Box] = {
 
     val nonce = ProgramTransfer.nonceFromDigest(
       FastCryptographicHash("ProgramTransfer".getBytes
@@ -78,7 +78,7 @@ object ProgramTransfer {
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
-  def createAndApply(w: BWallet,
+  def createAndApply(w: Wallet,
                      from: PublicKey25519Proposition,
                      to: PublicKey25519Proposition,
                      executionBox: ExecutionBox,

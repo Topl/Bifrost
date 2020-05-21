@@ -16,7 +16,7 @@ import scala.util.Failure
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
-class AssetTransferValidationSpec extends BifrostStateSpec {
+class AssetTransferValidationSpec extends StateSpec {
 
   /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
     forAll(validAssetTransferGen) {
@@ -31,7 +31,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
           settings.version
         )
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -81,7 +81,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetTransfer.signatures.tail
         val invalidAR = assetTransfer.copy(signatures = wrongSigs)
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -109,7 +109,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))

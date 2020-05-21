@@ -2,12 +2,12 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.state.BifrostState
-import bifrost.modifier.box.BifrostBox
-import bifrost.wallet.BWallet
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.state.State
+import bifrost.modifier.box.Box
+import bifrost.wallet.Wallet
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction._
@@ -24,10 +24,10 @@ import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory)extends ApiRouteWithView {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
   override val route: Route = pathPrefix("wallet") {
     walletRoute
   }
@@ -426,7 +426,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k =>
         PublicKey25519Proposition(Base58.decode(k.asString.get).get)
       )
-      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[BifrostBox]]] =
+      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[Box]]] =
         publicKeys
           .map(k => k -> tbr.boxesByKey(k).groupBy[String](_.typeOfBox))
           .toMap
@@ -665,7 +665,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           throw new Exception(s"Could not find valid transaction type $txType")
       }
       val signatures: Json = Map(
-        "signatures" -> BifrostTransaction
+        "signatures" -> Transaction
           .signTx(wallet, props, txInstance.messageToSign)
           .map(sig => {
             Base58.encode(sig._1.pubKeyBytes) -> Base58
@@ -703,7 +703,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     viewAsync().map { view =>
       val tx = (params \\ "tx").head
       val txType = (tx \\ "txType").head.asString.get
-      val txInstance: BifrostTransaction = txType match {
+      val txInstance: Transaction = txType match {
         case "AssetCreation" => tx.as[AssetCreation].right.get
         case "AssetTransfer" => tx.as[AssetTransfer].right.get
         case _ =>
@@ -713,7 +713,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       view.state.semanticValidity(txInstance)
       nodeViewHolderRef ! LocallyGeneratedTransaction[
         ProofOfKnowledgeProposition[PrivateKey25519],
-        BifrostTransaction
+        Transaction
       ](txInstance)
       txInstance.json
     }

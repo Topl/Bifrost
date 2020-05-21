@@ -5,7 +5,7 @@ import bifrost.modifier.block.Block
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.NodeViewModifier.ModifierId
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import scorex.crypto.encode.Base58
 
 class BifrostHistorySpec extends PropSpec
@@ -13,7 +13,7 @@ class BifrostHistorySpec extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()

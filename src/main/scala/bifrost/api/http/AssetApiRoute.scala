@@ -2,14 +2,14 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
@@ -31,10 +31,10 @@ import scala.util.{Failure, Success, Try}
   */
 case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
   override val route: Route = pathPrefix("asset") { assetRoute }
   
   def assetRoute: Route = path("") {

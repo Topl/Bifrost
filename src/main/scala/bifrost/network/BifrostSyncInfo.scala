@@ -1,9 +1,9 @@
 package bifrost.network
 
 import bifrost.modifier.block.Block
-import bifrost.NodeViewModifier
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.network.message.SyncInfoMessageSpec
+import bifrost.nodeView.NodeViewModifier
 import bifrost.serialization.Serializer
 import com.google.common.primitives.Longs
 

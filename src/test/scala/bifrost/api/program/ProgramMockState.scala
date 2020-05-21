@@ -7,18 +7,19 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import bifrost.forging.Forger
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
 import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
 import bifrost.network.peer.PeerManager
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.state.{State, StateChanges}
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.wallet.BWallet
+import bifrost.nodeView.NodeViewHolder
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import io.circe.syntax._
@@ -35,7 +36,7 @@ trait ProgramMockState extends BifrostGenerators {
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
@@ -64,7 +65,7 @@ trait ProgramMockState extends BifrostGenerators {
   )
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
+    Props(classOf[NodeViewSynchronizer],
       networkController,
       nodeViewHolderRef,
       localInterface,
@@ -83,11 +84,11 @@ trait ProgramMockState extends BifrostGenerators {
 
   protected def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
-  def manuallyApplyBoxes(boxes: Set[BifrostBox], version: Int): Unit = {
+  def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
     // Manually manipulate state
-    val boxSC = BifrostStateChanges(Set(),
+    val boxSC = StateChanges(Set(),
       boxes,
       System.currentTimeMillis())
 

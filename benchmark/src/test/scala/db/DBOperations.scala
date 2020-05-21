@@ -9,7 +9,7 @@ import org.openjdk.jmh.annotations._
 //import bifrost.forging.ForgingSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.BifrostGenerators
-import bifrost.NodeViewModifier.ModifierId
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.history._
 
 //import io.circe.Json
@@ -24,7 +24,7 @@ import io.iohk.iodb.{ByteArrayWrapper}
 @Measurement(iterations = 10)
 @State(Scope.Benchmark)
 class DBOperations extends BifrostGenerators {
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
   val numOfBlocks: Int = 550
   val numLastBlocks: Int = 500
 

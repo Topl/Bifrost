@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import BifrostTransaction.{Nonce, Value}
+import Transaction.{Nonce, Value}
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
@@ -52,7 +52,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate(tbr: TokenBoxRegistry,
-                          w: BWallet,
+                          w: Wallet,
                           toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                           sender: IndexedSeq[PublicKey25519Proposition],
                           fee: Long,
@@ -65,11 +65,11 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
-          val keyAndTypeFilteredBoxes: Seq[BifrostNoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[NoncedBox] = txType match {
             case "PolyTransfer" =>
               keyFilteredBoxes.flatMap(_ match {
                 case p: PolyBox => Some(p)
@@ -145,11 +145,11 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[BifrostBox] = sender.flatMap(s =>
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
             tbr.boxesByKey(s))
 
           // Match only the type of boxes specified by txType
-          val keyAndTypeFilteredBoxes: Seq[BifrostNoncedBox] = txType match {
+          val keyAndTypeFilteredBoxes: Seq[NoncedBox] = txType match {
             case "PolyTransfer" =>
               keyFilteredBoxes.flatMap(_ match {
                 case p: PolyBox => Some(p)

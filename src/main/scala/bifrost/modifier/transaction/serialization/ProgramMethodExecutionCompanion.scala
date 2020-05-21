@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition

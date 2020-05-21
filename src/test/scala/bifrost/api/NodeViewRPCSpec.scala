@@ -7,20 +7,21 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.state.State
+import bifrost.wallet.Wallet
+import bifrost.BifrostGenerators
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -38,7 +39,7 @@ class NodeViewRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
@@ -63,7 +64,7 @@ class NodeViewRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -72,14 +73,14 @@ class NodeViewRPCSpec extends WordSpec
   )
 
   // Unlock Secrets
-  val gw: BWallet = view().vault
+  val gw: Wallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var txHash: String = ""
   var assetTxHash: String = ""
-  var assetTxInstance: BifrostTransaction = null
+  var assetTxInstance: Transaction = null
   var blockId: Block.BlockId = Array[Byte]()
 
   val requestBody = ByteString(
