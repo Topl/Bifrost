@@ -8,9 +8,8 @@ import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.state.BifrostState
 import modifier.box.{ArbitBox, BifrostBox}
 import bifrost.wallet.BWallet
-import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.ModifierTypeId
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.PrivateKey25519
 import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
 import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
