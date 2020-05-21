@@ -1,15 +1,10 @@
 package bifrost.modifier.box
 
-import java.util.UUID
-
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import com.google.common.primitives.{Bytes, Doubles, Ints, Longs}
-import io.circe.{Decoder, HCursor, Json}
-import io.circe.parser._
-import io.circe.syntax._
+import bifrost.crypto.PrivateKey25519
+import com.google.common.primitives.Ints
+import io.circe.Json
 import bifrost.serialization.Serializer
-import bifrost.modifier.box.proposition.{Constants25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import scorex.crypto.encode.Base58
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 
 import scala.util.Try
 
@@ -68,17 +63,3 @@ object BoxSerializer extends Serializer[Box] {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
