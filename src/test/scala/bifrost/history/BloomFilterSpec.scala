@@ -5,7 +5,7 @@ package bifrost.history
   */
 
 import bifrost.modifier.block.{Block, Bloom}
-import bifrost.state.BifrostStateSpec
+import bifrost.state.StateSpec
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -23,7 +23,7 @@ class BloomFilterSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   property("Verify Bloom Calculation is correct") {
     val set = Bloom.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))

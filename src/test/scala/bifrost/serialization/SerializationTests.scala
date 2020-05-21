@@ -40,48 +40,36 @@ class SerializationTests extends PropSpec
   property("PolyBox Serialization") {
     forAll(polyBoxGen) {
       b: PolyBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
   property("ArbitBox Serialization") {
     forAll(arbitBoxGen) {
       b: ArbitBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
   property("AssetBox Serialization") {
     forAll(assetBoxGen) {
       b: AssetBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("Reputation Serialization") {
-    forAll(reputationBoxGen) {
-      b: ReputationBox =>
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -89,13 +77,13 @@ class SerializationTests extends PropSpec
     forAll(stateBoxGen) {
       b: StateBox =>
         val json = b.json
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[StateBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        json.as[StateBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -103,13 +91,13 @@ class SerializationTests extends PropSpec
     forAll(codeBoxGen) {
       b: CodeBox =>
         val json = b.json
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[CodeBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        json.as[CodeBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 
@@ -117,13 +105,13 @@ class SerializationTests extends PropSpec
     forAll(executionBoxGen) {
       b: ExecutionBox =>
         val json = b.json
-        val parsed = BifrostBoxSerializer
-          .parseBytes(BifrostBoxSerializer.toBytes(b))
+        val parsed = BoxSerializer
+          .parseBytes(BoxSerializer.toBytes(b))
           .get
 
-        val serialized = BifrostBoxSerializer.toBytes(parsed)
-        json.as[ExecutionBox].right.get.bytes sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
-        serialized sameElements BifrostBoxSerializer.toBytes(b) shouldBe true
+        val serialized = BoxSerializer.toBytes(parsed)
+        json.as[ExecutionBox].right.get.bytes sameElements BoxSerializer.toBytes(b) shouldBe true
+        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
     }
   }
 

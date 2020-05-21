@@ -1,15 +1,16 @@
 
 package bifrost.fork
 
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.BifrostGenerators
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
 import bifrost.state.ProgramBoxRegistry
 import io.circe
 import io.circe.syntax._
@@ -38,7 +39,7 @@ class ForkSpec extends PropSpec
       ("forkHeight" -> 3.asJson)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3
@@ -56,7 +57,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version3.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -113,7 +114,7 @@ class ForkSpec extends PropSpec
     history.height shouldEqual testSettings_version0.forkHeight + 2
 
     history.storage.rollback(tempBlock_version3_1.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -146,7 +147,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version0.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -203,7 +204,7 @@ class ForkSpec extends PropSpec
         val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
         history.storage.rollback(tempBlock_version3.parentId)
-        history = new BifrostHistory(history.storage,
+        history = new History(history.storage,
           testSettings_version3,
           Seq(
             new DifficultyBlockValidator(history.storage)

@@ -4,7 +4,7 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.program.{ExecutionBuilderCompanion, _}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.bifrostTransaction
 import modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Longs}
@@ -23,12 +23,12 @@ import scala.util.{Failure, Random, Success, Try}
   */
 trait ValidGenerators extends BifrostGenerators {
 
-  lazy val validBifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
+  lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
       _ => {
-        val g: Gen[BifrostTransaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
+        val g: Gen[Transaction] = sampleUntilNonEmpty(Gen.oneOf(transactionTypes))
         sampleUntilNonEmpty(g)
       }
     }

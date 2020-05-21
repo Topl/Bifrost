@@ -583,7 +583,7 @@
               "condition": "AND",
               "key": "class",
               "operator": "=",
-              "value": "bifrost.BifrostNodeViewHolder"
+              "value": "bifrost.NodeViewHolder"
             }
           ]
         }

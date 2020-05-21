@@ -4,16 +4,16 @@ package bifrost.api.http
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.exceptions.JsonParsingException
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.state.BifrostState
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
-import bifrost.wallet.BWallet
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.state.State
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
+import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.literal._
 import io.circe.{Decoder, Json, JsonObject}
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
@@ -32,10 +32,10 @@ import scala.util.{Failure, Success, Try}
 
 case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
 
   override val route: Route = pathPrefix("program") {
     programRoute
@@ -217,13 +217,13 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     }
   }
 
-  //TODO Return ProgramBox instead of BifrostBox
-  private def programBoxId2Box(state: BifrostState, boxId: String): BifrostBox = {
+  //TODO Return ProgramBox instead of Box
+  private def programBoxId2Box(state: State, boxId: String): Box = {
     state.closedBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle
-  def createProgramInstance(json: Json, state: BifrostState): ProgramCreation = {
+  def createProgramInstance(json: Json, state: State): ProgramCreation = {
     val program = (json \\ "program").head.asString.get
     val preProcess = ProgramPreprocessor("program", program)(JsonObject.empty)
     val builder = Map("executionBuilder" -> ExecutionBuilder(ExecutionBuilderTerms(""), "", preProcess).json).asJson

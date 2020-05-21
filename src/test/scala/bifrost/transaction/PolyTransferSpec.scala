@@ -1,7 +1,7 @@
 package bifrost.transaction
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.modifier.transaction.bifrostTransaction.PolyTransfer
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
@@ -16,7 +16,7 @@ class PolyTransferSpec extends PropSpec
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen) {
       polyTransfer: PolyTransfer =>
-        BifrostState.semanticValidity(polyTransfer).isSuccess shouldBe true
+        State.semanticValidity(polyTransfer).isSuccess shouldBe true
     }
   }
 
@@ -24,7 +24,7 @@ class PolyTransferSpec extends PropSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(polyTransferGen) { polyTransfer =>
-      BifrostState.semanticValidity(polyTransfer).isSuccess shouldBe false
+      State.semanticValidity(polyTransfer).isSuccess shouldBe false
     }
   }
 
@@ -32,7 +32,7 @@ class PolyTransferSpec extends PropSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(arbitTransferGen) { arbitTransfer =>
-      BifrostState.semanticValidity(arbitTransfer).isSuccess shouldBe false
+      State.semanticValidity(arbitTransfer).isSuccess shouldBe false
     }
   }
 }

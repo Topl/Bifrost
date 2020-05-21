@@ -13,7 +13,7 @@ class StorageCacheSpec extends PropSpec
   with Matchers
   with BifrostGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   private val conf: Config = ConfigFactory.load("application")
   private val cacheSize: Int = conf.getInt("cache.cacheSize")

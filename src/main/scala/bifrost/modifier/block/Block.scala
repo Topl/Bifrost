@@ -1,24 +1,18 @@
 package bifrost.modifier.block
 
-import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import io.circe.Json
 import io.circe.syntax._
-import bifrost.NodeViewModifier.ModifierTypeId
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.modifier.block.Block._
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
+import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics
 
-import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.util.Try
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -40,16 +34,16 @@ case class Block(parentId: BlockId,
                  timestamp: Timestamp,
                  forgerBox: ArbitBox,
                  signature: Signature25519,
-                 txs: Seq[BifrostTransaction],
+                 txs: Seq[Transaction],
                  inflation: Long = 0L,
                  protocolVersion: Version)
-  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction] {
+  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction] {
 
   type M = Block
 
   lazy val modifierTypeId: Byte = Block.ModifierTypeId
 
-  lazy val transactions: Option[Seq[BifrostTransaction]] = Some(txs)
+  lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
   lazy val serializer = BlockCompanion
 
@@ -61,7 +55,7 @@ case class Block(parentId: BlockId,
     "id" -> Base58.encode(id).asJson,
     "parentId" -> Base58.encode(parentId).asJson,
     "timestamp" -> timestamp.asJson,
-    "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(forgerBox)).asJson,
+    "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson,
     "inflation" -> inflation.asJson,
@@ -83,7 +77,7 @@ object Block {
 
   def create(parentId: BlockId,
              timestamp: Block.Timestamp,
-             txs: Seq[BifrostTransaction],
+             txs: Seq[Transaction],
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
@@ -102,7 +96,7 @@ object Block {
     }
   }
 
-  def createBloom(txs: Seq[BifrostTransaction]): Array[Byte] = {
+  def createBloom(txs: Seq[Transaction]): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       (total, b) =>
         b.bloomTopics match {

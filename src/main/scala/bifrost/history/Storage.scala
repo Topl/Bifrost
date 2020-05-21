@@ -6,9 +6,9 @@ import com.typesafe.config.Config
 import com.google.common.primitives.Longs
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.NodeViewModifier._
+import bifrost.nodeView.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.utils.Logging
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
@@ -18,7 +18,7 @@ import scala.util.{Failure, Try}
 import scala.concurrent.duration.MILLISECONDS
 import com.typesafe.config.ConfigFactory
 
-class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
+class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   private val conf: Config = ConfigFactory.load("application")
   private val expireTime: Int = conf.getInt("cache.expireTime")
@@ -120,7 +120,7 @@ class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) exten
       Seq(blockBloomKey(b.id) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(Transaction.ModifierTypeId +: b.id))
+      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(GenericTransaction.ModifierTypeId +: b.id))
     )
 
     /* update storage */

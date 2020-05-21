@@ -4,14 +4,14 @@ import java.time.Instant
 
 import akka.actor._
 import bifrost.modifier.block.Block
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.state.State
 import bifrost.modifier.box.ArbitBox
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import bifrost.LocalInterface.LocallyGeneratedModifier
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
 import bifrost.settings.Settings
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.utils.Logging
@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import bifrost.modifier.block.Block.Version
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{Transaction, CoinbaseTransaction}
 
 import scala.util.Try
 
@@ -46,16 +46,16 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(memPool: BifrostMemPool,
-                       state: BifrostState,
+  def pickTransactions(memPool: MemPool,
+                       state: State,
                        parent: Block,
-                       view: (BifrostHistory, BifrostState, BWallet, BifrostMemPool)
-                      ): Try[Seq[BifrostTransaction]] = Try {
+                       view: (History, State, Wallet, MemPool)
+                      ): Try[Seq[Transaction]] = Try {
     implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[BifrostTransaction]()) { case (txSoFar, tx) =>
+    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)
       if (txValid.isFailure) {
@@ -79,10 +79,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     case StopForging =>
       forging = false
 
-    case CurrentView(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+    case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
       self ! TryForging(h, s, w, m)
 
-    case TryForging(h: BifrostHistory, s: BifrostState, w: BWallet, m: BifrostMemPool) =>
+    case TryForging(h: History, s: State, w: Wallet, m: MemPool) =>
       if (forging) {
         log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
         log.info("chain difficulty: " + h.difficulty)
@@ -104,7 +104,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
           case Some(block) =>
             log.debug(s"Locally generated block: $block")
             viewHolderRef !
-              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block](block)
+              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Block](block)
           case None =>
             log.debug(s"Failed to generate block")
         }
@@ -132,7 +132,7 @@ object Forger extends Logging {
 
   def iteration(parent: Block,
                 boxKeys: Seq[(ArbitBox, PrivateKey25519)],
-                txsToInclude: Seq[BifrostTransaction],
+                txsToInclude: Seq[Transaction],
                 target: BigInt,
                 version: Version): Option[Block] = {
 

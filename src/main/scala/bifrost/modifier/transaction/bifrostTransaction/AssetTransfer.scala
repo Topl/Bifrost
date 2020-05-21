@@ -2,13 +2,13 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import BifrostTransaction.{Nonce, Value}
+import Transaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{AssetBox, BifrostBox}
+import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.serialization.AssetTransferCompanion
 import bifrost.state.TokenBoxRegistry
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
@@ -32,7 +32,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
-  override lazy val newBoxes: Traversable[BifrostBox] = to
+  override lazy val newBoxes: Traversable[Box] = to
     .filter(toInstance => toInstance._2 > 0L)
     .zipWithIndex
     .map {
@@ -92,7 +92,7 @@ object AssetTransfer extends TransferUtil {
   }
 
   def create(tbr:TokenBoxRegistry,
-             w: BWallet,
+             w: Wallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
              fee: Long,
@@ -135,15 +135,15 @@ object AssetTransfer extends TransferUtil {
     data <- c.downField("data").as[String]
   } yield {
     val from = rawFrom.map { case (prop, nonce) =>
-        BifrostTransaction.stringToPubKey(prop) -> nonce.toLong
+        Transaction.stringToPubKey(prop) -> nonce.toLong
     }
     val to = rawTo.map { case (prop, value) =>
-        BifrostTransaction.stringToPubKey(prop) -> value.toLong
+        Transaction.stringToPubKey(prop) -> value.toLong
     }
     val signatures = rawSignatures.map { case (prop, sig) =>
-        BifrostTransaction.stringToPubKey(prop) -> BifrostTransaction.stringToSignature(sig)
+        Transaction.stringToPubKey(prop) -> Transaction.stringToSignature(sig)
     }
-    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+    val issuer = Transaction.stringToPubKey(rawIssuer)
 
       AssetTransfer(
         from,

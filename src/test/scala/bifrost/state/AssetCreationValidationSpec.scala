@@ -14,7 +14,7 @@ import scorex.crypto.signatures.Curve25519
 import scala.util.Failure
 
 
-class AssetCreationValidationSpec extends BifrostStateSpec {
+class AssetCreationValidationSpec extends StateSpec {
 
   property("A block with valid AssetCreation should result in more tokens for receiver") {
     forAll(validAssetCreationGen) {
@@ -34,9 +34,9 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           case _ => throw new Exception("Was expecting AssetBoxes but found something else")
         }
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
           .get
@@ -50,8 +50,8 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
           case None => false
         })
 
-        BifrostStateSpec.genesisState = newState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = newState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
     }
@@ -66,17 +66,17 @@ class AssetCreationValidationSpec extends BifrostStateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
           .get
 
         val newState = preparedState.validate(invalidAC)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]

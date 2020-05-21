@@ -2,11 +2,11 @@ package bifrost.consensus
 
 import bifrost.modifier.block.{Block, BlockValidator}
 import bifrost.forging.Forger
-import bifrost.history.BifrostStorage
+import bifrost.history.Storage
 
 import scala.util.Try
 
-class DifficultyBlockValidator(storage: BifrostStorage) extends BlockValidator[Block] {
+class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
 
   def validate(block: Block): Try[Unit] = checkConsensusRules(block)
 

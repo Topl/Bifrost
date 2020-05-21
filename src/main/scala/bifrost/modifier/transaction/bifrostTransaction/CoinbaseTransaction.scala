@@ -3,11 +3,11 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ArbitBox, BifrostBox}
+import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -18,7 +18,7 @@ import scala.util.Try
 case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                 signatures: IndexedSeq[Signature25519],
                                 override val timestamp: Long,
-                                blockID: Array[Byte]) extends BifrostTransaction {
+                                blockID: Array[Byte]) extends Transaction {
   override type M = CoinbaseTransaction
 
   lazy val serializer = CoinbaseTransactionCompanion
@@ -39,7 +39,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
-  lazy val newBoxes: Traversable[BifrostBox] =
+  lazy val newBoxes: Traversable[Box] =
     if(to.head._2 > 0L) {
       Traversable(ArbitBox(to.head._1, nonce, to.head._2))
     }
@@ -95,9 +95,9 @@ object CoinbaseTransaction {
     }), "Invalid signature")
   }
 
-  def createAndApply(w: BWallet,
+  def createAndApply(w: Wallet,
                      to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                     blockID: Array[Byte]  // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
+                     blockID: Array[Byte] // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
                     ): Try[CoinbaseTransaction] = Try {
     val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
     val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs

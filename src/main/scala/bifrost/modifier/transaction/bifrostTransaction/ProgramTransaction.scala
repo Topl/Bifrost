@@ -1,6 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import BifrostTransaction.Nonce
+import Transaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{PolyBox, PublicKeyNoncedBox}
@@ -12,7 +12,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-abstract class ProgramTransaction extends BifrostTransaction {
+abstract class ProgramTransaction extends Transaction {
 
   def owner: PublicKey25519Proposition
 
@@ -109,16 +109,16 @@ object ProgramTransaction {
                    rawSignatures: RP,
                    rawFeeBoxes: Map[String, IndexedSeq[(Long, Long)]],
                    rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
-    val owner = BifrostTransaction.stringToPubKey(rawOwner)
+    val owner = Transaction.stringToPubKey(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
       if (value == "") {
-        (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+        (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
       } else {
-        (BifrostTransaction.stringToPubKey(key), BifrostTransaction.stringToSignature(value))
+        (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
       }
     }
-    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (BifrostTransaction.stringToPubKey(key), value) }
-    val fees = rawFees.map { case (key, value) => (BifrostTransaction.stringToPubKey(key), value) }
+    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
+    val fees = rawFees.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
     (owner, signatures, preFeeBoxes, fees)
   }
 }
