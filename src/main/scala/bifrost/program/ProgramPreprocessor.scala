@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.serialization.JsonSerializable
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.{Parser => _, _}
+import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
