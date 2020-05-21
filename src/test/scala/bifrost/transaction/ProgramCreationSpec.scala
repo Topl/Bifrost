@@ -7,15 +7,15 @@ import bifrost.state.BifrostState
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.util.Success
 
 class ProgramCreationSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

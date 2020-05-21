@@ -1,28 +1,18 @@
 package bifrost.state
 
-import java.time.Instant
-
-import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
-import bifrost.transaction._
-import bifrost.modifier.box._
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.scorexMod.GenericMinimalState
-import com.google.common.primitives.Ints
 import io.circe
-import org.scalacheck.Gen
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import scorex.crypto.signatures.Curve25519
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 import scala.reflect.io.Path
-import scala.util.{Failure, Random, Try}
+import scala.util.Try
 
 class BifrostStateSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators

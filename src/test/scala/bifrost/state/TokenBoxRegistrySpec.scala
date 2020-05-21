@@ -5,16 +5,14 @@ import java.time.Instant
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
-import bifrost.state.BifrostStateSpec.gw
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
+import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
 import bifrost.crypto.Signature25519
-import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -22,8 +20,8 @@ import scala.reflect.io.Path
 import scala.util.Try
 
 class TokenBoxRegistrySpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
   with BifrostGenerators

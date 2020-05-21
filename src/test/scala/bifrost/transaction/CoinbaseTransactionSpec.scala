@@ -1,17 +1,14 @@
 package bifrost.transaction
 
-import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.crypto.PrivateKey25519
-import bifrost.state.{BifrostState, BifrostStateSpec}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
-import bifrost.modifier.box.ArbitBox
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import bifrost.state.BifrostState
+import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
 import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 class CoinbaseTransactionSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

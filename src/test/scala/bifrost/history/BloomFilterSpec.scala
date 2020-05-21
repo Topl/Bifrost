@@ -4,21 +4,17 @@ package bifrost.history
   * Created by cykoz on 7/11/2017.
   */
 
-import bifrost.modifier.block.{Block, Bloom}
-import bifrost.state.BifrostStateSpec
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
+import bifrost.modifier.block.Bloom
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import scorex.crypto.encode.Base58
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 import scala.collection.BitSet
 import scala.util.Try
 
 class BloomFilterSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
