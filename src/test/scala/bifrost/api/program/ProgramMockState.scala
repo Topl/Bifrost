@@ -3,25 +3,25 @@ package bifrost.api.program
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.forging.Forger
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec, NetworkController, UPnP}
-import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box._
+import bifrost.network.message._
 import bifrost.network.peer.PeerManager
+import bifrost.network._
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.modifier.box.{BifrostBox, CodeBox, ExecutionBox, PolyBox, StateBox}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.wallet.BWallet
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
 import io.circe.syntax._
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

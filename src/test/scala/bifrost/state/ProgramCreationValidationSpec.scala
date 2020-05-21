@@ -3,21 +3,20 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.modifier.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.iodb.ByteArrayWrapper
-import io.circe.syntax._
-import org.scalacheck.Gen
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.program.ExecutionBuilderCompanion
+import com.google.common.primitives.{Bytes, Ints}
+import io.circe.syntax._
+import io.iohk.iodb.ByteArrayWrapper
+import org.scalacheck.Gen
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random}
+import scala.util.Failure
 
 /**
   * Created by Matt Kindy on 6/7/2017.

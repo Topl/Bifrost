@@ -1,7 +1,7 @@
 package bifrost.modifier.box
 
-import bifrost.serialization.BytesSerializable
 import bifrost.modifier.box.proposition.Proposition
+import bifrost.serialization.BytesSerializable
 
 /**
   * Box is a state element locked by some proposition.

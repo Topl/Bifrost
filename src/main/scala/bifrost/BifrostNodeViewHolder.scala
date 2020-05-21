@@ -1,22 +1,21 @@
 package bifrost
 
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.NodeViewModifier.ModifierTypeId
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder
-import bifrost.state.BifrostState
-import modifier.box.{ArbitBox, BifrostBox}
-import bifrost.wallet.BWallet
-import bifrost.NodeViewModifier.ModifierTypeId
-import bifrost.crypto.PrivateKey25519
-import bifrost.serialization.Serializer
+import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.{ArbitBox, BifrostBox}
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, BifrostTransaction, PolyTransfer, Transaction}
-import modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
-import bifrost.crypto.PrivateKey25519Companion
 import bifrost.network.BifrostSyncInfo
+import bifrost.scorexMod.GenericNodeViewHolder
+import bifrost.serialization.Serializer
+import bifrost.state.BifrostState
 import bifrost.utils.Logging
+import bifrost.wallet.BWallet
 import scorex.crypto.encode.Base58
 
 class BifrostNodeViewHolder(settings: ForgingSettings)

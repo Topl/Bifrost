@@ -4,11 +4,11 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.box.{BifrostBox, ExecutionBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{BifrostBox, ExecutionBox}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramTransferCompanion
+import bifrost.serialization.Serializer
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json

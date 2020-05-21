@@ -7,22 +7,21 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
-import bifrost.modifier.block.Block
-import bifrost.exceptions.JsonParsingException
+import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{ArbitBox, AssetBox}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, BifrostTransaction}
-import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.wallet.BWallet
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
-import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
+import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

@@ -4,7 +4,7 @@ import bifrost.BifrostGenerators
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.modifier.box.proposition.MofNProposition
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class MofNPropositionSpec extends PropSpec
   with ScalaCheckPropertyChecks

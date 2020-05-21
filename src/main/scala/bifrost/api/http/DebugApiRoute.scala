@@ -4,13 +4,13 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.settings.Settings
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-import bifrost.settings.Settings
 import io.circe.Json
-import io.circe.syntax._
 import io.circe.parser.parse
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

@@ -7,13 +7,13 @@ import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 //import org.openjdk.jmh.infra.Blackhole
 //import bifrost.forging.ForgingSettings
-import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.BifrostGenerators
 import bifrost.NodeViewModifier.ModifierId
 import bifrost.history._
+import bifrost.modifier.block.{Block, BlockCompanion}
 
 //import io.circe.Json
-import io.iohk.iodb.{ByteArrayWrapper}
+import io.iohk.iodb.ByteArrayWrapper
 
 
 @OutputTimeUnit(TimeUnit.NANOSECONDS)

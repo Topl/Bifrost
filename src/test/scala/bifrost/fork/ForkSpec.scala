@@ -1,16 +1,16 @@
 
 package bifrost.fork
 
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.state.ProgramBoxRegistry
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}

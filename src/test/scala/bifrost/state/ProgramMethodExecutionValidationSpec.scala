@@ -1,25 +1,7 @@
 package bifrost.state
 
-import java.time.Instant
-import java.util.UUID
-
-import bifrost.modifier.block.Block
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.program.Program
-import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
-import bifrost.state.ProgramBoxRegistry
-import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.iohk.iodb.ByteArrayWrapper
-import org.scalacheck.Gen
-import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import io.circe.Json
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
-
-import scala.util.{Failure, Random, Success}
 
 /**
   * Created by Matt Kindy on 6/7/2017.

@@ -8,7 +8,7 @@ import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class ProgramMethodSpec extends PropSpec
   with ScalaCheckPropertyChecks

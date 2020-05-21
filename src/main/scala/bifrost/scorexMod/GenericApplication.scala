@@ -5,13 +5,13 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import bifrost.PersistentNodeViewModifier
 import bifrost.api.http.{ApiRoute, CompositeHttpService}
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.transaction.GenericBoxTransaction
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network.{NetworkController, UPnP}
 import bifrost.settings.Settings
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.transaction.GenericBoxTransaction
 import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global

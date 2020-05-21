@@ -1,13 +1,13 @@
 package bifrost.network
 
 import akka.actor.ActorRef
-import bifrost.forging.{Forger, ForgingSettings}
-import bifrost.modifier.block.Block
-import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.LocalInterface
 import bifrost.crypto.PrivateKey25519
+import bifrost.forging.{Forger, ForgingSettings}
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.scorexMod.GenericNodeViewHolder
 
 class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
   extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block] {

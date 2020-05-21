@@ -11,7 +11,7 @@ import com.google.common.primitives.Ints
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
 
 import scala.reflect.io.Path

@@ -2,13 +2,13 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
+import bifrost.modifier.block.Block
 import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Failure

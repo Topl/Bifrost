@@ -10,8 +10,8 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box.BifrostBox
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec}
 import bifrost.network.message.MessageSpec
+import bifrost.network.{BifrostLocalInterface, BifrostNodeViewSynchronizer, BifrostSyncInfoMessageSpec}
 import bifrost.scorexMod.GenericApplication
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}

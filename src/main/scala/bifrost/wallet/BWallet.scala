@@ -3,19 +3,17 @@ package bifrost.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
-import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
-import bifrost.state.BifrostState
+import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.MofNProposition
+import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.scorexMod.{GenericWalletBox, GenericWalletBoxSerializer, Wallet, WalletTransaction}
+import bifrost.settings.Settings
+import bifrost.state.BifrostState
+import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.crypto.PrivateKey25519Companion
-import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}

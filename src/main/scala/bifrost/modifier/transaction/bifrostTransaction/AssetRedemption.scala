@@ -1,13 +1,13 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, BifrostBox, PublicKeyNoncedBox}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetRedemptionCompanion
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

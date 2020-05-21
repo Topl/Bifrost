@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
