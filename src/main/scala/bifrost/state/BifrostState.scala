@@ -367,7 +367,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val unlockers = generateUnlockers(pc.boxIdsToOpen, pc.signatures.head._2)
 
     val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
@@ -375,7 +375,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
               if (unlocker.boxKey.isValid(
                 box.proposition,
                 pc.messageToSign)) {
-                Success()
+                Success(())
               } else {
                 Failure(new TransactionValidationException("Incorrect unlocker"))
               }
@@ -422,13 +422,13 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     val unlockers = generateUnlockers(pme.boxIdsToOpen, pme.signatures.head._2)
 
     val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
             case Some(box) =>
               if (unlocker.boxKey.isValid(box.proposition, pme.messageToSign)) {
-                Success()
+                Success(())
               } else {
                 Failure(new TransactionValidationException("Incorrect unlocker"))
               }
@@ -498,10 +498,10 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       /* Make sure that there's enough to cover the remainders */
       val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
         ar.remainderAllocations
-          .foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
+          .foldLeft[Try[Unit]](Success(())) { case (partialRes, (assetCode, remainders)) =>
           partialRes.flatMap(_ => availableAssets.get(assetCode) match {
             case Some(amount) => if (amount > remainders.map(_._2).sum) {
-              Success()
+              Success(())
             } else {
               Failure(new TransactionValidationException("Not enough assets"))
             }
