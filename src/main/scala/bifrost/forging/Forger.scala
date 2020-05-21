@@ -22,6 +22,7 @@ import akka.util.Timeout
 import bifrost.modifier.block.Block.Version
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
+import scala.language.postfixOps
 
 import scala.util.Try
 
