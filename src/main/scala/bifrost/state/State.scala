@@ -2,17 +2,16 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.history.BifrostHistory
+import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.scorexMod.{GenericBoxMinimalState, GenericMinimalState, GenericStateChanges}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.scorexMod.GenericMinimalState.VersionTag
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.state.MinimalState.VersionTag
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.utils.Logging
@@ -20,11 +19,10 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-case class BifrostTransactionChanges(toRemove: Set[BifrostBox], toAppend: Set[BifrostBox], minerReward: Long)
 
-case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
-                               override val toAppend: Set[BifrostBox], timestamp: Long)
-  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], BifrostBox](boxIdsToRemove, toAppend)
+case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
+                        override val toAppend: Set[Box], timestamp: Long)
+  extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -37,29 +35,29 @@ case class BifrostStateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   * @param history           Main box storage
   */
 //noinspection ScalaStyle
-case class BifrostState(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: BifrostHistory, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
-  extends GenericBoxMinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    BifrostBox, BifrostTransaction, Block, BifrostState] with Logging {
+case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: History, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
+  extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
+    Box, Transaction, Block, State] with Logging {
 
-  override type NVCT = BifrostState
-  type P = BifrostState.P
-  type T = BifrostState.T
-  type TX = BifrostState.TX
-  type BX = BifrostState.BX
-  type BPMOD = BifrostState.BPMOD
-  type GSC = BifrostState.GSC
-  type BSC = BifrostState.BSC
+  override type NVCT = State
+  type P = State.P
+  type T = State.T
+  type TX = State.TX
+  type BX = State.BX
+  type BPMOD = State.BPMOD
+  type GSC = State.GSC
+  type BSC = State.BSC
 
 
 
-  override def semanticValidity(tx: BifrostTransaction): Try[Unit] = BifrostState.semanticValidity(tx)
+  def semanticValidity(tx: Transaction): Try[Unit] = State.semanticValidity(tx)
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
   override def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
-      .map(BifrostBoxSerializer.parseBytes)
+      .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
   override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
@@ -73,11 +71,11 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
         .getBytes))).get
         .data)
-      BifrostState(storage, version, timestamp, history, pbr, tbr)
+      State(storage, version, timestamp, history, pbr, tbr)
     }
   }
 
-  override def changes(mod: BPMOD): Try[GSC] = BifrostState.changes(mod)
+  override def changes(mod: BPMOD): Try[GSC] = State.changes(mod)
 
 
   override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
@@ -110,7 +108,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
-    val timestamp: Long = changes.asInstanceOf[BifrostStateChanges].timestamp
+    val timestamp: Long = changes.asInstanceOf[StateChanges].timestamp
 
     if (storage.lastVersionID.isDefined) boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
 
@@ -125,7 +123,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
         timestamp)))
     )
 
-    val newSt = BifrostState(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
+    val newSt = State(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
 
     boxIdsToRemove.foreach(box => require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state"))
     newSt
@@ -187,7 +185,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(poT))
   }
 
-  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
     boxesSumTry flatMap { openSum =>
       if (tx.newBoxes.map {
         case p: PolyBox => p.value
@@ -277,7 +275,7 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
     statefulValid.flatMap(_ => semanticValidity(asT))
   }
 
-  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: BifrostTransaction): Try[Unit] = {
+  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
     boxesSumTry flatMap { openSum =>
       if (tx.newBoxes.map {
         case a: AssetBox => a.value
@@ -579,15 +577,15 @@ case class BifrostState(storage: LSMStore, override val version: VersionTag, tim
   }
 }
 
-object BifrostState extends Logging {
+object State extends Logging {
 
   type T = Any
-  type TX = BifrostTransaction
+  type TX = Transaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = BifrostBox
+  type BX = Box
   type BPMOD = Block
   type GSC = GenericStateChanges[T, P, BX]
-  type BSC = BifrostStateChanges
+  type BSC = StateChanges
 
   //noinspection ScalaStyle
   def semanticValidity(tx: TX): Try[Unit] = {
@@ -629,11 +627,11 @@ object BifrostState extends Logging {
     if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
 
     //no reward additional to tx fees
-    BifrostStateChanges(toRemove, finalToAdd, mod.timestamp)
+    StateChanges(toRemove, finalToAdd, mod.timestamp)
   }
 
 
-  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: BifrostHistory): BifrostState = {
+  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: History): State = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
@@ -672,10 +670,10 @@ object BifrostState extends Logging {
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    BifrostState(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
-  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: BifrostHistory): BifrostState = {
+  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: History): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
         (state, mod) => state

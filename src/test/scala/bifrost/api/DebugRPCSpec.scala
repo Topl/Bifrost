@@ -6,13 +6,14 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.BifrostGenerators
 import bifrost.api.http.DebugApiRoute
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
@@ -31,7 +32,7 @@ class DebugRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = DebugApiRoute(settings, nodeViewHolderRef).route
 
@@ -46,7 +47,7 @@ class DebugRPCSpec extends WordSpec
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
   "Debug RPC" should {
     "Get chain information" in {

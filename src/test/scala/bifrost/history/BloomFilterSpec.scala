@@ -4,7 +4,9 @@ package bifrost.history
   * Created by cykoz on 7/11/2017.
   */
 
-import bifrost.modifier.block.Bloom
+import bifrost.modifier.block.{Block, Bloom}
+import bifrost.state.StateSpec
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
@@ -19,7 +21,7 @@ class BloomFilterSpec extends PropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  var history: BifrostHistory = generateHistory
+  var history: History = generateHistory
 
   property("Verify Bloom Calculation is correct") {
     val set = Bloom.calcBloom(Array.fill(32)(1), IndexedSeq(Array.fill(32)(1)))

@@ -1,11 +1,16 @@
 package bifrost.state
 
 import bifrost.forging.ForgingSettings
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
-import bifrost.scorexMod.GenericMinimalState
+import bifrost.transaction._
+import bifrost.modifier.box._
+import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
+import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
+import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -234,14 +239,14 @@ class BifrostStateSpec extends PropSpec
   }*/
 
   override def afterAll() {
-    BifrostStateSpec.history.storage.storage.close()
+    StateSpec.history.storage.storage.close()
   }
 }
 
-object BifrostStateSpec {
+object StateSpec {
 
-  import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-  import GenericMinimalState.VersionTag
+  import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+  import MinimalState.VersionTag
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {
@@ -251,7 +256,7 @@ object BifrostStateSpec {
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3

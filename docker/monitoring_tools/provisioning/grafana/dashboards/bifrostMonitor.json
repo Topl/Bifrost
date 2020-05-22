@@ -17,8 +17,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1588353914151,
+  "iteration": 1589864759012,
   "links": [],
   "panels": [
     {
@@ -584,7 +583,7 @@
               "condition": "AND",
               "key": "class",
               "operator": "=",
-              "value": "bifrost.BifrostNodeViewHolder"
+              "value": "bifrost.NodeViewHolder"
             }
           ]
         }
@@ -602,8 +601,8 @@
       "type": "graph",
       "xaxis": {
         "buckets": 100,
-        "max": 50,
-        "min": null,
+        "max": 100,
+        "min": 1,
         "mode": "histogram",
         "name": null,
         "show": true,
@@ -4752,8 +4751,8 @@
           "tags": [
             {
               "key": "instance",
-              "operator": "=",
-              "value": "bifrost@heisenberg"
+              "operator": "=~",
+              "value": "/^$instance$/"
             }
           ]
         }
@@ -4863,10 +4862,7 @@
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "SHOW TAG VALUES WITH KEY = class WHERE instance = '$tag'",
-        "tags": [
-          "bifrost@heisenberg",
-          "bifrost@michelson"
-        ],
+        "tags": [],
         "tagsQuery": "SHOW TAG VALUES WITH KEY = instance",
         "type": "query",
         "useTags": true

@@ -4,10 +4,10 @@ import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{AssetBox, BifrostBox}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.box.{AssetBox, Box}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationCompanion
-import bifrost.wallet.BWallet
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
@@ -22,7 +22,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                           issuer: PublicKey25519Proposition,
                           override val fee: Long,
                           override val timestamp: Long,
-                          data: String) extends BifrostTransaction {
+                          data: String) extends Transaction {
 
 
   override type M = AssetCreation
@@ -40,7 +40,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
     Longs.toByteArray(fee)
   )
 
-   override lazy val newBoxes: Traversable[BifrostBox] = to
+   override lazy val newBoxes: Traversable[Box] = to
      .filter(toInstance => toInstance._2 > 0L)
      .zipWithIndex
      .map {
@@ -106,11 +106,11 @@ object AssetCreation {
 
   /**
     * Route here from AssetApiRoute
-    * Assumes that the Wallet contains the issuer's key information
-    * Takes Wallet from current view, and generates signature from issuer's public key
+    * Assumes that the WalletTrait contains the issuer's key information
+    * Takes WalletTrait from current view, and generates signature from issuer's public key
     * Forms corresponding AssetCreation transaction
     */
-  def createAndApply(w: BWallet,
+  def createAndApply(w: Wallet,
                      to: IndexedSeq[(PublicKey25519Proposition, Long)],
                      fee: Long,
                      issuer: PublicKey25519Proposition,
@@ -147,15 +147,15 @@ object AssetCreation {
     timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {
-    val to = rawTo.map(t => BifrostTransaction.stringToPubKey(t._1) -> t._2.toLong)
+    val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
     val signatures = rawSignatures.map { case (key, value) =>
         if(value == "") {
-          (BifrostTransaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+          (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
         } else {
-          (BifrostTransaction.stringToPubKey(key), BifrostTransaction.stringToSignature(value))
+          (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
         }
     }
-    val issuer = BifrostTransaction.stringToPubKey(rawIssuer)
+    val issuer = Transaction.stringToPubKey(rawIssuer)
 
     AssetCreation(
       to,

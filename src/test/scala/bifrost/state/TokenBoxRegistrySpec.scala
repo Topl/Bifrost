@@ -2,14 +2,17 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.modifier.block.Block
 import bifrost.forging.ForgingSettings
-import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
+import bifrost.state.StateSpec.gw
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
+import bifrost.nodeView.NodeViewHolder
+import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
@@ -35,7 +38,7 @@ class TokenBoxRegistrySpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3

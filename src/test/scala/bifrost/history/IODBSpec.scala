@@ -6,9 +6,8 @@ import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
-import bifrost.NodeViewModifier._
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.nodeView.NodeViewModifier._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.util.Random
@@ -33,7 +32,7 @@ class IODBSpec extends PropSpec
       *
       * @param tx the transaction to write boxes to storage
       */
-    def writeTx(tx: BifrostTransaction): Unit = {
+    def writeTx(tx: Transaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
         tx.newBoxes
@@ -48,7 +47,7 @@ class IODBSpec extends PropSpec
       *
       * @param tx the transaction to check has boxes in storage
       */
-    def checkTx(tx: BifrostTransaction): Unit = {
+    def checkTx(tx: Transaction): Unit = {
       tx.newBoxes
         .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
     }

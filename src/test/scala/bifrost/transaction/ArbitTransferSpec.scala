@@ -1,7 +1,7 @@
 package bifrost.transaction
 
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.state.BifrostState
+import bifrost.state.State
 import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
@@ -15,7 +15,7 @@ class ArbitTransferSpec extends PropSpec
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
     forAll(validArbitTransferGen) {
-      at: ArbitTransfer => BifrostState.semanticValidity(at).isSuccess shouldBe true
+      at: ArbitTransfer => State.semanticValidity(at).isSuccess shouldBe true
     }
   }
 }

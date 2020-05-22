@@ -1,21 +1,21 @@
 package bifrost.network
 
-import akka.actor.ActorRef
+import akka.actor.{Actor, ActorRef}
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
-import bifrost.scorexMod.GenericNodeViewHolder
-import bifrost.LocalInterface
 import bifrost.crypto.PrivateKey25519
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.{Transaction, GenericTransaction}
+import bifrost.nodeView.{GenericNodeViewHolder, PersistentNodeViewModifier}
+import bifrost.utils.Logging
 
-class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
-  extends LocalInterface[ProofOfKnowledgeProposition[PrivateKey25519], BifrostTransaction, Block] {
+class BifrostLocalInterface(viewHolderRef: ActorRef, forgerRef: ActorRef, forgingSettings: ForgingSettings)
+  extends Actor with Logging {
 
-  import LocalInterface._
+  import BifrostLocalInterface._
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type TX = BifrostTransaction
+  type TX = Transaction
   type PMOD = Block
 
   override def preStart(): Unit = {
@@ -46,19 +46,19 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
       onSuccessfulModification(sm.modifier)
   }
 
-  override protected def onStartingPersistentModifierApplication(pmod: Block): Unit = {}
+  protected def onStartingPersistentModifierApplication(pmod: Block): Unit = {}
 
-  override protected def onFailedTransaction(tx: BifrostTransaction): Unit = {}
+  protected def onFailedTransaction(tx: Transaction): Unit = {}
 
-  override protected def onFailedModification(mod: Block): Unit = {}
+  protected def onFailedModification(mod: Block): Unit = {}
 
-  override protected def onSuccessfulTransaction(tx: BifrostTransaction): Unit = {}
+  protected def onSuccessfulTransaction(tx: Transaction): Unit = {}
 
-  override protected def onSuccessfulModification(mod: Block): Unit = {}
+  protected def onSuccessfulModification(mod: Block): Unit = {}
 
-  override protected def onNoBetterNeighbour(): Unit = forgerRef ! Forger.StartForging
+  protected def onNoBetterNeighbour(): Unit = forgerRef ! Forger.StartForging
 
-  override protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopForging
+  protected def onBetterNeighbourAppeared(): Unit = forgerRef ! Forger.StopForging
 
   override def receive: Receive = viewHolderEvents orElse {
     case NoBetterNeighbour => onNoBetterNeighbour()
@@ -67,4 +67,16 @@ class BifrostLocalInterface(override val viewHolderRef: ActorRef, forgerRef: Act
     case lm: LocallyGeneratedModifier[P, TX, PMOD] => viewHolderRef ! lm
     case a: Any => log.error("Strange input: " + a)
   }
+}
+
+object BifrostLocalInterface {
+
+  case object NoBetterNeighbour
+
+  case object BetterNeighbourAppeared
+
+  case class LocallyGeneratedTransaction[P <: Proposition, TX <: GenericTransaction[P]](tx: TX)
+
+  case class LocallyGeneratedModifier[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  (pmod: PMOD)
 }

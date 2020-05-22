@@ -5,11 +5,11 @@ import java.security.SecureRandom
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
+import bifrost.history.History
+import bifrost.mempool.MemPool
 import bifrost.settings.Settings
-import bifrost.state.BifrostState
-import bifrost.wallet.BWallet
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -18,10 +18,10 @@ import scorex.crypto.encode.Base58
 import scala.util.{Failure, Success, Try}
 
 case class UtilsApiRoute(override val settings: Settings)(implicit val context: ActorRefFactory) extends ApiRoute {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
 
   val SeedSize = 32
 

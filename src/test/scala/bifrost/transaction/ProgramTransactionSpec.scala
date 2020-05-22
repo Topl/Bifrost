@@ -7,7 +7,7 @@ package bifrost.transaction
 import java.util.UUID
 
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}

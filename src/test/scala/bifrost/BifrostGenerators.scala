@@ -7,8 +7,8 @@ import java.util.UUID
 import bifrost.modifier.block.Block
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
-import bifrost.history.{BifrostHistory, BifrostStorage}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
+import bifrost.history.{History, Storage}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import modifier.box._
 import modifier.box.proposition.MofNProposition
 import io.circe
@@ -212,13 +212,6 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   val doubleGen: Gen[Double] = Gen.choose(Double.MinValue, Double.MaxValue)
-
-  lazy val reputationBoxGen: Gen[ReputationBox] = for {
-    proposition <- propositionGen
-    nonce <- positiveLongGen
-  } yield {
-    ReputationBox(proposition, nonce, (sampleUntilNonEmpty(doubleGen), sampleUntilNonEmpty(doubleGen)))
-  }
 
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
@@ -622,11 +615,11 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   //TODO Add programCreationGen after fixing serialization
-  val transactionTypes: Seq[Gen[BifrostTransaction]] =
+  val transactionTypes: Seq[Gen[Transaction]] =
     Seq(polyTransferGen, arbitTransferGen, assetTransferGen,
       assetCreationGen, programCreationGen, programMethodExecutionGen, programTransferGen)
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[BifrostTransaction]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
   } yield {
     0 until seqLen map {
@@ -687,18 +680,18 @@ trait BifrostGenerators extends CoreGenerators {
       settings.version)
   }
 
-  def generateHistory: BifrostHistory = {
+  def generateHistory: History = {
     val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
 
-    val storage = new BifrostStorage(blockStorage, settings)
+    val storage = new Storage(blockStorage, settings)
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new BifrostHistory(storage, settings, validators)
+    var history = new History(storage, settings, validators)
 
     val genesisBlock = genesisBlockGen.sample.get
 

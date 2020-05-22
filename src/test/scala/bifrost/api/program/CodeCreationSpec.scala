@@ -6,7 +6,7 @@ import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
 import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
@@ -48,7 +48,7 @@ class CodeCreationSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
 
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
 
         /*val history = view().history
         val tempBlock = Block(history.bestBlockId,
