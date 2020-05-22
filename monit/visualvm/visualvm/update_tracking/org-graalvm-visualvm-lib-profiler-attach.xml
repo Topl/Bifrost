@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.lib.profiler.attach/2">
+    <module_version install_time="1589461141971" last="true" origin="installer" specification_version="2.0">
+        <file crc="1486020261" name="config/Modules/org-graalvm-visualvm-lib-profiler-attach.xml"/>
+        <file crc="2046215659" name="modules/org-graalvm-visualvm-lib-profiler-attach.jar"/>
+    </module_version>
+</module>

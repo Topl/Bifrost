@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.charts/2">
+    <module_version install_time="1589461143376" last="true" origin="installer" specification_version="2.0">
+        <file crc="2788089160" name="config/Modules/org-graalvm-visualvm-charts.xml"/>
+        <file crc="2124982942" name="modules/org-graalvm-visualvm-charts.jar"/>
+    </module_version>
+</module>

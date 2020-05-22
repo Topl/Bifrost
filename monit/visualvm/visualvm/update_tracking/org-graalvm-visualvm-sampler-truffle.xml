@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.sampler.truffle/2">
+    <module_version install_time="1589461145478" last="true" origin="installer" specification_version="2.0">
+        <file crc="239328065" name="config/Modules/org-graalvm-visualvm-sampler-truffle.xml"/>
+        <file crc="574152957" name="modules/ext/stagent.jar"/>
+        <file crc="4129208904" name="modules/org-graalvm-visualvm-sampler-truffle.jar"/>
+    </module_version>
+</module>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.heapviewer.console/2">
+    <module_version install_time="1589461143607" last="true" origin="installer" specification_version="2.0">
+        <file crc="2137347866" name="config/Modules/org-graalvm-visualvm-heapviewer-console.xml"/>
+        <file crc="1109712" name="modules/org-graalvm-visualvm-heapviewer-console.jar"/>
+    </module_version>
+</module>

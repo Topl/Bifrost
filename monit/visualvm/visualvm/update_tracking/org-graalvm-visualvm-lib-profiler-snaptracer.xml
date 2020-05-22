@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.lib.profiler.snaptracer/2">
+    <module_version install_time="1589461142376" last="true" origin="installer" specification_version="2.0">
+        <file crc="1916511734" name="config/Modules/org-graalvm-visualvm-lib-profiler-snaptracer.xml"/>
+        <file crc="864235361" name="modules/org-graalvm-visualvm-lib-profiler-snaptracer.jar"/>
+    </module_version>
+</module>

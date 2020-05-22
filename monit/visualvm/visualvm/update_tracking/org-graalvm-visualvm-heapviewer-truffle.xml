@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.heapviewer.truffle/2">
+    <module_version install_time="1589461143682" last="true" origin="installer" specification_version="2.0">
+        <file crc="2343005005" name="config/Modules/org-graalvm-visualvm-heapviewer-truffle.xml"/>
+        <file crc="3688330595" name="modules/org-graalvm-visualvm-heapviewer-truffle.jar"/>
+    </module_version>
+</module>

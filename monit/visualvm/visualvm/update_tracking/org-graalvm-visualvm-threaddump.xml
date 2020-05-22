@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.threaddump/2">
+    <module_version install_time="1589461144156" last="true" origin="installer" specification_version="2.0">
+        <file crc="4293740355" name="config/Modules/org-graalvm-visualvm-threaddump.xml"/>
+        <file crc="1360095476" name="modules/org-graalvm-visualvm-threaddump.jar"/>
+    </module_version>
+</module>

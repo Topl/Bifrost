@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.lib.profiler.heapwalker/2">
+    <module_version install_time="1589461142260" last="true" origin="installer" specification_version="2.0">
+        <file crc="3619383241" name="config/Modules/org-graalvm-visualvm-lib-profiler-heapwalker.xml"/>
+        <file crc="4261800180" name="modules/org-graalvm-visualvm-lib-profiler-heapwalker.jar"/>
+    </module_version>
+</module>

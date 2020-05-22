@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.graalvm.visualvm.core/2">
+    <module_version install_time="1589461142624" last="true" origin="installer" specification_version="2.1">
+        <file crc="2553978067" name="config/Modules/org-graalvm-visualvm-core.xml"/>
+        <file crc="3271997643" name="modules/org-graalvm-visualvm-core.jar"/>
+    </module_version>
+</module>

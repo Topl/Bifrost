@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><module codename="org.netbeans.api.scripting">
+    <module_version install_time="1570537973234" last="true" origin="installer" specification_version="1.2">
+        <file crc="1776303006" name="config/Modules/org-netbeans-api-scripting.xml"/>
+        <file crc="2936396395" name="modules/org-netbeans-api-scripting.jar"/>
+    </module_version>
+</module>
