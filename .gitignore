@@ -19,9 +19,6 @@ classes
 # logs
 *.log
 
-# compressed files
-*.zip
-
 # db files
 *.data
 .history
