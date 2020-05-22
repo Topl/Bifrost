@@ -6,7 +6,7 @@ import bifrost.settings.Settings
 import bifrost.utils.Logging
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
 
 class UPnP(settings: Settings) extends Logging {
@@ -24,7 +24,7 @@ class UPnP(settings: Settings) extends Logging {
     val defaultDiscoverTimeout = settings.upnpDiscoverTimeout.getOrElse(discover.getTimeout)
     discover.setTimeout(defaultDiscoverTimeout)
 
-    val gatewayMap = Option(discover.discover).map(_.toMap).getOrElse(Map())
+    val gatewayMap = Option(discover.discover).map(_.asScala).map(_.toMap).getOrElse(Map())
     if (gatewayMap.isEmpty) {
       log.debug("There are no UPnP gateway devices")
     } else {
