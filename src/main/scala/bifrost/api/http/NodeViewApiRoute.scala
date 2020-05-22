@@ -101,9 +101,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                 |
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | --None specified--       |           	|                     	|                                             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -124,9 +124,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
+    *  |-------------------------	|-----------	|---------------------	|-------------------------------------------	|
+    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -161,9 +161,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                               	|
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -187,9 +187,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | blockId                  | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | blockId                  | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
