@@ -5,6 +5,7 @@ import bifrost.nodeView.NodeViewHolder
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.reflect.io.Path
 import scala.util.Try
