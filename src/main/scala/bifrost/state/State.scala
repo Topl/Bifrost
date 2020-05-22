@@ -175,6 +175,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
         )
@@ -220,6 +221,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
 
@@ -265,6 +267,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
         )
@@ -304,12 +307,14 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       }
 
       closedBox(unlocker.closedBoxId) match {
-        case Some(box: ExecutionBox) => if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
-          Success[Unit](Unit)
-        else
-          Failure(new Exception("Incorrect unlocker"))
+        case Some(box: ExecutionBox) =>
+          if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
+            Success[Unit](Unit)
+          else
+            Failure(new Exception("Incorrect unlocker"))
 
         case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+        case _ => Failure(new Exception("Invalid Box type for this transaction"))
       }
     }
 
@@ -489,6 +494,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
               }
             case None => Failure(
               new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+            case _ => Failure(new Exception("Invalid Box type for this transaction"))
           }
         )
       )
@@ -522,6 +528,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                   Failure(new TransactionValidationException("Incorrect unlocker"))
                 }
               case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             })
         })
       }
@@ -613,6 +620,7 @@ object State extends Logging {
 
     val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
       case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
+      case _ => Seq((Set[Array[Byte]](), Set[BX](), 0L))
     }
 
     val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
