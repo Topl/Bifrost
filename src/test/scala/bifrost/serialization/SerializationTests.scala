@@ -73,18 +73,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("Reputation Serialization") {
-    forAll(reputationBoxGen) {
-      b: ReputationBox =>
-        val parsed = BoxSerializer
-          .parseBytes(BoxSerializer.toBytes(b))
-          .get
-
-        val serialized = BoxSerializer.toBytes(parsed)
-        serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
   property("StateBox Serialization") {
     forAll(stateBoxGen) {
       b: StateBox =>
