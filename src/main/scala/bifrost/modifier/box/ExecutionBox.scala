@@ -5,8 +5,8 @@ import java.util.UUID
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

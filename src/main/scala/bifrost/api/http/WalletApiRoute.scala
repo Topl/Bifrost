@@ -2,24 +2,24 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.state.State
 import bifrost.modifier.box.Box
-import bifrost.wallet.Wallet
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.{Bip39, PrivateKey25519}
-import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.settings.Settings
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)

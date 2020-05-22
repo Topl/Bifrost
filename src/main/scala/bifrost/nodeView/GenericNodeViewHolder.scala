@@ -4,12 +4,12 @@ import akka.actor.{Actor, ActorRef}
 import bifrost.history.GenericHistory
 import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.mempool.MemoryPool
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
-import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, GenericTransaction}
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.BoxTransaction
-import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, GenericTransaction}
 import bifrost.network.BifrostLocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
+import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.serialization.Serializer
 import bifrost.state.MinimalState

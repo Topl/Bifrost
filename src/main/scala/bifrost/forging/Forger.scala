@@ -3,27 +3,26 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import bifrost.modifier.block.Block
+import akka.util.Timeout
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.State
+import bifrost.modifier.block.Block
+import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.settings.Settings
+import bifrost.state.State
+import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
-import bifrost.settings.Settings
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import akka.util.Timeout
-import bifrost.modifier.block.Block.Version
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import scala.language.postfixOps
-
 import scala.util.Try
 
 trait ForgerSettings extends Settings {

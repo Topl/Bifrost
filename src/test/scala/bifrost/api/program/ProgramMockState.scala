@@ -3,26 +3,26 @@ package bifrost.api.program
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
 import bifrost.forging.Forger
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
-import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
-import bifrost.network.peer.PeerManager
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{State, StateChanges}
-import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, PolyBox, StateBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box._
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network._
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.nodeView.NodeViewHolder
+import bifrost.state.{State, StateChanges}
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
 import io.circe.syntax._
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

@@ -2,8 +2,8 @@ package bifrost.forging
 
 import java.io.File
 
-import io.circe.syntax._
 import bifrost.settings.Settings
+import io.circe.syntax._
 
 import scala.concurrent.duration._
 

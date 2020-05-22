@@ -6,22 +6,22 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import bifrost.BifrostGenerators
 import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
+import bifrost.crypto.Signature25519
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.NodeViewHolder
 import bifrost.state.State
 import bifrost.wallet.Wallet
-import bifrost.BifrostGenerators
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.modifier.block.Block
-import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

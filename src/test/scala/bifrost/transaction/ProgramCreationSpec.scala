@@ -3,13 +3,13 @@ package bifrost.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import bifrost.state.State
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.Signature25519
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.state.State
+import bifrost.{BifrostGenerators, ValidGenerators}
+import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.util.Success
 

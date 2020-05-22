@@ -1,16 +1,10 @@
 package bifrost.state
 
 import bifrost.forging.ForgingSettings
-import bifrost.transaction._
-import bifrost.modifier.box._
+import bifrost.nodeView.NodeViewHolder
 import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import com.google.common.primitives.Ints
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.nodeView.NodeViewHolder
-import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -245,8 +239,8 @@ class BifrostStateSpec extends PropSpec
 
 object StateSpec {
 
-  import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
   import MinimalState.VersionTag
+  import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {

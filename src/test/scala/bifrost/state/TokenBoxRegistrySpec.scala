@@ -2,20 +2,18 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.modifier.block.Block
+import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.state.StateSpec.gw
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.crypto.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import bifrost.nodeView.NodeViewHolder
-import com.google.common.primitives.Ints
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 

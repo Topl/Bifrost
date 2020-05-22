@@ -1,10 +1,10 @@
 package bifrost.transaction
 
-import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.state.State
 import bifrost.modifier.transaction.bifrostTransaction.PolyTransfer
+import bifrost.state.State
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class PolyTransferSpec extends PropSpec
   with ScalaCheckPropertyChecks

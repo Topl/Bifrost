@@ -2,19 +2,19 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.history.History
-import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.state.MinimalState.VersionTag
+import bifrost.history.History
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
+import com.google.common.primitives.Longs
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}

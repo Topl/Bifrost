@@ -2,18 +2,18 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.modifier.block.{Block, BlockValidator, Bloom}
-import bifrost.forging.ForgingSettings
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.DifficultyBlockValidator
-import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.forging.ForgingSettings
+import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
+import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.utils.Logging
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec

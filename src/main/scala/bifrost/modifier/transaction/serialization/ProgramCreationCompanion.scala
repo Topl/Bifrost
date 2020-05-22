@@ -3,11 +3,11 @@ package bifrost.modifier.transaction.serialization
 import java.util.UUID
 
 import bifrost.crypto.Signature25519
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion
 import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try

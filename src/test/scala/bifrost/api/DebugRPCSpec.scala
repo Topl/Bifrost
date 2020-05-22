@@ -1,8 +1,8 @@
 package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -10,8 +10,8 @@ import bifrost.BifrostGenerators
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.NodeViewHolder
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.parser.parse

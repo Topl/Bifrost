@@ -3,11 +3,11 @@ package bifrost.history
 import java.io.File
 
 import bifrost.modifier.block.Block
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewModifier._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.nodeView.NodeViewModifier._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.util.Random

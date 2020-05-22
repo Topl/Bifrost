@@ -7,25 +7,25 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import bifrost.BifrostGenerators
 import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{State, StateChanges}
 import bifrost.modifier.box._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network._
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.NodeViewHolder
+import bifrost.state.{State, StateChanges}
 import bifrost.wallet.Wallet
-import bifrost.BifrostGenerators
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.network.message._
-import bifrost.network.peer.PeerManager
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await

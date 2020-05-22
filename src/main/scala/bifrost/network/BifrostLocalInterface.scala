@@ -1,11 +1,11 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
+import bifrost.crypto.PrivateKey25519
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
-import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{Transaction, GenericTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{GenericTransaction, Transaction}
 import bifrost.nodeView.{GenericNodeViewHolder, PersistentNodeViewModifier}
 import bifrost.utils.Logging
 
