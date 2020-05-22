@@ -6,7 +6,7 @@ services:
     container_name: grafana
     restart: always
     env_file:
-    - ./provisioning/grafana/env
+    - provisioning/grafana/env
     ports:
       - 3000:3000
     volumes:
@@ -24,7 +24,7 @@ services:
     container_name: influxdb
     restart: always
     env_file:
-    - ./provisioning/influxdb/env
+    - provisioning/influxdb/env
     ports:
       - 8086:8086
     # volumes:
