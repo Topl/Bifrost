@@ -1,9 +1,10 @@
 package bifrost.modifier.box.proposition
 
 import bifrost.crypto.PrivateKey25519
-import bifrost.modifier.box.proposition.PublicKey25519Proposition._
-import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints}
+import bifrost.serialization.Serializer
+import bifrost.modifier.box.proposition.PublicKey25519Proposition._
+import bifrost.modifier.box.proposition._
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519

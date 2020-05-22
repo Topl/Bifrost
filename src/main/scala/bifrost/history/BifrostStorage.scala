@@ -1,21 +1,22 @@
 package bifrost.history
 
+import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.forging.ForgingSettings
+import com.typesafe.config.Config
+import com.google.common.primitives.Longs
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.forging.ForgingSettings
-import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader}
-import com.google.common.primitives.Longs
-import com.typesafe.config.{Config, ConfigFactory}
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import scala.concurrent.duration.MILLISECONDS
 import scala.util.{Failure, Try}
+import scala.concurrent.duration.MILLISECONDS
+import com.typesafe.config.ConfigFactory
 
 class BifrostStorage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */

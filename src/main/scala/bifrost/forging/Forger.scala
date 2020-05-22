@@ -3,26 +3,27 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import akka.util.Timeout
-import bifrost.LocalInterface.LocallyGeneratedModifier
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
+import bifrost.modifier.block.Block
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.modifier.block.Block
-import bifrost.modifier.block.Block.Version
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.settings.Settings
 import bifrost.state.BifrostState
-import bifrost.utils.Logging
+import bifrost.modifier.box.ArbitBox
 import bifrost.wallet.BWallet
 import com.google.common.primitives.Longs
+import bifrost.LocalInterface.LocallyGeneratedModifier
+import bifrost.settings.Settings
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import akka.util.Timeout
+import bifrost.modifier.block.Block.Version
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
+import bifrost.modifier.transaction.bifrostTransaction.{BifrostTransaction, CoinbaseTransaction}
 import scala.language.postfixOps
+
 import scala.util.Try
 
 trait ForgerSettings extends Settings {

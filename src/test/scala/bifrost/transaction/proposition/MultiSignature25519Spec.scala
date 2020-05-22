@@ -1,10 +1,12 @@
 package bifrost.transaction.proposition
 
 import bifrost.BifrostGenerators
-import bifrost.crypto.{MultiSignature25519, PrivateKey25519, PrivateKey25519Companion}
-import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
+import bifrost.crypto.{MultiSignature25519, PrivateKey25519}
+import bifrost.modifier.box.proposition.MofNProposition
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
 
 class MultiSignature25519Spec extends PropSpec
   with ScalaCheckPropertyChecks

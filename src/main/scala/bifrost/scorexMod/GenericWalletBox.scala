@@ -1,13 +1,13 @@
 package bifrost.scorexMod
 
+import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.crypto.Secret
 import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.serialization.{BytesSerializable, Serializer}
 import bifrost.wallet.Vault
-import bifrost.{NodeViewModifier, PersistentNodeViewModifier}
-import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

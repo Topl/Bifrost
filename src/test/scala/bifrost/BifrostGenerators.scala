@@ -4,21 +4,22 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.modifier.block.Block
+import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.forging.ForgingSettings
 import bifrost.history.{BifrostHistory, BifrostStorage}
-import bifrost.modifier.block.Block
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.{Nonce, Value}
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.network.BifrostSyncInfo
-import bifrost.program.{Program, ProgramPreprocessor, _}
+import modifier.box._
+import modifier.box.proposition.MofNProposition
 import io.circe
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.network.BifrostSyncInfo
+import modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.{Random, Try}

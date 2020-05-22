@@ -1,9 +1,7 @@
 package bifrost.network.peer
 
 import java.net.InetSocketAddress
-
 import bifrost.settings.Settings
-
 import scala.collection.mutable
 
 case class PeerInfo(lastSeen: Long, nonce: Option[Long] = None, nodeName: Option[String] = None)

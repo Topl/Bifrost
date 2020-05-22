@@ -2,22 +2,23 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.settings.Settings
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
-import io.circe.syntax._
+import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
+import akka.pattern.ask
+import io.circe.syntax._
+import bifrost.settings.Settings
+
+import scala.concurrent.duration._
 
 case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {

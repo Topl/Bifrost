@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorRef}
 import bifrost.LocalInterface.{BetterNeighbourAppeared, LocallyGeneratedModifier, LocallyGeneratedTransaction, NoBetterNeighbour}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 // import bifrost.NodeViewHolder._
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.scorexMod.GenericNodeViewHolder
 import bifrost.scorexMod.GenericNodeViewHolder._
+import modifier.box.proposition.Proposition
 import bifrost.utils.Logging
 
 /**

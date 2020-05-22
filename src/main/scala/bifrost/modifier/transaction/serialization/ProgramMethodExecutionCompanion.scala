@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.serialization.Serializer
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
-import bifrost.serialization.Serializer
+import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
 import io.circe.parser.parse

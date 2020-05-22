@@ -6,18 +6,19 @@ package bifrost.transaction
 
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
 

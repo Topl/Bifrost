@@ -4,11 +4,11 @@ package bifrost.network.message
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 
+import com.google.common.primitives.{Bytes, Ints}
 import bifrost.NodeViewModifier
 import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.network.SyncInfo
 import bifrost.network.message.Message._
-import com.google.common.primitives.{Bytes, Ints}
+import bifrost.network.SyncInfo
 
 import scala.util.Try
 

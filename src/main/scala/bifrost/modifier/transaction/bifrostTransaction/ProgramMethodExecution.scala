@@ -2,18 +2,18 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.util.UUID
 
+import bifrost.program.Program
+import BifrostTransaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.forging.ForgingSettings
 import bifrost.history.BifrostHistory
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionCompanion
-import bifrost.program.Program
 import bifrost.state.ProgramBoxRegistry
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
+import io.circe.syntax._
 
 import scala.util.Try
 

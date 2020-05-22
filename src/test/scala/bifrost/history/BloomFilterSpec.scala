@@ -7,9 +7,10 @@ package bifrost.history
 import bifrost.modifier.block.Bloom
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 import scala.collection.BitSet
+import scala.util.Try
 
 class BloomFilterSpec extends PropSpec
   with ScalaCheckPropertyChecks

@@ -1,7 +1,8 @@
 package bifrost.program
 
-import io.circe.syntax._
+import bifrost.modifier.box.StateBox
 import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.syntax._
 
 import scala.util.Try
 

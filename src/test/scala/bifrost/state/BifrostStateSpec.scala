@@ -1,11 +1,11 @@
 package bifrost.state
 
 import bifrost.forging.ForgingSettings
-import bifrost.scorexMod.GenericMinimalState
 import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
+import bifrost.scorexMod.GenericMinimalState
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -240,8 +240,8 @@ class BifrostStateSpec extends PropSpec
 
 object BifrostStateSpec {
 
-  import GenericMinimalState.VersionTag
   import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
+  import GenericMinimalState.VersionTag
 
   val settingsFilename = "testSettings.json"
   lazy val testSettings: ForgingSettings = new ForgingSettings {

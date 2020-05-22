@@ -1,7 +1,7 @@
 package bifrost.network
 
-import bifrost.NodeViewModifier
 import bifrost.modifier.block.Block
+import bifrost.NodeViewModifier
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.serialization.Serializer
 

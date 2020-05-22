@@ -1,9 +1,9 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.serialization.Serializer
+import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 

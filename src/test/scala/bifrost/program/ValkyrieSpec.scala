@@ -3,19 +3,21 @@ package bifrost.program
 import java.time.Instant
 import java.util
 
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.modifier.box.{ArbitBox, AssetBox, BifrostBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import org.graalvm.polyglot.{Context, Instrument}
+import com.oracle.truffle.polyglot._
+import bifrost.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Ints, Longs}
+import org.scalatest.{Matchers, PropSpec}
+import scorex.crypto.encode.Base58
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ArbitBox, AssetBox}
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.settings.Settings
 import bifrost.state.BifrostStateSpec
 import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
-import org.graalvm.polyglot.Context
-import org.scalatest.{Matchers, PropSpec}
-import scorex.crypto.encode.Base58
 
 class ValkyrieSpec extends PropSpec
   with Matchers

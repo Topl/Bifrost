@@ -1,18 +1,18 @@
 package bifrost.api
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.state.BifrostState
 import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58

@@ -1,10 +1,11 @@
 package bifrost.state
 
-import bifrost.modifier.box.{BifrostBox, PolyBox}
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.box.BifrostBox
+import bifrost.modifier.box.PolyBox
 import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckPropertyChecks, ScalaCheckDrivenPropertyChecks}
 
 class ProgramSpec extends PropSpec
   with ScalaCheckPropertyChecks

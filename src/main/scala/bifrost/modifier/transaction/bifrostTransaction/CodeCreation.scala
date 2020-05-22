@@ -4,15 +4,15 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{BifrostBox, CodeBox}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.program.ProgramPreprocessor
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction.Nonce
+import bifrost.modifier.box.{BifrostBox, CodeBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.wallet.BWallet
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.syntax._
 import io.circe.{Json, JsonObject}
+import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.util.Try

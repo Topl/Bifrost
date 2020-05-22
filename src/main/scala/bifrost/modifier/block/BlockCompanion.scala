@@ -1,11 +1,11 @@
 package bifrost.modifier.block
 
+import bifrost.serialization.Serializer
+import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
 import bifrost.NodeViewModifier.ModifierTypeId
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.{ArbitBox, BifrostBoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.modifier.transaction.serialization.BifrostTransactionCompanion
-import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec
