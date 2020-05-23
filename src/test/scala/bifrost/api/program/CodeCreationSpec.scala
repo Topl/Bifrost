@@ -4,11 +4,11 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.transaction.box.ArbitBox
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.block.Block
+import bifrost.crypto.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
@@ -48,10 +48,10 @@ class CodeCreationSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
 
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
 
         /*val history = view().history
-        val tempBlock = BifrostBlock(history.bestBlockId,
+        val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
           ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),

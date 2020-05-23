@@ -2,13 +2,13 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.NodeViewModifier._
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
+import bifrost.nodeView.NodeViewModifier._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.util.Random
@@ -33,7 +33,7 @@ class IODBSpec extends PropSpec
       *
       * @param tx the transaction to write boxes to storage
       */
-    def writeTx(tx: BifrostTransaction): Unit = {
+    def writeTx(tx: Transaction): Unit = {
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
         tx.newBoxes
@@ -48,7 +48,7 @@ class IODBSpec extends PropSpec
       *
       * @param tx the transaction to check has boxes in storage
       */
-    def checkTx(tx: BifrostTransaction): Unit = {
+    def checkTx(tx: Transaction): Unit = {
       tx.newBoxes
         .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
     }
@@ -80,17 +80,17 @@ class IODBSpec extends PropSpec
       * @param b the block to write tx boxes to storage
       */
 
-    def writeBlock(b: BifrostBlock): Unit = {
+    def writeBlock(b: Block): Unit = {
       blocksStorage.update(
         ByteArrayWrapper(b.id),
         Seq(),
-        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(BifrostBlock.ModifierTypeId +: b.bytes))
+        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(Block.ModifierTypeId +: b.bytes))
       )
     }
 
     var ids: Seq[ModifierId] = Seq()
 
-    forAll(bifrostBlockGen) { block =>
+    forAll(BlockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
       blocksStorage.get(ByteArrayWrapper(block.id)).isDefined shouldBe true

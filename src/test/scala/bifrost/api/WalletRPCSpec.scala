@@ -9,13 +9,14 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.api.http.WalletApiRoute
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
-import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.state.State
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.wallet.Wallet
+import bifrost.BifrostGenerators
+import bifrost.nodeView.NodeViewHolder
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
@@ -35,7 +36,7 @@ class WalletRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   nodeViewHolderRef
   val route = WalletApiRoute(settings, nodeViewHolderRef).route
 
@@ -44,13 +45,13 @@ class WalletRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/wallet/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   implicit val timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -61,12 +62,12 @@ class WalletRPCSpec extends WordSpec
   var newPubKey: String = ""
 
   // Unlock Secrets
-  val gw: BWallet = view().vault
+  val gw: Wallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
-  "Wallet RPC" should {
+  "WalletTrait RPC" should {
     "Get balances" in {
       val requestBody = ByteString(
         s"""
@@ -74,7 +75,9 @@ class WalletRPCSpec extends WordSpec
            |   "jsonrpc": "2.0",
            |   "id": "1",
            |   "method": "balances",
-           |   "params": [{}]
+           |   "params": [{
+           |      "publicKeys": ["${publicKeys("investor")}"]
+           |   }]
            |}
         """.stripMargin)
 
@@ -82,26 +85,6 @@ class WalletRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-
-    "Get balances by public key" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "balances",
-           |   "params": [{"publicKey": "${publicKeys("hub")}"}]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val boxes = ((res \\ "result").head \\ "boxes").head.asArray
-        boxes.get.foreach(b => (b \\ "proposition").head.asString.get shouldEqual publicKeys("investor"))
       }
     }
 
@@ -128,7 +111,7 @@ class WalletRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
     }
@@ -179,7 +162,7 @@ class WalletRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
         view().pool.remove(txInstance)
       }
     }
