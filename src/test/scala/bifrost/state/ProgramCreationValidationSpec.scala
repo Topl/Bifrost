@@ -3,19 +3,18 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.BifrostTransaction.Nonce
-import bifrost.transaction.box._
+import bifrost.modifier.block.Block
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import com.google.common.primitives.{Bytes, Ints}
 import io.iohk.iodb.ByteArrayWrapper
 import io.circe.syntax._
 import org.scalacheck.Gen
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.bifrostTransaction.ProgramCreation
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.serialization.ExecutionBuilderCompanion
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.PrivateKey25519Companion
+import bifrost.program.ExecutionBuilderCompanion
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random}
@@ -66,8 +65,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val messageToSign = Bytes.concat(
       ExecutionBuilderCompanion.toBytes(executionBuilder),
       owner.pubKeyBytes,
-      //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _))
-      boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
+      data.getBytes)
+      //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
     val signature = Map(owner -> PrivateKey25519Companion.sign(priv, messageToSign))
 
@@ -105,17 +104,17 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     // Create block with program creation
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(programCreation),
           10L,
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
@@ -129,12 +128,12 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
         val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
 
-        val necessaryBoxesSC = BifrostStateChanges(
+        val necessaryBoxesSC = StateChanges(
           Set(),
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(23))
           .get
@@ -193,8 +192,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         preExistingPolyBoxes
           .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
 
-        BifrostStateSpec.genesisState = newState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = newState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
     }
   }
@@ -211,22 +210,22 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val invalidPC = programCreation.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(programCreation)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
-        val necessaryBoxesSC = BifrostStateChanges(
+        val necessaryBoxesSC = StateChanges(
           Set(),
           preExistingPolyBoxes,
           Instant.now.toEpochMilli)
 
-        val preparedState = BifrostStateSpec
+        val preparedState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
           .get
 
         val newState = preparedState.validate(invalidPC)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]
@@ -242,7 +241,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 //      cc: ProgramCreation =>
 //        val roles = Role.Investor +: Random.shuffle(List(Role.Producer, Role.Hub))
 //
-//        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
+//        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc) // TODO(balinskia): Which party is the investor
 //      val profileBoxes: Set[ProfileBox] = constructProfileBoxes(cc, roles)
 //
 //        val necessaryBoxesSC = BifrostStateChanges(
@@ -274,7 +273,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
         val necessaryBoxesSC = BifrostStateChanges(
           Set(),
@@ -303,21 +302,21 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = getPreExistingPolyBoxes(cc)
+        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
-        val necessaryBoxesSC = BifrostStateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
+        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
-        val firstCCAddBlock = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(1: Byte),
+        val firstCCAddBlock = Block(
+          Array.fill(Block.SignatureLength)(1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(cc),
           10L,
           settings.version
         )
 
-        val necessaryState = BifrostStateSpec
+        val necessaryState = StateSpec
           .genesisState
           .applyChanges(necessaryBoxesSC, Ints.toByteArray(29))
           .get
@@ -331,8 +330,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val newState = preparedState.validate(cc)
 
-        BifrostStateSpec.genesisState = preparedState
-          .rollbackTo(BifrostStateSpec.genesisBlockId)
+        StateSpec.genesisState = preparedState
+          .rollbackTo(StateSpec.genesisBlockId)
           .get
 
         newState shouldBe a[Failure[_]]

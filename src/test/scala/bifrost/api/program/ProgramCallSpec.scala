@@ -4,7 +4,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
-import bifrost.transaction.box.BifrostBox
+import bifrost.modifier.box.Box
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
 import io.circe.syntax._
@@ -19,7 +19,7 @@ class ProgramCallSpec extends WordSpec
 
   "programCall" should {
 
-    val boxState: Set[BifrostBox] = Set(stateBox, codeBox, executionBox)
+    val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
 
     manuallyApplyBoxes(boxState, 1)
 

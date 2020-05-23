@@ -2,13 +2,13 @@
 //
 //import java.time.Instant
 //
-//import bifrost.blocks.BifrostBlock
-//import bifrost.transaction.bifrostTransaction.AssetRedemption
-//import bifrost.transaction.box._
+//import bifrost.blocks.Block
+//import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
+//import bifrost.modifier.box._
 //import com.google.common.primitives.Ints
 //import io.iohk.iodb.ByteArrayWrapper
-//import bifrost.transaction.box.proposition.PublicKey25519Proposition
-//import bifrost.transaction.proof.Signature25519
+//import bifrost.modifier.box.proposition.PublicKey25519Proposition
+//import bifrost.crypto.Signature25519
 //import scorex.crypto.signatures.Curve25519
 //
 //import scala.util.Failure
@@ -21,17 +21,17 @@
 //  property("A block with valid AssetRedemption should result in the appropriate amount of tokens") {
 //    forAll(validAssetRedemptionGen) {
 //      ar: AssetRedemption =>
-//        val block = BifrostBlock(
-//          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+//        val block = Block(
+//          Array.fill(Block.SignatureLength)(-1: Byte),
 //          Instant.now.toEpochMilli,
 //          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-//          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+//          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
 //          Seq(ar),
 //          10L,
 //          settings.version
 //        )
 //
-//        val preExistingAssetBoxes: Set[BifrostBox] = ar
+//        val preExistingAssetBoxes: Set[Box] = ar
 //          .availableToRedeem
 //          .flatMap {
 //            case (assetCode, toRedeem) =>
@@ -89,7 +89,7 @@
 //
 //        val invalidAR = assetRedemption.copy(signatures = wrongSigs)
 //
-//        val preExistingAssetBoxes: Set[BifrostBox] = assetRedemption
+//        val preExistingAssetBoxes: Set[Box] = assetRedemption
 //          .availableToRedeem
 //          .flatMap {
 //            case (assetCode, toRedeem) =>
@@ -128,7 +128,7 @@
 //    forAll(validAssetRedemptionGen) {
 //      ar: AssetRedemption =>
 //
-//        val preExistingAssetBoxes: Set[BifrostBox] = ar.availableToRedeem.flatMap {
+//        val preExistingAssetBoxes: Set[Box] = ar.availableToRedeem.flatMap {
 //          case (assetCode, toRedeem) => toRedeem.map(r => AssetBox(r._1, r._2, 0, assetCode, ar.issuer, ar.data))
 //        }.toSet
 //
