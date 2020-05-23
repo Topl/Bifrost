@@ -8,6 +8,7 @@ Project Bifrost is a Scala client designed over a cryptocurrency/blockchain prot
 
 Begin interacting with the Topl network with the Bifrost client [alpha testnet release](https://github.com/Topl/Project-Bifrost/releases/tag/v0.1.0-alpha)
 
+<!---
 Whitepaper
 ----------
 The latest version of the Topl whitepaper can be found [here](https://topl.co/whitepaper).
@@ -18,7 +19,7 @@ Documentation
 [Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
 
 [Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
-
+-->
 
 Installation
 -------------------
@@ -29,7 +30,7 @@ Testing
 -------
 Go to the project directory
 
-`cd Project-Bifrost`
+`cd Bifrost`
 
 Type
 
@@ -51,7 +52,7 @@ To keep up with our development
 
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
 
-- Join us on our Riot Chat [Riot](https://riot.im/app/#/room/#technical:matrix.topl.co)
+- Join chat with us on [Zulip](https://impact.zulipchat.com/join/register/)!
 
 
 License
