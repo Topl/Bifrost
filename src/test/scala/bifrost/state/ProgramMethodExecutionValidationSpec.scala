@@ -3,21 +3,18 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.blocks.BifrostBlock
+import bifrost.modifier.block.Block
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.program.Program
-import bifrost.crypto.hash.FastCryptographicHash
 import bifrost.exceptions.JsonParsingException
 import bifrost.forging.ForgingSettings
-import bifrost.programBoxRegistry.ProgramBoxRegistryOld
-import bifrost.transaction.account.PublicKeyNoncedBox
-import bifrost.transaction.box._
-import bifrost.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.state.ProgramBoxRegistry
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
-import bifrost.transaction.box.proposition.{MofNProposition, PublicKey25519Proposition}
-import bifrost.transaction.proof.Signature25519
-import bifrost.transaction.state.PrivateKey25519Companion
+import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import io.circe.Json
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -34,7 +31,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
   }
 
-  val pbr = ProgramBoxRegistryOld.readOrGenerate(forgingSettings)
+  //val pbr = ProgramBoxRegistry.readOrGenerate(forgingSettings)
 
   //noinspection ScalaStyle
   /*def arbitraryPartyProgramMethodExecutionGen(num: Int, numInProgram: Int): Gen[ProgramMethodExecution] = for {
@@ -117,17 +114,17 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
     forAll(semanticallyValidProgramMethodExecutionGen) {
       cme: ProgramMethodExecution =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(cme),
           10L,
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = cme
+        val preExistingPolyBoxes: Set[Box] = cme
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -216,7 +213,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
         val invalidCME = programMethodExecution.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -256,7 +253,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     /*forAll(arbitraryPartyProgramMethodExecutionGen(num = 1, numInProgram = 0)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -285,7 +282,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     /*forAll(arbitraryPartyProgramMethodExecutionGen(num = Gen.choose(2, 10).sample.get, numInProgram = 1)) {
       cme: ProgramMethodExecution =>
         val roles = Random.shuffle(List(Role.Investor, Role.Producer, Role.Hub))
-        val preExistingPolyBoxes: Set[BifrostBox] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
+        val preExistingPolyBoxes: Set[Box] = cme.preFeeBoxes.flatMap { case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2)) }.toSet
         val profileBoxes: Set[ProfileBox] = cme.parties.map {
           case (r: Role.Role, p: PublicKey25519Proposition) => ProfileBox(p, positiveLongGen.sample.get, r.toString, "role")
         }.toSet ++
@@ -318,7 +315,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -358,17 +355,17 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
   /*property("Attempting to validate a CME for a program that doesn't exist should error") {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(programMethodExecution),
           10L,
           settings.version
         )
 
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -417,7 +414,7 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
   /*property("Attempting to validate a CME with a timestamp too far in the future should error") {
     forAll(semanticallyValidProgramMethodExecutionGen.suchThat(_.timestamp > Instant.now.toEpochMilli + 50L)) {
       programMethodExecution: ProgramMethodExecution =>
-        val preExistingPolyBoxes: Set[BifrostBox] = programMethodExecution
+        val preExistingPolyBoxes: Set[Box] = programMethodExecution
           .preFeeBoxes
           .flatMap {
             case (prop, preBoxes) => preBoxes.map(b => PolyBox(prop, b._1, b._2))
@@ -455,17 +452,17 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
   /*property("Attempting to validate a CME with nonexistent fee boxes should error") {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(programMethodExecution),
           10L,
           settings.version
         )
 
-        val profileBoxes: Set[BifrostBox] = programMethodExecution
+        val profileBoxes: Set[Box] = programMethodExecution
           .parties
           .map {
             case (p: PublicKey25519Proposition, r: Role.Role) =>

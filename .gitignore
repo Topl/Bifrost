@@ -4,6 +4,9 @@
 .ensime_cache/
 scorex.yaml
 .DS_Store
+.project
+.metals/
+.bloop/
 
 # scala build folders
 target
@@ -15,9 +18,6 @@ classes
 
 # logs
 *.log
-
-# compressed files
-*.zip
 
 # db files
 *.data
@@ -32,3 +32,6 @@ keyfiles/
 dumps/
 
 docker/project-bifrost-assembly-0.1.1-alpha.jar
+
+# monitoring persistent data files
+docker/monitoring_tools/data/

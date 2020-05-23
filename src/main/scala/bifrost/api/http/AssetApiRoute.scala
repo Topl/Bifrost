@@ -2,198 +2,542 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.exceptions.JsonParsingException
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.scorexMod.GenericNodeViewHolder.CurrentView
-import bifrost.state.BifrostState
-import bifrost.transaction._
-import bifrost.wallet.BWallet
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import bifrost.LocalInterface.LocallyGeneratedTransaction
-import bifrost.api.http.ApiException
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.crypto.PrivateKey25519
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{AssetCreation, AssetRedemption, AssetTransfer}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
+import bifrost.modifier.box.AssetBox
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Created by cykoz on 7/3/2017.
+
+/** Class route for managing assets using JSON-RPC requests
+  *
+  * @param settings
+  * @param nodeViewHolderRef
+  * @param context
   */
-case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: ActorRef)
-                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+case class AssetApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+                        (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
   override val route: Route = pathPrefix("asset") { assetRoute }
+  
+  def assetRoute: Route = path("") {
+    entity(as[String]) { body =>
+      withAuth {
+        postJsonRoute {
+          viewAsync().map { view =>
+            var reqId = ""
+            parse(body) match {
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
+              case Right(request) =>
+                val futureResponse: Try[Future[Json]] = Try {
+                  val id = (request \\ "id").head.asString.get
+                  reqId = id
+                  require((request \\ "jsonrpc").head.asString.get == "2.0")
+                  val params = (request \\ "params").head.asArray.get
+                  require(params.size <= 5, s"size of params is ${params.size}")
 
-  //noinspection ScalaStyle
-  def assetRoute: Route = path("") { entity(as[String]) { body =>
-    withAuth {
-      postJsonRoute {
-        viewAsync().map { view =>
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) => ApiException(failure.getCause)
-            case Right(request) =>
-              val futureResponse: Try[Future[Json]] = Try {
-                val id = (request \\ "id").head.asString.get
-                reqId = id
-                require((request \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (request \\ "params").head.asArray.get
-                require(params.size <= 5, s"size of params is ${params.size}")
-
-                (request \\ "method").head.asString.get match {
-                  case "redeemAssets" => redeemAssets(params.head, id)
-                  case "transferAssets" => transferAssets(params.head, id)
-                  case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
-                  case "createAssets" => createAssets(params.head, id)
-                  case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
+                  (request \\ "method").head.asString.get match {
+                    case "transferAssets" => transferAssets(params.head, id)
+                    case "transferAssetsPrototype" =>
+                      transferAssetsPrototype(params.head, id)
+                    case "transferTargetAssets" =>
+                      transferTargetAssets(params.head, id)
+                    case "transferTargetAssetsPrototype" =>
+                      transferTargetAssetsPrototype(params.head, id)
+                    case "createAssets" => createAssets(params.head, id)
+                    case "createAssetsPrototype" =>
+                      createAssetsPrototype(params.head, id)
+                  }
                 }
-              }
-              futureResponse map {
-                response => Await.result(response, timeout.duration)
-              }
-              match {
-                case Success(resp) => BifrostSuccessResponse(resp, reqId)
-                case Failure(e) => BifrostErrorResponse(e, 500, reqId, verbose = settings.settingsJSON.getOrElse("verboseAPI", false.asJson).asBoolean.get)
-              }
+                futureResponse map { response =>
+                  Await.result(response, timeout.duration)
+                } match {
+                  case Success(resp) => SuccessResponse(resp, reqId)
+                  case Failure(e) =>
+                    ErrorResponse(
+                      e,
+                      500,
+                      reqId,
+                      verbose = settings.settingsJSON
+                        .getOrElse("verboseAPI", false.asJson)
+                        .asBoolean
+                        .get
+                    )
+                }
+            }
           }
         }
       }
     }
-  }}
-
-  private def redeemAssets(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-      val tempTx = params.as[AssetRedemption] match {
-        case Right(a: AssetRedemption) => a
-        case Left(e) => throw new JsonParsingException(s"Could not parse AssetRedemption: $e")
-      }
-      val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
-      val modifiedSignatures = tempTx.signatures.map { case (key, fakeSigs) =>
-        (key, fakeSigs.map(_ => realSignature))
-      }
-      val tx = tempTx.copy(signatures = modifiedSignatures)
-      AssetRedemption.validate(tx) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetRedemption](tx)
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
   }
 
-
+  /**  #### Summary
+    *    Transfer assets from an account to a specified recipient.
+    * 
+    *  #### Type
+    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    * 
+    *  #### Description
+    *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+    * 
+    *  #### Notes
+    *    - Change is returned to the first sender in the array of senders 
+    * ---
+    *  #### Params
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | issuer                  	| String    	| Required            	| Asset issuer used to identify asset                                    	  |
+    *  | assetCode               	| String    	| Required            	| Name of asset                                                          	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | sender                  	| String[]   	| Required            	| Array of public keys from which assets should be sent                   	|
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
   private def transferAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
+      val sender: IndexedSeq[PublicKey25519Proposition] =
+        (params \\ "sender").head.asArray.get.map(key =>
+          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+        )
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val issuer = PublicKey25519Proposition(
+        Base58.decode((params \\ "issuer").head.asString.get).get
+      )
+      val assetCode: String =
+        (params \\ "assetCode").head.asString.getOrElse("")
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
-      if(view.state.tbr == null) throw new Exception("TokenBoxRegistry not defined for node")
-      if(view.state.nodeKeys != null)
-        sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
-      val tx = AssetTransfer.create(view.state.tbr, wallet, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data).get
-      println(tx.json)
+      if (view.state.tbr == null)
+        throw new Exception("TokenBoxRegistry not defined for node")
+      if (view.state.nodeKeys != null)
+        sender.foreach(key =>
+          if (!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)))
+            throw new Exception(
+              "Node not set to watch for specified public key"
+            )
+        )
+      val tx = AssetTransfer
+        .create(
+          view.state.tbr,
+          wallet,
+          IndexedSeq((recipient, amount)),
+          sender,
+          fee,
+          issuer,
+          assetCode,
+          data
+        )
+        .get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetTransfer](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[
+            ProofOfKnowledgeProposition[PrivateKey25519],
+            AssetTransfer
+          ](tx)
           tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
 
-  private def transferAssetsPrototype(params: Json, id: String): Future[Json] = {
+  /** #### Summary
+    *    Transfer assets from an account to a specified recipient.
+    * 
+    *  #### Type
+    *    Remote -- Transaction must be used in conjunction with an external key manager service.
+    * 
+    *  #### Description
+    *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+    * 
+    *  #### Notes
+    *    - Change is returned to the first sender in the array of senders 
+    * ---
+    *  #### Params
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | issuer                  	| String    	| Required            	| Asset issuer used to identify asset                                    	  |
+    *  | assetCode               	| String    	| Required            	| Name of asset                                                          	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | sender                  	| String[]   	| Required            	| Array of public keys from which assets should be sent                   	|
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameter as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def transferAssetsPrototype(
+      params: Json,
+      id: String
+  ): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
-      val sender: IndexedSeq[PublicKey25519Proposition] = (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get)).toIndexedSeq
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
+      val sender: IndexedSeq[PublicKey25519Proposition] =
+        (params \\ "sender").head.asArray.get.map(key =>
+          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+        )
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val issuer = PublicKey25519Proposition(
+        Base58.decode((params \\ "issuer").head.asString.get).get
+      )
+      val assetCode: String =
+        (params \\ "assetCode").head.asString.getOrElse("")
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
 
-      if(view.state.tbr == null) throw new Exception("TokenBoxRegistry not defined for node")
-      if(view.state.nodeKeys != null)
-        sender.foreach(key => if(!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes))) throw new Exception("Node not set to watch for specified public key"))
-      val tx = AssetTransfer.createPrototype(view.state.tbr, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data).get
+      if (view.state.tbr == null)
+        throw new Exception("TokenBoxRegistry not defined for node")
+      if (view.state.nodeKeys != null)
+        sender.foreach(key =>
+          if (!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)))
+            throw new Exception(
+              "Node not set to watch for specified public key"
+            )
+        )
+      val tx = AssetTransfer
+        .createPrototype(
+          view.state.tbr,
+          IndexedSeq((recipient, amount)),
+          sender,
+          issuer,
+          assetCode,
+          fee,
+          data
+        )
+        .get
       // Update nodeView with new TX
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
 
+  /**  #### Summary
+    *   Target a specific asset box and transfer to another account
+    * 
+    *  #### Type
+    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    * 
+    *  #### Description
+    *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+    * 
+    *  #### Notes
+    *    - Change is returned to the first sender in the array of senders 
+    * ---
+    *  #### Params
+    *
+    *  | Fields                   	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | assetId                 	| String    	| Required            	| BoxId of asset to transfer                                             	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | sender                  	| String[]   	| Required            	| Array of public keys from which assets should be sent                   	|
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def transferTargetAssets(params: Json, id: String): Future[Json] = {
+    viewAsync().map { view =>
+      val wallet = view.vault
+      val sender: IndexedSeq[PublicKey25519Proposition] =
+        (params \\ "sender").head.asArray.get.map(key =>
+          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+        )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
+      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None          => ""
+      }
 
+      val asset = view.state
+        .closedBox(Base58.decode(assetId).get)
+        .get
+        .asInstanceOf[AssetBox]
+
+      val tx = AssetTransfer
+        .create(
+          view.state.tbr,
+          wallet,
+          IndexedSeq((recipient, amount)),
+          sender,
+          fee,
+          asset.issuer,
+          asset.assetCode,
+          data
+        )
+        .get
+      AssetTransfer.validate(tx) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[
+            ProofOfKnowledgeProposition[PrivateKey25519],
+            AssetTransfer
+          ](tx)
+          tx.json
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  /** #### Summary
+    *   Target a specific asset box and transfer to another account
+    * 
+    *  #### Type
+    *    Remote -- Transaction must be used in conjunction with an external key manager service.
+    * 
+    *  #### Description
+    *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
+    * 
+    *  #### Notes
+    *    - Change is returned to the first sender in the array of senders 
+    * ---
+    *  #### Params
+    *
+    *  | Fields                   	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | assetId                 	| String    	| Required            	| BoxId of asset to transfer                                             	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | sender                  	| String[]   	| Required            	| Array of public keys from which assets should be sent                   	|
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
+  private def transferTargetAssetsPrototype(
+      params: Json,
+      id: String
+  ): Future[Json] = {
+    viewAsync().map { view =>
+      val sender: IndexedSeq[PublicKey25519Proposition] =
+        (params \\ "sender").head.asArray.get.map(key =>
+          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+        )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
+      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None          => ""
+      }
+
+      val asset = view.state
+        .closedBox(Base58.decode(assetId).get)
+        .get
+        .asInstanceOf[AssetBox]
+
+      val tx = AssetTransfer
+        .createPrototype(
+          view.state.tbr,
+          IndexedSeq((recipient, amount)),
+          sender,
+          asset.issuer,
+          asset.assetCode,
+          fee,
+          data
+        )
+        .get
+      AssetTransfer.validatePrototype(tx) match {
+        case Success(_) =>
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
+      }
+    }
+  }
+
+  /**  #### Summary
+    *    Generate new assets and send them to a specified address.
+    * 
+    *  #### Type
+    *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
+    * 
+    *  #### Description
+    *    New boxes wlll be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
+    *    of `issuer` and `assetCode`
+    * 
+    * ---
+    *  #### Params
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | issuer                  	| String    	| Required            	| Asset issuer used to identify asset                                    	  |
+    *  | assetCode               	| String    	| Required            	| Name of asset                                                          	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
   private def createAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val issuer = PublicKey25519Proposition(
+        Base58.decode((params \\ "issuer").head.asString.get).get
+      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val assetCode: String =
+        (params \\ "assetCode").head.asString.getOrElse("")
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
-      val tx = AssetCreation.createAndApply(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data).get
+      val tx = AssetCreation
+        .createAndApply(
+          wallet,
+          IndexedSeq((recipient, amount)),
+          fee,
+          issuer,
+          assetCode,
+          data
+        )
+        .get
 
       AssetCreation.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], AssetCreation](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[
+            ProofOfKnowledgeProposition[PrivateKey25519],
+            AssetCreation
+          ](tx)
           tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }
 
+  /**  #### Summary
+    *    Generate new assets and send them to a specified address.
+    * 
+    *  #### Type
+    *    Remote -- Transaction must be used in conjunction with an external key manager service.
+    * 
+    *  #### Description
+    *    New boxes wlll be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
+    *    of `issuer` and `assetCode`
+    * 
+    * ---
+    *  #### Params
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
+    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+    *  | issuer                  	| String    	| Required            	| Asset issuer used to identify asset                                    	  |
+    *  | assetCode               	| String    	| Required            	| Name of asset                                                          	  |
+    *  | recipient               	| String    	| Required            	| Public key of the transfer recipient                                   	  |
+    *  | amount                  	| Number     	| Required            	| Amount of asset to send                                                	  |
+    *  | fee                     	| Number     	| Optional            	| **Currently unused**                                                   	  |
+    *  | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
+    *
+    * @param params input parameters as specified above
+    * @param id request identifier
+    * @return
+    */
   private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val issuer = PublicKey25519Proposition(Base58.decode((params \\ "issuer").head.asString.get).get)
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode((params \\ "recipient").head.asString.get).get)
+      val issuer = PublicKey25519Proposition(
+        Base58.decode((params \\ "issuer").head.asString.get).get
+      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val assetCode: String =
+        (params \\ "assetCode").head.asString.getOrElse("")
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
+        case None          => ""
       }
-      val tx = AssetCreation.createPrototype(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data).get
+      val tx = AssetCreation
+        .createPrototype(
+          IndexedSeq((recipient, amount)),
+          fee,
+          issuer,
+          assetCode,
+          data
+        )
+        .get
 
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+          Map(
+            "formattedTx" -> tx.json,
+            "messageToSign" -> Base58.encode(tx.messageToSign).asJson
+          ).asJson
+        case Failure(e) =>
+          throw new Exception(s"Could not validate transaction: $e")
       }
     }
   }

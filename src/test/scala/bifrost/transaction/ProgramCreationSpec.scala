@@ -3,13 +3,13 @@ package bifrost.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.ProgramCreation
+import bifrost.state.State
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.crypto.Signature25519
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.util.Success
 
@@ -23,7 +23,7 @@ class ProgramCreationSpec extends PropSpec
   property("Generated ProgramCreation Tx should be valid") {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val semanticValid = BifrostState.semanticValidity(programCreation)
+        val semanticValid = State.semanticValidity(programCreation)
         semanticValid shouldBe a[Success[Unit]]
     }
   }
@@ -39,7 +39,7 @@ class ProgramCreationSpec extends PropSpec
           programCreation.signatures +
             (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        BifrostState.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
+        State.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
 /*

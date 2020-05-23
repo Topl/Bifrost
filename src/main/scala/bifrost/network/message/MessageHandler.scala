@@ -2,7 +2,7 @@ package bifrost.network.message
 
 import java.nio.ByteBuffer
 
-import bifrost.crypto.hash.FastCryptographicHash._
+import bifrost.crypto.FastCryptographicHash._
 import bifrost.network.ConnectedPeer
 
 import scala.language.existentials

@@ -5,10 +5,10 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util
 
 import com.google.common.primitives.{Bytes, Ints}
-import bifrost.NodeViewModifier
-import bifrost.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.consensus.SyncInfo
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.network.message.Message._
+import bifrost.network.SyncInfo
+import bifrost.nodeView.NodeViewModifier
 
 import scala.util.Try
 
