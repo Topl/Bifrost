@@ -230,7 +230,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   }
 
   private def compareSyncInfo: Receive = {
-    case OtherNodeSyncingInfo(remote, syncInfo: SI) =>
+    case OtherNodeSyncingInfo(remote, syncInfo: SI @unchecked) =>
       log.debug(s"Comparing remote info having starting points: ${syncInfo.startingPoints.map(_._2).map(Base58.encode).toList}")
       log.debug(s"Local side contains head: ${history().contains(syncInfo.startingPoints.map(_._2).head)}")
 
