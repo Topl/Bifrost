@@ -1,7 +1,5 @@
 package bifrost.forging
 
-import java.io.File
-
 import bifrost.settings.Settings
 import io.circe.syntax._
 
@@ -47,13 +45,6 @@ trait ForgingSettings extends Settings {
     .flatMap(_.asNumber)
     .flatMap(_.toLong)
     .getOrElse(0L)
-
-  private def folderOpt(settingName: String) = {
-    val res = settingsJSON.get(settingName).flatMap(_.asString)
-    res.foreach(folder => new File(folder).mkdirs())
-    require(res.isEmpty || new File(res.get).exists())
-    res
-  }
 
   override def toString: String = (Map("BlockGenerationDelay" -> blockGenerationDelay.length.asJson) ++
     settingsJSON.map(s => s._1 -> s._2)).asJson.spaces2
