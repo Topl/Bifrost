@@ -102,6 +102,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     viewAsync().map { _ =>
       getMempool match {
         case Success(pool: MP) => pool.take(100).map(_.json).asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
         //Failure is caught by ErrorResponse in the nodeViewRoute function when the Await does not receive a response
       }
     }
@@ -140,6 +141,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
             .add("blockNumber", blockNumber.asJson)
             .add("blockHash", Base58.encode(blockId).asJson)
             .asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }
     }
   }
@@ -162,9 +164,10 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     viewAsync().map { _ =>
       val transactionId: String = (params \\ "transactionId").head.asString.get
       Base58.decode(transactionId) match {
-        case Success(id) =>
+        case Success(txId) =>
           getMempool match {
-            case Success(pool: MP) => pool.getById(id).get.json.asJson
+            case Success(pool: MP) => pool.getById(txId).get.json.asJson
+            case Failure(e) ⇒ ErrorResponse(e, 550, id).toJson
           }
       }
     }
@@ -200,6 +203,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
             .add("blockNumber", blockNumber.asJson)
             .add("blockDifficulty", storage.difficultyOf(id).asJson)
             .asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }
     }
   }
