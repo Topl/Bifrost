@@ -66,7 +66,7 @@ object KeyFile {
   def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
   (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
-    var aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
+    val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
 
     val outputText = Array.fill(32)(1: Byte)
