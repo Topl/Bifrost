@@ -33,6 +33,8 @@ object CodeBoxCreationCompanion extends Serializer[CodeCreation]{
     val typeLen: Int = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
+    require(typeStr == "CodeCreation")
+
     var numReadBytes = Ints.BYTES + typeLen
 
     val to: PublicKey25519Proposition = PublicKey25519Proposition(

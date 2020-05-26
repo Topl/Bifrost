@@ -36,6 +36,8 @@ object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
     val typeLen: Int = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
+    require(typeStr == "ProgramTransfer")
+
     var numReadBytes: Int = Ints.BYTES + typeLen
 
     val from: PublicKey25519Proposition = PublicKey25519Proposition(

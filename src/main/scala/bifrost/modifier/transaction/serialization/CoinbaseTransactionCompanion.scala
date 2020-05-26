@@ -29,12 +29,17 @@ object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
   override def parseBytes(bytes: Array[Byte]): Try[CoinbaseTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "CoinbaseTransaction")
+
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
+
+    require(fee == 0L)
 
     numReadBytes = 2 * Longs.BYTES
 

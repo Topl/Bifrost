@@ -29,7 +29,6 @@ trait TransferSerializer {
     Map[PublicKey25519Proposition, Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     var numBytesRead = Ints.BYTES + typeLength
 

@@ -51,6 +51,9 @@ object ProgramCreationCompanion extends Serializer[ProgramCreation] {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "ProgramCreation")
+
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 

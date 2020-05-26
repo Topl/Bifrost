@@ -37,6 +37,9 @@ object AssetCreationCompanion extends Serializer[AssetCreation] {
     )
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "AssetCreation")
+
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 

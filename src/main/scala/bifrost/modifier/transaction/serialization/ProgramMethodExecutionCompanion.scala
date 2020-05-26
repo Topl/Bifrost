@@ -46,6 +46,8 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
+    require(typeStr == "ProgramMethodExecution")
+
     var numReadBytes = Ints.BYTES + typeLength
 
     val Array(stateLength: Int, codeLength: Int, executionBoxLength: Int, methodNameLength: Int, parametersLength: Int) =

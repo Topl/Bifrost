@@ -29,6 +29,8 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
+    require(typeStr == "ProgramTransaction")
+
     /* Grab the rest of the bytes, which should begin similarly (with sub-type) */
     val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
 
