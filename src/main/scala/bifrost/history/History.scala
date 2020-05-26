@@ -162,8 +162,6 @@ class History(val storage: Storage,
     ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks)
   }
 
-  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt = max.min(value.max(min))
-
   /**
     * Forms a list of available blocks to build upon
     *
@@ -226,25 +224,6 @@ class History(val storage: Storage,
 
   override def syncInfo(answer: Boolean): BifrostSyncInfo =
     BifrostSyncInfo(answer, lastBlocks(BifrostSyncInfo.MaxLastBlocks, bestBlock).map(_.id), score)
-
-  /**
-    * Given a sequence of blocks, finds the subset of blocks that diverge from the local state's sequence. This works
-    * back from the most recent block to earlier blocks until one is found that exists in both sequences.
-    *
-    * @param otherLastBlocks the sequence of blocks against which to compare the local list
-    * @param suffixFound     the sequence of blocks so far that do not match the local state
-    * @return the eventual sequence of blocks that differs, including the merge point block
-    */
-  @tailrec
-  private def divergentSuffix(otherLastBlocks: Seq[ModifierId],
-                              suffixFound: Seq[ModifierId] = Seq()): Seq[ModifierId] = {
-    val head = otherLastBlocks.head
-    val newSuffix = suffixFound :+ head
-    modifierById(head) match {
-      case Some(b) => newSuffix
-      case None => if (otherLastBlocks.length <= 1) Seq() else divergentSuffix(otherLastBlocks.tail, newSuffix)
-    }
-  }
 
   /**
     * Whether another's node syncinfo shows that another node is ahead or behind ours
