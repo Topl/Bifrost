@@ -195,7 +195,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     */
   private def transferPolysPrototype(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
@@ -352,7 +351,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       id: String
   ): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
