@@ -31,7 +31,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-          viewAsync().map { view =>
+          viewAsync().map { _ =>
             var reqId = ""
             parse(body) match {
               case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
@@ -73,7 +73,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  private def getMempool(): Try[MP] = Try {
+  private def getMempool: Try[MP] = Try {
     Await
       .result(
         (nodeViewHolderRef ? GetCurrentView)
@@ -99,8 +99,8 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * @return
     */
   private def mempool(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      getMempool() match {
+    viewAsync().map { _ =>
+      getMempool match {
         case Success(pool: MP) => pool.take(100).map(_.json).asJson
         //Failure is caught by ErrorResponse in the nodeViewRoute function when the Await does not receive a response
       }
@@ -159,11 +159,11 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * @return
     */
   private def transactionFromMempool(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+    viewAsync().map { _ =>
       val transactionId: String = (params \\ "transactionId").head.asString.get
       Base58.decode(transactionId) match {
         case Success(id) =>
-          getMempool() match {
+          getMempool match {
             case Success(pool: MP) => pool.getById(id).get.json.asJson
           }
       }
