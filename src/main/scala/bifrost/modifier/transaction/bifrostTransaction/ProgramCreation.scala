@@ -11,7 +11,6 @@ import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -70,16 +69,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override lazy val newBoxes: Traversable[Box] = {
 
-    val digest = FastCryptographicHash(owner.pubKeyBytes ++ hashNoNonces)
-
-    val nonce = ProgramTransaction.nonceFromDigest(digest)
-
-    val boxValue: Json = Map(
-        "owner" -> Base58.encode(owner.pubKeyBytes).asJson,
-        "executionBuilder" -> executionBuilder.json,
-        "lastUpdated" -> timestamp.asJson
-      ).asJson
-
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(owner) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
     val leftOver: Long = canSend - fees(owner)
@@ -131,13 +120,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   )).asJson
 
   override lazy val serializer = ProgramCreationCompanion
-
-//  println("Transaction")
-//  println(ExecutionBuilderCompanion.toBytes(executionBuilder).mkString(""))
-//  println(parties.toSeq.sortBy(_._1.pubKeyBytes.toString).foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes).mkString(""))
-//  println(investmentBoxIds.foldLeft(Array[Byte]())(_ ++ _).mkString(""))
-//  println(preInvestmentBoxes)
-//  println(feeBoxIdKeyPairs.map(_._1).foldLeft(Array[Byte]())(_ ++ _).mkString(""))
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderCompanion.toBytes(executionBuilder),
