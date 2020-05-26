@@ -73,17 +73,6 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  private def getHistory(): Try[HIS] = Try {
-    Await
-      .result(
-        (nodeViewHolderRef ? GetCurrentView)
-          .mapTo[CurrentView[_, _ <: HIS, _, _]]
-          .map(_.history),
-        5.seconds
-      )
-      .asInstanceOf[HIS]
-  }
-
   private def getMempool(): Try[MP] = Try {
     Await
       .result(
