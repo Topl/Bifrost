@@ -36,7 +36,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-          viewAsync().map { view =>
+          viewAsync().map { _ =>
             var reqId = ""
             parse(body) match {
               case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
@@ -124,7 +124,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -204,7 +203,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -279,7 +277,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -360,7 +357,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -521,14 +517,12 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         }
       val pt = Bip39.apply(seedPhraseLang)
       Map(
-        pt.phraseCheckSum(seedPhrase) match {
-          case false => "error:" -> "not a valid input phrase".asJson
-          case true => {
-            val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
-            val pubKey = wallet.generateNewSecret(password, seed)
-            "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
-          }
-
+        if (pt.phraseCheckSum(seedPhrase)) {
+          val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
+          val pubKey = wallet.generateNewSecret(password, seed)
+          "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
+        } else {
+          "error:" -> "not a valid input phrase".asJson
         }
       ).asJson
     }
