@@ -11,12 +11,12 @@ trait ForgingSettings extends Settings {
   val MinimumDifficulty = 100L
   lazy val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
 
-  lazy val offlineGeneration = settingsJSON
+  lazy val offlineGeneration: Boolean = settingsJSON
     .get("offlineGeneration")
     .flatMap(_.asBoolean)
     .getOrElse(false)
 
-  lazy val posAttachmentSize = settingsJSON
+  lazy val posAttachmentSize: Int = settingsJSON
     .get("posAttachmentSize")
     .flatMap(_.asNumber)
     .flatMap(_.toInt)
@@ -31,7 +31,7 @@ trait ForgingSettings extends Settings {
 
   val DefaultPosAttachmentSize = 1024
 
-  lazy val version = settingsJSON
+  lazy val version: Byte = settingsJSON
     .get("version")
     .flatMap(_.asArray)
     .map(_.flatMap(_.asNumber.flatMap(_.toInt)))
@@ -40,7 +40,7 @@ trait ForgingSettings extends Settings {
     .getOrElse(0.toByte)
 
 
-  lazy val forkHeight = settingsJSON
+  lazy val forkHeight: Long = settingsJSON
     .get("forkHeight")
     .flatMap(_.asNumber)
     .flatMap(_.toLong)
