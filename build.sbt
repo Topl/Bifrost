@@ -145,8 +145,6 @@ pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
 
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
-
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
     case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
