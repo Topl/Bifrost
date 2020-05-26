@@ -3,7 +3,6 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import akka.util.Timeout
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
@@ -22,7 +21,6 @@ import com.google.common.primitives.Longs
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Try
 
 trait ForgerSettings extends Settings {
@@ -51,7 +49,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                        parent: Block,
                        view: (History, State, Wallet, MemPool)
                       ): Try[Seq[Transaction]] = Try {
-    implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
