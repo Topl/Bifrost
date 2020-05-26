@@ -83,6 +83,8 @@ object CodeBoxSerializer {
     val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
     takenBytes += boxTypeLength
 
+    require(boxType == "CodeBox")
+
     val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
     takenBytes += Longs.BYTES
 
