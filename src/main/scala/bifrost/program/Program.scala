@@ -9,7 +9,6 @@ import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
 import scorex.crypto.encode.Base58
 
-import scala.language.existentials
 import scala.util.Try
 
 /**

@@ -16,7 +16,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.existentials
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.{Failure, Success, Try}
 
