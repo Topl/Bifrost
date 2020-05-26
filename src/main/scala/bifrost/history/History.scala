@@ -193,7 +193,7 @@ class History(val storage: Storage,
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
     chainBack(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
-      case Some(chain) =>
+      case Some(_) =>
         log.warn("Found chain without ids from remote")
         None
       case _ => None
@@ -411,11 +411,10 @@ object History extends Logging {
   def readOrGenerate(settings: ForgingSettings): History = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
-    val logDirOpt = settings.logDirOpt
-    readOrGenerate(dataDir, logDirOpt, settings)
+    readOrGenerate(dataDir, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): History = {
+  def readOrGenerate(dataDir: String, settings: ForgingSettings): History = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
