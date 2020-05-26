@@ -92,6 +92,8 @@ object ExecutionBoxSerializer {
     val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
     takenBytes += boxTypeLength
 
+    require(boxType == "ExecutionBox")
+
     val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
     takenBytes += Constants25519.PubKeyLength
 
