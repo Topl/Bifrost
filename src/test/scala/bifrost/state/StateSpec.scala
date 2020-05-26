@@ -10,7 +10,7 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 import scala.reflect.io.Path
 import scala.util.Try
 
-class BifrostStateSpec extends PropSpec
+class StateSpec extends PropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
