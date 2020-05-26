@@ -45,6 +45,8 @@ trait NoncedBoxSerializer {
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
 
+    require(typeStr == "NoncedBox")
+
     val numReadBytes = Ints.BYTES + typeLen
 
     val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
