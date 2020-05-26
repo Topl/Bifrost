@@ -169,6 +169,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
             case Success(pool: MP) => pool.getById(txId).get.json.asJson
             case Failure(e) ⇒ ErrorResponse(e, 550, id).toJson
           }
+        case Failure(e) => ErrorResponse(e, 500, id).toJson
       }
     }
   }
