@@ -40,7 +40,6 @@ class NodeViewRPCSpec extends WordSpec
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
   val route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
   val routeAsset = AssetApiRoute(settings, nodeViewHolderRef).route
