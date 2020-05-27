@@ -3,6 +3,7 @@ package bifrost.api
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -42,10 +43,10 @@ class AssetRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem = ActorSystem(settings.agentName)
+  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  val route = AssetApiRoute(settings, nodeViewHolderRef).route
-  val walletRoute = WalletApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
+  val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -63,7 +64,7 @@ class AssetRPCSpec extends WordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
@@ -83,30 +84,6 @@ class AssetRPCSpec extends WordSpec
   var tx: Json = "".asJson
 
   "Asset RPC" should {
-
-    // TODO asset redemption does not work
-    /*
-    "Redeem some assets" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "redeemAssets",
-           |   "params": [{
-           |     "signingPublicKey": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-           |   }]
-           |}
-        """.stripMargin)
-            httpPOST(requestBody) ~> route ~> check {
-              val res = parse(responseAs[String]).right.get
-              (res \\ "error").head.asObject.isDefined shouldBe true
-              (res \\ "result").isEmpty shouldBe true
-            }
-    }
-*/
-
-
     "Create some assets" in {
       val requestBody = ByteString(
         s"""
@@ -326,8 +303,8 @@ class AssetRPCSpec extends WordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view.pool.getById(Base58.decode(txHash).get).get
-        view.pool.remove(txInstance)
+        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        view().pool.remove(txInstance)
       }
     }
 
@@ -359,7 +336,7 @@ class AssetRPCSpec extends WordSpec
   }
 
   override def afterAll() {
-    view.pool.unconfirmed.clear
+    view().pool.unconfirmed.clear
     actorSystem.terminate
   }
 }
