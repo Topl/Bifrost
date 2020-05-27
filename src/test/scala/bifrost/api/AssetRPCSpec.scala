@@ -44,7 +44,6 @@ class AssetRPCSpec extends WordSpec
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
   val route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute = WalletApiRoute(settings, nodeViewHolderRef).route
 
