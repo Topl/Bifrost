@@ -3,6 +3,7 @@ package bifrost.api
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -38,11 +39,12 @@ class NodeViewRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem = ActorSystem(settings.agentName)
+  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  val route = NodeViewApiRoute(settings, nodeViewHolderRef).route
+  nodeViewHolderRef
+  val route: Route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
-  val routeAsset = AssetApiRoute(settings, nodeViewHolderRef).route
+  val routeAsset: Route = AssetApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -60,7 +62,7 @@ class NodeViewRPCSpec extends WordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
@@ -79,10 +81,10 @@ class NodeViewRPCSpec extends WordSpec
 
   var txHash: String = ""
   var assetTxHash: String = ""
-  var assetTxInstance: Transaction = null
+  var assetTxInstance: Transaction = _
   var blockId: Block.BlockId = Array[Byte]()
 
-  val requestBody = ByteString(
+  val requestBody: ByteString = ByteString(
     s"""
        |{
        |   "jsonrpc": "2.0",
@@ -122,7 +124,7 @@ class NodeViewRPCSpec extends WordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        var txHashesArray = ((res \\ "result").head \\ "txHash")
+        val txHashesArray = (res \\ "result").head \\ "txHash"
         txHashesArray.find(tx => tx.asString.get == assetTxHash) match {
           case Some (tx) =>
             txHash = tx.asString.get
@@ -146,7 +148,7 @@ class NodeViewRPCSpec extends WordSpec
       }
     }
 
-    "Get transaction from the mepool by id" in {
+    "Get transaction from the mempool by id" in {
       val requestBody = ByteString(
         s"""
            |{
@@ -154,7 +156,7 @@ class NodeViewRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "transactionFromMempool",
            |   "params": [{
-           |      "transactionId": "${txHash}"
+           |      "transactionId": "$txHash"
            |   }]
            |}
            |
@@ -179,7 +181,7 @@ class NodeViewRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "transactionById",
            |   "params": [{
-           |      "transactionId": "${txHash}"
+           |      "transactionId": "$txHash"
            |   }]
            |}
            |
@@ -213,7 +215,7 @@ class NodeViewRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
         val txsArray = ((res \\ "result").head \\ "txs").head.asArray.get
-        txsArray.filter(tx => {tx \\"txHash"} == txHash)
+        txsArray.filter(tx => {(tx \\"txHash").head.asString.get == txHash})
         //Checking that the block found contains the above createAssets transaction
         //since that block's id was used as the search parameter
         txsArray.size shouldEqual 1
