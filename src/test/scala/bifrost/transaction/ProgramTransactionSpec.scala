@@ -133,9 +133,6 @@ class ProgramTransactionSpec extends PropSpec
 
     val (priv: PrivateKey25519, sender: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
 
-    val gen: Gen[ExecutionBuilder] = validExecutionBuilderGen(timestamp - effDelta, timestamp + expDelta)
-    val validExecutionBuilder: ExecutionBuilder = sampleUntilNonEmpty(gen)
-
     val state =
       s"""
          |{ "a": "0" }
@@ -162,8 +159,6 @@ class ProgramTransactionSpec extends PropSpec
           case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
         }
       }
-
-    val senderFeePreBoxes = feePreBoxes(sender)
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -265,16 +260,16 @@ class ProgramTransactionSpec extends PropSpec
   }*/
 
 
-  property(
+  /* property(
     "ProgramTransaction which has preFeeBoxes summing to less than fee amounts " +
       "will error on semantic validation") {
 
-  }
+  } */
 
-  property("ProgramTransaction which has negative timestamp " +
+  /* property("ProgramTransaction which has negative timestamp " +
              "will error on semantic validation") {
 
-  }
+  } */
 
 
 }
