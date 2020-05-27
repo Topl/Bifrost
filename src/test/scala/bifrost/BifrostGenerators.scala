@@ -86,7 +86,7 @@ trait BifrostGenerators extends CoreGenerators {
           throw new Exception("Cannot split")
         }
 
-        Some(thisPortion, (amountLeft - thisPortion, shares - 1))
+        Some((thisPortion, (amountLeft - thisPortion, shares - 1)))
       } else {
         None
       }
