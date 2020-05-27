@@ -5,6 +5,7 @@ import java.io.File
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -35,10 +36,9 @@ class WalletRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem = ActorSystem(settings.agentName)
+  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
-  val route = WalletApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -48,7 +48,7 @@ class WalletRPCSpec extends WordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
     .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
@@ -239,7 +239,7 @@ class WalletRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "lockKeyfile",
            |   "params": [{
-           |     "publicKey": "${newPubKey}",
+           |     "publicKey": "$newPubKey",
            |     "password": "testpassword"
            |   }]
            |}
@@ -260,7 +260,7 @@ class WalletRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "unlockKeyfile",
            |   "params": [{
-           |     "publicKey": "${newPubKey}",
+           |     "publicKey": "$newPubKey",
            |     "password": "testpassword"
            |   }]
            |}
@@ -273,7 +273,7 @@ class WalletRPCSpec extends WordSpec
 
         //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
         //investor, producer and hub keyfiles
-        var d = new File("keyfiles/node1")
+        val d = new File("keyfiles/node1")
         d.listFiles.foreach(x =>
           if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
