@@ -131,29 +131,25 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyChanges(preparedState.changes(block).get, Ints.toByteArray(24))
           .get
 
-        /*require(newState.storage.get(ByteArrayWrapper(box.id))
-                match {
-                  case Some(wrapper) => wrapper.data sameElements boxBytes
-                  case None => false
-                })*/
-
         require(returnedPolyBoxes
                   .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
                     case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
                     case None => false
                   }))
 
-        //TODO split into separate test
         require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+          case None ⇒ false
         })
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
