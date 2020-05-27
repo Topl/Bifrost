@@ -29,11 +29,6 @@ class AssetCreationValidationSpec extends StateSpec {
           settings.version
         )
 
-        val assetBoxes: Traversable[AssetBox] = assetCreation.newBoxes.map {
-          case a: AssetBox => a
-          case _ => throw new Exception("Was expecting AssetBoxes but found something else")
-        }
-
         val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
         val preparedState = StateSpec

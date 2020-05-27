@@ -6,7 +6,7 @@ import java.util.UUID
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion
@@ -36,16 +36,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    val investmentBoxIds: IndexedSeq[Array[Byte]] =
-      preInvestmentBoxes.map(n => {
-        PublicKeyNoncedBox.idFromBox(owner, n._1)})
-
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(owner -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
-
-    val feePreBoxIds: IndexedSeq[Array[Byte]] = feePreBoxes(owner).map {
-      case (nonce, _) => PublicKeyNoncedBox.idFromBox(owner, nonce)
-    }
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -58,8 +50,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         prop -> possibleFeeValue
     }
-
-    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feePreBoxIds
 
     val messageToSign = Bytes.concat(
       ExecutionBuilderCompanion.toBytes(executionBuilder),
