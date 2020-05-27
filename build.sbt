@@ -49,7 +49,7 @@ val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.slf4j" % "slf4j-api" % "1.7.25"
+  "org.slf4j" % "slf4j-api" % "1.7.30"
 )
 
 val testingDependencies = Seq(
