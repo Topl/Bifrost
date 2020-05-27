@@ -33,7 +33,6 @@ class DebugRPCSpec extends WordSpec
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
   val route = DebugApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
