@@ -178,7 +178,7 @@ class ValkyrieSpec extends PropSpec
 
     assert(!wallet.boxesByKey(publicKeys("investor")).isEmpty)
 
-    var arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
+    val arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
 
     //Sanitize inputBoxes
     wallet.boxesByKey(publicKeys("investor")).foreach(box =>
