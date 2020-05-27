@@ -67,7 +67,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
-  "org.whispersystems" % "curve25519-java" % "0.4.1",
+  "org.whispersystems" % "curve25519-java" % "0.5.0",
 )
 
 // monitoring dependencies
