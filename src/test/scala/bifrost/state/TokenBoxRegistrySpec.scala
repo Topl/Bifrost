@@ -161,8 +161,6 @@ class TokenBoxRegistrySpec extends PropSpec
       .applyChanges(genesisState.changes(block1).get, block1.id)
       .get
 
-    val newWallet1 = gw.scanPersistent(block1)
-
     assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
 

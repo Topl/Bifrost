@@ -24,7 +24,7 @@ class ProgramCreationSpec extends PropSpec
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val semanticValid = State.semanticValidity(programCreation)
-        semanticValid shouldBe a[Success[Unit]]
+        semanticValid shouldBe a[Success[_]]
     }
   }
 

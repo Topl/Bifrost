@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.program.ExecutionBuilderCompanion
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -144,7 +144,6 @@ class ProgramTransactionSpec extends PropSpec
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 
-//    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
     val proposition = sender
 
     val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)), Seq(stateBoxUUID), Seq(codeBox.id))
