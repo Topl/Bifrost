@@ -37,7 +37,6 @@ class WalletRPCSpec extends WordSpec
 
   val actorSystem = ActorSystem(settings.agentName)
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
   val route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -273,7 +272,7 @@ class WalletRPCSpec extends WordSpec
 
         //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
         //investor, producer and hub keyfiles
-        var d = new File("keyfiles/node1")
+        val d = new File("keyfiles/node1")
         d.listFiles.foreach(x =>
           if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&
