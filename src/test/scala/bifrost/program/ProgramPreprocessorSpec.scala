@@ -107,7 +107,7 @@ class ProgramPreprocessorSpec extends PropSpec
 
   property("ProgramPreprocessor should split a single script into separate state and code objects") {
 
-
+    /*
     val easyScript =
       s"""
          |var a = 0
@@ -136,6 +136,6 @@ class ProgramPreprocessorSpec extends PropSpec
          |  return a + b
          |}
        """.stripMargin
-
+      */
   }
 }
