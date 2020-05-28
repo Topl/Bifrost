@@ -7,7 +7,7 @@ import scorex.core.app.ScorexContext
 import bifrost.network._
 import scorex.core.settings.ScorexSettings
 import scorex.core.utils.NetworkUtils
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.util.Random
 
@@ -15,7 +15,7 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: ScorexSettings, scorexContext: ScorexContext) extends Actor with ScorexLogging {
+class PeerManager(settings: ScorexSettings, scorexContext: ScorexContext) extends Actor with Logging {
 
   import PeerManager.ReceivableMessages._
 

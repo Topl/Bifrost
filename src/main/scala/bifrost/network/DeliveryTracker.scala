@@ -6,7 +6,7 @@ import bifrost.network.ModifiersStatus._
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import scorex.core.utils.ScorexEncoding
 import scorex.core.{ModifierTypeId, NodeViewModifier}
-import scorex.util.{ModifierId, ScorexLogging}
+import scorex.util.{ModifierId, Logging}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -37,7 +37,7 @@ import scala.util.{Failure, Try}
 class DeliveryTracker(system: ActorSystem,
                       deliveryTimeout: FiniteDuration,
                       maxDeliveryChecks: Int,
-                      nvsRef: ActorRef) extends ScorexLogging with ScorexEncoding {
+                      nvsRef: ActorRef) extends Logging with ScorexEncoding {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 

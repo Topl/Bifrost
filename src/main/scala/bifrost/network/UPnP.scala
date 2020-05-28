@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
 import scorex.core.settings.NetworkSettings
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.JavaConverters._
 
@@ -16,7 +16,7 @@ trait UPnPGateway {
   def getLocalAddressForExternalPort(extrenalPort: Int):Option[InetSocketAddress]
 }
 
-object UPnP extends ScorexLogging {
+object UPnP extends Logging {
   def getValidGateway(settings: NetworkSettings): Option[UPnPGateway] = {
     try {
       log.info("Looking for UPnP gateway device...")
@@ -47,7 +47,7 @@ object UPnP extends ScorexLogging {
   }
 }
 
-class UPnPGatewayImpl(gateway: GatewayDevice) extends UPnPGateway with ScorexLogging {
+class UPnPGatewayImpl(gateway: GatewayDevice) extends UPnPGateway with Logging {
 
   override val localAddress: InetAddress = gateway.getLocalAddress
   override val externalAddress: InetAddress = InetAddress.getByName(gateway.getExternalIPAddress)

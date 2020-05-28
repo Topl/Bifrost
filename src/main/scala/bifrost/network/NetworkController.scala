@@ -15,7 +15,7 @@ import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.NetworkUtils
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -30,7 +30,7 @@ class NetworkController(settings: NetworkSettings,
                         peerManagerRef: ActorRef,
                         scorexContext: ScorexContext,
                         tcpManager: ActorRef
-                       )(implicit ec: ExecutionContext) extends Actor with ScorexLogging {
+                       )(implicit ec: ExecutionContext) extends Actor with Logging {
 
   import NetworkController.ReceivableMessages._
   import NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer

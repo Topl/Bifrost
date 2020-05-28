@@ -12,7 +12,7 @@ import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
 import scorex.core.serialization.ScorexSerializer
 import scorex.core.settings.NetworkSettings
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -25,7 +25,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
                             scorexContext: ScorexContext,
                             connectionDescription: ConnectionDescription
                            )(implicit ec: ExecutionContext)
-  extends Actor with ScorexLogging {
+  extends Actor with Logging {
 
   import PeerConnectionHandler.ReceivableMessages._
 

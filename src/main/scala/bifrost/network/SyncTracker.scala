@@ -8,7 +8,7 @@ import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoB
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.TimeProvider
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -20,7 +20,7 @@ import scala.concurrent.duration.{FiniteDuration, _}
 class SyncTracker(nvsRef: ActorRef,
                   context: ActorContext,
                   networkSettings: NetworkSettings,
-                  timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends ScorexLogging {
+                  timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends Logging {
 
   import History._
   import scorex.core.utils.TimeProvider.Time

@@ -90,7 +90,7 @@
     <node x="4378.0" y="1998.0">bifrost.transaction.state.MinimalState$class</node>
     <node x="7414.0" y="2095.0">bifrost.transaction.proof.Proof$class</node>
     <node x="12284.0" y="2095.0">bifrost.network.message.InvSpec</node>
-    <node x="498.0" y="1998.0">bifrost.utils.ScorexLogging$class</node>
+    <node x="498.0" y="1998.0">bifrost.utils.Logging$class</node>
     <node x="7052.0" y="2095.0">bifrost.block.Block$class</node>
     <node x="1637.0" y="1804.0">bifrost.forging.Forger.StartForging$</node>
     <node x="11986.0" y="2095.0">bifrost.utils.package</node>
@@ -467,7 +467,7 @@
     <node x="7682.960777263601" y="404.0">bifrost.state.BifrostState$</node>
     <node x="14117.0" y="1702.0">bifrost.transaction.box.proposition.MofNPropositionSerializer</node>
     <node x="1640.0" y="2095.0">bifrost.transaction.bifrostTransaction.AssetCreation$</node>
-    <node x="7527.000000000002" y="112.0">bifrost.utils.ScorexLogging</node>
+    <node x="7527.000000000002" y="112.0">bifrost.utils.Logging</node>
     <node x="8871.000000000002" y="776.0">bifrost.network.ScoreObserver.GetScore$</node>
     <node x="6925.499999999999" y="1439.0">bifrost.transaction.serialization.TransferTransactionCompanion$</node>
     <node x="13237.0" y="1998.0">bifrost.network.Buffering$class</node>
@@ -532,7 +532,7 @@
       <point x="15320.72744393027" y="1030.0" />
       <point x="25.0" y="26.0" />
     </edge>
-    <edge source="bifrost.network.peer.PeerManager" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.peer.PeerManager" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="6699.000000000002" y="374.0" />
       <point x="7598.096774193549" y="374.0" />
@@ -598,13 +598,13 @@
       <point x="3149.666666666668" y="756.0" />
       <point x="-37.333333333333485" y="26.0" />
     </edge>
-    <edge source="bifrost.consensus.BlockChain" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.consensus.BlockChain" target="bifrost.utils.Logging">
       <point x="32.0" y="-26.0" />
       <point x="2634.000000000002" y="254.0" />
       <point x="7539.258064516131" y="254.0" />
       <point x="-63.7419354838712" y="26.0" />
     </edge>
-    <edge source="bifrost.history.BifrostHistory$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.history.BifrostHistory$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="10701.3607772636" y="294.0" />
       <point x="7647.129032258066" y="294.0" />
@@ -616,7 +616,7 @@
       <point x="6803.499999999999" y="1521.0" />
       <point x="-34.0" y="26.0" />
     </edge>
-    <edge source="bifrost.forging.Forger$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.forging.Forger$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="9109.000000000002" y="344.0" />
       <point x="7622.612903225809" y="344.0" />
@@ -634,7 +634,7 @@
       <point x="6656.052631578948" y="706.0" />
       <point x="-42.94736842105249" y="26.0" />
     </edge>
-    <edge source="bifrost.history.BifrostHistory" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.history.BifrostHistory" target="bifrost.utils.Logging">
       <point x="40.0" y="-26.0" />
       <point x="2478.000000000002" y="244.0" />
       <point x="7534.354838709678" y="244.0" />
@@ -704,7 +704,7 @@
       <point x="6930.794117647058" y="1369.0" />
       <point x="-20.705882352941444" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericApplication" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.scorexMod.GenericApplication" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="3003.000000000002" y="284.0" />
       <point x="7553.967741935485" y="284.0" />
@@ -836,7 +836,7 @@
       <point x="58.0" y="-26.0" />
       <point x="17.33333333333394" y="26.0" />
     </edge>
-    <edge source="bifrost.utils.NetworkTime$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.utils.NetworkTime$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="10877.3607772636" y="284.0" />
       <point x="7652.032258064517" y="284.0" />
@@ -868,7 +868,7 @@
       <point x="14727.161671884256" y="486.0" />
       <point x="111.15789473684163" y="26.0" />
     </edge>
-    <edge source="bifrost.state.BifrostState$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.state.BifrostState$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="7758.960777263601" y="374.0" />
       <point x="7607.903225806453" y="374.0" />
@@ -996,7 +996,7 @@
       <point x="14588.214303463204" y="726.0" />
       <point x="-27.789473684209952" y="26.0" />
     </edge>
-    <edge source="bifrost.network.PeerSynchronizer" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.PeerSynchronizer" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="7574.960777263601" y="384.0" />
       <point x="7603.000000000002" y="384.0" />
@@ -1032,13 +1032,13 @@
       <point x="6945.852941176469" y="1409.0" />
       <point x="-5.647058823529733" y="26.0" />
     </edge>
-    <edge source="bifrost.programBoxRegistry.PBRStorage" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.programBoxRegistry.PBRStorage" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="3837.303029237064" y="304.0" />
       <point x="7563.774193548388" y="304.0" />
       <point x="-39.2258064516127" y="26.0" />
     </edge>
-    <edge source="bifrost.nodeView.GenericNodeViewHolder" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.nodeView.GenericNodeViewHolder" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="12896.91666666667" y="254.0" />
       <point x="7666.741935483873" y="254.0" />
@@ -1062,7 +1062,7 @@
       <point x="2383.323529411765" y="1483.0" />
       <point x="44.0" y="26.0" />
     </edge>
-    <edge source="bifrost.mempool.BifrostMemPool" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.mempool.BifrostMemPool" target="bifrost.utils.Logging">
       <point x="-40.0" y="-26.0" />
       <point x="14344.003777147414" y="234.0" />
       <point x="7676.548387096776" y="234.0" />
@@ -1128,7 +1128,7 @@
       <point x="6706.157894736843" y="756.0" />
       <point x="7.157894736842536" y="26.0" />
     </edge>
-    <edge source="bifrost.crypto.Bip39" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.crypto.Bip39" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="9225.000000000002" y="334.0" />
       <point x="7627.516129032259" y="334.0" />
@@ -1226,7 +1226,7 @@
       <point x="6889.382352941176" y="1259.0" />
       <point x="-62.11764705882342" y="26.0" />
     </edge>
-    <edge source="bifrost.network.ScoreObserver" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.ScoreObserver" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="8881.230092936887" y="354.0" />
       <point x="7617.709677419356" y="354.0" />
@@ -1258,7 +1258,7 @@
       <point x="14685.477461357941" y="516.0" />
       <point x="69.4736842105267" y="26.0" />
     </edge>
-    <edge source="bifrost.BifrostNodeViewHolder$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.BifrostNodeViewHolder$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="7966.960777263601" y="364.0" />
       <point x="7612.806451612905" y="364.0" />
@@ -1336,7 +1336,7 @@
       <point x="1531.3235294117646" y="1376.0" />
       <point x="28.0" y="26.0" />
     </edge>
-    <edge source="bifrost.network.NetworkController" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.NetworkController" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="11403.630092936886" y="274.0" />
       <point x="7656.93548387097" y="274.0" />
@@ -1366,7 +1366,7 @@
       <point x="12902.31666666667" y="646.0" />
       <point x="5.399999999999636" y="26.0" />
     </edge>
-    <edge source="bifrost.network.PeerConnectionHandler" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.PeerConnectionHandler" target="bifrost.utils.Logging">
       <point x="54.0" y="-26.0" />
       <point x="1031.6300929368863" y="234.0" />
       <point x="7529.451612903227" y="234.0" />
@@ -1382,7 +1382,7 @@
       <point x="0.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.LocalInterface" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.LocalInterface" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="9783.000000000002" y="304.0" />
       <point x="7642.225806451614" y="304.0" />
@@ -1478,7 +1478,7 @@
       <point x="10087.666666666668" y="746.0" />
       <point x="-52.0" y="26.0" />
     </edge>
-    <edge source="bifrost.tokenBoxRegistry.TokenBoxRegistry$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.tokenBoxRegistry.TokenBoxRegistry$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="9561.000000000002" y="314.0" />
       <point x="7637.322580645163" y="314.0" />
@@ -1496,7 +1496,7 @@
       <point x="15370.72744393027" y="1030.0" />
       <point x="75.0" y="26.0" />
     </edge>
-    <edge source="bifrost.utils.NetworkTime" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.utils.NetworkTime" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="12075.036362570398" y="264.0" />
       <point x="7661.83870967742" y="264.0" />
@@ -1586,7 +1586,7 @@
       <point x="6648.894736842107" y="696.0" />
       <point x="-50.105263157895024" y="26.0" />
     </edge>
-    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistryOld$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistryOld$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="5743.250000000002" y="364.0" />
       <point x="7593.193548387098" y="364.0" />
@@ -1676,7 +1676,7 @@
       <point x="0.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistry" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistry" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="5415.250000000002" y="344.0" />
       <point x="7583.387096774195" y="344.0" />
@@ -1746,7 +1746,7 @@
       <point x="11357.630092936886" y="746.0" />
       <point x="-46.0" y="26.0" />
     </edge>
-    <edge source="bifrost.scorexMod.GenericNodeViewSynchronizer" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.scorexMod.GenericNodeViewSynchronizer" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="4295.000000000002" y="324.0" />
       <point x="7573.580645161292" y="324.0" />
@@ -1828,7 +1828,7 @@
       <point x="14643.793250831624" y="756.0" />
       <point x="27.789473684209952" y="26.0" />
     </edge>
-    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistryOld" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistryOld" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="4029.303029237064" y="314.0" />
       <point x="7568.677419354841" y="314.0" />
@@ -1900,7 +1900,7 @@
       <point x="0.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.settings.Settings" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.settings.Settings" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="3187.000000000002" y="294.0" />
       <point x="7558.870967741937" y="294.0" />
@@ -1918,13 +1918,13 @@
       <point x="1475.3235294117646" y="1376.0" />
       <point x="-28.0" y="26.0" />
     </edge>
-    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistry$" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.programBoxRegistry.ProgramBoxRegistry$" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="2787.000000000002" y="274.0" />
       <point x="7549.064516129034" y="274.0" />
       <point x="-53.9354838709678" y="26.0" />
     </edge>
-    <edge source="bifrost.wallet.BWallet" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.wallet.BWallet" target="bifrost.utils.Logging">
       <point x="26.0" y="-26.0" />
       <point x="2509.250000000002" y="746.0" />
       <point x="2676.500000000002" y="746.0" />
@@ -1984,7 +1984,7 @@
       <point x="50.0" y="-26.0" />
       <point x="0.0" y="26.0" />
     </edge>
-    <edge source="bifrost.history.BifrostStorage" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.history.BifrostStorage" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="9369.000000000002" y="324.0" />
       <point x="7632.41935483871" y="324.0" />
@@ -2032,7 +2032,7 @@
       <point x="9714.428571428572" y="706.0" />
       <point x="-68.57142857142935" y="26.0" />
     </edge>
-    <edge source="bifrost.tokenBoxRegistry.TokenBoxRegistry" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.tokenBoxRegistry.TokenBoxRegistry" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="5211.250000000002" y="334.0" />
       <point x="7578.483870967744" y="334.0" />
@@ -2080,7 +2080,7 @@
       <point x="6972.2058823529405" y="1359.0" />
       <point x="20.705882352941444" y="26.0" />
     </edge>
-    <edge source="bifrost.state.BifrostState" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.state.BifrostState" target="bifrost.utils.Logging">
       <point x="-36.0" y="-26.0" />
       <point x="14909.91666666667" y="536.0" />
       <point x="14089.780092936888" y="536.0" />
@@ -2106,7 +2106,7 @@
       <point x="14350.5" y="1239.0" />
       <point x="-70.0" y="26.0" />
     </edge>
-    <edge source="bifrost.network.UPnP" target="bifrost.utils.ScorexLogging">
+    <edge source="bifrost.network.UPnP" target="bifrost.utils.Logging">
       <point x="0.0" y="-26.0" />
       <point x="5571.250000000002" y="354.0" />
       <point x="7588.290322580646" y="354.0" />

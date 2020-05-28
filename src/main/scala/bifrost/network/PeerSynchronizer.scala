@@ -9,7 +9,7 @@ import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
 import bifrost.network.peer.PeerInfo
 import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import scorex.core.settings.NetworkSettings
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 import shapeless.syntax.typeable._
 
 import scala.concurrent.ExecutionContext
@@ -23,7 +23,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
                        peerManager: ActorRef,
                        settings: NetworkSettings,
                        featureSerializers: PeerFeature.Serializers)
-                      (implicit ec: ExecutionContext) extends Actor with ScorexLogging {
+                      (implicit ec: ExecutionContext) extends Actor with Logging {
 
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
   private val peersSpec = new PeersSpec(featureSerializers, settings.maxPeerSpecObjects)

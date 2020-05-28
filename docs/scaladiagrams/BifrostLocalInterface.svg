@@ -81,15 +81,15 @@
 <path fill="none" stroke="#000000" d="M187.6136,-144.2022C195.4849,-135.4832 205.1014,-124.8311 213.7194,-115.2849"/>
 <polygon fill="#000000" stroke="#000000" points="216.5604,-117.3611 220.6635,-107.593 211.3645,-112.6704 216.5604,-117.3611"/>
 </g>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node7" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="106.5461" cy="-18" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="106.5461" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="106.5461" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
-<!-- Settings&#45;&gt;ScorexLogging -->
+<!-- Settings&#45;&gt;Logging -->
 <g id="edge7" class="edge">
-<title>Settings&#45;&gt;ScorexLogging</title>
+<title>Settings&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M106.5461,-71.8314C106.5461,-64.131 106.5461,-54.9743 106.5461,-46.4166"/>
 <polygon fill="#000000" stroke="#000000" points="110.0462,-46.4132 106.5461,-36.4133 103.0462,-46.4133 110.0462,-46.4132"/>
 </g>

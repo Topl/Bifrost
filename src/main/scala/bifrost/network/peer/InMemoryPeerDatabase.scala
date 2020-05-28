@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.TimeProvider
-import scorex.util.ScorexLogging
+import bifrost.utils.Logging
 
 import scala.concurrent.duration._
 
@@ -12,7 +12,7 @@ import scala.concurrent.duration._
   * In-memory peer database implementation supporting temporal blacklisting.
   */
 final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimeProvider)
-  extends PeerDatabase with ScorexLogging {
+  extends PeerDatabase with Logging {
 
   private var peers = Map.empty[InetSocketAddress, PeerInfo]
 

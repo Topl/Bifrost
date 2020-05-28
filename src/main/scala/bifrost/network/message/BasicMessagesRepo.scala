@@ -8,7 +8,7 @@ import scorex.core.serialization.ScorexSerializer
 import scorex.core.{ModifierTypeId, NodeViewModifier}
 import scorex.util.Extensions._
 import scorex.util.serialization.{Reader, Writer}
-import scorex.util.{ModifierId, ScorexLogging, bytesToId, idToBytes}
+import scorex.util.{ModifierId, Logging, bytesToId, idToBytes}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
@@ -124,7 +124,7 @@ object ModifiersSpec {
 /**
   * The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
   */
-class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with ScorexLogging {
+class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 
   import ModifiersSpec._
 

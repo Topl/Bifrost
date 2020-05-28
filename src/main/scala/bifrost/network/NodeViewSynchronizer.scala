@@ -22,7 +22,7 @@ import scorex.core.transaction.{MempoolReader, Transaction}
 import scorex.core.utils.{NetworkTimeProvider, ScorexEncoding}
 import scorex.core.validation.MalformedModifierError
 import scorex.core.{ModifierTypeId, NodeViewModifier, PersistentNodeViewModifier, idsToString}
-import scorex.util.{ModifierId, ScorexLogging}
+import scorex.util.{ModifierId, Logging}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -52,7 +52,7 @@ MR <: MempoolReader[TX] : ClassTag]
  networkSettings: NetworkSettings,
  timeProvider: NetworkTimeProvider,
  modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
-  with ScorexLogging with ScorexEncoding {
+  with Logging with ScorexEncoding {
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
