@@ -1,53 +1,72 @@
-package bifrost.network
+package scorex.core.network
 
-import java.net.InetSocketAddress
-
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
-import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
-import bifrost.network.peer.PeerManager
-import bifrost.network.peer.PeerManager.RandomPeers
-import bifrost.utils.Logging
+import scorex.core.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
+import scorex.core.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
+import scorex.core.network.message.{GetPeersSpec, Message, PeersSpec}
+import scorex.core.network.peer.PeerInfo
+import scorex.core.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+import scorex.core.settings.NetworkSettings
+import scorex.util.ScorexLogging
 import shapeless.syntax.typeable._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
+/**
+  * Responsible for discovering and sharing new peers.
+  */
+class PeerSynchronizer(val networkControllerRef: ActorRef,
+                       peerManager: ActorRef,
+                       settings: NetworkSettings,
+                       featureSerializers: PeerFeature.Serializers)
+                      (implicit ec: ExecutionContext) extends Actor with ScorexLogging {
 
-class PeerSynchronizer(val networkControllerRef: ActorRef, peerManager: ActorRef) extends Actor with Logging {
-
-  private implicit val timeout = Timeout(5.seconds)
-
-  val messageSpecs = Seq(GetPeersSpec, PeersSpec)
+  private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
+  private val peersSpec = new PeersSpec(featureSerializers, settings.maxPeerSpecObjects)
 
   override def preStart: Unit = {
     super.preStart()
 
-    networkControllerRef ! NetworkController.RegisterMessagesHandler(messageSpecs, self)
+    networkControllerRef ! RegisterMessageSpecs(Seq(GetPeersSpec, peersSpec), self)
 
     val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
-    val stn = NetworkController.SendToNetwork(msg, SendToRandom)
-    context.system.scheduler.schedule(2.seconds, 10.seconds)(networkControllerRef ! stn)
+    val stn = SendToNetwork(msg, SendToRandom)
+    context.system.scheduler.schedule(2.seconds, settings.getPeersInterval)(networkControllerRef ! stn)
   }
 
   override def receive: Receive = {
-    case DataFromPeer(spec, peers: Seq[InetSocketAddress]@unchecked, remote)
-      if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[InetSocketAddress]].isDefined =>
+    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _)
+      if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>
 
-      peers.foreach(isa => peerManager ! PeerManager.AddOrUpdatePeer(isa, None, None))
+      peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
 
-    case DataFromPeer(spec, _, remote) if spec.messageCode == GetPeersSpec.messageCode =>
+    case DataFromPeer(spec, _, peer) if spec.messageCode == GetPeersSpec.messageCode =>
 
-      //todo: externalize the number, check on receiving
-      (peerManager ? RandomPeers(3))
-        .mapTo[Seq[InetSocketAddress]]
+      (peerManager ? RecentlySeenPeers(settings.maxPeerSpecObjects))
+        .mapTo[Seq[PeerInfo]]
         .foreach { peers =>
-          val msg = Message(PeersSpec, Right(peers), None)
-          networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(remote)))
+          val msg = Message(peersSpec, Right(peers.map(_.peerSpec)), None)
+          networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
         }
 
     case nonsense: Any => log.warn(s"PeerSynchronizer: got something strange $nonsense")
   }
+}
+
+object PeerSynchronizerRef {
+  def props(networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,
+            featureSerializers: PeerFeature.Serializers)(implicit ec: ExecutionContext): Props =
+    Props(new PeerSynchronizer(networkControllerRef, peerManager, settings, featureSerializers))
+
+  def apply(networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,
+            featureSerializers: PeerFeature.Serializers)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(networkControllerRef, peerManager, settings, featureSerializers))
+
+  def apply(name: String, networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,
+            featureSerializers: PeerFeature.Serializers)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(networkControllerRef, peerManager, settings, featureSerializers), name)
 }
