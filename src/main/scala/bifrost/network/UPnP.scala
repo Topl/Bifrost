@@ -98,4 +98,3 @@ class UPnPGatewayImpl(gateway: GatewayDevice) extends UPnPGateway with ScorexLog
     }
   }
 }
->>>>>>> 0334ff7a... adding in updated components

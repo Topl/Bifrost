@@ -310,4 +310,3 @@ object PeerConnectionHandlerRef {
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, networkControllerRef, peerManagerRef, scorexContext, connectionDescription), name)
 }
->>>>>>> 0334ff7a... adding in updated components

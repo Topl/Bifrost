@@ -191,4 +191,3 @@ object PeerManagerRef {
   }
 
 }
->>>>>>> 0334ff7a... adding in updated components
