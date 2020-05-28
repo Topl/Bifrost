@@ -2,8 +2,8 @@ package bifrost.network.message
 
 
 import scorex.core.consensus.SyncInfo
-import scorex.core.network._
-import scorex.core.network.message.Message.MessageCode
+import bifrost.network._
+import bifrost.network.message.Message.MessageCode
 import scorex.core.serialization.ScorexSerializer
 import scorex.core.{ModifierTypeId, NodeViewModifier}
 import scorex.util.Extensions._

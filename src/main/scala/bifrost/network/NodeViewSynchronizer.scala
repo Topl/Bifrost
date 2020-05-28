@@ -8,12 +8,12 @@ import scorex.core.NodeViewHolder.DownloadRequest
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.History._
 import scorex.core.consensus.{History, HistoryReader, SyncInfo}
-import scorex.core.network.ModifiersStatus.Requested
-import scorex.core.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-import scorex.core.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
-import scorex.core.network.NodeViewSynchronizer.ReceivableMessages._
-import scorex.core.network.message.{InvSpec, RequestModifierSpec, _}
-import scorex.core.network.peer.PenaltyType
+import bifrost.network.ModifiersStatus.Requested
+import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.network.peer.PenaltyType
 import scorex.core.serialization.ScorexSerializer
 import scorex.core.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader

@@ -1,6 +1,6 @@
 package bifrost.network
 
-import scorex.core.network.message.MessageSpec
+import bifrost.network.message.MessageSpec
 
 import scala.reflect.ClassTag
 

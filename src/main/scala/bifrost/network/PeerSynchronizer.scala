@@ -3,11 +3,11 @@ package bifrost.network
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import scorex.core.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
-import scorex.core.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
-import scorex.core.network.message.{GetPeersSpec, Message, PeersSpec}
-import scorex.core.network.peer.PeerInfo
-import scorex.core.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
+import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
+import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
+import bifrost.network.peer.PeerInfo
+import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import scorex.core.settings.NetworkSettings
 import scorex.util.ScorexLogging
 import shapeless.syntax.typeable._

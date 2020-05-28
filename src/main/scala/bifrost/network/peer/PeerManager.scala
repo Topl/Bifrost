@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import scorex.core.app.ScorexContext
-import scorex.core.network._
+import bifrost.network._
 import scorex.core.settings.ScorexSettings
 import scorex.core.utils.NetworkUtils
 import scorex.util.ScorexLogging

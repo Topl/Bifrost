@@ -3,7 +3,7 @@ package bifrost.network
 import java.net.{InetAddress, InetSocketAddress}
 
 import scorex.core.app.{ApplicationVersionSerializer, Version}
-import scorex.core.network.peer.LocalAddressPeerFeature
+import bifrost.network.peer.LocalAddressPeerFeature
 import scorex.core.serialization.ScorexSerializer
 import scorex.util.Extensions._
 import scorex.util.serialization.{Reader, Writer}

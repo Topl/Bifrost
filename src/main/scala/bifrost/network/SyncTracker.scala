@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
 import scorex.core.consensus.History
-import scorex.core.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
-import scorex.core.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
+import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.TimeProvider
 import scorex.util.ScorexLogging

@@ -1,7 +1,7 @@
 package bifrost.network
 
 import akka.actor.ActorRef
-import scorex.core.network.peer.PeerInfo
+import bifrost.network.peer.PeerInfo
 
 /**
   * Peer connected to our node

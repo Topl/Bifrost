@@ -8,11 +8,11 @@ import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
 import scorex.core.app.{ScorexContext, Version}
-import scorex.core.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
-import scorex.core.network.message.Message.MessageCode
-import scorex.core.network.message.{Message, MessageSpec}
-import scorex.core.network.peer.PeerManager.ReceivableMessages._
-import scorex.core.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
+import bifrost.network.message.Message.MessageCode
+import bifrost.network.message.{Message, MessageSpec}
+import bifrost.network.peer.PeerManager.ReceivableMessages._
+import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.NetworkUtils
 import scorex.util.ScorexLogging

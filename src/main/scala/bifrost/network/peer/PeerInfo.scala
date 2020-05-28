@@ -3,7 +3,7 @@ package bifrost.network.peer
 import java.net.InetSocketAddress
 
 import scorex.core.app.Version
-import scorex.core.network.{ConnectionDirection, PeerSpec}
+import bifrost.network.{ConnectionDirection, PeerSpec}
 
 /**
   * Information about peer to be stored in PeerDatabase

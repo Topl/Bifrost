@@ -5,11 +5,11 @@ import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import scorex.core.app.{ScorexContext, Version}
-import scorex.core.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
-import scorex.core.network.PeerConnectionHandler.ReceivableMessages
-import scorex.core.network.PeerFeature.Serializers
-import scorex.core.network.message.{HandshakeSpec, MessageSerializer}
-import scorex.core.network.peer.{PeerInfo, PenaltyType}
+import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
+import bifrost.network.PeerConnectionHandler.ReceivableMessages
+import bifrost.network.PeerFeature.Serializers
+import bifrost.network.message.{HandshakeSpec, MessageSerializer}
+import bifrost.network.peer.{PeerInfo, PenaltyType}
 import scorex.core.serialization.ScorexSerializer
 import scorex.core.settings.NetworkSettings
 import scorex.util.ScorexLogging

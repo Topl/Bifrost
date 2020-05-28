@@ -2,8 +2,8 @@ package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import scorex.core.network.PeerFeature
-import scorex.core.network.PeerFeature.Id
+import bifrost.network.PeerFeature
+import bifrost.network.PeerFeature.Id
 import scorex.util.serialization._
 import scorex.core.serialization.ScorexSerializer
 import scorex.util.Extensions._
