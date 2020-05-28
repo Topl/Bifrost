@@ -97,7 +97,13 @@ libraryDependencies  ++= Seq(
   "com.typesafe" % "config" % "1.3.3",
 )
 
-scalacOptions ++= Seq("-feature", "-deprecation")
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-Xfatal-warnings",
+  "-Xlint"
+)
 
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
@@ -127,9 +133,7 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
-Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-
-Compile / run / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
 Test / fork := false
 
@@ -138,8 +142,6 @@ Compile / run / fork := true
 pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard

@@ -2,23 +2,22 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.settings.Settings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
-import akka.pattern.ask
-import io.circe.syntax._
-import bifrost.settings.Settings
-
-import scala.concurrent.duration._
 
 case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
@@ -32,7 +31,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-          viewAsync().map { view =>
+          viewAsync().map { _ =>
             var reqId = ""
             parse(body) match {
               case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
@@ -74,18 +73,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     }
   }
 
-  private def getHistory(): Try[HIS] = Try {
-    Await
-      .result(
-        (nodeViewHolderRef ? GetCurrentView)
-          .mapTo[CurrentView[_, _ <: HIS, _, _]]
-          .map(_.history),
-        5.seconds
-      )
-      .asInstanceOf[HIS]
-  }
-
-  private def getMempool(): Try[MP] = Try {
+  private def getMempool: Try[MP] = Try {
     Await
       .result(
         (nodeViewHolderRef ? GetCurrentView)
@@ -102,18 +90,19 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | --None specified--       |           	|                     	|                                                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                 |
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | --None specified--       |           	|                     	|                                             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
     */
   private def mempool(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      getMempool() match {
+    viewAsync().map { _ =>
+      getMempool match {
         case Success(pool: MP) => pool.take(100).map(_.json).asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
         //Failure is caught by ErrorResponse in the nodeViewRoute function when the Await does not receive a response
       }
     }
@@ -125,9 +114,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
+    *  |-------------------------	|-----------	|---------------------	|-------------------------------------------	|
+    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -152,6 +141,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
             .add("blockNumber", blockNumber.asJson)
             .add("blockHash", Base58.encode(blockId).asJson)
             .asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }
     }
   }
@@ -162,22 +152,24 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                               	|
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | transactionId            | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
     * @return
     */
   private def transactionFromMempool(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+    viewAsync().map { _ =>
       val transactionId: String = (params \\ "transactionId").head.asString.get
       Base58.decode(transactionId) match {
-        case Success(id) =>
-          getMempool() match {
-            case Success(pool: MP) => pool.getById(id).get.json.asJson
+        case Success(txId) =>
+          getMempool match {
+            case Success(pool: MP) => pool.getById(txId).get.json.asJson
+            case Failure(e) ⇒ ErrorResponse(e, 550, id).toJson
           }
+        case Failure(e) => ErrorResponse(e, 500, id).toJson
       }
     }
   }
@@ -188,9 +180,9 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
     * ---
     *  #### Params
     * 
-    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	|
-    *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
-    *  | blockId                  | String    	| Required            	| Base58 encoded transaction hash                                         |
+    *  | Fields                  	| Data type 	| Required / Optional 	| Description                                	|
+    *  |-------------------------	|-----------	|---------------------	|--------------------------------------------	|
+    *  | blockId                  | String    	| Required            	| Base58 encoded transaction hash             |
     *
     * @param params input parameters as specified above
     * @param id request identifier
@@ -212,6 +204,7 @@ case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: 
             .add("blockNumber", blockNumber.asJson)
             .add("blockDifficulty", storage.difficultyOf(id).asJson)
             .asJson
+        case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }
     }
   }
