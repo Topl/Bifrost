@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask

@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 /**
   * Network message to be send when nodes establish a new connection.

@@ -1,4 +1,4 @@
-package scorex.core.network.message
+package bifrost.network.message
 
 import java.nio.ByteOrder
 

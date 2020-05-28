@@ -1,4 +1,4 @@
-package scorex.core.network.peer
+package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 

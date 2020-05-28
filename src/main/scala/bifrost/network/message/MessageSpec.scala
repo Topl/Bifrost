@@ -1,4 +1,4 @@
-package scorex.core.network.message
+package bifrost.network.message
 
 import scorex.core.app.Version
 import scorex.core.serialization.ScorexSerializer

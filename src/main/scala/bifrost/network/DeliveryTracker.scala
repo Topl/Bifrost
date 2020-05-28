@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.{ActorRef, ActorSystem, Cancellable}
 import scorex.core.consensus.ContainsModifiers

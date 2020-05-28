@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import scorex.core.serialization.{BytesSerializable, ScorexSerializer}
 

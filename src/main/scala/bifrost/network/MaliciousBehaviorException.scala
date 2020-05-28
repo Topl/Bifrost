@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 /**
   * Custom exception to distinguish malicious behaviour of external peers from non-adversarial network issues

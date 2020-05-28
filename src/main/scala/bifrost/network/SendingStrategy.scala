@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import scala.util.Random
 

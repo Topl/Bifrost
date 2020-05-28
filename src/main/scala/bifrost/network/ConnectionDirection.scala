@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 sealed trait ConnectionDirection {
   def isIncoming: Boolean

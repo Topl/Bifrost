@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.ActorRef
 import scorex.core.network.peer.PeerInfo

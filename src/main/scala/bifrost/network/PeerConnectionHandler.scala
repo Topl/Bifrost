@@ -1,4 +1,4 @@
-package scorex.core.network
+package bifrost.network
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp

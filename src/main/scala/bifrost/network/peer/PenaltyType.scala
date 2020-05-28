@@ -1,4 +1,4 @@
-package scorex.core.network.peer
+package bifrost.network.peer
 
 /**
   * A trait describing all possible types of the network participant misbehavior.
