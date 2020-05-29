@@ -10,6 +10,7 @@ import bifrost.network.PeerConnectionHandler.ReceivableMessages
 import bifrost.network.PeerFeature.Serializers
 import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
+import bifrost.settings.Context
 import scorex.core.serialization.ScorexSerializer
 import scorex.core.settings.NetworkSettings
 import bifrost.utils.Logging
@@ -22,7 +23,7 @@ import scala.util.{Failure, Success}
 class PeerConnectionHandler(val settings: NetworkSettings,
                             networkControllerRef: ActorRef,
                             peerManagerRef: ActorRef,
-                            scorexContext: ScorexContext,
+                            context: Context,
                             connectionDescription: ConnectionDescription
                            )(implicit ec: ExecutionContext)
   extends Actor with Logging {
@@ -39,7 +40,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     localFeatures.map(f => f.featureId -> (f.serializer: ScorexSerializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
-  private val messageSerializer = new MessageSerializer(scorexContext.messageSpecs, settings.magicBytes)
+  private val messageSerializer = new MessageSerializer(context.messageSpecs, settings.magicBytes)
 
   // there is no recovery for broken connections
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
@@ -78,7 +79,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
       val peerInfo = PeerInfo(
         receivedHandshake.peerSpec,
-        scorexContext.timeProvider.time(),
+        context.timeProvider.time(),
         Some(direction)
       )
       val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))
@@ -260,7 +261,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
         ownSocketAddress,
         localFeatures
       ),
-      scorexContext.timeProvider.time()
+      context.timeProvider.time()
     )
   }
 
@@ -288,25 +289,25 @@ object PeerConnectionHandlerRef {
   def props(settings: NetworkSettings,
             networkControllerRef: ActorRef,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext,
+            context: Context,
             connectionDescription: ConnectionDescription
            )(implicit ec: ExecutionContext): Props =
-    Props(new PeerConnectionHandler(settings, networkControllerRef, peerManagerRef, scorexContext, connectionDescription))
+    Props(new PeerConnectionHandler(settings, networkControllerRef, peerManagerRef, context, connectionDescription))
 
   def apply(settings: NetworkSettings,
             networkControllerRef: ActorRef,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext,
+            context: Context,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, peerManagerRef, scorexContext, connectionDescription))
+    system.actorOf(props(settings, networkControllerRef, peerManagerRef, context, connectionDescription))
 
   def apply(name: String,
             settings: NetworkSettings,
             networkControllerRef: ActorRef,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext,
+            context: Context,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, peerManagerRef, scorexContext, connectionDescription), name)
+    system.actorOf(props(settings, networkControllerRef, peerManagerRef, context, connectionDescription), name)
 }

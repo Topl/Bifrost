@@ -7,12 +7,13 @@ import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import scorex.core.app.{ScorexContext, Version}
+import scorex.core.app.Version
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
 import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
+import bifrost.settings.Context
 import scorex.core.settings.NetworkSettings
 import scorex.core.utils.NetworkUtils
 import bifrost.utils.Logging
@@ -28,7 +29,7 @@ import scala.util.{Failure, Success, Try}
   */
 class NetworkController(settings: NetworkSettings,
                         peerManagerRef: ActorRef,
-                        scorexContext: ScorexContext,
+                        scorexContext: Context,
                         tcpManager: ActorRef
                        )(implicit ec: ExecutionContext) extends Actor with Logging {
 
@@ -467,39 +468,39 @@ object NetworkController {
 object NetworkControllerRef {
   def props(settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext,
+            context: Context,
             tcpManager: ActorRef)(implicit ec: ExecutionContext): Props = {
-    Props(new NetworkController(settings, peerManagerRef, scorexContext, tcpManager))
+    Props(new NetworkController(settings, peerManagerRef, context, tcpManager))
   }
 
   def apply(settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext)
+            context: Context)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, scorexContext, IO(Tcp))
+      props(settings, peerManagerRef, context, IO(Tcp))
     )
   }
 
   def apply(name: String,
             settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext,
+            context: Context,
             tcpManager: ActorRef)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, scorexContext, tcpManager),
+      props(settings, peerManagerRef, context, tcpManager),
       name)
   }
 
   def apply(name: String,
             settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            scorexContext: ScorexContext)
+            context: Context)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
 
     system.actorOf(
-      props(settings, peerManagerRef, scorexContext, IO(Tcp)),
+      props(settings, peerManagerRef, context, IO(Tcp)),
       name)
   }
 }
