@@ -1,14 +1,13 @@
 package bifrost.network.message
 
-
-import scorex.core.consensus.SyncInfo
 import bifrost.network._
 import bifrost.network.message.Message.MessageCode
-import scorex.core.serialization.ScorexSerializer
+import bifrost.serialization.Serializer
 import scorex.core.{ModifierTypeId, NodeViewModifier}
 import scorex.util.Extensions._
 import scorex.util.serialization.{Reader, Writer}
-import scorex.util.{ModifierId, Logging, bytesToId, idToBytes}
+import scorex.util.{ModifierId, bytesToId, idToBytes}
+import bifrost.utils.Logging
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
@@ -22,7 +21,7 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   *
   * Payload of this message should be determined in underlying applications.
   */
-class SyncInfoMessageSpec[SI <: SyncInfo](serializer: ScorexSerializer[SI]) extends MessageSpecV1[SI] {
+class SyncInfoMessageSpec[SI <: SyncInfo](serializer: Serializer[SI]) extends MessageSpecV1[SI] {
 
 
   override val messageCode: MessageCode = 65: Byte

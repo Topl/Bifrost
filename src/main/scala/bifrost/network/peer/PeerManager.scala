@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import scorex.core.app.ScorexContext
 import bifrost.network._
 import scorex.core.settings.ScorexSettings
-import scorex.core.utils.NetworkUtils
+import bifrost.utils.NetworkUtils
 import bifrost.utils.Logging
 
 import scala.util.Random

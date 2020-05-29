@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import bifrost.network.PeerFeature
 import bifrost.network.PeerFeature.Id
 import scorex.util.serialization._
-import scorex.core.serialization.ScorexSerializer
+import bifrost.serialization.Serializer
 import scorex.util.Extensions._
 
 case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeature {
@@ -19,7 +19,7 @@ object LocalAddressPeerFeature {
   val featureId: Id = 2: Byte
 }
 
-object LocalAddressPeerFeatureSerializer extends ScorexSerializer[LocalAddressPeerFeature] {
+object LocalAddressPeerFeatureSerializer extends Serializer[LocalAddressPeerFeature] {
 
   private val AddressLength = 4
 

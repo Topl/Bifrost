@@ -3,7 +3,7 @@ package bifrost.network.peer
 import java.net.{InetAddress, InetSocketAddress}
 
 import scorex.core.settings.NetworkSettings
-import scorex.core.utils.TimeProvider
+import bifrost.utils.TimeProvider
 import bifrost.utils.Logging
 
 import scala.concurrent.duration._

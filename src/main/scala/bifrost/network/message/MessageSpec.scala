@@ -1,12 +1,12 @@
-package bifrost.network.message
+package scorex.core.network.message
 
 import scorex.core.app.Version
-import scorex.core.serialization.ScorexSerializer
+import bifrost.serialization.Serializer
 
 /**
   * Base trait for app p2p messages in the network
   */
-trait MessageSpec[Content] extends ScorexSerializer[Content] {
+trait MessageSpec[Content] extends Serializer[Content] {
 
   /**
     * The p2p protocol version in which this message type first appeared

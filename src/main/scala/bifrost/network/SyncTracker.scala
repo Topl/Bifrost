@@ -7,7 +7,7 @@ import scorex.core.consensus.History
 import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import scorex.core.settings.NetworkSettings
-import scorex.core.utils.TimeProvider
+import bifrost.utils.TimeProvider
 import bifrost.utils.Logging
 
 import scala.collection.mutable
