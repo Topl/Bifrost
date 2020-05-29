@@ -6,7 +6,8 @@ import bifrost.network.ModifiersStatus._
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import scorex.core.utils.ScorexEncoding
 import scorex.core.{ModifierTypeId, NodeViewModifier}
-import scorex.util.{ModifierId, Logging}
+import scorex.util.ModifierId
+import bifrost.utils.Logging
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext

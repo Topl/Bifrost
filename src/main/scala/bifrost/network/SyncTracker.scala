@@ -23,7 +23,7 @@ class SyncTracker(nvsRef: ActorRef,
                   timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends Logging {
 
   import History._
-  import scorex.core.utils.TimeProvider.Time
+  import bifrost.utils.TimeProvider.Time
 
   private var schedule: Option[Cancellable] = None
 
