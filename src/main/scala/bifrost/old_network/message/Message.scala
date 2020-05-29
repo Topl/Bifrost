@@ -1,4 +1,4 @@
-package bifrost.network.message
+package bifrost.old_network.message
 
 import com.google.common.primitives.{Bytes, Ints}
 import bifrost.crypto.FastCryptographicHash._

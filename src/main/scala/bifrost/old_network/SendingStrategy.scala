@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.old_network.message
 
 import scala.util.Random
 

@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.old_network.message
 
 import java.net.{InetAddress, InetSocketAddress, NetworkInterface, URI}
 

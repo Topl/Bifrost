@@ -1,4 +1,4 @@
-package bifrost.network.peer
+package bifrost.old_network.message
 
 import java.net.InetSocketAddress
 

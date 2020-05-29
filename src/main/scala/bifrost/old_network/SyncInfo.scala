@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.old_network.message
 
 import bifrost.history.GenericHistory
 import bifrost.serialization.BytesSerializable

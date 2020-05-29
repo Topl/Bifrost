@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.old_network.message
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
