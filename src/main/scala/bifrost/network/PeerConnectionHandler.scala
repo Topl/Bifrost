@@ -4,14 +4,14 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorS
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
-import scorex.core.app.Version
+import bifrost.settings.Version
 import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 import bifrost.network.PeerConnectionHandler.ReceivableMessages
 import bifrost.network.PeerFeature.Serializers
 import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
 import bifrost.settings.Context
-import scorex.core.serialization.ScorexSerializer
+import bifrost.serialization.Serializer
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 
@@ -37,7 +37,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private val localFeatures = connectionDescription.localFeatures
 
   private val featureSerializers: Serializers =
-    localFeatures.map(f => f.featureId -> (f.serializer: ScorexSerializer[_ <: PeerFeature])).toMap
+    localFeatures.map(f => f.featureId -> (f.serializer: Serializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
   private val messageSerializer = new MessageSerializer(context.messageSpecs, settings.magicBytes)

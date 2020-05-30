@@ -2,7 +2,7 @@ package bifrost.network.peer
 
 import java.net.InetSocketAddress
 
-import scorex.core.app.Version
+import bifrost.settings.Version
 import bifrost.network.{ConnectionDirection, PeerSpec}
 
 /**

@@ -3,7 +3,7 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
-import scorex.core.consensus.History
+import bifrost.history.History
 import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import bifrost.settings.NetworkSettings

@@ -4,9 +4,9 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import bifrost.network.PeerFeature
 import bifrost.network.PeerFeature.Id
-import scorex.util.serialization._
+import bifrost.utils.serialization._
 import bifrost.serialization.Serializer
-import scorex.util.Extensions._
+import bifrost.utils.Extensions._
 
 case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeature {
   override type M = LocalAddressPeerFeature

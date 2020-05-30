@@ -5,7 +5,7 @@ import bifrost.network.message.Message.MessageCode
 import bifrost.serialization.Serializer
 import scorex.core.{ModifierTypeId, NodeViewModifier}
 import bifrost.utils.Extensions._
-import scorex.util.serialization.{Reader, Writer}
+import bifrost.utils.serialization.{Reader, Writer}
 import scorex.util.{ModifierId, bytesToId, idToBytes}
 import bifrost.utils.Logging
 

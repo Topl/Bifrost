@@ -1,6 +1,6 @@
 package bifrost.network
 
-import scorex.core.serialization.{BytesSerializable, ScorexSerializer}
+import bifrost.serialization.{BytesSerializable, Serializer}
 
 /**
   * An abstract trait to describe peer capabilities.
@@ -17,5 +17,5 @@ trait PeerFeature extends BytesSerializable {
 
 object PeerFeature {
   type Id = Byte
-  type Serializers = Map[Id, ScorexSerializer[_ <: PeerFeature]]
+  type Serializers = Map[Id, Serializer[_ <: PeerFeature]]
 }

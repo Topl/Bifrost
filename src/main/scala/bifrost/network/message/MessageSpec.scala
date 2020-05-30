@@ -1,6 +1,6 @@
-package scorex.core.network.message
+package bifrost.network.message
 
-import scorex.core.app.Version
+import bifrost.settings.Version
 import bifrost.serialization.Serializer
 
 /**

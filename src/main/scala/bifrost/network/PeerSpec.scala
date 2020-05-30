@@ -4,8 +4,8 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import scorex.core.app.{ApplicationVersionSerializer, Version}
 import bifrost.network.peer.LocalAddressPeerFeature
-import scorex.core.serialization.ScorexSerializer
-import scorex.util.Extensions._
+import bifrost.serialization.Serializer
+import bifrost.utils.Extensions._
 import scorex.util.serialization.{Reader, Writer}
 
 /**
@@ -36,7 +36,7 @@ case class PeerSpec(agentName: String,
 
 }
 
-class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends ScorexSerializer[PeerSpec] {
+class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Serializer[PeerSpec] {
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
 
     w.putShortString(obj.agentName)

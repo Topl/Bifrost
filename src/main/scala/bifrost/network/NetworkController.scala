@@ -7,16 +7,13 @@ import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import scorex.core.app.Version
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
 import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
-import bifrost.settings.Context
-import bifrost.settings.NetworkSettings
-import bifrost.utils.NetworkUtils
-import bifrost.utils.Logging
+import bifrost.settings.{ Context, Version, NetworkSettings }
+import bifrost.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
