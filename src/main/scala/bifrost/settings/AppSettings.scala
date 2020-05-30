@@ -3,8 +3,10 @@ package bifrost.settings
 import java.io.File
 import java.net.InetSocketAddress
 
-import com.typesafe.config.{Config, ConfigFactory}
 import bifrost.utils.Logging
+import com.typesafe.config.{Config, ConfigFactory}
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 case class P2pSettings(name: String,
                        bindAddress: String,
@@ -44,7 +46,9 @@ case class AppSettings(walletSeed: String,
 
 object AppSettings extends Logging with SettingsReaders {
 
-  def readConfig(path: Option[String]): Config = {
+  protected val configPath: String = "bifrost"
+
+  def readConfig(path: Option[String], configPath: String): Config = {
 
     val fileOpt: Option[File] = path.map(fileName ⇒ new File(fileName)).filter(_.exists())
       .orElse(path.flatMap(fileName ⇒ Option(getClass.getClassLoader.getResource(fileName)))
@@ -56,7 +60,7 @@ object AppSettings extends Logging with SettingsReaders {
         ConfigFactory.load()
       case Some(file) ⇒
         val configFile = ConfigFactory.parseFile(file)
-        if(!configFile.hasPath("bifrost")) {
+        if(!configFile.hasPath(configPath)) {
           throw new Error("Configuration file does not contain Bifrost settings object")
         }
         ConfigFactory
@@ -68,5 +72,13 @@ object AppSettings extends Logging with SettingsReaders {
     }
 
     config
+  }
+
+  def read(userConfigPath: Option[String]): AppSettings = {
+    fromConfig(readConfig(userConfigPath, configPath))
+  }
+
+  def fromConfig(config: Config): AppSettings = {
+    config.as[AppSettings](configPath)
   }
 }
