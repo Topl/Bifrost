@@ -12,7 +12,7 @@ import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
 import bifrost.settings.Context
 import scorex.core.serialization.ScorexSerializer
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 
 import scala.annotation.tailrec

@@ -8,7 +8,7 @@ import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFr
 import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
 import bifrost.network.peer.PeerInfo
 import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
 

@@ -14,15 +14,16 @@ import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFr
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
+import bifrost.utils.Logging
 import scorex.core.serialization.ScorexSerializer
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
 import scorex.core.transaction.{MempoolReader, Transaction}
 import scorex.core.utils.{NetworkTimeProvider, ScorexEncoding}
 import scorex.core.validation.MalformedModifierError
 import scorex.core.{ModifierTypeId, NodeViewModifier, PersistentNodeViewModifier, idsToString}
-import scorex.util.{ModifierId, Logging}
+import scorex.util.ModifierId
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext

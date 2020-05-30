@@ -3,7 +3,7 @@ package bifrost.network
 import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 
 import scala.collection.JavaConverters._
