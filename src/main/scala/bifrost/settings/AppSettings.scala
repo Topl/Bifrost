@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
-case class P2pSettings(name: String,
+case class NetworkSettings(name: String,
                        bindAddress: String,
                        myAddress: String,
                        upnp: Boolean,
@@ -41,7 +41,7 @@ case class AppSettings(walletSeed: String,
                        cors: Boolean,
                        verboseAPI: Boolean,
                        version: ApplicationVersion,
-                       p2pSettings: P2pSettings,
+                       networkSettings: NetworkSettings,
                        forgingSettings: ForgingSettings)
 
 object AppSettings extends Logging with SettingsReaders {
