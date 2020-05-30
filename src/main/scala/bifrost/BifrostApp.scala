@@ -1,6 +1,7 @@
 package bifrost
 
 import java.lang.management.ManagementFactory
+import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
@@ -16,16 +17,19 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network._
 import bifrost.nodeView.NodeViewHolder
-import bifrost.utils.Logging
+import bifrost.settings.Context
+import bifrost.utils.{ Logging, NetworkTimeProvider }
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe
 import kamon.Kamon
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.reflect.runtime.universe._
 
 class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
+
+  import bifrost.network.NetworkController.ReceivableMessages.ShutdownNetwork
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
@@ -42,29 +46,80 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   log.debug(s"Starting application with settings \n$settings")
 
   /* networkController */
-  protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] =
-    Seq(BifrostSyncInfoMessageSpec)
+  protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
-  private lazy val basicSpecs =
+//  private lazy val basicSpecs =
+//    Seq(
+//      GetPeersSpec,
+//      PeersSpec,
+//      InvSpec,
+//      RequestModifierSpec,
+//      ModifiersSpec
+//    )
+//
+//  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
+//
+//  lazy val upnp = new UPnP(settings)
+//
+//  protected implicit lazy val actorSystem = ActorSystem(settings.agentName)
+//
+//
+//
+//  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
+//  val networkControllerRef = actorSystem.actorOf(nProps, "networkController")
+
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+
+  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("bifrost.executionContext")
+
+  protected val features: Seq[PeerFeature]
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]]
+
+  //p2p
+  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
+  // TODO use available port on gateway instead settings.network.bindAddress.getPort
+  upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
+
+  private lazy val basicSpecs = {
+    val invSpec = new InvSpec(settings.network.maxInvObjects)
+    val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
+    val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
+    val featureSerializers: PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
     Seq(
       GetPeersSpec,
-      PeersSpec,
-      InvSpec,
-      RequestModifierSpec,
-      ModifiersSpec
+      new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
+      invSpec,
+      requestModifierSpec,
+      modifiersSpec
     )
+  }
 
-  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  lazy val upnp = new UPnP(settings)
+  //an address to send to peers
+  lazy val externalSocketAddress: Option[InetSocketAddress] = {
+    settings.network.declaredAddress orElse {
+      // TODO use available port on gateway instead settings.bindAddress.getPort
+      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
+    }
+  }
 
-  protected implicit lazy val actorSystem = ActorSystem(settings.agentName)
+  val context = Context(
+    messageSpecs = basicSpecs ++ additionalMessageSpecs,
+    features = features,
+    upnpGateway = upnpGateway,
+    timeProvider = timeProvider,
+    externalNodeAddress = externalSocketAddress
+  )
 
   val peerManagerRef = actorSystem.actorOf(Props(classOf[PeerManager], settings), "peerManager")
 
-  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-  val networkController = actorSystem.actorOf(nProps, "networkController")
-  /* ----------------- */
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, context)
+
+
+
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   /* nodeViewHoderRef */
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)), "nodeViewHolder")
@@ -80,7 +135,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
     Props(classOf[NodeViewSynchronizer],
-      networkController,
+      networkControllerRef,
       nodeViewHolderRef,
       localInterface,
       BifrostSyncInfoMessageSpec), "nodeViewSynchronizer"
@@ -89,7 +144,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
-    ProgramApiRoute(settings, nodeViewHolderRef, networkController),
+    ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
 //    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
@@ -146,8 +201,8 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
 
   def stopAll(): Unit = synchronized {
     log.info("Stopping network services")
-    if (settings.upnpEnabled) upnp.deletePort(settings.port)
-    networkController ! NetworkController.ShutdownNetwork
+    if (settings.upnpEnabled) upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
+    networkControllerRef ! ShutdownNetwork
 
     log.info("Stopping actors (incl. block generator)")
 

@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorS
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
-import scorex.core.app.{ScorexContext, Version}
+import scorex.core.app.Version
 import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 import bifrost.network.PeerConnectionHandler.ReceivableMessages
 import bifrost.network.PeerFeature.Serializers
