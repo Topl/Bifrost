@@ -6,7 +6,7 @@ import akka.actor.{ActorContext, ActorRef, Cancellable}
 import scorex.core.consensus.History
 import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.TimeProvider
 import bifrost.utils.Logging
 

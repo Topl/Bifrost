@@ -16,7 +16,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.utils.Logging
 import scorex.core.serialization.ScorexSerializer
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
 import scorex.core.transaction.{MempoolReader, Transaction}

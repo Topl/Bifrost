@@ -2,7 +2,7 @@ package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.TimeProvider
 import bifrost.utils.Logging
 

@@ -14,7 +14,7 @@ import bifrost.network.message.{Message, MessageSpec}
 import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
 import bifrost.settings.Context
-import scorex.core.settings.NetworkSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.NetworkUtils
 import bifrost.utils.Logging
 
