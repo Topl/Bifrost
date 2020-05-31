@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.settings.Context
 import bifrost.network._
-import scorex.core.settings.ScorexSettings
+import bifrost.settings.AppSettings
 import bifrost.utils.NetworkUtils
 import bifrost.utils.Logging
 
@@ -15,7 +15,7 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: ScorexSettings, context: Context) extends Actor with Logging {
+class PeerManager(settings: AppSettings, context: Context) extends Actor with Logging {
 
   import PeerManager.ReceivableMessages._
 
@@ -176,16 +176,16 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: ScorexSettings, context: Context): Props = {
+  def props(settings: AppSettings, context: Context): Props = {
     Props(new PeerManager(settings, context))
   }
 
-  def apply(settings: ScorexSettings, context: Context)
+  def apply(settings: AppSettings, context: Context)
            (implicit system: ActorSystem): ActorRef = {
     system.actorOf(props(settings, context))
   }
 
-  def apply(name: String, settings: ScorexSettings, context: Context)
+  def apply(name: String, settings: AppSettings, context: Context)
            (implicit system: ActorSystem): ActorRef = {
     system.actorOf(props(settings, context), name)
   }

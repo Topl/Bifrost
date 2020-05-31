@@ -41,7 +41,7 @@ case class AppSettings(walletSeed: String,
                        cors: Boolean,
                        verboseAPI: Boolean,
                        version: ApplicationVersion,
-                       networkSettings: NetworkSettings,
+                       network: NetworkSettings,
                        forgingSettings: ForgingSettings)
 
 object AppSettings extends Logging with SettingsReaders {

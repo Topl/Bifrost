@@ -6,7 +6,7 @@ import scorex.core.app.{ApplicationVersionSerializer, Version}
 import bifrost.network.peer.LocalAddressPeerFeature
 import bifrost.serialization.Serializer
 import bifrost.utils.Extensions._
-import scorex.util.serialization.{Reader, Writer}
+import bifrost.utils.serialization.{Reader, Writer}
 
 /**
   * Declared information about peer

@@ -26,7 +26,7 @@ import scala.util.{Failure, Success, Try}
   */
 class NetworkController(settings: NetworkSettings,
                         peerManagerRef: ActorRef,
-                        scorexContext: Context,
+                        context: Context,
                         tcpManager: ActorRef
                        )(implicit ec: ExecutionContext) extends Actor with Logging {
 
