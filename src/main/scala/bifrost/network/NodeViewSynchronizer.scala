@@ -4,25 +4,29 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.history.History
 import scorex.core.NodeViewHolder.DownloadRequest
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.History._
-import scorex.core.consensus.{History, HistoryReader, SyncInfo}
+import scorex.core.consensus.{HistoryReader, SyncInfo}
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
+import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.utils.Logging
 import scorex.core.serialization.ScorexSerializer
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
-import scorex.core.transaction.{MempoolReader, Transaction}
+import scorex.core.transaction.MempoolReader
 import scorex.core.utils.{NetworkTimeProvider, ScorexEncoding}
 import scorex.core.validation.MalformedModifierError
-import scorex.core.{ModifierTypeId, NodeViewModifier, PersistentNodeViewModifier, idsToString}
+import scorex.core.{ModifierTypeId, idsToString}
 import scorex.util.ModifierId
 
 import scala.annotation.tailrec
@@ -41,10 +45,11 @@ import scala.util.{Failure, Success}
   * @tparam TX  transaction
   * @tparam SIS SyncInfoMessage specification
   */
-class NodeViewSynchronizer[TX <: Transaction,
+class NodeViewSynchronizer[P <: Proposition,
+TX <: Transaction,
 SI <: SyncInfo,
 SIS <: SyncInfoMessageSpec[SI],
-PMOD <: PersistentNodeViewModifier,
+PMOD <: PersistentNodeViewModifier[P, TX],
 HR <: HistoryReader[PMOD, SI] : ClassTag,
 MR <: MempoolReader[TX] : ClassTag]
 (networkControllerRef: ActorRef,
