@@ -3,8 +3,8 @@ package bifrost.network.message
 import bifrost.network._
 import bifrost.network.message.Message.MessageCode
 import bifrost.serialization.Serializer
-import scorex.core.{ModifierTypeId, NodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{Reader, Writer}
 import bifrost.utils.{ModifierId, bytesToId, idToBytes}
