@@ -1,7 +1,7 @@
 package bifrost.modifier
 
-import scorex.core.NodeViewModifier
-import bifrost.utils.ModifierId
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.ModifierId
 
 /**
   * Object that contains modifiers of type `MOD`
