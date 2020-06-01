@@ -1,16 +1,11 @@
 package bifrost.nodeView
 
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.InvData
 import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
-import bifrost.state.MinimalState
-import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.BifrostEncoder
-import bifrost.utils.encode.Base16
 import com.typesafe.config.ConfigFactory
-import scorex.crypto.encode.Base58
 import supertagged.TaggedType
 
 import scala.util.Try
@@ -62,10 +57,13 @@ object NodeViewModifier {
 
 
 
-trait PersistentNodeViewModifier[P <: Proposition, TX <: GenericTransaction[P]] extends NodeViewModifier {
+trait PersistentNodeViewModifier extends NodeViewModifier {
 
   def parentId: ModifierId
+}
 
-  // with Dotty is would be Seq[TX] | Nothing
-  def transactions: Option[Seq[TX]]
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
+  extends PersistentNodeViewModifier {
+
+  def transactions: Seq[TX]
 }

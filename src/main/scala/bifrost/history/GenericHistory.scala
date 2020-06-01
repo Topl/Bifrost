@@ -23,7 +23,7 @@ import scala.util.Try
 
 trait GenericHistory[P <: Proposition,
 TX <: GenericTransaction[P],
-PM <: PersistentNodeViewModifier[P, TX],
+PM <: PersistenNodeViewModifier,
 SI <: SyncInfo,
 HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
 

@@ -20,7 +20,7 @@ import scorex.crypto.encode.Base58
 import scala.collection.mutable
 import scala.util.{Failure, Success}
 
-trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistentNodeViewModifier[P, TX]]
+trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX], BX <: GenericBox[P, T], PMOD <: PersistenNodeViewModifier]
   extends Actor with Logging {
 
   import NodeViewSynchronizer._
@@ -310,7 +310,7 @@ object GenericNodeViewHolder {
                                                     extension: Option[Seq[(ModifierTypeId, ModifierId)]])
 
   //node view holder starting persistent modifier application
-  case class StartingPersistentModifierApplication[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]](modifier: PMOD) extends NodeViewHolderEvent
+  case class StartingPersistentModifierApplication[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistenNodeViewModifier](modifier: PMOD) extends NodeViewHolderEvent
 
   //hierarchy of events regarding modifiers application outcome
   trait ModificationOutcome extends NodeViewHolderEvent {
@@ -320,13 +320,13 @@ object GenericNodeViewHolder {
   case class FailedTransaction[P <: Proposition, TX <: GenericTransaction[P]]
   (transaction: TX, error: Throwable, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
-  case class FailedModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class FailedModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistenNodeViewModifier]
   (modifier: PMOD, error: Throwable, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
   case class SuccessfulTransaction[P <: Proposition, TX <: GenericTransaction[P]]
   (transaction: TX, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
-  case class SuccessfulModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class SuccessfulModification[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistenNodeViewModifier]
   (modifier: PMOD, override val source: Option[ConnectedPeer]) extends ModificationOutcome
 
 

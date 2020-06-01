@@ -77,6 +77,6 @@ object BifrostLocalInterface {
 
   case class LocallyGeneratedTransaction[P <: Proposition, TX <: GenericTransaction[P]](tx: TX)
 
-  case class LocallyGeneratedModifier[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistentNodeViewModifier[P, TX]]
+  case class LocallyGeneratedModifier[P <: Proposition, TX <: GenericTransaction[P], PMOD <: PersistenNodeViewModifier]
   (pmod: PMOD)
 }
