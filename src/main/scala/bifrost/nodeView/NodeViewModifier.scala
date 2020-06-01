@@ -1,10 +1,12 @@
 package bifrost.nodeView
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.box.proposition.Proposition
+import bifrost.modifier.transaction.bifrostTransaction.{GenericTransaction, Transaction}
 import bifrost.network.message.InvData
 import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import bifrost.utils.BifrostEncoder
+import bifrost.utils.BifrostEncoding
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 
@@ -19,6 +21,9 @@ trait NodeViewModifier extends BytesSerializable with JsonSerializable {
 
   //todo: check statically or dynamically output size
   def id: ModifierId
+
+  def encodedId: String = encoder.encodeId(id)
+
 }
 
 /**
@@ -57,13 +62,16 @@ object NodeViewModifier {
 
 
 
-trait PersistentNodeViewModifier extends NodeViewModifier {
+trait PersistentNodeViewModifier[P <: Proposition, TX <: GenericTransaction[P]] extends NodeViewModifier {
 
   def parentId: ModifierId
+
+  // with Dotty is would be Seq[TX] | Nothing
+  def transactions: Option[Seq[TX]]
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
-  extends PersistentNodeViewModifier {
+trait TransactionsCarryingPersistentNodeViewModifier[P <: Proposition, TX <: Transaction]
+  extends PersistentNodeViewModifier[P, TX] {
 
-  def transactions: Seq[TX]
+  def transactions: Option[Seq[TX]]
 }

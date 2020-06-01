@@ -51,7 +51,7 @@ class NodeViewSynchronizer[P <: Proposition,
 TX <: Transaction,
 SI <: SyncInfo,
 SIS <: SyncInfoMessageSpec[SI],
-PMOD <: PersistenNodeViewModifier,
+PMOD <: PersistentNodeViewModifier[P, TX],
 HR <: HistoryReader[PMOD, SI] : ClassTag,
 MR <: MempoolReader[TX] : ClassTag]
 (networkControllerRef: ActorRef,
