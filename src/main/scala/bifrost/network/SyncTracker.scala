@@ -17,7 +17,7 @@ import scala.concurrent.duration.{FiniteDuration, _}
 /**
   * SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)
   */
-class SyncTracker(nvsRef: ActorRef,
+class hSyncTracker(nvsRef: ActorRef,
                   context: ActorContext,
                   networkSettings: NetworkSettings,
                   timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends Logging {

@@ -4,9 +4,9 @@ import akka.actor.{ActorRef, ActorSystem, Cancellable}
 import scorex.core.consensus.ContainsModifiers
 import bifrost.network.ModifiersStatus._
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
-import scorex.core.utils.ScorexEncoding
+import bifrost.utils.BifrostEncoding
 import scorex.core.{ModifierTypeId, NodeViewModifier}
-import scorex.util.ModifierId
+import bifrost.utils.ModifierId
 import bifrost.utils.Logging
 
 import scala.collection.mutable
@@ -38,7 +38,7 @@ import scala.util.{Failure, Try}
 class DeliveryTracker(system: ActorSystem,
                       deliveryTimeout: FiniteDuration,
                       maxDeliveryChecks: Int,
-                      nvsRef: ActorRef) extends Logging with ScorexEncoding {
+                      nvsRef: ActorRef) extends Logging with BifrostEncoding {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
