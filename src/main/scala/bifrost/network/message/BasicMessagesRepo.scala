@@ -4,9 +4,10 @@ import bifrost.network._
 import bifrost.network.message.Message.MessageCode
 import bifrost.serialization.Serializer
 import scorex.core.{ModifierTypeId, NodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{Reader, Writer}
-import scorex.util.{ModifierId, bytesToId, idToBytes}
+import bifrost.utils.{ModifierId, bytesToId, idToBytes}
 import bifrost.utils.Logging
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
