@@ -20,6 +20,7 @@ import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.PersistentNodeViewModifier
+import bifrost.history.GenericHistory.HistoryComparisonResult._
 import bifrost.utils.Logging
 import bifrost.utils.ModifierId
 import scorex.core.serialization.ScorexSerializer
@@ -27,7 +28,8 @@ import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
 import scorex.core.transaction.MempoolReader
-import scorex.core.utils.{NetworkTimeProvider, ScorexEncoding}
+import bifrost.utils.NetworkTimeProvider
+import bifrost.utils.BifrostEncoding
 import scorex.core.validation.MalformedModifierError
 import scorex.core.idsToString
 
@@ -60,7 +62,7 @@ MR <: MempoolReader[TX] : ClassTag]
  networkSettings: NetworkSettings,
  timeProvider: NetworkTimeProvider,
  modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
-  with Logging with ScorexEncoding {
+  with Logging with BifrostEncoding {
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
