@@ -1,7 +1,7 @@
 package bifrost.utils
 
-import scorex.core.VersionTag
-import bifrost.utils.ModifierId
+import bifrost.state.MinimalState.VersionTag
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.utils.encode.{Base16, BytesEncoder}
 
 import scala.util.Try
