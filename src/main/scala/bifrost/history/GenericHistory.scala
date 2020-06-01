@@ -24,7 +24,7 @@ import scala.util.Try
 
 trait GenericHistory[P <: Proposition,
 TX <: GenericTransaction[P],
-PM <: PersistentNodeViewModifier[P, TX],
+PM <: PersistentNodeViewModifier,
 SI <: SyncInfo,
 HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
 
@@ -113,7 +113,7 @@ object GenericHistory {
     */
   case class ProgressInfo[P <: Proposition,
     TX <: GenericTransaction[P],
-    PM <: PersistentNodeViewModifier[P, TX]](branchPoint: Option[ModifierId],
+    PM <: PersistentNodeViewModifier](branchPoint: Option[ModifierId],
                                                             toRemove: Seq[PM],
                                                             toApply: Seq[PM],
                                                             toDownload: Seq[(ModifierTypeId, ModifierId)])
