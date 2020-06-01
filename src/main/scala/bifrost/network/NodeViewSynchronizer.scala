@@ -18,11 +18,10 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.HistoryComparisonResult._
 import bifrost.utils.Logging
-import bifrost.utils.ModifierId
 import scorex.core.serialization.ScorexSerializer
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
