@@ -24,9 +24,6 @@ trait NodeViewModifier extends BytesSerializable with JsonSerializable {
 
   //todo: check statically or dynamically output size
   def id: ModifierId
-
-  def encodedId: String = Base58.encode(id)
-
 }
 
 /**

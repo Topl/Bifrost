@@ -92,7 +92,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
         val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
 
         val parent = h.bestBlock
-        log.debug(s"Trying to generate block on top of ${parent.encodedId} with balance " +
+        log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
           s"${boxKeys.map(_._1.value).sum}")
 
         val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)

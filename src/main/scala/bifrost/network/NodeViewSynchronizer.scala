@@ -305,7 +305,7 @@ MR <: MempoolReader[TX] : ClassTag]
       case Some(hr) =>
         hr.applicableTry(pmod) match {
           case Failure(e) if e.isInstanceOf[MalformedModifierError] =>
-            log.warn(s"Modifier ${pmod.encodedId} is permanently invalid", e)
+            log.warn(s"Modifier ${pmod.id} is permanently invalid", e)
             deliveryTracker.setInvalid(pmod.id)
             penalizeMisbehavingPeer(remote)
             false

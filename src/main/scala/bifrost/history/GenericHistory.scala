@@ -112,7 +112,7 @@ object GenericHistory {
     lazy val appendedId = toApply.last.id
 
     override def toString: String = {
-      s"Modifications(${branchPoint.map(Base58.encode)}, ${toRemove.map(_.encodedId)}, ${toApply.map(_.encodedId)})"
+      s"Modifications(${branchPoint.map(Base58.encode)}, ${toRemove.map(_.id)}, ${toApply.map(_.id)})"
     }
   }
 

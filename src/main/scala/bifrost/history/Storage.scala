@@ -92,7 +92,7 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
       }
    */
   def update(b: Block, diff: Long, isBest: Boolean) {
-    log.debug(s"Write new best=$isBest block ${b.encodedId}")
+    log.debug(s"Write new best=$isBest block ${b.id}")
     val typeByte = Block.ModifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
