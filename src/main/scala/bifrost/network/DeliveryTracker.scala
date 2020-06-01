@@ -1,7 +1,7 @@
 package bifrost.network
 
 import akka.actor.{ActorRef, ActorSystem, Cancellable}
-import scorex.core.consensus.ContainsModifiers
+import bifrost.modifier.ContainsModifiers
 import bifrost.network.ModifiersStatus._
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.utils.BifrostEncoding
