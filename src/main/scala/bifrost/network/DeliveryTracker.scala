@@ -8,8 +8,6 @@ import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.utils.BifrostEncoding
 import bifrost.utils.ModifierId
-import scorex.core.utils.ScorexEncoding
-import scorex.util.ModifierId
 import bifrost.utils.Logging
 
 import scala.collection.mutable

@@ -60,14 +60,14 @@ class NetworkController(settings: NetworkSettings,
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
   //todo: make usage more clear, now we're relying on preStart logic in a actor which is described by a never used val
-  private val featureSerializers: PeerFeature.Serializers = scorexContext.features.map(f => f.featureId -> f.serializer).toMap
+  private val featureSerializers: PeerFeature.Serializers = context.features.map(f => f.featureId -> f.serializer).toMap
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings,
     featureSerializers)
 
   //check own declared address for validity
   validateDeclaredAddress()
 
-  log.info(s"Declared address: ${scorexContext.externalNodeAddress}")
+  log.info(s"Declared address: ${context.externalNodeAddress}")
 
   //bind to listen incoming connections
   tcpManager ! Bind(self, bindAddress, options = Nil, pullMode = false)
@@ -261,9 +261,9 @@ class NetworkController(settings: NetworkSettings,
     val isLocal = connectionId.remoteAddress.getAddress.isSiteLocalAddress ||
       connectionId.remoteAddress.getAddress.isLoopbackAddress
     val peerFeatures =
-      if (isLocal) scorexContext.features :+ LocalAddressPeerFeature(
+      if (isLocal) context.features :+ LocalAddressPeerFeature(
         new InetSocketAddress(connectionId.localAddress.getAddress, settings.bindAddress.getPort))
-      else scorexContext.features
+      else context.features
 
     val selfAddressOpt = getNodeAddressForPeer(connectionId.localAddress)
 
@@ -273,7 +273,7 @@ class NetworkController(settings: NetworkSettings,
     val connectionDescription = ConnectionDescription(connection, connectionId, selfAddressOpt, peerFeatures)
 
     val handlerProps: Props = PeerConnectionHandlerRef.props(settings, self, peerManagerRef,
-      scorexContext, connectionDescription)
+      context, connectionDescription)
 
     val handler = context.actorOf(handlerProps) // launch connection handler
     context.watch(handler)
@@ -345,7 +345,7 @@ class NetworkController(settings: NetworkSettings,
     * Checks the node owns the address
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, bindAddress, scorexContext.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, bindAddress, context.externalNodeAddress)
   }
 
   /**
@@ -361,9 +361,9 @@ class NetworkController(settings: NetworkSettings,
         Some(localAddr)
 
       case (None, Some(declaredAddress))
-        if scorexContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
+        if context.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
 
-        scorexContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
+        context.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
       case _ => peer.peerSpec.declaredAddress
     }
@@ -377,7 +377,7 @@ class NetworkController(settings: NetworkSettings,
     */
   private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress) = {
     val localAddr = localSocketAddress.getAddress
-    scorexContext.externalNodeAddress match {
+    context.externalNodeAddress match {
       case Some(extAddr) =>
         Some(extAddr)
 
@@ -403,7 +403,7 @@ class NetworkController(settings: NetworkSettings,
           val myAddress = InetAddress.getAllByName(myHost)
 
           val listenAddresses = NetworkUtils.getListenAddresses(bindAddress)
-          val upnpAddress = scorexContext.upnpGateway.map(_.externalAddress)
+          val upnpAddress = context.upnpGateway.map(_.externalAddress)
 
           val valid = listenAddresses.exists(myAddress.contains) || upnpAddress.exists(myAddress.contains)
 
