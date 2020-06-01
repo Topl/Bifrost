@@ -33,6 +33,7 @@ object NodeViewModifier {
 
   //TODO implement ModifierTypeId as a trait
   object ModifierTypeId extends TaggedType[Byte]
+  object ModifierId extends TaggedType[String]
   type ModifierTypeId = ModifierTypeId.Type
   type ModifierId = Array[Byte]
 
