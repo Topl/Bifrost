@@ -2,6 +2,7 @@ package bifrost.history
 
 import bifrost.consensus.ModifierSemanticValidity
 import bifrost.history.GenericHistory.ModifierIds
+import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.modifier.ContainsModifiers
 import bifrost.network.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}

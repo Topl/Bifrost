@@ -5,6 +5,7 @@ import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.network.SyncInfo
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
+import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -23,7 +24,7 @@ import scala.util.Try
 
 trait GenericHistory[P <: Proposition,
 TX <: GenericTransaction[P],
-PM <: PersistenNodeViewModifier,
+PM <: PersistentNodeViewModifier,
 SI <: SyncInfo,
 HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
 
@@ -81,39 +82,49 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
   def syncInfo(answer: Boolean): SI
-
-  /**
-    * Whether another's node syncinfo shows that another node is ahead or behind ours
-    *
-    * @param other other's node sync info
-    * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
-    */
-  def compare(other: SI): HistoryComparisonResult.Value
 }
 
 object GenericHistory {
 
   type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
 
-  object HistoryComparisonResult extends Enumeration {
-    val Equal = Value(1)
-    val Younger = Value(2)
-    val Older = Value(3)
-    val Nonsense = Value(4)
-  }
+  sealed trait HistoryComparisonResult
 
-  case class ProgressInfo[PM <: PersistentNodeViewModifier[_, _]](branchPoint: Option[ModifierId],
-                                                                  toRemove: Seq[PM],
-                                                                  toApply: Seq[PM]) {
+  case object Equal extends HistoryComparisonResult
 
-    require(branchPoint.isDefined == toRemove.nonEmpty)
+  case object Younger extends HistoryComparisonResult
 
-    lazy val rollbackNeeded = toRemove.nonEmpty
-    lazy val appendedId = toApply.last.id
+  case object Fork extends HistoryComparisonResult
+
+  case object Older extends HistoryComparisonResult
+
+  case object Nonsense extends HistoryComparisonResult
+
+  case object Unknown extends HistoryComparisonResult
+
+  /**
+    * Info returned by history to nodeViewHolder after modifier application
+    *
+    * @param branchPoint - branch point in case of rollback
+    * @param toRemove    - modifiers to remove from current node view
+    * @param toApply     - modifiers to apply to current node view
+    * @param toDownload  - modifiers to download from other nodes
+    * @tparam PM - type of used modifier
+    */
+  case class ProgressInfo[PM <: PersistentNodeViewModifier](branchPoint: Option[ModifierId],
+                                                            toRemove: Seq[PM],
+                                                            toApply: Seq[PM],
+                                                            toDownload: Seq[(ModifierTypeId, ModifierId)])
+                                                           (implicit encoder: BifrostEncoder) {
+
+    if (toRemove.nonEmpty)
+      require(branchPoint.isDefined, s"Branch point should be defined for non-empty `toRemove`")
+
+    lazy val chainSwitchingNeeded: Boolean = toRemove.nonEmpty
 
     override def toString: String = {
-      s"Modifications(${branchPoint.map(Base58.encode)}, ${toRemove.map(_.id)}, ${toApply.map(_.id)})"
+      s"ProgressInfo(BranchPoint: ${branchPoint.map(encoder.encodeId)}, " +
+        s" to remove: ${toRemove.map(_.encodedId)}, to apply: ${toApply.map(_.encodedId)})"
     }
   }
-
 }
