@@ -7,7 +7,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.history.History
-import scorex.core.NodeViewHolder.DownloadRequest
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.History._
 import scorex.core.consensus.{HistoryReader, SyncInfo}
@@ -17,6 +16,7 @@ import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFr
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
+import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.PersistentNodeViewModifier

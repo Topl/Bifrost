@@ -332,4 +332,6 @@ object GenericNodeViewHolder {
 
   case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
+  case class DownloadRequest(modifierTypeId: ModifierTypeId,
+                             modifierId: ModifierId) extends NodeViewHolderEvent
 }
