@@ -21,6 +21,7 @@ import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.utils.Logging
+import bifrost.utils.ModifierId
 import scorex.core.serialization.ScorexSerializer
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
@@ -29,7 +30,6 @@ import scorex.core.transaction.MempoolReader
 import scorex.core.utils.{NetworkTimeProvider, ScorexEncoding}
 import scorex.core.validation.MalformedModifierError
 import scorex.core.idsToString
-import scorex.util.ModifierId
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
