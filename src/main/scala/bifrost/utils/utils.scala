@@ -1,12 +1,9 @@
 package bifrost
 
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.utils.encode.Base16
-import supertagged.TaggedType
 
 package object utils {
-
-  object ModifierId extends TaggedType[String]
-  type ModifierId = ModifierId.Type
 
   def bytesToId(bytes: Array[Byte]): ModifierId = ModifierId @@ Base16.encode(bytes)
 
