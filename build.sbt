@@ -62,7 +62,8 @@ libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
   "org.scorexfoundation" %% "scrypto" % "1.2.3",
   "com.google.guava" % "guava" % "19.0",
-  "com.iheart" %% "ficus" % "1.4.7"
+  "com.iheart" %% "ficus" % "1.4.7",
+  "org.rudogma" %% "supertagged" % "1.4"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(

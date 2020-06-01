@@ -6,6 +6,7 @@ import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import com.typesafe.config.ConfigFactory
 import scorex.crypto.encode.Base58
+import supertagged.TaggedType
 
 import scala.util.Try
 
@@ -31,7 +32,8 @@ object NodeViewModifier {
   val DefaultIdSize = 32 // in bytes
 
   //TODO implement ModifierTypeId as a trait
-  type ModifierTypeId = Byte
+  object ModifierTypeId extends TaggedType[Byte]
+  type ModifierTypeId = ModifierTypeId.Type
   type ModifierId = Array[Byte]
 
   val ModifierIdSize: Int = Try(ConfigFactory.load().getConfig("app").getInt("modifierIdSize")).getOrElse(DefaultIdSize)
