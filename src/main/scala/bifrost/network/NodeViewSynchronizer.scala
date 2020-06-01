@@ -18,7 +18,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, idsToString}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.HistoryComparisonResult._
 import bifrost.utils.Logging
@@ -30,7 +30,6 @@ import scorex.core.transaction.MempoolReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
 import scorex.core.validation.MalformedModifierError
-import scorex.core.idsToString
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
