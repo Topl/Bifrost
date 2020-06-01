@@ -3,10 +3,13 @@ package bifrost.network
 import akka.actor.{ActorRef, ActorSystem, Cancellable}
 import bifrost.modifier.ContainsModifiers
 import bifrost.network.ModifiersStatus._
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.utils.BifrostEncoding
-import scorex.core.{ModifierTypeId, NodeViewModifier}
 import bifrost.utils.ModifierId
+import scorex.core.utils.ScorexEncoding
+import scorex.util.ModifierId
 import bifrost.utils.Logging
 
 import scala.collection.mutable
