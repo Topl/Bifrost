@@ -1,5 +1,6 @@
 package bifrost.history
 
+import bifrost.consensus.ModifierSemanticValidity
 import bifrost.history.GenericHistory.ModifierIds
 import bifrost.modifier.ContainsModifiers
 import bifrost.network.SyncInfo
