@@ -8,12 +8,14 @@ import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
+import scala.concurrent.duration._
+
 case class NetworkSettings(name: String,
                        bindAddress: String,
                        myAddress: String,
                        upnp: Boolean,
-                       upnpGatewayTimeout: Option[Boolean],
-                       upnpDiscoverTimeout: Option[Boolean],
+                       upnpGatewayTimeout: Option[FiniteDuration],
+                       upnpDiscoverTimeout: Option[FiniteDuration],
                        connectionTimeout: Int,
                        handshakeTimeout: Int,
                        addedMaxDelay: Option[Int],
