@@ -1,10 +1,9 @@
 package bifrost.nodeView
 
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{GenericTransaction, Transaction}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.InvData
 import bifrost.nodeView.NodeViewModifier.ModifierId
-import bifrost.serialization.{BytesSerializable, JsonSerializable}
+import bifrost.serialization.BytesSerializable
 import bifrost.utils.BifrostEncoder
 import bifrost.utils.BifrostEncoding
 import com.typesafe.config.ConfigFactory
@@ -24,6 +23,7 @@ trait NodeViewModifier extends BytesSerializable with BifrostEncoding {
 
   def encodedId: String = encoder.encodeId(id)
 
+  def serializedId: Array[Byte]
 }
 
 /**
