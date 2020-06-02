@@ -11,7 +11,7 @@ import scala.util.Try
   */
 
 trait Vault[P <: Proposition, TX <: GenericTransaction[P],
-            PMOD <: PersistenNodeViewModifier, V <: Vault[P, TX, PMOD, V]] extends NodeViewComponent {
+            PMOD <: PersistentNodeViewModifier, V <: Vault[P, TX, PMOD, V]] extends NodeViewComponent {
   self: V =>
 
   type VersionTag = NodeViewModifier.ModifierId

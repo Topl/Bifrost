@@ -19,7 +19,7 @@ import scala.util.Try
 trait MinimalState[T, P <: Proposition,
 BX <: GenericBox[P, T],
 TX <: GenericTransaction[P],
-M <: PersistenNodeViewModifier,
+M <: PersistentNodeViewModifier,
 MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
   self: MS =>
 
