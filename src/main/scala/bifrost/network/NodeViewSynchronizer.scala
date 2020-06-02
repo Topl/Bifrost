@@ -10,6 +10,7 @@ import bifrost.history.{History, HistoryReader}
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.History._
 import scorex.core.consensus.{HistoryReader, SyncInfo}
+import bifrost.mempool.MemPoolReader
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import bifrost.network.NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
@@ -25,7 +26,6 @@ import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
-import scorex.core.transaction.MempoolReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
 import bifrost.utils.serialization.BifrostSerializer
@@ -53,7 +53,7 @@ SI <: SyncInfo,
 SIS <: SyncInfoMessageSpec[SI],
 PMOD <: PersistentNodeViewModifier,
 HR <: HistoryReader[PMOD, SI] : ClassTag,
-MR <: MempoolReader[TX] : ClassTag]
+MR <: MemPoolReader[TX] : ClassTag]
 (networkControllerRef: ActorRef,
  viewHolderRef: ActorRef,
  syncInfoSpec: SIS,
@@ -510,7 +510,7 @@ object NodeViewSynchronizer {
 
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR) extends NodeViewChange
 
-    case class ChangedMempool[MR <: MempoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
+    case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
 
     case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
@@ -558,7 +558,7 @@ object NodeViewSynchronizerRef {
   SIS <: SyncInfoMessageSpec[SI],
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MempoolReader[TX] : ClassTag]
+  MR <: MemPoolReader[TX] : ClassTag]
   (networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
    syncInfoSpec: SIS,
@@ -573,7 +573,7 @@ object NodeViewSynchronizerRef {
   SIS <: SyncInfoMessageSpec[SI],
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MempoolReader[TX] : ClassTag]
+  MR <: MemPoolReader[TX] : ClassTag]
   (networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
    syncInfoSpec: SIS,
@@ -589,7 +589,7 @@ object NodeViewSynchronizerRef {
   SIS <: SyncInfoMessageSpec[SI],
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MempoolReader[TX] : ClassTag]
+  MR <: MemPoolReader[TX] : ClassTag]
   (name: String,
    networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
