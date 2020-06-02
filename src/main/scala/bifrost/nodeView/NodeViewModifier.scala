@@ -12,7 +12,7 @@ import supertagged.TaggedType
 
 import scala.util.Try
 
-trait NodeViewModifier extends BytesSerializable with JsonSerializable {
+trait NodeViewModifier extends BytesSerializable with BifrostEncoding {
   self =>
 
   import NodeViewModifier.{ModifierId, ModifierTypeId}

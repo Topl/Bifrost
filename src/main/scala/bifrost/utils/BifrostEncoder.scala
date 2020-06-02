@@ -42,4 +42,6 @@ class BifrostEncoder extends BytesEncoder {
 
 }
 
-
+object BifrostEncoder {
+  val default: BifrostEncoder = new BifrostEncoder()
+}
