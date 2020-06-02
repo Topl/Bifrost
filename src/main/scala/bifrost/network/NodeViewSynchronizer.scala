@@ -20,7 +20,7 @@ import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierId, ModifierTypeId}
 import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.history.GenericHistory.HistoryComparisonResult._
+import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
 import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
