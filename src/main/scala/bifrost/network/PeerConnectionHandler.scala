@@ -11,9 +11,9 @@ import bifrost.network.PeerFeature.Serializers
 import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
 import bifrost.settings.Context
-import bifrost.serialization.Serializer
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
+import bifrost.utils.serialization.Serializer
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap

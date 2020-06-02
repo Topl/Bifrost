@@ -4,7 +4,7 @@ import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.Longs
 
 import scala.util.Try

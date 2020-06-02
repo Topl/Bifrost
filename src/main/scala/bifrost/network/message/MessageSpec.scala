@@ -1,7 +1,7 @@
 package bifrost.network.message
 
 import bifrost.settings.Version
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 
 /**
   * Base trait for app p2p messages in the network

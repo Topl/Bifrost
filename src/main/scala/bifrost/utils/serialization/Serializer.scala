@@ -1,6 +1,4 @@
-package bifrost.serialization
-
-import bifrost.utils.serialization.{Reader, Writer}
+package bifrost.utils.serialization
 
 import scala.util.Try
 

@@ -3,8 +3,9 @@ package bifrost.old_network.message
 import java.net.{InetAddress, InetSocketAddress}
 
 import com.google.common.primitives.{Ints, Longs}
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
 import bifrost.settings.{ApplicationVersion, ApplicationVersionSerializer}
+import bifrost.utils.serialization.Serializer
 
 import scala.util.Try
 

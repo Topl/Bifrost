@@ -3,7 +3,8 @@ package bifrost.old_network.message
 import com.google.common.primitives.{Bytes, Ints}
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.network.ConnectedPeer
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
+import bifrost.utils.serialization.Serializer
 
 import scala.util.{Success, Try}
 

@@ -2,7 +2,8 @@ package bifrost.crypto
 
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.Bytes
 import scorex.crypto.signatures.Curve25519
 

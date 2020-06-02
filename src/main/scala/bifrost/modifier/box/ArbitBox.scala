@@ -1,7 +1,7 @@
 package bifrost.modifier.box
 
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 
 import scala.util.Try
 

@@ -2,7 +2,8 @@ package bifrost.wallet
 
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
+import bifrost.utils.serialization.Serializer
 import scorex.crypto.encode.Base58
 
 case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]]

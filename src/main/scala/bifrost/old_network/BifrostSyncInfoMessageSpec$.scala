@@ -3,7 +3,7 @@ package bifrost.old_network.message
 import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 
 import scala.util.Try
 

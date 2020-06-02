@@ -1,6 +1,6 @@
 package bifrost.old_network.message
 
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 
 trait MessageSpec[Content] extends Serializer[Content] {
   val messageCode: Message.MessageCode

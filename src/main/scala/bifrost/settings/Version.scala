@@ -1,6 +1,6 @@
 package bifrost.settings
 
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
 import bifrost.utils.serialization._
 
 /**

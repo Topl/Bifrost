@@ -4,9 +4,8 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import bifrost.settings.{ApplicationVersionSerializer, Version}
 import bifrost.network.peer.LocalAddressPeerFeature
-import bifrost.serialization.Serializer
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, Writer}
+import bifrost.utils.serialization.{Reader, Serializer, Writer}
 
 /**
   * Declared information about peer

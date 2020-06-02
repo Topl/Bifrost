@@ -11,9 +11,9 @@ import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Gen
 import bifrost.network.BifrostLocalInterface.{LocallyGeneratedModifier, LocallyGeneratedTransaction}
 import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.serialization.Serializer
 import bifrost.state.MinimalState
 import bifrost.utils.Logging
+import bifrost.utils.serialization.Serializer
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 

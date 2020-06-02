@@ -1,6 +1,6 @@
 package bifrost.program
 
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser.parse
 

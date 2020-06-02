@@ -11,9 +11,9 @@ import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTr
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.serialization.Serializer
 import bifrost.state.State
 import bifrost.utils.Logging
+import bifrost.utils.serialization.Serializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 

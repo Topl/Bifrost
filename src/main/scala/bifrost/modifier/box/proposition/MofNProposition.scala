@@ -2,7 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.PublicKey25519Proposition._
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256

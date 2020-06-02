@@ -3,7 +3,7 @@ package bifrost.wallet
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.{Bytes, Longs}
 
 import scala.util.Try

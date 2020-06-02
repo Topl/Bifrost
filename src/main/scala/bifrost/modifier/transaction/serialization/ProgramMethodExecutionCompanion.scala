@@ -6,7 +6,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
 import io.circe.parser.parse

@@ -5,7 +5,7 @@ import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec

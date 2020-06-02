@@ -3,7 +3,6 @@ package bifrost.utils.serialization
 import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import bifrost.serialization.Serializer
 import bifrost.utils.ByteArrayBuilder
 
 import scala.util.Try
