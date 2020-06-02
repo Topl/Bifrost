@@ -4,7 +4,7 @@ import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
 
 import scala.util.Try
@@ -17,14 +17,14 @@ case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[Modif
 
   override type M = BifrostSyncInfo
 
-  override def serializer: Serializer[BifrostSyncInfo] = BifrostSyncInfoSerializer
+  override def serializer: BifrostSerializer[BifrostSyncInfo] = BifrostSyncInfoSerializer
 }
 
 object BifrostSyncInfo {
   val MaxLastBlocks = 50 //don't make it more than 127 without changing serialization!
 }
 
-object BifrostSyncInfoSerializer extends Serializer[BifrostSyncInfo] {
+object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
 
   override def toBytes(obj: BifrostSyncInfo): Array[Byte] =
     Array(if (obj.answer) 1: Byte else 0: Byte,

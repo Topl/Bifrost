@@ -1,12 +1,12 @@
 package bifrost.program
 
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser.parse
 
 import scala.util.Try
 
-object ExecutionBuilderCompanion extends Serializer[ExecutionBuilder] {
+object ExecutionBuilderCompanion extends BifrostSerializer[ExecutionBuilder] {
 
   override def toBytes(a: ExecutionBuilder): Array[Byte] = {
     Bytes.concat(

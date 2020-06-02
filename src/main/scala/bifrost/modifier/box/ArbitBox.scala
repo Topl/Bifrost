@@ -1,7 +1,7 @@
 package bifrost.modifier.box
 
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 import scala.util.Try
 
@@ -11,7 +11,7 @@ case class ArbitBox(override val proposition: PublicKey25519Proposition,
   override lazy val typeOfBox: String = "Arbit"
 }
 
-object ArbitBoxSerializer extends Serializer[ArbitBox] with NoncedBoxSerializer {
+object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] with NoncedBoxSerializer {
 
   def toBytes(obj: ArbitBox): Array[Byte] = {
     noncedBoxToBytes(obj, "ArbitBox")

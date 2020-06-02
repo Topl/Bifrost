@@ -4,7 +4,7 @@ import com.google.common.primitives.{Bytes, Ints}
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.network.ConnectedPeer
 import bifrost.serialization.BytesSerializable
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 import scala.util.{Success, Try}
 
@@ -26,10 +26,10 @@ case class Message[Content](spec: MessageSpec[Content],
 
   override type M = Message[Content]
 
-  override def serializer: Serializer[Message[Content]] = new MessageSerializer[Content]
+  override def serializer: BifrostSerializer[Message[Content]] = new MessageSerializer[Content]
 }
 
-class MessageSerializer[Content] extends Serializer[Message[Content]] {
+class MessageSerializer[Content] extends BifrostSerializer[Message[Content]] {
 
   import Message.{ChecksumLength, MAGIC}
 

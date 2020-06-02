@@ -7,13 +7,13 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try
 
 //noinspection ScalaStyle
-object ProgramCreationCompanion extends Serializer[ProgramCreation] {
+object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 
   override def toBytes(m: ProgramCreation): Array[Byte] = {
     ProgramTransactionCompanion.prefixBytes ++ toChildBytes(m)

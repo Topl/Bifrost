@@ -3,7 +3,7 @@ package bifrost.old_network.message
 import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 import scala.util.Try
 
@@ -15,11 +15,11 @@ case class SimpleSyncInfo(answer: Boolean, lastBlockID: NodeViewModifier.Modifie
 
   override type M = SimpleSyncInfo
 
-  override def serializer: Serializer[SimpleSyncInfo] = SimpleSyncInfoSerializer
+  override def serializer: BifrostSerializer[SimpleSyncInfo] = SimpleSyncInfoSerializer
 }
 
 
-object SimpleSyncInfoSerializer extends Serializer[SimpleSyncInfo] {
+object SimpleSyncInfoSerializer extends BifrostSerializer[SimpleSyncInfo] {
 
   override def toBytes(obj: SimpleSyncInfo): Array[Byte] =
     (if (obj.answer) 1: Byte else 0: Byte) +: (obj.lastBlockID ++ obj.score.toByteArray)

@@ -2,12 +2,12 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.AssetTransfer
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object AssetTransferCompanion extends Serializer[AssetTransfer] with TransferSerializer {
+object AssetTransferCompanion extends BifrostSerializer[AssetTransfer] with TransferSerializer {
 
   override def toBytes(at: AssetTransfer): Array[Byte] = {
     TransferTransactionCompanion.prefixBytes ++ toChildBytes(at)

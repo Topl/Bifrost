@@ -13,7 +13,7 @@ import bifrost.network.peer.{PeerInfo, PenaltyType}
 import bifrost.settings.Context
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -37,7 +37,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private val localFeatures = connectionDescription.localFeatures
 
   private val featureSerializers: Serializers =
-    localFeatures.map(f => f.featureId -> (f.serializer: Serializer[_ <: PeerFeature])).toMap
+    localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
   private val messageSerializer = new MessageSerializer(context.messageSpecs, settings.magicBytes)

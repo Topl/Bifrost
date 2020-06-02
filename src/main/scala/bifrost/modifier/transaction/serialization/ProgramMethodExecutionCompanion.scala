@@ -6,14 +6,14 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
 import io.circe.parser.parse
 
 import scala.util.Try
 
-object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution] {
+object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodExecution] {
 
   override def toBytes(cme: ProgramMethodExecution): Array[Byte] = {
     ProgramTransactionCompanion.prefixBytes ++ toChildBytes(cme)

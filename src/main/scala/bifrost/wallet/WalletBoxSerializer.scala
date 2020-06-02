@@ -3,13 +3,13 @@ package bifrost.wallet
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 
 import scala.util.Try
 
-class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: Serializer[B])
-  extends Serializer[WalletBox[T, P, B]] {
+class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: BifrostSerializer[B])
+  extends BifrostSerializer[WalletBox[T, P, B]] {
 
   override def toBytes(box: WalletBox[T, P, B]): Array[Byte] = {
     Bytes.concat(box.transactionId, Longs.toByteArray(box.createdAt), box.box.bytes)

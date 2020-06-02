@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import com.google.common.primitives.{Ints, Longs}
 import bifrost.serialization.BytesSerializable
 import bifrost.settings.{ApplicationVersion, ApplicationVersionSerializer}
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 import scala.util.Try
 
@@ -22,10 +22,10 @@ case class Handshake(applicationName: String,
 
   override type M = Handshake
 
-  override def serializer: Serializer[Handshake] = HandshakeSerializer
+  override def serializer: BifrostSerializer[Handshake] = HandshakeSerializer
 }
 
-object HandshakeSerializer extends Serializer[Handshake] {
+object HandshakeSerializer extends BifrostSerializer[Handshake] {
 
   override def toBytes(obj: Handshake): Array[Byte] = {
     val anb = obj.applicationName.getBytes

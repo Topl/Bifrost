@@ -1,6 +1,6 @@
 package bifrost.serialization
 
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 trait BytesSerializable extends Serializable {
 
@@ -8,5 +8,5 @@ trait BytesSerializable extends Serializable {
 
   lazy val bytes: Array[Byte] = serializer.toBytes(this)
 
-  def serializer: Serializer[M]
+  def serializer: BifrostSerializer[M]
 }

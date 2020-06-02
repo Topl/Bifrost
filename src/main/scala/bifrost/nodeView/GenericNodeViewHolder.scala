@@ -13,7 +13,7 @@ import bifrost.network.{ConnectedPeer, NodeViewSynchronizer, SyncInfo}
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.state.MinimalState
 import bifrost.utils.Logging
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Vault
 import scorex.crypto.encode.Base58
 
@@ -35,7 +35,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   type NodeView = (HIS, MS, VL, MP)
 
 
-  val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]]
+  val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]]
 
   val networkChunkSize: Int
 

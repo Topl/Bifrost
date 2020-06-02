@@ -5,7 +5,7 @@ import bifrost.network.message.Message.MessageCode
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, Serializer, Writer}
+import bifrost.utils.serialization.{Reader, BifrostSerializer, Writer}
 import bifrost.utils.{bytesToId, idToBytes}
 import bifrost.utils.Logging
 
@@ -21,7 +21,7 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   *
   * Payload of this message should be determined in underlying applications.
   */
-class SyncInfoMessageSpec[SI <: SyncInfo](serializer: Serializer[SI]) extends MessageSpecV1[SI] {
+class SyncInfoMessageSpec[SI <: SyncInfo](serializer: BifrostSerializer[SI]) extends MessageSpecV1[SI] {
 
 
   override val messageCode: MessageCode = 65: Byte

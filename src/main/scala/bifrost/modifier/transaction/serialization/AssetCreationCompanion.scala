@@ -3,13 +3,13 @@ package bifrost.modifier.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object AssetCreationCompanion extends Serializer[AssetCreation] {
+object AssetCreationCompanion extends BifrostSerializer[AssetCreation] {
   override def toBytes(ac: AssetCreation): Array[Byte] = {
     val typeBytes = "AssetCreation".getBytes
     Bytes.concat(

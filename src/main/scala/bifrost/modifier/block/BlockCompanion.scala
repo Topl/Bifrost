@@ -5,13 +5,13 @@ import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec
 import scala.util.Try
 
-object BlockCompanion extends Serializer[Block] {
+object BlockCompanion extends BifrostSerializer[Block] {
 
   def commonMessage(block: Block): Array[Byte] = {
     val numTx = Ints.toByteArray(block.txs.length)

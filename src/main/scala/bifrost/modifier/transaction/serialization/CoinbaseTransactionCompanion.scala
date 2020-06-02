@@ -3,13 +3,13 @@ package bifrost.modifier.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
+object CoinbaseTransactionCompanion extends BifrostSerializer[CoinbaseTransaction] {
   override def toBytes(obj: CoinbaseTransaction): Array[Byte] = {
     val typeBytes = "CoinbaseTransaction".getBytes
     Bytes.concat(

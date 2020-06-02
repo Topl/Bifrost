@@ -2,7 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
@@ -26,7 +26,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   override type M = PublicKey25519Proposition
 
-  override def serializer: Serializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
+  override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
@@ -37,7 +37,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
 }
 
-object PublicKey25519PropositionSerializer extends Serializer[PublicKey25519Proposition] {
+object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {
   override def toBytes(obj: PublicKey25519Proposition): Array[Byte] = obj.pubKeyBytes
 
   override def parseBytes(bytes: Array[Byte]): Try[PublicKey25519Proposition] = Try(PublicKey25519Proposition(bytes))

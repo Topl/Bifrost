@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import bifrost.settings.{ApplicationVersionSerializer, Version}
 import bifrost.network.peer.LocalAddressPeerFeature
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, Serializer, Writer}
+import bifrost.utils.serialization.{Reader, BifrostSerializer, Writer}
 
 /**
   * Declared information about peer
@@ -35,7 +35,7 @@ case class PeerSpec(agentName: String,
 
 }
 
-class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Serializer[PeerSpec] {
+class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
 
     w.putShortString(obj.agentName)

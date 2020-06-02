@@ -13,7 +13,7 @@ import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.state.State
 import bifrost.utils.Logging
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
@@ -27,7 +27,7 @@ class NodeViewHolder(settings: ForgingSettings)
   override type VL = Wallet
   override type MP = MemPool
 
-  override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
+  override lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.ModifierTypeId -> BlockCompanion,
     GenericTransaction.ModifierTypeId -> TransactionCompanion)
 

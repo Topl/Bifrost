@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object ArbitTransferCompanion extends Serializer[ArbitTransfer] with TransferSerializer {
+object ArbitTransferCompanion extends BifrostSerializer[ArbitTransfer] with TransferSerializer {
 
   override def toBytes(ac: ArbitTransfer): Array[Byte] = {
     TransferTransactionCompanion.prefixBytes ++ toChildBytes(ac)

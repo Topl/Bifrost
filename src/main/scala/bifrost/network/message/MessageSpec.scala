@@ -1,12 +1,12 @@
 package bifrost.network.message
 
 import bifrost.settings.Version
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 
 /**
   * Base trait for app p2p messages in the network
   */
-trait MessageSpec[Content] extends Serializer[Content] {
+trait MessageSpec[Content] extends BifrostSerializer[Content] {
 
   /**
     * The p2p protocol version in which this message type first appeared

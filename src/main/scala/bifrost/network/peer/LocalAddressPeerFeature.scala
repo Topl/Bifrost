@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import bifrost.network.PeerFeature
 import bifrost.network.PeerFeature.Id
-import bifrost.utils.serialization.{Serializer, _}
+import bifrost.utils.serialization.{BifrostSerializer, _}
 import bifrost.utils.Extensions._
 
 case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeature {
@@ -18,7 +18,7 @@ object LocalAddressPeerFeature {
   val featureId: Id = 2: Byte
 }
 
-object LocalAddressPeerFeatureSerializer extends Serializer[LocalAddressPeerFeature] {
+object LocalAddressPeerFeatureSerializer extends BifrostSerializer[LocalAddressPeerFeature] {
 
   private val AddressLength = 4
 

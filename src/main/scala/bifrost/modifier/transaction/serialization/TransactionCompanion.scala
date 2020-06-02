@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object TransactionCompanion extends Serializer[Transaction] {
+object TransactionCompanion extends BifrostSerializer[Transaction] {
 
   override def toBytes(m: Transaction): Array[Byte] = m match {
     case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)

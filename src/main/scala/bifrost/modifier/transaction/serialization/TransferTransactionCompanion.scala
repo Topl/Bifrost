@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer, PolyTransfer, TransferTransaction}
-import bifrost.utils.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object TransferTransactionCompanion extends Serializer[TransferTransaction] {
+object TransferTransactionCompanion extends BifrostSerializer[TransferTransaction] {
   val typeBytes = "TransferTransaction".getBytes
 
   val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
