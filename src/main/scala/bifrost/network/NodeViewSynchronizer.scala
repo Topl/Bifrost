@@ -6,7 +6,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.history.History
+import bifrost.history.{History, HistoryReader}
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.History._
 import scorex.core.consensus.{HistoryReader, SyncInfo}
@@ -18,7 +18,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, idsToString}
+import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierId, ModifierTypeId}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.HistoryComparisonResult._
 import bifrost.utils.Logging
