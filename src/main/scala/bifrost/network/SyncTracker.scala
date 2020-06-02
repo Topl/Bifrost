@@ -3,7 +3,8 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
-import bifrost.history.History
+import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Older}
+import bifrost.network.ModifiersStatus.Unknown
 import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import bifrost.settings.NetworkSettings
@@ -17,12 +18,11 @@ import scala.concurrent.duration.{FiniteDuration, _}
 /**
   * SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)
   */
-class hSyncTracker(nvsRef: ActorRef,
+class SyncTracker(nvsRef: ActorRef,
                   context: ActorContext,
                   networkSettings: NetworkSettings,
                   timeProvider: TimeProvider)(implicit ec: ExecutionContext) extends Logging {
 
-  import History._
   import bifrost.utils.TimeProvider.Time
 
   private var schedule: Option[Cancellable] = None
