@@ -22,13 +22,13 @@ import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierId, ModifierTypeI
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.HistoryComparisonResult._
 import bifrost.utils.Logging
-import scorex.core.serialization.ScorexSerializer
 import bifrost.settings.NetworkSettings
 import scorex.core.transaction.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
 import scorex.core.transaction.MempoolReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.core.validation.MalformedModifierError
 
 import scala.annotation.tailrec
@@ -59,7 +59,7 @@ MR <: MempoolReader[TX] : ClassTag]
  syncInfoSpec: SIS,
  networkSettings: NetworkSettings,
  timeProvider: NetworkTimeProvider,
- modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
+ modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
   with Logging with BifrostEncoding {
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
@@ -278,12 +278,12 @@ MR <: MempoolReader[TX] : ClassTag]
       val requestedModifiers = processSpam(remote, typeId, modifiers)
 
       modifierSerializers.get(typeId) match {
-        case Some(serializer: ScorexSerializer[TX]@unchecked) if typeId == Transaction.ModifierTypeId =>
+        case Some(serializer: BifrostSerializer[TX]@unchecked) if typeId == Transaction.ModifierTypeId =>
           // parse all transactions and send them to node view holder
           val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
           viewHolderRef ! TransactionsFromRemote(parsed)
 
-        case Some(serializer: ScorexSerializer[PMOD]@unchecked) =>
+        case Some(serializer: BifrostSerializer[PMOD]@unchecked) =>
           // parse all modifiers and put them to modifiers cache
           val parsed: Iterable[PMOD] = parseModifiers(requestedModifiers, serializer, remote)
           val valid: Iterable[PMOD] = parsed.filter(validateAndSetStatus(remote, _))
@@ -326,7 +326,7 @@ MR <: MempoolReader[TX] : ClassTag]
     * @return collection of parsed modifiers
     */
   private def parseModifiers[M <: NodeViewModifier](modifiers: Map[ModifierId, Array[Byte]],
-                                                    serializer: ScorexSerializer[M],
+                                                    serializer: BifrostSerializer[M],
                                                     remote: ConnectedPeer): Iterable[M] = {
     modifiers.flatMap { case (id, bytes) =>
       serializer.parseBytesTry(bytes) match {
@@ -422,7 +422,7 @@ MR <: MempoolReader[TX] : ClassTag]
         }
 
         modifierSerializers.get(modType) match {
-          case Some(serializer: ScorexSerializer[NodeViewModifier]) =>
+          case Some(serializer: BifrostSerializer[NodeViewModifier]) =>
             sendByParts(modifiers.map(m => m.id -> serializer.toBytes(m)))
           case _ =>
             log.error(s"Undefined serializer for modifier of type $modType")
@@ -564,7 +564,7 @@ object NodeViewSynchronizerRef {
    syncInfoSpec: SIS,
    networkSettings: NetworkSettings,
    timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext): Props =
+   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext): Props =
     Props(new NodeViewSynchronizer[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef, syncInfoSpec,
       networkSettings, timeProvider, modifierSerializers))
 
@@ -579,7 +579,7 @@ object NodeViewSynchronizerRef {
    syncInfoSpec: SIS,
    networkSettings: NetworkSettings,
    timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])
+   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef,
       syncInfoSpec, networkSettings, timeProvider, modifierSerializers))
@@ -596,7 +596,7 @@ object NodeViewSynchronizerRef {
    syncInfoSpec: SIS,
    networkSettings: NetworkSettings,
    timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, ScorexSerializer[_ <: NodeViewModifier]])
+   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef,
       syncInfoSpec, networkSettings, timeProvider, modifierSerializers), name)
