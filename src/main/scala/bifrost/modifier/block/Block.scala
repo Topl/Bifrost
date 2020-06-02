@@ -2,10 +2,11 @@ package bifrost.modifier.block
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.block.Block._
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -37,11 +38,11 @@ case class Block(parentId: BlockId,
                  txs: Seq[Transaction],
                  inflation: Long = 0L,
                  protocolVersion: Version)
-  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction] {
+  extends PersistentNodeViewModifier {
 
   type M = Block
 
-  lazy val modifierTypeId: Byte = Block.ModifierTypeId
+  lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
@@ -49,11 +50,11 @@ case class Block(parentId: BlockId,
 
   lazy val version: Version = protocolVersion
 
-  lazy val id: BlockId = FastCryptographicHash(serializer.messageToSign(this))
+  lazy val id: BlockId = NodeViewModifier.bytesToId(FastCryptographicHash(serializer.messageToSign(this)))
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "parentId" -> Base58.encode(parentId).asJson,
+    "id" -> id.asJson,
+    "parentId" -> parentId.asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
@@ -66,7 +67,7 @@ case class Block(parentId: BlockId,
 
 object Block {
   val BlockIdLength: Int = NodeViewModifier.ModifierIdSize
-  val ModifierTypeId = 3: Byte
+  val modifierTypeId = ModifierTypeId @@ (3: Byte)
   val SignatureLength = 64
 
   type BlockId = NodeViewModifier.ModifierId
