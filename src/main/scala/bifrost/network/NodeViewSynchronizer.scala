@@ -8,8 +8,7 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.history.{History, HistoryReader}
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-import scorex.core.consensus.History._
-import scorex.core.consensus.{HistoryReader, SyncInfo}
+import scorex.core.consensus.SyncInfo
 import bifrost.mempool.MemPoolReader
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -24,7 +23,7 @@ import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
 import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
-import scorex.core.transaction.state.StateReader
+import bifrost.state.StateReader
 import scorex.core.transaction.wallet.VaultReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
