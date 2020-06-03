@@ -5,6 +5,7 @@ import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.utils.{idToBytes, bytesToId}
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
@@ -18,7 +19,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
     val generatorBoxBytes = BoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
-      block.parentId,
+      idToBytes(block.parentId),
       Longs.toByteArray(block.timestamp),
       Longs.toByteArray(generatorBoxBytes.length),
       Array(block.version),
@@ -34,7 +35,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
     val generatorBoxBytes = BoxSerializer.toBytes(block.forgerBox)
 
     Bytes.concat(
-      block.parentId,
+      idToBytes(block.parentId),
       Longs.toByteArray(block.timestamp),
       Longs.toByteArray(generatorBoxBytes.length),
       Array(block.version),
@@ -76,7 +77,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
 
   override def parseBytes(bytes: Array[Byte]): Try[Block] = Try {
 
-    val parentId = bytes.slice(0, Block.blockIdLength)
+    val parentId = bytesToId(bytes.slice(0, Block.blockIdLength))
 
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i*Longs.BYTES, Block.blockIdLength + (i + 1)*Longs.BYTES))
@@ -133,7 +134,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
 
 
   def parseBytes2xAndBefore(bytes: Array[Byte]): Try[Block] = Try {
-    val parentId = bytes.slice(0, Block.blockIdLength)
+    val parentId = bytesToId(bytes.slice(0, Block.blockIdLength))
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i * Longs.BYTES, Block.blockIdLength + (i + 1) * Longs.BYTES))
     }.toArray
