@@ -5,7 +5,7 @@ import bifrost.forging.ForgingSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier._
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, bytesToId, idToBytes}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.primitives.Longs
 import com.typesafe.config.{Config, ConfigFactory}
@@ -44,9 +44,9 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
 
   def height: Long = heightOf(bestBlockId).getOrElse(0L)
 
-  def bestBlockId: Array[Byte] = blockCache
+  def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
-    .map(_.data)
+    .map(d => bytesToId(d.data))
     .getOrElse(settings.GenesisParentId)
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
@@ -58,11 +58,11 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
 
   def modifierById(blockId: ModifierId): Option[Block] = {
     blockCache
-      .get(ByteArrayWrapper(blockId))
+      .get(ByteArrayWrapper(idToBytes(blockId)))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
-          case Block.ModifierTypeId =>
+          case Block.modifierTypeId =>
             val parsed = {
               heightOf(blockId) match {
                 case Some(x) if x <= settings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
@@ -93,38 +93,38 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
    */
   def update(b: Block, diff: Long, isBest: Boolean) {
     log.debug(s"Write new best=$isBest block ${b.id}")
-    val typeByte = Block.ModifierTypeId
+    val typeByte = Block.modifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(typeByte +: b.bytes))
+      Seq(ByteArrayWrapper(idToBytes(b.id)) -> ByteArrayWrapper(typeByte +: b.bytes))
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
 
     val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockDiffKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(diff)))
+      Seq(blockDiffKey(idToBytes(b.id)) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff)))
 
-    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id))
+    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(idToBytes(b.id)))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       (b.parentId sameElements settings.GenesisParentId) match {
         case true => Seq()
-        case false => Seq(blockParentKey(b.id) -> ByteArrayWrapper(b.parentId))
+        case false => Seq(blockParentKey(idToBytes(b.id)) -> ByteArrayWrapper(idToBytes(b.parentId)))
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id) -> ByteArrayWrapper(Block.createBloom(b.txs)))
+      Seq(blockBloomKey(idToBytes(b.id)) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(tx.id), ByteArrayWrapper(GenericTransaction.ModifierTypeId +: b.id))
+      tx => (ByteArrayWrapper(idToBytes(tx.id)), ByteArrayWrapper(GenericTransaction.ModifierTypeId +: idToBytes(b.id)))
     )
 
     /* update storage */
     storage.update(
-      ByteArrayWrapper(b.id),
+      ByteArrayWrapper(idToBytes(b.id)),
       Seq(),
       blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
@@ -140,7 +140,7 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
     */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
-    storage.rollback(ByteArrayWrapper(parentId))
+    storage.rollback(ByteArrayWrapper(idToBytes(parentId)))
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
@@ -152,8 +152,8 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
-  private def blockParentKey(blockId: Array[Byte]): ByteArrayWrapper = ByteArrayWrapper(Sha256("parentId"
-    .getBytes ++ blockId))
+  private def blockParentKey(blockId: Array[Byte]): ByteArrayWrapper =
+    ByteArrayWrapper(Sha256("parentId".getBytes ++ blockId))
 
   def blockTimestampKey: ByteArrayWrapper =
     ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes))
@@ -176,23 +176,23 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
       Some(settings.InitialDifficulty)
     } else {
       blockCache
-        .get(blockDiffKey(blockId))
+        .get(blockDiffKey(idToBytes(blockId)))
         .map(b => Longs.fromByteArray(b.data))
     }
 
   def bloomOf(blockId: ModifierId): Option[BitSet] =
     blockCache
-      .get(blockBloomKey(blockId))
+      .get(blockBloomKey(idToBytes(blockId)))
       .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
     blockCache
-      .get(blockParentKey(blockId))
-      .map(_.data)
+      .get(blockParentKey(idToBytes(blockId)))
+      .map(d => bytesToId(d.data))
 
   def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] =
     blockCache
-      .get(ByteArrayWrapper(transactionId))
+      .get(ByteArrayWrapper(idToBytes(transactionId)))
       .map(_.data)
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)

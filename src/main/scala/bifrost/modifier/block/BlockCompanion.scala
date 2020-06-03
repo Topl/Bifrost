@@ -74,7 +74,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
     }
   }
 
-  override def parseBytes(bytes: Array[ModifierTypeId]): Try[Block] = Try {
+  override def parseBytes(bytes: Array[Byte]): Try[Block] = Try {
 
     val parentId = bytes.slice(0, Block.blockIdLength)
 
@@ -132,7 +132,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
   }
 
 
-  def parseBytes2xAndBefore(bytes: Array[ModifierTypeId]): Try[Block] = Try {
+  def parseBytes2xAndBefore(bytes: Array[Byte]): Try[Block] = Try {
     val parentId = bytes.slice(0, Block.blockIdLength)
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i * Longs.BYTES, Block.blockIdLength + (i + 1) * Longs.BYTES))
