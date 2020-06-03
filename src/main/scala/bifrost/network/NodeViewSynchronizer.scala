@@ -6,7 +6,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.history.{History, HistoryReader}
+import bifrost.history.HistoryReader
 import scorex.core.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import scorex.core.consensus.SyncInfo
 import bifrost.mempool.MemPoolReader
@@ -18,7 +18,7 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, idsToString}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
 import bifrost.utils.Logging
@@ -46,8 +46,7 @@ import scala.util.{Failure, Success}
   * @tparam TX  transaction
   * @tparam SIS SyncInfoMessage specification
   */
-class NodeViewSynchronizer[P <: Proposition,
-TX <: Transaction,
+class NodeViewSynchronizer[TX <: Transaction,
 SI <: SyncInfo,
 SIS <: SyncInfoMessageSpec[SI],
 PMOD <: PersistentNodeViewModifier,
@@ -494,7 +493,7 @@ object NodeViewSynchronizer {
                              modifierId: ModifierId)
 
     case class OtherNodeSyncingStatus[SI <: SyncInfo](remote: ConnectedPeer,
-                                                      status: History.HistoryComparisonResult,
+                                                      status: HistoryComparisonResult,
                                                       extension: Seq[(ModifierTypeId, ModifierId)])
 
     trait PeerManagerEvent
