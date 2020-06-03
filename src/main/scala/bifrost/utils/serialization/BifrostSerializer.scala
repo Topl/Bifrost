@@ -30,13 +30,13 @@ trait BifrostSerializer[T] extends Serializer[T, T, Reader, Writer] {
     writer.result().toBytes
   }
 
-  def parseBytes(bytes: Array[Byte]): T = {
+  def parseBytes(bytes: Array[Byte]): Try[T] = {
     val reader = new VLQByteBufferReader(ByteBuffer.wrap(bytes))
-    parse(reader)
+    Try(parse(reader))
   }
 
   def parseBytesTry(bytes: Array[Byte]): Try[T] = {
-    Try(parseBytes(bytes))
+    parseBytes(bytes)
   }
 
 }
