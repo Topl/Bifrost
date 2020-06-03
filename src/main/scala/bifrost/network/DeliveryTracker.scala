@@ -7,7 +7,7 @@ import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.utils.BifrostEncoding
-import bifrost.utils.ModifierId
+import bifrost.nodeView.NodeViewModifier._
 import bifrost.utils.Logging
 
 import scala.collection.mutable
