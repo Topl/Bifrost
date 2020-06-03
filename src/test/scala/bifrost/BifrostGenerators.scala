@@ -648,7 +648,7 @@ trait BifrostGenerators extends CoreGenerators {
     .map(_.toArray)
 
   lazy val BlockGen: Gen[Block] = for {
-    parentId <- specificLengthBytesGen(Block.BlockIdLength)
+    parentId <- specificLengthBytesGen(Block.blockIdLength)
     timestamp <- positiveLongGen
     generatorBox <- arbitBoxGen
     signature <- signatureGen

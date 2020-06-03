@@ -94,10 +94,10 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          Array.fill(Block.signatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
           10L,
           settings.version
@@ -292,10 +292,10 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
         val firstCCAddBlock = Block(
-          Array.fill(Block.SignatureLength)(1: Byte),
+          Array.fill(Block.signatureLength)(1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
           10L,
           settings.version

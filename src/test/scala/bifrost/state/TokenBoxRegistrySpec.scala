@@ -69,10 +69,10 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      Array.fill(Block.signatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)
@@ -104,10 +104,10 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block2 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      Array.fill(Block.signatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx2), 10L, settings.version)
 
     require(newState1.validate(tx2).isSuccess)
@@ -149,10 +149,10 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      Array.fill(Block.signatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)

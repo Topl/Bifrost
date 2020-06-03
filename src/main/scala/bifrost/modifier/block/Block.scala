@@ -3,7 +3,6 @@ package bifrost.modifier.block
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.block.Block._
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
@@ -66,9 +65,9 @@ case class Block(parentId: BlockId,
 }
 
 object Block {
-  val BlockIdLength: Int = NodeViewModifier.ModifierIdSize
+  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId = ModifierTypeId @@ (3: Byte)
-  val SignatureLength = 64
+  val signatureLength = 64
 
   type BlockId = NodeViewModifier.ModifierId
   type Timestamp = Long

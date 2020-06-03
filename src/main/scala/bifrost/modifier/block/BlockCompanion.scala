@@ -76,15 +76,15 @@ object BlockCompanion extends BifrostSerializer[Block] {
 
   override def parseBytes(bytes: Array[ModifierTypeId]): Try[Block] = Try {
 
-    val parentId = bytes.slice(0, Block.BlockIdLength)
+    val parentId = bytes.slice(0, Block.blockIdLength)
 
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
-      i => Longs.fromByteArray(bytes.slice(Block.BlockIdLength + i*Longs.BYTES, Block.BlockIdLength + (i + 1)*Longs.BYTES))
+      i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i*Longs.BYTES, Block.blockIdLength + (i + 1)*Longs.BYTES))
     }.toArray
 
-    val version = bytes.slice(Block.BlockIdLength + 2*Longs.BYTES, Block.BlockIdLength + 2*Longs.BYTES + 1).head
+    val version = bytes.slice(Block.blockIdLength + 2*Longs.BYTES, Block.blockIdLength + 2*Longs.BYTES + 1).head
 
-    var numBytesRead = Block.BlockIdLength + Longs.BYTES*2 + 1
+    var numBytesRead = Block.blockIdLength + Longs.BYTES*2 + 1
 
     val generatorBox = BoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
 
@@ -133,14 +133,14 @@ object BlockCompanion extends BifrostSerializer[Block] {
 
 
   def parseBytes2xAndBefore(bytes: Array[ModifierTypeId]): Try[Block] = Try {
-    val parentId = bytes.slice(0, Block.BlockIdLength)
+    val parentId = bytes.slice(0, Block.blockIdLength)
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
-      i => Longs.fromByteArray(bytes.slice(Block.BlockIdLength + i * Longs.BYTES, Block.BlockIdLength + (i + 1) * Longs.BYTES))
+      i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i * Longs.BYTES, Block.blockIdLength + (i + 1) * Longs.BYTES))
     }.toArray
 
-    val version = bytes.slice(Block.BlockIdLength + 2*Longs.BYTES, Block.BlockIdLength + 2*Longs.BYTES + 1).head
+    val version = bytes.slice(Block.blockIdLength + 2*Longs.BYTES, Block.blockIdLength + 2*Longs.BYTES + 1).head
 
-    var numBytesRead = Block.BlockIdLength + Longs.BYTES * 2 + 1
+    var numBytesRead = Block.blockIdLength + Longs.BYTES * 2 + 1
 
     val generatorBox = BoxSerializer.parseBytes(bytes.slice(numBytesRead, numBytesRead + generatorBoxLen.toInt)).get.asInstanceOf[ArbitBox]
     val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt, numBytesRead + generatorBoxLen.toInt + Signature25519.SignatureSize))

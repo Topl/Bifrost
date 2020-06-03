@@ -52,10 +52,10 @@ class StateSpec extends PropSpec
         .get
 
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(poT), 10L, settings.version)
 
       require(BifrostStateSpec.genesisState.validate(poT).isSuccess)
@@ -119,10 +119,10 @@ class StateSpec extends PropSpec
     val tx = ProfileTransaction(privateKey.publicImage, signature, Map("role" -> role.toString), 0L, timestamp)
 
     val block = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      Array.fill(Block.signatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx),
       10L,
       settings.version)
@@ -177,10 +177,10 @@ class StateSpec extends PropSpec
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
       val poT = PolyTransfer.create(gw, toReceive, Random.nextInt(100),"").get
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(poT),
         10L,
         settings.version
@@ -220,10 +220,10 @@ class StateSpec extends PropSpec
       val toReceive = pubkeys.map(_ -> (Gen.choose(0, 100L).sample.get + initialBalance))
       val arT = ArbitTransfer.create(gw, toReceive, Random.nextInt(100),"").get
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(arT),
         10L,
         settings.version
