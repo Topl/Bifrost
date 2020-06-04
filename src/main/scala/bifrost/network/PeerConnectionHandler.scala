@@ -39,7 +39,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
-  private val messageSerializer = new MessageSerializer(context.messageSpecs, settings.magicBytes)
+  private val messageSerializer = new MessageSerializer(bifrostContext.messageSpecs, settings.magicBytes)
 
   // there is no recovery for broken connections
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
@@ -239,7 +239,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
         ownSocketAddress,
         localFeatures
       ),
-      context.timeProvider.time()
+      bifrostContext.timeProvider.time()
     )
   }
 
@@ -248,7 +248,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
     val peerInfo = PeerInfo(
       receivedHandshake.peerSpec,
-      context.timeProvider.time(),
+      bifrostContext.timeProvider.time(),
       Some(direction)
     )
     val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))
