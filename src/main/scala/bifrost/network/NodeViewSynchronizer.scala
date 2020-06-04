@@ -92,17 +92,16 @@ MR <: MemPoolReader[TX] : ClassTag]
     statusTracker.scheduleSendSyncInfo()
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   override def receive: Receive =
-      processDataFromPeer orElse
+    processDataFromPeer orElse
       processSyncStatus orElse
       manageModifiers orElse
       viewHolderEvents orElse
-      peerManagerEvents orElse {
-      case a: Any => log.error("Strange input: " + a)
-    }
+      peerManagerEvents orElse
+      nonsense
 
   // todo: determine if we need to keep this message receipt option as it is not sent by any nodes
   // todo: and it seems redundant with responseFromLocal
@@ -323,8 +322,13 @@ MR <: MemPoolReader[TX] : ClassTag]
       statusTracker.clearStatus(remote)
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  protected def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense")
+  }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   private def readersOpt: Option[(HR, MR)] = historyReaderOpt.flatMap(h => mempoolReaderOpt.map(mp => (h, mp)))
 
@@ -451,6 +455,9 @@ MR <: MemPoolReader[TX] : ClassTag]
 
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
 object NodeViewSynchronizer {
 
   object Events {
@@ -537,6 +544,9 @@ object NodeViewSynchronizer {
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NodeViewSynchronizerRef {
   def props[TX <: Transaction,

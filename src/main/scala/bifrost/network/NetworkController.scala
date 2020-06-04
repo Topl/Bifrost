@@ -72,6 +72,9 @@ class NetworkController(settings: NetworkSettings,
   //bind to listen incoming connections
   tcpManager ! Bind(self, bindAddress, options = Nil, pullMode = false)
 
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
   override def receive: Receive =
     bindingLogic orElse
       businessLogic orElse
@@ -201,6 +204,9 @@ class NetworkController(settings: NetworkSettings,
     case nonsense: Any =>
       log.warn(s"NetworkController: got unexpected input $nonsense")
   }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   /**
     * Schedule a periodic connection to a random known peer
@@ -436,6 +442,9 @@ class NetworkController(settings: NetworkSettings,
 
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
 object NetworkController {
 
   val ChildActorHandlingRetriesNr: Int = 10
@@ -461,6 +470,9 @@ object NetworkController {
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NetworkControllerRef {
   def props(settings: NetworkSettings,

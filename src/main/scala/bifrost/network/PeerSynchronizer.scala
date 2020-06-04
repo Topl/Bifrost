@@ -38,6 +38,9 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
     context.system.scheduler.schedule(2.seconds, settings.getPeersInterval)(networkControllerRef ! stn)
   }
 
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
   override def receive: Receive = {
     case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _)
       if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>
@@ -53,9 +56,12 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
           networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
         }
 
-    case nonsense: Any => log.warn(s"PeerSynchronizer: got something strange $nonsense")
+    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense")
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object PeerSynchronizerRef {
   def props(networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,

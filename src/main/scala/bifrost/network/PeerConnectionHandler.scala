@@ -63,9 +63,11 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     context.become(handshaking)
   }
 
-  override def receive: Receive = reportStrangeInput
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  override def postStop(): Unit = log.info(s"Peer handler to $connectionId destroyed")
+  // context should be changed when this actor spins up so we don't expect the default receive to be used
+  override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
     handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
@@ -116,13 +118,13 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     localInterfaceWriting orElse
       remoteInterface orElse
       fatalCommands orElse
-      reportStrangeInput
+      nonsense
 
   private def workingCycleBuffering: Receive =
     localInterfaceBuffering orElse
       remoteInterface orElse
       fatalCommands orElse
-      reportStrangeInput
+      nonsense
 
   private def fatalCommands: Receive = {
     case _: ConnectionClosed =>
@@ -231,10 +233,15 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       log.debug(s"Got $other in closing phase")
   }
 
-  private def reportStrangeInput: Receive = {
-    case nonsense =>
-      log.warn(s"Strange input for PeerConnectionHandler: $nonsense")
+  private def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"PeerConnectionHandler: got unexpected input $nonsense")
   }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+
+  override def postStop(): Unit = log.info(s"Peer handler to $connectionId destroyed")
 
   private def buffer(id: Long, msg: ByteString): Unit = {
     outMessagesBuffer += id -> msg
@@ -267,6 +274,9 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
 object PeerConnectionHandler {
 
   object ReceivableMessages {
@@ -284,6 +294,9 @@ object PeerConnectionHandler {
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object PeerConnectionHandlerRef {
   def props(settings: NetworkSettings,

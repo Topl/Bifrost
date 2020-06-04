@@ -30,12 +30,13 @@ class PeerManager(settings: AppSettings, context: Context) extends Actor with Lo
     }
   }
 
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
   override def receive: Receive =
     peersManagement orElse
-      apiInterface orElse {
-      case a: Any =>
-        log.error(s"Wrong input for peer manager: $a")
-    }
+      apiInterface orElse
+      nonsense
 
   private def peersManagement: Receive = {
 
@@ -81,6 +82,14 @@ class PeerManager(settings: AppSettings, context: Context) extends Actor with Lo
       sender() ! peerDatabase.blacklistedPeers
   }
 
+  private def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"PeerManager: got unexpected input $nonsense")
+  }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+
   /**
     * Given a peer's address, returns `true` if the peer is the same is this node.
     */
@@ -93,6 +102,9 @@ class PeerManager(settings: AppSettings, context: Context) extends Actor with Lo
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object PeerManager {
 
@@ -175,6 +187,9 @@ object PeerManager {
   }
 
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object PeerManagerRef {
 
