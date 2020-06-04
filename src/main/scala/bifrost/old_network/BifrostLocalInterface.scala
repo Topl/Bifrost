@@ -1,4 +1,4 @@
-package bifrost.old_network.message
+package bifrost.old_network
 
 import akka.actor.{Actor, ActorRef}
 import bifrost.crypto.PrivateKey25519

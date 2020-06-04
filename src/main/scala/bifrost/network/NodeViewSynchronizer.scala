@@ -47,18 +47,18 @@ import scala.util.{Failure, Success}
   * @tparam SIS SyncInfoMessage specification
   */
 class NodeViewSynchronizer[TX <: Transaction,
-SI <: SyncInfo,
-SIS <: SyncInfoMessageSpec[SI],
-PMOD <: PersistentNodeViewModifier,
-HR <: HistoryReader[PMOD, SI] : ClassTag,
-MR <: MemPoolReader[TX] : ClassTag]
-(networkControllerRef: ActorRef,
- viewHolderRef: ActorRef,
- syncInfoSpec: SIS,
- networkSettings: NetworkSettings,
- timeProvider: NetworkTimeProvider,
- modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
-  with Logging with BifrostEncoding {
+  SI <: SyncInfo,
+  SIS <: SyncInfoMessageSpec[SI],
+  PMOD <: PersistentNodeViewModifier,
+  HR <: HistoryReader[PMOD, SI] : ClassTag,
+  MR <: MemPoolReader[TX] : ClassTag]
+  (networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     syncInfoSpec: SIS,
+     networkSettings: NetworkSettings,
+     timeProvider: NetworkTimeProvider,
+     modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
+      with Logging with BifrostEncoding {
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
@@ -102,15 +102,6 @@ MR <: MemPoolReader[TX] : ClassTag]
       viewHolderEvents orElse
       peerManagerEvents orElse
       nonsense
-
-  // todo: determine if we need to keep this message receipt option as it is not sent by any nodes
-  // todo: and it seems redundant with responseFromLocal
-//  def onDownloadRequest: Receive = {
-//    case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
-//      if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
-//        requestDownload(modifierTypeId, Seq(modifierId))
-//      }
-//  }
 
   protected def processDataFromPeer: Receive = {
 
@@ -230,7 +221,13 @@ MR <: MemPoolReader[TX] : ClassTag]
 
   protected def manageModifiers: Receive = {
 
-    // Local node responding to a remote peer request
+    // Request data from a remote node
+    case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
+      if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
+        requestDownload(modifierTypeId, Seq(modifierId))
+      }
+
+    // Respond with data from the local node
     case ResponseFromLocal(peer, _, modifiers: Seq[NodeViewModifier]) =>
       modifiers.headOption.foreach { head =>
         val modType = head.modifierTypeId

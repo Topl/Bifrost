@@ -11,7 +11,6 @@ import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.settings.Settings
 import bifrost.state.State
@@ -26,7 +25,7 @@ import scala.util.Try
 trait ForgerSettings extends Settings {
 }
 
-class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with ActorLogging {
+class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with Logging {
 
   import bifrost.forging.Forger._
 
@@ -44,26 +43,8 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
     if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
   }
 
-  def pickTransactions(memPool: MemPool,
-                       state: State,
-                       parent: Block,
-                       view: (History, State, Wallet, MemPool)
-                      ): Try[Seq[Transaction]] = Try {
-    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
-    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
-    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
-    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
-      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      val txValid = state.validate(tx)
-      if (txValid.isFailure) {
-        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
-        txValid.failed.get.printStackTrace()
-        memPool.remove(tx)
-      }
-      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
-    }
-    CB +: regTxs
-  }
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   override def receive: Receive = {
     case StartForging =>
@@ -108,24 +89,35 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
         context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetCurrentView)
       }
   }
-}
 
-object Forger extends Logging {
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-
-  val MaxTarget = Long.MaxValue
-
-  case object StartForging
-
-  case object StopForging
-
-  case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
+  def pickTransactions(memPool: MemPool,
+                       state: State,
+                       parent: Block,
+                       view: (History, State, Wallet, MemPool)
+                      ): Try[Seq[Transaction]] = Try {
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
+    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
+    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      val txValid = state.validate(tx)
+      if (txValid.isFailure) {
+        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
+        txValid.failed.get.printStackTrace()
+        memPool.remove(tx)
+      }
+      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
+    }
+    CB +: regTxs
+  }
 
   def hit(lastBlock: Block)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
-
 
   def iteration(parent: Block,
                 boxKeys: Seq[(ArbitBox, PrivateKey25519)],
@@ -142,11 +134,11 @@ object Forger extends Logging {
 
     log.debug(s"Successful hits: ${successfulHits.size}")
     successfulHits.headOption.map { case (boxKey, _) =>
-    if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
+      if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
         Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
           txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
       }
-    else {
+      else {
         Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0, version)
       }
     }
@@ -159,4 +151,20 @@ object Forger extends Logging {
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
     BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
   }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
+object Forger extends Logging {
+
+  val MaxTarget = Long.MaxValue
+
+  case object StartForging
+
+  case object StopForging
+
+  case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
+
 }

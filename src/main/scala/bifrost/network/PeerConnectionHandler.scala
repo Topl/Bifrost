@@ -66,7 +66,11 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // context should be changed when this actor spins up so we don't expect the default receive to be used
+  // ----------- CONTEXTS
+  // The following functions are the contexts that a peerConnectionHandler can occupy
+  // depending on the state of the connection.
+
+  // we don't expect the default receive to be used due to prestart context change
   override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
@@ -76,29 +80,37 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     connection ! Tcp.Write(ByteString(hb))
     log.info(s"Handshake sent to $connectionId")
 
-    receiveAndHandleHandshake { receivedHandshake =>
-      log.info(s"Got a Handshake from $connectionId")
-
-      val peerInfo = PeerInfo(
-        receivedHandshake.peerSpec,
-        context.timeProvider.time(),
-        Some(direction)
-      )
-      val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))
-      selfPeer = Some(peer)
-
-      networkControllerRef ! Handshaked(peerInfo)
-      handshakeTimeoutCancellableOpt.map(_.cancel())
-      connection ! ResumeReading
-      context become workingCycleWriting
-    } orElse handshakeTimeout orElse fatalCommands
+    // note: JAA made a change here that might break handshaking 2020.06.04 (remove if still here in 3 months)
+    receiveAndHandleHandshake orElse
+      handshakeTimeout orElse
+      fatalCommands
   }
 
-  private def receiveAndHandleHandshake(handler: Handshake => Unit): Receive = {
+  private def workingCycleWriting: Receive =
+    localInterfaceWriting orElse
+      remoteInterface orElse
+      fatalCommands orElse
+      nonsense
+
+  private def workingCycleBuffering: Receive =
+    localInterfaceBuffering orElse
+      remoteInterface orElse
+      fatalCommands orElse
+      nonsense
+
+  private def closingWithNonEmptyBuffer: Receive =
+    closeNonEmptyBuffer orElse
+      nonsense
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+  // The following functions are used to process the incoming messages based on the current context.
+  // Some functions are only accessible in certain contexts so be sure to consult the lists above
+
+  private def receiveAndHandleHandshake: Receive = {
     case Received(data) =>
       handshakeSerializer.parseBytesTry(data.toArray) match {
         case Success(handshake) =>
-          handler(handshake)
+          processHandshake(handshake)
 
         case Failure(t) =>
           log.info(s"Error during parsing a handshake", t)
@@ -114,25 +126,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       self ! CloseConnection
   }
 
-  private def workingCycleWriting: Receive =
-    localInterfaceWriting orElse
-      remoteInterface orElse
-      fatalCommands orElse
-      nonsense
-
-  private def workingCycleBuffering: Receive =
-    localInterfaceBuffering orElse
-      remoteInterface orElse
-      fatalCommands orElse
-      nonsense
-
-  private def fatalCommands: Receive = {
-    case _: ConnectionClosed =>
-      log.info(s"Connection closed to $connectionId")
-      context stop self
-  }
-
-  def localInterfaceWriting: Receive = {
+  private def localInterfaceWriting: Receive = {
     case msg: message.Message[_] =>
       log.info("Send message " + msg.spec + " to " + connectionId)
       outMessagesCounter += 1
@@ -154,7 +148,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   }
 
   // operate in ACK mode until all buffered messages are transmitted
-  def localInterfaceBuffering: Receive = {
+  private def localInterfaceBuffering: Receive = {
     case msg: message.Message[_] =>
       outMessagesCounter += 1
       buffer(outMessagesCounter, messageSerializer.serialize(msg))
@@ -182,39 +176,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       context become closingWithNonEmptyBuffer
   }
 
-  def remoteInterface: Receive = {
-    case Received(data) =>
-
-      chunksBuffer ++= data
-
-      @tailrec
-      def process(): Unit = {
-        messageSerializer.deserialize(chunksBuffer, selfPeer) match {
-          case Success(Some(message)) =>
-            log.info("Received message " + message.spec + " from " + connectionId)
-            networkControllerRef ! message
-            chunksBuffer = chunksBuffer.drop(message.messageLength)
-            process()
-          case Success(None) =>
-          case Failure(e) =>
-            e match {
-              //peer is doing bad things, ban it
-              case MaliciousBehaviorException(msg) =>
-                log.warn(s"Banning peer for malicious behaviour($msg): ${connectionId.toString}")
-                //peer will be added to the blacklist and the network controller will send CloseConnection
-                networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
-              //non-malicious corruptions
-              case _ =>
-                log.info(s"Corrupted data from ${connectionId.toString}: ${e.getMessage}")
-            }
-        }
-      }
-
-      process()
-      connection ! ResumeReading
-  }
-
-  def closingWithNonEmptyBuffer: Receive = {
+  private def closeNonEmptyBuffer: Receive = {
     case CommandFailed(_: Write) =>
       connection ! ResumeWriting
       context.become({
@@ -228,14 +190,24 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     case ReceivableMessages.Ack(id) =>
       outMessagesBuffer -= id
       if (outMessagesBuffer.isEmpty) connection ! Close
+  }
 
-    case other =>
-      log.debug(s"Got $other in closing phase")
+  private def remoteInterface: Receive = {
+    case Received(data) =>
+      chunksBuffer ++= data
+      processRemoteData()
+      connection ! ResumeReading
+  }
+
+  private def fatalCommands: Receive = {
+    case _: ConnectionClosed =>
+      log.info(s"Connection closed to $connectionId")
+      context stop self
   }
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"PeerConnectionHandler: got unexpected input $nonsense")
+      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -270,6 +242,46 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       ),
       context.timeProvider.time()
     )
+  }
+
+  private def processHandshake(receivedHandshake: Handshake): Handshake = {
+    log.info(s"Got a Handshake from $connectionId")
+
+    val peerInfo = PeerInfo(
+      receivedHandshake.peerSpec,
+      context.timeProvider.time(),
+      Some(direction)
+    )
+    val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))
+    selfPeer = Some(peer)
+
+    networkControllerRef ! Handshaked(peerInfo)
+    handshakeTimeoutCancellableOpt.map(_.cancel())
+    connection ! ResumeReading
+    context become workingCycleWriting
+  }
+
+  @tailrec
+  private def processRemoteData(): Unit = {
+    messageSerializer.deserialize(chunksBuffer, selfPeer) match {
+      case Success(Some(message)) =>
+        log.info("Received message " + message.spec + " from " + connectionId)
+        networkControllerRef ! message
+        chunksBuffer = chunksBuffer.drop(message.messageLength)
+        processRemoteData()
+      case Success(None) =>
+      case Failure(e) =>
+        e match {
+          //peer is doing bad things, ban it
+          case MaliciousBehaviorException(msg) =>
+            log.warn(s"Banning peer for malicious behaviour($msg): ${connectionId.toString}")
+            //peer will be added to the blacklist and the network controller will send CloseConnection
+            networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+          //non-malicious corruptions
+          case _ =>
+            log.info(s"Corrupted data from ${connectionId.toString}: ${e.getMessage}")
+        }
+    }
   }
 
 }

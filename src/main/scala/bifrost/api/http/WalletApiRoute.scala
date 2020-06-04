@@ -8,7 +8,7 @@ import bifrost.mempool.MemPool
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import bifrost.settings.Settings
 import bifrost.state.State
 import bifrost.wallet.Wallet
