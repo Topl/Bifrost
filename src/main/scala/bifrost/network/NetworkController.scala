@@ -31,7 +31,7 @@ class NetworkController(settings: NetworkSettings,
                        )(implicit ec: ExecutionContext) extends Actor with Logging {
 
   import NetworkController.ReceivableMessages._
-  import NetworkControllerSharedMessages.ReceivableMessages.DataFromPeer
+  import SharedNetworkMessages.ReceivableMessages.DataFromPeer
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import akka.actor.SupervisorStrategy._
 

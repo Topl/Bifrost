@@ -30,10 +30,12 @@ class PeerManager(settings: AppSettings, context: Context) extends Actor with Lo
     }
   }
 
-  override def receive: Receive = peersManagement orElse apiInterface orElse {
-    case a: Any =>
-      log.error(s"Wrong input for peer manager: $a")
-  }
+  override def receive: Receive =
+    peersManagement orElse
+      apiInterface orElse {
+      case a: Any =>
+        log.error(s"Wrong input for peer manager: $a")
+    }
 
   private def peersManagement: Receive = {
 
