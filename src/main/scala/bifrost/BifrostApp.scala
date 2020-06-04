@@ -17,7 +17,7 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network._
 import bifrost.nodeView.NodeViewHolder
-import bifrost.settings.Context
+import bifrost.settings.BifrostContext
 import bifrost.utils.{ Logging, NetworkTimeProvider }
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
@@ -105,7 +105,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     }
   }
 
-  val context = Context(
+  val context = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
     upnpGateway = upnpGateway,

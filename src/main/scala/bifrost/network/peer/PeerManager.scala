@@ -3,7 +3,7 @@ package bifrost.network.peer
 import java.net.{InetAddress, InetSocketAddress}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.settings.Context
+import bifrost.settings.BifrostContext
 import bifrost.network._
 import bifrost.settings.AppSettings
 import bifrost.utils.NetworkUtils
@@ -15,7 +15,7 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: AppSettings, context: Context) extends Actor with Logging {
+class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends Actor with Logging {
 
   import PeerManager.ReceivableMessages._
 
@@ -135,7 +135,7 @@ object PeerManager {
     trait GetPeers[T] {
       def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                  blacklistedPeers: Seq[InetAddress],
-                 context: Context): T
+                 bifrostContext: BifrostContext): T
     }
 
     /**
@@ -147,7 +147,7 @@ object PeerManager {
 
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
-                          sc: Context): Seq[PeerInfo] = {
+                          sc: BifrostContext): Seq[PeerInfo] = {
         val currentTime = sc.timeProvider.time()
         val recentlySeenNonBlacklisted = knownPeers.values.toSeq
           .filter { p =>
@@ -162,14 +162,14 @@ object PeerManager {
 
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
-                          sc: Context): Map[InetSocketAddress, PeerInfo] = knownPeers
+                          sc: BifrostContext): Map[InetSocketAddress, PeerInfo] = knownPeers
     }
 
     case class RandomPeerExcluding(excludedPeers: Seq[PeerInfo]) extends GetPeers[Option[PeerInfo]] {
 
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
-                          sc: Context): Option[PeerInfo] = {
+                          sc: BifrostContext): Option[PeerInfo] = {
         val candidates = knownPeers.values.filterNot { p =>
           excludedPeers.exists(_.peerSpec.address == p.peerSpec.address) &&
             blacklistedPeers.exists(addr => p.peerSpec.address.map(_.getAddress).contains(addr))
@@ -183,7 +183,7 @@ object PeerManager {
 
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
-                          context: Context): Seq[InetAddress] = blacklistedPeers
+                          bifrostContext: BifrostContext): Seq[InetAddress] = blacklistedPeers
     }
 
   }
@@ -195,18 +195,18 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: AppSettings, context: Context): Props = {
-    Props(new PeerManager(settings, context))
+  def props(settings: AppSettings, bifrostContext: BifrostContext): Props = {
+    Props(new PeerManager(settings, bifrostContext))
   }
 
-  def apply(settings: AppSettings, context: Context)
+  def apply(settings: AppSettings, bifrostContext: BifrostContext)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, context))
+    system.actorOf(props(settings, bifrostContext))
   }
 
-  def apply(name: String, settings: AppSettings, context: Context)
+  def apply(name: String, settings: AppSettings, bifrostContext: BifrostContext)
            (implicit system: ActorSystem): ActorRef = {
-    system.actorOf(props(settings, context), name)
+    system.actorOf(props(settings, bifrostContext), name)
   }
 
 }

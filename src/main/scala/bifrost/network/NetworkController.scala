@@ -12,7 +12,7 @@ import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
 import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
-import bifrost.settings.{Context, Version, NetworkSettings}
+import bifrost.settings.{BifrostContext, Version, NetworkSettings}
 import bifrost.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
@@ -26,7 +26,7 @@ import scala.util.{Failure, Success, Try}
   */
 class NetworkController(settings: NetworkSettings,
                         peerManagerRef: ActorRef,
-                        context: Context,
+                        bifrostContext: BifrostContext,
                         tcpManager: ActorRef
                        )(implicit ec: ExecutionContext) extends Actor with Logging {
 
@@ -60,14 +60,14 @@ class NetworkController(settings: NetworkSettings,
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
   //todo: make usage more clear, now we're relying on preStart logic in a actor which is described by a never used val
-  private val featureSerializers: PeerFeature.Serializers = context.features.map(f => f.featureId -> f.serializer).toMap
+  private val featureSerializers: PeerFeature.Serializers = bifrostContext.features.map(f => f.featureId -> f.serializer).toMap
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings,
     featureSerializers)
 
   //check own declared address for validity
   validateDeclaredAddress()
 
-  log.info(s"Declared address: ${context.externalNodeAddress}")
+  log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
 
   //bind to listen incoming connections
   tcpManager ! Bind(self, bindAddress, options = Nil, pullMode = false)
@@ -475,39 +475,39 @@ object NetworkController {
 object NetworkControllerRef {
   def props(settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            context: Context,
+            bifrostContext: BifrostContext,
             tcpManager: ActorRef)(implicit ec: ExecutionContext): Props = {
-    Props(new NetworkController(settings, peerManagerRef, context, tcpManager))
+    Props(new NetworkController(settings, peerManagerRef, bifrostContext, tcpManager))
   }
 
   def apply(settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            context: Context)
+            bifrostContext: BifrostContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, context, IO(Tcp))
+      props(settings, peerManagerRef, bifrostContext, IO(Tcp))
     )
   }
 
   def apply(name: String,
             settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            context: Context,
+            bifrostContext: BifrostContext,
             tcpManager: ActorRef)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, context, tcpManager),
+      props(settings, peerManagerRef, bifrostContext, tcpManager),
       name)
   }
 
   def apply(name: String,
             settings: NetworkSettings,
             peerManagerRef: ActorRef,
-            context: Context)
+            bifrostContext: BifrostContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
 
     system.actorOf(
-      props(settings, peerManagerRef, context, IO(Tcp)),
+      props(settings, peerManagerRef, bifrostContext, IO(Tcp)),
       name)
   }
 }

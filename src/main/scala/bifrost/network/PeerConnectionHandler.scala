@@ -10,7 +10,7 @@ import bifrost.network.PeerConnectionHandler.ReceivableMessages
 import bifrost.network.PeerFeature.Serializers
 import bifrost.network.message.{HandshakeSpec, MessageSerializer}
 import bifrost.network.peer.{PeerInfo, PenaltyType}
-import bifrost.settings.Context
+import bifrost.settings.BifrostContext
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 import bifrost.utils.serialization.BifrostSerializer
@@ -22,7 +22,7 @@ import scala.util.{Failure, Success}
 
 class PeerConnectionHandler(val settings: NetworkSettings,
                             networkControllerRef: ActorRef,
-                            context: Context,
+                            bifrostContext: BifrostContext,
                             connectionDescription: ConnectionDescription
                            )(implicit ec: ExecutionContext)
   extends Actor with Logging {
@@ -312,22 +312,22 @@ object PeerConnectionHandler {
 object PeerConnectionHandlerRef {
   def props(settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            context: Context,
+            bifrostContext: BifrostContext,
             connectionDescription: ConnectionDescription
            )(implicit ec: ExecutionContext): Props =
-    Props(new PeerConnectionHandler(settings, networkControllerRef, context, connectionDescription))
+    Props(new PeerConnectionHandler(settings, networkControllerRef, bifrostContext, connectionDescription))
 
   def apply(settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            context: Context,
+            bifrostContext: BifrostContext,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, context, connectionDescription))
+    system.actorOf(props(settings, networkControllerRef, bifrostContext, connectionDescription))
 
   def apply(name: String,
             settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            context: Context,
+            context: BifrostContext,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, networkControllerRef, context, connectionDescription), name)
