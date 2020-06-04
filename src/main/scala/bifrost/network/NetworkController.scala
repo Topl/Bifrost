@@ -279,7 +279,7 @@ class NetworkController(settings: NetworkSettings,
 
     val connectionDescription = ConnectionDescription(connection, connectionId, selfAddressOpt, peerFeatures)
 
-    val handler: ActorRef = PeerConnectionHandlerRef(settings, self, context, connectionDescription)
+    val handler: ActorRef = PeerConnectionHandlerRef(settings, self, bifrostContext, connectionDescription)
     context.watch(handler)
     val connectedPeer = ConnectedPeer(connectionId, handler, None)
     connections += connectionId.remoteAddress -> connectedPeer

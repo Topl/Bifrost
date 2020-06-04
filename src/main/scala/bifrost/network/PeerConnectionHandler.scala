@@ -327,8 +327,8 @@ object PeerConnectionHandlerRef {
   def apply(name: String,
             settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            context: BifrostContext,
+            bifrostContext: BifrostContext,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, context, connectionDescription), name)
+    system.actorOf(props(settings, networkControllerRef, bifrostContext, connectionDescription), name)
 }
