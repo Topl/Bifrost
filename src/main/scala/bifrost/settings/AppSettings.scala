@@ -11,7 +11,7 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration._
 
 case class NetworkSettings(name: String,
-                       bindAddress: String,
+                       bindAddress: InetSocketAddress,
                        myAddress: String,
                        upnp: Boolean,
                        upnpGatewayTimeout: Option[FiniteDuration],
