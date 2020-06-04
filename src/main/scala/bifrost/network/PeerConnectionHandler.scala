@@ -81,25 +81,25 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
     // note: JAA made a change here that might break handshaking 2020.06.04 (remove if still here in 3 months)
     receiveAndHandleHandshake orElse
-      handshakeTimeout orElse
-      fatalCommands
+    handshakeTimeout orElse
+    fatalCommands
   }
 
   private def workingCycleWriting: Receive =
     localInterfaceWriting orElse
-      remoteInterface orElse
-      fatalCommands orElse
-      nonsense
+    remoteInterface orElse
+    fatalCommands orElse
+    nonsense
 
   private def workingCycleBuffering: Receive =
     localInterfaceBuffering orElse
-      remoteInterface orElse
-      fatalCommands orElse
-      nonsense
+    remoteInterface orElse
+    fatalCommands orElse
+    nonsense
 
   private def closingWithNonEmptyBuffer: Receive =
     closeNonEmptyBuffer orElse
-      nonsense
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   // The following functions are used to process the incoming messages based on the current context.

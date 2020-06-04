@@ -78,11 +78,11 @@ class NetworkController(settings: NetworkSettings,
   // ----------- CONTEXT
   override def receive: Receive =
     bindingLogic orElse
-      businessLogic orElse
-      peerCommands orElse
-      connectionEvents orElse
-      interfaceCalls orElse
-      nonsense
+    businessLogic orElse
+    peerCommands orElse
+    connectionEvents orElse
+    interfaceCalls orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
