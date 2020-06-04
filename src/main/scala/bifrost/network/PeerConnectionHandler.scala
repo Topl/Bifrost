@@ -243,7 +243,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     )
   }
 
-  private def processHandshake(receivedHandshake: Handshake): Handshake = {
+  private def processHandshake(receivedHandshake: Handshake): Unit = {
     log.info(s"Got a Handshake from $connectionId")
 
     val peerInfo = PeerInfo(
