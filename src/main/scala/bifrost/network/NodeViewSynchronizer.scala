@@ -4,7 +4,6 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.history.HistoryReader
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
@@ -24,7 +23,7 @@ import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, 
 import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
 import bifrost.state.StateReader
-import scorex.core.transaction.wallet.VaultReader
+import bifrost.wallet.VaultReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
 import bifrost.utils.serialization.BifrostSerializer
