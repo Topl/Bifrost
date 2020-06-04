@@ -4,7 +4,6 @@ import bifrost.crypto.Signature25519
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.{idToBytes, bytesToId}
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}

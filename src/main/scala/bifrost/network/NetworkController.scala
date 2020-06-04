@@ -12,8 +12,8 @@ import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
 import bifrost.network.peer.PeerManager.ReceivableMessages._
 import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PeerManager, PenaltyType}
-import bifrost.settings.{ Context, Version, NetworkSettings }
-import bifrost.utils.{ Logging, NetworkUtils }
+import bifrost.settings.{Context, Version, NetworkSettings}
+import bifrost.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
