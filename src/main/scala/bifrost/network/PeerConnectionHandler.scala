@@ -22,7 +22,6 @@ import scala.util.{Failure, Success}
 
 class PeerConnectionHandler(val settings: NetworkSettings,
                             networkControllerRef: ActorRef,
-                            peerManagerRef: ActorRef,
                             context: Context,
                             connectionDescription: ConnectionDescription
                            )(implicit ec: ExecutionContext)
@@ -313,26 +312,23 @@ object PeerConnectionHandler {
 object PeerConnectionHandlerRef {
   def props(settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            peerManagerRef: ActorRef,
             context: Context,
             connectionDescription: ConnectionDescription
            )(implicit ec: ExecutionContext): Props =
-    Props(new PeerConnectionHandler(settings, networkControllerRef, peerManagerRef, context, connectionDescription))
+    Props(new PeerConnectionHandler(settings, networkControllerRef, context, connectionDescription))
 
   def apply(settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            peerManagerRef: ActorRef,
             context: Context,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, peerManagerRef, context, connectionDescription))
+    system.actorOf(props(settings, networkControllerRef, context, connectionDescription))
 
   def apply(name: String,
             settings: NetworkSettings,
             networkControllerRef: ActorRef,
-            peerManagerRef: ActorRef,
             context: Context,
             connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, peerManagerRef, context, connectionDescription), name)
+    system.actorOf(props(settings, networkControllerRef, context, connectionDescription), name)
 }
