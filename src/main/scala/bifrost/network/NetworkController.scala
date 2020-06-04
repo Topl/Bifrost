@@ -268,9 +268,9 @@ class NetworkController(settings: NetworkSettings,
     val isLocal = connectionId.remoteAddress.getAddress.isSiteLocalAddress ||
       connectionId.remoteAddress.getAddress.isLoopbackAddress
     val peerFeatures =
-      if (isLocal) context.features :+ LocalAddressPeerFeature(
+      if (isLocal) bifrostContext.features :+ LocalAddressPeerFeature(
         new InetSocketAddress(connectionId.localAddress.getAddress, settings.bindAddress.getPort))
-      else context.features
+      else bifrostContext.features
 
     val selfAddressOpt = getNodeAddressForPeer(connectionId.localAddress)
 
@@ -349,7 +349,7 @@ class NetworkController(settings: NetworkSettings,
     * Checks the node owns the address
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, bindAddress, context.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, bindAddress, bifrostContext.externalNodeAddress)
   }
 
   /**
@@ -365,9 +365,9 @@ class NetworkController(settings: NetworkSettings,
         Some(localAddr)
 
       case (None, Some(declaredAddress))
-        if context.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
+        if bifrostContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
 
-        context.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
+        bifrostContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
       case _ => peer.peerSpec.declaredAddress
     }
@@ -381,7 +381,7 @@ class NetworkController(settings: NetworkSettings,
     */
   private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress) = {
     val localAddr = localSocketAddress.getAddress
-    context.externalNodeAddress match {
+    bifrostContext.externalNodeAddress match {
       case Some(extAddr) =>
         Some(extAddr)
 
@@ -407,7 +407,7 @@ class NetworkController(settings: NetworkSettings,
           val myAddress = InetAddress.getAllByName(myHost)
 
           val listenAddresses = NetworkUtils.getListenAddresses(bindAddress)
-          val upnpAddress = context.upnpGateway.map(_.externalAddress)
+          val upnpAddress = bifrostContext.upnpGateway.map(_.externalAddress)
 
           val valid = listenAddresses.exists(myAddress.contains) || upnpAddress.exists(myAddress.contains)
 
