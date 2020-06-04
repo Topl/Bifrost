@@ -17,7 +17,7 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network._
 import bifrost.nodeView.NodeViewHolder
-import bifrost.settings.Context
+import bifrost.settings.{Context, AppSettings}
 import bifrost.utils.{ Logging, NetworkTimeProvider }
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
@@ -37,12 +37,15 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   type PMOD = Block
   type NVHT = NodeViewHolder
 
+  //settings
+  implicit val settings: AppSettings
+
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
 
-  implicit lazy val settings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
+//  implicit lazy val settings = new ForgingSettings {
+//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
+//  }
   log.debug(s"Starting application with settings \n$settings")
 
   /* networkController */
@@ -125,11 +128,11 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)), "nodeViewHolder")
   /* ---------------- */
 
-  /* localInterface */
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef), "forger")
+  /* forger */
+  val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, nodeViewHolderRef))
 
   val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings), "localInterface"
+    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forgerRef, settings), "localInterface"
   )
   /* -------------- */
 
