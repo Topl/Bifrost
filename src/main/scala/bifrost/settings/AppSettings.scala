@@ -3,31 +3,56 @@ package bifrost.settings
 import java.io.File
 import java.net.InetSocketAddress
 
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, NetworkTimeProviderSettings}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 
-case class NetworkSettings(name: String,
-                       bindAddress: InetSocketAddress,
-                       myAddress: String,
-                       upnp: Boolean,
-                       upnpGatewayTimeout: Option[FiniteDuration],
-                       upnpDiscoverTimeout: Option[FiniteDuration],
-                       connectionTimeout: FiniteDuration,
-                       handshakeTimeout: FiniteDuration,
-                       addedMaxDelay: Option[FiniteDuration],
-                       maxConnections: Int,
-                       networkChunkSize: Int,
-                       localOnly: Boolean,
-                       port: Int,
-                       knownPeers: Seq[InetSocketAddress])
+case class RESTApiSettings(bindAddress: InetSocketAddress,
+                           apiKeyHash: Option[String],
+                           corsAllowedOrigin: Option[String],
+                           timeout: FiniteDuration)
+
+case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
+                           agentName: String,
+                           appVersion: String,
+                           bindAddress: InetSocketAddress,
+                           connectionTimeout: FiniteDuration,
+                           controllerTimeout: Option[FiniteDuration],
+                           declaredAddress: Option[InetSocketAddress],
+                           deliveryTimeout: FiniteDuration,
+                           desiredInvObjects: Int,
+                           getPeersInterval: FiniteDuration,
+                           handshakeTimeout: FiniteDuration,
+                           knownPeers: Seq[InetSocketAddress],
+                           localOnly: Boolean,
+                           magicBytes: Array[Byte],
+                           maxConnections: Int,
+                           maxDeliveryChecks: Int,
+                           maxHandshakeSize: Int,
+                           maxInvObjects: Int,
+                           maxModifiersCacheSize: Int,
+                           maxPacketSize: Int,
+                           maxPeerSpecObjects: Int,
+                           nodeName: String,
+                           penaltySafeInterval: FiniteDuration,
+                           penaltyScoreThreshold: Int,
+                           syncInterval: FiniteDuration,
+                           syncIntervalStable: FiniteDuration,
+                           syncStatusRefresh: FiniteDuration,
+                           syncStatusRefreshStable: FiniteDuration,
+                           syncTimeout: Option[FiniteDuration],
+                           temporalBanDuration: FiniteDuration,
+                           upnpDiscoverTimeout: Option[FiniteDuration],
+                           upnpEnabled: Boolean,
+                           upnpGatewayTimeout: Option[FiniteDuration])
 
 case class ForgingSettings(offlineGeneration: Boolean,
                            posAttachmentSize: Int,
                            targetBlockTime: Long,
+                           blockGenerationDelay: Long,
                            version: Byte,
                            forkHeight: Long)
 
@@ -39,12 +64,13 @@ case class AppSettings(walletSeed: String,
                        tbrDir: Option[String],
                        logDir: Option[String],
                        rpcPort: Int,
-                       blockGenerationDelay: Long,
                        cors: Boolean,
                        verboseAPI: Boolean,
-                       version: ApplicationVersion,
+                       version: Version,
                        network: NetworkSettings,
-                       forgingSettings: ForgingSettings)
+                       forgingSettings: ForgingSettings,
+                       restApi: RESTApiSettings,
+                       ntp: NetworkTimeProviderSettings)
 
 object AppSettings extends Logging with SettingsReaders {
 

@@ -11,33 +11,28 @@ import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.settings.Settings
+import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.settings.ForgingSettings
 import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Try
 
-trait ForgerSettings extends Settings {
-}
+class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
+            (implicit ec: ExecutionContext) extends Actor with Logging {
 
-class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends Actor with Logging {
+  import bifrost.forging.Forger.ReceivableMessages._
+  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
-  import bifrost.forging.Forger._
-
-  //should be a part of consensus, but for our app is okay
-  val TransactionsInBlock = 100
-
-  // inflation query actor
-  //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ")
-
-  //set to true for initial generator
-  private val initialForging = forgerSettings.offlineGeneration
+  val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
+  //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
+  private val initialForging = forgerSettings.offlineGeneration //set to true for initial generator
   private var forging = forgerSettings.offlineGeneration
+  private val MaxTarget: Long = Long.MaxValue
 
   override def preStart(): Unit = {
     if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
@@ -52,47 +47,56 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
       if(initialForging) {
         log.info("No Better Neighbor. Forger starts forging now.")
         forging = true
-        viewHolderRef ! GetCurrentView
+        viewHolderRef ! GetDataFromCurrentView(actOnCurrentView)
       }
 
     case StopForging =>
       forging = false
 
     case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
-      self ! TryForging(h, s, w, m)
-
-    case TryForging(h: History, s: State, w: Wallet, m: MemPool) =>
-      if (forging) {
-        log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
-        log.info("chain difficulty: " + h.difficulty)
-
-        val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
-          case a: ArbitBox => s.closedBox(a.id).isDefined
-          case _ => false
-        }).map(_.box.asInstanceOf[ArbitBox])
-
-        val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
-
-        val parent = h.bestBlock
-        log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
-          s"${boxKeys.map(_._1.value).sum}")
-
-        val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
-
-        iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, forgerSettings.version) match {
-          case Some(block) =>
-            log.debug(s"Locally generated block: $block")
-            viewHolderRef !
-              LocallyGeneratedModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Block](block)
-          case None =>
-            log.debug(s"Failed to generate block")
-        }
-        context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetCurrentView)
-      }
+      TryForging(h, s, w, m)
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  /**
+   * wrapper function to encapsulate the returned CurrentView
+   *
+   * @param v
+   * @return
+   */
+  def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def TryForging(h: History, s: State, w: Wallet, m: MemPool): CurrentView[History, State, Wallet, MemPool] =
+  {
+    if (forging) {
+      log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
+      log.info("chain difficulty: " + h.difficulty)
+
+      val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
+        case a: ArbitBox => s.closedBox(a.id).isDefined
+        case _ => false
+      }).map(_.box.asInstanceOf[ArbitBox])
+
+      val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
+
+      val parent = h.bestBlock
+      log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
+        s"${boxKeys.map(_._1.value).sum}")
+
+      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime)
+
+      iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, forgerSettings.version) match {
+        case Some(block) =>
+          log.debug(s"Locally generated block: $block")
+          viewHolderRef !
+            LocallyGeneratedModifier[Block](block)
+        case None =>
+          log.debug(s"Failed to generate block")
+      }
+      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+    }
+  }
 
   def pickTransactions(memPool: MemPool,
                        state: State,
@@ -158,14 +162,30 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-object Forger extends Logging {
+object Forger {
 
-  val MaxTarget = Long.MaxValue
+  object ReceivableMessages {
 
-  case object StartForging
+      case object StartForging
 
-  case object StopForging
+      case object StopForging
 
-  case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
+      case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
+
+object ForgerRef {
+  def props(forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new Forger(forgingSettings, nodeViewHolderRef))
+
+  def apply(forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(forgingSettings, nodeViewHolderRef))
+
+  def apply(name: String, forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(forgingSettings, nodeViewHolderRef), name)
 }
