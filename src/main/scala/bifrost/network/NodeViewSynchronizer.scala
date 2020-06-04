@@ -95,6 +95,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
+  // ----------- CONTEXT
   override def receive: Receive =
     processDataFromPeer orElse
       processSyncStatus orElse
@@ -103,6 +104,7 @@ class NodeViewSynchronizer[TX <: Transaction,
       peerManagerEvents orElse
       nonsense
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processDataFromPeer: Receive = {
 
     // sync info is coming from another node

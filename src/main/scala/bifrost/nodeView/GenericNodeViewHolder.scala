@@ -51,6 +51,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
+  // ----------- CONTEXT
   override def receive: Receive =
     processModifiers orElse
       transactionsProcessing orElse
@@ -65,6 +66,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
 //      getSyncInfo orElse
 //      compareSyncInfo orElse
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processModifiers: Receive = {
     case lm: LocallyGeneratedModifier[PMOD] =>
       log.info(s"Got locally generated modifier ${lm.pmod.encodedId} of type ${lm.pmod.modifierTypeId}")

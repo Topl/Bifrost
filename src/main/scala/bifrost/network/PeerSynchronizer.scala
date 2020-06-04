@@ -41,6 +41,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
+  // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
     case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _)
       if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>

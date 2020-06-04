@@ -75,6 +75,7 @@ class NetworkController(settings: NetworkSettings,
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
+  // ----------- CONTEXT
   override def receive: Receive =
     bindingLogic orElse
       businessLogic orElse
@@ -83,6 +84,7 @@ class NetworkController(settings: NetworkSettings,
       interfaceCalls orElse
       nonsense
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
     case Bound(_) =>
       log.info("Successfully bound to the port " + settings.bindAddress.getPort)
@@ -183,7 +185,6 @@ class NetworkController(settings: NetworkSettings,
       log.info("Denied connection has been closed")
   }
 
-  //calls from API / application
   private def interfaceCalls: Receive = {
     case GetConnectedPeers =>
       sender() ! connections.values.flatMap(_.peerInfo).toSeq

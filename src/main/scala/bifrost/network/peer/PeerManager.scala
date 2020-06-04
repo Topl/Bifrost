@@ -33,11 +33,13 @@ class PeerManager(settings: AppSettings, context: Context) extends Actor with Lo
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
+  // ----------- CONTEXT
   override def receive: Receive =
     peersManagement orElse
       apiInterface orElse
       nonsense
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   private def peersManagement: Receive = {
 
     case ConfirmConnection(connectionId, handlerRef) =>
