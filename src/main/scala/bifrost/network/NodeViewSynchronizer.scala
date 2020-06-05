@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.history.HistoryReader
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-import scorex.core.consensus.SyncInfo
+import bifrost.network.SyncInfo
 import bifrost.mempool.MemPoolReader
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}

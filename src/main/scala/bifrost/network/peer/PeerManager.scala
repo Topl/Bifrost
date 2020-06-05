@@ -19,7 +19,7 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
 
   import PeerManager.ReceivableMessages._
 
-  private val peerDatabase = new InMemoryPeerDatabase(settings.network, context.timeProvider)
+  private val peerDatabase = new InMemoryPeerDatabase(settings.network, bifrostContext.timeProvider)
 
   if (peerDatabase.isEmpty) {
     // fill database with peers from config file if empty
@@ -71,7 +71,7 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
       peerDatabase.remove(address)
 
     case get: GetPeers[_] =>
-      sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, context)
+      sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, bifrostContext)
   }
 
   private def apiInterface: Receive = {
@@ -96,7 +96,7 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
     * Given a peer's address, returns `true` if the peer is the same is this node.
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, context.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, bifrostContext.externalNodeAddress)
   }
 
   private def isSelf(peerSpec: PeerSpec): Boolean = {

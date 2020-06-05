@@ -1,7 +1,7 @@
 package bifrost.nodeView
 
+import akka.actor.{ActorRef, ActorSystem, Props}
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.forging.ForgingSettings
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
@@ -11,8 +11,9 @@ import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTr
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.settings.{AppSettings, ForgingSettings}
 import bifrost.state.State
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, NetworkTimeProvider}
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
@@ -142,4 +143,22 @@ object NodeViewHolder extends Logging {
 
     (history, gs, gw, MemPool.emptyPool)
   }
+}
+
+object NodeViewHolderRef {
+
+  def props(settings: AppSettings,
+            timeProvider: NetworkTimeProvider): Props =
+    settings.nodeSettings.stateType match {
+      case digestType@StateType.Digest => DigestNodeViewProps(settings, timeProvider, digestType)
+      case utxoType@StateType.Utxo => UtxoNodeViewProps(settings, timeProvider, utxoType)
+    }
+
+  def apply(settings: AppSettings,
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem): ActorRef =
+    system.actorOf(props(settings, timeProvider))
+
+  def apply(settings: AppSettings,
+            timeProvider: NetworkTimeProvider, name: String)(implicit system: ActorSystem): ActorRef =
+    system.actorOf(props(settings, timeProvider), name)
 }

@@ -3,12 +3,11 @@ package bifrost
 import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
-import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
@@ -17,17 +16,19 @@ import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network._
 import bifrost.nodeView.NodeViewHolder
-import bifrost.settings.{BifrostContext, AppSettings}
+import bifrost.settings.{StartupOpts, BifrostContext, AppSettings, NetworkType}
 import bifrost.utils.{Logging, NetworkTimeProvider}
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe
 import kamon.Kamon
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
+import scala.io.Source
+import scala.util.{Failure, Success}
 import scala.reflect.runtime.universe._
 
-class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
+class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   import bifrost.network.NetworkController.ReceivableMessages.ShutdownNetwork
 
@@ -37,8 +38,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   type PMOD = Block
   type NVHT = NodeViewHolder
 
-  //settings
-  implicit val settings: AppSettings
+  private var settings: AppSettings = AppSettings.read(startupOpts)
 
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
@@ -108,7 +108,7 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     }
   }
 
-  val context = BifrostContext(
+  val bifrostContext = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
     upnpGateway = upnpGateway,
@@ -116,16 +116,12 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     externalNodeAddress = externalSocketAddress
   )
 
-  val peerManagerRef = actorSystem.actorOf(Props(classOf[PeerManager], settings), "peerManager")
+  val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
 
-  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, context)
-
-
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
   /* nodeViewHoderRef */
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NVHT(settings)), "nodeViewHolder")
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings)
   /* ---------------- */
 
   /* forger */
@@ -150,8 +146,6 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
-//    GenericNodeViewApiRoute[P, TX](settings, nodeViewHolderRef),
-//    PeersApiRoute(peerManagerRef, networkController, settings),
     NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
@@ -160,8 +154,6 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
     typeOf[WalletApiRoute],
     typeOf[ProgramApiRoute],
     typeOf[AssetApiRoute],
-//    typeOf[GenericNodeViewApiRoute[P, TX]],
-//    typeOf[PeersApiRoute],
     typeOf[NodeViewApiRoute])
 
   lazy val combinedRoute = CompositeHttpService(actorSystem, apiTypes, apiRoutes, settings).compositeRoute
@@ -216,9 +208,31 @@ class BifrostApp(val settingsFilename: String) extends Logging with Runnable {
   }
 }
 
-object BifrostApp extends App {
+object BifrostApp extends Logging {
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
-  val settingsFilename = args.headOption.getOrElse("testnet-private.json")
-  new BifrostApp(settingsFilename).run()
+
+  import com.joefkelley.argyle._
+
+  val argParser: Arg[StartupOpts] = (
+    optional[String]("--config", "-c") and
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
+    ).to[StartupOpts]
+
+  def main(args: Array[String]): Unit =
+    argParser.parse(args) match {
+      case Success(argsParsed) => new BifrostApp(argsParsed).run()
+      case Failure(e) => throw e
+    }
+
+  def forceStopApplication(code: Int = 1): Nothing = sys.exit(code)
+
+  def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
+    log.warn("Terminating Actors")
+    actors.foreach { a => a ! PoisonPill }
+    log.warn("Terminating ActorSystem")
+    val termination = system.terminate()
+    Await.result(termination, 60.seconds)
+    log.warn("Application has been terminated.")
+  }
 }

@@ -61,8 +61,7 @@ class NetworkController(settings: NetworkSettings,
 
   //todo: make usage more clear, now we're relying on preStart logic in a actor which is described by a never used val
   private val featureSerializers: PeerFeature.Serializers = bifrostContext.features.map(f => f.featureId -> f.serializer).toMap
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings,
-    featureSerializers)
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", self, peerManagerRef, settings, featureSerializers)
 
   //check own declared address for validity
   validateDeclaredAddress()
