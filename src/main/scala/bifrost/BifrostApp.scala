@@ -125,7 +125,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ---------------- */
 
   /* forger */
-  val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, nodeViewHolderRef))
+  val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, nodeViewHolderRef)
 
   val localInterface: ActorRef = actorSystem.actorOf(
     Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forgerRef, settings), "localInterface"
