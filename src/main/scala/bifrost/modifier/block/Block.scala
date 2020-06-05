@@ -13,6 +13,7 @@ import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics
 
 import scala.collection.BitSet
+import bifrost.utils.idToBytes
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -52,8 +53,8 @@ case class Block(parentId: BlockId,
   lazy val id: BlockId = NodeViewModifier.bytesToId(FastCryptographicHash(serializer.messageToSign(this)))
 
   lazy val json: Json = Map(
-    "id" -> id.asJson,
-    "parentId" -> parentId.asJson,
+    "id" -> Base58.encode(idToBytes(id)).asJson,
+    "parentId" -> Base58.encode(idToBytes(parentId)).asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
@@ -107,4 +108,3 @@ object Block {
     BloomTopics(bloomBitSet).toByteArray
   }
 }
-
