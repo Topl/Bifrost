@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.bifrostTransaction
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier._
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId}
 
 
 /**
@@ -11,7 +11,7 @@ import bifrost.nodeView.NodeViewModifier._
   */
 
 abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
-  override val modifierTypeId: Byte = GenericTransaction.ModifierTypeId
+  override val modifierTypeId: ModifierTypeId = GenericTransaction.modifierTypeId
 
   val fee: Long
 
@@ -19,11 +19,11 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   val messageToSign: Array[Byte]
 
-  override lazy val id: ModifierId = FastCryptographicHash(messageToSign)
+  override lazy val id: ModifierId = bytesToId(FastCryptographicHash(messageToSign))
 }
 
 
 object GenericTransaction {
-  val ModifierTypeId = 2: Byte
-  type TransactionId = NodeViewModifier.ModifierId
+  val modifierTypeId = NodeViewModifier.ModifierTypeId @@ (2: Byte)
+  type TransactionId = ModifierId
 }
