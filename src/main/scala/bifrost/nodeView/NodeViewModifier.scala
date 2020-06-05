@@ -3,7 +3,7 @@ package bifrost.nodeView
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.InvData
 import bifrost.nodeView.NodeViewModifier.ModifierId
-import bifrost.serialization.BytesSerializable
+import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import bifrost.utils.BifrostEncoder
 import bifrost.utils.BifrostEncoding
 import com.typesafe.config.ConfigFactory
@@ -11,7 +11,7 @@ import supertagged.TaggedType
 
 import scala.util.Try
 
-trait NodeViewModifier extends BytesSerializable with BifrostEncoding {
+trait NodeViewModifier extends BytesSerializable with BifrostEncoding with JsonSerializable {
   self =>
 
   import NodeViewModifier.{ModifierId, ModifierTypeId}
