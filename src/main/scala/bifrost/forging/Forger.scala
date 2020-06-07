@@ -59,9 +59,13 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
 
   override def receive: Receive = {
     case StartForging =>
-      log.info("No Better Neighbor. Forger starts forging now.")
-      forging = true
-      viewHolderRef ! GetCurrentView
+      if (forging) {
+        log.info("No Better Neighbor. Forger starts forging now.")
+        forging = true
+        viewHolderRef ! GetCurrentView
+      } else {
+        print("Tried forging but forging is disabled")
+      }
 
     case StopForging =>
       forging = false

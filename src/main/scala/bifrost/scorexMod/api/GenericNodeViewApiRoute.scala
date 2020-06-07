@@ -88,11 +88,17 @@ case class GenericNodeViewApiRoute[P <: Proposition, TX <: Transaction[P]]
         Base58.decode(encodedId) match {
           case Success(id) =>
             val blockNumber = view.history.storage.heightOf(id)
+            val blockDifficulty = view.history.storage.difficultyOf(id)
             //TODO 1: Byte
             (nodeViewHolderRef ? GetLocalObjects(source, 1: Byte, Seq(id)))
               .mapTo[ResponseFromLocal[_ <: NodeViewModifier]]
               .map(_.localObjects.headOption.map(_.json).map(j => {
-                val modifiedJson = j.asObject.get.add("blockNumber", blockNumber.asJson).asJson
+                val modifiedJson =
+                  j.asObject.get
+                    .add("blockNumber", blockNumber.asJson)
+                    .add("blockDifficulty", blockDifficulty.asJson)
+                    .asJson
+
                 SuccessApiResponse(modifiedJson)
               })
                      .getOrElse(ApiError.blockNotExists))

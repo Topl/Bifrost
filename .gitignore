@@ -16,7 +16,7 @@ classes
 *.log
 
 # db files
-
+.bifrost/
 *.data
 .history
 

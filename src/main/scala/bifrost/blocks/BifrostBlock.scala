@@ -45,7 +45,10 @@ case class BifrostBlock(override val parentId: BlockId,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BifrostBoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
-    "txs" -> txs.map(_.json).asJson
+    "txs" -> txs.map(_.json).asJson,
+    "txs" -> txs.map(_.json).asJson,
+    "version" -> version.asJson,
+    "blockSize" -> serializer.toBytes(this).length.asJson
   ).asJson
 }
 
