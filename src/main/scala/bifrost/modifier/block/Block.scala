@@ -48,6 +48,8 @@ case class Block(parentId: BlockId,
 
   lazy val serializer = BlockCompanion
 
+  override def serializedId: Array[Byte] = idToBytes(id)
+
   lazy val version: Version = protocolVersion
 
   lazy val id: BlockId = NodeViewModifier.bytesToId(FastCryptographicHash(serializer.messageToSign(this)))
