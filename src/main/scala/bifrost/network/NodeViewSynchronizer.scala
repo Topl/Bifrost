@@ -134,7 +134,7 @@ class NodeViewSynchronizer[TX <: Transaction,
         case (Some(mempool), Some(history)) =>
           val modifierTypeId = invData.typeId
           val newModifierIds = modifierTypeId match {
-            case Transaction.ModifierTypeId =>
+            case Transaction.modifierTypeId =>
               invData.ids.filter(mid => deliveryTracker.status(mid, mempool) == ModifiersStatus.Unknown)
             case _ =>
               invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
@@ -158,7 +158,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 
       readersOpt.foreach { readers =>
         val objs: Seq[NodeViewModifier] = invData.typeId match {
-          case typeId: ModifierTypeId if typeId == Transaction.ModifierTypeId =>
+          case typeId: ModifierTypeId if typeId == Transaction.modifierTypeId =>
             readers._2.getAll(invData.ids)
           case _: ModifierTypeId =>
             invData.ids.flatMap(id => readers._1.modifierById(id))
@@ -182,7 +182,7 @@ class NodeViewSynchronizer[TX <: Transaction,
       val requestedModifiers = processSpam(remote, typeId, modifiers)
 
       modifierSerializers.get(typeId) match {
-        case Some(serializer: BifrostSerializer[TX]@unchecked) if typeId == Transaction.ModifierTypeId =>
+        case Some(serializer: BifrostSerializer[TX]@unchecked) if typeId == Transaction.modifierTypeId =>
           // parse all transactions and send them to node view holder
           val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
           viewHolderRef ! TransactionsFromRemote(parsed)
