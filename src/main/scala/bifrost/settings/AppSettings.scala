@@ -49,9 +49,12 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
                            upnpEnabled: Boolean,
                            upnpGatewayTimeout: Option[FiniteDuration])
 
-case class ForgingSettings(offlineGeneration: Boolean,
+case class ForgingSettings(MinimumDifficulty: Long,
+                           InitialDifficulty: Long,
+                           GenesisParentId: Array[Byte],
+                           offlineGeneration: Boolean,
                            posAttachmentSize: Int,
-                           targetBlockTime: Long,
+                           targetBlockTime: FiniteDuration,
                            blockGenerationDelay: Long,
                            version: Byte,
                            forkHeight: Long)
