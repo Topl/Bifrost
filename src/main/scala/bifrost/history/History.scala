@@ -4,14 +4,14 @@ import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.PrivateKey25519
-import bifrost.forging.ForgingSettings
+import bifrost.settings.ForgingSettings
 import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId}
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
@@ -43,7 +43,7 @@ class History(val storage: Storage,
 
   lazy val height: Long = storage.height
   lazy val score: Long = storage.bestChainScore
-  lazy val bestBlockId: Array[Byte] = storage.bestBlockId
+  lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
 
@@ -73,7 +73,7 @@ class History(val storage: Storage,
   override def append(block: Block):
   Try[(History, ProgressInfo[Block])] = Try {
 
-    log.debug(s"Trying to append block ${Base58.encode(block.id)} to history")
+    log.debug(s"Trying to append block ${block.id} to history")
     val validationResults = validators.map(_.validate(block))
 
     validationResults.foreach {
@@ -96,10 +96,10 @@ class History(val storage: Storage,
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
-          log.debug(s"New orphaned block ${Base58.encode(block.id)}")
+          log.debug(s"New orphaned block ${block.id}")
           ProgressInfo(None, Seq(), Seq())
         } else if (block.parentId sameElements storage.bestBlockId) { // new block parent is best block so far
-          log.debug(s"New best block ${Base58.encode(block.id)}")
+          log.debug(s"New best block ${block.id}")
           ProgressInfo(None, Seq(), Seq(block))
         } else { // we want to swap to a fork
           bestForkChanges(block)
@@ -108,8 +108,8 @@ class History(val storage: Storage,
         (new History(storage, settings, validators), mod)
       }
     }
-    log.info(s"History: block ${Base58.encode(block.id)} appended to chain with score ${storage.scoreOf(block.id)}. " +
-               s"Best score is $score. Pair: ${Base58.encode(bestBlockId)}")
+    log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
+               s"Best score is $score. Pair: $bestBlockId")
     res
   }
 
@@ -126,10 +126,7 @@ class History(val storage: Storage,
     val block = storage.modifierById(modifierId).get
     val parentBlock = storage.modifierById(block.parentId).get
 
-    log.debug(s"Failed to apply block. Rollback BifrostState to ${Base58.encode(parentBlock.id)} from version ${
-      Base58
-        .encode(block.id)
-    }")
+    log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id)
     new History(storage, settings, validators)
   }
@@ -145,9 +142,9 @@ class History(val storage: Storage,
     /* Get the two branches of the fork including their common block */
     val (newSuffix, oldSuffix) = commonBlockThenSuffixes(modifierById(block.parentId).get)
 
-    log.debug(s"Processing fork for block ${Base58.encode(block.id)}: \n" +
-                s"old: ${oldSuffix.map(Base58.encode)}\n" +
-                s"new: ${newSuffix.map(Base58.encode)}")
+    log.debug(s"Processing fork for block ${block.id}: \n" +
+                s"old: $oldSuffix\n" +
+                s"new: $newSuffix")
 
     /* Roll back to the common block */
     val rollbackPoint = newSuffix.headOption
@@ -169,7 +166,7 @@ class History(val storage: Storage,
     */
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) {
-      Seq(settings.GenesisParentId)
+      Seq(bytesToId(settings.GenesisParentId))
     } else {
       Seq(bestBlockId)
     } // TODO return sequence of exposed endpoints?
