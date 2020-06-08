@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.forging.ForgingSettings
+import bifrost.settings.ForgingSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier._
@@ -96,35 +96,35 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
     val typeByte = Block.modifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(ByteArrayWrapper(idToBytes(b.id)) -> ByteArrayWrapper(typeByte +: b.bytes))
+      Seq(ByteArrayWrapper(b.serializedId) -> ByteArrayWrapper(typeByte +: b.bytes))
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
 
     val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockDiffKey(idToBytes(b.id)) -> ByteArrayWrapper(Longs.toByteArray(diff)))
+      Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff)))
 
-    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(idToBytes(b.id)))
+    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       (b.parentId sameElements settings.GenesisParentId) match {
         case true => Seq()
-        case false => Seq(blockParentKey(idToBytes(b.id)) -> ByteArrayWrapper(idToBytes(b.parentId)))
+        case false => Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(idToBytes(b.id)) -> ByteArrayWrapper(Block.createBloom(b.txs)))
+      Seq(blockBloomKey(b.serializedId) -> ByteArrayWrapper(Block.createBloom(b.txs)))
 
     val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(idToBytes(tx.id)), ByteArrayWrapper(GenericTransaction.ModifierTypeId +: idToBytes(b.id)))
+      tx => (ByteArrayWrapper(tx.serializedId), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.serializedId))
     )
 
     /* update storage */
     storage.update(
-      ByteArrayWrapper(idToBytes(b.id)),
+      ByteArrayWrapper(b.serializedId),
       Seq(),
       blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
