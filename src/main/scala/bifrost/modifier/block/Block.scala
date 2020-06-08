@@ -5,7 +5,7 @@ import bifrost.modifier.block.Block._
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -48,11 +48,13 @@ case class Block(parentId: BlockId,
 
   lazy val serializer = BlockCompanion
 
-  override def serializedId: Array[Byte] = idToBytes(id)
-
   lazy val version: Version = protocolVersion
 
-  lazy val id: BlockId = NodeViewModifier.bytesToId(FastCryptographicHash(serializer.messageToSign(this)))
+  lazy val id: BlockId = bytesToId(serializedId)
+
+  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.messageToSign(this))
+
+  lazy val serializedParentId: Array[Byte] = idToBytes(parentId)
 
   lazy val json: Json = Map(
     "id" -> Base58.encode(idToBytes(id)).asJson,
