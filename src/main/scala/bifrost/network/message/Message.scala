@@ -22,7 +22,7 @@ case class Message[Content](spec: MessageSpec[Content],
   }
 
   lazy val data: Try[Content] = input match {
-    case Left(db) => spec.parseBytesTry(db)
+    case Left(db) => spec.parseBytes(db)
     case Right(d) => Success(d)
   }
 

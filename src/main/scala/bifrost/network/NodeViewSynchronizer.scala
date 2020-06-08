@@ -7,7 +7,6 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.history.HistoryReader
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-import bifrost.network.SyncInfo
 import bifrost.mempool.MemPoolReader
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -394,7 +393,7 @@ class NodeViewSynchronizer[TX <: Transaction,
                                                     serializer: BifrostSerializer[M],
                                                     remote: ConnectedPeer): Iterable[M] = {
     modifiers.flatMap { case (id, bytes) =>
-      serializer.parseBytesTry(bytes) match {
+      serializer.parseBytes(bytes) match {
         case Success(mod) if id == mod.id =>
           Some(mod)
         case _ =>

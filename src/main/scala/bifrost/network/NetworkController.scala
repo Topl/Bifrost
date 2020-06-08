@@ -100,7 +100,7 @@ class NetworkController(settings: NetworkSettings,
     case Message(spec, Left(msgBytes), Some(remote)) =>
       val msgId = spec.messageCode
 
-      spec.parseBytesTry(msgBytes) match {
+      spec.parseBytes(msgBytes) match {
         case Success(content) =>
           messageHandlers.get(msgId) match {
             case Some(handler) =>

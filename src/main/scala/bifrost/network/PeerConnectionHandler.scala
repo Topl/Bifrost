@@ -107,7 +107,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def receiveAndHandleHandshake: Receive = {
     case Received(data) =>
-      handshakeSerializer.parseBytesTry(data.toArray) match {
+      handshakeSerializer.parseBytes(data.toArray) match {
         case Success(handshake) =>
           processHandshake(handshake)
 
