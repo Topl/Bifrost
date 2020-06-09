@@ -47,7 +47,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
     .map(d => bytesToId(d.data))
-    .getOrElse(settings.GenesisParentId)
+    .getOrElse(settings.forgingSettings.GenesisParentId)
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
@@ -65,7 +65,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
           case Block.modifierTypeId =>
             val parsed = {
               heightOf(blockId) match {
-                case Some(x) if x <= settings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
+                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
                 case _ => BlockCompanion.parseBytes(bytes.tail)
               }
             }
@@ -110,7 +110,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      (b.parentId sameElements settings.GenesisParentId) match {
+      (b.parentId sameElements settings.forgingSettings.GenesisParentId) match {
         case true => Seq()
         case false => Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
       }
@@ -172,8 +172,8 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .map(b => Longs.fromByteArray(b.data))
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId sameElements settings.GenesisParentId) {
-      Some(settings.InitialDifficulty)
+    if (blockId sameElements settings.forgingSettings.GenesisParentId) {
+      Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
         .get(blockDiffKey(idToBytes(blockId)))
@@ -201,5 +201,5 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: Block): Boolean = b.parentId sameElements settings.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId sameElements settings.forgingSettings.GenesisParentId
 }
