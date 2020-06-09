@@ -4,8 +4,8 @@ import bifrost.crypto.Signature25519
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
-import bifrost.utils.{idToBytes, bytesToId}
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{bytesToId, idToBytes}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec
@@ -58,6 +58,10 @@ object BlockCompanion extends BifrostSerializer[Block] {
       commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++ TransactionCompanion.toBytes(tx))
     }
   }
+
+  override def serialize(obj: Block, w: Writer): Unit = ???
+
+  override def parse(r: Reader): Block = ???
 
   override def toBytes(block: Block): Array[Byte] = {
     block.version match {
