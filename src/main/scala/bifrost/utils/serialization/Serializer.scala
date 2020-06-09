@@ -2,7 +2,7 @@ package bifrost.utils.serialization
 
 trait Serializer[TFamily, T <: TFamily, R <: Reader, W <: Writer] {
 
-  def toBytes(obj: T, w: W): Unit
+  def serialize(obj: T, w: W): Unit
 
-  def parseBytes(r: R): TFamily
+  def parse(r: R): TFamily
 }
