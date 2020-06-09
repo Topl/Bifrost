@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.settings.ForgingSettings
+import bifrost.settings.AppSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier._
@@ -17,7 +17,7 @@ import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.{Failure, Try}
 
-class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logging {
+class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   private val conf: Config = ConfigFactory.load("application")
   private val expireTime: Int = conf.getInt("cache.expireTime")
@@ -180,15 +180,15 @@ class Storage(val storage: LSMStore, val settings: ForgingSettings) extends Logg
         .map(b => Longs.fromByteArray(b.data))
     }
 
-  def bloomOf(blockId: ModifierId): Option[BitSet] =
+  def bloomOf(serializedBlockId: Array[Byte]): Option[BitSet] =
     blockCache
-      .get(blockBloomKey(idToBytes(blockId)))
+      .get(blockBloomKey(serializedBlockId))
       .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
 
-  def parentIdOf(blockId: ModifierId): Option[ModifierId] =
+  def serializedParentIdOf(serializedBlockId: Array[Byte]): Option[Array[Byte]] =
     blockCache
-      .get(blockParentKey(idToBytes(blockId)))
-      .map(d => bytesToId(d.data))
+      .get(blockParentKey(serializedBlockId))
+      .map(d => d.data)
 
   def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] =
     blockCache
