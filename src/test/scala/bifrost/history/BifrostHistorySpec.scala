@@ -33,24 +33,24 @@ class BifrostHistorySpec extends PropSpec
 
     /* Continuation ids should get the block start up to the end of the chain */
     val continuationIds = history
-      .continuationIds(Seq((Block.ModifierTypeId, startFrom)), ids.length)
+      .continuationIds(Seq((Block.modifierTypeId, startFrom)), ids.length)
       .get
       .map(_._2)
 
-    continuationIds.map(Base58.encode) shouldEqual ids.map(Base58.encode)
+    continuationIds shouldEqual ids
 
 
     forAll(Gen.choose(0, ids.length - 1)) { startIndex: Int =>
-      val startFrom = Seq((Block.ModifierTypeId, ids(startIndex)))
-      val startList = ids.take(startIndex + 1).map((Block.ModifierTypeId, _))
+      val startFrom = Seq((Block.modifierTypeId, ids(startIndex)))
+      val startList = ids.take(startIndex + 1).map((Block.modifierTypeId, _))
       val restIds = ids.zipWithIndex.filter {
         case (_, index) => index >= startIndex
-      }.map(_._1).map(Base58.encode)
+      }.map(_._1)
 
       val continuationIds = history.continuationIds(startFrom, ids.length).get.map(_._2)
 
       /* Starting from a random block should give us continuation ids of the chain from that block */
-      continuationIds.map(Base58.encode) shouldEqual restIds
+      continuationIds shouldEqual restIds
 
       val limit = 5
       val continuation = history.continuationIds(startList, limit).get
