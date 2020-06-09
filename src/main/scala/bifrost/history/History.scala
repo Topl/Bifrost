@@ -4,17 +4,16 @@ import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.PrivateKey25519
-import bifrost.settings.ForgingSettings
-import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
+import bifrost.settings.{AppSettings, ForgingSettings}
+import bifrost.history.GenericHistory._
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId}
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId, idToBytes}
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
@@ -28,7 +27,7 @@ import scala.util.{Failure, Try}
   * @param validators rule sets that dictate validity of blocks in the history
   */
 class History(val storage: Storage,
-              settings: ForgingSettings,
+              settings: AppSettings,
               validators: Seq[BlockValidator[Block]])
   extends GenericHistory[ProofOfKnowledgeProposition[PrivateKey25519],
     Transaction,
@@ -62,7 +61,7 @@ class History(val storage: Storage,
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    if (id sameElements settings.GenesisParentId) true else modifierById(id).isDefined
+    if (id sameElements settings.forgingSettings.GenesisParentId) true else modifierById(id).isDefined
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -228,18 +227,18 @@ class History(val storage: Storage,
     * @param other other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
     */
-  override def compare(other: BifrostSyncInfo): HistoryComparisonResult.Value = {
+  override def compare(other: BifrostSyncInfo): HistoryComparisonResult = {
 
     val local = score
     val remote = other.score
 
     log.debug(s"Remote's score is: $remote, Local's score is: $local")
     if (local < remote) {
-      HistoryComparisonResult.Older
+      Older
     } else if (local == remote) {
-      HistoryComparisonResult.Equal
+      Equal
     } else {
-      HistoryComparisonResult.Younger
+      Younger
     }
   }
 
@@ -291,16 +290,16 @@ class History(val storage: Storage,
     * @param f : predicate that tests whether a queryBloom is compatible with a block's bloom
     * @return Seq of blockId that satisfies f
     */
-  def getBlockIdsByBloom(f: BitSet => Boolean): Seq[Array[Byte]] = {
+  def getBlockIdsByBloom(f: BitSet => Boolean): Seq[ModifierId] = {
     @tailrec
-    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[Array[Byte]] = storage.parentIdOf(current) match {
+    def loop(current: Array[Byte], acc: Seq[Array[Byte]]): Seq[ModifierId] = storage.serializedParentIdOf(current) match {
       case Some(value) =>
         if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
       case None =>
-        if (f(storage.bloomOf(current).get)) current +: acc else acc
+        if (f(storage.bloomOf(current).get)) (current +: acc).map(bytesToId(_)) else acc.map(bytesToId(_))
     }
 
-    loop(storage.bestBlockId, Seq())
+    loop(idToBytes(storage.bestBlockId), Seq())
   }
 
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
@@ -343,7 +342,7 @@ class History(val storage: Storage,
                       limit: Int = Int.MaxValue,
                       acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
-    val sum: Seq[(ModifierTypeId, ModifierId)] = (Block.ModifierTypeId -> m.id) +: acc
+    val sum: Seq[(ModifierTypeId, ModifierId)] = (Block.modifierTypeId -> m.id) +: acc
 
     /* Check if the limit has been reached or if condition satisfied */
     if (limit <= 0 || until(m)) {
@@ -353,7 +352,7 @@ class History(val storage: Storage,
       parentBlock(m) match {
         case Some(parent) => chainBack(parent, until, limit - 1, sum)
         case _ =>
-          log.warn(s"Parent block for ${Base58.encode(m.id)} not found ")
+          log.warn(s"Parent block for ${m.id} not found ")
           None
       }
     }
@@ -397,7 +396,7 @@ class History(val storage: Storage,
 
   //chain without brothers
   override def toString: String = {
-    chainBack(bestBlock, isGenesis).get.map(_._2).map(Base58.encode).mkString(",")
+    chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
   }
 
 }
@@ -405,13 +404,13 @@ class History(val storage: Storage,
 
 object History extends Logging {
 
-  def readOrGenerate(settings: ForgingSettings): History = {
-    val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
+  def readOrGenerate(settings: AppSettings): History = {
+    val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
     readOrGenerate(dataDir, settings)
   }
 
-  def readOrGenerate(dataDir: String, settings: ForgingSettings): History = {
+  def readOrGenerate(dataDir: String, settings: AppSettings): History = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
