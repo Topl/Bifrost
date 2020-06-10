@@ -1114,7 +1114,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     }.asJson,
     "hub" -> Base58.encode(hub.pubKeyBytes).asJson,
     "issuer" -> Base58.encode(hub.pubKeyBytes).asJson,
-    "txType" -> "AssetTrasnfer".asJson,
+    "txType" -> "AssetTransfer".asJson,
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map(s => Base58.encode(s.signature).asJson).asJson,
     "fee" -> fee.asJson,
