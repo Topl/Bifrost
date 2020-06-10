@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit
 
 import org.openjdk.jmh.annotations._
 //import org.openjdk.jmh.infra.Blackhole
-//import bifrost.forging.ForgingSettings
 import bifrost.BifrostGenerators
 import bifrost.history._
 import bifrost.modifier.block.{Block, BlockCompanion}
@@ -95,7 +94,6 @@ import java.util.concurrent.atomic.AtomicLong
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 import bifrost.history._
-import bifrost.forging.ForgingSettings
 import io.circe.Json
 import io.iohk.iodb.LSMStore
 

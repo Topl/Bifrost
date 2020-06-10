@@ -4,9 +4,9 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.forging.ForgingSettings
 import bifrost.modifier.box.{Box, BoxSerializer, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -96,13 +96,13 @@ object ProgramBoxRegistry extends Logging {
         ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data))
   }
 
-  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
-    val pbrDirOpt = settings.pbrDirOpt
-    val logDirOpt = settings.logDirOpt
+  def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
+    val pbrDirOpt = settings.pbrDir
+    val logDirOpt = settings.logDir
     pbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): ProgramBoxRegistry = {
+  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): ProgramBoxRegistry = {
     val iFile = new File(s"$pbrDir")
     iFile.mkdirs()
     val pbrStore = new LSMStore(iFile)

@@ -84,14 +84,14 @@ class History(val storage: Storage,
     val res: (History, ProgressInfo[Block]) = {
 
       if (isGenesis(block)) {
-        storage.update(block, settings.InitialDifficulty, isBest = true)
+        storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq(), Seq(block))
         (new History(storage, settings, validators), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
         val oldDifficulty = storage.difficultyOf(block.parentId).get
-        var difficulty = (oldDifficulty * settings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
-        if (difficulty < settings.MinimumDifficulty) difficulty = settings.MinimumDifficulty
+        var difficulty = (oldDifficulty * settings.forgingSettings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
+        if (difficulty < settings.forgingSettings.MinimumDifficulty) difficulty = settings.forgingSettings.MinimumDifficulty
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
@@ -165,7 +165,7 @@ class History(val storage: Storage,
     */
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) {
-      Seq(bytesToId(settings.GenesisParentId))
+      Seq(bytesToId(settings.forgingSettings.GenesisParentId))
     } else {
       Seq(bestBlockId)
     } // TODO return sequence of exposed endpoints?

@@ -4,7 +4,6 @@ package bifrost.fork
 import bifrost.BifrostGenerators
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
-import bifrost.forging.ForgingSettings
 import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox

@@ -43,9 +43,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
 
-//  implicit lazy val settings = new ForgingSettings {
-//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-//  }
   log.debug(s"Starting application with settings \n$settings")
 
   /* networkController */
