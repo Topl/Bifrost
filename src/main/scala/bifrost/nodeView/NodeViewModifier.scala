@@ -1,8 +1,8 @@
 package bifrost.nodeView
 
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.ModifierId
 import bifrost.network.message.InvData
-import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import bifrost.utils.BifrostEncoder
 import bifrost.utils.BifrostEncoding
@@ -14,7 +14,7 @@ import scala.util.Try
 trait NodeViewModifier extends BytesSerializable with BifrostEncoding with JsonSerializable {
   self =>
 
-  import NodeViewModifier.{ModifierId, ModifierTypeId}
+  import NodeViewModifier.ModifierTypeId
 
   val modifierTypeId: ModifierTypeId
 
@@ -37,8 +37,7 @@ object NodeViewModifier {
   object ModifierTypeId extends TaggedType[Byte]
   type ModifierTypeId = ModifierTypeId.Type
 
-  object ModifierId extends TaggedType[String]
-  type ModifierId = ModifierId.Type
+  //type ModifierId = ModifierId
 
   val ModifierIdSize: Int = Try(ConfigFactory.load().getConfig("app").getInt("modifierIdSize")).getOrElse(DefaultIdSize)
 

@@ -7,6 +7,7 @@ package bifrost.state
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.ModifierId
 import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.state.MinimalState.VersionTag
 
@@ -56,5 +57,5 @@ MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
 }
 
 object MinimalState {
-  type VersionTag = NodeViewModifier.ModifierId
+  type VersionTag = ModifierId
 }

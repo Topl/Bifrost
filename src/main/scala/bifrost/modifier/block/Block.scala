@@ -4,8 +4,9 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.block.Block._
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.ModifierId
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
+import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -74,7 +75,7 @@ object Block {
   val modifierTypeId = ModifierTypeId @@ (3: Byte)
   val signatureLength = 64
 
-  type BlockId = NodeViewModifier.ModifierId
+  type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
   type GenerationSignature = Array[Byte]

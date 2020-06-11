@@ -1,8 +1,9 @@
 package bifrost.utils
 
+import bifrost.modifier.ModifierId
 import bifrost.state.MinimalState.VersionTag
-import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.utils.encode.{Base16, BytesEncoder}
+import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -30,7 +31,7 @@ class BifrostEncoder extends BytesEncoder {
     * with encode() and decode methods
     */
   @inline
-  def encodeVersion(input: VersionTag): String = input
+  def encodeVersion(input: VersionTag): String = Base58.encode(input.hashBytes)
 
   /**
     * This method might be useful and reimplemented, if encoding of ModifierId and VersionTag
@@ -38,7 +39,7 @@ class BifrostEncoder extends BytesEncoder {
     * with encode() and decode methods
     */
   @inline
-  def encodeId(input: ModifierId): String = input
+  def encodeId(input: ModifierId): String = Base58.encode(input.hashBytes)
 
 }
 
