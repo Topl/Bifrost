@@ -17,7 +17,7 @@ object NetworkTime {
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
 class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec: ExecutionContext)
-  extends TimeProvider with scorex.util.ScorexLogging {
+  extends TimeProvider with Logging {
 
   private val lastUpdate = new AtomicLong(0)
   private var offset = new AtomicLong(0)
