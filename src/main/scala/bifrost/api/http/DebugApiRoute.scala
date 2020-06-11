@@ -28,7 +28,7 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
     infoRoute ~ chain ~ delay ~ myblocks ~ generators //~ chainFromRange
   }
 
-  override val timeout = 20.seconds
+  override val timeout = 30.seconds
 
   @Path("/delay/{id}/{blockNum}")
   @ApiOperation(value = "Average delay",

@@ -37,7 +37,7 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("asset") { assetRoute }
 
-  override val timeout = 20.seconds
+  override val timeout = 30.seconds
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>

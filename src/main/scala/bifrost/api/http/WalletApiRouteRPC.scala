@@ -32,7 +32,7 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("walletrpc") { walletRoute }
 
-  override val timeout = 20.seconds
+  override val timeout = 30.seconds
 
   //noinspection ScalaStyle
   def walletRoute: Route = path("") { entity(as[String]) { body =>
