@@ -21,6 +21,7 @@ import scorex.core.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
@@ -35,6 +36,8 @@ case class AssetApiRoute (override val settings: Settings, nodeViewHolderRef: Ac
   type VL = BWallet
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("asset") { assetRoute }
+
+  override val timeout = 20.seconds
 
   //noinspection ScalaStyle
   def assetRoute: Route = path("") { entity(as[String]) { body =>
