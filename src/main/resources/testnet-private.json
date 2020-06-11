@@ -20,7 +20,7 @@
   "rpcAllowed": [],
   "maxRollback": 100,
   "targetBlockTime": 6000,
-  "offlineGeneration": false,
+  "offlineGeneration": true,
   "testnet": true,
   "blockGenerationDelay": 2000,
   "cors": false,

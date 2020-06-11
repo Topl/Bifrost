@@ -6,20 +6,20 @@ import bifrost.history.BifrostHistory
 import bifrost.mempool.BifrostMemPool
 import bifrost.scorexMod.GenericWalletBox
 import bifrost.state.BifrostState
-import bifrost.transaction.{ArbitTransfer, PolyTransfer}
 import bifrost.transaction.box.{ArbitBox, BifrostBox, PolyBox}
+import bifrost.transaction.{ArbitTransfer, PolyTransfer}
 import bifrost.wallet.BWallet
 import io.circe.Json
 import io.circe.parser.parse
-import io.circe.parser._
 import io.circe.syntax._
 import scorex.core.LocalInterface.LocallyGeneratedTransaction
-import scorex.core.api.http.{ApiException, SuccessApiResponse}
+import scorex.core.api.http.ApiException
 import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import scorex.core.transaction.state.PrivateKey25519
 import scorex.crypto.encode.Base58
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
@@ -31,6 +31,8 @@ case class WalletApiRouteRPC(override val settings: Settings, nodeViewHolderRef:
   type VL = BWallet
   type MP = BifrostMemPool
   override val route: Route = pathPrefix("walletrpc") { walletRoute }
+
+  override val timeout = 20.seconds
 
   //noinspection ScalaStyle
   def walletRoute: Route = path("") { entity(as[String]) { body =>
