@@ -1,12 +1,12 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.settings.AppSettings
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.nodeView.NodeViewModifier._
-import bifrost.utils.{Logging, bytesToId, idToBytes}
-import com.google.common.cache.{CacheBuilder, CacheLoader}
+import bifrost.modifier.ModifierId
+import bifrost.settings.AppSettings
+import bifrost.utils.{bytesToId, idToBytes, Logging}
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -34,7 +34,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     }
   }
 
-  val blockCache = CacheBuilder.newBuilder()
+  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder.newBuilder()
     .expireAfterAccess(expireTime, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
@@ -110,9 +110,10 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      (b.parentId sameElements settings.forgingSettings.GenesisParentId) match {
-        case true => Seq()
-        case false => Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
+      if (b.parentId.hashBytes sameElements settings.forgingSettings.GenesisParentId) {
+        Seq()
+      } else {
+        Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
@@ -144,10 +145,10 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
-    ByteArrayWrapper(Sha256("score".getBytes ++ blockId))
+    ByteArrayWrapper(Sha256("score".getBytes ++ blockId.hashBytes))
 
   private def blockHeightKey(blockId: ModifierId): ByteArrayWrapper =
-    ByteArrayWrapper(Sha256("height".getBytes ++ blockId))
+    ByteArrayWrapper(Sha256("height".getBytes ++ blockId.hashBytes))
 
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
@@ -172,7 +173,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .map(b => Longs.fromByteArray(b.data))
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId sameElements settings.forgingSettings.GenesisParentId) {
+    if (blockId.hashBytes sameElements settings.forgingSettings.GenesisParentId) {
       Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
@@ -201,5 +202,5 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: Block): Boolean = b.parentId sameElements settings.forgingSettings.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId.hashBytes sameElements settings.forgingSettings.GenesisParentId
 }
