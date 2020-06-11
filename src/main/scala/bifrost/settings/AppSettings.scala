@@ -79,10 +79,10 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  def readConfig(path: Option[String], configPath: String): Config = {
+  def readConfig(path: StartupOpts, configPath: String): Config = {
 
-    val fileOpt: Option[File] = path.map(fileName ⇒ new File(fileName)).filter(_.exists())
-      .orElse(path.flatMap(fileName ⇒ Option(getClass.getClassLoader.getResource(fileName)))
+    val fileOpt: Option[File] = path.userConfigPathOpt.map(fileName ⇒ new File(fileName)).filter(_.exists())
+      .orElse(path.userConfigPathOpt.flatMap(fileName ⇒ Option(getClass.getClassLoader.getResource(fileName)))
         .map(r ⇒ new File(r.toURI)).filter(_.exists()))
 
     val config = fileOpt match {
@@ -105,7 +105,7 @@ object AppSettings extends Logging with SettingsReaders {
     config
   }
 
-  def read(userConfigPath: Option[String]): AppSettings = {
+  def read(userConfigPath: StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(userConfigPath, configPath))
   }
 

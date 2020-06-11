@@ -5,6 +5,7 @@ import java.io.File
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -132,13 +133,13 @@ object TokenBoxRegistry extends Logging {
     new TokenBoxRegistry (s1, s2)
   }
 
-  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
-    val tbrDirOpt = settings.tbrDirOpt
-    val logDirOpt = settings.logDirOpt
-    tbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
+  def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
+    val tbrDir = settings.tbrDir
+    val logDir = settings.logDir
+    tbrDir.map(readOrGenerate(_, logDir, settings, stateStore))
   }
 
-  def readOrGenerate(tbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): TokenBoxRegistry = {
+  def readOrGenerate(tbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): TokenBoxRegistry = {
     val iFile = new File(s"$tbrDir")
     iFile.mkdirs()
     val tbrStore = new LSMStore(iFile)

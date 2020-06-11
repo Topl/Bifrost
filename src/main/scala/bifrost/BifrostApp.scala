@@ -13,10 +13,10 @@ import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
-import bifrost.network.peer.PeerManager
+import bifrost.network.peer.{PeerManager, PeerManagerRef}
 import bifrost.network._
-import bifrost.nodeView.NodeViewHolder
-import bifrost.settings.{StartupOpts, BifrostContext, AppSettings, NetworkType}
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
+import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
 import com.sun.management.HotSpotDiagnosticMXBean
 import com.typesafe.config.{Config, ConfigFactory}
@@ -38,7 +38,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type PMOD = Block
   type NVHT = NodeViewHolder
 
-  private var settings: AppSettings = AppSettings.read(startupOpts)
+  private val settings: AppSettings = AppSettings.read(startupOpts)
 
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
@@ -173,7 +173,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   System.out.printf("jvmci.Compiler = %s%n", compiler)
 
   def run(): Unit = {
-    require(settings.agentName.length <= ApplicationNameLimit)
+    require(settings.network.agentName.length <= ApplicationNameLimit)
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
@@ -193,7 +193,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   def stopAll(): Unit = synchronized {
     log.info("Stopping network services")
-    if (settings.upnpEnabled) upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
+    if (settings.network.upnpEnabled) upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
     networkControllerRef ! ShutdownNetwork
 
     log.info("Stopping actors (incl. block generator)")

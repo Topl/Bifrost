@@ -8,7 +8,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.settings.Settings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
@@ -248,15 +248,15 @@ object Wallet {
     }
   }
 
-  def walletFile(settings: Settings): File = {
-    val walletDirOpt = settings.walletDirOpt.ensuring(_.isDefined, "wallet dir must be specified")
+  def walletFile(settings: AppSettings): File = {
+    val walletDirOpt = settings.walletDir.ensuring(_.isDefined, "wallet dir must be specified")
     val walletDir = walletDirOpt.get
     new File(walletDir).mkdirs()
 
     new File(s"$walletDir/wallet.dat")
   }
 
-  def exists(settings: Settings): Boolean = walletFile(settings).exists()
+  def exists(settings: AppSettings): Boolean = walletFile(settings).exists()
 
   private def directoryEnsuring(dirPath: String): Boolean = {
     val f = new java.io.File(dirPath)
@@ -264,7 +264,7 @@ object Wallet {
     f.exists()
   }
 
-  def readOrGenerate(settings: Settings, seed: String): Wallet = {
+  def readOrGenerate(settings: AppSettings, seed: String): Wallet = {
     val wFile = walletFile(settings)
     wFile.mkdirs()
     val boxesStorage = new LSMStore(wFile)
@@ -276,15 +276,13 @@ object Wallet {
     })
     // Create directory for key files
     val keyFileDir = settings
-      .settingsJSON
-      .get("keyFileDir")
-      .flatMap(_.asString)
+      .keyFileDir
       .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
 
     Wallet(Set(), boxesStorage, keyFileDir.get)
   }
 
-  def readOrGenerate(settings: Settings): Wallet = {
+  def readOrGenerate(settings: AppSettings): Wallet = {
     val gw = readOrGenerate(settings, Base58.encode(settings.walletSeed))
     if (Base58.encode(settings.walletSeed).startsWith("genesis")) {
       val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(c)))
@@ -300,18 +298,18 @@ object Wallet {
     gw
   }
 
-  def readOrGenerate(settings: Settings, seed: String, accounts: Int): Wallet =
+  def readOrGenerate(settings: AppSettings, seed: String, accounts: Int): Wallet =
     (1 to accounts).foldLeft(readOrGenerate(settings, seed)) { case (w, _) =>
       w.generateNewSecret()
     }
 
-  def readOrGenerate(settings: Settings, accounts: Int): Wallet =
+  def readOrGenerate(settings: AppSettings, accounts: Int): Wallet =
     (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
       w
     }
 
   //wallet with applied initialBlocks
-  def genesisWallet(settings: Settings, initialBlocks: Seq[Block]): Wallet = {
+  def genesisWallet(settings: AppSettings, initialBlocks: Seq[Block]): Wallet = {
     initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
       a.scanPersistent(b)
     }

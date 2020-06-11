@@ -9,7 +9,7 @@ import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import bifrost.settings.Settings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory)extends ApiRouteWithView {
   type HIS = History
   type MS = State

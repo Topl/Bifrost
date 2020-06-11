@@ -4,7 +4,7 @@ import java.io.File
 
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.forging.ForgingSettings
+import bifrost.settings.{AppSettings, ForgingSettings}
 import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -13,6 +13,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
+import bifrost.nodeView.NodeViewModifier.idToBytes
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
@@ -64,8 +65,8 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     if (storage.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
-      log.debug(s"Rollback BifrostState to ${Base58.encode(version)} from version $lastVersionString")
-      storage.rollback(ByteArrayWrapper(version))
+      log.debug(s"Rollback BifrostState to $version from version $lastVersionString")
+      storage.rollback(ByteArrayWrapper(idToBytes(version)))
       tbr.rollbackTo(version, storage)
       pbr.rollbackTo(version, storage)
       val timestamp: Long = Longs.fromByteArray(storage.get(ByteArrayWrapper(FastCryptographicHash("timestamp"
@@ -104,7 +105,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
     val boxIdsToRemove = (keyFilteredBoxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
-    log.debug(s"Update BifrostState from version $lastVersionString to version ${Base58.encode(newVersion)}. " +
+    log.debug(s"Update BifrostState from version $lastVersionString to version ${newVersion}. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
@@ -639,8 +640,8 @@ object State extends Logging {
   }
 
 
-  def readOrGenerate(settings: ForgingSettings, callFromGenesis: Boolean = false, history: History): State = {
-    val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
+  def readOrGenerate(settings: AppSettings, callFromGenesis: Boolean = false, history: History): State = {
+    val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
     new File(dataDir).mkdirs()
@@ -681,7 +682,7 @@ object State extends Logging {
     State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
-  def genesisState(settings: ForgingSettings, initialBlocks: Seq[BPMOD], history: History): State = {
+  def genesisState(settings: AppSettings, initialBlocks: Seq[BPMOD], history: History): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
         (state, mod) => state

@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.settings.Settings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   type HIS = History
