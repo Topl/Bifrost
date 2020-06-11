@@ -7,7 +7,7 @@ import bifrost.mempool.MemoryPool
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.BoxTransaction
-import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, GenericTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, GenericTransaction, Transaction}
 import bifrost.network.{ConnectedPeer, SyncInfo}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.NodeViewHolderEvent
 import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
@@ -15,7 +15,6 @@ import bifrost.state.MinimalState
 import bifrost.utils.Logging
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Vault
-
 import scorex.crypto.encode.Base58
 
 import scala.collection.mutable
@@ -242,10 +241,10 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
   private def pmodModify(pmod: PMOD, source: Option[ConnectedPeer]): Unit = if (!history().contains(pmod.id)) {
     notifySubscribers(
       EventType.StartingPersistentModifierApplication,
-      StartingPersistentModifierApplication[P, TX, PMOD](pmod)
+      StartingPersistentModifierApplication[PMOD](pmod)
     )
 
-    log.debug(s"Apply modifier to nodeViewHolder: ${Base58.encode(pmod.id)}")
+    log.debug(s"Apply modifier to nodeViewHolder: ${pmod.id}")
 
     history().append(pmod) match {
       case Success((newHistory, progressInfo)) =>
@@ -286,7 +285,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
                 vault().scanPersistent(appliedMods)
               }
 
-              log.debug(s"Persistent modifier ${Base58.encode(pmod.id)} applied successfully")
+              log.debug(s"Persistent modifier ${pmod.id} applied successfully")
               nodeView = (newHistory, newMinState, newVault, newMemPool)
               notifySubscribers(EventType.SuccessfulPersistentModifier, SuccessfulModification[P, TX, PMOD](pmod, source))
 
@@ -294,7 +293,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
               val newHistoryCancelled = newHistory.drop(progressInfo.appendedId)
               nodeView = (newHistoryCancelled, minimalState(), vault(), memoryPool())
 
-              log.warn(s"Can`t apply persistent modifier (id: ${Base58.encode(pmod.id)}, contents: $pmod) to minimal state", e)
+              log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to minimal state", e)
               notifySubscribers(EventType.FailedPersistentModifier, FailedModification[P, TX, PMOD](pmod, e, source))
           }
         }
@@ -302,7 +301,7 @@ trait GenericNodeViewHolder[T, P <: Proposition, TX <: BoxTransaction[P, T, BX],
         e.printStackTrace()
     }
   } else {
-    log.warn(s"Trying to apply modifier ${Base58.encode(pmod.id)} that's already in history")
+    log.warn(s"Trying to apply modifier ${pmod.id} that's already in history")
   }
 
 }
@@ -386,7 +385,7 @@ object GenericNodeViewHolder {
 
       case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-      case class EliminateTransactions(ids: Seq[scorex.util.ModifierId])
+      case class EliminateTransactions(ids: Seq[ModifierId])
 
     }
 
