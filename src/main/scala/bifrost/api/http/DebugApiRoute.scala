@@ -14,6 +14,7 @@ import scorex.core.settings.Settings
 import scorex.core.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Success
 
@@ -26,6 +27,8 @@ case class DebugApiRoute(override val settings: Settings, nodeViewHolderRef: Act
   override val route: Route = pathPrefix("debug") {
     infoRoute ~ chain ~ delay ~ myblocks ~ generators //~ chainFromRange
   }
+
+  override val timeout = 20.seconds
 
   @Path("/delay/{id}/{blockNum}")
   @ApiOperation(value = "Average delay",
