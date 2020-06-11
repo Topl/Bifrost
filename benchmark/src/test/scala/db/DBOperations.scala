@@ -1,17 +1,12 @@
 package db
 
-//import java.io.File
 import java.util.concurrent.TimeUnit
-//import java.util.concurrent.atomic.AtomicLong
 
+import bifrost.modifier.ModifierId
 import org.openjdk.jmh.annotations._
-//import org.openjdk.jmh.infra.Blackhole
 import bifrost.BifrostGenerators
 import bifrost.history._
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.nodeView.NodeViewModifier.ModifierId
-
-//import io.circe.Json
 import io.iohk.iodb.ByteArrayWrapper
 
 
@@ -27,24 +22,24 @@ class DBOperations extends BifrostGenerators {
   val numOfBlocks: Int = 550
   val numLastBlocks: Int = 500
 
-  val listBlockId: List[ByteArrayWrapper] = (for (i <- 1 to numOfBlocks) yield {
+  val listBlockId: List[ByteArrayWrapper] = (for (_ <- 1 to numOfBlocks) yield {
     val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(oneBlock).get._1
     /* println(s"forging====$i====${ByteArrayWrapper(oneBlock.id)}") */
-    ByteArrayWrapper(oneBlock.id)
+    ByteArrayWrapper(oneBlock.id.hashBytes)
   }).take(numLastBlocks).toList
 
-  val bestBlockIdKey = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
-  val storageCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
-  val cacheCurBlockId: ModifierId = history.storage.storage.get(bestBlockIdKey).get.data
+  val bestBlockIdKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
+  val storageCurBlockId: ModifierId = ModifierId(history.storage.storage.get(bestBlockIdKey).get.data)
+  val cacheCurBlockId: ModifierId = ModifierId(history.storage.storage.get(bestBlockIdKey).get.data)
 
 
   /* Read from storage */
   @Benchmark
-  def storageTest {
+  def storageTest() {
     var tmpStorageBlockId: ModifierId = storageCurBlockId
-    for (i <- 1 to numLastBlocks) {
-      val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId)).map { bw =>
+    for (_ <- 1 to numLastBlocks) {
+      val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId.hashBytes)).map { bw =>
         val bytes = bw.data
         BlockCompanion.parseBytes(bytes.tail).get
       }.get
@@ -54,10 +49,10 @@ class DBOperations extends BifrostGenerators {
 
   /* Read from cache */
   @Benchmark
-  def cacheTest {
+  def cacheTest() {
     var tmpCacheBlockId: ModifierId = cacheCurBlockId
-    for (i <- 1 to numLastBlocks) {
-      val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId)).map {
+    for (_ <- 1 to numLastBlocks) {
+      val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId.hashBytes)).map {
         bw =>
           val bytes = bw.data
           BlockCompanion.parseBytes(bytes.tail).get
@@ -68,7 +63,7 @@ class DBOperations extends BifrostGenerators {
 
   /* Testing only accessing the storage, not parsing the serialized data */
   @Benchmark
-  def storageRead {
+  def storageRead() {
     for (id <- listBlockId) {
       val smt = history.storage.storage.get(id)
     }
@@ -76,7 +71,7 @@ class DBOperations extends BifrostGenerators {
 
   /* Testing only accessing the cache, not parsing the serialized data */
   @Benchmark
-  def cacheRead {
+  def cacheRead() {
     for (id <- listBlockId) {
       val smt = history.storage.blockCache.getIfPresent(id)
     }
