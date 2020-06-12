@@ -2,8 +2,9 @@ package bifrost.history
 
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.ModifierId
 import bifrost.network.SyncInfo
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
@@ -29,7 +30,6 @@ SI <: SyncInfo,
 HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
 
   import GenericHistory._
-  import bifrost.nodeView.NodeViewModifier.ModifierId
 
   /**
     * Is there's no history, even genesis block
@@ -58,11 +58,11 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
     * @param modifier - modifier to apply
     * @return
     */
-  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_ sameElements modifier.parentId)
+  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.hashBytes sameElements modifier.parentId.hashBytes)
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = Base58.decode(modifierId).toOption.flatMap(modifierById)
+  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 

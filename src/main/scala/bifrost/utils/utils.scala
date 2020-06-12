@@ -6,7 +6,7 @@ import scorex.crypto.encode.Base58
 
 package object utils {
 
-  def bytesToId(bytes: Array[Byte]): ModifierId = ModifierId @@ Base16.encode(bytes)
+  def bytesToId(bytes: Array[Byte]): ModifierId = ModifierId(bytes)
 
   def idToBytes(id: ModifierId): Array[Byte] = Base16.decode(id).get
   
