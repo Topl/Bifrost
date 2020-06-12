@@ -12,7 +12,7 @@ import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
 import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
-import bifrost.settings.Settings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.literal._
@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
   * Created by cykoz on 5/26/2017.
   */
 
-case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
+case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State

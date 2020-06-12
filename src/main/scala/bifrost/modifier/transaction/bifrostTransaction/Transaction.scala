@@ -4,14 +4,12 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.BoxTransaction
-import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.Settings
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import scorex.crypto.encode.Base58
 
-trait TransactionSettings extends Settings
+trait TransactionSettings
 
 trait Transaction
   extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {

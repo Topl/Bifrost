@@ -11,7 +11,6 @@
 //import bifrost.network.Handshake
 //import bifrost.network.NetworkController.ConnectTo
 //import bifrost.network.peer.{PeerInfo, PeerManager}
-//import bifrost.settings.Settings
 //import io.circe.generic.auto._
 //import io.circe.parser._
 //import io.circe.syntax._
