@@ -35,7 +35,7 @@ trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends No
 
   def take(limit: Int): Iterable[TX]
 
-  def filter(txs: Seq[TX]): M = filter(t => !txs.exists(_.id sameElements t.id))
+  def filter(txs: Seq[TX]): M = filter(t => !txs.exists(_.id == t.id))
 
   def filter(condition: TX => Boolean): M
 
