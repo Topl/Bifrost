@@ -3,17 +3,19 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.forging.ForgingSettings
 import bifrost.history.History
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionCompanion
 import bifrost.program.Program
+import bifrost.settings.AppSettings
 import bifrost.state.ProgramBoxRegistry
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.syntax._
+import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.{Decoder, HCursor, Json}
+import io.circe.syntax._
 
 import scala.util.Try
 
@@ -32,32 +34,31 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
   override type M = ProgramMethodExecution
 
-  val proposition = executionBox.proposition
+  val proposition: PublicKey25519Proposition = executionBox.proposition
 
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
-  val forgingSettings = new ForgingSettings {
-    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
-  }
+  val config: Config = ConfigFactory.load("application")
+  val settings: AppSettings = AppSettings.fromConfig(config)
 
   //TODO do not readOrGenerate programBoxRegistry here
   //ProgramBoxRegistry should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
-  val history = History.readOrGenerate(forgingSettings)
-  val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(forgingSettings, history.storage.storage).get
+  val history: History = History.readOrGenerate(settings)
+  val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(settings, history.storage.storage).get
 
   //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => programBoxRegistry.getBox(v).get.asInstanceOf[StateBox])
 
-  val codeBoxes = executionBox.codeBoxIds
+  val codeBoxes: Seq[Array[Byte]] = executionBox.codeBoxIds
 
   //lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(state.head._1.id)
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
-  lazy val hashNoNonces = FastCryptographicHash(
+  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     executionBox.id ++
       methodName.getBytes ++
       owner.pubKeyBytes ++
@@ -99,7 +100,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
     }.toSeq.asJson
   )).asJson
 
-  override lazy val serializer = ProgramMethodExecutionCompanion
+  override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionCompanion
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
