@@ -11,8 +11,8 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration._
 
 case class RESTApiSettings(bindAddress: InetSocketAddress,
-                           apiKeyHash: Option[String],
-                           corsAllowedOrigin: Option[String],
+                           apiKeyHash: Option[Array[Byte]],
+                           corsAllowed: Boolean,
                            timeout: FiniteDuration)
 
 case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
@@ -36,6 +36,7 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
                            maxModifiersCacheSize: Int,
                            maxPacketSize: Int,
                            maxPeerSpecObjects: Int,
+                           networkChunkSize: Int,
                            nodeName: String,
                            penaltySafeInterval: FiniteDuration,
                            penaltyScoreThreshold: Int,

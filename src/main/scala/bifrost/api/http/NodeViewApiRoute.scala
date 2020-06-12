@@ -6,7 +6,7 @@ import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.settings.Settings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
-case class NodeViewApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
+case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State

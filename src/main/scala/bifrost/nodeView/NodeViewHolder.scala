@@ -21,7 +21,7 @@ import scorex.crypto.encode.Base58
 class NodeViewHolder(settings: AppSettings)
   extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Box, Block] {
 
-  override val networkChunkSize: Int = settings.networkChunkSize
+  override val networkChunkSize: Int = settings.network.networkChunkSize
   override type SI = BifrostSyncInfo
   override type HIS = History
   override type MS = State

@@ -5,7 +5,6 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.forging.ForgingSettings
 import bifrost.history.{History, Storage}
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
@@ -14,6 +13,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.network.BifrostSyncInfo
 import bifrost.program.{Program, ProgramPreprocessor, _}
+import bifrost.settings.AppSettings
 import io.circe
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
@@ -38,11 +38,11 @@ trait BifrostGenerators extends CoreGenerators {
     sampled.get
   }
 
-  val settings: ForgingSettings = new ForgingSettings {
+  val settings: AppSettings = new AppSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
   }
 
-  val settings_version0: ForgingSettings = new ForgingSettings {
+  val settings_version0: AppSettings = new AppSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
   }
 
