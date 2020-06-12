@@ -6,7 +6,7 @@ import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.modifier.ContainsModifiers
 import bifrost.network.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.ModifierId
+import bifrost.modifier.ModifierId
 
 import scala.util.Try
 

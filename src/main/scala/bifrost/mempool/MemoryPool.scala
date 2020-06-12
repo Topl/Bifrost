@@ -12,7 +12,7 @@ import scala.util.Try
   */
 trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
 
-  import bifrost.nodeView.NodeViewModifier.ModifierId
+  import bifrost.modifier.ModifierId
 
   //getters
   def getById(id: ModifierId): Option[TX]

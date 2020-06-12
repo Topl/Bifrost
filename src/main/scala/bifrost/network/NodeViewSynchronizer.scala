@@ -16,9 +16,10 @@ import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, idsToString}
+import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
+import bifrost.modifier.ModifierId
 import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
 import bifrost.state.StateReader

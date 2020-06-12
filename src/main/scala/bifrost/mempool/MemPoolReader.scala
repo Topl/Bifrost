@@ -3,7 +3,7 @@ package bifrost.mempool
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ContainsModifiers
 import bifrost.nodeView.NodeViewComponent
-import bifrost.nodeView.NodeViewModifier.ModifierId
+import bifrost.modifier.ModifierId
 
 /**
   * Unconfirmed transactions pool

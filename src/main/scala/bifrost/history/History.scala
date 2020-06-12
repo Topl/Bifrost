@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey2
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId, idToBytes}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
