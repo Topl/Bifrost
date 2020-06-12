@@ -1,17 +1,17 @@
 import sbt.Keys.organization
 import sbtassembly.MergeStrategy
 
-name := "project-bifrost"
+name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.1",
   organization := "co.topl",
-  version := "0.1.0-alpha.1.0"
+  version := "monon-0.2.8"
 )
 
 scalaVersion := "2.12.1"
 organization := "co.topl"
-version := "0.2.2-alpha"
+version := "monon-0.2.8"
 
 mainClass in assembly := Some("bifrost.BifrostApp")
 
@@ -92,7 +92,7 @@ javaOptions ++= Seq(
   "-server",
   "-Dcom.sun.management.jmxremote",
   "-Xms128m",
-  "-Xmx2g",
+  "-Xmx4g",
   "-XX:+UseG1GC",
   "-XX:+UseNUMA",
   "-XX:+AlwaysPreTouch"

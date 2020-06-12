@@ -800,7 +800,7 @@ object BifrostState {
 
   def readOrGenerate(settings: Settings, callFromGenesis: Boolean = false): BifrostState = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
-    val dataDir = System.getProperty("user.home") + File.separator + dataDirOpt.get
+    val dataDir = dataDirOpt.get
 
     new File(dataDir).mkdirs()
 

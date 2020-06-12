@@ -7,7 +7,8 @@
     "upnpDiscoverTimeout": 3000,
     "port": 9584,
     "knownPeers": [
-      "188.166.106.33:9584"
+      "188.166.27.6:9584",
+      "128.199.49.147:9584"
     ],
     "addedMaxDelay": 2000,
     "maxConnections": 10
