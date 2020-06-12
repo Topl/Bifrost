@@ -13,7 +13,7 @@ import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
-import bifrost.utils.{BifrostEncoder, Logging}
+import bifrost.utils.{BifrostEncoder, BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
@@ -35,7 +35,8 @@ class History(val storage: Storage,
     Block,
     BifrostSyncInfo,
     History
-    ] with Logging {
+    ] with Logging
+      with BifrostEncoding {
 
   override type NVCT = History
 
@@ -86,7 +87,7 @@ class History(val storage: Storage,
 
       if (isGenesis(block)) {
         storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
-        val progInfo = ProgressInfo(None, Seq(), Seq(block))(BifrostEncoder.default)
+        val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
         (new History(storage, settings, validators), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
@@ -96,11 +97,11 @@ class History(val storage: Storage,
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
-          log.debug(s"New orphaned block ${block.id}")
-          ProgressInfo(None, Seq(), Seq())
+          log.debug(s"New orphaned block ${block.id.toString}")
+          ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
         } else if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) { // new block parent is best block so far
-          log.debug(s"New best block ${block.id}")
-          ProgressInfo(None, Seq(), Seq(block))
+          log.debug(s"New best block ${block.id.toString}")
+          ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
         } else { // we want to swap to a fork
           bestForkChanges(block)
         }
@@ -156,7 +157,7 @@ class History(val storage: Storage,
     require(applyBlocks.nonEmpty)
     require(throwBlocks.nonEmpty)
 
-    ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks)
+    ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks, Seq.empty)
   }
 
   /**
@@ -185,7 +186,7 @@ class History(val storage: Storage,
     /* Whether m is a genesis block or is in `from` */
     def inList(m: Block): Boolean = idInList(m.id) || isGenesis(m)
 
-    def idInList(id: ModifierId): Boolean = from.exists(f => f._2 sameElements id)
+    def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
 
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
     chainBack(bestBlock, inList) match {
@@ -373,17 +374,17 @@ class History(val storage: Storage,
     val loserChain = chainBack(bestBlock, isGenesis, limit).get.map(_._2)
 
     /* `in` specifies whether `loserChain` has this block */
-    def in(m: Block): Boolean = loserChain.exists(s => s sameElements m.id)
+    def in(m: Block): Boolean = loserChain.contains(m.id)
 
     /* Finds the chain of blocks back from `forkBlock` until a common block to `loserChain` is found */
     val winnerChain = chainBack(forkBlock, in, limit).get.map(_._2)
 
-    val i = loserChain.indexWhere(id => id sameElements winnerChain.head)
+    val i = loserChain.indexWhere(id => id == winnerChain.head)
 
     /* The two segments including their common block */
     (winnerChain, loserChain.takeRight(loserChain.length - i))
 
-  }.ensuring(r => r._1.head sameElements r._2.head)
+  }.ensuring(r => r._1.head == r._2.head)
 
   /**
     * Average delay in milliseconds between last $blockNum blocks starting from $block
