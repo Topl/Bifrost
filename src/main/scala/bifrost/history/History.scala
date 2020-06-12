@@ -9,10 +9,11 @@ import bifrost.history.GenericHistory._
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
-import bifrost.utils.Logging
+import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
+import bifrost.utils.{BifrostEncoder, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
@@ -61,7 +62,7 @@ class History(val storage: Storage,
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    if (id sameElements settings.forgingSettings.GenesisParentId) true else modifierById(id).isDefined
+    if (id.hashBytes sameElements settings.forgingSettings.GenesisParentId) true else modifierById(id).isDefined
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -85,7 +86,7 @@ class History(val storage: Storage,
 
       if (isGenesis(block)) {
         storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
-        val progInfo = ProgressInfo(None, Seq(), Seq(block))
+        val progInfo = ProgressInfo(None, Seq(), Seq(block))(BifrostEncoder.default)
         (new History(storage, settings, validators), progInfo)
       } else {
         val parent = modifierById(block.parentId).get
@@ -97,7 +98,7 @@ class History(val storage: Storage,
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
           log.debug(s"New orphaned block ${block.id}")
           ProgressInfo(None, Seq(), Seq())
-        } else if (block.parentId sameElements storage.bestBlockId) { // new block parent is best block so far
+        } else if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) { // new block parent is best block so far
           log.debug(s"New best block ${block.id}")
           ProgressInfo(None, Seq(), Seq(block))
         } else { // we want to swap to a fork
