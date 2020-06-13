@@ -7,7 +7,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.modifier.transaction.bifrostTransaction.{_}
 import bifrost.program.{ExecutionBuilderCompanion, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -307,54 +307,3 @@ trait ValidGenerators extends BifrostGenerators {
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
 
-  lazy val validAssetRedemptionGen: Gen[AssetRedemption] = for {
-    assetLength <- positiveTinyIntGen
-    hub <- propositionGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
-
-    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen
-      .sample
-      .get
-      .map(kp => kp._2 -> kp._1)
-      .toIndexedSeq
-
-    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = assets
-      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
-        .map { _ =>
-          sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
-            sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue))
-        })
-      .toMap
-
-    val toKeyPairs = keyPairSetGen
-      .sample
-      .get
-      .toIndexedSeq
-
-    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = assets
-      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
-        .map { _ =>
-          sampleUntilNonEmpty(Gen.oneOf(toKeyPairs))._2 -> sampleUntilNonEmpty(positiveMediumIntGen).toLong
-        })
-      .toMap
-
-    val dummySigs = availableToRedeem
-      .map(entry => entry._1 -> entry._2
-        .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
-
-    val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp, data)
-
-    val fromKeyMap = fromKeyPairs.toMap
-    val signatures = availableToRedeem
-      .map {
-        case (assetId, boxes) =>
-          assetId -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
-      }
-
-    dummyTx.copy(signatures = signatures)
-  }
-}

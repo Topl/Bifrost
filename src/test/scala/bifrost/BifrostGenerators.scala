@@ -10,7 +10,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.modifier.transaction.bifrostTransaction.{_}
 import bifrost.network.BifrostSyncInfo
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.settings.AppSettings
@@ -431,28 +431,6 @@ trait BifrostGenerators extends CoreGenerators {
       Map(party -> sampleUntilNonEmpty(positiveTinyIntGen).toLong),
       timestamp,
       data)
-  }
-
-  lazy val assetRedemptionGen: Gen[AssetRedemption] = for {
-    assetLength <- positiveTinyIntGen
-    hub <- propositionGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-
-    val assets = (0 until assetLength).map { _ =>
-      sampleUntilNonEmpty(stringGen)
-    }
-
-    val availableToRedeem = assets.map(_ -> sampleUntilNonEmpty(fromSeqGen)).toMap
-    val remainderAllocations = assets.map(_ -> sampleUntilNonEmpty(toSeqGen)).toMap
-
-    val signatures = availableToRedeem.map { case (assetId, boxes) =>
-      assetId -> boxes.map(_ => sampleUntilNonEmpty(signatureGen))
-    }
-
-    AssetRedemption(availableToRedeem, remainderAllocations, signatures, hub, fee, timestamp, data)
   }
 
   lazy val codeBoxCreationGen: Gen[CodeCreation] = for {

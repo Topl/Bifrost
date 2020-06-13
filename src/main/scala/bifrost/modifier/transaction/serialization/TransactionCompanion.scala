@@ -12,7 +12,6 @@ object TransactionCompanion extends BifrostSerializer[Transaction] {
     case c: ProgramTransaction => ProgramTransactionCompanion.toBytes(c)
     case prT: ProgramTransfer => ProgramTransferCompanion.toBytes(prT)
     case p: TransferTransaction => TransferTransactionCompanion.toBytes(p)
-    case ar: AssetRedemption => AssetRedemptionCompanion.toBytes(ar)
     case ac: AssetCreation => AssetCreationCompanion.toBytes(ac)
     case cb: CoinbaseTransaction => CoinbaseTransactionCompanion.toBytes(cb)
   }
@@ -25,7 +24,6 @@ object TransactionCompanion extends BifrostSerializer[Transaction] {
       case "ProgramTransaction" => ProgramTransactionCompanion.parseBytes(bytes).get
       case "ProgramTransfer" => ProgramTransferCompanion.parseBytes(bytes).get
       case "TransferTransaction" => TransferTransactionCompanion.parseBytes(bytes).get
-      case "AssetRedemption" => AssetRedemptionCompanion.parseBytes(bytes).get
       case "AssetCreation" => AssetCreationCompanion.parseBytes(bytes).get
       case "CoinbaseTransaction" => CoinbaseTransactionCompanion.parseBytes(bytes).get
     }

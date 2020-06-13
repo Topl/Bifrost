@@ -203,18 +203,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("AssetRedemption Serialization") {
-    forAll(assetRedemptionGen) {
-      ar: AssetRedemption =>
-        val parsed = AssetRedemptionCompanion
-          .parseBytes(AssetRedemptionCompanion.toBytes(ar))
-          .get
-
-        AssetRedemptionCompanion.toBytes(parsed) sameElements
-          AssetRedemptionCompanion.toBytes(ar) shouldBe true
-    }
-  }
-
   property("CodeCreation Serialization") {
     forAll(codeBoxCreationGen) {
       ccc: CodeCreation =>

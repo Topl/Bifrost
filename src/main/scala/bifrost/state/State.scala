@@ -10,7 +10,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.modifier.transaction.bifrostTransaction.{_}
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import bifrost.nodeView.NodeViewModifier.idToBytes
@@ -143,7 +143,6 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       case cc: CodeCreation => validateCodeCreation(cc)
       case pc: ProgramCreation => validateProgramCreation(pc)
       case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
-      case ar: AssetRedemption => validateAssetRedemption(ar)
       case cb: CoinbaseTransaction => validateCoinbaseTransaction(cb)
       case _ => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
@@ -460,90 +459,6 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     statefulValid.flatMap(_ => semanticValidity(pme))
   }
 
-  /**
-    *
-    * @param ar :  the AssetRedemption to validate
-    * @return
-    */
-  //noinspection ScalaStyle
-  def validateAssetRedemption(ar: AssetRedemption): Try[Unit] = {
-    val unlockers = ar.boxIdsToOpen.map {
-      boxId =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] = boxId
-          override val boxKey: Signature25519 = ar.redemptionGroup(ByteArrayWrapper(boxId))
-        }
-    }
-
-    val statefulValid: Try[Unit] = {
-      /* First check that all the proposed boxes exist */
-      val availableAssetsTry: Try[Map[String, Long]] = unlockers
-        .foldLeft[Try[Map[String, Long]]](Success(Map[String, Long]()))((partialRes, unlocker) =>
-
-        partialRes.flatMap(partialMap =>
-          /* Checks if unlocker is valid and if so adds to current running total */
-          closedBox(unlocker.closedBoxId) match {
-            case Some(box: AssetBox) =>
-              if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign) && (box.issuer equals ar.issuer)) {
-                Success(partialMap
-                  .get(box.assetCode) match {
-                  case Some(amount) => partialMap + (box.assetCode -> (amount + box.value))
-                  case None => partialMap + (box.assetCode -> box.value)
-                })
-              } else {
-                Failure(new TransactionValidationException("Incorrect unlocker"))
-              }
-            case None => Failure(
-              new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
-            case _ => Failure(new Exception("Invalid Box type for this transaction"))
-          }
-        )
-      )
-
-      /* Make sure that there's enough to cover the remainders */
-      val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
-        ar.remainderAllocations
-          .foldLeft[Try[Unit]](Success(())) { case (partialRes, (assetCode, remainders)) =>
-          partialRes.flatMap(_ => availableAssets.get(assetCode) match {
-            case Some(amount) => if (amount > remainders.map(_._2).sum) {
-              Success(())
-            } else {
-              Failure(new TransactionValidationException("Not enough assets"))
-            }
-            case None => Failure(new TransactionValidationException("Asset not included in inputs"))
-          })
-        }
-      )
-
-      /* Handles fees */
-      val boxesSumTry: Try[Long] = {
-        unlockers
-          .tail
-          .foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) => {
-          partialRes
-            .flatMap(total => closedBox(unlocker.closedBoxId) match {
-              case Some(box: PolyBox) =>
-                if (unlocker.boxKey.isValid(box.proposition, ar.messageToSign)) {
-                  Success(total + box.value)
-                } else {
-                  Failure(new TransactionValidationException("Incorrect unlocker"))
-                }
-              case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
-              case _ => Failure(new Exception("Invalid Box type for this transaction"))
-            })
-        })
-      }
-
-      /* Incorrect unlocker or box provided, or not enough to cover declared fees */
-      val enoughToCoverFees = Try {
-        if (boxesSumTry.isFailure || boxesSumTry.get < ar.fee) {
-          throw new TransactionValidationException("Insufficient balances provided for fees")
-        }
-      }
-      enoughAssets.flatMap(_ => enoughToCoverFees)
-    }
-    statefulValid.flatMap(_ => semanticValidity(ar))
-  }
 
   def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
     //val t = history.modifierById(cb.blockID).get
@@ -606,7 +521,6 @@ object State extends Logging {
       case cc: CodeCreation => CodeCreation.validate(cc)
       case pc: ProgramCreation => ProgramCreation.validate(pc)
       case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
-      case ar: AssetRedemption => AssetRedemption.validate(ar)
       case cb: CoinbaseTransaction => CoinbaseTransaction.validate(cb)
       case _ => throw new UnsupportedOperationException(
         "Semantic validity not implemented for " + tx.getClass.toGenericString)
