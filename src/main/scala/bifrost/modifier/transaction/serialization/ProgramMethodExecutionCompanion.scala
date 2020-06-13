@@ -6,10 +6,9 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints}
-import io.circe.Json
-import io.circe.parser.parse
+import io.circe.{parser, Json}
 
 import scala.util.Try
 
@@ -83,7 +82,7 @@ object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodEx
 
     numReadBytes += methodNameLength
 
-    val methodParams: Json = parse(new String(bytes.slice(numReadBytes,
+    val methodParams: Json = parser.parse(new String(bytes.slice(numReadBytes,
       numReadBytes + parametersLength))) match {
       case Left(f) => throw f
       case Right(j: Json) => j
@@ -110,4 +109,7 @@ object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodEx
       methodParams, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
 
+  override def parse(r: Reader): ProgramMethodExecution = ???
+
+  override def serialize(obj: ProgramMethodExecution, w: Writer): Unit = ???
 }

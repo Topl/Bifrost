@@ -3,7 +3,7 @@ package bifrost.modifier.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -86,4 +86,8 @@ object AssetCreationCompanion extends BifrostSerializer[AssetCreation] {
 
     AssetCreation(to, signatures.toMap, assetCode, issuer, fee, timestamp, data)
   }
+
+  override def parse(r: Reader): AssetCreation = ???
+
+  override def serialize(obj: AssetCreation, w: Writer): Unit = ???
 }

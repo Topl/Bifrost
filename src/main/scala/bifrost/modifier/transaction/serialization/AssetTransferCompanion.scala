@@ -2,7 +2,7 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.AssetTransfer
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 
 import scala.util.Try
@@ -42,4 +42,8 @@ object AssetTransferCompanion extends BifrostSerializer[AssetTransfer] with Tran
 
     AssetTransfer(params._1, params._2, params._3, issuer, assetCode, params._4, params._5, data)
   }
+
+  override def parse(r: Reader): AssetTransfer = ???
+
+  override def serialize(obj: AssetTransfer, w: Writer): Unit = ???
 }

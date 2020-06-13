@@ -1,7 +1,7 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 
 import scala.util.Try
@@ -29,4 +29,7 @@ object TransactionCompanion extends BifrostSerializer[Transaction] {
     }
   }
 
+  override def parse(r: Reader): Transaction = ???
+
+  override def serialize(obj: Transaction, w: Writer): Unit = ???
 }

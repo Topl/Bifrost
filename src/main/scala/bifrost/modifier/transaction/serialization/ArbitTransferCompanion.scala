@@ -1,7 +1,7 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 
 import scala.util.Try
@@ -26,4 +26,7 @@ object ArbitTransferCompanion extends BifrostSerializer[ArbitTransfer] with Tran
     )
     ArbitTransfer(params._1, params._2, params._3, params._4, params._5, data)
   }
+  override def parse(r: Reader): ArbitTransfer = ???
+
+  override def serialize(obj: ArbitTransfer, w: Writer): Unit = ???
 }

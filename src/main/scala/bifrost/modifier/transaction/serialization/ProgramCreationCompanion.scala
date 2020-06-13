@@ -7,7 +7,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try
@@ -111,4 +111,7 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
     ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
 
+  override def parse(r: Reader): ProgramCreation = ???
+
+  override def serialize(obj: ProgramCreation, w: Writer): Unit = ???
 }
