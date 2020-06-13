@@ -84,7 +84,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
       log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
         s"${boxKeys.map(_._1.value).sum}")
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime)
+      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
 
       iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, forgerSettings.version) match {
         case Some(block) =>
@@ -105,7 +105,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
                       ): Try[Seq[Transaction]] = Try {
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
-    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get
+    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id.hashBytes).get
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val txValid = state.validate(tx)

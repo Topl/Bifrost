@@ -4,7 +4,7 @@ import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.PrivateKey25519
-import bifrost.settings.{AppSettings, ForgingSettings}
+import bifrost.settings.AppSettings
 import bifrost.history.GenericHistory._
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -13,7 +13,7 @@ import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
-import bifrost.utils.{BifrostEncoder, BifrostEncoding, Logging}
+import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec

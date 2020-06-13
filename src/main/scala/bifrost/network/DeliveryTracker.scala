@@ -1,13 +1,12 @@
 package bifrost.network
 
 import akka.actor.{ActorRef, ActorSystem, Cancellable}
-import bifrost.modifier.ContainsModifiers
+import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.network.ModifiersStatus._
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.utils.BifrostEncoding
-import bifrost.nodeView.NodeViewModifier._
 import bifrost.utils.Logging
 
 import scala.collection.mutable
@@ -23,7 +22,7 @@ import scala.util.{Failure, Try}
   * Modifiers in `Received` state are kept in `received` set.
   * Modifiers in `Invalid` state are kept in `invalid` set to prevent this modifier download and processing.
   * Modifiers in `Held` state are not kept in this class - we can get this status from object, that contains
-  * these modifiers (History for PersistentNodeViewModifier, Mempool for EphemerealNodeViewModifier).
+  * these modifiers (History for PersistentNodeViewModifier, Mempool for EphemeralNodeViewModifier).
   * If we can't identify modifiers status based on the rules above, it's status is Unknown.
   *
   * In success path modifier changes his statuses `Unknown`->`Requested`->`Received`->`Held`.

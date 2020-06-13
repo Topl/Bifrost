@@ -1,7 +1,6 @@
 package bifrost.modifier
 
 import bifrost.nodeView.NodeViewModifier
-import bifrost.modifier.ModifierId
 
 /**
   * Object that contains modifiers of type `MOD`

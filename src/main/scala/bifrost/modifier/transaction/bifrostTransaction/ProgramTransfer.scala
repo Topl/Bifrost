@@ -61,7 +61,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
   )
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "ProgramTransfer".asJson,
     "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
     "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,

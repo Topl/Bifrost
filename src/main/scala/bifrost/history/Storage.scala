@@ -47,7 +47,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
     .map(d => bytesToId(d.data))
-    .getOrElse(settings.forgingSettings.GenesisParentId)
+    .getOrElse(ModifierId(settings.forgingSettings.GenesisParentId))
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
