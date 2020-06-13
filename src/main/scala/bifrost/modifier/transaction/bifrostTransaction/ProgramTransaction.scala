@@ -33,7 +33,7 @@ abstract class ProgramTransaction extends Transaction {
     }
 
   lazy val commonJson: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "owner" -> Base58.encode(owner.pubKeyBytes).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson

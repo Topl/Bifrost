@@ -4,7 +4,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId, bytesToId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
 
 
 /**
