@@ -56,7 +56,7 @@ case class ForgingSettings(MinimumDifficulty: Long,
                            offlineGeneration: Boolean,
                            posAttachmentSize: Int,
                            targetBlockTime: FiniteDuration,
-                           blockGenerationDelay: Long,
+                           blockGenerationDelay: FiniteDuration,
                            version: Byte,
                            forkHeight: Long)
 

@@ -69,5 +69,5 @@ trait PersistentNodeViewModifier extends NodeViewModifier {
 trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
   extends PersistentNodeViewModifier {
 
-  def transactions: Option[Seq[TX]]
+  def transactions: Seq[TX]
 }
