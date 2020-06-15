@@ -52,13 +52,14 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
 
 case class ForgingSettings(MinimumDifficulty: Long,
                            InitialDifficulty: Long,
-                           GenesisParentId: Array[Byte],
                            offlineGeneration: Boolean,
                            posAttachmentSize: Int,
                            targetBlockTime: FiniteDuration,
                            blockGenerationDelay: FiniteDuration,
                            version: Byte,
-                           forkHeight: Long)
+                           forkHeight: Long) {
+  val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
+}
 
 case class AppSettings(walletSeed: String,
                        keyFileDir: Option[String],
