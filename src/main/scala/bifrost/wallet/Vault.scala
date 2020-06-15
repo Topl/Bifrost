@@ -1,5 +1,6 @@
 package bifrost.wallet
 
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
@@ -14,7 +15,7 @@ trait Vault[P <: Proposition, TX <: GenericTransaction[P],
             PMOD <: PersistentNodeViewModifier, V <: Vault[P, TX, PMOD, V]] extends NodeViewComponent {
   self: V =>
 
-  type VersionTag = NodeViewModifier.ModifierId
+  type VersionTag = ModifierId
 
   def scanOffchain(tx: TX): V
 

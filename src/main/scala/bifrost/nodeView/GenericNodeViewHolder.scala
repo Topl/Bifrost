@@ -5,7 +5,7 @@ import bifrost.mempool.MemoryPool
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
 import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState, ChangedVault, FailedTransaction, NodeViewHolderEvent, SuccessfulTransaction}
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.nodeView.{PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
@@ -217,7 +217,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
       @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
       val branchingPoint = progressInfo.branchPoint.get //todo: .get
       if (state.version != branchingPoint) {
-        state.rollbackTo(idToVersion(branchingPoint)) -> trimChainSuffix(suffixApplied, branchingPoint)
+        state.rollbackTo(branchingPoint) -> trimChainSuffix(suffixApplied, branchingPoint)
       } else Success(state) -> IndexedSeq()
     } else Success(state) -> suffixApplied
 
@@ -285,7 +285,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
                 //we consider that vault always able to perform a rollback needed
                 @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
                 val newVault = if (progressInfo.chainSwitchingNeeded) {
-                  vault().rollback(idToVersion(progressInfo.branchPoint.get)).get
+                  vault().rollback(progressInfo.branchPoint.get).get
                 } else vault()
                 blocksApplied.foreach(newVault.scanPersistent)
 
