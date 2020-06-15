@@ -1,3 +1,5 @@
+package bifrost.nodeView
+
 import akka.actor.Actor
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.history.History
@@ -33,7 +35,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
   import NodeViewHolder._
 
   type SI <: SyncInfo
-  type HIS <: History[PMOD, SI, HIS]
+  type HIS <: History
   type MS <: MinimalState[PMOD, MS]
   type VL <: Vault[TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]
@@ -406,7 +408,7 @@ object NodeViewHolder {
 
     case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    case class EliminateTransactions(ids: Seq[scorex.util.ModifierId])
+    case class EliminateTransactions(ids: Seq[ModifierId])
 
   }
 

@@ -2,7 +2,7 @@ package bifrost.modifier.box
 
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.Json
 
@@ -36,6 +36,10 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
 }
 
 object BoxSerializer extends BifrostSerializer[Box] {
+
+  override def serialize(obj: Box, w: Writer): Unit = ???
+
+  override def parse(r: Reader): Box = ???
 
   override def toBytes(obj: Box): Array[Byte] = obj match {
     case p: PolyBox => PolyBoxSerializer.toBytes(p)
