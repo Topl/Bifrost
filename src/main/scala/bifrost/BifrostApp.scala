@@ -3,11 +3,12 @@ package bifrost
 import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
+import bifrost.forging.ForgerRef
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
