@@ -9,7 +9,7 @@ import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.nodeView.{PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
-import bifrost.state.MinimalState
+import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
 import bifrost.wallet.Vault
 
