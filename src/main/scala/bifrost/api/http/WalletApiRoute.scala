@@ -156,7 +156,6 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       PolyTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ProofOfKnowledgeProposition[PrivateKey25519],
             PolyTransfer
           ](tx)
           tx.json
@@ -307,7 +306,6 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       ArbitTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ProofOfKnowledgeProposition[PrivateKey25519],
             ArbitTransfer
           ](tx)
           tx.json
