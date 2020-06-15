@@ -1,11 +1,9 @@
 package bifrost.history
 
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.modifier.ModifierId
 import bifrost.network.SyncInfo
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
 
@@ -25,7 +23,7 @@ import scala.util.Try
 
 trait GenericHistory[PM <: PersistentNodeViewModifier,
 SI <: SyncInfo,
-HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent {
+HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent with HistoryReader[PM, SI] {
 
   import GenericHistory._
 
@@ -40,7 +38,7 @@ HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent {
     * @param persistentModifier - modifier
     * @return
     */
-  def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
+  override def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
 
   /**
     * Whether the history contains a modifier with the given id
@@ -48,7 +46,7 @@ HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent {
     * @param id - modifier's id
     * @return
     */
-  def contains(id: ModifierId): Boolean = modifierById(id).isDefined
+  override def contains(id: ModifierId): Boolean = modifierById(id).isDefined
 
   /**
     * Whether a modifier could be applied to the history
@@ -80,6 +78,8 @@ HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent {
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
   def syncInfo(answer: Boolean): SI
+
+  def getReader: HistoryReader[PM, SI] = this
 }
 
 object GenericHistory {

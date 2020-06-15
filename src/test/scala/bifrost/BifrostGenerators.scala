@@ -38,9 +38,7 @@ trait BifrostGenerators extends CoreGenerators {
     sampled.get
   }
 
-  val settings: AppSettings = new AppSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")
-  }
+  val settings: AppSettings = AppSettings.read()
 
   val settings_version0: AppSettings = new AppSettings {
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
