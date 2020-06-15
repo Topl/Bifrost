@@ -6,7 +6,7 @@ package bifrost.state
 
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.transaction.bifrostTransaction.{GenericTransaction, Transaction}
 import bifrost.modifier.ModifierId
 import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.state.MinimalState.VersionTag
@@ -58,4 +58,14 @@ MS <: MinimalState[T, P, BX, TX, M, MS]] extends NodeViewComponent {
 
 object MinimalState {
   type VersionTag = ModifierId
+}
+
+trait StateFeature
+
+trait TransactionValidation[TX <: Transaction] extends StateFeature {
+  def isValid(tx: TX): Boolean = validate(tx).isSuccess
+
+  def filterValid(txs: Seq[TX]): Seq[TX] = txs.filter(isValid)
+
+  def validate(tx: TX): Try[Unit]
 }

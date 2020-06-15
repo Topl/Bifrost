@@ -5,11 +5,11 @@ import bifrost.mempool.MemoryPool
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
 import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState, ChangedVault, FailedTransaction, NodeViewHolderEvent, SuccessfulTransaction}
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{ChangedHistory, ChangedMempool, ChangedState, ChangedVault, FailedTransaction, NewOpenSurface, NodeViewHolderEvent, RollbackFailed, SemanticallyFailedModification, SemanticallySuccessfulModifier, StartingPersistentModifierApplication, SuccessfulTransaction, SyntacticallySuccessfulModifier}
 import bifrost.nodeView.{PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
-import bifrost.state.MinimalState
+import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
 import bifrost.wallet.Vault
 
