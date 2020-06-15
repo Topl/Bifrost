@@ -30,12 +30,9 @@ import scala.util.{Failure, Try}
 class History(val storage: Storage,
               settings: AppSettings,
               validators: Seq[BlockValidator[Block]])
-  extends GenericHistory[ProofOfKnowledgeProposition[PrivateKey25519],
-    Transaction,
-    Block,
+  extends GenericHistory[Block,
     BifrostSyncInfo,
-    History
-    ] with Logging
+    History] with Logging
       with BifrostEncoding {
 
   override type NVCT = History

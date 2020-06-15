@@ -2,7 +2,7 @@ package bifrost.nodeView
 
 import akka.actor.Actor
 import bifrost.history.GenericHistory.ProgressInfo
-import bifrost.history.History
+import bifrost.history.{GenericHistory, History}
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
@@ -35,7 +35,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
   import NodeViewHolder._
 
   type SI <: SyncInfo
-  type HIS <: History
+  type HIS <: GenericHistory[PMOD, SI, HIS]
   type MS <: MinimalState[PMOD, MS]
   type VL <: Vault[TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]

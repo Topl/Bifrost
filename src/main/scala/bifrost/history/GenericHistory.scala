@@ -23,11 +23,9 @@ import scala.util.Try
   * function has been used instead, even in PoW systems.
   */
 
-trait GenericHistory[P <: Proposition,
-TX <: GenericTransaction[P],
-PM <: PersistentNodeViewModifier,
+trait GenericHistory[PM <: PersistentNodeViewModifier,
 SI <: SyncInfo,
-HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
+HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent {
 
   import GenericHistory._
 
