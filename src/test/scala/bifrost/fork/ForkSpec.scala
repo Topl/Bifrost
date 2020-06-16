@@ -45,7 +45,7 @@ class ForkSpec extends PropSpec
   property("Appending version3 blocks before height = forkHeight should fail") {
     val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       0L,
@@ -71,7 +71,7 @@ class ForkSpec extends PropSpec
     for(i <- 2L to testSettings_version0.forkHeight) {
       val tempBlock = Block(history.bestBlockId,
         System.currentTimeMillis(),
-        ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+        ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
         Seq(),
         0L,
@@ -85,7 +85,7 @@ class ForkSpec extends PropSpec
 
     val tempBlock_version3_1 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -98,7 +98,7 @@ class ForkSpec extends PropSpec
 
     val tempBlock_version3_2 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -131,7 +131,7 @@ class ForkSpec extends PropSpec
     
     val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -158,7 +158,7 @@ class ForkSpec extends PropSpec
 
     val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -169,7 +169,7 @@ class ForkSpec extends PropSpec
 
     val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
