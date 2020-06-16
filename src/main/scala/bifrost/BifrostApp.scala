@@ -14,7 +14,7 @@ import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
-import bifrost.network.peer.{PeerManager, PeerManagerRef}
+import bifrost.network.peer.PeerManagerRef
 import bifrost.network._
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
@@ -25,7 +25,6 @@ import kamon.Kamon
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
-import scala.io.Source
 import scala.util.{Failure, Success}
 import scala.reflect.runtime.universe._
 

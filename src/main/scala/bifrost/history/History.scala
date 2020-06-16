@@ -3,11 +3,10 @@ package bifrost.history
 import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
-import bifrost.crypto.PrivateKey25519
 import bifrost.settings.AppSettings
 import bifrost.history.GenericHistory._
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo

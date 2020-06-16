@@ -1,17 +1,18 @@
 package bifrost.nodeView
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.PrivateKey25519Companion
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.{AppSettings, ForgingSettings}
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.utils.{Logging, NetworkTimeProvider}
 import bifrost.utils.serialization.BifrostSerializer

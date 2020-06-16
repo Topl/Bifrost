@@ -2,15 +2,12 @@ package bifrost.nodeView
 
 import akka.actor.Actor
 import bifrost.history.GenericHistory.ProgressInfo
-import bifrost.history.{GenericHistory, History}
+import bifrost.history.GenericHistory
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
 import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-import bifrost.nodeView.{PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, DownloadRequest}
-import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{EliminateTransactions, GetDataFromCurrentView, GetNodeViewChanges, LocallyGeneratedModifier, NewTransactions}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
