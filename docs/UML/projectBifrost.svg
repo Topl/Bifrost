@@ -807,9 +807,9 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-4806" rx="68.4888" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-4802.3" font-family="Times,serif" font-size="14.00" fill="#000000">StopForging</text>
 </g>
-<!-- TryForging -->
+<!-- tryForging -->
 <g id="node70" class="node">
-<title>TryForging</title>
+<title>tryForging</title>
 <ellipse fill="#deb887" stroke="#000000" cx="189.1332" cy="-4860" rx="63.0888" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-4856.3" font-family="Times,serif" font-size="14.00" fill="#000000">TryForging</text>
 </g>

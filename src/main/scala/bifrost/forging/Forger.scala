@@ -9,7 +9,7 @@ import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
 import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.settings.ForgingSettings
@@ -54,7 +54,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
       forging = false
 
     case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
-      TryForging(h, s, w, m)
+      tryForging(h, s, w, m)
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -67,8 +67,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
    */
   def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
-  private def TryForging(h: History, s: State, w: Wallet, m: MemPool): CurrentView[History, State, Wallet, MemPool] =
-  {
+  private def tryForging(h: History, s: State, w: Wallet, m: MemPool) =
     if (forging) {
       log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
       log.info("chain difficulty: " + h.difficulty)
@@ -96,7 +95,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
       }
       context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
     }
-  }
 
   def pickTransactions(memPool: MemPool,
                        state: State,
@@ -169,8 +167,6 @@ object Forger {
       case object StartForging
 
       case object StopForging
-
-      case class TryForging[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
   }
 
