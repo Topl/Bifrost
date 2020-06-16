@@ -16,7 +16,7 @@ trait Reader {
 
   /**
     * Returns encoded data at current position
-    * @param size
+    * @param size size of data
     * @return
     */
   def getChunk(size: Int): CH
@@ -25,61 +25,61 @@ trait Reader {
     * Decode String is shorter than 256 bytes
     * @return
     */
-  def getShortString(): String
+  def getShortString: String
 
   /**
     * Get a byte at current position without advancing the position.
     * @return byte at current position
     */
-  def peekByte(): Byte
+  def peekByte: Byte
 
   /**
     * Decode signed byte
     * @return Byte
     */
-  def getByte(): Byte
+  def getByte: Byte
 
   /**
     * Decode positive Byte
     * @return signed Int
     */
-  def getUByte(): Int
+  def getUByte: Int
 
   /**
     * Decode signed short
     * @return Short
     */
-  def getShort(): Short
+  def getShort: Short
 
   /**
     * Decode positive Short.
     * @return signed Int
     */
-  def getUShort(): Int
+  def getUShort: Int
 
   /**
     * Decode signed Int.
     * @return signed Int
     */
-  def getInt(): Int
+  def getInt: Int
 
   /**
     * Decode positive Int.
     * @return signed Long
     */
-  def getUInt(): Long
+  def getUInt: Long
 
   /**
     * Decode signed Long.
     * @return signed Long
     */
-  def getLong(): Long
+  def getLong: Long
 
   /**
     * Decode positive Long.
     * @return signed Long
     */
-  def getULong(): Long
+  def getULong: Long
 
   /**
     * Decode array of byte values
@@ -105,7 +105,7 @@ trait Reader {
   /**
     * Sets the mark to current position
     */
-  def mark(): this.type
+  def mark: this.type
 
   /**
     * Returns the number of decoded elements
