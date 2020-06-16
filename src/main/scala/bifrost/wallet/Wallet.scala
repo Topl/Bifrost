@@ -182,7 +182,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   override def scanOffchain(txs: Seq[Transaction]): Wallet = this
 
   override def scanPersistent(modifier: Block): Wallet = {
-    log.debug(s"Applying modifier to wallet: ${Base58.encode(modifier.id)}")
+    log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
     val changes = State.changes(modifier).get
 
     val newBoxes = changes
@@ -218,17 +218,17 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
     )
 //    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
 
-    store.update(ByteArrayWrapper(modifier.id), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
+    store.update(ByteArrayWrapper(modifier.id.hashBytes), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
 
     Wallet(secrets, store, defaultKeyDir)
   }
 
   override def rollback(to: VersionTag): Try[Wallet] = Try {
-    if (store.lastVersionID.exists(_.data sameElements to)) {
+    if (store.lastVersionID.exists(_.data sameElements to.hashBytes)) {
       this
     } else {
-      log.debug(s"Rolling back wallet to: ${Base58.encode(to)}")
-      store.rollback(ByteArrayWrapper(to))
+      log.debug(s"Rolling back wallet to: ${to.toString}")
+      store.rollback(ByteArrayWrapper(to.hashBytes))
       Wallet(secrets, store, defaultKeyDir)
     }
   }

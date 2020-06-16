@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.settings.AppSettings
 import bifrost.state.State
@@ -92,9 +93,9 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       Map(
         "height" -> view.history.height.toString.asJson,
         "score" -> view.history.score.asJson,
-        "bestBlockId" -> Base58.encode(view.history.bestBlockId).asJson,
+        "bestBlockId" -> view.history.bestBlockId.toString.asJson,
         "bestBlock" -> view.history.bestBlock.json,
-        "stateVersion" -> Base58.encode(view.state.version).asJson
+        "stateVersion" -> view.state.version.toString.asJson
       ).asJson
     }
   }
@@ -123,7 +124,7 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       Map(
         "delay" -> Base58
           .decode(encodedSignature)
-          .flatMap(id => view.history.averageDelay(id, count))
+          .flatMap(id => view.history.averageDelay(ModifierId(id), count))
           .map(_.toString)
           .getOrElse("Undefined")
           .asJson

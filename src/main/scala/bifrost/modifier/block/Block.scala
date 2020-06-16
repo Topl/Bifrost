@@ -92,7 +92,7 @@ object Block {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
     val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
-    if (idToBytes(parentId) sameElements Array.fill(32)(1: Byte)) {
+    if (parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
       unsigned.copy(signature = Signature25519(genesisSignature))

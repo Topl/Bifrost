@@ -52,7 +52,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
       }
     }
     //noinspection ScalaStyle
-    if (idToBytes(block.parentId) sameElements Array.fill(32)(1: Byte)) {
+    if (block.parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
       commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++ tx.messageToSign)
     } else {
       commonBytes ++ block.txs.foldLeft(Array[Byte]())((bytes, tx) => bytes ++ Ints.toByteArray(TransactionCompanion.toBytes(tx).length) ++ TransactionCompanion.toBytes(tx))

@@ -116,7 +116,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
   }
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[TokenBoxRegistry] = Try {
-    if (tbrStore.lastVersionID.exists(_.data sameElements version)) {
+    if (tbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")

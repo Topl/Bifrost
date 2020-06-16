@@ -3,6 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.crypto.Signature25519
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -33,11 +34,11 @@ class AssetCreationValidationSpec extends StateSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(7)))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(8))
+          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(8)))
           .get
 
         assetCreation.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
@@ -65,7 +66,7 @@ class AssetCreationValidationSpec extends StateSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(9)))
           .get
 
         val newState = preparedState.validate(invalidAC)

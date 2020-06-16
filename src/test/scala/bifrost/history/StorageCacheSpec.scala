@@ -63,8 +63,8 @@ class StorageCacheSpec extends PropSpec
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
-      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id))
+      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.hashBytes)) shouldEqual
+        history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
     }
   }
 
@@ -73,7 +73,7 @@ class StorageCacheSpec extends PropSpec
     val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) should not be null
+    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) should not be null
 
     /* Append a number of new blocks, so that we store more entries than the cache size limit */
     /* Assuming an average new block creates more than 50 entries */
@@ -83,7 +83,7 @@ class StorageCacheSpec extends PropSpec
       history = history.append(oneBlock).get._1
     }
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
+    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
 
   property("blockLoader should correctly return a block from storage not found in cache") {

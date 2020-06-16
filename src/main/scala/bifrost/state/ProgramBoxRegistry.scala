@@ -67,7 +67,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
 
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[ProgramBoxRegistry] = Try {
-    if (pbrStore.lastVersionID.exists(_.data sameElements version)) {
+    if (pbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")

@@ -12,6 +12,7 @@ import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.crypto.Signature25519
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -131,12 +132,13 @@ class NodeViewRPCSpec extends WordSpec
         }
         txHash shouldEqual assetTxHash
         assert(txHashesArray.size <= 100)
-        assetTxInstance = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        assetTxInstance = view().pool.getById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
           10L,
