@@ -142,7 +142,7 @@ class NodeViewRPCSpec extends WordSpec
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
         history.append(tempBlock)
         blockId = tempBlock.id

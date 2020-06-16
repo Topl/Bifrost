@@ -119,7 +119,7 @@ class AssetRPCSpec extends WordSpec
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
         view().state.applyModifier(tempBlock)
         view().pool.remove(txInstance)
