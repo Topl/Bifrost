@@ -384,7 +384,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 }
 
 
-object NodeViewHolder {
+object GenericNodeViewHolder {
 
   object ReceivableMessages {
 
