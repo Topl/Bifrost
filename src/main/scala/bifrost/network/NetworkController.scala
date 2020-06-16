@@ -17,7 +17,6 @@ import bifrost.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.{existentials, postfixOps}
 import scala.util.{Failure, Success, Try}
 
 /**

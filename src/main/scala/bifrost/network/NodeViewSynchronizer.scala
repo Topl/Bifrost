@@ -12,7 +12,7 @@ import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.network.message._
 import bifrost.network.peer.PenaltyType
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
@@ -32,7 +32,6 @@ import scorex.core.validation.MalformedModifierError
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success}
 
