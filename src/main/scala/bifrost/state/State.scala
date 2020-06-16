@@ -118,7 +118,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     if(pbr != null) pbr.updateFromState(newVersion, keyFilteredBoxIdsToRemove, keyFilteredBoxesToAdd)
 
     storage.update(
-      ByteArrayWrapper(newVersion),
+      ByteArrayWrapper(newVersion.hashBytes),
       boxIdsToRemove,
       boxesToAdd + (ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)) -> ByteArrayWrapper(Longs.toByteArray(
         timestamp)))
@@ -543,7 +543,7 @@ object State extends Logging {
         (aggregate._1 ++ boxDelta._1, aggregate._2 ++ boxDelta._2, aggregate._3 + boxDelta._3)
       })
 
-    val rewardNonce = Longs.fromByteArray(mod.id.take(Longs.BYTES))
+    val rewardNonce = Longs.fromByteArray(mod.id.hashBytes.take(Longs.BYTES))
 
     //TODO Change to immutable val
     var finalToAdd = toAdd

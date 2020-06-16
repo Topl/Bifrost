@@ -10,7 +10,6 @@ import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -34,7 +33,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
   def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
+    log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
@@ -53,7 +52,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
         .map(_.value)
 
     pbrStore.update(
-      ByteArrayWrapper(newVersion),
+      ByteArrayWrapper(newVersion.hashBytes),
       uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw(_)),
       uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
     )
@@ -71,8 +70,8 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
     if (pbrStore.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
-      log.debug(s"Rolling back ProgramBoxRegistry to: ${Base58.encode(version)}")
-      pbrStore.rollback(ByteArrayWrapper(version))
+      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
+      pbrStore.rollback(ByteArrayWrapper(version.hashBytes))
       ProgramBoxRegistry(pbrStore, stateStore)
     }
   }

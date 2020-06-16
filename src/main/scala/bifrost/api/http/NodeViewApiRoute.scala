@@ -5,6 +5,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
 import bifrost.settings.AppSettings
 import bifrost.state.State
@@ -129,17 +130,17 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
         case Success(id) =>
           val storage = view.history.storage
           val blockIdWithPrefix = storage.blockIdOf(id).get
-          val blockId = blockIdWithPrefix.tail
+          val blockId = ModifierId(blockIdWithPrefix.tail)
           val blockNumber = storage.heightOf(blockId)
           val tx = storage
             .modifierById(blockId)
             .get
             .txs
-            .filter(_.id sameElements id)
+            .filter(_.id.hashBytes sameElements id)
             .head
           tx.json.asObject.get
             .add("blockNumber", blockNumber.asJson)
-            .add("blockHash", Base58.encode(blockId).asJson)
+            .add("blockHash", blockId.toString.asJson)
             .asJson
         case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }
@@ -166,7 +167,7 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
       Base58.decode(transactionId) match {
         case Success(txId) =>
           getMempool match {
-            case Success(pool: MP) => pool.getById(txId).get.json.asJson
+            case Success(pool: MP) => pool.getById(ModifierId(txId)).get.json.asJson
             case Failure(e) ⇒ ErrorResponse(e, 550, id).toJson
           }
         case Failure(e) => ErrorResponse(e, 500, id).toJson
@@ -193,16 +194,17 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
       val modifierId: String = (params \\ "blockId").head.asString.get
       Base58.decode(modifierId) match {
         case Success(id) =>
-          val blockNumber = view.history.storage.heightOf(id)
+          val blockId = ModifierId(id)
+          val blockNumber = view.history.storage.heightOf(blockId)
           val storage = view.history.storage
           view.history
-            .modifierById(id)
+            .modifierById(blockId)
             .get
             .json
             .asObject
             .get
             .add("blockNumber", blockNumber.asJson)
-            .add("blockDifficulty", storage.difficultyOf(id).asJson)
+            .add("blockDifficulty", storage.difficultyOf(blockId).asJson)
             .asJson
         case Failure(e) ⇒ ErrorResponse(e, 500, id).toJson
       }

@@ -191,9 +191,9 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .get(blockParentKey(serializedBlockId))
       .map(d => d.data)
 
-  def blockIdOf(transactionId: ModifierId): Option[Array[Byte]] =
+  def blockIdOf(transactionId: Array[Byte]): Option[Array[Byte]] =
     blockCache
-      .get(ByteArrayWrapper(idToBytes(transactionId)))
+      .get(ByteArrayWrapper(transactionId))
       .map(_.data)
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)

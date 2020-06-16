@@ -2,14 +2,12 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.forging.ForgingSettings
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -49,7 +47,9 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
 
   /**
     * @param newVersion - block id
-    * @param changes - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
+    * @param keyFilteredBoxIdsToRemove
+    * @param keyFilteredBoxesToAdd
+    * - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
     * @return - instance of updated TokenBoxRegistry
     * (Note - makes use of vars for local variables since function remains a pure function and helps achieve better runtime)
     *
@@ -61,7 +61,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     */
   //noinspection ScalaStyle
   def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
+    log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
@@ -106,7 +106,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     }
 
     tbrStore.update(
-      ByteArrayWrapper(newVersion),
+      ByteArrayWrapper(newVersion.hashBytes),
       Seq(),
       keysToBoxIds.map(element =>
         element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
@@ -119,8 +119,8 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     if (tbrStore.lastVersionID.exists(_.data sameElements version)) {
       this
     } else {
-      log.debug(s"Rolling back TokenBoxRegistry to: ${Base58.encode(version)}")
-      tbrStore.rollback(ByteArrayWrapper(version))
+      log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
+      tbrStore.rollback(ByteArrayWrapper(version.hashBytes))
       TokenBoxRegistry(tbrStore, stateStore)
     }
   }
