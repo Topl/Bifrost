@@ -37,8 +37,7 @@ case class StateChanges(override val boxIdsToRemove: Set[Array[Byte]],
   */
 //noinspection ScalaStyle
 case class State(storage: LSMStore, override val version: VersionTag, timestamp: Long, history: History, pbr: ProgramBoxRegistry = null, tbr: TokenBoxRegistry = null, nodeKeys: Set[ByteArrayWrapper] = null)
-  extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519],
-    Box, Transaction, Block, State] with Logging {
+  extends MinimalState[Block, State] with Logging {
 
   override type NVCT = State
   type P = State.P
