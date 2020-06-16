@@ -6,11 +6,12 @@ import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.history.{History, Storage}
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.bifrostTransaction.{_}
+import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.network.BifrostSyncInfo
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.settings.AppSettings
@@ -41,7 +42,7 @@ trait BifrostGenerators extends CoreGenerators {
   val settings: AppSettings = AppSettings.read()
 
   val settings_version0: AppSettings = new AppSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json")  + ("version" -> List(0,0,0).asJson)
+    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json") + ("version" -> List(0,0,0).asJson)
   }
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
@@ -646,7 +647,7 @@ trait BifrostGenerators extends CoreGenerators {
     keyPair ← key25519Gen
   } yield {
     Block.create(
-      settings.GenesisParentId,
+      ModifierId(settings.forgingSettings.GenesisParentId),
       1478164225796L,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
