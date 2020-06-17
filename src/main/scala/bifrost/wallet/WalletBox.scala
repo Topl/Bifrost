@@ -1,5 +1,6 @@
 package bifrost.wallet
 
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.serialization.BytesSerializable
@@ -7,7 +8,7 @@ import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 
 case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]]
-  (box: B, transactionId: Array[Byte], createdAt: Long)(subclassDeser: BifrostSerializer[B])
+  (box: B, transactionId: ModifierId, createdAt: Long)(subclassDeser: BifrostSerializer[B])
   extends BytesSerializable {
 
   override type M = WalletBox[T, P, B]

@@ -12,6 +12,7 @@ import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
@@ -138,8 +139,9 @@ class ProgramRPCSpec extends WordSpec
       val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
         txInstance.newBoxes.toSet,
         System.currentTimeMillis())
+      val versionId = ModifierId(Ints.toByteArray(version))
 
-      view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
+      view().state.applyChanges(boxSC, versionId).get
       view().pool.remove(txInstance)
     }
 

@@ -1,5 +1,6 @@
 package bifrost.wallet
 
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
@@ -12,11 +13,11 @@ class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDe
   extends BifrostSerializer[WalletBox[T, P, B]] {
 
   override def toBytes(box: WalletBox[T, P, B]): Array[Byte] = {
-    Bytes.concat(box.transactionId, Longs.toByteArray(box.createdAt), box.box.bytes)
+    Bytes.concat(box.transactionId.hashBytes, Longs.toByteArray(box.createdAt), box.box.bytes)
   }
 
   override def parseBytes(bytes: Array[Byte]): Try[WalletBox[T, P, B]] = Try {
-    val txId = bytes.slice(0, NodeViewModifier.ModifierIdSize)
+    val txId = ModifierId(bytes.slice(0, NodeViewModifier.ModifierIdSize))
     val createdAt = Longs.fromByteArray(
       bytes.slice(NodeViewModifier.ModifierIdSize, NodeViewModifier.ModifierIdSize + 8))
     val boxB = bytes.slice(NodeViewModifier.ModifierIdSize + 8, bytes.length)

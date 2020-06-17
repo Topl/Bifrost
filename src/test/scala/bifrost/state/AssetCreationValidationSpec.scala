@@ -21,7 +21,7 @@ class AssetCreationValidationSpec extends StateSpec {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
         val block = Block(
-          Array.fill(Block.signatureLength)(-1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),

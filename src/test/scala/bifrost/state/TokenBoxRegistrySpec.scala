@@ -4,6 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -69,7 +70,7 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.signatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
@@ -104,7 +105,7 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block2 = Block(
-      Array.fill(Block.signatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
@@ -149,7 +150,7 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.signatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),

@@ -6,6 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey255
 import bifrost.exceptions.TransactionValidationException
 import bifrost.settings.AppSettings
 import bifrost.history.History
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box._
@@ -568,9 +569,9 @@ object State extends Logging {
         stateStorage.close()
       }
     })
-    val version = stateStorage
+    val version = ModifierId(stateStorage
       .lastVersionID
-      .fold(Array.emptyByteArray)(_.data)
+      .fold(Array.emptyByteArray)(_.data))
 
     var timestamp: Long = 0L
     if (callFromGenesis) {

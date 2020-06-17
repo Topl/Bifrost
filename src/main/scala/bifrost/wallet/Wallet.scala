@@ -196,7 +196,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
         val txId = boxTransaction
           .map(_.id)
-          .getOrElse(Array.fill(32)(0: Byte))
+          .getOrElse(ModifierId(Array.fill(32)(0: Byte)))
 
         val ts = boxTransaction
           .map(_.timestamp)

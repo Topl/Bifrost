@@ -11,6 +11,7 @@ import bifrost.BifrostGenerators
 import bifrost.forging.Forger
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
 import bifrost.network.message._
@@ -90,8 +91,9 @@ trait ProgramMockState extends BifrostGenerators {
     val boxSC = StateChanges(Set(),
       boxes,
       System.currentTimeMillis())
+    val versionId = ModifierId(Ints.toByteArray(version))
 
-    view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
+    view().state.applyChanges(boxSC, versionId).get
   }
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
