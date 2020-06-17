@@ -1,7 +1,6 @@
 package bifrost
 
 import bifrost.modifier.ModifierId
-import scorex.crypto.encode.Base58
 
 package object utils {
 
