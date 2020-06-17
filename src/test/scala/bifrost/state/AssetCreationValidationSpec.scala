@@ -27,7 +27,7 @@ class AssetCreationValidationSpec extends StateSpec {
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetCreation),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)

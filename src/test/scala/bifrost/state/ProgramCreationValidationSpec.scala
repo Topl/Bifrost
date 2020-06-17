@@ -101,7 +101,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
@@ -299,7 +299,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val necessaryState = StateSpec

@@ -74,7 +74,7 @@ class TokenBoxRegistrySpec extends PropSpec
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
-      Seq(tx1), 10L, settings.version)
+      Seq(tx1), 10L, settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)
 
@@ -109,7 +109,7 @@ class TokenBoxRegistrySpec extends PropSpec
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
-      Seq(tx2), 10L, settings.version)
+      Seq(tx2), 10L, settings.forgingSettings.version)
 
     require(newState1.validate(tx2).isSuccess)
 
@@ -154,7 +154,7 @@ class TokenBoxRegistrySpec extends PropSpec
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
       Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
-      Seq(tx1), 10L, settings.version)
+      Seq(tx1), 10L, settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)
 
