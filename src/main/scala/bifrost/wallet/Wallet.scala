@@ -4,6 +4,7 @@ import java.io.File
 import java.security.SecureRandom
 
 import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
@@ -19,7 +20,7 @@ import scala.util.{Failure, Success, Try}
 
 
 case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
-  extends Vault[ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Block, Wallet]
+  extends Vault[Transaction, Block, Wallet]
     with Logging {
 
   import bifrost.wallet.Wallet._
