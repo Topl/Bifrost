@@ -20,7 +20,7 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   extends TimeProvider with Logging {
 
   private val lastUpdate = new AtomicLong(0)
-  private var offset = new AtomicLong(0)
+  private[NetworkTime] var offset = new AtomicLong(0)
   private val client = new NTPUDPClient()
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
