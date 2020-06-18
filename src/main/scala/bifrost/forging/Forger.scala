@@ -30,12 +30,16 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
-  private val initialForging = forgerSettings.offlineGeneration //set to true for initial generator
-  private var forging = forgerSettings.offlineGeneration
+  private val isForging = forgerSettings.tryForging
   private val MaxTarget: Long = Long.MaxValue
 
   override def preStart(): Unit = {
-    if (initialForging) context.system.scheduler.scheduleOnce(1.second)(self ! StartForging)
+    if (isForging) {
+      // JAA: I am not sure if these lines need to be switched. I fear that switching the context after
+      // scheduling may lead the message to be ignored. Remove this comment if still here in 3 months - 2020.06.17
+      context.system.scheduler.scheduleOnce(30.second)(self ! StartForging)
+      context become readyToForge
+    }
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -44,17 +48,43 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
     case StartForging =>
-      if(initialForging) {
-        log.info("No Better Neighbor. Forger starts forging now.")
-        forging = true
-        viewHolderRef ! GetDataFromCurrentView(actOnCurrentView)
-      }
+      log.info(s"Forger: Received a START signal while forging disabled")
+
+    case _ => nonsense
+  }
+
+  private def readyToForge: Receive = {
+    case StartForging => {
+      log.info("No Better Neighbor. Forger starts forging now.")
+      viewHolderRef ! GetDataFromCurrentView(actOnCurrentView)
+      context become activeForging
+    }
 
     case StopForging =>
-      forging = false
+      log.warn(s"Forger: Received a STOP signal while not forging. Signal ignored")
+
+    case _ => nonsense
+  }
+
+  private def activeForging: Receive = {
+    case StartForging => {
+      log.warn(s"Forger: Received a START signal while forging. Signal ignored")
+    }
+
+    case StopForging => {
+      log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
+      context become readyToForge
+    }
 
     case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
       tryForging(h, s, w, m)
+
+    case _ => nonsense
+  }
+
+  private def nonsense: Receive = {
+    case nonsense: Any =>
+    log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -164,9 +194,9 @@ object Forger {
 
   object ReceivableMessages {
 
-      case object StartForging
+    case object StartForging
 
-      case object StopForging
+    case object StopForging
 
   }
 

@@ -52,7 +52,7 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
 
 case class ForgingSettings(MinimumDifficulty: Long,
                            InitialDifficulty: Long,
-                           offlineGeneration: Boolean,
+                           tryForging: Boolean,
                            posAttachmentSize: Int,
                            targetBlockTime: FiniteDuration,
                            blockGenerationDelay: FiniteDuration,
