@@ -37,7 +37,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
     if (isForging) {
       // JAA: I am not sure if these lines need to be switched. I fear that switching the context after
       // scheduling may lead the message to be ignored. Remove this comment if still here in 3 months - 2020.06.17
-      context.system.scheduler.scheduleOnce(30.second)(self ! StartForging)
+      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
     }
   }
@@ -54,11 +54,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
   }
 
   private def readyToForge: Receive = {
-    case StartForging => {
+    case StartForging =>
       log.info("No Better Neighbor. Forger starts forging now.")
       viewHolderRef ! GetDataFromCurrentView(actOnCurrentView)
       context become activeForging
-    }
 
     case StopForging =>
       log.warn(s"Forger: Received a STOP signal while not forging. Signal ignored")
@@ -67,14 +66,12 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
   }
 
   private def activeForging: Receive = {
-    case StartForging => {
+    case StartForging =>
       log.warn(s"Forger: Received a START signal while forging. Signal ignored")
-    }
 
-    case StopForging => {
+    case StopForging =>
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
-    }
 
     case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
       tryForging(h, s, w, m)
@@ -97,8 +94,7 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
    */
   def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
-  private def tryForging(h: History, s: State, w: Wallet, m: MemPool) =
-    if (forging) {
+  private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
       log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
       log.info("chain difficulty: " + h.difficulty)
 
@@ -123,8 +119,10 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
         case None =>
           log.debug(s"Failed to generate block")
       }
+
       context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
     }
+
 
   def pickTransactions(memPool: MemPool,
                        state: State,
