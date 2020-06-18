@@ -45,7 +45,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   log.debug(s"Starting application with settings \n$settings")
 
-  /* networkController */
   protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
 //  private lazy val basicSpecs =
@@ -115,27 +114,14 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
 
-  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
 
-  /* nodeViewHoderRef */
-  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings)
-  /* ---------------- */
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 
-  /* forger */
   val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, nodeViewHolderRef)
 
-  val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forgerRef, settings), "localInterface"
-  )
-  /* -------------- */
-
-  val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[NodeViewSynchronizer],
-      networkControllerRef,
-      nodeViewHolderRef,
-      localInterface,
-      BifrostSyncInfoMessageSpec), "nodeViewSynchronizer"
-  )
+  val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef
+    ("nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, BifrostSyncInfoMessageSpec, settings.network, timeProvider, ???)
 
   val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),

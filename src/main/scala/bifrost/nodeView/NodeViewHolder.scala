@@ -158,7 +158,8 @@ object NodeViewHolderRef {
             timeProvider: NetworkTimeProvider)(implicit system: ActorSystem): ActorRef =
     system.actorOf(props(settings, timeProvider))
 
-  def apply(settings: AppSettings,
-            timeProvider: NetworkTimeProvider, name: String)(implicit system: ActorSystem): ActorRef =
+  def apply(name: String,
+            settings: AppSettings,
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem): ActorRef =
     system.actorOf(props(settings, timeProvider), name)
 }
