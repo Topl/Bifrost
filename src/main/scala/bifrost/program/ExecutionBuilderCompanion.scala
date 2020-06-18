@@ -2,6 +2,7 @@ package bifrost.program
 
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
+import io.circe.parser
 
 import scala.util.Try
 
@@ -34,7 +35,7 @@ object ExecutionBuilderCompanion extends BifrostSerializer[ExecutionBuilder] {
 
     numBytesRead += numStrBytes
 
-    val terms: ExecutionBuilderTerms = parse(new String(
+    val terms: ExecutionBuilderTerms = parser.parse(new String(
       bytes.slice(numBytesRead, numBytesRead + termsLength.toInt)
     )) match {
       case Left(_) => throw new Exception("ExecutionBuilderTerm json not properly formatted")
@@ -46,7 +47,7 @@ object ExecutionBuilderCompanion extends BifrostSerializer[ExecutionBuilder] {
 
     numBytesRead += termsLength.toInt
 
-    val core: ProgramPreprocessor = parse(new String(
+    val core: ProgramPreprocessor = parser.parse(new String(
       bytes.slice(numBytesRead, numBytesRead + coreLength.toInt)
     )) match {
       case Left(_) => throw new Exception("BaseModule json not properly formatted")

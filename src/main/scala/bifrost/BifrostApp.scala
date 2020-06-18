@@ -3,7 +3,7 @@ package bifrost
 import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
