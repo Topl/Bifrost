@@ -103,6 +103,7 @@ libraryDependencies  ++= Seq(
 scalacOptions ++= Seq(
   "-deprecation",
   "-feature",
+  "-language:higherKinds",
   "-unchecked",
   "-Xfatal-warnings",
   "-Xlint"
