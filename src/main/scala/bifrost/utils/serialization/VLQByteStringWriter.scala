@@ -6,7 +6,7 @@ import akka.util.ByteString
 
 class VLQByteStringWriter extends VLQWriter {
   override type CH = ByteString
-  private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+  private[VLQByteStringWriter] implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
 
   @inline
   override def newWriter(): Writer.Aux[CH] = {

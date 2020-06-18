@@ -11,7 +11,7 @@ class VLQByteStringReader(byteString: ByteString) extends VLQReader {
   private var it = byteString.iterator
   private var _position = 0
   private var _mark = 0
-  private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+  private[VLQByteStringReader] implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
 
   @inline
   override def newReader(chunk: ByteString): Reader.Aux[CH] = {
