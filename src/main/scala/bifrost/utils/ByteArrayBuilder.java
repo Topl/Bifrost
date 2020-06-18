@@ -41,16 +41,6 @@ public class ByteArrayBuilder {
         return arr[index];
     }
 
-    public final void crop(int offset) {
-        int count = buf.position();
-        if (offset < count) {
-            count -= offset;
-            System.arraycopy(arr, offset, arr, 0, count);
-        } else {
-            count = 0;
-        }
-    }
-
     public final byte[] trim() {
         int count = buf.position();
         if (arr.length > count) {
@@ -67,46 +57,46 @@ public class ByteArrayBuilder {
         return result;
     }
 
-    public final scorex.util.ByteArrayBuilder append(byte b) {
+    public final ByteArrayBuilder append(byte b) {
         ensureCapacity(1);
         buf.put(b);
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(byte[] b) {
+    public final ByteArrayBuilder append(byte[] b) {
         return append(b, 0, b.length);
     }
 
-    public final scorex.util.ByteArrayBuilder append(byte[] b, int offset, int length) {
+    public final ByteArrayBuilder append(byte[] b, int offset, int length) {
         ensureCapacity(length);
         buf.put(b, offset, length);
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(boolean b) {
+    public final ByteArrayBuilder append(boolean b) {
         append((byte)(b ? 0x01 : 0x00));
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(char c) {
+    public final ByteArrayBuilder append(char c) {
         ensureCapacity(1);
         buf.putChar(c);
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(short n) {
+    public final ByteArrayBuilder append(short n) {
         ensureCapacity(2);
         buf.putShort(n);
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(int n) {
+    public final ByteArrayBuilder append(int n) {
         ensureCapacity(4);
         buf.putInt(n);
         return this;
     }
 
-    public final scorex.util.ByteArrayBuilder append(long n) {
+    public final ByteArrayBuilder append(long n) {
         ensureCapacity(8);
         buf.putLong(n);
         return this;
