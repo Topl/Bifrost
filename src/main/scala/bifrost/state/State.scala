@@ -12,6 +12,7 @@ import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey2
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.ModifierId
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import bifrost.nodeView.NodeViewModifier.idToBytes
@@ -55,7 +56,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
 
   private def lastVersionString = storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  override def closedBox(boxId: Array[Byte]): Option[BX] =
+   def closedBox(boxId: Array[Byte]): Option[BX] =
     storage.get(ByteArrayWrapper(boxId))
       .map(_.data)
       .map(BoxSerializer.parseBytes)
@@ -76,10 +77,10 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     }
   }
 
-  override def changes(mod: BPMOD): Try[GSC] = State.changes(mod)
+   def changes(mod: BPMOD): Try[GSC] = State.changes(mod)
 
 
-  override def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
+   def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
 
     //Filtering boxes pertaining to public keys specified in settings file
     //Note YT - Need to handle MofN Proposition separately
@@ -105,7 +106,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     /* This seeks to avoid the scenario where there is remove and then update of the same keys */
     val boxIdsToRemove = (keyFilteredBoxIdsToRemove -- boxesToAdd.map(_._1.data)).map(ByteArrayWrapper.apply)
 
-    log.debug(s"Update BifrostState from version $lastVersionString to version ${newVersion}. " +
+    log.debug(s"Update BifrostState from version $lastVersionString to version $newVersion. " +
       s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
       s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}")
 
@@ -133,7 +134,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
 
 
   //noinspection ScalaStyle
-  override def validate(transaction: TX): Try[Unit] = {
+   def validate(transaction: TX): Try[Unit] = {
     transaction match {
       case poT: PolyTransfer => validatePolyTransfer(poT)
       case arT: ArbitTransfer => validateArbitTransfer(arT)
@@ -498,6 +499,12 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       }
     }
   }
+
+  override def applyModifier(mod: BPMOD): Try[State] = ???
+
+  override def applyModifiers(mods: Seq[BPMOD]): Try[State] = ???
+
+  override def maxRollbackDepth: Int = ???
 }
 
 object State extends Logging {
@@ -593,7 +600,7 @@ object State extends Logging {
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, ModifierId(version), timestamp, history, pbr, tbr, nodeKeys)
   }
 
   def genesisState(settings: AppSettings, initialBlocks: Seq[BPMOD], history: History): State = {
