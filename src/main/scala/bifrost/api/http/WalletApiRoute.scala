@@ -701,10 +701,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       }
 
       view.state.semanticValidity(txInstance)
-      nodeViewHolderRef ! LocallyGeneratedTransaction[
-        ProofOfKnowledgeProposition[PrivateKey25519],
-        Transaction
-      ](txInstance)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](txInstance)
       txInstance.json
     }
   }
