@@ -57,10 +57,7 @@ case class UtilsApiRoute(override val settings: AppSettings)(implicit val contex
                     e,
                     500,
                     reqId,
-                    verbose = settings.settingsJSON
-                      .getOrElse("verboseAPI", false.asJson)
-                      .asBoolean
-                      .get
+                    verbose = settings.verboseAPI
                   )
               }
           }

@@ -2,11 +2,10 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import bifrost.settings.AppSettings
@@ -18,8 +17,8 @@ import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 
@@ -75,10 +74,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
                       e,
                       500,
                       reqId,
-                      verbose = settings.settingsJSON
-                        .getOrElse("verboseAPI", false.asJson)
-                        .asBoolean
-                        .get
+                      verbose = settings.verboseAPI
                     )
                 }
             }

@@ -62,10 +62,7 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
                       e,
                       500,
                       reqId,
-                      verbose = settings.settingsJSON
-                        .getOrElse("verboseAPI", false.asJson)
-                        .asBoolean
-                        .get
+                      verbose = settings.verboseAPI
                     )
                 }
             }
