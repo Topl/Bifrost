@@ -45,8 +45,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   log.debug(s"Starting application with settings \n$settings")
 
-  protected lazy val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-
 //  private lazy val basicSpecs =
 //    Seq(
 //      GetPeersSpec,
@@ -73,7 +71,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("bifrost.executionContext")
 
   protected val features: Seq[PeerFeature]
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]]
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
   //p2p
   private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
