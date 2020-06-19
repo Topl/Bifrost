@@ -11,7 +11,8 @@ import bifrost.BifrostGenerators
 import bifrost.api.http.DebugApiRoute
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.NodeViewHolder
 import bifrost.state.State
 import bifrost.wallet.Wallet
@@ -46,8 +47,11 @@ class DebugRPCSpec extends WordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   "Debug RPC" should {
     "Get chain information" in {

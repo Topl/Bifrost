@@ -6,7 +6,8 @@ import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
@@ -74,10 +75,12 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
     }
   }
 
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
   private def getMempool: Try[MP] = Try {
     Await
       .result(
-        (nodeViewHolderRef ? GetCurrentView)
+        (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView))
           .mapTo[CurrentView[_, _, _, _ <: MP]]
           .map(_.pool),
         5.seconds

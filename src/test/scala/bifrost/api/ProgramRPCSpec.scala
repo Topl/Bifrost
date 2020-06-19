@@ -18,7 +18,8 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
 import bifrost.network.peer.PeerManager
 import bifrost.network._
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.NodeViewHolder
 import bifrost.state.{State, StateChanges}
 import bifrost.wallet.Wallet
@@ -100,9 +101,11 @@ class ProgramRPCSpec extends WordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   // Unlock Secrets
   val gw: Wallet = view().vault
