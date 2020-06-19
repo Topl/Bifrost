@@ -374,11 +374,11 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   override def receive: Receive =
     processRemoteModifiers orElse
-      processLocallyGeneratedModifiers orElse
-      transactionsProcessing orElse
-      getCurrentInfo orElse
-      getNodeViewChanges orElse {
-      case a: Any => log.error("Strange input: " + a)
+    processLocallyGeneratedModifiers orElse
+    transactionsProcessing orElse
+    getCurrentInfo orElse
+    getNodeViewChanges orElse {
+    case a: Any => log.error("Strange input: " + a)
     }
 }
 
