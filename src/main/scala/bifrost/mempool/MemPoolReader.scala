@@ -1,16 +1,15 @@
 package bifrost.mempool
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.modifier.ContainsModifiers
+import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.nodeView.NodeViewComponent
-import bifrost.modifier.ModifierId
 
 /**
   * Unconfirmed transactions pool
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemPoolReader[TX <: Transaction] extends NodeViewComponent with ContainsModifiers[TX] {
+trait MemPoolReader[TX <: GenericTransaction[_]] extends NodeViewComponent with ContainsModifiers[TX] {
 
   //getters
   override def modifierById(modifierId: ModifierId): Option[TX]

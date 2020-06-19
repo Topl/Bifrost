@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.consensus.DifficultyBlockValidator
+import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
 import bifrost.settings.AppSettings
 import bifrost.history.GenericHistory._
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
@@ -397,6 +397,51 @@ class History(val storage: Storage,
     chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
   }
 
+  /**
+    * Report that modifier is valid from point of view of the state component
+    *
+    * @param modifier - valid modifier
+    * @return modified history
+    */
+  override def reportModifierIsValid(modifier: Block): History = ???
+
+  /**
+    * Report that modifier is invalid from other nodeViewHolder components point of view
+    *
+    * @param modifier     - invalid modifier
+    * @param progressInfo - what suffix failed to be applied because of an invalid modifier
+    * @return modified history and new progress info
+    */
+  override def reportModifierIsInvalid(modifier: Block, progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = ???
+
+  /**
+    * Whether a modifier could be applied to the history
+    *
+    * @param modifier - modifier to apply
+    * @return `Success` if modifier can be applied, `Failure(ModifierError)` if can not
+    */
+  override def applicableTry(modifier: Block): Try[Unit] = ???
+
+  /**
+    * Return semantic validity status of modifier with id == modifierId
+    *
+    * @param modifierId - modifier id to check
+    * @return
+    */
+  override def isSemanticallyValid(modifierId: ModifierId): ModifierSemanticValidity = ???
+
+  /**
+    * Ids of modifiers, that node with info should download and apply to synchronize
+    */
+  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = ???
+
+  /**
+    * Information about our node synchronization status. Other node should be able to compare it's view with ours by
+    * this syncInfo message and calculate modifiers missed by our node.
+    *
+    * @return
+    */
+  override def syncInfo: BifrostSyncInfo = ???
 }
 
 

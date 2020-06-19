@@ -15,7 +15,7 @@ trait Transaction
   extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
-  lazy override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
+  override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 }

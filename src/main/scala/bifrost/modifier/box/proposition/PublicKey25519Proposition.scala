@@ -2,7 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
@@ -41,6 +41,10 @@ object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25
   override def toBytes(obj: PublicKey25519Proposition): Array[Byte] = obj.pubKeyBytes
 
   override def parseBytes(bytes: Array[Byte]): Try[PublicKey25519Proposition] = Try(PublicKey25519Proposition(bytes))
+
+  override def serialize(obj: PublicKey25519Proposition, w: Writer): Unit = ???
+
+  override def parse(r: Reader): PublicKey25519Proposition = ???
 }
 
 object PublicKey25519Proposition {

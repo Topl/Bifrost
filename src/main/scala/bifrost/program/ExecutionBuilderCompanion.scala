@@ -1,6 +1,6 @@
 package bifrost.program
 
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser
 
@@ -59,4 +59,8 @@ object ExecutionBuilderCompanion extends BifrostSerializer[ExecutionBuilder] {
 
     ExecutionBuilder(terms, assetCode, core)
   }
+
+  override def serialize(obj: ExecutionBuilder, w: Writer): Unit = ???
+
+  override def parse(r: Reader): ExecutionBuilder = ???
 }

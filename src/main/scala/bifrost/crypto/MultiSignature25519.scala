@@ -1,7 +1,7 @@
 package bifrost.crypto
 
 import bifrost.modifier.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -56,8 +56,12 @@ object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature255
 
     MultiSignature25519(signatureSet)
   }
+
+  override def serialize(obj: MultiSignature25519, w: Writer): Unit = ???
+
+  override def parse(r: Reader): MultiSignature25519 = ???
 }
 
 object MultiSignature25519 {
-  lazy val SignatureSize = Signature25519.SignatureSize
+  lazy val SignatureSize: Int = Signature25519.SignatureSize
 }
