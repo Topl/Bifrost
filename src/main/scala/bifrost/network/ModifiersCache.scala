@@ -3,7 +3,7 @@ package bifrost.network
 import bifrost.history.HistoryReader
 import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, RecoverableModifierError}
 
 import scala.annotation.tailrec
 import scala.collection.mutable

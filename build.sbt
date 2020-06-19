@@ -104,6 +104,7 @@ scalacOptions ++= Seq(
   "-deprecation",
   "-feature",
   "-language:higherKinds",
+  "-language:postfixOps",
   "-unchecked",
   "-Xfatal-warnings",
   "-Xlint:",

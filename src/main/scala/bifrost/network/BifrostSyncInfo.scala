@@ -1,6 +1,7 @@
 package bifrost.network
 
 import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
@@ -13,7 +14,7 @@ case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[Modif
   extends SyncInfo {
 
   override def startingPoints: Seq[(ModifierTypeId, ModifierId)] =
-    lastBlockIds.map(b => ModifierTypeId -> b)
+    lastBlockIds.map(b => Block.modifierTypeId -> b)
 
   override type M = BifrostSyncInfo
 

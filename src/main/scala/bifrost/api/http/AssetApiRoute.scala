@@ -8,7 +8,7 @@ import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
@@ -162,7 +162,6 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ProofOfKnowledgeProposition[PrivateKey25519],
             AssetTransfer
           ](tx)
           tx.json
@@ -325,7 +324,6 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetTransfer.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ProofOfKnowledgeProposition[PrivateKey25519],
             AssetTransfer
           ](tx)
           tx.json
@@ -468,7 +466,6 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       AssetCreation.validate(tx) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ProofOfKnowledgeProposition[PrivateKey25519],
             AssetCreation
           ](tx)
           tx.json

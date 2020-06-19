@@ -3,26 +3,26 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.PrivateKey25519Companion
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
+import io.circe.{Decoder, Json, JsonObject}
 import io.circe.literal._
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, Json, JsonObject}
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -108,7 +108,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
       CodeCreation.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], CodeCreation](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[CodeCreation](tx)
           tx.json
         case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
       }
@@ -123,7 +123,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 //        case Success(_) => log.info("Program creation validated successfully")
 //        case Failure(e) => throw e
 //      }
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramCreation](tx)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramCreation](tx)
       tx.json
     }
   }
@@ -143,7 +143,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
       val tx = ProgramTransfer.createAndApply(wallet, from, to, executionBox, fee, data).get
 
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramTransfer](tx)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramTransfer](tx)
       tx.json
     }
   }
@@ -185,7 +185,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 //      }
 
       tx.newBoxes.toSet
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)
+      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramMethodExecution](tx)
       tx.json
     }
   }
