@@ -19,25 +19,24 @@ import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 import scala.util.Try
 
 class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
+  import bifrost.forging.Forger._
   import bifrost.forging.Forger.ReceivableMessages._
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
-  private val MaxTarget: Long = Long.MaxValue
   private val isForging = settings.forgingSettings.tryForging
 
   override def preStart(): Unit = {
     if (isForging) {
       // JAA: I am not sure if these lines need to be switched. I fear that switching the context after
       // scheduling may lead the message to be ignored. Remove this comment if still here in 3 months - 2020.06.17
-      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(self ! StartForging)
+      context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
     }
   }
@@ -120,9 +119,8 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
           log.debug(s"Failed to generate block")
       }
 
-      context.system.scheduler.scheduleOnce(forgerSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+      context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
     }
-
 
   def pickTransactions(memPool: MemPool,
                        state: State,
@@ -143,6 +141,23 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
     CB +: regTxs
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
+object Forger extends Logging {
+
+  private val MaxTarget: Long = Long.MaxValue
+
+  object ReceivableMessages {
+
+    case object StartForging
+
+    case object StopForging
+
   }
 
   def hit(lastBlock: Block)(box: ArbitBox): Long = {
@@ -181,21 +196,6 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
     val target: Double = MaxTarget.toDouble / difficulty.toDouble
     val timedelta = Instant.now().toEpochMilli - parent.timestamp
     BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
-  }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
-
-object Forger {
-
-  object ReceivableMessages {
-
-    case object StartForging
-
-    case object StopForging
-
   }
 
 }
