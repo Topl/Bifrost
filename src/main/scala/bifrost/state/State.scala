@@ -4,18 +4,17 @@ import java.io.File
 
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.settings.AppSettings
 import bifrost.history.History
-import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.ModifierId
+import bifrost.nodeView.NodeViewModifier.idToBytes
+import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import bifrost.nodeView.NodeViewModifier.idToBytes
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
@@ -600,7 +599,7 @@ object State extends Logging {
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, ModifierId(version), timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
   def genesisState(settings: AppSettings, initialBlocks: Seq[BPMOD], history: History): State = {
