@@ -575,9 +575,9 @@ object State extends Logging {
         stateStorage.close()
       }
     })
-    val version = stateStorage
+    val version: VersionTag = ModifierId(stateStorage
       .lastVersionID
-      .fold(Array.emptyByteArray)(_.data)
+      .fold(Array.emptyByteArray)(_.data))
 
     var timestamp: Long = 0L
     if (callFromGenesis) {
@@ -599,7 +599,7 @@ object State extends Logging {
     if(nodeKeys != null) log.info(s"Initializing state to watch for public keys: ${nodeKeys.map(x => Base58.encode(x.data))}")
       else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, ModifierId(version), timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
   }
 
   def genesisState(settings: AppSettings, initialBlocks: Seq[BPMOD], history: History): State = {
