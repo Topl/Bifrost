@@ -27,7 +27,7 @@ import bifrost.wallet.VaultReader
 import bifrost.utils.NetworkTimeProvider
 import bifrost.utils.BifrostEncoding
 import bifrost.utils.serialization.BifrostSerializer
-import scorex.core.validation.MalformedModifierError
+import bifrost.utils.MalformedModifierError
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
