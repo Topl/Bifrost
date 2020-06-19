@@ -1,7 +1,6 @@
 package bifrost
 
 import java.io.File
-import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
@@ -10,14 +9,13 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.network.BifrostSyncInfo
 import bifrost.program.{Program, ProgramPreprocessor, _}
-import bifrost.settings.AppSettings
-import io.circe
-import io.circe.syntax._
+import bifrost.settings.{AppSettings, StartupOpts}
 import io.circe.{Json, JsonObject}
+import io.circe.syntax._
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.encode.Base58
@@ -39,11 +37,9 @@ trait BifrostGenerators extends CoreGenerators {
     sampled.get
   }
 
-  val settings: AppSettings = AppSettings.read()
+  val settings: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
 
-  val settings_version0: AppSettings = new AppSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile("testSettings.json") + ("version" -> List(0,0,0).asJson)
-  }
+  val settings_version0: AppSettings = AppSettings.read(StartupOpts(Some("testSettings"), None)).copy(version = "0.0.0")
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
     f(seed) match {
@@ -214,7 +210,6 @@ trait BifrostGenerators extends CoreGenerators {
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
     value <- stringGen
-    value2 <- stringGen
     nonce <- positiveLongGen
   } yield {
     StateBox(proposition, nonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(proposition, nonce)), value.asJson)
@@ -324,8 +319,7 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   // TODO: This results in an empty generator far too often. Fix needed
-  def validExecutionBuilderGen(effectiveTimestamp: Long = Instant.now.toEpochMilli,
-                        expirationTimestamp: Long = Instant.now.toEpochMilli + 10000L): Gen[ExecutionBuilder] = for {
+  def validExecutionBuilderGen(): Gen[ExecutionBuilder] = for {
     assetCode <- alphanumeric
     terms <- validExecutionBuilderTermsGen
     name <- alphanumeric.suchThat(str => !Character.isDigit(str.charAt(0)))
@@ -631,7 +625,7 @@ trait BifrostGenerators extends CoreGenerators {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    Block(parentId, timestamp, generatorBox, signature, txs, 10L, settings.version)
+    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, 10L, settings.forgingSettings.version)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
@@ -653,7 +647,7 @@ trait BifrostGenerators extends CoreGenerators {
       ArbitBox(keyPair._2, 0L, 0L),
       keyPair._1,
       10L,
-      settings.version)
+      settings.forgingSettings.version)
   }
 
   def generateHistory: History = {
