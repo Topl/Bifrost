@@ -575,9 +575,9 @@ object State extends Logging {
         stateStorage.close()
       }
     })
-    val version = ModifierId(stateStorage
+    val version = stateStorage
       .lastVersionID
-      .fold(Array.emptyByteArray)(_.data))
+      .fold(Array.emptyByteArray)(_.data)
 
     var timestamp: Long = 0L
     if (callFromGenesis) {
