@@ -106,7 +106,8 @@ scalacOptions ++= Seq(
   "-language:higherKinds",
   "-unchecked",
   "-Xfatal-warnings",
-  "-Xlint"
+  "-Xlint:",
+  "-Ywarn-unused:-implicits,-privates"
 )
 
 javaOptions ++= Seq(
