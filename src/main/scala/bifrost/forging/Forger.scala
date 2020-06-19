@@ -12,7 +12,7 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
-import bifrost.settings.ForgingSettings
+import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Try
 
-class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
+class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
   import bifrost.forging.Forger.ReceivableMessages._
@@ -30,8 +30,8 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
-  private val isForging = forgerSettings.tryForging
   private val MaxTarget: Long = Long.MaxValue
+  private val isForging = settings.forgingSettings.tryForging
 
   override def preStart(): Unit = {
     if (isForging) {
@@ -109,9 +109,9 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef)
       log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
         s"${boxKeys.map(_._1.value).sum}")
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, forgerSettings.targetBlockTime.length)
+      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, settings.forgingSettings.targetBlockTime.length)
 
-      iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, forgerSettings.version) match {
+      iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, settings.forgingSettings.version) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
           viewHolderRef !
@@ -204,12 +204,12 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props(forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit ec: ExecutionContext): Props =
-    Props(new Forger(forgingSettings, nodeViewHolderRef))
+  def props(settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit ec: ExecutionContext): Props =
+    Props(new Forger(settings, nodeViewHolderRef))
 
-  def apply(forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(forgingSettings, nodeViewHolderRef))
+  def apply(settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, nodeViewHolderRef))
 
-  def apply(name: String, forgingSettings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(forgingSettings, nodeViewHolderRef), name)
+  def apply(name: String, settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, nodeViewHolderRef), name)
 }
