@@ -2,10 +2,13 @@ package bifrost.nodeView
 
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
+import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.message.InvData
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import bifrost.utils.BifrostEncoder
 import bifrost.utils.BifrostEncoding
+import bifrost.utils.serialization.BifrostSerializer
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 
@@ -40,6 +43,10 @@ object NodeViewModifier {
   //type ModifierId = ModifierId
 
   val ModifierIdSize: Int = Try(ConfigFactory.load().getConfig("app").getInt("modifierIdSize")).getOrElse(DefaultIdSize)
+
+  val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
+    Map(Block.modifierTypeId -> BlockCompanion,
+      Transaction.modifierTypeId -> TransactionCompanion)
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
     List(ids.headOption, ids.lastOption)

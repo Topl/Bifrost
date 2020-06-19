@@ -5,28 +5,31 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.crypto.PrivateKey25519
 import bifrost.forging.ForgerRef
+import bifrost.history.History
+import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.network._
 import bifrost.network.message._
 import bifrost.network.peer.PeerManagerRef
-import bifrost.network._
-import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
-import com.sun.management.HotSpotDiagnosticMXBean
+import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
-import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 import scala.reflect.runtime.universe._
+import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
@@ -70,7 +73,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("bifrost.executionContext")
 
-  protected val features: Seq[PeerFeature]
+  protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
   //p2p
@@ -102,7 +105,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     }
   }
 
-  val bifrostContext = BifrostContext(
+  val bifrostContext: BifrostContext = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
     upnpGateway = upnpGateway,
@@ -118,8 +121,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
 
-  val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef
-    ("nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, BifrostSyncInfoMessageSpec, settings.network, timeProvider, ???)
+  val nodeViewSynchronizer: ActorRef =
+    NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
+      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
+      BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
   val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
@@ -137,23 +142,23 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     typeOf[AssetApiRoute],
     typeOf[NodeViewApiRoute])
 
-  lazy val combinedRoute = CompositeHttpService(actorSystem, apiTypes, apiRoutes, settings).compositeRoute
+  lazy val combinedRoute: Route = CompositeHttpService(actorSystem, apiTypes, apiRoutes, settings).compositeRoute
 
   // Am I running on a JDK that supports JVMCI?
-  val vm_version = System.getProperty("java.vm.version")
+  val vm_version: String = System.getProperty("java.vm.version")
   System.out.printf("java.vm.version = %s%n", vm_version)
 
   // Is JVMCI enabled?
-  val bean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
-  val enableJVMCI = bean.getVMOption("EnableJVMCI")
+  val bean: HotSpotDiagnosticMXBean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
+  val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
   System.out.println(enableJVMCI)
 
   // Is the system using the JVMCI compiler for normal compilations?
-  val useJVMCICompiler = bean.getVMOption("UseJVMCICompiler")
+  val useJVMCICompiler: VMOption = bean.getVMOption("UseJVMCICompiler")
   System.out.println(useJVMCICompiler)
 
   // What compiler is selected?
-  val compiler = System.getProperty("jvmci.Compiler")
+  val compiler: String = System.getProperty("jvmci.Compiler")
   System.out.printf("jvmci.Compiler = %s%n", compiler)
 
   def run(): Unit = {
@@ -163,7 +168,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
     log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
 
-    implicit val materializer = ActorMaterializer()
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 
     /* on unexpected shutdown */
