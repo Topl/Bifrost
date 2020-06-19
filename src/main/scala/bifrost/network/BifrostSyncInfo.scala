@@ -25,6 +25,11 @@ object BifrostSyncInfo {
 }
 
 object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
+
+  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = ???
+
+  override def parse(r: Reader): BifrostSyncInfo = ???
+
   override def toBytes(obj: BifrostSyncInfo): Array[Byte] =
     Array(if (obj.answer) 1: Byte else 0: Byte,
       obj.lastBlockIds.size.toByte
@@ -48,10 +53,6 @@ object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
     val scoreBytes = bytes.slice(endOfBlockIds + Longs.BYTES, bytes.length)
     BifrostSyncInfo(answer, lastBlockIds, BigInt(scoreBytes))
   }
-
-  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = ???
-
-  override def parse(r: Reader): BifrostSyncInfo = ???
 }
 
 object BifrostSyncInfoMessageSpec extends SyncInfoMessageSpec[BifrostSyncInfo](BifrostSyncInfoSerializer)
