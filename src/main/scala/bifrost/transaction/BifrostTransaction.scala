@@ -169,6 +169,9 @@ object AssetCreation {
       //println(signature.isValid(tx.hub, tx.messageToSign))
       signature.isValid(tx.hub, tx.messageToSign)
     }), "Invalid signatures")
+
+    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
+    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }
 
   /**
