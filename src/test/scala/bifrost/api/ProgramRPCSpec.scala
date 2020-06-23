@@ -1,5 +1,7 @@
 package bifrost.api
 
+import java.net.InetSocketAddress
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
@@ -9,7 +11,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
 import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.Forger
+import bifrost.forging.{Forger, ForgerRef}
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
@@ -17,11 +19,12 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
-import bifrost.network.peer.PeerManager
+import bifrost.network.peer.{PeerManager, PeerManagerRef}
 import bifrost.network._
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
+import bifrost.settings.BifrostContext
 import bifrost.state.{State, StateChanges}
 import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
@@ -50,39 +53,56 @@ class ProgramRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val timeProvider = new NetworkTimeProvider(settings.ntp)
-  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
+
+  protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
-  lazy val upnp = new UPnP(settings)
+  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
+  upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 
-  private lazy val basicSpecs =
+  private lazy val basicSpecs = {
+    val invSpec = new InvSpec(settings.network.maxInvObjects)
+    val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
+    val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
+    val featureSerializers: PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
     Seq(
       GetPeersSpec,
-      PeersSpec,
-      InvSpec,
-      RequestModifierSpec,
-      ModifiersSpec
+      new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
+      invSpec,
+      requestModifierSpec,
+      modifiersSpec
     )
+  }
 
-  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
+  //an address to send to peers
+  lazy val externalSocketAddress: Option[InetSocketAddress] = {
+    settings.network.declaredAddress orElse {
+      // TODO use available port on gateway instead settings.bindAddress.getPort
+      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
+    }
+  }
 
-  val peerManagerRef: ActorRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
+  val bifrostContext: BifrostContext = BifrostContext(
+    messageSpecs = basicSpecs ++ additionalMessageSpecs,
+    features = features,
+    upnpGateway = upnpGateway,
+    timeProvider = timeProvider,
+    externalNodeAddress = externalSocketAddress
+  )
+
+  val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
 
   val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
 
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
-
-  val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
-  )
+  val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
 
   val nodeViewSynchronizer: ActorRef =
     NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
       BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
