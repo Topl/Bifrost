@@ -59,7 +59,7 @@ class History(val storage: Storage,
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    if (id.hashBytes sameElements settings.forgingSettings.GenesisParentId) true else modifierById(id).isDefined
+    if (id.hashBytes sameElements History.GenesisParentId) true else modifierById(id).isDefined
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -163,7 +163,7 @@ class History(val storage: Storage,
     */
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) {
-      Seq(bytesToId(settings.forgingSettings.GenesisParentId))
+      Seq(bytesToId(History.GenesisParentId))
     } else {
       Seq(bestBlockId)
     } // TODO return sequence of exposed endpoints?
@@ -446,6 +446,8 @@ class History(val storage: Storage,
 
 
 object History extends Logging {
+
+  val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
 
   def readOrGenerate(settings: AppSettings): History = {
     val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")

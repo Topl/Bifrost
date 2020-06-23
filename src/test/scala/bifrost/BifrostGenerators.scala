@@ -641,7 +641,7 @@ trait BifrostGenerators extends CoreGenerators {
     keyPair ← key25519Gen
   } yield {
     Block.create(
-      ModifierId(settings.forgingSettings.GenesisParentId),
+      ModifierId(History.GenesisParentId),
       1478164225796L,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),

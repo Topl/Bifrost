@@ -47,7 +47,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
     .map(d => bytesToId(d.data))
-    .getOrElse(ModifierId(settings.forgingSettings.GenesisParentId))
+    .getOrElse(ModifierId(History.GenesisParentId))
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
@@ -110,7 +110,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      if (b.parentId.hashBytes sameElements settings.forgingSettings.GenesisParentId) {
+      if (b.parentId.hashBytes sameElements History.GenesisParentId) {
         Seq()
       } else {
         Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
@@ -173,7 +173,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .map(b => Longs.fromByteArray(b.data))
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId.hashBytes sameElements settings.forgingSettings.GenesisParentId) {
+    if (blockId.hashBytes sameElements History.GenesisParentId) {
       Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
@@ -202,5 +202,5 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: Block): Boolean = b.parentId.hashBytes sameElements settings.forgingSettings.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId.hashBytes sameElements History.GenesisParentId
 }
