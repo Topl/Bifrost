@@ -152,7 +152,8 @@ class ProgramRPCSpec extends WordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+      val txHashId = ModifierId(Base58.decode(txHash).get)
+      val txInstance: Transaction = view().pool.getById(txHashId).get
       txInstance.newBoxes.foreach {
         case b: ExecutionBox =>
           executionBox = Some(b)
