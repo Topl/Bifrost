@@ -47,7 +47,9 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
                            temporalBanDuration: FiniteDuration,
                            upnpDiscoverTimeout: Option[FiniteDuration],
                            upnpEnabled: Boolean,
-                           upnpGatewayTimeout: Option[FiniteDuration])
+                           upnpGatewayTimeout: Option[FiniteDuration]) {
+
+}
 
 case class ForgingSettings(MinimumDifficulty: Long,
                            InitialDifficulty: Long,
@@ -55,9 +57,7 @@ case class ForgingSettings(MinimumDifficulty: Long,
                            targetBlockTime: FiniteDuration,
                            blockGenerationDelay: FiniteDuration,
                            version: Byte,
-                           forkHeight: Long) {
-  val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
-}
+                           forkHeight: Long)
 
 case class AppSettings(walletSeed: String,
                        keyFileDir: Option[String],
