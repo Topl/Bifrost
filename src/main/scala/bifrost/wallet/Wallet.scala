@@ -284,9 +284,9 @@ object Wallet {
   }
 
   def readOrGenerate(settings: AppSettings): Wallet = {
-    val gw = readOrGenerate(settings, Base58.encode(settings.walletSeed))
-    if (Base58.encode(settings.walletSeed).startsWith("genesis")) {
-      val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed ++ Ints.toByteArray(c)))
+    val gw = readOrGenerate(settings, settings.walletSeed)
+    if (settings.walletSeed.startsWith("genesis")) {
+      val seeds = (0 to 2).map(c => FastCryptographicHash(settings.walletSeed.getBytes ++ Ints.toByteArray(c)))
       val pubKeys = seeds.map { seed =>
         val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
         if (!gw.publicKeys.contains(pub)) {

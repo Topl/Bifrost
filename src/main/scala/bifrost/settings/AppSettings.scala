@@ -60,7 +60,7 @@ case class ForgingSettings(MinimumDifficulty: Long,
   val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
 }
 
-case class AppSettings(walletSeed: Array[Byte],
+case class AppSettings(walletSeed: String,
                        keyFileDir: Option[String],
                        walletDir: Option[String],
                        dataDir: Option[String],
