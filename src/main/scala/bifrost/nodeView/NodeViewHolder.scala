@@ -25,7 +25,6 @@ class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider
 
   override lazy val settings: AppSettings = appSettings
 
-  val networkChunkSize: Int = settings.network.networkChunkSize
   override type SI = BifrostSyncInfo
   override type HIS = History
   override type MS = State

@@ -71,7 +71,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  implicit val executionContext: ExecutionContext = actorSystem.dispatchers.lookup("bifrost.executionContext")
+  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
