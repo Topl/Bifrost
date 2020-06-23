@@ -19,8 +19,9 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -41,8 +42,9 @@ class NodeViewRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
   val routeAsset: Route = AssetApiRoute(settings, nodeViewHolderRef).route
@@ -86,7 +88,7 @@ class NodeViewRPCSpec extends WordSpec
   var txHash: String = ""
   var assetTxHash: String = ""
   var assetTxInstance: Transaction = _
-  var blockId: Block.BlockId = Array[Byte]()
+  var blockId: Block.BlockId = ModifierId(Array[Byte]())
 
   val requestBody: ByteString = ByteString(
     s"""
@@ -209,7 +211,7 @@ class NodeViewRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "blockById",
            |   "params": [{
-           |      "blockId": "${Base58.encode(blockId)}"
+           |      "blockId": "$blockId"
            |   }]
            |}
            |

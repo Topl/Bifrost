@@ -19,8 +19,9 @@ import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -45,8 +46,9 @@ class AssetRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
@@ -309,7 +311,8 @@ class AssetRPCSpec extends WordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }

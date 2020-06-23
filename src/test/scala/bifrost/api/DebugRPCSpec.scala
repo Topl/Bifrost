@@ -13,8 +13,9 @@ import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
@@ -33,8 +34,9 @@ class DebugRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = DebugApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -80,7 +82,7 @@ class DebugRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "delay",
            |   "params": [{
-           |      "blockId": "${Base58.encode(view().history.bestBlockId)}",
+           |      "blockId": "${view().history.bestBlockId}",
            |      "numBlocks": 1
            |   }]
            |}
