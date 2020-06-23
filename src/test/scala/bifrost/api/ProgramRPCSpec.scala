@@ -13,6 +13,7 @@ import bifrost.forging.Forger
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
@@ -20,8 +21,9 @@ import bifrost.network.peer.PeerManager
 import bifrost.network._
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.state.{State, StateChanges}
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
@@ -47,8 +49,9 @@ class ProgramRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
   lazy val upnp = new UPnP(settings)
@@ -66,8 +69,7 @@ class ProgramRPCSpec extends WordSpec
 
   val peerManagerRef: ActorRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
 
-  val nProps: Props = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-  val networkController: ActorRef = actorSystem.actorOf(nProps, "networkController")
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
 
@@ -75,13 +77,10 @@ class ProgramRPCSpec extends WordSpec
     Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
   )
 
-  val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[NodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
-  )
+  val nodeViewSynchronizer: ActorRef =
+    NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
+      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
+      BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
 
