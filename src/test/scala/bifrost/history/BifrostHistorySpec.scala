@@ -57,10 +57,10 @@ class BifrostHistorySpec extends PropSpec
 
       continuation.length shouldBe Math.min(limit, restIds.length)
 
-      startList.exists(sl => sl._2 sameElements continuation.head._2) shouldBe true
+      startList.exists(sl => sl._2 == continuation.head._2) shouldBe true
 
       continuation.tail.foreach { c =>
-        startList.exists(sl => sl._2 sameElements c._2) shouldBe false
+        startList.exists(sl => sl._2 == c._2) shouldBe false
       }
     }
   }
