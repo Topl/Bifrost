@@ -2,7 +2,7 @@ package bifrost.api
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
@@ -11,7 +11,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
 import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.{Forger, ForgerRef}
+import bifrost.forging.ForgerRef
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
@@ -19,11 +19,11 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
-import bifrost.network.peer.{PeerManager, PeerManagerRef}
+import bifrost.network.peer.PeerManagerRef
 import bifrost.network._
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
+import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.BifrostContext
 import bifrost.state.{State, StateChanges}
 import bifrost.utils.NetworkTimeProvider

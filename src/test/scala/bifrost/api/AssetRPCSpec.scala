@@ -1,6 +1,6 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -19,7 +19,7 @@ import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
+import bifrost.nodeView.NodeViewHolderRef
 import bifrost.state.State
 import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
