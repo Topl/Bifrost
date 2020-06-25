@@ -14,7 +14,7 @@ class ProgramTransferSpec extends WordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef).route
 
   "ProgramTransfer" should {
 
