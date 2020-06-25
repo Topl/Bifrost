@@ -27,8 +27,8 @@ class ForkSpec extends PropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val testSettings_version3: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
-  val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
+  val testSettings_version3: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
+  val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
   val testSettings_version0: AppSettings = originalSettings
     .copy(version = "0.0.0",
           forgingSettings = originalSettings.forgingSettings.copy(forkHeight = 3))
