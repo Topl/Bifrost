@@ -47,7 +47,7 @@ class AssetRPCSpec extends WordSpec
   Try(path.deleteRecursively())
 
   val timeProvider = new NetworkTimeProvider(settings.ntp)
-  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
