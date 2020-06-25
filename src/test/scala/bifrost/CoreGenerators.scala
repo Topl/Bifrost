@@ -26,7 +26,7 @@ trait CoreGenerators {
   lazy val invDataGen: Gen[InvData] = for {
     modifierTypeIdByte: Byte <- Arbitrary.arbitrary[Byte]
     modifierTypeId: ModifierTypeId = ModifierTypeId @@ modifierTypeIdByte
-    modifierIds: Seq[Array[Byte]] <- Gen.nonEmptyListOf(modifierIdGen) if modifierIds.nonEmpty
+    modifierIds: Seq[ModifierId] <- Gen.nonEmptyListOf(modifierIdGen) if modifierIds.nonEmpty
   } yield InvData(modifierTypeId, modifierIds)
   lazy val modifierWithIdGen: Gen[(ModifierId, Array[Byte])] = for {
     id <- modifierIdGen
