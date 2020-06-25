@@ -1,9 +1,8 @@
 package bifrost.state
 
-import bifrost.forging.ForgingSettings
 import bifrost.nodeView.NodeViewHolder
+import bifrost.settings.{AppSettings, StartupOpts}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
@@ -243,10 +242,7 @@ object StateSpec {
   import MinimalState.VersionTag
   import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 
-  val settingsFilename = "testSettings.json"
-  lazy val testSettings: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())

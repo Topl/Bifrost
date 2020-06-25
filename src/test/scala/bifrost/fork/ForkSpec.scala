@@ -10,6 +10,7 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.settings.{AppSettings, ForgingSettings, StartupOpts, Version}
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
@@ -26,16 +27,16 @@ class ForkSpec extends PropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val settingsFilename = "testSettings.json"
-
-  lazy val testSettings_version3: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
-  lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
-      ("version" -> (List(0,0,0).asJson)) +
-      ("forkHeight" -> 3.asJson)
-  }
+  val testSettings_version3: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
+  val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some("testSettings.conf"), None))
+  val testSettings_version0: AppSettings = originalSettings
+    .copy(version = "0.0.0",
+          forgingSettings = originalSettings.forgingSettings.copy(forkHeight = 3))
+//  lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
+//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
+//      ("version" -> (List(0,0,0).asJson)) +
+//      ("forkHeight" -> 3.asJson)
+//  }
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
@@ -49,7 +50,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       0L,
-      testSettings_version3.version)
+      testSettings_version3.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
@@ -68,14 +69,14 @@ class ForkSpec extends PropSpec
   property("Appending version3 blocks after height = forkHeight should work") {
 
     println(s"history.height: ${history.height}")
-    for(i <- 2L to testSettings_version0.forkHeight) {
+    for(i <- 2L to testSettings_version0.forgingSettings.forkHeight) {
       val tempBlock = Block(history.bestBlockId,
         System.currentTimeMillis(),
         ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
         Seq(),
         0L,
-        testSettings_version0.version)
+        testSettings_version0.forgingSettings.version)
 
       Thread.sleep(1000)
 
@@ -89,7 +90,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version3.forgingSettings.version)
 
     history = history.append(tempBlock_version3_1).get._1
     assert(history.modifierById(tempBlock_version3_1.id).isDefined)
@@ -102,12 +103,12 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version3.forgingSettings.version)
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
-    history.height shouldEqual testSettings_version0.forkHeight + 2
+    history.height shouldEqual testSettings_version0.forgingSettings.forkHeight + 2
 
     history.storage.rollback(tempBlock_version3_1.parentId)
     history = new History(history.storage,
@@ -119,9 +120,9 @@ class ForkSpec extends PropSpec
       )
     )
 
-    history.height shouldEqual testSettings_version0.forkHeight
+    history.height shouldEqual testSettings_version0.forgingSettings.forkHeight
 
-    assert(history.height == testSettings_version0.forkHeight)
+    assert(history.height == testSettings_version0.forgingSettings.forkHeight)
   }
 
   property("Appending version0 blocks after height = forkHeight should fail") {
@@ -135,7 +136,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version0.version)
+      testSettings_version0.forgingSettings.version)
 
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
@@ -162,7 +163,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version3.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     assert(history.modifierById(tempBlock_version3.id).isDefined)
@@ -173,7 +174,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version0.version)
+      testSettings_version0.forgingSettings.version)
 
     val appendResult = history.append(tempBlock_version0)
     appendResult match {
