@@ -42,8 +42,9 @@ trait ProgramMockState extends BifrostGenerators {
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  implicit val executionContext: ExecutionContext = actorSystem.dispatcher
+  // TODO: fix actor system creation with ScalatestRouteTest (using private for now)
+  private implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit lazy val executionContext: ExecutionContext = actorSystem.dispatcher
 
   val timeProvider = new NetworkTimeProvider(settings.ntp)
   val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
