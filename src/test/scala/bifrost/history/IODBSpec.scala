@@ -2,6 +2,7 @@ package bifrost.history
 
 import java.io.File
 
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.NodeViewModifier._
@@ -40,7 +41,7 @@ class IODBSpec extends PropSpec
           .map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes)))
           .toList
 
-      blocksStorage.update(ByteArrayWrapper(tx.id), boxIdsToRemove, boxesToAdd)
+      blocksStorage.update(ByteArrayWrapper(tx.id.hashBytes), boxIdsToRemove, boxesToAdd)
     }
 
     /**
@@ -66,7 +67,7 @@ class IODBSpec extends PropSpec
         val head = txs.head
 
         /* Rollback to head shouldn't affect the head tx */
-        blocksStorage.rollback(ByteArrayWrapper(head.id))
+        blocksStorage.rollback(ByteArrayWrapper(head.id.hashBytes))
         checkTx(head)
       }
     }
@@ -82,9 +83,9 @@ class IODBSpec extends PropSpec
 
     def writeBlock(b: Block): Unit = {
       blocksStorage.update(
-        ByteArrayWrapper(b.id),
+        ByteArrayWrapper(b.id.hashBytes),
         Seq(),
-        Seq(ByteArrayWrapper(b.id) -> ByteArrayWrapper(Block.ModifierTypeId +: b.bytes))
+        Seq(ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(Block.modifierTypeId +: b.bytes))
       )
     }
 
@@ -93,13 +94,13 @@ class IODBSpec extends PropSpec
     forAll(BlockGen) { block =>
       ids = block.id +: ids
       writeBlock(block)
-      blocksStorage.get(ByteArrayWrapper(block.id)).isDefined shouldBe true
+      blocksStorage.get(ByteArrayWrapper(block.id.hashBytes)).isDefined shouldBe true
     }
 
     ids.foreach {
       id => {
-        val idInStorage = blocksStorage.get(ByteArrayWrapper(id)) match {
-          case None => println(s"${Console.RED} Id ${Base58.encode(id)} not found"); false
+        val idInStorage = blocksStorage.get(ByteArrayWrapper(id.hashBytes)) match {
+          case None => println(s"${Console.RED} Id ${id.toString} not found"); false
           case Some(_) => true
         }
         require(idInStorage)
