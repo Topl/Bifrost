@@ -132,12 +132,17 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id.hashBytes).get
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      val invalidBoxes = tx.newBoxes.forall(b ⇒ state.closedBox(b.id).isEmpty)
       val txValid = state.validate(tx)
       if (txValid.isFailure) {
         log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
         txValid.failed.get.printStackTrace()
         memPool.remove(tx)
       }
+      if(!invalidBoxes) {
+        memPool.remove(tx)
+      }
+
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
     CB +: regTxs
