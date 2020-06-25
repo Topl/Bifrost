@@ -1,17 +1,14 @@
 package bifrost.state
 
-import bifrost.forging.ForgingSettings
-import io.circe.Json
-
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
 //noinspection ScalaStyle
 class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
-  val forgingSettings = new ForgingSettings {
-    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
-  }
+//  val forgingSettings = new ForgingSettings {
+//    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
+//  }
 
   //val pbr = ProgramBoxRegistry.readOrGenerate(forgingSettings)
 
