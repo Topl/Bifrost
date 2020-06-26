@@ -11,7 +11,7 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import scala.concurrent.duration._
 
 case class RESTApiSettings(bindAddress: InetSocketAddress,
-                           apiKeyHash: Option[Array[Byte]],
+                           apiKeyHash: String,
                            corsAllowed: Boolean,
                            timeout: FiniteDuration)
 

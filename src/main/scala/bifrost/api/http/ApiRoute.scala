@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
 import bifrost.settings.AppSettings
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.{Blake2b256, CryptographicHash}
 
 import scala.concurrent.duration._
@@ -19,7 +20,7 @@ trait ApiRoute extends Directives {
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   lazy val corsAllowed: Boolean = settings.restApi.corsAllowed
-  lazy val apiKeyHash: Option[Array[Byte]] = settings.restApi.apiKeyHash
+  lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.restApi.apiKeyHash).toOption
 
   def actorRefFactory: ActorRefFactory = context
 
