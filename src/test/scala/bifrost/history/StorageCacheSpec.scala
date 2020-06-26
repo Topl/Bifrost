@@ -68,6 +68,9 @@ class StorageCacheSpec extends PropSpec
     }
   }
 
+  /* -----This test need to be done with smaller cacheSize or it will take very long to append enough entries----- */
+  /* --------This test is commented out, change cacheSize in application.conf if we need to test this again------- */
+  /*
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
     /* Append one block */
     val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
@@ -85,6 +88,7 @@ class StorageCacheSpec extends PropSpec
 
     history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
+  */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     val block: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
