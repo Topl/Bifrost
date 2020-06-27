@@ -69,7 +69,7 @@ class StorageCacheSpec extends PropSpec
   }
 
   /* -----This test need to be done with smaller cacheSize or it will take very long to append enough entries----- */
-  /* --------This test is commented out, change cacheSize in application.conf if we need to test this again------- */
+  /* --------This test is commented out, change cacheSize in test.conf if we need to test this again------- */
   /*
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
     /* Append one block */
