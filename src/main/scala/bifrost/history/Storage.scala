@@ -19,9 +19,8 @@ import scala.util.{Failure, Try}
 
 class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
-  private val conf: Config = ConfigFactory.load("application")
-  private val expireTime: Int = conf.getInt("cache.expireTime")
-  private val cacheSize: Int = conf.getInt("cache.cacheSize")
+  private val cacheExpire: Int = settings.cacheExpire
+  private val cacheSize: Int = settings.cacheSize
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
@@ -35,7 +34,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   }
 
   val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder.newBuilder()
-    .expireAfterAccess(expireTime, MILLISECONDS)
+    .expireAfterAccess(cacheExpire, MILLISECONDS)
     .maximumSize(cacheSize)
     .build[KEY, Option[VAL]](blockLoader)
   /* ------------------------------------------------------------------------------------- */
