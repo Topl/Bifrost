@@ -31,12 +31,7 @@ class ForkSpec extends PropSpec
   val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
   val testSettings_version0: AppSettings = originalSettings
     .copy(version = "0.0.0",
-          forgingSettings = originalSettings.forgingSettings.copy(forkHeight = 3))
-//  lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
-//    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
-//      ("version" -> (List(0,0,0).asJson)) +
-//      ("forkHeight" -> 3.asJson)
-//  }
+          forgingSettings = originalSettings.forgingSettings.copy(forkHeight = 3, version = 0))
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
