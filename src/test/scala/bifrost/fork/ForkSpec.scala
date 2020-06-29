@@ -27,7 +27,7 @@ class ForkSpec extends PropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val testSettings_version3: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
+  val testSettings_version1: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
   val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
   val testSettings_version0: AppSettings = originalSettings
     .copy(version = "0.0.0",
@@ -45,14 +45,14 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       0L,
-      testSettings_version3.forgingSettings.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version3.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -85,7 +85,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.forgingSettings.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3_1).get._1
     assert(history.modifierById(tempBlock_version3_1.id).isDefined)
@@ -98,7 +98,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.forgingSettings.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
@@ -107,7 +107,7 @@ class ForkSpec extends PropSpec
 
     history.storage.rollback(tempBlock_version3_1.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -138,7 +138,7 @@ class ForkSpec extends PropSpec
 
     history.storage.rollback(tempBlock_version0.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -158,7 +158,7 @@ class ForkSpec extends PropSpec
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.forgingSettings.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     assert(history.modifierById(tempBlock_version3.id).isDefined)
@@ -189,7 +189,7 @@ class ForkSpec extends PropSpec
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new History(history.storage,
-          testSettings_version3,
+          testSettings_version1,
           Seq(
             new DifficultyBlockValidator(history.storage)
             //new ParentBlockValidator(storage),
