@@ -1,11 +1,10 @@
 package bifrost.crypto
 
-import bifrost.keygen.KeyFile
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.keygen.KeyFile.uuid
+import bifrost.crypto.KeyFile.uuid
+import org.scalatest._
+
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest._
 
 /*
  * Test class for verifying BIP39 phrase translator class

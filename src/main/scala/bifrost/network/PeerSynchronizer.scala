@@ -9,14 +9,14 @@ import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.network.peer.PeerManager.RandomPeers
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 import shapeless.syntax.typeable._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 
-class PeerSynchronizer(val networkControllerRef: ActorRef, peerManager: ActorRef) extends Actor with ScorexLogging {
+class PeerSynchronizer(val networkControllerRef: ActorRef, peerManager: ActorRef) extends Actor with Logging {
 
   private implicit val timeout = Timeout(5.seconds)
 

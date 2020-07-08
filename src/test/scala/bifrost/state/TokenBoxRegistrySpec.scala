@@ -2,19 +2,18 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.blocks.BifrostBlock
+import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.state.BifrostStateSpec.gw
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
-import bifrost.transaction.box.ArbitBox
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder, ValidGenerators}
-import com.google.common.primitives.Ints
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
+import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -22,8 +21,8 @@ import scala.reflect.io.Path
 import scala.util.Try
 
 class TokenBoxRegistrySpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
   with BifrostGenerators
@@ -37,7 +36,7 @@ class TokenBoxRegistrySpec extends PropSpec
     override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3
@@ -69,11 +68,11 @@ class TokenBoxRegistrySpec extends PropSpec
       ""
     ).get
 
-    val block1 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block1 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)
@@ -104,11 +103,11 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block2 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block2 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx2), 10L, settings.version)
 
     require(newState1.validate(tx2).isSuccess)
@@ -149,11 +148,11 @@ class TokenBoxRegistrySpec extends PropSpec
       "",
     ).get
 
-    val block1 = BifrostBlock(
-      Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+    val block1 = Block(
+      Array.fill(Block.SignatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
       Seq(tx1), 10L, settings.version)
 
     require(genesisState.validate(tx1).isSuccess)
@@ -161,8 +160,6 @@ class TokenBoxRegistrySpec extends PropSpec
     val newState1 = genesisState
       .applyChanges(genesisState.changes(block1).get, block1.id)
       .get
-
-    val newWallet1 = gw.scanPersistent(block1)
 
     assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)

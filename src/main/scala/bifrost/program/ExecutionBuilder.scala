@@ -1,8 +1,7 @@
 package bifrost.program
 
-import bifrost.transaction.box.StateBox
-import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 import scala.util.Try
 
@@ -36,8 +35,6 @@ object ExecutionBuilder {
   } yield {
     ExecutionBuilder(terms, assetCode, core)
   }
-
-  //def getStateBox: StateBox =
 
   def validate(a: ExecutionBuilder): Try[Unit] = Try {
 

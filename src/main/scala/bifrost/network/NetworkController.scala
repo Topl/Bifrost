@@ -10,15 +10,14 @@ import akka.util.Timeout
 import bifrost.network.message.{Message, MessageHandler, MessageSpec}
 import bifrost.network.peer.PeerManager
 import bifrost.settings.Settings
-import bifrost.utils.ScorexLogging
+import bifrost.utils.Logging
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.existentials
-import scala.util.{Failure, Success, Try}
 import scala.reflect.runtime.universe.TypeTag
+import scala.util.{Failure, Success, Try}
 
 /**
   * Control all network interaction
@@ -28,7 +27,7 @@ class NetworkController(settings: Settings,
                         messageHandler: MessageHandler,
                         upnp: UPnP,
                         peerManagerRef: ActorRef
-                       ) extends Actor with ScorexLogging {
+                       ) extends Actor with Logging {
 
   import NetworkController._
 
@@ -48,8 +47,8 @@ class NetworkController(settings: Settings,
         val myHost = uri.getHost
         val myAddrs = InetAddress.getAllByName(myHost)
 
-        NetworkInterface.getNetworkInterfaces.exists { intf =>
-          intf.getInterfaceAddresses.exists { intfAddr =>
+        NetworkInterface.getNetworkInterfaces.asScala.exists { intf =>
+          intf.getInterfaceAddresses.asScala.exists { intfAddr =>
             val extAddr = intfAddr.getAddress
             myAddrs.contains(extAddr)
           }
@@ -117,9 +116,11 @@ class NetworkController(settings: Settings,
       }
 
     case SendToNetwork(message, sendingStrategy) =>
-      (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
-        .map(_.asInstanceOf[Seq[ConnectedPeer]])
-        .foreach(_.foreach(_.handlerRef ! message))
+      if (!settings.localOnly) {
+        (peerManagerRef ? PeerManager.FilterPeers(sendingStrategy))
+          .map(_.asInstanceOf[Seq[ConnectedPeer]])
+          .foreach(_.foreach(_.handlerRef ! message))
+      }
   }
 
   def peerLogic: Receive = {
@@ -131,7 +132,7 @@ class NetworkController(settings: Settings,
       val connection = sender()
       val props = Props(classOf[PeerConnectionHandler], settings, self, peerManagerRef,
         messageHandler, connection, externalSocketAddress, remote)
-      val handler = context.actorOf(props)
+      val handler = context.actorOf(props, "peerConnectionHandler")
       connection ! Register(handler, keepOpenOnPeerClosed = false, useResumeWriting = true)
       val newPeer = ConnectedPeer(remote, handler)
       peerManagerRef ! PeerManager.Connected(newPeer)
@@ -153,17 +154,22 @@ class NetworkController(settings: Settings,
       context stop self
   }
 
-  override def receive: Receive = bindingLogic orElse businessLogic orElse peerLogic orElse interfaceCalls orElse {
-    case RegisterMessagesHandler(specs, handler) =>
-      log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
-      messageHandlers += specs.map(_.messageCode) -> handler
+  override def receive: Receive =
+    bindingLogic orElse
+      businessLogic orElse
+      peerLogic orElse
+      interfaceCalls orElse
+      {
+        case RegisterMessagesHandler(specs, handler) =>
+          log.info(s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}")
+          messageHandlers += specs.map(_.messageCode) -> handler
 
-    case CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd)
+        case CommandFailed(cmd: Tcp.Command) =>
+          log.info("Failed to execute command : " + cmd)
 
-    case nonsense: Any =>
-      log.warn(s"NetworkController: got something strange $nonsense")
-  }
+        case nonsense: Any =>
+          log.warn(s"NetworkController: got something strange $nonsense")
+      }
 }
 
 object NetworkController {
