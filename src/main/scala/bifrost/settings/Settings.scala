@@ -3,10 +3,10 @@ package bifrost.settings
 import java.io.File
 import java.net.InetSocketAddress
 
-import io.circe.Json
-import io.circe.parser.parse
 import bifrost.modifier.box.proposition.Constants25519._
 import bifrost.utils.Logging
+import io.circe.Json
+import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._
