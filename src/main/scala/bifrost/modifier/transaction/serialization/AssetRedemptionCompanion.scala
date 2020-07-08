@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.AssetRedemption
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -52,6 +52,9 @@ object AssetRedemptionCompanion extends Serializer[AssetRedemption] {
     )
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "AssetRedemption")
+
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
