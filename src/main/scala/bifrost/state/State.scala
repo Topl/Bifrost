@@ -2,19 +2,19 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.history.History
-import bifrost.modifier.block.Block
 import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import bifrost.forging.ForgingSettings
-import bifrost.state.MinimalState.VersionTag
+import bifrost.history.History
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
+import com.google.common.primitives.Longs
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -175,6 +175,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
         )
@@ -220,6 +221,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
 
@@ -265,6 +267,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                     "Incorrect unlocker"))
                 }
               case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             }
           )
         )
@@ -304,12 +307,14 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       }
 
       closedBox(unlocker.closedBoxId) match {
-        case Some(box: ExecutionBox) => if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
-          Success[Unit](Unit)
-        else
-          Failure(new Exception("Incorrect unlocker"))
+        case Some(box: ExecutionBox) =>
+          if(unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
+            Success[Unit](Unit)
+          else
+            Failure(new Exception("Incorrect unlocker"))
 
         case None => Failure(new Exception(s"Box for unlocker $unlocker is not in the state"))
+        case _ => Failure(new Exception("Invalid Box type for this transaction"))
       }
     }
 
@@ -365,7 +370,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     val unlockers = generateUnlockers(pc.boxIdsToOpen, pc.signatures.head._2)
 
     val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
@@ -373,7 +378,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
               if (unlocker.boxKey.isValid(
                 box.proposition,
                 pc.messageToSign)) {
-                Success()
+                Success(())
               } else {
                 Failure(new TransactionValidationException("Incorrect unlocker"))
               }
@@ -420,13 +425,13 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     val unlockers = generateUnlockers(pme.boxIdsToOpen, pme.signatures.head._2)
 
     val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success())((unlockersValid, unlocker) =>
+      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
       unlockersValid
         .flatMap { _ =>
           closedBox(unlocker.closedBoxId) match {
             case Some(box) =>
               if (unlocker.boxKey.isValid(box.proposition, pme.messageToSign)) {
-                Success()
+                Success(())
               } else {
                 Failure(new TransactionValidationException("Incorrect unlocker"))
               }
@@ -489,6 +494,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
               }
             case None => Failure(
               new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+            case _ => Failure(new Exception("Invalid Box type for this transaction"))
           }
         )
       )
@@ -496,10 +502,10 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
       /* Make sure that there's enough to cover the remainders */
       val enoughAssets = availableAssetsTry.flatMap(availableAssets =>
         ar.remainderAllocations
-          .foldLeft[Try[Unit]](Success()) { case (partialRes, (assetCode, remainders)) =>
+          .foldLeft[Try[Unit]](Success(())) { case (partialRes, (assetCode, remainders)) =>
           partialRes.flatMap(_ => availableAssets.get(assetCode) match {
             case Some(amount) => if (amount > remainders.map(_._2).sum) {
-              Success()
+              Success(())
             } else {
               Failure(new TransactionValidationException("Not enough assets"))
             }
@@ -522,6 +528,7 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
                   Failure(new TransactionValidationException("Incorrect unlocker"))
                 }
               case None => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
+              case _ => Failure(new Exception("Invalid Box type for this transaction"))
             })
         })
       }
@@ -613,6 +620,7 @@ object State extends Logging {
 
     val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] = mod.transactions match {
       case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
+      case _ => Seq((Set[Array[Byte]](), Set[BX](), 0L))
     }
 
     val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =

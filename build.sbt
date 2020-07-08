@@ -19,8 +19,8 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.5.30"
-val akkaHttpVersion = "10.1.11"
+val akkaVersion = "2.5.31"
+val akkaHttpVersion = "10.1.12"
 val circeVersion = "0.13.0"
 
 val akkaDependencies = Seq(
@@ -49,7 +49,7 @@ val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.slf4j" % "slf4j-api" % "1.7.25"
+  "org.slf4j" % "slf4j-api" % "1.7.30"
 )
 
 val testingDependencies = Seq(
@@ -60,22 +60,22 @@ val testingDependencies = Seq(
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
-  "org.scorexfoundation" %% "scrypto" % "1.2.3",
+  "org.scorexfoundation" %% "scrypto" % "1.3.3",
   "com.google.guava" % "guava" % "19.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
-  "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.scorexfoundation" %% "iodb" % "0.4.0",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
   "org.whispersystems" % "curve25519-java" % "0.5.0",
 )
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.0.5",
-  "io.kamon" %% "kamon-core" % "2.1.0",
-  "io.kamon" %% "kamon-influxdb" % "2.1.0",
-  "io.kamon" %% "kamon-zipkin" % "2.1.0",
+  "io.kamon" %% "kamon-bundle" % "2.0.6",
+  "io.kamon" %% "kamon-core" % "2.1.3",
+  "io.kamon" %% "kamon-influxdb" % "2.1.3",
+  "io.kamon" %% "kamon-zipkin" % "2.1.3",
   //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
   //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
@@ -93,11 +93,17 @@ libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.0",
   "com.google.protobuf" % "protobuf-java" % "3.5.1",
-  "com.thesamet.scalapb" %% "lenses" % "0.7.0",
-  "com.typesafe" % "config" % "1.3.3",
+  "com.thesamet.scalapb" %% "lenses" % "0.10.7",
+  "com.typesafe" % "config" % "1.3.4",
 )
 
-scalacOptions ++= Seq("-feature", "-deprecation")
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-Xfatal-warnings",
+  "-Xlint"
+)
 
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
@@ -127,9 +133,7 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
-Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-
-Compile / run / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
 Test / fork := false
 
@@ -138,8 +142,6 @@ Compile / run / fork := true
 pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
