@@ -1,9 +1,9 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -29,12 +29,17 @@ object CoinbaseTransactionCompanion extends Serializer[CoinbaseTransaction] {
   override def parseBytes(bytes: Array[Byte]): Try[CoinbaseTransaction] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "CoinbaseTransaction")
+
     var numReadBytes = Ints.BYTES + typeLength
     val bytesWithoutType = bytes.slice(numReadBytes, bytes.length)
 
     val Array(fee: Long, timestamp: Long) = (0 until 2).map { i =>
       Longs.fromByteArray(bytesWithoutType.slice(i * Longs.BYTES, (i + 1) * Longs.BYTES))
     }.toArray
+
+    require(fee == 0L)
 
     numReadBytes = 2 * Longs.BYTES
 

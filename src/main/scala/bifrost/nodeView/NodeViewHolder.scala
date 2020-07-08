@@ -5,9 +5,9 @@ import bifrost.forging.ForgingSettings
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, Transaction, PolyTransfer, GenericTransaction}
+import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId

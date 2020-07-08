@@ -3,9 +3,9 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
