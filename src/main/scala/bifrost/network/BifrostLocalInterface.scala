@@ -1,11 +1,11 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
+import bifrost.crypto.PrivateKey25519
 import bifrost.forging.{Forger, ForgingSettings}
 import bifrost.modifier.block.Block
-import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, Proposition}
-import bifrost.modifier.transaction.bifrostTransaction.{Transaction, GenericTransaction}
+import bifrost.modifier.transaction.bifrostTransaction.{GenericTransaction, Transaction}
 import bifrost.nodeView.{GenericNodeViewHolder, PersistentNodeViewModifier}
 import bifrost.utils.Logging
 
@@ -30,19 +30,19 @@ class BifrostLocalInterface(viewHolderRef: ActorRef, forgerRef: ActorRef, forgin
   }
 
   private def viewHolderEvents: Receive = {
-    case stm: GenericNodeViewHolder.StartingPersistentModifierApplication[P, TX, PMOD] =>
+    case stm: GenericNodeViewHolder.StartingPersistentModifierApplication[P, TX, PMOD] @unchecked =>
       onStartingPersistentModifierApplication(stm.modifier)
 
-    case ft: GenericNodeViewHolder.FailedTransaction[P, TX] =>
+    case ft: GenericNodeViewHolder.FailedTransaction[P, TX] @unchecked =>
       onFailedTransaction(ft.transaction)
 
-    case fm: GenericNodeViewHolder.FailedModification[P, TX, PMOD] =>
+    case fm: GenericNodeViewHolder.FailedModification[P, TX, PMOD] @unchecked =>
       onFailedModification(fm.modifier)
 
-    case st: GenericNodeViewHolder.SuccessfulTransaction[P, TX] =>
+    case st: GenericNodeViewHolder.SuccessfulTransaction[P, TX] @unchecked =>
       onSuccessfulTransaction(st.transaction)
 
-    case sm: GenericNodeViewHolder.SuccessfulModification[P, TX, PMOD] =>
+    case sm: GenericNodeViewHolder.SuccessfulModification[P, TX, PMOD] @unchecked =>
       onSuccessfulModification(sm.modifier)
   }
 
@@ -63,8 +63,8 @@ class BifrostLocalInterface(viewHolderRef: ActorRef, forgerRef: ActorRef, forgin
   override def receive: Receive = viewHolderEvents orElse {
     case NoBetterNeighbour => onNoBetterNeighbour()
     case BetterNeighbourAppeared => onBetterNeighbourAppeared()
-    case lt: LocallyGeneratedTransaction[P, TX] => viewHolderRef ! lt
-    case lm: LocallyGeneratedModifier[P, TX, PMOD] => viewHolderRef ! lm
+    case lt: LocallyGeneratedTransaction[P, TX] @unchecked => viewHolderRef ! lt
+    case lm: LocallyGeneratedModifier[P, TX, PMOD] @unchecked => viewHolderRef ! lm
     case a: Any => log.error("Strange input: " + a)
   }
 }
