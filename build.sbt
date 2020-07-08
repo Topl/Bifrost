@@ -19,7 +19,7 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.5.30"
+val akkaVersion = "2.5.31"
 val akkaHttpVersion = "10.1.11"
 val circeVersion = "0.13.0"
 
