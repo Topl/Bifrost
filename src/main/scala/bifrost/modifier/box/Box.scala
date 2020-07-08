@@ -1,10 +1,10 @@
 package bifrost.modifier.box
 
 import bifrost.crypto.PrivateKey25519
+import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
+import bifrost.serialization.Serializer
 import com.google.common.primitives.Ints
 import io.circe.Json
-import bifrost.serialization.Serializer
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 
 import scala.util.Try
 

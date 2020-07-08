@@ -2,19 +2,19 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.box.AssetBox
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.settings.Settings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.PrivateKey25519
-import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
-import bifrost.modifier.box.AssetBox
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 

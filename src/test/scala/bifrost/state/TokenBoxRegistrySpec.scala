@@ -2,20 +2,18 @@ package bifrost.state
 
 import java.time.Instant
 
-import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.modifier.block.Block
+import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.state.StateSpec.gw
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer}
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.{BifrostGenerators, ValidGenerators}
-import bifrost.crypto.Signature25519
+import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import bifrost.nodeView.NodeViewHolder
-import com.google.common.primitives.Ints
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -23,8 +21,8 @@ import scala.reflect.io.Path
 import scala.util.Try
 
 class TokenBoxRegistrySpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
   with BifrostGenerators
@@ -162,8 +160,6 @@ class TokenBoxRegistrySpec extends PropSpec
     val newState1 = genesisState
       .applyChanges(genesisState.changes(block1).get, block1.id)
       .get
-
-    val newWallet1 = gw.scanPersistent(block1)
 
     assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).length == 1)
