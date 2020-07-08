@@ -3,26 +3,24 @@ package bifrost.forging
 import java.time.Instant
 
 import akka.actor._
-import bifrost.modifier.block.Block
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.State
+import bifrost.modifier.block.Block
+import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.settings.Settings
+import bifrost.state.State
+import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedModifier
-import bifrost.settings.Settings
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.utils.Logging
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import akka.util.Timeout
-import bifrost.modifier.block.Block.Version
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
-import bifrost.modifier.transaction.bifrostTransaction.{Transaction, CoinbaseTransaction}
-
 import scala.util.Try
 
 trait ForgerSettings extends Settings {
@@ -51,7 +49,6 @@ class Forger(forgerSettings: ForgingSettings, viewHolderRef: ActorRef) extends A
                        parent: Block,
                        view: (History, State, Wallet, MemPool)
                       ): Try[Seq[Transaction]] = Try {
-    implicit val timeout: Timeout = 10 seconds
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id).get

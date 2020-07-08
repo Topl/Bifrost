@@ -3,21 +3,20 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.modifier.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.iodb.ByteArrayWrapper
-import io.circe.syntax._
-import org.scalacheck.Gen
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.modifier.box._
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion
+import com.google.common.primitives.{Bytes, Ints}
+import io.circe.syntax._
+import io.iohk.iodb.ByteArrayWrapper
+import org.scalacheck.Gen
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random}
+import scala.util.Failure
 
 /**
   * Created by Matt Kindy on 6/7/2017.
@@ -37,16 +36,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    val investmentBoxIds: IndexedSeq[Array[Byte]] =
-      preInvestmentBoxes.map(n => {
-        PublicKeyNoncedBox.idFromBox(owner, n._1)})
-
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(owner -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
-
-    val feePreBoxIds: IndexedSeq[Array[Byte]] = feePreBoxes(owner).map {
-      case (nonce, _) => PublicKeyNoncedBox.idFromBox(owner, nonce)
-    }
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -59,8 +50,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         prop -> possibleFeeValue
     }
-
-    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feePreBoxIds
 
     val messageToSign = Bytes.concat(
       ExecutionBuilderCompanion.toBytes(executionBuilder),
@@ -142,29 +131,25 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyChanges(preparedState.changes(block).get, Ints.toByteArray(24))
           .get
 
-        /*require(newState.storage.get(ByteArrayWrapper(box.id))
-                match {
-                  case Some(wrapper) => wrapper.data sameElements boxBytes
-                  case None => false
-                })*/
-
         require(returnedPolyBoxes
                   .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
                     case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
                     case None => false
                   }))
 
-        //TODO split into separate test
         require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+          case None ⇒ false
         })
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
