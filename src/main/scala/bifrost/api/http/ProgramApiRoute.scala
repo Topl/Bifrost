@@ -3,23 +3,22 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.exceptions.JsonParsingException
-import bifrost.history.BifrostHistory
-import bifrost.mempool.BifrostMemPool
-import bifrost.state.BifrostState
-import bifrost.transaction.box.{BifrostBox, CodeBox, ExecutionBox, StateBox}
-import bifrost.wallet.BWallet
-import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.literal._
-import io.circe.{Decoder, Json, JsonObject}
-import bifrost.LocalInterface.LocallyGeneratedTransaction
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
+import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
-import bifrost.transaction.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.transaction.state.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.utils.ScorexLogging
+import bifrost.state.State
+import bifrost.wallet.Wallet
+import io.circe.literal._
+import io.circe.parser.parse
+import io.circe.syntax._
+import io.circe.{Decoder, Json, JsonObject}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -31,11 +30,11 @@ import scala.util.{Failure, Success, Try}
   */
 
 case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
-                          (implicit val context: ActorRefFactory) extends ApiRouteWithView with ScorexLogging {
-  type HIS = BifrostHistory
-  type MS = BifrostState
-  type VL = BWallet
-  type MP = BifrostMemPool
+                          (implicit val context: ActorRefFactory) extends ApiRouteWithView {
+  type HIS = History
+  type MS = State
+  type VL = Wallet
+  type MP = MemPool
 
   override val route: Route = pathPrefix("program") {
     programRoute
@@ -49,7 +48,7 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
           viewAsync().map { view =>
             var reqId = ""
             parse(body) match {
-              case Left(failure) => ApiException(failure.getCause)
+              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
               case Right(request) =>
                 val futureResponse: Try[Future[Json]] = Try {
                   reqId = (request \\ "id").head.asString.get
@@ -71,9 +70,9 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
                 futureResponse map {
                   response => Await.result(response, timeout.duration)
                 } match {
-                  case Success(resp) => BifrostSuccessResponse(resp, reqId)
+                  case Success(resp) => SuccessResponse(resp, reqId)
                   case Failure(e) =>
-                    BifrostErrorResponse(e, 500, reqId)
+                    ErrorResponse(e, 500, reqId)
                 }
             }
           }
@@ -120,10 +119,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     viewAsync().map { view =>
       val state = view.state
       val tx = createProgramInstance(params, state)
-      ProgramCreation.validate(tx) match {
-        case Success(_) => log.info("Program creation validated successfully")
-        case Failure(e) => throw e
-      }
+//      ProgramCreation.validate(tx) match {
+//        case Success(_) => log.info("Program creation validated successfully")
+//        case Failure(e) => throw e
+//      }
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramCreation](tx)
       tx.json
     }
@@ -180,10 +179,10 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
       }
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
-      ProgramMethodExecution.validate(tx) match {
-        case Success(_) => log.info("Program method execution successfully validated")
-        case Failure(e) => throw e.getCause
-      }
+//      ProgramMethodExecution.validate(tx) match {
+//        case Success(_) => log.info("Program method execution successfully validated")
+//        case Failure(e) => throw e.getCause
+//      }
 
       tx.newBoxes.toSet
       nodeViewHolderRef ! LocallyGeneratedTransaction[ProofOfKnowledgeProposition[PrivateKey25519], ProgramMethodExecution](tx)
@@ -217,13 +216,13 @@ case class ProgramApiRoute(override val settings: Settings, nodeViewHolderRef: A
     }
   }
 
-  //TODO Return ProgramBox instead of BifrostBox
-  private def programBoxId2Box(state: BifrostState, boxId: String): BifrostBox = {
+  //TODO Return ProgramBox instead of Box
+  private def programBoxId2Box(state: State, boxId: String): Box = {
     state.closedBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle
-  def createProgramInstance(json: Json, state: BifrostState): ProgramCreation = {
+  def createProgramInstance(json: Json, state: State): ProgramCreation = {
     val program = (json \\ "program").head.asString.get
     val preProcess = ProgramPreprocessor("program", program)(JsonObject.empty)
     val builder = Map("executionBuilder" -> ExecutionBuilder(ExecutionBuilderTerms(""), "", preProcess).json).asJson

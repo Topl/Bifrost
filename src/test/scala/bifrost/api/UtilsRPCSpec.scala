@@ -4,11 +4,11 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import bifrost.api.http.UtilsApiRoute
 import bifrost.BifrostGenerators
+import bifrost.api.http.UtilsApiRoute
+import bifrost.crypto.FastCryptographicHash
 import io.circe.parser.parse
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.crypto.hash.FastCryptographicHash
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success}
@@ -26,7 +26,7 @@ class UtilsRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/utils/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   val seedLength: Int = 10

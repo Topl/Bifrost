@@ -1,16 +1,16 @@
 
 package bifrost.fork
 
-import bifrost.{BifrostGenerators, BifrostNodeViewHolder}
-import bifrost.BifrostNodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.blocks.BifrostBlock
+import bifrost.BifrostGenerators
+import bifrost.consensus.DifficultyBlockValidator
+import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
-import bifrost.history.BifrostHistory
-import bifrost.programBoxRegistry.ProgramBoxRegistryOld
-import bifrost.transaction.box.ArbitBox
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import bifrost.validation.DifficultyBlockValidator
+import bifrost.history.History
+import bifrost.modifier.block.Block
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
@@ -38,13 +38,13 @@ class ForkSpec extends PropSpec
       ("forkHeight" -> 3.asJson)
   }
 
-  val gs: (HIS, MS, VL, MP) = BifrostNodeViewHolder.initializeGenesis(testSettings_version0)
+  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
   property("Appending version3 blocks before height = forkHeight should fail") {
-    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -56,7 +56,7 @@ class ForkSpec extends PropSpec
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version3.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -70,7 +70,7 @@ class ForkSpec extends PropSpec
 
     println(s"history.height: ${history.height}")
     for(i <- 2L to testSettings_version0.forkHeight) {
-      val tempBlock = BifrostBlock(history.bestBlockId,
+      val tempBlock = Block(history.bestBlockId,
         System.currentTimeMillis(),
         ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -84,7 +84,7 @@ class ForkSpec extends PropSpec
       assert(history.modifierById(tempBlock.id).isDefined)
     }
 
-    val tempBlock_version3_1 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3_1 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -97,7 +97,7 @@ class ForkSpec extends PropSpec
 
     Thread.sleep(1000)
 
-    val tempBlock_version3_2 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3_2 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -105,15 +105,13 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version3.version)
 
-    val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version3)
-
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
     history.height shouldEqual testSettings_version0.forkHeight + 2
 
     history.storage.rollback(tempBlock_version3_1.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -132,7 +130,7 @@ class ForkSpec extends PropSpec
     println(s"history.height: ${history.height}")
     Thread.sleep(1000)
     
-    val tempBlock_version0 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -140,13 +138,11 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version0.version)
 
-    val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version0)
-
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version0.parentId)
-    history = new BifrostHistory(history.storage,
+    history = new History(history.storage,
       testSettings_version3,
       Seq(
         new DifficultyBlockValidator(history.storage)
@@ -161,7 +157,7 @@ class ForkSpec extends PropSpec
     println(s"history.height: ${history.height}")
     Thread.sleep(1000)
 
-    val tempBlock_version3 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -172,7 +168,7 @@ class ForkSpec extends PropSpec
     history = history.append(tempBlock_version3).get._1
     assert(history.modifierById(tempBlock_version3.id).isDefined)
 
-    val tempBlock_version0 = BifrostBlock(history.bestBlockId,
+    val tempBlock_version0 = Block(history.bestBlockId,
       System.currentTimeMillis(),
       ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
@@ -180,15 +176,11 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version0.version)
 
-    val heightBeforeAppendAttempt = history.height
-
     val appendResult = history.append(tempBlock_version0)
     appendResult match {
       case Success(result) =>
         history = result._1
         history.modifierById(tempBlock_version0.id).isDefined shouldBe false
-
-        val heightAfterAppendAttempt = history.height
 
         //Since block validation does not exist block is still appended to history, failure only pops up
         //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
@@ -200,10 +192,8 @@ class ForkSpec extends PropSpec
 
         //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
 
-        val pbr: ProgramBoxRegistryOld = ProgramBoxRegistryOld.readOrGenerate(testSettings_version0)
-
         history.storage.rollback(tempBlock_version3.parentId)
-        history = new BifrostHistory(history.storage,
+        history = new History(history.storage,
           testSettings_version3,
           Seq(
             new DifficultyBlockValidator(history.storage)

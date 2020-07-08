@@ -1,16 +1,15 @@
 package bifrost.program
 
 
-import bifrost.exceptions.{InvalidProvidedProgramArgumentsException, JsonParsingException}
-import bifrost.transaction.box.{CodeBox, StateBox}
+import bifrost.exceptions.{ChainProgramException, JsonParsingException}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
-import scala.language.existentials
 
 /**
   *
@@ -28,7 +27,7 @@ case class Program(parties: Map[PublicKey25519Proposition, String],
   val MAX_PARTIES: Int = 1024
 
   if (parties.size < MIN_PARTIES || parties.size > MAX_PARTIES) {
-    throw new InvalidProvidedProgramArgumentsException("An invalid number of parties was specified for the program " +
+    throw new ChainProgramException("An invalid number of parties was specified for the program " +
       "(must be between 2 and 1024).")
   }
 
@@ -84,7 +83,7 @@ object Program {
     }
 
     new Program(
-      parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
+      parties, //TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("executionBuilder")

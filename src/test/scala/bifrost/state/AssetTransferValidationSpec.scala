@@ -1,37 +1,24 @@
 package bifrost.state
 
-import java.time.Instant
-
-import bifrost.blocks.BifrostBlock
-import bifrost.transaction.bifrostTransaction.AssetTransfer
-import bifrost.transaction.box._
-import com.google.common.primitives.Ints
-import io.iohk.iodb.ByteArrayWrapper
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
-import scorex.crypto.signatures.Curve25519
-
-import scala.util.Failure
-
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
-class AssetTransferValidationSpec extends BifrostStateSpec {
+class AssetTransferValidationSpec extends StateSpec {
 
   /*property("A block with valid AssetTransfer should result in more tokens for receiver, fewer for sender") {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
-        val block = BifrostBlock(
-          Array.fill(BifrostBlock.SignatureLength)(-1: Byte),
+        val block = Block(
+          Array.fill(Block.SignatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(BifrostBlock.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
           Seq(assetTransfer),
           10L,
           settings.version
         )
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -81,7 +68,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
         val wrongSigs: IndexedSeq[Signature25519] = Signature25519(wrongSig) +: assetTransfer.signatures.tail
         val invalidAR = assetTransfer.copy(signatures = wrongSigs)
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, assetTransfer.to.map(_._2).sum, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))
@@ -109,7 +96,7 @@ class AssetTransferValidationSpec extends BifrostStateSpec {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
 
-        val preExistingAssetBoxes: Set[BifrostBox] =
+        val preExistingAssetBoxes: Set[Box] =
           assetTransfer
             .from
             .map(f => AssetBox(f._1, f._2, 0, assetTransfer.assetCode, assetTransfer.issuer, assetTransfer.data))

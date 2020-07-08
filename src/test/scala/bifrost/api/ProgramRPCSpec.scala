@@ -7,25 +7,25 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import bifrost.BifrostGenerators
 import bifrost.api.http.ProgramApiRoute
 import bifrost.forging.Forger
-import bifrost.history.{BifrostHistory, BifrostSyncInfoMessageSpec}
-import bifrost.mempool.BifrostMemPool
-import bifrost.network.BifrostNodeViewSynchronizer
-import bifrost.scorexMod.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.{BifrostState, BifrostStateChanges}
-import bifrost.transaction.box._
-import bifrost.wallet.BWallet
-import bifrost.{BifrostGenerators, BifrostLocalInterface, BifrostNodeViewHolder}
+import bifrost.history.History
+import bifrost.mempool.MemPool
+import bifrost.modifier.box._
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.network.message._
+import bifrost.network.peer.PeerManager
+import bifrost.network._
+import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
+import bifrost.nodeView.NodeViewHolder
+import bifrost.state.{State, StateChanges}
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.{Matchers, WordSpec}
-import bifrost.network.message._
-import bifrost.network.peer.PeerManager
-import bifrost.network.{NetworkController, UPnP}
-import bifrost.transaction.bifrostTransaction.BifrostTransaction
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
@@ -45,9 +45,8 @@ class ProgramRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new BifrostNodeViewHolder(settings)))
-  nodeViewHolderRef
+  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
+  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
   lazy val upnp = new UPnP(settings)
@@ -65,7 +64,7 @@ class ProgramRPCSpec extends WordSpec
 
   val peerManagerRef: ActorRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
 
-  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
+  val nProps: Props = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
   val networkController: ActorRef = actorSystem.actorOf(nProps, "networkController")
 
   val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
@@ -75,7 +74,7 @@ class ProgramRPCSpec extends WordSpec
   )
 
   val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostNodeViewSynchronizer],
+    Props(classOf[NodeViewSynchronizer],
           networkController,
           nodeViewHolderRef,
           localInterface,
@@ -89,7 +88,7 @@ class ProgramRPCSpec extends WordSpec
       HttpMethods.POST,
       uri = "/program/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
-    ).withHeaders(RawHeader("api_key", "test_key"))
+    ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
   implicit val timeout: Timeout = Timeout(10.seconds)
@@ -102,10 +101,10 @@ class ProgramRPCSpec extends WordSpec
 
   private def view() = Await.result(
     (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[BifrostHistory, BifrostState, BWallet, BifrostMemPool]], 10.seconds)
+      .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
 
   // Unlock Secrets
-  val gw: BWallet = view().vault
+  val gw: Wallet = view().vault
   //gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
@@ -130,13 +129,13 @@ class ProgramRPCSpec extends WordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txInstance: BifrostTransaction = view().pool.getById(Base58.decode(txHash).get).get
+      val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
       txInstance.newBoxes.foreach {
         case b: ExecutionBox =>
           executionBox = Some(b)
         case _ =>
       }
-      val boxSC = BifrostStateChanges(txInstance.boxIdsToOpen.toSet,
+      val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
         txInstance.newBoxes.toSet,
         System.currentTimeMillis())
 
@@ -208,7 +207,6 @@ class ProgramRPCSpec extends WordSpec
       httpPOST(ByteString(requestJson.toString)) ~> route ~> check {
         val res = parse(responseAs[String]).right.get
         (res \\ "result").head.asObject.isDefined shouldEqual true
-        val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
         //a new transaction in the mempool
         view().pool.take(1).toList.size shouldEqual 1
 

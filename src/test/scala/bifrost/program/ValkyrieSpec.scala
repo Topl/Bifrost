@@ -3,21 +3,19 @@ package bifrost.program
 import java.time.Instant
 import java.util
 
-import bifrost.crypto.hash.FastCryptographicHash
-import bifrost.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
-import bifrost.transaction.box.{ArbitBox, AssetBox, BifrostBox}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import org.graalvm.polyglot.{Context, Instrument}
-import com.oracle.truffle.polyglot._
-import bifrost.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
-import org.scalatest.{Matchers, PropSpec}
-import scorex.crypto.encode.Base58
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
-import bifrost.settings.Settings
-import bifrost.state.BifrostStateSpec
-import bifrost.wallet.BWallet
+import bifrost.crypto.FastCryptographicHash
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{ArbitBox, AssetBox}
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
+import bifrost.state.StateSpec
+import bifrost.wallet.Wallet
+import bifrost.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Ints, Longs}
+import org.graalvm.polyglot.Context
+import org.scalatest.{Matchers, PropSpec}
+import scorex.crypto.encode.Base58
 
 class ValkyrieSpec extends PropSpec
   with Matchers
@@ -176,11 +174,11 @@ class ValkyrieSpec extends PropSpec
 
     assert(valkyrieController != null)
 
-    val wallet: BWallet = BWallet.readOrGenerate(BifrostStateSpec.testSettings)
+    val wallet: Wallet = Wallet.readOrGenerate(StateSpec.testSettings)
 
     assert(!wallet.boxesByKey(publicKeys("investor")).isEmpty)
 
-    var arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
+    val arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
 
     //Sanitize inputBoxes
     wallet.boxesByKey(publicKeys("investor")).foreach(box =>

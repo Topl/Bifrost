@@ -3,19 +3,19 @@ package bifrost.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import bifrost.state.BifrostState
-import bifrost.transaction.bifrostTransaction.ProgramCreation
+import bifrost.crypto.Signature25519
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
-import bifrost.transaction.box.proposition.PublicKey25519Proposition
-import bifrost.transaction.proof.Signature25519
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.util.Success
 
 class ProgramCreationSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
@@ -23,8 +23,8 @@ class ProgramCreationSpec extends PropSpec
   property("Generated ProgramCreation Tx should be valid") {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val semanticValid = BifrostState.semanticValidity(programCreation)
-        semanticValid shouldBe a[Success[Unit]]
+        val semanticValid = State.semanticValidity(programCreation)
+        semanticValid shouldBe a[Success[_]]
     }
   }
 
@@ -39,7 +39,7 @@ class ProgramCreationSpec extends PropSpec
           programCreation.signatures +
             (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        BifrostState.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
+        State.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
 /*

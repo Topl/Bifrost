@@ -2,17 +2,17 @@ package bifrost.program
 
 import java.util.UUID
 
-import bifrost.transaction.box.{CodeBox, StateBox}
+import bifrost.modifier.box.{CodeBox, StateBox}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class ProgramMethodSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
@@ -102,9 +102,6 @@ class ProgramMethodSpec extends PropSpec
         //Pass in writable state and functions
         mutableState.foreach(s => bindings.putMember(s._1, s._2))
         jsre.eval("js", programCode)
-
-        val preExecution: Map[String, String] = bindings.getMemberKeys.toArray.map(k => k.toString -> bindings.getMember(k.toString).toString).toMap
-
         jsre.eval("js", s"""a = getFromState(${args("uuid").get}, ${args("value").get})""")
 
         //Return entire state of the evaluation
@@ -152,7 +149,6 @@ class ProgramMethodSpec extends PropSpec
   property("Removing a mutable state variable during execution will result in an error") {
     forAll(programGen) {
       c: Program => {
-        val program = c.executionBuilderObj.core.code.foldLeft("")((a,b) => a ++ (b + "\n"))
         val party = propositionGen.sample.get
         /*val params = JsonObject.fromMap(
           Map("newStatus" -> stringGen.sample.get.asJson))
