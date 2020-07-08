@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
-import bifrost.modifier.box.{ExecutionBox, ExecutionBoxSerializer}
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.modifier.box.{ExecutionBox, ExecutionBoxSerializer}
+import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -35,6 +35,8 @@ object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
 
     val typeLen: Int = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
+
+    require(typeStr == "ProgramTransfer")
 
     var numReadBytes: Int = Ints.BYTES + typeLen
 

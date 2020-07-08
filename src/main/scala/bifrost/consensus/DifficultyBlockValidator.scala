@@ -1,8 +1,8 @@
 package bifrost.consensus
 
-import bifrost.modifier.block.{Block, BlockValidator}
 import bifrost.forging.Forger
 import bifrost.history.Storage
+import bifrost.modifier.block.{Block, BlockValidator}
 
 import scala.util.Try
 
