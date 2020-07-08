@@ -1,7 +1,7 @@
 package bifrost.modifier.transaction
 
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import com.google.common.primitives.Longs
 

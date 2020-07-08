@@ -3,20 +3,19 @@ package bifrost
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.program.{ExecutionBuilderCompanion, _}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{PublicKeyNoncedBox, _}
 import bifrost.modifier.transaction.bifrostTransaction
-import modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
+import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
+import bifrost.program.{ExecutionBuilderCompanion, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
-import modifier.box.proposition.PublicKey25519Proposition
-import bifrost.crypto.PrivateKey25519Companion
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Created by cykoz on 5/11/2017.
@@ -68,11 +67,6 @@ trait ValidGenerators extends BifrostGenerators {
           sampleUntilNonEmpty(positiveLongGen) -> (sampleUntilNonEmpty(positiveLongGen) / 1e5.toLong + 1L)
         }
 
-      val state =
-        s"""
-           |{ "a": 0 }
-         """.stripMargin.asJson
-
       val stateTwo =
         s"""
            |{ "b": 0 }
@@ -83,27 +77,13 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBox = StateBox(sender, 0L, null, state)
       val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
       val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
       val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
 
-      val codeBox = CodeBox(sender, 3L, null, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
-
-      val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
-        .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
-
       val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
-
-
-      val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
-        .flatMap { case (prop, v) =>
-          v.map {
-            case (nonce, _) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
-          }
-        }
 
       val fees = feePreBoxes.map { case (prop, preBoxes) =>
         prop -> preBoxes.map(_._2).sum
@@ -162,10 +142,8 @@ trait ValidGenerators extends BifrostGenerators {
     /* TODO: Don't know why this re-sampling is necessary here -- but should figure that out */
     var executionBuilderOpt = validExecutionBuilderGen().sample
     while (executionBuilderOpt.isEmpty) executionBuilderOpt = validExecutionBuilderGen().sample
-    val executionBuilder = executionBuilderOpt.get
 
     val methodName = "add" //sampleUntilNonEmpty(Gen.oneOf(executionBuilder.core.registry.keys.toSeq))
-
 
     val state = Map("a" -> "0").asJson
 
@@ -243,8 +221,6 @@ trait ValidGenerators extends BifrostGenerators {
 
 
   lazy val validPolyTransferGen: Gen[PolyTransfer] = for {
-    from <- fromSeqGen
-    to <- toSeqGen
     fee <- positiveLongGen
     timestamp <- positiveLongGen
     data <- stringGen
@@ -323,8 +299,6 @@ trait ValidGenerators extends BifrostGenerators {
     val to = IndexedSeq((toKeyPairs._2, 4L))
 
     val oneHub = issuer.head
-
-    val fakeSigs = IndexedSeq(Signature25519(Array()))
 
     val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
 

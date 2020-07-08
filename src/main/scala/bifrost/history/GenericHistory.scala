@@ -1,9 +1,9 @@
 package bifrost.history
 
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.network.SyncInfo
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import scorex.crypto.encode.Base58
 
