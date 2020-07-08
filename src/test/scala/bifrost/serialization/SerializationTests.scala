@@ -1,15 +1,15 @@
 package bifrost.serialization
 
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
+import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.serialization._
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
@@ -19,8 +19,8 @@ import scala.util.{Failure, Success}
   * Created by cykoz on 4/12/17.
   */
 class SerializationTests extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

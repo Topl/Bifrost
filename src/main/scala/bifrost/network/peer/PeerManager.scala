@@ -7,7 +7,6 @@ import bifrost.network._
 import bifrost.settings.Settings
 import bifrost.utils.Logging
 
-import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.Random
 
@@ -120,7 +119,7 @@ class PeerManager(settings: Settings) extends Actor with Logging {
     case CheckPeers =>
       if (connectedPeers.size < settings.maxConnections && connectingPeer.isEmpty) {
         randomPeer().foreach { address =>
-          if (!connectedPeers.map(_._1.socketAddress).contains(address)) {
+          if (!connectedPeers.exists(_._1.socketAddress equals address)) {
             connectingPeer = Some(address)
             sender() ! NetworkController.ConnectTo(address)
           }
