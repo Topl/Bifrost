@@ -1,9 +1,9 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.nodeView.NodeViewModifier._
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier._
 
 
 /**

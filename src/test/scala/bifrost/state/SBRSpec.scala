@@ -2,26 +2,25 @@ package bifrost.state
 
 import java.util.UUID
 
-import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.forging.ForgingSettings
 import bifrost.modifier.box.StateBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.Try
 
 class ProgramBoxRegistrySpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
   with BifrostGenerators
