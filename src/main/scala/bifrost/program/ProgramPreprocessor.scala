@@ -7,15 +7,15 @@ import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import bifrost.crypto.Signature25519
-import io.circe._
-import io.circe.parser._
-import io.circe.syntax._
-import bifrost.serialization.JsonSerializable
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.serialization.JsonSerializable
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
-import org.graalvm.polyglot.{Context, Value}
+import io.circe._
+import io.circe.parser._
+import io.circe.syntax._
+import org.graalvm.polyglot.Context
 import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable
@@ -199,7 +199,7 @@ object ProgramPreprocessor {
 
     def commentTokenSource(source: Source): Seq[String] = {
 
-      var commentList: ListBuffer[String] = new ListBuffer[String]()
+      val commentList: ListBuffer[String] = new ListBuffer[String]()
 
       val tokenStream: TokenStream = new TokenStream
 
@@ -254,8 +254,8 @@ object ProgramPreprocessor {
 
     def varList(node: FunctionNode): Json = {
 
-      var vars = scala.collection.mutable.Map[String, String]()
-      var varJson = scala.collection.mutable.Map[String, Json]()
+      val vars = scala.collection.mutable.Map[String, String]()
+      val varJson = scala.collection.mutable.Map[String, Json]()
 
       node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
@@ -305,7 +305,7 @@ object ProgramPreprocessor {
 
     def functionList(node: FunctionNode): Map[String, String] = {
 
-      var functions = mutable.LinkedHashMap[String, String]()
+      val functions = mutable.LinkedHashMap[String, String]()
 
       node.getBody.accept(new NodeVisitor[LexicalContext](new LexicalContext) {
 
