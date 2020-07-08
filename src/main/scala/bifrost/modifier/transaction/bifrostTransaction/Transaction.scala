@@ -1,21 +1,13 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{PrivateKey25519, Signature25519}
-import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.crypto.PrivateKey25519Companion
-import bifrost.wallet.Wallet
-import bifrost.BifrostApp
 import bifrost.modifier.transaction.BoxTransaction
+import bifrost.settings.Settings
+import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import io.circe.{Json}
-import io.circe.parser.parse
 import scorex.crypto.encode.Base58
-
-import scala.io.Source
-import scala.util.Try
 
 trait TransactionSettings extends Settings
 
@@ -24,28 +16,6 @@ trait Transaction
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
-
-  implicit lazy val settings = new TransactionSettings {
-    val testnetEndowment: Nonce = 20L
-    override lazy val settingsJSON: Map[String, Json] = settingsFromFile(BifrostApp.settingsFilename)
-
-    override def settingsFromFile(filename: String): Map[String, Json] = Try {
-      val jsonString = Source.fromFile(filename).mkString
-      parse(jsonString).right.get
-    }
-      .recoverWith {
-        case _ =>
-          Try {
-            val jsonString = Source.fromURL(getClass.getResource(s"/$filename")).mkString
-            parse(jsonString).right.get
-          }
-      }
-      .toOption
-      .flatMap(_.asObject)
-      .map(_.toMap)
-      .getOrElse(Map())
-  }
-
 }
 
 object Transaction {

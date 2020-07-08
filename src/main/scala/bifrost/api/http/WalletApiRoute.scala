@@ -2,24 +2,24 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.state.State
 import bifrost.modifier.box.Box
-import bifrost.wallet.Wallet
-import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.{Bip39, PrivateKey25519}
-import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
+import bifrost.settings.Settings
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: ActorRef)
@@ -36,7 +36,7 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     entity(as[String]) { body =>
       withAuth {
         postJsonRoute {
-          viewAsync().map { view =>
+          viewAsync().map { _ =>
             var reqId = ""
             parse(body) match {
               case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
@@ -124,7 +124,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -195,7 +194,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
     */
   private def transferPolysPrototype(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
@@ -205,7 +203,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -280,7 +277,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -352,7 +348,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
       id: String
   ): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
@@ -362,7 +357,6 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
           .map(key =>
             PublicKey25519Proposition(Base58.decode(key.asString.get).get)
           )
-          .toIndexedSeq
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       // Optional API parameters
@@ -523,14 +517,12 @@ case class WalletApiRoute(override val settings: Settings, nodeViewHolderRef: Ac
         }
       val pt = Bip39.apply(seedPhraseLang)
       Map(
-        pt.phraseCheckSum(seedPhrase) match {
-          case false => "error:" -> "not a valid input phrase".asJson
-          case true => {
-            val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
-            val pubKey = wallet.generateNewSecret(password, seed)
-            "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
-          }
-
+        if (pt.phraseCheckSum(seedPhrase)) {
+          val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
+          val pubKey = wallet.generateNewSecret(password, seed)
+          "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
+        } else {
+          "error:" -> "not a valid input phrase".asJson
         }
       ).asJson
     }
