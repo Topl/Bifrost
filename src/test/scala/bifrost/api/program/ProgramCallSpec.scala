@@ -6,8 +6,8 @@ import akka.util.ByteString
 import bifrost.api.http.ProgramApiRoute
 import bifrost.modifier.box.Box
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import io.circe.syntax._
+import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
 class ProgramCallSpec extends WordSpec
