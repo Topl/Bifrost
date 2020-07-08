@@ -2,16 +2,15 @@
 package bifrost.fork
 
 import bifrost.BifrostGenerators
-import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.modifier.block.Block
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
 import bifrost.forging.ForgingSettings
 import bifrost.history.History
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
-import bifrost.state.ProgramBoxRegistry
+import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import io.circe
 import io.circe.syntax._
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
@@ -106,8 +105,6 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version3.version)
 
-    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version3, history.storage.storage).get
-
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
@@ -140,8 +137,6 @@ class ForkSpec extends PropSpec
       Seq(),
       10L,
       testSettings_version0.version)
-
-    val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
@@ -181,15 +176,11 @@ class ForkSpec extends PropSpec
       10L,
       testSettings_version0.version)
 
-    val heightBeforeAppendAttempt = history.height
-
     val appendResult = history.append(tempBlock_version0)
     appendResult match {
       case Success(result) =>
         history = result._1
         history.modifierById(tempBlock_version0.id).isDefined shouldBe false
-
-        val heightAfterAppendAttempt = history.height
 
         //Since block validation does not exist block is still appended to history, failure only pops up
         //when trying to recreate a block from id when updating difficulty in DifficultyBlockValidator
@@ -200,8 +191,6 @@ class ForkSpec extends PropSpec
         //manually rolling back storage, recreating history, and then checking height
 
         //    heightBeforeAppendAttempt shouldEqual heightAfterAppendAttempt
-
-        val pbr: ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(testSettings_version0, history.storage.storage).get
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new History(history.storage,

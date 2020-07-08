@@ -1,12 +1,12 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
-import bifrost.modifier.transaction.bifrostTransaction
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.Json
 import io.circe.parser.parse
@@ -45,6 +45,8 @@ object ProgramMethodExecutionCompanion extends Serializer[ProgramMethodExecution
   override def parseBytes(bytes: Array[Byte]): Try[ProgramMethodExecution] = Try {
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "ProgramMethodExecution")
 
     var numReadBytes = Ints.BYTES + typeLength
 
