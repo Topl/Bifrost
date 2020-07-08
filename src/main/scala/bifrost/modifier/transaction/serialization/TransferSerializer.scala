@@ -1,8 +1,8 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.TransferTransaction
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.TransferTransaction
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -29,7 +29,6 @@ trait TransferSerializer {
     Map[PublicKey25519Proposition, Signature25519], Long, Long) = {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
 
     var numBytesRead = Ints.BYTES + typeLength
 

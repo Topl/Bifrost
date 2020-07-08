@@ -2,10 +2,10 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import Transaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.serialization.ArbitTransferCompanion
 import bifrost.state.TokenBoxRegistry
 import bifrost.wallet.Wallet

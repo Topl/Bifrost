@@ -6,10 +6,9 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import bifrost.crypto.PrivateKey25519Companion
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
@@ -67,7 +66,7 @@ object KeyFile {
   def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
   (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
-    var aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
+    val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
 
     val outputText = Array.fill(32)(1: Byte)
