@@ -403,7 +403,10 @@ class History(val storage: Storage,
     * @param modifier - valid modifier
     * @return modified history
     */
-  override def reportModifierIsValid(modifier: Block): History = ???
+  override def reportModifierIsValid(modifier: Block): History = {
+    log.debug(s"Modifier ${modifier.id} is a valid block")
+    this
+  }
 
   /**
     * Report that modifier is invalid from other nodeViewHolder components point of view

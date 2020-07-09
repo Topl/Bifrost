@@ -499,7 +499,12 @@ case class State(storage: LSMStore, override val version: VersionTag, timestamp:
     }
   }
 
-  override def applyModifier(mod: BPMOD): Try[State] = ???
+  override def applyModifier(mod: BPMOD): Try[State] = mod match {
+    case b: Block ⇒
+      changes(b).flatMap(cs ⇒ applyChanges(cs, b.id))
+    //case a: Any ⇒
+     // Failure(new Exception(s"unknown modifier $a"))
+  }
 
   override def applyModifiers(mods: Seq[BPMOD]): Try[State] = ???
 
