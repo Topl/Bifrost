@@ -434,7 +434,7 @@ class NetworkController(settings: NetworkSettings,
     * Register a new penalty for given peer address.
     */
   private def penalize(peerAddress: InetSocketAddress, penaltyType: PenaltyType): Unit =
-    peerManagerRef ! PeerManager.ReceivableMessages.Penalize(peerAddress, penaltyType)
+    peerManagerRef ! Penalize(peerAddress, penaltyType)
 
 }
 
