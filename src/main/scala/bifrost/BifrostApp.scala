@@ -115,7 +115,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
 
-  val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
   val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 

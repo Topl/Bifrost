@@ -86,7 +86,7 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"PeerManager: got unexpected input $nonsense")
+      log.warn(s"PeerManager: got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
