@@ -26,7 +26,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
       .map(_.data)
 
   def getBox(k: UUID) : Option[Box] =
-    getBoxId(k).flatMap(closedBox(_))
+    getBoxId(k).flatMap(closedBox)
 
 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
@@ -53,7 +53,7 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
 
     pbrStore.update(
       ByteArrayWrapper(newVersion.hashBytes),
-      uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw(_)),
+      uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw),
       uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
     )
 

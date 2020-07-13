@@ -73,12 +73,12 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     val keysSet: Set[ByteArrayWrapper] = {
       boxIdsToRemove
         .flatMap(boxId => closedBox(boxId.data))
-        .foreach(box => box match {
+        .foreach {
           case box: NoncedBox =>
             boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
           //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
           case _ =>
-        })
+        }
 
       keyFilteredBoxesToAdd
         .foreach({
