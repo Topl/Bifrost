@@ -9,7 +9,7 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
   version := "1.1.0",
-  wartremoverErrors := Warts.unsafe // settings for wartremover
+//  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.11"
