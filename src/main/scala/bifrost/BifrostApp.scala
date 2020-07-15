@@ -19,6 +19,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
 import bifrost.network.peer.PeerManagerRef
+import bifrost.network.upnp._
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
@@ -77,7 +78,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
   //p2p
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
+  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
   // TODO use available port on gateway instead settings.network.bindAddress.getPort
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 

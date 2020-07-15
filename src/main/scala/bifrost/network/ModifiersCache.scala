@@ -109,7 +109,7 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
 }
 
 class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
-(override val maxSize: Int) extends ModifiersCache[PMOD, HR] with LRUCache[PMOD, HR] with Logging {
+(override val maxSize: Int) extends LRUCache[PMOD, HR] with Logging {
 
   /**
     * Default implementation is just about to scan. Not efficient at all and should be probably rewritten in a

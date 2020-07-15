@@ -20,7 +20,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
 import bifrost.network.peer.PeerManagerRef
 import bifrost.network._
-import bifrost.network.UPnP
+import bifrost.network.upnp.{UPnP, UPnPGateway}
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}

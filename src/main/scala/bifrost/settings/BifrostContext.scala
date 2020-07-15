@@ -2,8 +2,9 @@ package bifrost.settings
 
 import java.net.InetSocketAddress
 
-import bifrost.network.{PeerFeature, UPnPGateway}
+import bifrost.network.PeerFeature
 import bifrost.network.message.MessageSpec
+import bifrost.network.upnp.UPnPGateway
 import bifrost.utils.TimeProvider
 
 case class BifrostContext(messageSpecs: Seq[MessageSpec[_]],
