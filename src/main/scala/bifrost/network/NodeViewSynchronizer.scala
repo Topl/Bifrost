@@ -1,6 +1,5 @@
 package bifrost.network
 
-
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}

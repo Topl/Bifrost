@@ -19,7 +19,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
 import bifrost.network.peer.PeerManagerRef
-import bifrost.network.upnp._
+import bifrost.network.upnp
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
@@ -43,33 +43,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type NVHT = NodeViewHolder
 
   private val settings: AppSettings = AppSettings.read(startupOpts)
+  log.debug(s"Starting application with settings \n$settings")
 
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
-
-  log.debug(s"Starting application with settings \n$settings")
-
-//  private lazy val basicSpecs =
-//    Seq(
-//      GetPeersSpec,
-//      PeersSpec,
-//      InvSpec,
-//      RequestModifierSpec,
-//      ModifiersSpec
-//    )
-//
-//  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
-//
-//  lazy val upnp = new UPnP(settings)
-//
-//  protected implicit lazy val actorSystem = ActorSystem(settings.agentName)
-//
-//
-//
-//  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-//  val networkControllerRef = actorSystem.actorOf(nProps, "networkController")
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
@@ -77,10 +54,20 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+
   //p2p
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
-  // TODO use available port on gateway instead settings.network.bindAddress.getPort
+  private val upnpGateway: Option[upnp.UPnPGateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
+  // TODO use random port on gateway instead settings.network.bindAddress.getPort
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
+
+  //an address to send to peers
+  lazy val externalSocketAddress: Option[InetSocketAddress] = {
+    settings.network.declaredAddress orElse {
+      // TODO use the random port on gateway instead settings.bindAddress.getPort
+      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
+    }
+  }
 
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
@@ -94,16 +81,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       requestModifierSpec,
       modifiersSpec
     )
-  }
-
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
-
-  //an address to send to peers
-  lazy val externalSocketAddress: Option[InetSocketAddress] = {
-    settings.network.declaredAddress orElse {
-      // TODO use available port on gateway instead settings.bindAddress.getPort
-      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
-    }
   }
 
   val bifrostContext: BifrostContext = BifrostContext(
@@ -170,6 +147,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
 
     implicit val materializer: ActorMaterializer = ActorMaterializer()
+    // TODO: consider adding a message to networkCntrl to also trigger binding here
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 
     /* on unexpected shutdown */

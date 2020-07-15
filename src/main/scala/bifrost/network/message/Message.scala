@@ -33,6 +33,7 @@ case class Message[Content](spec: MessageSpec[Content],
   }
 }
 
+// TODO: move into it's own file
 class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
   import Message.{ChecksumLength, HeaderLength, MagicLength}

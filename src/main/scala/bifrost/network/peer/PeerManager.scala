@@ -74,6 +74,8 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
       sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, bifrostContext)
   }
 
+  // TODO: JAA - 2020.07.15 - I don't think this case will ever be hit because the get above will catch the
+  // GetAllPeers and GetBlackListedPeers since they both extend type GetPeers
   private def apiInterface: Receive = {
 
     case GetAllPeers =>
