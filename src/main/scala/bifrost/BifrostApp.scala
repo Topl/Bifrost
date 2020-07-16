@@ -48,28 +48,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   log.debug(s"Starting application with settings \n$settings")
 
-//  private lazy val basicSpecs =
-//    Seq(
-//      GetPeersSpec,
-//      PeersSpec,
-//      InvSpec,
-//      RequestModifierSpec,
-//      ModifiersSpec
-//    )
-//
-//  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
-//
-//  lazy val upnp = new UPnP(settings)
-//
-//  protected implicit lazy val actorSystem = ActorSystem(settings.agentName)
-//
-//
-//
-//  val nProps = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-//  val networkControllerRef = actorSystem.actorOf(nProps, "networkController")
-
-  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
