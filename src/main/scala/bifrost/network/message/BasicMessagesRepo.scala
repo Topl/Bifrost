@@ -193,13 +193,9 @@ object GetPeersSpec extends MessageSpecV1[Unit] {
 }
 
 object PeersSpec {
-
   val MaxPeersInMessage: Int = 100
-
   val messageCode: Message.MessageCode = 2: Byte
-
   val messageName: String = "Peers message"
-
 }
 
 /**
@@ -228,7 +224,6 @@ class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) ex
 }
 
 object HandshakeSpec {
-
   val messageCode: MessageCode = 75: Byte
   val messageName: String = "Handshake"
 }

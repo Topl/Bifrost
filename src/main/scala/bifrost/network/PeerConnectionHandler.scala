@@ -151,9 +151,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
     case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
       connection ! Tcp.ResumeWriting
-    // JAA - this seems like it would be problematic if the same message continues to fail
-    // repeatedly so going to remove it for now 2020.07.15
-    //buffer(id, msg)
+      buffer(id, msg)
 
     case Tcp.CommandFailed(Tcp.ResumeWriting) => // ignore in ACK mode
 

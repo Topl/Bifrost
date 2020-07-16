@@ -3,18 +3,14 @@ package bifrost.network
 import java.net._
 
 import akka.actor._
-import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{
-  DisconnectedPeer,
-  HandshakedPeer
-}
+import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
-import bifrost.network.peer.PeerManager.ReceivableMessages._
-import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PenaltyType}
+
+import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PenaltyType, PeerManager}
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
 
@@ -36,9 +32,11 @@ class NetworkController(
     with Logging {
 
   import NetworkController.ReceivableMessages._
+  import PeerManager.ReceivableMessages._
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import SharedNetworkMessages.ReceivableMessages.DataFromPeer
   import akka.actor.SupervisorStrategy._
+
   private lazy val bindAddress = settings.bindAddress
 
   private implicit val system: ActorSystem = context.system
@@ -79,7 +77,7 @@ class NetworkController(
   log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
 
   //bind to listen incoming connections
-  tcpManager ! Bind(self, bindAddress, options = Nil, pullMode = false)
+  tcpManager ! Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -95,11 +93,11 @@ class NetworkController(
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
-    case Bound(_) =>
+    case Tcp.Bound(_) =>
       log.info("Successfully bound to the port " + settings.bindAddress.getPort)
       scheduleConnectionToPeer()
 
-    case CommandFailed(_: Bind) =>
+    case Tcp.CommandFailed(_: Tcp.Bind) =>
       log.error(
         "Network port " + settings.bindAddress.getPort + " already in use!"
       )
@@ -157,7 +155,7 @@ class NetworkController(
   }
 
   private def connectionEvents: Receive = {
-    case Connected(remoteAddress, localAddress)
+    case Tcp.Connected(remoteAddress, localAddress)
       if connectionForPeerAddress(remoteAddress).isEmpty =>
         val connectionDirection: ConnectionDirection =
           if (unconfirmedConnections.contains(remoteAddress)) Outgoing
@@ -172,9 +170,9 @@ class NetworkController(
         else peerManagerRef ! ConfirmConnection(connectionId, sender())
 
 
-    case Connected(remoteAddress, _) =>
+    case Tcp.Connected(remoteAddress, _) =>
       log.warn(s"Connection to peer $remoteAddress is already established")
-      sender() ! Close
+      sender() ! Tcp.Close
 
     case ConnectionConfirmed(connectionId, handlerRef) =>
       log.info(s"Connection confirmed to $connectionId")
@@ -182,12 +180,12 @@ class NetworkController(
 
     case ConnectionDenied(connectionId, handlerRef) =>
       log.info(s"Incoming connection from ${connectionId.remoteAddress} denied")
-      handlerRef ! Close
+      handlerRef ! Tcp.Close
 
     case Handshaked(connectedPeer) =>
       handleHandshake(connectedPeer, sender())
 
-    case f @ CommandFailed(c: Connect) =>
+    case f @ Tcp.CommandFailed(c: Tcp.Connect) =>
       unconfirmedConnections -= c.remoteAddress
       f.cause match {
         case Some(t) => log.info("Failed to connect to : " + c.remoteAddress, t)
@@ -204,7 +202,7 @@ class NetworkController(
         context.system.eventStream.publish(DisconnectedPeer(remoteAddress))
       }
 
-    case _: ConnectionClosed =>
+    case _: Tcp.ConnectionClosed =>
       log.info("Denied connection has been closed")
   }
 
@@ -217,12 +215,12 @@ class NetworkController(
       filterConnections(Broadcast, Version.initial).foreach { connectedPeer =>
         connectedPeer.handlerRef ! CloseConnection
       }
-      self ! Unbind
+      self ! Tcp.Unbind
       context stop self
   }
 
   private def nonsense: Receive = {
-    case CommandFailed(cmd: Command) =>
+    case Tcp.CommandFailed(cmd: Tcp.Command) =>
       log.info("Failed to execute command : " + cmd)
 
     case nonsense: Any =>
@@ -260,7 +258,7 @@ class NetworkController(
         if (connectionForPeerAddress(remote).isEmpty && !unconfirmedConnections
               .contains(remote)) {
           unconfirmedConnections += remote
-          tcpManager ! Connect(
+          tcpManager ! Tcp.Connect(
             remoteAddress = remote,
             options = Nil,
             timeout = Some(settings.connectionTimeout),
