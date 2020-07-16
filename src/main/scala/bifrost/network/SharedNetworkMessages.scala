@@ -1,6 +1,7 @@
 package bifrost.network
 
 import bifrost.network.message.MessageSpec
+import bifrost.network.peer.ConnectedPeer
 
 import scala.reflect.ClassTag
 

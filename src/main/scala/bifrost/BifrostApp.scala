@@ -18,7 +18,7 @@ import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
-import bifrost.network.peer.PeerManagerRef
+import bifrost.network.peer.{PeerFeature, PeerManagerRef}
 import bifrost.network.upnp
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
@@ -57,7 +57,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   //p2p
-  private val upnpGateway: Option[upnp.UPnPGateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
   // TODO use random port on gateway instead settings.network.bindAddress.getPort
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 

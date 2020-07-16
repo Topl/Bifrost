@@ -1,12 +1,10 @@
-package bifrost.network
+package bifrost.network.peer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
 import akka.util.{ByteString, CompactByteString}
-import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
-import bifrost.network.PeerFeature.Serializers
-import bifrost.network.message.{HandshakeSpec, MessageSerializer}
-import bifrost.network.peer.{PeerInfo, PenaltyType}
+import bifrost.network._
+import bifrost.network.message.{Handshake, HandshakeSpec, MessageSerializer}
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.Logging
 import bifrost.utils.serialization.BifrostSerializer
@@ -24,6 +22,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   extends Actor with Logging {
 
   import PeerConnectionHandler.ReceivableMessages._
+  import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 
   private val connection = connectionDescription.connection
   private val connectionId = connectionDescription.connectionId
@@ -31,7 +30,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
 
-  private val featureSerializers: Serializers =
+  private val featureSerializers: PeerFeature.Serializers =
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
@@ -228,7 +227,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   }
 
   private def createHandshakeMessage() = {
-    Handshake(
+    message.Handshake(
       PeerSpec(
         settings.agentName,
         Version(settings.appVersion),

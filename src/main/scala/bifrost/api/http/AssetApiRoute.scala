@@ -91,7 +91,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     * 
     *  #### Description
-    *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    *    Default behavior of the wallet is to find the first unlocked address which hold the targeted asset.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
     * 
     *  #### Notes
@@ -412,7 +412,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     * 
     *  #### Description
-    *    New boxes wlll be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
+    *    New boxes will be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
     *    of `issuer` and `assetCode`
     * 
     * ---

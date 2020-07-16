@@ -2,7 +2,7 @@ package bifrost.api
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
@@ -18,10 +18,10 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.message._
-import bifrost.network.peer.PeerManagerRef
 import bifrost.network._
-import bifrost.network.upnp.{UPnP, UPnPGateway}
+import bifrost.network.message._
+import bifrost.network.peer.{PeerFeature, PeerManagerRef}
+import bifrost.network.upnp
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
@@ -59,7 +59,7 @@ class ProgramRPCSpec extends WordSpec
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 
   private lazy val basicSpecs = {

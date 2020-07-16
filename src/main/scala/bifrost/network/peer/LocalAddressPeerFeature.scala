@@ -2,7 +2,6 @@ package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import bifrost.network.PeerFeature
 import bifrost.network.PeerFeature.Id
 import bifrost.utils.serialization.{BifrostSerializer, _}
 import bifrost.utils.Extensions._

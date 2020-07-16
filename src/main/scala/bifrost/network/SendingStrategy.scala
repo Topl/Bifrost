@@ -1,5 +1,7 @@
 package bifrost.network
 
+import bifrost.network.peer.ConnectedPeer
+
 import scala.util.Random
 
 trait SendingStrategy {

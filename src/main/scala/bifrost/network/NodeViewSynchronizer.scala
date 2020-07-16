@@ -12,10 +12,10 @@ import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, Regis
 import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message._
-import bifrost.network.peer.PenaltyType
+import bifrost.network.peer.{ConnectedPeer, PenaltyType}
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
 import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
 import bifrost.modifier.ModifierId

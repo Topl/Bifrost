@@ -6,6 +6,7 @@ import bifrost.network.ModifiersStatus._
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
+import bifrost.network.peer.ConnectedPeer
 import bifrost.utils.BifrostEncoding
 import bifrost.utils.Logging
 

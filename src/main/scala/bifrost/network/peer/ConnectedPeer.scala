@@ -1,7 +1,7 @@
-package bifrost.network
+package bifrost.network.peer
 
 import akka.actor.ActorRef
-import bifrost.network.peer.PeerInfo
+import bifrost.network.ConnectionId
 
 /**
   * Peer connected to our node

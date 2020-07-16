@@ -1,12 +1,13 @@
 package bifrost.network.message
 
-import bifrost.network._
+import bifrost.network.{message, _}
 import bifrost.network.message.Message.MessageCode
 import bifrost.modifier.ModifierId
+import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, BifrostSerializer, Writer}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.{bytesToId, idToBytes}
 import bifrost.utils.Logging
 
@@ -249,6 +250,6 @@ class HandshakeSpec(featureSerializers: PeerFeature.Serializers, sizeLimit: Int)
     require(r.remaining <= sizeLimit, s"Too big handshake. Size ${r.remaining} exceeds $sizeLimit limit")
     val t = r.getULong()
     val data = peersDataSerializer.parse(r)
-    Handshake(data, t)
+    message.Handshake(data, t)
   }
 }

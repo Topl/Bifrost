@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import bifrost.utils.Logging
 import org.bitlet.weupnp.{GatewayDevice, PortMappingEntry}
 
-class UPnPGateway(gateway: GatewayDevice) extends Logging {
+class Gateway(gateway: GatewayDevice) extends Logging {
 
   val localAddress: InetAddress = gateway.getLocalAddress
   val externalAddress: InetAddress = InetAddress.getByName(gateway.getExternalIPAddress)

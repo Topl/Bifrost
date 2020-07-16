@@ -8,7 +8,7 @@
 //import akka.actor.{ActorRef, ActorRefFactory}
 //import akka.http.scaladsl.server.Route
 //import akka.pattern.ask
-//import bifrost.network.Handshake
+//import bifrost.network.message.Handshake
 //import bifrost.network.NetworkController.ConnectTo
 //import bifrost.network.peer.{PeerInfo, PeerManager}
 //import io.circe.generic.auto._

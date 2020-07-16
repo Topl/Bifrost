@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.network.peer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
@@ -6,8 +6,8 @@ import akka.util.Timeout
 import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
 import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
-import bifrost.network.peer.PeerInfo
 import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+import bifrost.network.{SendToPeers, SendToRandom}
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._

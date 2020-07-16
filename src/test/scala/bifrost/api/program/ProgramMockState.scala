@@ -18,9 +18,9 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message._
-import bifrost.network.peer.PeerManagerRef
+import bifrost.network.peer.{PeerFeature, PeerManagerRef}
 import bifrost.network._
-import bifrost.network.upnp.{UPnP, UPnPGateway}
+import bifrost.network.upnp
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
@@ -52,7 +52,7 @@ trait ProgramMockState extends BifrostGenerators {
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 
   private lazy val basicSpecs = {

@@ -1,7 +1,7 @@
 package bifrost.network.message
 
 import akka.actor.DeadLetterSuppression
-import bifrost.network.ConnectedPeer
+import bifrost.network.peer.ConnectedPeer
 
 import scala.util.{Success, Try}
 

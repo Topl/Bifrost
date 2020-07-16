@@ -3,7 +3,8 @@ package bifrost.network.message
 import java.nio.ByteOrder
 
 import akka.util.ByteString
-import bifrost.network.{ConnectedPeer, MaliciousBehaviorException}
+import bifrost.network.MaliciousBehaviorException
+import bifrost.network.peer.ConnectedPeer
 import scorex.crypto.hash.Blake2b256
 
 import scala.util.Try

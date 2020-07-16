@@ -6,11 +6,8 @@ import akka.actor._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
-import bifrost.network.message.Message.MessageCode
 import bifrost.network.message.{Message, MessageSpec}
-
-import bifrost.network.peer.{LocalAddressPeerFeature, PeerInfo, PenaltyType, PeerManager}
+import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
 
@@ -34,6 +31,7 @@ class NetworkController(
   import NetworkController.ReceivableMessages._
   import PeerManager.ReceivableMessages._
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
+  import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
   import SharedNetworkMessages.ReceivableMessages.DataFromPeer
   import akka.actor.SupervisorStrategy._
 
@@ -67,7 +65,7 @@ class NetworkController(
     settings,
     featureSerializers
   )
-  private var messageHandlers = Map.empty[MessageCode, ActorRef]
+  private var messageHandlers = Map.empty[Message.MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
@@ -317,14 +315,14 @@ class NetworkController(
       peerFeatures
     )
 
-    val handler: ActorRef = PeerConnectionHandlerRef(
+    val handler: ActorRef = peer.PeerConnectionHandlerRef(
       settings,
       self,
       bifrostContext,
       connectionDescription
     )
     context.watch(handler)
-    val connectedPeer = ConnectedPeer(connectionId, handler, None)
+    val connectedPeer = peer.ConnectedPeer(connectionId, handler, None)
     connections += connectionId.remoteAddress -> connectedPeer
     unconfirmedConnections -= connectionId.remoteAddress
   }

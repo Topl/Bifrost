@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 
 package object upnp extends Logging {
 
-  def getValidGateway(settings: NetworkSettings): Option[UPnPGateway] = {
+  def getValidGateway(settings: NetworkSettings): Option[Gateway] = {
     try {
       log.info("Looking for UPnP gateway device...")
       val defaultHttpReadTimeout = settings.upnpGatewayTimeout.map(_.toMillis.toInt).getOrElse(GatewayDevice.getHttpReadTimeout)
@@ -29,7 +29,7 @@ package object upnp extends Logging {
         if (gateway.isEmpty) {
           log.debug("There is no connected UPnP gateway device")
         }
-        gateway.map(new UPnPGateway(_))
+        gateway.map(new Gateway(_))
       }
     } catch {
       case t: Throwable =>
