@@ -3,30 +3,27 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
 import bifrost.history.HistoryReader
-import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import bifrost.mempool.MemPoolReader
+import bifrost.modifier.ModifierId
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message._
 import bifrost.network.peer.{ConnectedPeer, PenaltyType}
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
 import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
-import bifrost.modifier.ModifierId
-import bifrost.utils.Logging
 import bifrost.settings.NetworkSettings
 import bifrost.state.StateReader
-import bifrost.wallet.VaultReader
-import bifrost.utils.NetworkTimeProvider
-import bifrost.utils.BifrostEncoding
+import bifrost.utils.{Logging, NetworkTimeProvider, BifrostEncoding, MalformedModifierError}
 import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.MalformedModifierError
+import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -320,7 +317,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 
   protected def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense")
+      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////

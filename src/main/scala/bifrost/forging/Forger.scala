@@ -80,7 +80,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-    log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense")
+    log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -202,7 +202,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense")
+      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -57,7 +57,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
           networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
         }
 
-    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense")
+    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 }
 
