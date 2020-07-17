@@ -28,10 +28,12 @@ import scala.util.{Failure, Success, Try}
 trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
   extends Actor with Logging with BifrostEncoding {
 
-  // Import the types of messages this actor can send
-  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+  // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._
-  import GenericNodeViewHolder._
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+
 
   type SI <: SyncInfo
   type HIS <: GenericHistory[PMOD, SI, HIS]
@@ -425,6 +427,8 @@ object GenericNodeViewHolder {
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 
+    case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
+
   }
 
   // fixme: No actor is expecting this ModificationApplicationStarted and DownloadRequest messages
@@ -433,7 +437,5 @@ object GenericNodeViewHolder {
   // commented out this message JAA - 2020.07.16 - remove if still here in 3 months
 //  case class ModificationApplicationStarted[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
 //    extends NodeViewHolderEvent
-
-  case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
 }

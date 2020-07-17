@@ -49,11 +49,13 @@ class NodeViewSynchronizer[TX <: Transaction,
      modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
       with Logging with BifrostEncoding {
 
-  // Import the types of messages this actor can send
+  // Import the types of messages this actor can RECEIVE
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+  import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
+
+  // Import the types of messages this actor can SEND
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
   import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-  import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
-  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks

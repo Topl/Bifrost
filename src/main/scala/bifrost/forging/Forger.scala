@@ -24,14 +24,16 @@ import scala.util.Try
 class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
-  // Import the types of messages this actor can send
-  import bifrost.forging.Forger._
+  // Import the types of messages this actor can RECEIVE
   import bifrost.forging.Forger.ReceivableMessages._
+
+  // Import the types of messages this actor can send
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
   private val isForging = settings.forgingSettings.tryForging
+  private val MaxTarget: Long = Long.MaxValue
 
   override def preStart(): Unit = {
     if (isForging) {
@@ -87,10 +89,10 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
   /**
    * wrapper function to encapsulate the returned CurrentView
    *
-   * @param v
+   * @param view the view returned from NodeViewHolder
    * @return
    */
-  def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+  def actOnCurrentView(view: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = view
 
   private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
       log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
@@ -147,21 +149,12 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
     CB +: regTxs
   }
 
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
-
-object Forger extends Logging {
-
-  private val MaxTarget: Long = Long.MaxValue
-
-  object ReceivableMessages {
-
-    case object StartForging
-
-    case object StopForging
-
+  def calcAdjustedTarget(difficulty: Long,
+                         parent: Block,
+                         targetBlockDelay: Long): BigInt = {
+    val target: Double = MaxTarget.toDouble / difficulty.toDouble
+    val timedelta = Instant.now().toEpochMilli - parent.timestamp
+    BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
   }
 
   def hit(lastBlock: Block)(box: ArbitBox): Long = {
@@ -194,12 +187,19 @@ object Forger extends Logging {
     }
   }
 
-  def calcAdjustedTarget(difficulty: Long,
-                         parent: Block,
-                         targetBlockDelay: Long): BigInt = {
-    val target: Double = MaxTarget.toDouble / difficulty.toDouble
-    val timedelta = Instant.now().toEpochMilli - parent.timestamp
-    BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
+
+object Forger {
+
+  object ReceivableMessages {
+
+    case object StartForging
+
+    case object StopForging
+
   }
 
 }

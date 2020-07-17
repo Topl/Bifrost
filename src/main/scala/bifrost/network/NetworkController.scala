@@ -29,8 +29,12 @@ class NetworkController(
     extends Actor
     with Logging {
 
-  // Import the types of messages this actor can send
+  // Import the types of messages this actor can RECEIVE
+  // NOTE: bifrost.network.message.Message is also receivable. This is imported globally due to the
+  //       definition of SendToNetwork in the companion object
   import NetworkController.ReceivableMessages._
+
+  // Import the types of messages this actor can SEND
   import PeerManager.ReceivableMessages._
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}

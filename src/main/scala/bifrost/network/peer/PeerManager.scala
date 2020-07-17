@@ -17,8 +17,10 @@ import scala.util.Random
   */
 class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends Actor with Logging {
 
-  // Import the types of messages this actor can send
+  // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
+
+  // Import the types of messages this actor can SEND
   import bifrost.network.NetworkController.ReceivableMessages._
 
   private val peerDatabase = new InMemoryPeerDatabase(settings.network, bifrostContext.timeProvider)

@@ -21,8 +21,11 @@ class PeerConnectionHandler(val settings: NetworkSettings,
                            )(implicit ec: ExecutionContext)
   extends Actor with Logging {
 
-  // Import the types of messages this actor can send
+  // Import the types of messages this actor can RECEIVE
   import PeerConnectionHandler.ReceivableMessages._
+  import bifrost.network.message.Message
+
+  // Import the types of messages this actor can SEND
   import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 
   private val connection = connectionDescription.connection
@@ -123,7 +126,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   }
 
   private def localInterfaceWriting: Receive = {
-    case msg: message.Message[_] =>
+    case msg: Message[_] =>
       log.info("Send message " + msg.spec + " to " + connectionId)
       outMessagesCounter += 1
       connection ! Tcp.Write(messageSerializer.serialize(msg), Ack(outMessagesCounter))

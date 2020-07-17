@@ -22,9 +22,11 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
                        featureSerializers: PeerFeature.Serializers)
                       (implicit ec: ExecutionContext) extends Actor with Logging {
 
-  // Import the types of messages this actor can send
-  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
+  // Import the types of messages this actor can RECEIVE
   import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
   import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
