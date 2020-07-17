@@ -1,9 +1,8 @@
 package example
 
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.{FlatSpec, Matchers}
 
-class HelloSpec extends AnyFlatSpec with Matchers {
+class HelloSpec extends FlatSpec with Matchers {
   "The Hello object" should "say hello" in {
     Hello.greeting shouldEqual "hello"
   }
