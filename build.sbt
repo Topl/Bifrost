@@ -179,5 +179,9 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
-  .settings(commonSettings: _*)
-  .dependsOn(bifrost % "test->test")
+  .settings(
+    commonSettings,
+    libraryDependencies ++= testingDependencies
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
