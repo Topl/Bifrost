@@ -3,6 +3,7 @@ package bifrost.network
 import java.net._
 
 import akka.actor._
+import akka.actor.SupervisorStrategy._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -28,12 +29,12 @@ class NetworkController(
     extends Actor
     with Logging {
 
+  // Import the types of messages this actor can send
   import NetworkController.ReceivableMessages._
   import PeerManager.ReceivableMessages._
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
   import SharedNetworkMessages.ReceivableMessages.DataFromPeer
-  import akka.actor.SupervisorStrategy._
 
   private lazy val bindAddress = settings.bindAddress
 

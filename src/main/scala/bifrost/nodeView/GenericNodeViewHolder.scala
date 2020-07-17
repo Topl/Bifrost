@@ -6,7 +6,6 @@ import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
 import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
@@ -29,6 +28,8 @@ import scala.util.{Failure, Success, Try}
 trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
   extends Actor with Logging with BifrostEncoding {
 
+  // Import the types of messages this actor can send
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
   import GenericNodeViewHolder.ReceivableMessages._
   import GenericNodeViewHolder._
 

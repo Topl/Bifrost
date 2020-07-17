@@ -21,6 +21,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
                            )(implicit ec: ExecutionContext)
   extends Actor with Logging {
 
+  // Import the types of messages this actor can send
   import PeerConnectionHandler.ReceivableMessages._
   import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 

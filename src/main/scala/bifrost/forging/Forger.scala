@@ -24,6 +24,7 @@ import scala.util.Try
 class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
+  // Import the types of messages this actor can send
   import bifrost.forging.Forger._
   import bifrost.forging.Forger.ReceivableMessages._
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}

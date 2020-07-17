@@ -9,13 +9,8 @@ import bifrost.mempool.MemPoolReader
 import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
-import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 import bifrost.network.message._
 import bifrost.network.peer.{ConnectedPeer, PenaltyType}
-import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
 import bifrost.nodeView.PersistentNodeViewModifier
@@ -53,6 +48,12 @@ class NodeViewSynchronizer[TX <: Transaction,
      timeProvider: NetworkTimeProvider,
      modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
       with Logging with BifrostEncoding {
+
+  // Import the types of messages this actor can send
+  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+  import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
