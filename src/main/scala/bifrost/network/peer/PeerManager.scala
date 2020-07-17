@@ -116,10 +116,6 @@ object PeerManager {
 
     case class ConfirmConnection(connectionId: ConnectionId, handlerRef: ActorRef)
 
-    case class ConnectionConfirmed(connectionId: ConnectionId, handlerRef: ActorRef)
-
-    case class ConnectionDenied(connectionId: ConnectionId, handlerRef: ActorRef)
-
     case class Penalize(remote: InetSocketAddress, penaltyType: PenaltyType)
 
     case class Blacklisted(remote: InetSocketAddress)

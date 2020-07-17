@@ -503,12 +503,13 @@ object NodeViewSynchronizer {
     case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
 
     //todo: consider sending info on the rollback
-
     case object RollbackFailed extends NodeViewHolderEvent
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
     case class StartingPersistentModifierApplication[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends NodeViewHolderEvent
+
+    case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends NodeViewHolderEvent
 
     /**
       * After application of batch of modifiers from cache to History, NodeViewHolder sends this message,

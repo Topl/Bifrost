@@ -34,8 +34,6 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
 
   override def preStart(): Unit = {
     if (isForging) {
-      // JAA: I am not sure if these lines need to be switched. I fear that switching the context after
-      // scheduling may lead the message to be ignored. Remove this comment if still here in 3 months - 2020.06.17
       context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
     }
@@ -80,7 +78,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-    log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+      log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -525,24 +525,19 @@ object NetworkController {
 
     case class Handshaked(peer: PeerInfo)
 
-    case class RegisterMessageSpecs(
-        specs: Seq[MessageSpec[_]],
-        handler: ActorRef
-    )
+    case class RegisterMessageSpecs(specs: Seq[MessageSpec[_]], handler: ActorRef)
 
-    case class SendToNetwork(
-        message: Message[_],
-        sendingStrategy: SendingStrategy
-    )
+    case class SendToNetwork(message: Message[_], sendingStrategy: SendingStrategy)
 
     case class ConnectTo(peer: PeerInfo)
 
     case class DisconnectFrom(peer: ConnectedPeer)
 
-    case class PenalizePeer(
-        address: InetSocketAddress,
-        penaltyType: PenaltyType
-    )
+    case class PenalizePeer(address: InetSocketAddress, penaltyType: PenaltyType)
+
+    case class ConnectionConfirmed(connectionId: ConnectionId, handlerRef: ActorRef)
+
+    case class ConnectionDenied(connectionId: ConnectionId, handlerRef: ActorRef)
 
     case object ShutdownNetwork
 

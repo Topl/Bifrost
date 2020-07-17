@@ -1,14 +1,13 @@
 package bifrost.nodeView
 
 import akka.actor.Actor
-import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.history.GenericHistory
+import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
-import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
 import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
@@ -430,11 +429,9 @@ object GenericNodeViewHolder {
   // fixme: No actor is expecting this ModificationApplicationStarted and DownloadRequest messages
   // fixme: Even more, ModificationApplicationStarted seems not to be sent at all
   // fixme: should we delete these messages?
-  case class ModificationApplicationStarted[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-    extends NodeViewHolderEvent
-
-  case class DownloadRequest(modifierTypeId: ModifierTypeId,
-                             modifierId: ModifierId) extends NodeViewHolderEvent
+  // commented out this message JAA - 2020.07.16 - remove if still here in 3 months
+//  case class ModificationApplicationStarted[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
+//    extends NodeViewHolderEvent
 
   case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
