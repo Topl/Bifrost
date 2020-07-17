@@ -74,6 +74,7 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
 
   private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
+  // todo: why is an async view querying the NodeViewHolder again?
   private def getMempool: Try[MP] = Try {
     Await
       .result(

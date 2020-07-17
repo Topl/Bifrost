@@ -429,11 +429,4 @@ object GenericNodeViewHolder {
 
   }
 
-  // fixme: No actor is expecting this ModificationApplicationStarted and DownloadRequest messages
-  // fixme: Even more, ModificationApplicationStarted seems not to be sent at all
-  // fixme: should we delete these messages?
-  // commented out this message JAA - 2020.07.16 - remove if still here in 3 months
-//  case class ModificationApplicationStarted[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-//    extends NodeViewHolderEvent
-
 }

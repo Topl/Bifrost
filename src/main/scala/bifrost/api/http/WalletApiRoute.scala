@@ -152,9 +152,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       // Update nodeView with new TX
       PolyTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            PolyTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[PolyTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")
@@ -302,9 +300,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       // Update nodeView with new TX
       ArbitTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            ArbitTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ArbitTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")

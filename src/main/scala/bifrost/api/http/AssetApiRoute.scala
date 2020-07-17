@@ -157,9 +157,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         .get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")
@@ -319,9 +317,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         .get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")
@@ -461,9 +457,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
       AssetCreation.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetCreation
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetCreation](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")

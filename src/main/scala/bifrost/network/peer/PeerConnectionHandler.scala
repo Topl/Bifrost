@@ -56,7 +56,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   override def preStart: Unit = {
     context watch connection
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
-    connection ! Tcp.ResumeReading
+    connection ! Tcp.ResumeReading // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
 
     context.become(handshaking)
   }
@@ -72,13 +72,14 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
+    // todo: JAA - consider replacing this with a case watching for WritingResumed because that is what should
+    // todo:       trigger a message to be sent back to this actor resulting in the creation of a handshake
     handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
     (self ! HandshakeTimeout))
     val hb = handshakeSerializer.toBytes(createHandshakeMessage())
-    connection ! Tcp.Write(ByteString(hb))
+    connection ! Tcp.Write(ByteString(hb), Tcp.NoAck)
     log.info(s"Handshake sent to $connectionId")
 
-    // note: JAA made a change here that might break handshaking 2020.06.04 (remove if still here in 3 months)
     receiveAndHandleHandshake orElse
     handshakeTimeout orElse
     fatalCommands orElse
