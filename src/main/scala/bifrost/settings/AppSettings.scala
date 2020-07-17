@@ -81,34 +81,68 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
-  def readConfig(path: StartupOpts, configPath: String): Config = {
+  def readConfig(args: StartupOpts): Config = {
 
-    val fileOpt: Option[File] = path.userConfigPathOpt.map(fileName ⇒ new File(fileName)).filter(_.exists())
-      .orElse(path.userConfigPathOpt.flatMap(fileName ⇒ Option(getClass.getClassLoader.getResource(fileName)))
-        .map(r ⇒ new File(r.toURI)).filter(_.exists()))
-
-    val config = fileOpt match {
-      case None ⇒
-        log.warn("No configuration file was provided, using default configuration")
-        ConfigFactory.load()
-      case Some(file) ⇒
-        val configFile = ConfigFactory.parseFile(file)
-        if(!configFile.hasPath(configPath)) {
-          throw new Error("Configuration file does not contain Bifrost settings object")
-        }
-        ConfigFactory
-        .defaultOverrides()
-        .withFallback(configFile)
-        .withFallback(ConfigFactory.defaultApplication())
-        .withFallback(ConfigFactory.defaultReference())
-        .resolve()
+    val networkPath = args.networkTypeOpt.flatMap{
+      networkType =>
+        Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    config
+    val filePath = args.networkTypeOpt.flatMap{
+      networkType =>
+        Option(s"src/main/resources/${networkType.verboseName}.conf")
+    }
+
+    args.networkTypeOpt.fold(log.warn("Running without network config"))(
+      networkType => log.info(s"Running in ${networkType.verboseName} network mode"))
+
+    val networkConfigFileOpt = for {
+      filePathOpt <- networkPath
+      file = new File(filePathOpt)
+      if file.exists
+    } yield file
+
+    val userConfigFileOpt = for {
+      filePathOpt <- args.userConfigPathOpt
+      file = new File(filePathOpt)
+      if file.exists
+    } yield file
+
+    (userConfigFileOpt, networkConfigFileOpt) match {
+      /* If both are provided, user provided settings should override the default setting */
+      case (Some(file), None) ⇒
+        val config = ConfigFactory.parseFile(file)
+        ConfigFactory
+          .defaultOverrides()
+          .withFallback(config)
+          .withFallback(ConfigFactory.defaultApplication())
+          .withFallback(ConfigFactory.defaultReference())
+          .resolve()
+      case (None, Some(networkConfigFile)) ⇒
+        log.warn("No custom settings provided. Starting with default settings!")
+        val config = ConfigFactory.parseFile(networkConfigFile)
+        ConfigFactory
+        .defaultOverrides()
+        .withFallback(config)
+        .withFallback(ConfigFactory.defaultReference())
+        .resolve()
+      case (Some(file), Some(networkConfigFile)) =>
+        val config = ConfigFactory.parseFile(file)
+        val networkConfig = ConfigFactory.parseFile(networkConfigFile)
+        ConfigFactory
+          .defaultOverrides()
+          .withFallback(config)
+          .withFallback(networkConfig)
+          .withFallback(ConfigFactory.defaultReference())
+          .resolve()
+      case _ ⇒
+        log.warn("No configuration file was provided, using default configuration")
+        ConfigFactory.load()
+    }
   }
 
-  def read(userConfigPath: StartupOpts = StartupOpts.empty): AppSettings = {
-    fromConfig(readConfig(userConfigPath, configPath))
+  def read(startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
+    fromConfig(readConfig(startupOpts))
   }
 
   def fromConfig(config: Config): AppSettings = {
