@@ -11,7 +11,7 @@ import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.CurrentView
 import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.utils.Logging

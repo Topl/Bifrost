@@ -427,8 +427,6 @@ object GenericNodeViewHolder {
 
     case class EliminateTransactions(ids: Seq[ModifierId])
 
-    case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
-
   }
 
   // fixme: No actor is expecting this ModificationApplicationStarted and DownloadRequest messages

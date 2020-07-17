@@ -1,6 +1,5 @@
 package bifrost.api.http
 
-
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.PrivateKey25519Companion

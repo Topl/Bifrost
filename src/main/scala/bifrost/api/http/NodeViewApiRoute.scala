@@ -6,7 +6,7 @@ import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.settings.AppSettings
 import bifrost.state.State
