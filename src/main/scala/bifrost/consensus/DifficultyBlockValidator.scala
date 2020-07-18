@@ -1,6 +1,5 @@
 package bifrost.consensus
 
-import bifrost.forging.Forger
 import bifrost.history.Storage
 import bifrost.modifier.block.{Block, BlockValidator}
 
@@ -14,11 +13,11 @@ class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
   private def checkConsensusRules(block: Block): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
       val lastBlock = storage.modifierById(block.parentId).get
-      val hit = Forger.hit(lastBlock)(block.forgerBox)
+      val hit = calcHit(lastBlock)(block.forgerBox)
       val difficulty = storage.difficultyOf(block.parentId).get
-      // val target = (Forger.MaxTarget / difficulty) * block.generatorBox.value
-      val target = Forger.calcAdjustedTarget(difficulty, lastBlock, storage.settings.forgingSettings.targetBlockTime.length)
-      require(BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
+      val target = calcAdjustedTarget(difficulty, lastBlock, storage.settings.forgingSettings.targetBlockTime)
+
+      require( BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
     }
   }
 }

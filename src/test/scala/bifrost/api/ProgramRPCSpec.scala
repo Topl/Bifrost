@@ -11,7 +11,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
 import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.ForgerRef
+import bifrost.consensus.ForgerRef
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId

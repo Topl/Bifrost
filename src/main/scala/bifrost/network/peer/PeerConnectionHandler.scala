@@ -58,7 +58,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
     connection ! Tcp.ResumeReading // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
 
-    context.become(handshaking)
+    context become handshaking
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +123,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private def handshakeTimeout: Receive = {
     case HandshakeTimeout =>
       log.info(s"Handshake timeout with $connectionId, going to drop the connection")
-      self ! CloseConnection
+      connection ! Tcp.Close
   }
 
   private def localInterfaceWriting: Receive = {
@@ -138,18 +138,18 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       buffer(id, msg)
       context become workingCycleBuffering
 
-    case CloseConnection =>
-      log.info(s"Enforced to abort communication with: " + connectionId + ", switching to closing mode")
-      if (outMessagesBuffer.isEmpty) connection ! Tcp.Close else context become closingWithNonEmptyBuffer
+    case Tcp.WritingResumed => // ignore in stable mode
 
     case Ack(_) => // ignore ACKs in stable mode
 
-    case Tcp.WritingResumed => // ignore in stable mode
+    case CloseConnection =>
+      log.info(s"Enforced to abort communication with: " + connectionId + ", switching to closing mode")
+      if (outMessagesBuffer.isEmpty) connection ! Tcp.Close else context become closingWithNonEmptyBuffer
   }
 
   // operate in ACK mode until all buffered messages are transmitted
   private def localInterfaceBuffering: Receive = {
-    case msg: message.Message[_] =>
+    case msg: Message[_] =>
       outMessagesCounter += 1
       buffer(outMessagesCounter, messageSerializer.serialize(msg))
 

@@ -11,12 +11,14 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.MILLISECONDS
 import scala.collection.BitSet
+import scala.math.{min, max}
 import scala.util.{Failure, Try}
 
 /**
@@ -26,13 +28,8 @@ import scala.util.{Failure, Try}
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History(val storage: Storage,
-              settings: AppSettings,
-              validators: Seq[BlockValidator[Block]])
-  extends GenericHistory[Block,
-    BifrostSyncInfo,
-    History] with Logging
-      with BifrostEncoding {
+class History(val storage: Storage, settings: AppSettings, validators: Seq[BlockValidator[Block]])
+  extends GenericHistory[Block, BifrostSyncInfo, History] with Logging with BifrostEncoding {
 
   override type NVCT = History
 
@@ -86,10 +83,36 @@ class History(val storage: Storage,
         val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
         (new History(storage, settings, validators), progInfo)
       } else {
-        val parent = modifierById(block.parentId).get
-        val oldDifficulty = storage.difficultyOf(block.parentId).get
-        var difficulty = (oldDifficulty * settings.forgingSettings.targetBlockTime.length) / (block.timestamp - parent.timestamp)
-        if (difficulty < settings.forgingSettings.MinimumDifficulty) difficulty = settings.forgingSettings.MinimumDifficulty
+
+        /**
+         * Function for retrieving the block timestamps for a given number of blocks
+         * @param current the block to start querying from
+         * @param num the number of blocks back to query
+         * @param acc
+         * @return
+         */
+        @tailrec
+        def getBlockTimes(current: Block, num: Int, acc: List[Block.Timestamp] = List()): List[Block.Timestamp] = {
+          if (num > 0) {
+            val parent = modifierById(current.parentId).get
+            val blockList = parent.timestamp :: acc
+            getBlockTimes(parent, num - 1, blockList)
+          } else acc
+        }
+
+        // Calculate the block difficulty according to
+        // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
+        val blockTimes = getBlockTimes(block, 3) :+ block.timestamp
+        val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
+        val parentDifficulty = storage.difficultyOf(block.parentId).get
+        val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
+
+        val difficulty: Long = if (averageDelay > targetTime) {
+          ((parentDifficulty * min(averageDelay, targetTime * 1.1)) / targetTime).toLong
+        } else {
+          (parentDifficulty * (1 - 0.64 * (targetTime - max(averageDelay, targetTime * 0.9)) / targetTime)).toLong
+        }
+
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {

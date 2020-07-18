@@ -8,8 +8,8 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
+import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
-import bifrost.forging.ForgerRef
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
@@ -148,6 +148,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     // TODO: consider adding a message to networkCntrl to also trigger binding here
+    networkControllerRef ! "Bind"
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 
     /* on unexpected shutdown */

@@ -343,18 +343,18 @@ class NodeViewSynchronizer[TX <: Transaction,
 
   protected def sendSync(syncTracker: SyncTracker, history: HR): Unit = {
     val peers = statusTracker.peersToSyncWith()
+    val msg = Message(syncInfoSpec, Right(history.syncInfo), None)
     if (peers.nonEmpty) {
-      networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(history.syncInfo), None), SendToPeers(peers))
+      networkControllerRef ! SendToNetwork(msg, SendToPeers(peers))
     }
   }
 
   // Send history extension to the (less developed) peer 'remote' which does not have it.
-  def sendExtension(remote: ConnectedPeer,
-                    status: HistoryComparisonResult,
-                    ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
+  def sendExtension(remote: ConnectedPeer, status: HistoryComparisonResult, ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
     ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
       case (mid, mods) =>
-        networkControllerRef ! SendToNetwork(Message(invSpec, Right(InvData(mid, mods)), None), SendToPeer(remote))
+        val msg = Message(invSpec, Right(InvData(mid, mods)), None)
+        networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }
 
   /**

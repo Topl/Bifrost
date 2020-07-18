@@ -1,13 +1,9 @@
-package bifrost.forging
-
-import java.time.Instant
+package bifrost.consensus
 
 import akka.actor._
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
-import bifrost.modifier.block.Block.Version
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
@@ -16,7 +12,6 @@ import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
-import com.google.common.primitives.Longs
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -25,7 +20,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
-  import bifrost.forging.Forger.ReceivableMessages._
+  import Forger.ReceivableMessages._
 
   // Import the types of messages this actor can send
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
@@ -33,7 +28,6 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
   private val isForging = settings.forgingSettings.tryForging
-  private val MaxTarget: Long = Long.MaxValue
 
   override def preStart(): Unit = {
     if (isForging) {
@@ -109,7 +103,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
       log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
         s"${boxKeys.map(_._1.value).sum}")
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, settings.forgingSettings.targetBlockTime.length)
+      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, settings.forgingSettings.targetBlockTime)
 
       iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, settings.forgingSettings.version) match {
         case Some(block) =>
@@ -128,6 +122,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
                        parent: Block,
                        view: (History, State, Wallet, MemPool)
                       ): Try[Seq[Transaction]] = Try {
+
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
     lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id.hashBytes).get
@@ -147,44 +142,6 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
     CB +: regTxs
-  }
-
-  def calcAdjustedTarget(difficulty: Long,
-                         parent: Block,
-                         targetBlockDelay: Long): BigInt = {
-    val target: Double = MaxTarget.toDouble / difficulty.toDouble
-    val timedelta = Instant.now().toEpochMilli - parent.timestamp
-    BigDecimal(target * timedelta.toDouble / targetBlockDelay.toDouble).toBigInt()
-  }
-
-  def hit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
-    Longs.fromByteArray((0: Byte) +: h.take(7))
-  }
-
-  def iteration(parent: Block,
-                boxKeys: Seq[(ArbitBox, PrivateKey25519)],
-                txsToInclude: Seq[Transaction],
-                target: BigInt,
-                version: Version): Option[Block] = {
-
-    log.debug("in the iteration function")
-    val successfulHits = boxKeys.map { boxKey =>
-      val h = hit(parent)(boxKey._1)
-      //log.debug(s"Hit value: $h")
-      (boxKey, h)
-    }.filter(t => BigInt(t._2) < BigInt(t._1._1.value) * target)
-
-    log.debug(s"Successful hits: ${successfulHits.size}")
-    successfulHits.headOption.map { case (boxKey, _) =>
-      if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
-        Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2,
-          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
-      }
-      else {
-        Block.create(parent.id, Instant.now().toEpochMilli, txsToInclude, boxKey._1, boxKey._2, 0, version)
-      }
-    }
   }
 
 }

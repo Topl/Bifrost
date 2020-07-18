@@ -41,12 +41,8 @@ class NetworkController(
   import SharedNetworkMessages.ReceivableMessages.DataFromPeer
 
   private lazy val bindAddress = settings.bindAddress
-
   private implicit val system: ActorSystem = context.system
-
-  private implicit val timeout: Timeout = Timeout(
-    settings.controllerTimeout.getOrElse(5 seconds)
-  )
+  private implicit val timeout: Timeout = Timeout(settings.controllerTimeout.getOrElse(5 seconds))
   override val supervisorStrategy: OneForOneStrategy = OneForOneStrategy(
     maxNrOfRetries = NetworkController.ChildActorHandlingRetriesNr,
     withinTimeRange = 1.minute
@@ -60,9 +56,11 @@ class NetworkController(
       log.warn(s"Restarting child actor failed with: $e")
       Restart
   }
+
   //todo: make usage more clear, now we're relying on preStart logic in a actor which is described by a never used val
   private val featureSerializers: PeerFeature.Serializers =
     bifrostContext.features.map(f => f.featureId -> f.serializer).toMap
+
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef(
     "PeerSynchronizer",
     self,
@@ -70,17 +68,16 @@ class NetworkController(
     settings,
     featureSerializers
   )
+
   private var messageHandlers = Map.empty[Message.MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
-  //check own declared address for validity
-  validateDeclaredAddress()
-
-  log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
-
-  //bind to listen incoming connections
-  tcpManager ! Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+  override def preStart(): Unit = {
+    log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
+    //check own declared address for validity
+    validateDeclaredAddress()
+  }
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -96,6 +93,10 @@ class NetworkController(
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
+    case "Bind" =>
+      //bind to listen incoming connections
+      tcpManager ! Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+
     case Tcp.Bound(_) =>
       log.info("Successfully bound to the port " + settings.bindAddress.getPort)
       scheduleConnectionToPeer()
