@@ -17,9 +17,8 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.NodeViewHolderRef
+import bifrost.nodeView.{NodeViewHolderRef, CurrentView}
 import bifrost.state.State
 import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet

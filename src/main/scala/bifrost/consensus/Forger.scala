@@ -1,6 +1,9 @@
 package bifrost.consensus
 
+import java.time.Instant
+
 import akka.actor._
+import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
@@ -89,33 +92,30 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
   def actOnCurrentView(view: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = view
 
   private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
-      log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
-      log.info("chain difficulty: " + h.difficulty)
+    log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
+    log.info("chain difficulty: " + h.difficulty)
 
-      val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
-        case a: ArbitBox => s.closedBox(a.id).isDefined
-        case _ => false
-      }).map(_.box.asInstanceOf[ArbitBox])
+    val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
+      case a: ArbitBox => s.closedBox(a.id).isDefined
+      case _ => false
+    }).map(_.box.asInstanceOf[ArbitBox])
 
-      val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
+    val boxKeys = boxes.flatMap(b => w.secretByPublicImage(b.proposition).map(s => (b, s)))
+    log.debug(s"Trying to generate block on top of ${h.bestBlock.id} with balance " +
+      s"${boxKeys.map(_._1.value).sum}")
 
-      val parent = h.bestBlock
-      log.debug(s"Trying to generate block on top of ${parent.id} with balance " +
-        s"${boxKeys.map(_._1.value).sum}")
+    val transactions = pickTransactions(m, s, h.bestBlock, (h, s, w, m)).get
 
-      val adjustedTarget = calcAdjustedTarget(h.difficulty, parent, settings.forgingSettings.targetBlockTime)
-
-      iteration(parent, boxKeys, pickTransactions(m, s, parent, (h, s, w, m)).get, adjustedTarget, settings.forgingSettings.version) match {
-        case Some(block) =>
-          log.debug(s"Locally generated block: $block")
-          viewHolderRef !
-            LocallyGeneratedModifier[Block](block)
-        case None =>
-          log.debug(s"Failed to generate block")
-      }
-
-      context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+    iteration(h.bestBlock, h.difficulty, boxKeys, transactions, settings.forgingSettings.version) match {
+      case Some(block) =>
+        log.debug(s"Locally generated block: $block")
+        viewHolderRef ! LocallyGeneratedModifier[Block](block)
+      case None =>
+        log.debug(s"Failed to generate block")
     }
+
+    context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+  }
 
   def pickTransactions(memPool: MemPool,
                        state: State,
@@ -142,6 +142,33 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
       if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
     }
     CB +: regTxs
+  }
+
+  def iteration(parent: Block,
+                difficulty: Long,
+                boxKeys: Seq[(ArbitBox, PrivateKey25519)],
+                txsToInclude: Seq[Transaction],
+                version: Block.Version): Option[Block] = {
+
+    val targetTime = settings.forgingSettings.targetBlockTime
+    val timestamp = Instant.now().toEpochMilli // save a common timestamp for use in this method call
+    val target = calcAdjustedTarget(parent, difficulty, targetTime, timestamp)
+
+    val successfulHits = boxKeys.map { boxKey =>
+      val h = calcHit(parent)(boxKey._1)
+      (boxKey, h)
+    }.filter(t => BigInt(t._2) < (BigInt(t._1._1.value) * target))
+    log.debug(s"Successful hits: ${successfulHits.size}")
+
+    successfulHits.headOption.map { case (boxKey, _) =>
+      if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
+        Block.create(parent.id, timestamp, txsToInclude, boxKey._1, boxKey._2,
+          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
+      }
+      else {
+        Block.create(parent.id, timestamp, txsToInclude, boxKey._1, boxKey._2, 0, version)
+      }
+    }
   }
 
 }

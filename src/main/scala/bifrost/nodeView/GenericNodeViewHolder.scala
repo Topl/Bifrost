@@ -413,9 +413,7 @@ object GenericNodeViewHolder {
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])
 
-    sealed trait NewTransactions[TX <: Transaction]{
-      val txs: Iterable[TX]
-    }
+    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
 
     case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
       override val txs: Iterable[TX] = Iterable(tx)

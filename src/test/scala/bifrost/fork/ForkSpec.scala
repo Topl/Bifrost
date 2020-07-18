@@ -1,6 +1,8 @@
 
 package bifrost.fork
 
+import java.time.Instant
+
 import bifrost.BifrostGenerators
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
@@ -10,9 +12,7 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import bifrost.settings.{AppSettings, ForgingSettings, StartupOpts, Version}
-import io.circe
-import io.circe.syntax._
+import bifrost.settings.{AppSettings, StartupOpts}
 import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
 import scorex.crypto.signatures.Curve25519
 
@@ -37,6 +37,8 @@ class ForkSpec extends PropSpec
   var history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3
+
+  println("Just before prop")
 
   property("Appending version3 blocks before height = forkHeight should fail") {
     val tempBlock_version3 = Block(history.bestBlockId,
@@ -66,8 +68,8 @@ class ForkSpec extends PropSpec
     println(s"history.height: ${history.height}")
     for(i <- 2L to testSettings_version0.forgingSettings.forkHeight) {
       val tempBlock = Block(history.bestBlockId,
-        System.currentTimeMillis(),
-        ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+        Instant.now().toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
         Seq(),
         0L,
@@ -80,8 +82,8 @@ class ForkSpec extends PropSpec
     }
 
     val tempBlock_version3_1 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -93,8 +95,8 @@ class ForkSpec extends PropSpec
     Thread.sleep(1000)
 
     val tempBlock_version3_2 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -126,8 +128,8 @@ class ForkSpec extends PropSpec
     Thread.sleep(1000)
     
     val tempBlock_version0 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -153,8 +155,8 @@ class ForkSpec extends PropSpec
     Thread.sleep(1000)
 
     val tempBlock_version3 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
@@ -164,8 +166,8 @@ class ForkSpec extends PropSpec
     assert(history.modifierById(tempBlock_version3.id).isDefined)
 
     val tempBlock_version0 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,

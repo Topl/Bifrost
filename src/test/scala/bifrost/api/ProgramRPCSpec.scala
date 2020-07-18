@@ -22,7 +22,7 @@ import bifrost.network._
 import bifrost.network.message._
 import bifrost.network.peer.{PeerFeature, PeerManagerRef}
 import bifrost.network.upnp
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.BifrostContext

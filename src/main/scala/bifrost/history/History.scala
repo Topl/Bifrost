@@ -64,12 +64,12 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param block block to append
     * @return the update history including `block` as the most recent block
     */
-  override def append(block: Block):
-  Try[(History, ProgressInfo[Block])] = Try {
+  override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
     val validationResults = validators.map(_.validate(block))
 
+    // TODO: JAA - shouldn't we reject blocks that fail validation?
     validationResults.foreach {
       case Failure(e) => log.warn(s"Block validation failed", e)
       case _ =>
@@ -88,7 +88,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
          * Function for retrieving the block timestamps for a given number of blocks
          * @param current the block to start querying from
          * @param num the number of blocks back to query
-         * @param acc
+         * @param acc an accumulator for the returned list on the base case
          * @return
          */
         @tailrec
@@ -102,17 +102,18 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
         // Calculate the block difficulty according to
         // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
-        val blockTimes = getBlockTimes(block, 3) :+ block.timestamp
+        val blockTimes = lastBlocks(4, block).map(prev => prev.timestamp)
         val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
         val parentDifficulty = storage.difficultyOf(block.parentId).get
         val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
-
+        // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
         val difficulty: Long = if (averageDelay > targetTime) {
           ((parentDifficulty * min(averageDelay, targetTime * 1.1)) / targetTime).toLong
         } else {
           (parentDifficulty * (1 - 0.64 * (targetTime - max(averageDelay, targetTime * 0.9)) / targetTime)).toLong
         }
 
+        // Determine if this block is on the canonical chain
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
@@ -124,6 +125,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         } else { // we want to swap to a fork
           bestForkChanges(block)
         }
+
         storage.update(block, difficulty, builtOnBestChain)
         (new History(storage, settings, validators), mod)
       }
@@ -221,22 +223,20 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Return specified number of Bifrost blocks, ordered back from last one
     *
     * @param count - how many blocks to return
-    * @return PoW blocks, in reverse order (starting from the most recent one)
+    * @return blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Int, startBlock: Block): Seq[Block] = if (isEmpty) {
-    Seq()
-  } else {
+  def lastBlocks(count: Int, startBlock: Block): Seq[Block] = {
     @tailrec
-    def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = if (acc.length >= count) {
-      acc
-    } else {
-      modifierById(b.parentId) match {
-        case Some(parent: Block) => loop(parent, b +: acc)
-        case _ => b +: acc
-      }
+    def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
+      if (acc.length >= count) acc
+      else modifierById(b.parentId) match {
+          case Some(parent: Block) => loop(parent, b +: acc)
+          case _ => b +: acc
+        }
     }
 
-    loop(startBlock)
+    if (isEmpty) Seq()
+    else loop(startBlock)
   }
 
   override def syncInfo(answer: Boolean): BifrostSyncInfo =

@@ -12,12 +12,15 @@ class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
   //PoS consensus rules checks, throws exception if anything wrong
   private def checkConsensusRules(block: Block): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
-      val lastBlock = storage.modifierById(block.parentId).get
-      val hit = calcHit(lastBlock)(block.forgerBox)
-      val difficulty = storage.difficultyOf(block.parentId).get
-      val target = calcAdjustedTarget(difficulty, lastBlock, storage.settings.forgingSettings.targetBlockTime)
+      val parent = storage.modifierById(block.parentId).get
+      val parentDifficulty = storage.parentDifficulty(block)
+      val targetTime = storage.settings.forgingSettings.targetBlockTime
+      val timestamp = block.timestamp
 
-      require( BigInt(hit) < target * BigInt(block.forgerBox.value), s"$hit < $target failed, $difficulty, ")
+      val hit = calcHit(parent)(block.forgerBox)
+      val target = calcAdjustedTarget(parent, parentDifficulty, targetTime, timestamp)
+
+      require( BigInt(hit) < (target * BigInt(block.forgerBox.value)), s"$hit < $target failed, $parentDifficulty, ")
     }
   }
 }

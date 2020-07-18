@@ -138,6 +138,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
 
   def parseBytes2xAndBefore(bytes: Array[Byte]): Try[Block] = Try {
     val parentId = bytesToId(bytes.slice(0, Block.blockIdLength))
+
     val Array(timestamp: Long, generatorBoxLen: Long) = (0 until 2).map {
       i => Longs.fromByteArray(bytes.slice(Block.blockIdLength + i * Longs.BYTES, Block.blockIdLength + (i + 1) * Longs.BYTES))
     }.toArray

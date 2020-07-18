@@ -128,7 +128,7 @@ object NodeViewHolder extends Logging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.forgingSettings.version) // arbitrary inflation for first block of 10 Arbits
+    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, 0L, settings.forgingSettings.version)
 
     var history = History.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
