@@ -8,9 +8,9 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import bifrost.history.History
+import bifrost.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
@@ -18,7 +18,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{NodeViewHolderRef, CurrentView}
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.state.State
 import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet

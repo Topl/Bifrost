@@ -7,7 +7,7 @@ import akka.actor.SupervisorStrategy._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.message.{Message, MessageSpec}
+import bifrost.network.message
 import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
@@ -69,7 +69,7 @@ class NetworkController(
     featureSerializers
   )
 
-  private var messageHandlers = Map.empty[Message.MessageCode, ActorRef]
+  private var messageHandlers = Map.empty[message.Message.MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
@@ -111,7 +111,7 @@ class NetworkController(
 
   private def businessLogic: Receive = {
     //a message coming in from another peer
-    case Message(spec, Left(msgBytes), Some(remote)) =>
+    case message.Message(spec, Left(msgBytes), Some(remote)) =>
       val msgId = spec.messageCode
 
       spec.parseBytes(msgBytes) match {
@@ -159,19 +159,16 @@ class NetworkController(
   }
 
   private def connectionEvents: Receive = {
-    case Tcp.Connected(remoteAddress, localAddress)
-      if connectionForPeerAddress(remoteAddress).isEmpty =>
-        val connectionDirection: ConnectionDirection =
-          if (unconfirmedConnections.contains(remoteAddress)) Outgoing
-          else Incoming
-        val connectionId =
-          ConnectionId(remoteAddress, localAddress, connectionDirection)
-        log.info(
-          s"Unconfirmed connection: ($remoteAddress, $localAddress) => $connectionId"
-        )
-        if (connectionDirection.isOutgoing)
-          createPeerConnectionHandler(connectionId, sender())
-        else peerManagerRef ! ConfirmConnection(connectionId, sender())
+    case Tcp.Connected(remoteAddress, localAddress) if connectionForPeerAddress(remoteAddress).isEmpty =>
+      val connectionDirection: ConnectionDirection =
+        if (unconfirmedConnections.contains(remoteAddress)) Outgoing
+        else Incoming
+      val connectionId = ConnectionId(remoteAddress, localAddress, connectionDirection)
+      log.info(s"Unconfirmed connection: ($remoteAddress, $localAddress) => $connectionId")
+
+      if (connectionDirection.isOutgoing)
+        createPeerConnectionHandler(connectionId, sender())
+      else peerManagerRef ! ConfirmConnection(connectionId, sender())
 
 
     case Tcp.Connected(remoteAddress, _) =>
@@ -531,9 +528,9 @@ object NetworkController {
 
     case class Handshaked(peer: PeerInfo)
 
-    case class RegisterMessageSpecs(specs: Seq[MessageSpec[_]], handler: ActorRef)
+    case class RegisterMessageSpecs(specs: Seq[message.MessageSpec[_]], handler: ActorRef)
 
-    case class SendToNetwork(message: Message[_], sendingStrategy: SendingStrategy)
+    case class SendToNetwork(message: message.Message[_], sendingStrategy: SendingStrategy)
 
     case class ConnectTo(peer: PeerInfo)
 

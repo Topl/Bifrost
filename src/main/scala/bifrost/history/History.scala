@@ -497,6 +497,7 @@ object History extends Logging {
 
     val validators = Seq(
       new DifficultyBlockValidator(storage)
+      // fixme: JAA - 2020.07.19 - why are these commented out?
       //new ParentBlockValidator(storage),
       //new SemanticBlockValidator(FastCryptographicHash)
     )

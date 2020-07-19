@@ -1,4 +1,4 @@
-package bifrost.api.http
+package bifrost.http
 
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpMethods._

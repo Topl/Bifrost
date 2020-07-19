@@ -1,4 +1,4 @@
-package bifrost.api.http
+package bifrost.http.api
 
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.model.headers.RawHeader

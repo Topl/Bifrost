@@ -1,8 +1,9 @@
-package bifrost.api.http
+package bifrost.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
+import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -17,8 +18,8 @@ import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 

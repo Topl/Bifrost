@@ -10,8 +10,8 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.WalletApiRoute
 import bifrost.history.History
+import bifrost.http.api.routes.WalletApiRoute
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction

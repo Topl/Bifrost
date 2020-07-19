@@ -8,9 +8,9 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.crypto.Signature25519
 import bifrost.history.History
+import bifrost.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block

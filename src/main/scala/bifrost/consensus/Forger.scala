@@ -19,13 +19,17 @@ import bifrost.wallet.Wallet
 import scala.concurrent.ExecutionContext
 import scala.util.Try
 
+/**
+ * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
+ * Must be singleton
+ */
 class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import Forger.ReceivableMessages._
 
-  // Import the types of messages this actor can send
+  // External types of messages this actor can SEND
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay

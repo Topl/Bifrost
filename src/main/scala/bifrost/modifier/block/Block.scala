@@ -9,8 +9,10 @@ import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
 import io.circe.Json
 import io.circe.syntax._
+// fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
 import scala.collection.BitSet

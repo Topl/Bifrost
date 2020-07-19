@@ -7,10 +7,12 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import bifrost.api.http.{ApiRoute, UtilsApiRoute, _}
 import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
+import bifrost.http.CompositeHttpService
+import bifrost.http.api.ApiRoute
+import bifrost.http.api.routes._
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
@@ -18,8 +20,6 @@ import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
-import bifrost.network.peer.{PeerFeature, PeerManagerRef}
-import bifrost.network.upnp
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
@@ -27,9 +27,8 @@ import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
-import scala.reflect.runtime.universe._
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
@@ -51,7 +50,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  protected val features: Seq[PeerFeature] = Seq()
+  protected val features: Seq[peer.PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
   val timeProvider = new NetworkTimeProvider(settings.ntp)
@@ -73,7 +72,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
     val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
     val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
-    val featureSerializers: PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
+    val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
     Seq(
       GetPeersSpec,
       new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
@@ -91,7 +90,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     externalNodeAddress = externalSocketAddress
   )
 
-  val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
+  // Create Bifrost singleton actors
+  val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings, bifrostContext)
 
   val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
@@ -104,6 +104,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
       BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
+  // Register controllers for all API routes
   val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
@@ -113,14 +114,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
-  val apiTypes: Seq[Type] = Seq(typeOf[UtilsApiRoute],
-    typeOf[DebugApiRoute],
-    typeOf[WalletApiRoute],
-    typeOf[ProgramApiRoute],
-    typeOf[AssetApiRoute],
-    typeOf[NodeViewApiRoute])
-
-  lazy val combinedRoute: Route = CompositeHttpService(actorSystem, apiTypes, apiRoutes, settings).compositeRoute
+  lazy val combinedRoute: Route = CompositeHttpService(actorSystem, apiRoutes, settings).compositeRoute
 
   // Am I running on a JDK that supports JVMCI?
   val vm_version: String = System.getProperty("java.vm.version")
@@ -147,7 +141,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
 
     implicit val materializer: ActorMaterializer = ActorMaterializer()
-    // TODO: consider adding a message to networkCntrl to also trigger binding here
+    // trigger the networking binding for the HTTP server and the protocol messenger
     networkControllerRef ! "Bind"
     Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
 

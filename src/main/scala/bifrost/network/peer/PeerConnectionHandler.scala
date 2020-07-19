@@ -54,9 +54,13 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private var outMessagesCounter: Long = 0
 
   override def preStart: Unit = {
-    context watch connection
+    context watch connection // per Akka docs this "signs the death pact: this actor terminates when connection breaks"
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
-    connection ! Tcp.ResumeReading // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
+
+    // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
+    // I'm pretty sure this was from an experiment with pull mode, which requires this line.
+    // This may have also been kept for basically a 'Hello' message which initiates the handshake
+    connection ! Tcp.ResumeReading
 
     context become handshaking
   }

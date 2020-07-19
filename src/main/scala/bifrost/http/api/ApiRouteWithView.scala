@@ -1,4 +1,4 @@
-package bifrost.api.http
+package bifrost.http.api
 
 import akka.actor.ActorRef
 import akka.pattern.ask
