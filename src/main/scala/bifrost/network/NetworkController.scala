@@ -2,12 +2,12 @@ package bifrost.network
 
 import java.net._
 
-import akka.actor._
 import akka.actor.SupervisorStrategy._
+import akka.actor._
 import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.message
+import bifrost.network.message.Message
 import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
@@ -30,14 +30,12 @@ class NetworkController(
     with Logging {
 
   // Import the types of messages this actor can RECEIVE
-  // NOTE: bifrost.network.message.Message is also receivable. This is imported globally due to the
-  //       definition of SendToNetwork in the companion object
   import NetworkController.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
-  import PeerManager.ReceivableMessages._
-  import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
+  import PeerConnectionHandler.ReceivableMessages.CloseConnection
+  import PeerManager.ReceivableMessages._
   import SharedNetworkMessages.ReceivableMessages.DataFromPeer
 
   private lazy val bindAddress = settings.bindAddress
@@ -131,9 +129,9 @@ class NetworkController(
           )
       }
 
-    case SendToNetwork(message, sendingStrategy) =>
-      filterConnections(sendingStrategy, message.spec.protocolVersion).foreach {
-        connectedPeer => connectedPeer.handlerRef ! message
+    case SendToNetwork(msg: message.Message[_], sendingStrategy) =>
+      filterConnections(sendingStrategy, msg.spec.protocolVersion).foreach {
+        connectedPeer => connectedPeer.handlerRef ! msg
       }
 
     case RegisterMessageSpecs(specs, handler) =>
@@ -530,7 +528,7 @@ object NetworkController {
 
     case class RegisterMessageSpecs(specs: Seq[message.MessageSpec[_]], handler: ActorRef)
 
-    case class SendToNetwork(message: message.Message[_], sendingStrategy: SendingStrategy)
+    case class SendToNetwork(message: Message[_], sendingStrategy: SendingStrategy)
 
     case class ConnectTo(peer: PeerInfo)
 

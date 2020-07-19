@@ -26,10 +26,10 @@ import scala.util.Try
 class Forger(settings: AppSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
-  // Import the types of messages this actor can RECEIVE
+  // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
-  // External types of messages this actor can SEND
+  // Import the types of messages this actor SENDS
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
