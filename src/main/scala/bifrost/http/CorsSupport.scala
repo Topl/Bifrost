@@ -2,36 +2,37 @@ package bifrost.http
 
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model.HttpResponse
-import akka.http.scaladsl.model.StatusCode.int2StatusCode
 import akka.http.scaladsl.model.headers._
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{Directive0, Route}
+import akka.http.scaladsl.server.{Directive0, Directives, Route}
 
-//see https://groups.google.com/forum/#!topic/akka-user/5RCZIJt7jHo
-trait CorsSupport {
+/**
+ * Provides tools for handling a Cross-Origin Resource Sharing spec workflow
+ * (including `OPTIONS` pre-flight requests).
+ * see https://groups.google.com/forum/#!topic/akka-user/5RCZIJt7jHo
+ */
+trait CorsSupport extends Directives {
 
-  //this directive adds access control headers to normal responses
-  private def withAccessControlHeaders: Directive0 = {
-    mapResponseHeaders { headers =>
-      `Access-Control-Allow-Origin`.* +:
-        `Access-Control-Allow-Credentials`(true) +:
-        `Access-Control-Allow-Headers`("Authorization", "Content-Type", "X-Requested-With") +:
-        headers
+  private val corsResponseHeaders: List[ModeledHeader] = List[ModeledHeader](
+    `Access-Control-Allow-Origin`.*,
+    `Access-Control-Allow-Credentials`(true),
+    `Access-Control-Allow-Headers`("Authorization", "Content-Type", "X-Requested-With", "x-api-key")
+  )
+
+  def corsHandler(r: Route): Route = addAccessControlHeaders {
+    preflightRequestHandler ~ r
+  }
+
+  private def addAccessControlHeaders: Directive0 =
+    respondWithHeaders(corsResponseHeaders)
+
+  //this handles preflight OPTIONS requests.
+  private def preflightRequestHandler: Route = options {
+    complete {
+      HttpResponse(StatusCodes.OK)
+        .withHeaders(`Access-Control-Allow-Methods`(OPTIONS, POST, PUT, GET, DELETE))
     }
   }
 
-  //this handles preflight OPTIONS requests.
-  // TODO: see if can be done with rejection handler, otherwise has to be under addAccessControlHeaders
-  private def preflightRequestHandler: Route = options {
-    complete(HttpResponse(200).withHeaders(
-      `Access-Control-Allow-Methods`(OPTIONS, POST, PUT, GET, DELETE)
-    )
-    )
-  }
-
-  def corsHandler(r: Route): Route = withAccessControlHeaders {
-    preflightRequestHandler ~ r
-  }
 }

@@ -5,12 +5,11 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
-import bifrost.http.CompositeHttpService
+import bifrost.http.HttpService
 import bifrost.http.api.ApiRoute
 import bifrost.http.api.routes._
 import bifrost.mempool.MemPool
@@ -53,14 +52,14 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   protected val features: Seq[peer.PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
-  //p2p
+  // check for gateway device and setup port forwarding
   private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
   // TODO use random port on gateway instead settings.network.bindAddress.getPort
   upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
 
-  //an address to send to peers
+  // save your address for sending to others peers
   lazy val externalSocketAddress: Option[InetSocketAddress] = {
     settings.network.declaredAddress orElse {
       // TODO use the random port on gateway instead settings.bindAddress.getPort
@@ -82,7 +81,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     )
   }
 
-  val bifrostContext: BifrostContext = BifrostContext(
+  private val bifrostContext: BifrostContext = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
     upnpGateway = upnpGateway,
@@ -91,21 +90,21 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   )
 
   // Create Bifrost singleton actors
-  val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings, bifrostContext)
+  private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings, bifrostContext)
 
-  val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
-  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 
-  val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
+  private val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
 
-  val nodeViewSynchronizer: ActorRef =
+  private val nodeViewSynchronizer: ActorRef =
     NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
       BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
   // Register controllers for all API routes
-  val apiRoutes: Seq[ApiRoute] = Seq(
+  private val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
     ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef),
@@ -114,7 +113,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     NodeViewApiRoute(settings, nodeViewHolderRef)
   )
 
-  lazy val combinedRoute: Route = CompositeHttpService(actorSystem, apiRoutes, settings).compositeRoute
+  private val httpService = HttpService(apiRoutes)
 
   // Am I running on a JDK that supports JVMCI?
   val vm_version: String = System.getProperty("java.vm.version")
@@ -143,7 +142,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     // trigger the networking binding for the HTTP server and the protocol messenger
     networkControllerRef ! "Bind"
-    Http().bindAndHandle(combinedRoute, "0.0.0.0", settings.rpcPort)
+    Http().bindAndHandle(httpService.compositeRoute, "0.0.0.0", settings.rpcPort)
 
     /* on unexpected shutdown */
     Runtime.getRuntime.addShutdownHook(new Thread() {

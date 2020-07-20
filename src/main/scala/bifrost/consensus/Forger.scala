@@ -34,10 +34,9 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
-  private val isForging = settings.forgingSettings.tryForging
 
   override def preStart(): Unit = {
-    if (isForging) {
+    if (settings.forgingSettings.tryForging) {
       context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
     }
