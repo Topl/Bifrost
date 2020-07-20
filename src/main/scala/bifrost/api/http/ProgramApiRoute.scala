@@ -3,23 +3,22 @@ package bifrost.api.http
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
+import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.state.State
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
-import bifrost.wallet.Wallet
-import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.literal._
-import io.circe.{Decoder, Json, JsonObject}
+import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import bifrost.network.BifrostLocalInterface.LocallyGeneratedTransaction
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import bifrost.settings.Settings
-import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.state.State
+import bifrost.wallet.Wallet
+import io.circe.literal._
+import io.circe.parser.parse
+import io.circe.syntax._
+import io.circe.{Decoder, Json, JsonObject}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

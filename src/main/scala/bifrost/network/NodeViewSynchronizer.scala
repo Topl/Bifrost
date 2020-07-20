@@ -1,11 +1,11 @@
 package bifrost.network
 
 import akka.actor.{Actor, ActorRef}
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
-import bifrost.nodeView.GenericNodeViewHolder._
-import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
 import bifrost.network.NetworkController.{DataFromPeer, SendToNetwork}
 import bifrost.network.message.BasicMsgDataTypes.{InvData, ModifiersData}
+import bifrost.network.message.{InvSpec, RequestModifierSpec, _}
+import bifrost.nodeView.GenericNodeViewHolder._
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.nodeView.{GenericNodeViewHolder, NodeViewModifier}
 import bifrost.utils.Logging
 import scorex.crypto.encode.Base58
