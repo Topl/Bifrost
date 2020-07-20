@@ -8,6 +8,5 @@ import bifrost.serialization.BytesSerializable
   * synchronization from
   */
 trait SyncInfo extends BytesSerializable {
-  def answer: Boolean
   def startingPoints: GenericHistory.ModifierIds
 }

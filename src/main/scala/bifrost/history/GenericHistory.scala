@@ -77,7 +77,7 @@ HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent with HistoryReader[P
   //todo: argument should be ID | Seq[ID]
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
-  def syncInfo(answer: Boolean): SI
+  def syncInfo: SI
 
   /**
     * Report that modifier is valid from point of view of the state component
