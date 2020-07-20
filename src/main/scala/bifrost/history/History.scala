@@ -3,22 +3,22 @@ package bifrost.history
 import java.io.File
 
 import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
-import bifrost.settings.AppSettings
 import bifrost.history.GenericHistory._
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.modifier.ModifierId
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
+import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.MILLISECONDS
 import scala.collection.BitSet
-import scala.math.{min, max}
+import scala.concurrent.duration.MILLISECONDS
+import scala.math.{max, min}
 import scala.util.{Failure, Try}
 
 /**
@@ -83,22 +83,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
         (new History(storage, settings, validators), progInfo)
       } else {
-
-        /**
-         * Function for retrieving the block timestamps for a given number of blocks
-         * @param current the block to start querying from
-         * @param num the number of blocks back to query
-         * @param acc an accumulator for the returned list on the base case
-         * @return
-         */
-        @tailrec
-        def getBlockTimes(current: Block, num: Int, acc: List[Block.Timestamp] = List()): List[Block.Timestamp] = {
-          if (num > 0) {
-            val parent = modifierById(current.parentId).get
-            val blockList = parent.timestamp :: acc
-            getBlockTimes(parent, num - 1, blockList)
-          } else acc
-        }
 
         // Calculate the block difficulty according to
         // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
