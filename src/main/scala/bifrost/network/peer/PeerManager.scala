@@ -36,8 +36,8 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
   // ----------- CONTEXT
   override def receive: Receive =
     peersManagement orElse
-      apiInterface orElse
-      nonsense
+    apiInterface orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def peersManagement: Receive = {

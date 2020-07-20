@@ -96,11 +96,11 @@ class NodeViewSynchronizer[TX <: Transaction,
   // ----------- CONTEXT
   override def receive: Receive =
     processDataFromPeer orElse
-      processSyncStatus orElse
-      manageModifiers orElse
-      viewHolderEvents orElse
-      peerManagerEvents orElse
-      nonsense
+    processSyncStatus orElse
+    manageModifiers orElse
+    viewHolderEvents orElse
+    peerManagerEvents orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processDataFromPeer: Receive = {

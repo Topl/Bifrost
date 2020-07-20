@@ -378,7 +378,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     transactionsProcessing orElse
     getCurrentInfo orElse
     getNodeViewChanges orElse {
-    case a: Any => log.error("Strange input: " + a)
+      case a: Any => log.error("Strange input: " + a)
     }
 }
 
