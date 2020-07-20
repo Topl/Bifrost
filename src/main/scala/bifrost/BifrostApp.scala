@@ -46,12 +46,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
 
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // Setup the execution environment for running the application
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
-
-  protected val features: Seq[peer.PeerFeature] = Seq()
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   // check for gateway device and setup port forwarding
@@ -67,20 +65,26 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     }
   }
 
+  // enumerate features and message specs present for
+  protected val features: Seq[peer.PeerFeature] = Seq()
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
+
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
     val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
     val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
     val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
+    val peersSpec =  new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
     Seq(
       GetPeersSpec,
-      new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
+      peersSpec,
       invSpec,
       requestModifierSpec,
       modifiersSpec
     )
   }
 
+  // save environment into a variable for reference throughout the application
   private val bifrostContext: BifrostContext = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
@@ -89,6 +93,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     externalNodeAddress = externalSocketAddress
   )
 
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
   private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings, bifrostContext)
 
@@ -103,6 +108,18 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
       BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
+  // Sequence of actors for cleanly shutting now the application
+  private val actorsToStop: Seq[ActorRef] = Seq(
+    peerManagerRef,
+    networkControllerRef,
+    nodeViewSynchronizer,
+    forgerRef,
+    nodeViewHolderRef
+  )
+
+  sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
+
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Register controllers for all API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
@@ -115,6 +132,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val httpService = HttpService(apiRoutes)
 
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Am I running on a JDK that supports JVMCI?
   val vm_version: String = System.getProperty("java.vm.version")
   System.out.printf("java.vm.version = %s%n", vm_version)
@@ -132,6 +150,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val compiler: String = System.getProperty("jvmci.Compiler")
   System.out.printf("jvmci.Compiler = %s%n", compiler)
 
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   def run(): Unit = {
     require(settings.network.agentName.length <= ApplicationNameLimit)
 
