@@ -58,17 +58,18 @@ val testingDependencies = Seq(
   "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
 )
 
-libraryDependencies ++= Seq(
-  "com.chuusai" %% "shapeless" % "2.3.3",
+val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "1.2.3",
-  "com.google.guava" % "guava" % "19.0"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.whispersystems" % "curve25519-java" % "0.4.1"
+)
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
-  "org.whispersystems" % "curve25519-java" % "0.4.1",
-)
+  "com.chuusai" %% "shapeless" % "2.3.3",
+  "com.google.guava" % "guava" % "19.0"
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
+
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -181,7 +182,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
