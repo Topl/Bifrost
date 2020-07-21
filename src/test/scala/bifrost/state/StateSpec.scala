@@ -242,7 +242,8 @@ object StateSpec {
   import MinimalState.VersionTag
   import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 
-  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
+  private val settingsFilename = "src/test/resources/test.conf"
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
