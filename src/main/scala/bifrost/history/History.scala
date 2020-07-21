@@ -20,8 +20,7 @@ import scala.annotation.tailrec
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
-import scala.util.{Failure, Try}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -499,14 +498,14 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
     chainBack(bestBlock, _ => false, count).get.drop(offset).map(_._2).toIndexedSeq
 
-  /**
-    * @param height - block height
-    * @return ids of headers on chosen height.
-    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
-    *         single id if no forks on this height
-    *         multiple ids if there are forks at chosen height.
-    *         First id is always from the best headers chain.
-    */
+//  /**
+//    * @param height - block height
+//    * @return ids of headers on chosen height.
+//    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
+//    *         single id if no forks on this height
+//    *         multiple ids if there are forks at chosen height.
+//    *         First id is always from the best headers chain.
+//    */
   /*def idsAtHeight(height: Int): Seq[ModifierId] =
     storage.getIndex(heightIdsKey(height: Int))
       .getOrElse(Array()).grouped(32).map(bytesToId).toSeq

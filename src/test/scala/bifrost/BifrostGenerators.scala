@@ -635,7 +635,7 @@ trait BifrostGenerators extends CoreGenerators {
     numLastBlocks <- Gen.choose(1, 10)
   } yield {
     val lastBlockIds = (0 until numLastBlocks).map { _ => sampleUntilNonEmpty(modifierIdGen) }
-    BifrostSyncInfo(answer, lastBlockIds, BigInt(score))
+    BifrostSyncInfo(lastBlockIds)
   }
 
   lazy val genesisBlockGen: Gen[Block] = for {
