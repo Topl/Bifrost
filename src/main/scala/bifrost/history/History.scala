@@ -5,6 +5,7 @@ import java.io.File
 import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
 import bifrost.history.GenericHistory._
 import bifrost.modifier.ModifierId
+import bifrost.history.History.GenesisParentId
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
@@ -20,6 +21,7 @@ import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
 import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -67,6 +69,8 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
+
+    /*
     val validationResults = validators.map(_.validate(block))
 
     // TODO: JAA - shouldn't we reject blocks that fail validation?
@@ -75,6 +79,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       case _ =>
     }
     validationResults.foreach(_.get)
+     */
 
     val res: (History, ProgressInfo[Block]) = {
 
@@ -223,27 +228,40 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     else loop(startBlock)
   }
 
-  override def syncInfo(answer: Boolean): BifrostSyncInfo =
-    BifrostSyncInfo(answer, lastBlocks(BifrostSyncInfo.MaxLastBlocks, bestBlock).map(_.id), score)
-
   /**
     * Whether another's node syncinfo shows that another node is ahead or behind ours
     *
-    * @param other other's node sync info
+    * @param info other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
     */
-  override def compare(other: BifrostSyncInfo): HistoryComparisonResult = {
-
-    val local = score
-    val remote = other.score
-
-    log.debug(s"Remote's score is: $remote, Local's score is: $local")
-    if (local < remote) {
-      Older
-    } else if (local == remote) {
-      Equal
-    } else {
-      Younger
+  override def compare(info: BifrostSyncInfo): HistoryComparisonResult = {
+    Option(bestBlockId) match {
+      case Some(id) if info.lastBlockIds.lastOption.contains(id) =>
+        //Our best header is the same as other node best header
+        Equal
+      case Some(id) if info.lastBlockIds.contains(id) =>
+        //Our best header is in other node best chain, but not at the last position
+        Older
+      case Some(_) if info.lastBlockIds.isEmpty =>
+        //Other history is empty, our contain some headers
+        Younger
+      case Some(_) =>
+        //We are on different forks now.
+        if (info.lastBlockIds.view.reverse.exists(m => contains(m))) {
+          //Return Younger, because we can send blocks from our fork that other node can download.
+          Fork
+        } else {
+          //We don't have any of id's from other's node sync info in history.
+          //We don't know whether we can sync with it and what blocks to send in Inv message.
+          //Assume it is older and far ahead from us
+          Older
+        }
+      case None if info.lastBlockIds.isEmpty =>
+        //Both nodes do not keep any blocks
+        Equal
+      case None =>
+        //Our history is empty, other contain some headers
+        Older
     }
   }
 
@@ -430,7 +448,11 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param modifier - modifier to apply
     * @return `Success` if modifier can be applied, `Failure(ModifierError)` if can not
     */
-  override def applicableTry(modifier: Block): Try[Unit] = ???
+  override def applicableTry(modifier: Block): Try[Unit] = {
+    modifier match {
+      case b: Block ⇒ Success(())
+    }
+  }
 
   /**
     * Return semantic validity status of modifier with id == modifierId
@@ -444,6 +466,15 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = ???
+  /*
+  {
+    if(isEmpty) {
+      info.startingPoints
+    } else if info.lastBlockIds.isEmpty {
+      val heightFrom = Math.min(height, size)
+
+    }
+     */
 
   /**
     * Information about our node synchronization status. Other node should be able to compare it's view with ours by
@@ -451,7 +482,35 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     *
     * @return
     */
-  override def syncInfo: BifrostSyncInfo = ???
+  override def syncInfo: BifrostSyncInfo = if(isEmpty) {
+    BifrostSyncInfo(Seq.empty)
+  } else {
+    val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
+    if(startingPoints.headOption.exists(x ⇒ isGenesis(modifierById(x).get))) {
+      BifrostSyncInfo(ModifierId(GenesisParentId) +: startingPoints)
+    } else {
+      BifrostSyncInfo(startingPoints)
+    }
+  }
+
+  /**
+    * Return last count headers from best headers chain if exist or chain up to genesis otherwise
+    */
+  def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
+    chainBack(bestBlock, _ => false, count).get.drop(offset).map(_._2).toIndexedSeq
+
+  /**
+    * @param height - block height
+    * @return ids of headers on chosen height.
+    *         Seq.empty we don't have any headers on this height (e.g. it is too big or we bootstrap in PoPoW regime)
+    *         single id if no forks on this height
+    *         multiple ids if there are forks at chosen height.
+    *         First id is always from the best headers chain.
+    */
+  /*def idsAtHeight(height: Int): Seq[ModifierId] =
+    storage.getIndex(heightIdsKey(height: Int))
+      .getOrElse(Array()).grouped(32).map(bytesToId).toSeq
+   */
 }
 
 

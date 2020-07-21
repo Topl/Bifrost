@@ -4,14 +4,11 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.Longs
 
-import scala.util.Try
 
-case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[ModifierId], score: BigInt)
-  extends SyncInfo {
+case class BifrostSyncInfo(lastBlockIds: Seq[ModifierId]) extends SyncInfo {
 
   override def startingPoints: Seq[(ModifierTypeId, ModifierId)] =
     lastBlockIds.map(b => Block.modifierTypeId -> b)
@@ -22,37 +19,20 @@ case class BifrostSyncInfo(override val answer: Boolean, lastBlockIds: Seq[Modif
 }
 
 object BifrostSyncInfo {
-  val MaxLastBlocks = 50 //don't make it more than 127 without changing serialization!
+  val MaxLastBlocks = 1000
 }
 
 object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
 
-  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = ???
+  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = {
+    w.putUShort(obj.lastBlockIds.size)
+    obj.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+  }
 
-  override def parse(r: Reader): BifrostSyncInfo = ???
-
-  override def toBytes(obj: BifrostSyncInfo): Array[Byte] =
-    Array(if (obj.answer) 1: Byte else 0: Byte,
-      obj.lastBlockIds.size.toByte
-    ) ++ obj.lastBlockIds.foldLeft(Array[Byte]())((a, b) => a ++ b.hashBytes) ++
-      Longs.toByteArray(obj.score.toByteArray.length) ++ obj.score.toByteArray
-
-  override def parseBytes(bytes: Array[Byte]): Try[BifrostSyncInfo] = Try {
-    val answer = if (bytes.head == 1) true else if (bytes.head == 0) false else throw new Exception("wrong answer byte")
-    val lastBlockIdsSize = bytes.slice(1, 2).head
-    val endOfBlockIds = 2 + lastBlockIdsSize * NodeViewModifier.ModifierIdSize
-    val scoreByteSize = Longs.fromByteArray(bytes.slice(endOfBlockIds, endOfBlockIds + Longs.BYTES))
-
-    require(lastBlockIdsSize >= 0 && lastBlockIdsSize <= BifrostSyncInfo.MaxLastBlocks)
-    require(bytes.length == 2 + lastBlockIdsSize * NodeViewModifier.ModifierIdSize + Longs.BYTES + scoreByteSize)
-
-    val lastBlockIds = bytes
-      .slice(2, endOfBlockIds)
-      .grouped(NodeViewModifier.ModifierIdSize)
-      .map(id ⇒ ModifierId(id)).toSeq
-
-    val scoreBytes = bytes.slice(endOfBlockIds + Longs.BYTES, bytes.length)
-    BifrostSyncInfo(answer, lastBlockIds, BigInt(scoreBytes))
+  override def parse(r: Reader): BifrostSyncInfo = {
+    val length = r.getUShort()
+    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+    BifrostSyncInfo(ids)
   }
 }
 

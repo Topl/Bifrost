@@ -43,6 +43,8 @@ class DeliveryTracker(system: ActorSystem,
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
+  def requestedSize: Int = requested.size
+
   // when a remote peer is asked a modifier we add the requested data to `requested`
   protected val requested: mutable.Map[ModifierId, RequestedInfo] = mutable.Map()
 
