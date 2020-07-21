@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.Http.ServerBinding
 import akka.stream.ActorMaterializer
 import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
@@ -27,12 +28,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
-
-  import bifrost.network.NetworkController.ReceivableMessages.ShutdownNetwork
 
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
@@ -74,7 +73,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
     val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
     val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
-    val peersSpec =  new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
+    val peersSpec = new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
     Seq(
       GetPeersSpec,
       peersSpec,
@@ -117,7 +116,14 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     nodeViewHolderRef
   )
 
-  sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
+  // hook for initiating the shutdown procedure
+  sys.addShutdownHook({
+    log.warn(s"${Console.RED}Sending shutdown signal to application${Console.RESET}")
+    if (settings.network.upnpEnabled)
+      log.info("Removing UPnP port mapping ")
+    upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
+    BifrostApp.shutdown(actorSystem, actorsToStop)
+  })
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Register controllers for all API routes
@@ -159,29 +165,22 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
 
     implicit val materializer: ActorMaterializer = ActorMaterializer()
+    val httpHost = "0.0.0.0"
+    val httpPort = settings.rpcPort
+
     // trigger the networking binding for the HTTP server and the protocol messenger
     networkControllerRef ! "Bind"
-    Http().bindAndHandle(httpService.compositeRoute, "0.0.0.0", settings.rpcPort)
+    val httpServer: Future[ServerBinding] = Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort)
 
-    /* on unexpected shutdown */
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run() {
-        log.error("Unexpected shutdown")
-        stopAll()
-      }
-    })
-  }
+    // TODO: JAA - 2020.07.21 - think about how best to terminate the application
+    // TODO: if one of the binds fail.
+    // TODO: Part of this will involve refactoring UPnP to delete its port on its own
+    httpServer.onComplete {
+      case Success(serverBinding) =>
+        log.info(s"HTTP Server bound to ${serverBinding.localAddress}")
 
-  def stopAll(): Unit = synchronized {
-    log.info("Stopping network services")
-    if (settings.network.upnpEnabled) upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
-    networkControllerRef ! ShutdownNetwork
-
-    log.info("Stopping actors (incl. block generator)")
-
-    actorSystem.terminate().onComplete { _ =>
-      log.info("Exiting from the app...")
-      System.exit(0)
+      case Failure(ex) =>
+        log.error(s"Failed to bind to ${httpHost}:${httpPort}!", ex)
     }
   }
 }

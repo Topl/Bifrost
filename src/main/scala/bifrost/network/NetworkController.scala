@@ -214,8 +214,6 @@ class NetworkController(
       filterConnections(Broadcast, Version.initial).foreach { connectedPeer =>
         connectedPeer.handlerRef ! CloseConnection
       }
-      self ! Tcp.Unbind
-      context stop self
   }
 
   private def nonsense: Receive = {

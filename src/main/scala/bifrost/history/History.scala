@@ -20,7 +20,7 @@ import scala.annotation.tailrec
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
-import scala.util.{Success, Try}
+import scala.util.{Success, Failure, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -69,7 +69,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
     log.debug(s"Trying to append block ${block.id} to history")
 
-    /*
     val validationResults = validators.map(_.validate(block))
 
     // TODO: JAA - shouldn't we reject blocks that fail validation?
@@ -78,7 +77,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       case _ =>
     }
     validationResults.foreach(_.get)
-     */
+
 
     val res: (History, ProgressInfo[Block]) = {
 
@@ -96,9 +95,9 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
         // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
         val difficulty: Long = if (averageDelay > targetTime) {
-          ((parentDifficulty * min(averageDelay, targetTime * 1.1)) / targetTime).toLong
+          (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
         } else {
-          (parentDifficulty * (1 - 0.64 * (targetTime - max(averageDelay, targetTime * 0.9)) / targetTime)).toLong
+          (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
         }
 
         // Determine if this block is on the canonical chain
@@ -496,7 +495,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Return last count headers from best headers chain if exist or chain up to genesis otherwise
     */
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
-    chainBack(bestBlock, _ => false, count).get.drop(offset).map(_._2).toIndexedSeq
+    lastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
 
 //  /**
 //    * @param height - block height
