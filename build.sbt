@@ -62,20 +62,20 @@ val testingDependencies = Seq(
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
 )
 
-libraryDependencies ++= Seq(
-  "com.chuusai" %% "shapeless" % "2.3.3",
-  "org.scorexfoundation" %% "scrypto" % "1.3.3",
-  "com.google.guava" % "guava" % "29.0-jre",
-  "com.iheart" %% "ficus" % "1.4.7",
-  "org.rudogma" %% "supertagged" % "1.4",
-  "com.joefkelley" %% "argyle" % "1.0.0"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+val cryptoDependencies = Seq(
+  "org.scorexfoundation" %% "scrypto" % "1.2.3",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.whispersystems" % "curve25519-java" % "0.4.1"
+)
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
-  "org.whispersystems" % "curve25519-java" % "0.5.0",
-)
+  "com.chuusai" %% "shapeless" % "2.3.3",
+  "com.google.guava" % "guava" % "19.0",
+  "com.iheart" %% "ficus" % "1.4.7",
+  "org.rudogma" %% "supertagged" % "1.4",
+  "com.joefkelley" %% "argyle" % "1.0.0"
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -191,7 +191,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
