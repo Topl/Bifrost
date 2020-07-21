@@ -31,7 +31,8 @@ class TokenBoxRegistrySpec extends PropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some("test.conf"), None))
+  private val settingsFilename = "src/test/resources/test.conf"
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
