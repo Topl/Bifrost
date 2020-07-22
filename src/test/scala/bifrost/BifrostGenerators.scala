@@ -23,10 +23,12 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{Random, Try}
 
+import bifrost.utils.Logging
+
 /**
   * Created by cykoz on 4/12/17.
   */
-trait BifrostGenerators extends CoreGenerators {
+trait BifrostGenerators extends CoreGenerators with Logging {
 
   def sampleUntilNonEmpty[T](generator: Gen[T]): T = {
     var sampled = generator.sample
@@ -630,8 +632,6 @@ trait BifrostGenerators extends CoreGenerators {
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
-    answer <- booleanGen
-    score <- positiveLongGen
     numLastBlocks <- Gen.choose(1, 10)
   } yield {
     val lastBlockIds = (0 until numLastBlocks).map { _ => sampleUntilNonEmpty(modifierIdGen) }
