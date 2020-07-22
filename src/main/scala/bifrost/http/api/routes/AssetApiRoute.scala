@@ -1,8 +1,9 @@
-package bifrost.api.http
+package bifrost.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
+import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -17,8 +18,8 @@ import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 
@@ -91,7 +92,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     * 
     *  #### Description
-    *    Default behavior of the wallet is to find the first unlocked address which hold the targetted asset.
+    *    Default behavior of the wallet is to find the first unlocked address which hold the targeted asset.
     *    The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
     * 
     *  #### Notes
@@ -157,9 +158,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         .get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")
@@ -319,9 +318,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         .get
       AssetTransfer.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetTransfer
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")
@@ -412,7 +409,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     *    Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
     * 
     *  #### Description
-    *    New boxes wlll be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
+    *    New boxes will be generated and placed into state under the ownership of the recipient account. Assets are uniquely defined the the combination
     *    of `issuer` and `assetCode`
     * 
     * ---
@@ -461,9 +458,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
 
       AssetCreation.validate(tx) match {
         case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[
-            AssetCreation
-          ](tx)
+          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetCreation](tx)
           tx.json
         case Failure(e) =>
           throw new Exception(s"Could not validate transaction: $e")

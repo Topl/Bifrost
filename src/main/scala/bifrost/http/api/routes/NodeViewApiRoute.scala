@@ -1,12 +1,13 @@
-package bifrost.api.http
+package bifrost.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import bifrost.history.History
+import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.settings.AppSettings
 import bifrost.state.State
@@ -74,6 +75,7 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
 
   private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
+  // todo: why is an async view querying the NodeViewHolder again?
   private def getMempool: Try[MP] = Try {
     Await
       .result(

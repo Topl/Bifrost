@@ -2,7 +2,7 @@ package bifrost.api
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
@@ -10,18 +10,19 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.ForgerRef
+import bifrost.consensus.ForgerRef
 import bifrost.history.History
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.message._
-import bifrost.network.peer.PeerManagerRef
 import bifrost.network._
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
+import bifrost.network.message._
+import bifrost.network.peer.{PeerFeature, PeerManagerRef}
+import bifrost.network.upnp
+import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.BifrostContext
@@ -58,8 +59,7 @@ class ProgramRPCSpec extends WordSpec
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
-  private val upnpGateway: Option[UPnPGateway] = if (settings.network.upnpEnabled) UPnP.getValidGateway(settings.network) else None
-  upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)

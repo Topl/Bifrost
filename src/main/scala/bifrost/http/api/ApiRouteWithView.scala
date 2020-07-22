@@ -1,11 +1,11 @@
-package bifrost.api.http
+package bifrost.http.api
 
 import akka.actor.ActorRef
 import akka.pattern.ask
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.GenericNodeViewHolder.CurrentView
 import bifrost.state.State
 import bifrost.wallet.Wallet
 

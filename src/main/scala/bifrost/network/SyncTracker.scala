@@ -6,6 +6,7 @@ import akka.actor.{ActorContext, ActorRef, Cancellable}
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Older, Unknown}
 import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
+import bifrost.network.peer.ConnectedPeer
 import bifrost.settings.NetworkSettings
 import bifrost.utils.TimeProvider
 import bifrost.utils.Logging

@@ -1,4 +1,4 @@
-package bifrost.network
+package bifrost.network.peer
 
 import bifrost.serialization.BytesSerializable
 import bifrost.utils.serialization.BifrostSerializer

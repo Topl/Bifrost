@@ -1,11 +1,10 @@
-package bifrost.network
+package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
 import bifrost.settings.{ApplicationVersionSerializer, Version}
-import bifrost.network.peer.LocalAddressPeerFeature
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, BifrostSerializer, Writer}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 /**
   * Declared information about peer

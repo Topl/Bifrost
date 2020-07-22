@@ -1,12 +1,13 @@
 package bifrost.network.message
 
-import bifrost.network._
+import bifrost.network.{message, _}
 import bifrost.network.message.Message.MessageCode
 import bifrost.modifier.ModifierId
+import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{Reader, BifrostSerializer, Writer}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.{bytesToId, idToBytes}
 import bifrost.utils.Logging
 
@@ -24,18 +25,12 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   */
 class SyncInfoMessageSpec[SI <: SyncInfo](serializer: BifrostSerializer[SI]) extends MessageSpecV1[SI] {
 
-
   override val messageCode: MessageCode = 65: Byte
   override val messageName: String = "Sync"
 
   override def serialize(data: SI, w: Writer): Unit = serializer.serialize(data, w)
 
   override def parse(r: Reader): SI = serializer.parse(r)
-}
-
-object InvSpec {
-  val MessageCode: Byte = 55
-  val MessageName: String = "Inv"
 }
 
 /**
@@ -71,7 +66,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val count = r.getUInt().toIntExact
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
-    val elems = (0 until count).map { c =>
+    val elems = (0 until count).map { _ =>
       bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize))
     }
 
@@ -80,9 +75,9 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
 }
 
-object RequestModifierSpec {
-  val MessageCode: MessageCode = 22: Byte
-  val MessageName: String = "RequestModifier"
+object InvSpec {
+  val MessageCode: Byte = 55
+  val MessageName: String = "Inv"
 }
 
 /**
@@ -116,9 +111,9 @@ class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
   }
 }
 
-object ModifiersSpec {
-  val MessageCode: MessageCode = 33: Byte
-  val MessageName: String = "Modifier"
+object RequestModifierSpec {
+  val MessageCode: MessageCode = 22: Byte
+  val MessageName: String = "RequestModifier"
 }
 
 /**
@@ -137,7 +132,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     val modifiers = data.modifiers
     require(modifiers.nonEmpty, "empty modifiers list")
 
-    val (msgCount, msgSize) = modifiers.foldLeft((0, 5)) { case ((c, s), (id, modifier)) =>
+    val (msgCount, msgSize) = modifiers.foldLeft((0, 5)) { case ((c, s), (_, modifier)) =>
       val size = s + NodeViewModifier.ModifierIdSize + 4 + modifier.length
       val count = if (size <= maxMessageSize) c + 1 else c
       count -> size
@@ -172,6 +167,11 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
   }
 }
 
+object ModifiersSpec {
+  val MessageCode: MessageCode = 33: Byte
+  val MessageName: String = "Modifier"
+}
+
 /**
   * The `GetPeer` message requests an `Peers` message from the receiving node,
   * preferably one with lots of `PeerSpec` of other receiving nodes.
@@ -184,22 +184,12 @@ object GetPeersSpec extends MessageSpecV1[Unit] {
 
   override val messageName: String = "GetPeers message"
 
-  override def serialize(obj: Unit, w: Writer): Unit = {
-  }
+  // todo: JAA - 2020.07.19 - is there a better way to handle this to show it shouldn't be called?
+  override def serialize(obj: Unit, w: Writer): Unit = {}
 
   override def parse(r: Reader): Unit = {
     require(r.remaining == 0, "Non-empty data for GetPeers")
   }
-}
-
-object PeersSpec {
-
-  val MaxPeersInMessage: Int = 100
-
-  val messageCode: Message.MessageCode = 2: Byte
-
-  val messageName: String = "Peers message"
-
 }
 
 /**
@@ -227,10 +217,10 @@ class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) ex
   }
 }
 
-object HandshakeSpec {
-
-  val messageCode: MessageCode = 75: Byte
-  val messageName: String = "Handshake"
+object PeersSpec {
+  val MaxPeersInMessage: Int = 100
+  val messageCode: Message.MessageCode = 2: Byte
+  val messageName: String = "Peers message"
 }
 
 /**
@@ -254,6 +244,11 @@ class HandshakeSpec(featureSerializers: PeerFeature.Serializers, sizeLimit: Int)
     require(r.remaining <= sizeLimit, s"Too big handshake. Size ${r.remaining} exceeds $sizeLimit limit")
     val t = r.getULong()
     val data = peersDataSerializer.parse(r)
-    Handshake(data, t)
+    message.Handshake(data, t)
   }
+}
+
+object HandshakeSpec {
+  val messageCode: MessageCode = 75: Byte
+  val messageName: String = "Handshake"
 }

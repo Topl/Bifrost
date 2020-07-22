@@ -1,8 +1,9 @@
-package bifrost.api.http
+package bifrost.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
+import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition

@@ -1,6 +1,7 @@
 package bifrost
 
 import java.io.File
+import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
@@ -642,7 +643,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   } yield {
     Block.create(
       ModifierId(History.GenesisParentId),
-      1478164225796L,
+      Instant.now().toEpochMilli,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
       keyPair._1,

@@ -1,4 +1,4 @@
-package bifrost.api.http
+package bifrost.http.api.routes
 
 import java.security.SecureRandom
 
@@ -6,6 +6,7 @@ import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
 import bifrost.history.History
+import bifrost.http.api.{ApiRoute, ErrorResponse, SuccessResponse}
 import bifrost.mempool.MemPool
 import bifrost.settings.AppSettings
 import bifrost.state.State

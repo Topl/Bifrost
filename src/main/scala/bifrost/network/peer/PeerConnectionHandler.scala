@@ -1,17 +1,11 @@
-package bifrost.network
+package bifrost.network.peer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
-import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
-import bifrost.settings.Version
-import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
-import bifrost.network.PeerConnectionHandler.ReceivableMessages
-import bifrost.network.PeerFeature.Serializers
-import bifrost.network.message.{HandshakeSpec, MessageSerializer}
-import bifrost.network.peer.{PeerInfo, PenaltyType}
-import bifrost.settings.BifrostContext
-import bifrost.settings.NetworkSettings
+import bifrost.network._
+import bifrost.network.message.{Handshake, HandshakeSpec, MessageSerializer}
+import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.Logging
 import bifrost.utils.serialization.BifrostSerializer
 
@@ -27,7 +21,12 @@ class PeerConnectionHandler(val settings: NetworkSettings,
                            )(implicit ec: ExecutionContext)
   extends Actor with Logging {
 
+  // Import the types of messages this actor can RECEIVE
   import PeerConnectionHandler.ReceivableMessages._
+  import bifrost.network.message.Message
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 
   private val connection = connectionDescription.connection
   private val connectionId = connectionDescription.connectionId
@@ -35,7 +34,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
 
-  private val featureSerializers: Serializers =
+  private val featureSerializers: PeerFeature.Serializers =
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
 
   private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
@@ -55,11 +54,15 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private var outMessagesCounter: Long = 0
 
   override def preStart: Unit = {
-    context watch connection
-    connection ! Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
-    connection ! ResumeReading
+    context watch connection // per Akka docs this "signs the death pact: this actor terminates when connection breaks"
+    connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
 
-    context.become(handshaking)
+    // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
+    // I'm pretty sure this was from an experiment with pull mode, which requires this line.
+    // This may have also been kept for basically a 'Hello' message which initiates the handshake
+    connection ! Tcp.ResumeReading
+
+    context become handshaking
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -73,16 +76,18 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
+    // todo: JAA - consider replacing this with a case watching for WritingResumed because that is what should
+    // todo:       trigger a message to be sent back to this actor resulting in the creation of a handshake
     handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
     (self ! HandshakeTimeout))
     val hb = handshakeSerializer.toBytes(createHandshakeMessage())
-    connection ! Tcp.Write(ByteString(hb))
+    connection ! Tcp.Write(ByteString(hb), Tcp.NoAck)
     log.info(s"Handshake sent to $connectionId")
 
-    // note: JAA made a change here that might break handshaking 2020.06.04 (remove if still here in 3 months)
     receiveAndHandleHandshake orElse
     handshakeTimeout orElse
-    fatalCommands
+    fatalCommands orElse
+    nonsense
   }
 
   private def workingCycleWriting: Receive =
@@ -106,7 +111,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   // Some functions are only accessible in certain contexts so be sure to consult the lists above
 
   private def receiveAndHandleHandshake: Receive = {
-    case Received(data) =>
+    case Tcp.Received(data) =>
       handshakeSerializer.parseBytes(data.toArray) match {
         case Success(handshake) =>
           processHandshake(handshake)
@@ -122,46 +127,46 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private def handshakeTimeout: Receive = {
     case HandshakeTimeout =>
       log.info(s"Handshake timeout with $connectionId, going to drop the connection")
-      self ! CloseConnection
+      connection ! Tcp.Close
   }
 
   private def localInterfaceWriting: Receive = {
-    case msg: message.Message[_] =>
+    case msg: Message[_] =>
       log.info("Send message " + msg.spec + " to " + connectionId)
       outMessagesCounter += 1
-      connection ! Write(messageSerializer.serialize(msg), ReceivableMessages.Ack(outMessagesCounter))
+      connection ! Tcp.Write(messageSerializer.serialize(msg), Ack(outMessagesCounter))
 
-    case CommandFailed(Write(msg, ReceivableMessages.Ack(id))) =>
+    case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
       log.warn(s"Failed to write ${msg.length} bytes to $connectionId, switching to buffering mode")
-      connection ! ResumeWriting
+      connection ! Tcp.ResumeWriting
       buffer(id, msg)
       context become workingCycleBuffering
 
+    case Tcp.WritingResumed => // ignore in stable mode
+
+    case Ack(_) => // ignore ACKs in stable mode
+
     case CloseConnection =>
       log.info(s"Enforced to abort communication with: " + connectionId + ", switching to closing mode")
-      if (outMessagesBuffer.isEmpty) connection ! Close else context become closingWithNonEmptyBuffer
-
-    case ReceivableMessages.Ack(_) => // ignore ACKs in stable mode
-
-    case WritingResumed => // ignore in stable mode
+      if (outMessagesBuffer.isEmpty) connection ! Tcp.Close else context become closingWithNonEmptyBuffer
   }
 
   // operate in ACK mode until all buffered messages are transmitted
   private def localInterfaceBuffering: Receive = {
-    case msg: message.Message[_] =>
+    case msg: Message[_] =>
       outMessagesCounter += 1
       buffer(outMessagesCounter, messageSerializer.serialize(msg))
 
-    case CommandFailed(Write(msg, ReceivableMessages.Ack(id))) =>
-      connection ! ResumeWriting
+    case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
+      connection ! Tcp.ResumeWriting
       buffer(id, msg)
 
-    case CommandFailed(ResumeWriting) => // ignore in ACK mode
+    case Tcp.CommandFailed(Tcp.ResumeWriting) => // ignore in ACK mode
 
-    case WritingResumed =>
+    case Tcp.WritingResumed =>
       writeFirst()
 
-    case ReceivableMessages.Ack(id) =>
+    case Ack(id) =>
       outMessagesBuffer -= id
       if (outMessagesBuffer.nonEmpty) writeFirst()
       else {
@@ -176,37 +181,37 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   }
 
   private def closeNonEmptyBuffer: Receive = {
-    case CommandFailed(_: Write) =>
-      connection ! ResumeWriting
+    case Tcp.CommandFailed(_: Tcp.Write) =>
+      connection ! Tcp.ResumeWriting
       context.become({
-        case WritingResumed =>
+        case Tcp.WritingResumed =>
           writeAll()
           context.unbecome()
-        case ReceivableMessages.Ack(id) =>
+        case Ack(id) =>
           outMessagesBuffer -= id
       }, discardOld = false)
 
-    case ReceivableMessages.Ack(id) =>
+    case Ack(id) =>
       outMessagesBuffer -= id
-      if (outMessagesBuffer.isEmpty) connection ! Close
+      if (outMessagesBuffer.isEmpty) connection ! Tcp.Close
   }
 
   private def remoteInterface: Receive = {
-    case Received(data) =>
+    case Tcp.Received(data) =>
       chunksBuffer ++= data
       processRemoteData()
-      connection ! ResumeReading
+      connection ! Tcp.ResumeReading
   }
 
   private def fatalCommands: Receive = {
-    case _: ConnectionClosed =>
+    case _: Tcp.ConnectionClosed =>
       log.info(s"Connection closed to $connectionId")
       context stop self
   }
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense")
+      log.warn(s"PeerConnectionHandler (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -220,18 +225,18 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
   private def writeFirst(): Unit = {
     outMessagesBuffer.headOption.foreach { case (id, msg) =>
-      connection ! Write(msg, ReceivableMessages.Ack(id))
+      connection ! Tcp.Write(msg, Ack(id))
     }
   }
 
   private def writeAll(): Unit = {
     outMessagesBuffer.foreach { case (id, msg) =>
-      connection ! Write(msg, ReceivableMessages.Ack(id))
+      connection ! Tcp.Write(msg, Ack(id))
     }
   }
 
   private def createHandshakeMessage() = {
-    Handshake(
+    message.Handshake(
       PeerSpec(
         settings.agentName,
         Version(settings.appVersion),
@@ -256,12 +261,12 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 
     networkControllerRef ! Handshaked(peerInfo)
     handshakeTimeoutCancellableOpt.map(_.cancel())
-    connection ! ResumeReading
+    connection ! Tcp.ResumeReading
     context become workingCycleWriting
   }
 
   @tailrec
-  private def processRemoteData(): Unit = {
+   private def processRemoteData(): Unit = {
     messageSerializer.deserialize(chunksBuffer, selfPeer) match {
       case Success(Some(message)) =>
         log.info("Received message " + message.spec + " from " + connectionId)

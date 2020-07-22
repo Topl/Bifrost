@@ -1,4 +1,4 @@
-package bifrost.api.http
+package bifrost.http.api
 
 import io.circe.Json
 import io.circe.syntax._

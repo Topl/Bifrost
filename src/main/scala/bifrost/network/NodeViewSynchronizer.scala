@@ -1,33 +1,24 @@
 package bifrost.network
 
-
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.history.HistoryReader
-import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-import bifrost.mempool.MemPoolReader
-import bifrost.network.ModifiersStatus.Requested
-import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-import bifrost.network.message._
-import bifrost.network.peer.PenaltyType
-import bifrost.nodeView.GenericNodeViewHolder.DownloadRequest
-import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
-import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
+import bifrost.history.HistoryReader
+import bifrost.mempool.MemPoolReader
 import bifrost.modifier.ModifierId
-import bifrost.utils.Logging
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.network.ModifiersStatus.Requested
+import bifrost.network.message._
+import bifrost.network.peer.{ConnectedPeer, PenaltyType}
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
+import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.settings.NetworkSettings
 import bifrost.state.StateReader
-import bifrost.wallet.VaultReader
-import bifrost.utils.NetworkTimeProvider
-import bifrost.utils.BifrostEncoding
+import bifrost.utils.{Logging, NetworkTimeProvider, BifrostEncoding, MalformedModifierError}
 import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.MalformedModifierError
+import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -57,6 +48,12 @@ class NodeViewSynchronizer[TX <: Transaction,
      timeProvider: NetworkTimeProvider,
      modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
       with Logging with BifrostEncoding {
+
+  // Import the types of messages this actor may SEND or RECEIVES
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+  import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
+  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
@@ -321,7 +318,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 
   protected def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense")
+      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -344,18 +341,18 @@ class NodeViewSynchronizer[TX <: Transaction,
 
   protected def sendSync(syncTracker: SyncTracker, history: HR): Unit = {
     val peers = statusTracker.peersToSyncWith()
+    val msg = Message(syncInfoSpec, Right(history.syncInfo), None)
     if (peers.nonEmpty) {
-      networkControllerRef ! SendToNetwork(Message(syncInfoSpec, Right(history.syncInfo), None), SendToPeers(peers))
+      networkControllerRef ! SendToNetwork(msg, SendToPeers(peers))
     }
   }
 
   // Send history extension to the (less developed) peer 'remote' which does not have it.
-  def sendExtension(remote: ConnectedPeer,
-                    status: HistoryComparisonResult,
-                    ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
+  def sendExtension(remote: ConnectedPeer, status: HistoryComparisonResult, ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
     ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
       case (mid, mods) =>
-        networkControllerRef ! SendToNetwork(Message(invSpec, Right(InvData(mid, mods)), None), SendToPeer(remote))
+        val msg = Message(invSpec, Right(InvData(mid, mods)), None)
+        networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }
 
   /**
@@ -507,12 +504,13 @@ object NodeViewSynchronizer {
     case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
 
     //todo: consider sending info on the rollback
-
     case object RollbackFailed extends NodeViewHolderEvent
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
     case class StartingPersistentModifierApplication[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends NodeViewHolderEvent
+
+    case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends NodeViewHolderEvent
 
     /**
       * After application of batch of modifiers from cache to History, NodeViewHolder sends this message,

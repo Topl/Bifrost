@@ -1,14 +1,12 @@
 package bifrost.nodeView
 
 import akka.actor.Actor
-import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.history.GenericHistory
+import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
-import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
@@ -30,8 +28,12 @@ import scala.util.{Failure, Success, Try}
 trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
   extends Actor with Logging with BifrostEncoding {
 
+  // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._
-  import GenericNodeViewHolder._
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
+
 
   type SI <: SyncInfo
   type HIS <: GenericHistory[PMOD, SI, HIS]
@@ -63,6 +65,90 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     */
   private var nodeView: NodeView = restoreState().getOrElse(genesisState)
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
+  // ----------- CONTEXT
+  override def receive: Receive =
+    processRemoteModifiers orElse
+      processLocallyGeneratedModifiers orElse
+      transactionsProcessing orElse
+      getCurrentInfo orElse
+      getNodeViewChanges orElse
+      nonsense
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+  /**
+   * Process new modifiers from remote.
+   * Put all candidates to modifiersCache and then try to apply as much modifiers from cache as possible.
+   * Clear cache if it's size exceeds size limit.
+   * Publish `ModifiersProcessingResult` message with all just applied and removed from cache modifiers.
+   */
+  protected def processRemoteModifiers: Receive = {
+    case ModifiersFromRemote(mods: Seq[PMOD]) =>
+      mods.foreach(m => modifiersCache.put(m.id, m))
+
+      log.debug(s"Cache size before: ${modifiersCache.size}")
+
+      @tailrec
+      def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
+        modifiersCache.popCandidate(history()) match {
+          case Some(mod) =>
+            pmodModify(mod)
+            applyLoop(mod +: applied)
+          case None =>
+            applied
+        }
+      }
+
+      val applied = applyLoop(Seq())
+      val cleared = modifiersCache.cleanOverfull()
+
+      context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
+      log.debug(s"Cache size after: ${modifiersCache.size}")
+  }
+
+  protected def transactionsProcessing: Receive = {
+    case newTxs: NewTransactions[TX] =>
+      newTxs.txs.foreach(txModify)
+
+    case EliminateTransactions(ids) =>
+      val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
+      updateNodeView(updatedMempool = Some(updatedPool))
+      ids.foreach { id =>
+        val e = new Exception("Became invalid")
+        context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
+      }
+  }
+
+  protected def processLocallyGeneratedModifiers: Receive = {
+    case lm: LocallyGeneratedModifier[PMOD] =>
+      log.info(s"Got locally generated modifier ${lm.pmod.encodedId} of type ${lm.pmod.modifierTypeId}")
+      pmodModify(lm.pmod)
+  }
+
+  protected def getCurrentInfo: Receive = {
+    case GetDataFromCurrentView(f) =>
+      sender() ! f(CurrentView(history(), minimalState(), vault(), memoryPool()))
+  }
+
+  protected def getNodeViewChanges: Receive = {
+    case GetNodeViewChanges(history, state, vault, mempool) =>
+      if (history) sender() ! ChangedHistory(nodeView._1.getReader)
+      if (state) sender() ! ChangedState(nodeView._2.getReader)
+      if (vault) sender() ! ChangedVault(nodeView._3.getReader)
+      if (mempool) sender() ! ChangedMempool(nodeView._4.getReader)
+  }
+
+  protected def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"NodeViewHolder: got unexpected input $nonsense from ${sender()}")
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+
   /**
     * Restore a local view during a node startup. If no any stored view found
     * (e.g. if it is a first launch of a node) None is to be returned
@@ -73,7 +159,6 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     * Hard-coded initial view all the honest nodes in a network are making progress from.
     */
   protected def genesisState: NodeView
-
 
   protected def history(): HIS = nodeView._1
 
@@ -181,9 +266,9 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
            G
           / \
-    *   G
+         *   G
         /     \
-    *       G
+       *       G
 
     where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
     that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
@@ -196,7 +281,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
         /     \
        B       G
       /
-    *
+     *
 
   In this case history should be informed about the bad modifier and it should retarget state
 
@@ -311,77 +396,10 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
       log.warn(s"Trying to apply modifier ${pmod.encodedId} that's already in history")
     }
 
-  /**
-    * Process new modifiers from remote.
-    * Put all candidates to modifiersCache and then try to apply as much modifiers from cache as possible.
-    * Clear cache if it's size exceeds size limit.
-    * Publish `ModifiersProcessingResult` message with all just applied and removed from cache modifiers.
-    */
-  protected def processRemoteModifiers: Receive = {
-    case ModifiersFromRemote(mods: Seq[PMOD]) =>
-      mods.foreach(m => modifiersCache.put(m.id, m))
-
-      log.debug(s"Cache size before: ${modifiersCache.size}")
-
-      @tailrec
-      def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
-        modifiersCache.popCandidate(history()) match {
-          case Some(mod) =>
-            pmodModify(mod)
-            applyLoop(mod +: applied)
-          case None =>
-            applied
-        }
-      }
-
-      val applied = applyLoop(Seq())
-      val cleared = modifiersCache.cleanOverfull()
-
-      context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
-      log.debug(s"Cache size after: ${modifiersCache.size}")
-  }
-
-  protected def transactionsProcessing: Receive = {
-    case newTxs: NewTransactions[TX] =>
-      newTxs.txs.foreach(txModify)
-    case EliminateTransactions(ids) =>
-      val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
-      updateNodeView(updatedMempool = Some(updatedPool))
-      ids.foreach { id =>
-        val e = new Exception("Became invalid")
-        context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
-      }
-  }
-
-  protected def processLocallyGeneratedModifiers: Receive = {
-    case lm: LocallyGeneratedModifier[PMOD] =>
-      log.info(s"Got locally generated modifier ${lm.pmod.encodedId} of type ${lm.pmod.modifierTypeId}")
-      pmodModify(lm.pmod)
-  }
-
-  protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView(f) =>
-      sender() ! f(CurrentView(history(), minimalState(), vault(), memoryPool()))
-  }
-
-  protected def getNodeViewChanges: Receive = {
-    case GetNodeViewChanges(history, state, vault, mempool) =>
-      if (history) sender() ! ChangedHistory(nodeView._1.getReader)
-      if (state) sender() ! ChangedState(nodeView._2.getReader)
-      if (vault) sender() ! ChangedVault(nodeView._3.getReader)
-      if (mempool) sender() ! ChangedMempool(nodeView._4.getReader)
-  }
-
-  override def receive: Receive =
-    processRemoteModifiers orElse
-    processLocallyGeneratedModifiers orElse
-    transactionsProcessing orElse
-    getCurrentInfo orElse
-    getNodeViewChanges orElse {
-      case a: Any => log.error("Strange input: " + a)
-    }
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object GenericNodeViewHolder {
 
@@ -395,9 +413,7 @@ object GenericNodeViewHolder {
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])
 
-    sealed trait NewTransactions[TX <: Transaction]{
-      val txs: Iterable[TX]
-    }
+    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
 
     case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
       override val txs: Iterable[TX] = Iterable(tx)
@@ -410,16 +426,5 @@ object GenericNodeViewHolder {
     case class EliminateTransactions(ids: Seq[ModifierId])
 
   }
-
-  // fixme: No actor is expecting this ModificationApplicationStarted and DownloadRequest messages
-  // fixme: Even more, ModificationApplicationStarted seems not to be sent at all
-  // fixme: should we delete these messages?
-  case class ModificationApplicationStarted[PMOD <: PersistentNodeViewModifier](modifier: PMOD)
-    extends NodeViewHolderEvent
-
-  case class DownloadRequest(modifierTypeId: ModifierTypeId,
-                             modifierId: ModifierId) extends NodeViewHolderEvent
-
-  case class CurrentView[HIS, MS, VL, MP](history: HIS, state: MS, vault: VL, pool: MP)
 
 }

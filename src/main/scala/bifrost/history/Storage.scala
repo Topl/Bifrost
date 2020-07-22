@@ -8,9 +8,9 @@ import bifrost.settings.AppSettings
 import bifrost.utils.{bytesToId, idToBytes, Logging}
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
+// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
 import scala.collection.BitSet

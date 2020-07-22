@@ -16,7 +16,6 @@ trait MessageSpec[Content] extends BifrostSerializer[Content] {
   /**
     * Code which identifies what message type is contained in the payload
     */
-
   val messageCode: Message.MessageCode
 
   /**

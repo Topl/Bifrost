@@ -1,13 +1,10 @@
-package bifrost.network
+package bifrost.network.peer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
-import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
 import bifrost.network.message.{GetPeersSpec, Message, PeersSpec}
-import bifrost.network.peer.PeerInfo
-import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+import bifrost.network.{SendToPeers, SendToRandom}
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
@@ -25,6 +22,13 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
                        featureSerializers: PeerFeature.Serializers)
                       (implicit ec: ExecutionContext) extends Actor with Logging {
 
+  // Import the types of messages this actor can RECEIVE
+  import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
+  import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
   private val peersSpec = new PeersSpec(featureSerializers, settings.maxPeerSpecObjects)
 
@@ -34,8 +38,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
     networkControllerRef ! RegisterMessageSpecs(Seq(GetPeersSpec, peersSpec), self)
 
     val msg = Message[Unit](GetPeersSpec, Right(Unit), None)
-    val stn = SendToNetwork(msg, SendToRandom)
-    context.system.scheduler.schedule(2.seconds, settings.getPeersInterval)(networkControllerRef ! stn)
+    context.system.scheduler.schedule(2.seconds, settings.getPeersInterval)(networkControllerRef ! SendToNetwork(msg, SendToRandom))
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +60,7 @@ class PeerSynchronizer(val networkControllerRef: ActorRef,
           networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
         }
 
-    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense")
+    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 }
 

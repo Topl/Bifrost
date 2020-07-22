@@ -3,8 +3,8 @@ package bifrost.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import bifrost.api.http.ProgramApiRoute
 import bifrost.crypto.Signature25519
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition

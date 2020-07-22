@@ -17,7 +17,11 @@ import scala.util.Random
   */
 class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends Actor with Logging {
 
+  // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
+
+  // Import the types of messages this actor can SEND
+  import bifrost.network.NetworkController.ReceivableMessages._
 
   private val peerDatabase = new InMemoryPeerDatabase(settings.network, bifrostContext.timeProvider)
 
@@ -74,6 +78,8 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends
       sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, bifrostContext)
   }
 
+  // TODO: JAA - 2020.07.15 - I don't think this case will ever be hit because the get above will catch the
+  // GetAllPeers and GetBlackListedPeers since they both extend type GetPeers
   private def apiInterface: Receive = {
 
     case GetAllPeers =>
@@ -113,10 +119,6 @@ object PeerManager {
   object ReceivableMessages {
 
     case class ConfirmConnection(connectionId: ConnectionId, handlerRef: ActorRef)
-
-    case class ConnectionConfirmed(connectionId: ConnectionId, handlerRef: ActorRef)
-
-    case class ConnectionDenied(connectionId: ConnectionId, handlerRef: ActorRef)
 
     case class Penalize(remote: InetSocketAddress, penaltyType: PenaltyType)
 
