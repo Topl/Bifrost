@@ -5,8 +5,11 @@ name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.11",
+  semanticdbEnabled := true, // enable SemanticDB for Scalafix
+  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.1.0"
+  version := "1.1.0",
+//  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.11"
