@@ -160,7 +160,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
     val successfulHits = boxKeys.map { boxKey =>
       val h = calcHit(parent)(boxKey._1)
       (boxKey, h)
-    }.filter(t => BigInt(t._2) < (BigInt(t._1._1.value) * target))
+    }.filter(t => BigInt(t._2) < (((t._1._1.value) * target)).toBigInt)
     log.debug(s"Successful hits: ${successfulHits.size}")
 
     successfulHits.headOption.map { case (boxKey, _) =>

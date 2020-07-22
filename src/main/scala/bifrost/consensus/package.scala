@@ -20,12 +20,12 @@ package object consensus {
   def calcAdjustedTarget(parent: Block,
                          difficulty: Long,
                          targetBlockDelay: FiniteDuration,
-                         timestamp: Long): BigInt = {
+                         timestamp: Long): BigDecimal = {
 
     val target: Double = difficulty.toDouble / MaxTarget.toDouble
     val timeDelta = timestamp - parent.timestamp
 
-    BigDecimal(target * timeDelta.toDouble / targetBlockDelay.toUnit(MILLISECONDS)).toBigInt()
+    BigDecimal(target * timeDelta.toDouble / targetBlockDelay.toUnit(MILLISECONDS))
   }
 
 }

@@ -19,8 +19,9 @@ class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
 
       val hit = calcHit(parent)(block.forgerBox)
       val target = calcAdjustedTarget(parent, parentDifficulty, targetTime, timestamp)
+      val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
 
-      require( BigInt(hit) < (target * BigInt(block.forgerBox.value)), s"$hit < $target failed, $parentDifficulty, ")
+      require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty, ")
     }
   }
 }
