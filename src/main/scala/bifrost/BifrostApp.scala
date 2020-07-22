@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.ServerBinding
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -30,7 +29,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext}
 import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
@@ -162,12 +161,18 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpHost = "0.0.0.0"
     val httpPort = settings.rpcPort
 
-    // trigger the networking binding for the HTTP server and the protocol messenger
-    val networkCntrlBind: Future[Any] = networkControllerRef ? "Bind"
-    val httpServer: Future[ServerBinding] = Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort)
+    // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
+    (networkControllerRef ? "Bind").onComplete {
+      case Success(_) =>
+        log.info(s"${Console.YELLOW}P2P is server bound and in the operational state${Console.RESET}")
 
-    // check that the HTTP server was bound and terminate the application on failure
-    httpServer.onComplete {
+      case Failure(ex) =>
+        log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}", ex)
+        BifrostApp.shutdown(actorSystem, actorsToStop)
+    }
+
+    // trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure
+    Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
@@ -176,15 +181,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
         BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 
-    // check that the P2P protocol bound successfully and terminate the application on failure
-    networkCntrlBind.onComplete {
-      case Success(_) =>
-        log.info(s"${Console.YELLOW}P2P is server bound and in the operational state${Console.RESET}")
-
-      case Failure(ex) =>
-        log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}", ex)
-        BifrostApp.shutdown(actorSystem, actorsToStop)
-    }
   }
 }
 
