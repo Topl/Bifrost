@@ -21,7 +21,6 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
 import bifrost.network.peer.{PeerFeature, PeerManagerRef}
-import bifrost.network.upnp
 import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
@@ -58,8 +57,6 @@ class ProgramRPCSpec extends WordSpec
 
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-  //p2p
-  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
@@ -77,16 +74,13 @@ class ProgramRPCSpec extends WordSpec
 
   //an address to send to peers
   lazy val externalSocketAddress: Option[InetSocketAddress] = {
-    settings.network.declaredAddress orElse {
-      // TODO use available port on gateway instead settings.bindAddress.getPort
-      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
-    }
+    settings.network.declaredAddress orElse None
   }
 
   val bifrostContext: BifrostContext = BifrostContext(
     messageSpecs = basicSpecs ++ additionalMessageSpecs,
     features = features,
-    upnpGateway = upnpGateway,
+    upnpGateway = None,
     timeProvider = timeProvider,
     externalNodeAddress = externalSocketAddress
   )
