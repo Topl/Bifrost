@@ -14,7 +14,7 @@ class ProgramMethodExecutionSpec extends WordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   "executeProgramMethod" should {
 

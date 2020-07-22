@@ -102,7 +102,7 @@ class ProgramRPCSpec extends WordSpec
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
       BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

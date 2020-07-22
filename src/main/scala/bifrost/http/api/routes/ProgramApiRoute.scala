@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
   * Created by cykoz on 5/26/2017.
   */
 
-case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef, networkControllerRef: ActorRef)
+case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State

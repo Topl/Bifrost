@@ -123,7 +123,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val apiRoutes: Seq[ApiRoute] = Seq(
     DebugApiRoute(settings, nodeViewHolderRef),
     WalletApiRoute(settings, nodeViewHolderRef),
-    ProgramApiRoute(settings, nodeViewHolderRef, networkControllerRef),
+    ProgramApiRoute(settings, nodeViewHolderRef),
     AssetApiRoute(settings, nodeViewHolderRef),
     UtilsApiRoute(settings),
     NodeViewApiRoute(settings, nodeViewHolderRef)
