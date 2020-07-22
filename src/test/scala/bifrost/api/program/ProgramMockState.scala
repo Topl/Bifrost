@@ -52,8 +52,7 @@ trait ProgramMockState extends BifrostGenerators {
   protected val features: Seq[PeerFeature] = Seq()
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
   //p2p
-  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
-  upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
