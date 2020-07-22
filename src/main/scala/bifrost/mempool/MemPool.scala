@@ -1,9 +1,9 @@
 package bifrost.mempool
 
-import io.iohk.iodb.ByteArrayWrapper
-import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewModifier.ModifierId
 import bifrost.utils.Logging
+import io.iohk.iodb.ByteArrayWrapper
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try

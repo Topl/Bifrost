@@ -12,13 +12,12 @@ import bifrost.network.peer.PeerManager
 import bifrost.settings.Settings
 import bifrost.utils.Logging
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.language.existentials
-import scala.util.{Failure, Success, Try}
 import scala.reflect.runtime.universe.TypeTag
+import scala.util.{Failure, Success, Try}
 
 /**
   * Control all network interaction
@@ -48,8 +47,8 @@ class NetworkController(settings: Settings,
         val myHost = uri.getHost
         val myAddrs = InetAddress.getAllByName(myHost)
 
-        NetworkInterface.getNetworkInterfaces.exists { intf =>
-          intf.getInterfaceAddresses.exists { intfAddr =>
+        NetworkInterface.getNetworkInterfaces.asScala.exists { intf =>
+          intf.getInterfaceAddresses.asScala.exists { intfAddr =>
             val extAddr = intfAddr.getAddress
             myAddrs.contains(extAddr)
           }
