@@ -12,7 +12,7 @@ import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -73,38 +73,50 @@ class NetworkController(
 
   override def preStart(): Unit = {
     log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
-    //check own declared address for validity
-    validateDeclaredAddress()
+    validateDeclaredAddress() //check own declared address for validity
+    context become initialization
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive =
+  override def receive: Receive = nonsense // should never get into this state
+
+  private def initialization: Receive =
     bindingLogic orElse
-      businessLogic orElse
+      registerHandlers orElse
+      nonsense
+
+  private def operational: Receive =
+    businessLogic orElse
       peerCommands orElse
       connectionEvents orElse
-      interfaceCalls orElse
       nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
     case "Bind" =>
-      //bind to listen incoming connections
-      tcpManager ! Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+      //bind to listen for incoming connections
+      val bindResponse: Unit = (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)).onComplete({
+        case Success(Tcp.Bound(addr)) =>
+          log.info(s"${Console.YELLOW}Peer-to-peer protocol bound to ${addr}${Console.RESET}")
+          scheduleConnectionToPeer()
+          context become operational
 
-    case Tcp.Bound(_) =>
-      log.info("Successfully bound to the port " + settings.bindAddress.getPort)
-      scheduleConnectionToPeer()
+        case Success(_) | Failure(_) =>
+          throw new Error("Error while attempting to bind to P2P port")
+      })
 
-    case Tcp.CommandFailed(_: Tcp.Bind) =>
-      log.error(
-        "Network port " + settings.bindAddress.getPort + " already in use!"
+      sender ! bindResponse
+  }
+
+  private def registerHandlers: Receive = {
+    case RegisterMessageSpecs(specs, handler) =>
+      log.info(
+        s"${Console.YELLOW}Registered ${sender()} as the handler for ${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
       )
-      java.lang.System.exit(1) // Terminate node if port is in use
-      context stop self
+      messageHandlers ++= specs.map(_.messageCode -> handler)
   }
 
   private def businessLogic: Receive = {
@@ -134,20 +146,19 @@ class NetworkController(
         connectedPeer => connectedPeer.handlerRef ! msg
       }
 
-    case RegisterMessageSpecs(specs, handler) =>
-      log.info(
-        s"Registering handlers for ${specs.map(s => s.messageCode -> s.messageName)}"
-      )
-      messageHandlers ++= specs.map(_.messageCode -> handler)
   }
 
   private def peerCommands: Receive = {
     case ConnectTo(peer) =>
       connectTo(peer)
 
+
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.connectionId}")
       peer.handlerRef ! CloseConnection
+
+    case GetConnectedPeers =>
+      sender() ! connections.values.flatMap(_.peerInfo).toSeq
 
     case PenalizePeer(peerAddress, penaltyType) =>
       penalize(peerAddress, penaltyType)
@@ -205,23 +216,12 @@ class NetworkController(
       log.info("Denied connection has been closed")
   }
 
-  private def interfaceCalls: Receive = {
-    case GetConnectedPeers =>
-      sender() ! connections.values.flatMap(_.peerInfo).toSeq
-
-    case ShutdownNetwork =>
-      log.info("Going to shutdown all connections & unbind port")
-      filterConnections(Broadcast, Version.initial).foreach { connectedPeer =>
-        connectedPeer.handlerRef ! CloseConnection
-      }
-  }
-
   private def nonsense: Receive = {
     case Tcp.CommandFailed(cmd: Tcp.Command) =>
       log.info("Failed to execute command : " + cmd)
 
     case nonsense: Any =>
-      log.warn(s"NetworkController: got unexpected input $nonsense from ${sender()}")
+      log.warn(s"NetworkController (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -545,23 +545,15 @@ object NetworkController {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NetworkControllerRef {
-  def apply(
-      settings: NetworkSettings,
-      peerManagerRef: ActorRef,
-      bifrostContext: BifrostContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
+  def apply(settings: NetworkSettings, peerManagerRef: ActorRef, bifrostContext: BifrostContext
+           )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
       props(settings, peerManagerRef, bifrostContext, IO(Tcp))
     )
   }
 
-  def apply(
-      name: String,
-      settings: NetworkSettings,
-      peerManagerRef: ActorRef,
-      bifrostContext: BifrostContext,
-      tcpManager: ActorRef
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
+  def apply(name: String, settings: NetworkSettings, peerManagerRef: ActorRef, bifrostContext: BifrostContext, tcpManager: ActorRef
+           )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(
       props(settings, peerManagerRef, bifrostContext, tcpManager),
       name
@@ -574,7 +566,6 @@ object NetworkControllerRef {
       peerManagerRef: ActorRef,
       bifrostContext: BifrostContext
   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
-
     system.actorOf(
       props(settings, peerManagerRef, bifrostContext, IO(Tcp)),
       name

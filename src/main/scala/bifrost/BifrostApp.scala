@@ -6,7 +6,9 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
+import akka.pattern.ask
 import akka.stream.ActorMaterializer
+import akka.util.Timeout
 import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
 import bifrost.history.History
@@ -48,6 +50,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Setup the execution environment for running the application
   protected implicit lazy val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
@@ -160,18 +163,27 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpPort = settings.rpcPort
 
     // trigger the networking binding for the HTTP server and the protocol messenger
-    networkControllerRef ! "Bind"
+    val networkCntrlBind: Future[Any] = networkControllerRef ? "Bind"
     val httpServer: Future[ServerBinding] = Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort)
 
-    // TODO: JAA - 2020.07.21 - think about how best to terminate the application
-    // TODO: if one of the binds fail.
-    // TODO: Part of this will involve refactoring UPnP to delete its port on its own
+    // check that the HTTP server was bound and terminate the application on failure
     httpServer.onComplete {
       case Success(serverBinding) =>
-        log.info(s"HTTP Server bound to ${serverBinding.localAddress}")
+        log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
       case Failure(ex) =>
-        log.error(s"Failed to bind to ${httpHost}:${httpPort}!", ex)
+        log.error(s"${Console.YELLOW}Failed to bind to ${httpHost}:${httpPort}. Terminating application!${Console.RESET}", ex)
+        BifrostApp.shutdown(actorSystem, actorsToStop)
+    }
+
+    // check that the P2P protocol bound successfully and terminate the application on failure
+    networkCntrlBind.onComplete {
+      case Success(_) =>
+        log.info(s"${Console.YELLOW}P2P is server bound and in the operational state${Console.RESET}")
+
+      case Failure(ex) =>
+        log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}", ex)
+        BifrostApp.shutdown(actorSystem, actorsToStop)
     }
   }
 }
