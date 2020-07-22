@@ -47,6 +47,7 @@ case class NetworkSettings(addedMaxDelay: Option[FiniteDuration],
                            temporalBanDuration: FiniteDuration,
                            upnpDiscoverTimeout: Option[FiniteDuration],
                            upnpEnabled: Boolean,
+                           upnpUseRandom: Option[Boolean],
                            upnpGatewayTimeout: Option[FiniteDuration]) {
 
 }

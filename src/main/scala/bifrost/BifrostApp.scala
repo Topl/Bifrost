@@ -52,15 +52,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   // check for gateway device and setup port forwarding
-  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.getValidGateway(settings.network) else None
-  // TODO use random port on gateway instead settings.network.bindAddress.getPort
-  upnpGateway.foreach(_.addPort(settings.network.bindAddress.getPort))
+  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
   // save your address for sending to others peers
   lazy val externalSocketAddress: Option[InetSocketAddress] = {
     settings.network.declaredAddress orElse {
-      // TODO use the random port on gateway instead settings.bindAddress.getPort
-      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, settings.network.bindAddress.getPort))
+      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, u.mappedPort))
     }
   }
 
@@ -117,13 +114,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   )
 
   // hook for initiating the shutdown procedure
-  sys.addShutdownHook({
-    log.warn(s"${Console.RED}Sending shutdown signal to application${Console.RESET}")
-    if (settings.network.upnpEnabled)
-      log.info("Removing UPnP port mapping ")
-    upnpGateway.foreach(_.deletePort(settings.network.bindAddress.getPort))
-    BifrostApp.shutdown(actorSystem, actorsToStop)
-  })
+  sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Register controllers for all API routes

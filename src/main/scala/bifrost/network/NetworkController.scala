@@ -421,13 +421,8 @@ class NetworkController(
       case (Some(localAddr), _) =>
         Some(localAddr)
 
-      case (None, Some(declaredAddress))
-          if bifrostContext.externalNodeAddress.exists(
-            _.getAddress == declaredAddress.getAddress
-          ) =>
-        bifrostContext.upnpGateway.flatMap(
-          _.getLocalAddressForExternalPort(declaredAddress.getPort)
-        )
+      case (None, Some(declaredAddress)) if bifrostContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
+        bifrostContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
       case _ => peer.peerSpec.declaredAddress
     }

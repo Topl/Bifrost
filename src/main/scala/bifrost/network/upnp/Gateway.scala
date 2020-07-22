@@ -2,37 +2,38 @@ package bifrost.network.upnp
 
 import java.net.{InetAddress, InetSocketAddress}
 
+import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
-import org.bitlet.weupnp.{GatewayDevice, PortMappingEntry}
+import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
 
-class Gateway(gateway: GatewayDevice) extends Logging {
+import scala.collection.JavaConverters._
+
+class Gateway(gateway: GatewayDevice, port: Int) extends Logging {
 
   val localAddress: InetAddress = gateway.getLocalAddress
   val externalAddress: InetAddress = InetAddress.getByName(gateway.getExternalIPAddress)
+  val mappedPort: Int = port
 
-  log.debug("Using UPnP gateway device on " + localAddress.getHostAddress)
+  log.info("Using UPnP gateway device on " + localAddress.getHostAddress)
   log.info("External IP address is " + externalAddress.getHostAddress)
 
-
-  def addPort(port: Int): Unit = {
-    try {
-      if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
-        log.debug("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
-      } else {
-        log.debug("Unable to map port " + port)
-      }
-    } catch {
-      case t: Throwable =>
-        log.error("Unable to map port " + port + ": " + t.toString)
+  try {
+    if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
+      log.info("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
+    } else {
+      log.info("Unable to map port " + port)
     }
+  } catch {
+    case t: Throwable =>
+      log.error("Unable to map port " + port + ": " + t.toString)
   }
 
   def deletePort(port: Int): Unit = {
     try {
       if (gateway.deletePortMapping(port, "TCP")) {
-        log.debug("Mapping deleted for port " + port)
+        log.info("Mapping deleted for port " + port)
       } else {
-        log.debug("Unable to delete mapping for port " + port)
+        log.info("Unable to delete mapping for port " + port)
       }
     } catch {
       case t: Throwable =>
@@ -52,6 +53,54 @@ class Gateway(gateway: GatewayDevice) extends Logging {
     } catch {
       case t: Throwable =>
         log.error("Unable to get local address for external port " + externalPort + ": " + t.toString)
+        None
+    }
+  }
+}
+
+object Gateway extends Logging {
+
+  def getPort(settings: NetworkSettings): Int = {
+    settings.upnpUseRandom match {
+      case Some(_) => scala.util.Random.nextInt(15000) + 50000
+      case _ => settings.bindAddress.getPort
+    }
+  }
+
+  def apply(settings: NetworkSettings): Option[Gateway] = {
+    try {
+      log.info("Looking for UPnP gateway device...")
+      val defaultHttpReadTimeout = settings.upnpGatewayTimeout.map(_.toMillis.toInt).getOrElse(GatewayDevice.getHttpReadTimeout)
+      GatewayDevice.setHttpReadTimeout(defaultHttpReadTimeout)
+      val discover = new GatewayDiscover()
+      val defaultDiscoverTimeout = settings.upnpDiscoverTimeout.map(_.toMillis.toInt).getOrElse(discover.getTimeout)
+      discover.setTimeout(defaultDiscoverTimeout)
+
+      val gatewayMap = Option(discover.discover).map(_.asScala).map(_.toMap).getOrElse(Map())
+      if (gatewayMap.isEmpty) {
+        log.info("There are no UPnP gateway devices")
+        None
+      } else {
+        gatewayMap.foreach { case (addr, _) =>
+          log.info("UPnP gateway device found on " + addr.getHostAddress)
+        }
+        val gateway = Option(discover.getValidGateway)
+        if (gateway.isEmpty) {
+          log.info("There is no connected UPnP gateway device")
+        }
+
+        val port = getPort(settings)
+        // Return UPnP Gateway with mapped port
+        val upnpGateway = gateway.map(new Gateway(_, port))
+
+        // add shutdown hook for deleting the port mapping
+        sys.addShutdownHook(upnpGateway.get.deletePort(port))
+
+        upnpGateway
+      }
+    } catch {
+      case t: Throwable =>
+        log.error("Unable to discover UPnP gateway devices", t)
         None
     }
   }
