@@ -36,7 +36,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
   require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
 
-  lazy val height: Long = storage.height
+  lazy val height: Long = storage.chainHeight
   lazy val score: Long = storage.bestChainScore
   lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
@@ -181,6 +181,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     } // TODO return sequence of exposed endpoints?
 
 
+  //TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
     * Gather blocks from after `from` that should be added to the chain
     *
@@ -188,7 +189,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param size the number of blocks to return after `from`
     * @return
     */
-  override def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
+  def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
                                size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
     /* Whether m is a genesis block or is in `from` */
@@ -463,16 +464,16 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   /**
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
-  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = ???
-  /*
-  {
-    if(isEmpty) {
+  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = ??? //{
+    /*if(isEmpty) {
       info.startingPoints
-    } else if info.lastBlockIds.isEmpty {
+    } else if(info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
-
+      lastBlocks()
+    }else {
+      val ids = info.lastBlockIds
     }
-     */
+  }*/
 
   /**
     * Information about our node synchronization status. Other node should be able to compare it's view with ours by

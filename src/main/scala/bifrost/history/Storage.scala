@@ -41,7 +41,9 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   private val bestBlockIdKey = ByteArrayWrapper(Array.fill(storage.keySize)(-1: Byte))
 
-  def height: Long = heightOf(bestBlockId).getOrElse(0L)
+  def chainHeight: Long = heightOf(bestBlockId).getOrElse(0L)
+
+  def idAtHeight(height: Long): ModifierId = idHeightOf(height).get
 
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
@@ -51,7 +53,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
   def bestBlock: Block = {
-    require(height > 0, "History is empty")
+    require(chainHeight > 0, "History is empty")
     modifierById(bestBlockId).get
   }
 
@@ -100,6 +102,9 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
 
+    val idHeight: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
+      Seq(idHeightKey(parentHeight(b) + 1) → ByteArrayWrapper(b.id.hashBytes))
+
     val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
@@ -126,7 +131,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     storage.update(
       ByteArrayWrapper(b.serializedId),
       Seq(),
-      blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
+      blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
 
     /* update the cache the in the same way */
@@ -149,6 +154,9 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   private def blockHeightKey(blockId: ModifierId): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("height".getBytes ++ blockId.hashBytes))
 
+  private def idHeightKey(height: Long): ByteArrayWrapper =
+    ByteArrayWrapper(Sha256(Longs.toByteArray(height)))
+
   private def blockDiffKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("difficulty".getBytes ++ blockId))
 
@@ -170,6 +178,12 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     blockCache
       .get(blockHeightKey(blockId))
       .map(b => Longs.fromByteArray(b.data))
+
+  def idHeightOf(height: Long): Option[ModifierId] = {
+    blockCache
+      .get(idHeightKey(height))
+      .map(id ⇒ ModifierId(id.data))
+  }
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     if (blockId.hashBytes sameElements History.GenesisParentId) {

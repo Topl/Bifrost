@@ -68,13 +68,6 @@ HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent with HistoryReader[P
   def openSurfaceIds(): Seq[ModifierId]
 
   //todo: argument should be ID | Seq[ID]
-  def continuation(from: ModifierIds, size: Int): Option[Seq[PM]] = {
-    continuationIds(from, size).map { ids =>
-      ids.map(_._2).flatMap(id => modifierById(id))
-    }
-  }
-
-  //todo: argument should be ID | Seq[ID]
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
   def syncInfo: SI
