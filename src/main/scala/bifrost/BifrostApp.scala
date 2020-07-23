@@ -164,7 +164,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
     (networkControllerRef ? "Bind").onComplete {
       case Success(_) =>
-        log.info(s"${Console.YELLOW}P2P is server bound and in the operational state${Console.RESET}")
+        log.info(s"${Console.YELLOW}P2P server is bound and in the operational state${Console.RESET}")
 
       case Failure(ex) =>
         log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}", ex)
