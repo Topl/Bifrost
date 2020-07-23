@@ -19,7 +19,9 @@ import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
-class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider)
+import scala.concurrent.ExecutionContext
+
+class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
   extends GenericNodeViewHolder[Transaction, Block] {
 
   override lazy val settings: AppSettings = appSettings
@@ -150,14 +152,14 @@ object NodeViewHolder extends Logging {
 object NodeViewHolderRef {
 
   def props(settings: AppSettings,
-            timeProvider: NetworkTimeProvider): Props = Props(new NodeViewHolder(settings, timeProvider))
+            timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props = Props(new NodeViewHolder(settings, timeProvider))
 
   def apply(settings: AppSettings,
-            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem): ActorRef =
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, timeProvider))
 
   def apply(name: String,
             settings: AppSettings,
-            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem): ActorRef =
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, timeProvider), name)
 }
