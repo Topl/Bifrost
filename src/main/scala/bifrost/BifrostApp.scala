@@ -21,7 +21,6 @@ import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
-import bifrost.network.peer.PeerSynchronizerRef
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef, NodeViewModifier}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.{Logging, NetworkTimeProvider}
@@ -98,7 +97,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, featureSerializers)
+  private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, featureSerializers)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 
