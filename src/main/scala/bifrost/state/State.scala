@@ -608,7 +608,7 @@ case class State(
     newSt
   }
 
-  override def maxRollbackDepth: Int = ???
+  override def maxRollbackDepth: Int = 10
 }
 
 object State extends Logging {
