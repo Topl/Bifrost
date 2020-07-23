@@ -12,7 +12,7 @@ import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -151,8 +151,7 @@ class NetworkController(
   private def peerCommands: Receive = {
     case ConnectTo(peer) =>
       connectTo(peer)
-
-
+      
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.connectionId}")
       peer.handlerRef ! CloseConnection
