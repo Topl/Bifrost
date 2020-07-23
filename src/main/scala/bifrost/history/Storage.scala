@@ -135,7 +135,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     )
 
     /* update the cache the in the same way */
-    (blockK ++ blockDiff ++ blockH ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
+    (blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock)
       .foreach(key => blockCache.put(key._1, Some(key._2)))
   }
 
