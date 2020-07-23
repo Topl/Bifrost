@@ -608,8 +608,6 @@ case class State(
     newSt
   }
 
-  override def applyModifiers(mods: Seq[BPMOD]): Try[State] = ???
-
   override def maxRollbackDepth: Int = ???
 }
 

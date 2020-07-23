@@ -24,8 +24,6 @@ MS <: MinimalState[M, MS]] extends NodeViewComponent with StateReader {
 
   def applyModifier(mod: M): Try[MS]
 
-  def applyModifiers(mods: Seq[M]): Try[MS]
-
   def rollbackTo(version: VersionTag): Try[MS]
 
   def getReader: StateReader = this
