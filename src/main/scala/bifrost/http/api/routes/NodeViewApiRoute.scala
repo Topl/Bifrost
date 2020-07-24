@@ -110,9 +110,14 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
   private def transactionFromMempool(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val transactionId: String = (params \\ "transactionId").head.asString.get
-      Base58.decode(transactionId) match {
-        case Success(txId) => view.pool.getById(ModifierId(txId)).get.json.asJson
-        case Failure(e) => throw e
+      val tx = Base58.decode(transactionId) match {
+        case Success(txId) => view.pool.getById(ModifierId(txId))
+        case Failure(_) => throw new Error("Unable to parse the provided transaction id")
+      }
+
+      tx match {
+        case Some(tx) => tx.json
+        case None => throw new Error("Unable to retrieve transaction")
       }
     }
   }

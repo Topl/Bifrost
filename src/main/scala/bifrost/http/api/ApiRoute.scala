@@ -1,7 +1,6 @@
 package bifrost.http.api
 
 import akka.actor.ActorRefFactory
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
@@ -29,16 +28,10 @@ trait ApiRoute extends Directives {
 
   def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
-  def postJsonRoute(fn: Future[ApiResponse]): Route = jsonRoute(Await.result(fn, timeout.duration), post)
-
   private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
-    val resp = complete(HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2))
-    withCors(resp)
-  }
-
-  def withCors(fn: => Route): Route = {
-    if (corsAllowed) respondWithHeaders(RawHeader("Access-Control-Allow-Origin", "*"))(fn)
-    else fn
+    complete(
+      HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
+    )
   }
 
   def withAuth(route: => Route): Route = {
