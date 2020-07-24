@@ -9,13 +9,14 @@ import bifrost.settings.AppSettings
 import bifrost.utils.NetworkUtils
 import bifrost.utils.Logging
 
+import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 /**
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: AppSettings, bifrostContext: BifrostContext) extends Actor with Logging {
+class PeerManager(settings: AppSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
@@ -197,17 +198,17 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: AppSettings, bifrostContext: BifrostContext): Props = {
+  def props(settings: AppSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext): Props = {
     Props(new PeerManager(settings, bifrostContext))
   }
 
   def apply(settings: AppSettings, bifrostContext: BifrostContext)
-           (implicit system: ActorSystem): ActorRef = {
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, bifrostContext))
   }
 
   def apply(name: String, settings: AppSettings, bifrostContext: BifrostContext)
-           (implicit system: ActorSystem): ActorRef = {
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, bifrostContext), name)
   }
 

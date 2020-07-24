@@ -139,8 +139,7 @@ class NetworkController(
   private def peerCommands: Receive = {
     case ConnectTo(peer) =>
       connectTo(peer)
-
-
+      
     case DisconnectFrom(peer) =>
       log.info(s"Disconnected from ${peer.connectionId}")
       peer.handlerRef ! CloseConnection
