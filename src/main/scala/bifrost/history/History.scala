@@ -354,29 +354,30 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param m     the modifier to start at
     * @param until the condition that indicates (when true) that recursion should stop
     * @param limit the maximum number of blocks to recurse back
-    * @param acc   the aggregated chain so far
     * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
     *         (None only if the parent for a block was not found) starting from the original `m`
     */
-  @tailrec
   final def chainBack(m: Block,
                       until: Block => Boolean,
-                      limit: Int = Int.MaxValue,
-                      acc: Seq[(ModifierTypeId, ModifierId)] = Seq()): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+                      limit: Int = Int.MaxValue): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
-    val sum: Seq[(ModifierTypeId, ModifierId)] = (Block.modifierTypeId -> m.id) +: acc
-
-    /* Check if the limit has been reached or if condition satisfied */
-    if (limit <= 0 || until(m)) {
-      Some(sum)
-
-    } else {
-      parentBlock(m) match {
-        case Some(parent) => chainBack(parent, until, limit - 1, sum)
-        case _ =>
-          log.warn(s"Parent block for ${m.id} not found ")
-          None
+    @tailrec
+    def loop(block: Block, acc: Seq[Block]): Seq[Block] = {
+      if(acc.lengthCompare(limit) == 0 || until(block)) {
+        acc
+      } else {
+        parentBlock(block) match {
+          case Some(parent: Block) ⇒ loop(parent, acc :+ parent)
+          case None if acc.contains(block) ⇒ acc
+          case _ ⇒ acc :+ block
+        }
       }
+    }
+
+    if(limit == 0) {
+      None
+    } else {
+      Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
     }
   }
 
@@ -464,16 +465,27 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   /**
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
-  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = ??? //{
-    /*if(isEmpty) {
+  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
+    if(isEmpty) {
       info.startingPoints
     } else if(info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
-      lastBlocks()
-    }else {
+      val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
+      chainBack(block, _ ⇒ false, size).get
+    } else {
       val ids = info.lastBlockIds
+      //TODO handle error case if not found
+      val branchPoint: ModifierId = ids.view.reverse
+        .find(m ⇒ storage.modifierById(m).isDefined).get
+      val remoteHeight = storage.heightOf(branchPoint).get
+      val heightFrom = Math.min(height, remoteHeight + size)
+      println(s"heightFrom: $heightFrom")
+      println(s"size: $size")
+      println(s"ids: $ids")
+      val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
+      chainBack(startBlock, _.parentId == branchPoint, size).get
     }
-  }*/
+  }
 
   /**
     * Information about our node synchronization status. Other node should be able to compare it's view with ours by
