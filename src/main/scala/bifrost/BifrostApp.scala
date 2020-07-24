@@ -65,13 +65,13 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // enumerate features and message specs present for
   protected val features: Seq[peer.PeerFeature] = Seq()
+  protected val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
   protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
 
   private lazy val basicSpecs = {
     val invSpec = new InvSpec(settings.network.maxInvObjects)
     val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
     val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
-    val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
     val peersSpec = new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
     Seq(
       GetPeersSpec,
@@ -97,6 +97,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
 
+  private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, featureSerializers)
+
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 
   private val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
@@ -110,6 +112,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val actorsToStop: Seq[ActorRef] = Seq(
     peerManagerRef,
     networkControllerRef,
+    peerSynchronizer,
     nodeViewSynchronizer,
     forgerRef,
     nodeViewHolderRef

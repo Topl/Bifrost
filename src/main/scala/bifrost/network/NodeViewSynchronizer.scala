@@ -103,8 +103,7 @@ class NodeViewSynchronizer[TX <: Transaction,
   protected def processDataFromPeer: Receive = {
 
     // sync info is coming from another node
-    case DataFromPeer(spec, syncInfo: SI@unchecked, remote)
-      if spec.messageCode == syncInfoSpec.messageCode =>
+    case DataFromPeer(spec, syncInfo: SI@unchecked, remote) if spec.messageCode == syncInfoSpec.messageCode =>
 
       historyReaderOpt match {
         case Some(historyReader) =>
@@ -122,8 +121,7 @@ class NodeViewSynchronizer[TX <: Transaction,
       }
 
     // Object ids coming from other node.
-    case DataFromPeer(spec, invData: InvData@unchecked, peer)
-      if spec.messageCode == InvSpec.MessageCode =>
+    case DataFromPeer(spec, invData: InvData@unchecked, peer) if spec.messageCode == InvSpec.MessageCode =>
 
       (mempoolReaderOpt, historyReaderOpt) match {
         // Filter out modifier ids that are already in process (requested, received or applied)
@@ -149,8 +147,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 
 
     // other node asking for objects by their ids
-    case DataFromPeer(spec, invData: InvData@unchecked, remote)
-      if spec.messageCode == RequestModifierSpec.MessageCode =>
+    case DataFromPeer(spec, invData: InvData@unchecked, remote) if spec.messageCode == RequestModifierSpec.MessageCode =>
 
       readersOpt.foreach { readers =>
         val objs: Seq[NodeViewModifier] = invData.typeId match {
@@ -166,8 +163,7 @@ class NodeViewSynchronizer[TX <: Transaction,
       }
 
     // process modifiers received from another peer
-    case DataFromPeer(spec, data: ModifiersData@unchecked, remote)
-      if spec.messageCode == ModifiersSpec.MessageCode =>
+    case DataFromPeer(spec, data: ModifiersData@unchecked, remote) if spec.messageCode == ModifiersSpec.MessageCode =>
 
       val typeId = data.typeId
       val modifiers = data.modifiers

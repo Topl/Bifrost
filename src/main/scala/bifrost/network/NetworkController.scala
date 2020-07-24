@@ -12,7 +12,7 @@ import bifrost.network.peer._
 import bifrost.settings.{BifrostContext, NetworkSettings, Version}
 import bifrost.utils.{Logging, NetworkUtils}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -54,18 +54,6 @@ class NetworkController(
       log.warn(s"Restarting child actor failed with: $e")
       Restart
   }
-
-  //todo: make usage more clear, now we're relying on preStart logic in a actor which is described by a never used val
-  private val featureSerializers: PeerFeature.Serializers =
-    bifrostContext.features.map(f => f.featureId -> f.serializer).toMap
-
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef(
-    "PeerSynchronizer",
-    self,
-    peerManagerRef,
-    settings,
-    featureSerializers
-  )
 
   private var messageHandlers = Map.empty[message.Message.MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
