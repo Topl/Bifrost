@@ -3,7 +3,7 @@ package bifrost.http.api.routes
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
-import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
+import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -13,14 +13,13 @@ import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 
 /** Class route for managing assets using JSON-RPC requests
@@ -35,55 +34,17 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
   type MS = State
   type VL = Wallet
   type MP = MemPool
-  override val route: Route = pathPrefix("asset") { assetRoute }
-  
-  def assetRoute: Route = path("") {
-    entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          viewAsync().map { view =>
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
-              case Right(request) =>
-                val futureResponse: Try[Future[Json]] = Try {
-                  val id = (request \\ "id").head.asString.get
-                  reqId = id
-                  require((request \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (request \\ "params").head.asArray.get
-                  require(params.size <= 5, s"size of params is ${params.size}")
+  override val route: Route = pathPrefix("asset") { basicRoute(handlers) }
 
-                  (request \\ "method").head.asString.get match {
-                    case "transferAssets" => transferAssets(params.head, id)
-                    case "transferAssetsPrototype" =>
-                      transferAssetsPrototype(params.head, id)
-                    case "transferTargetAssets" =>
-                      transferTargetAssets(params.head, id)
-                    case "transferTargetAssetsPrototype" =>
-                      transferTargetAssetsPrototype(params.head, id)
-                    case "createAssets" => createAssets(params.head, id)
-                    case "createAssetsPrototype" =>
-                      createAssetsPrototype(params.head, id)
-                  }
-                }
-                futureResponse map { response =>
-                  Await.result(response, timeout.duration)
-                } match {
-                  case Success(resp) => SuccessResponse(resp, reqId)
-                  case Failure(e) =>
-                    ErrorResponse(
-                      e,
-                      500,
-                      reqId,
-                      verbose = settings.verboseAPI
-                    )
-                }
-            }
-          }
-        }
-      }
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "transferAssets" => transferAssets(params.head, id)
+      case "transferAssetsPrototype" => transferAssetsPrototype(params.head, id)
+      case "transferTargetAssets" => transferTargetAssets(params.head, id)
+      case "transferTargetAssetsPrototype" => transferTargetAssetsPrototype(params.head, id)
+      case "createAssets" => createAssets(params.head, id)
+      case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
     }
-  }
 
   /**  #### Summary
     *    Transfer assets from an account to a specified recipient.

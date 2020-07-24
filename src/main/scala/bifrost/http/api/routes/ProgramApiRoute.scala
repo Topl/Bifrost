@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
-import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
+import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
@@ -16,18 +16,13 @@ import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.literal._
-import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Json, JsonObject}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
-
-/**
-  * Created by cykoz on 5/26/2017.
-  */
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
@@ -35,50 +30,18 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
   type MS = State
   type VL = Wallet
   type MP = MemPool
+  override val route: Route = pathPrefix("program") { basicRoute(handlers) }
 
-  override val route: Route = pathPrefix("program") {
-    programRoute
-  }
-
-  //noinspection ScalaStyle
-  def programRoute: Route = path("") {
-    entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          viewAsync().map { view =>
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
-              case Right(request) =>
-                val futureResponse: Try[Future[Json]] = Try {
-                  reqId = (request \\ "id").head.asString.get
-                  require((request \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (request \\ "params").head.asArray.get
-                  require(params.size <= 5, s"size of params is ${params.size}")
-
-                  (request \\ "method").head.asString.get match {
-                    case "getProgramSignature" => getProgramSignature(params.head, reqId)
-                    case "createCode" => createCode(params.head, reqId)
-                    case "createProgram" => createProgram(params.head, reqId)
-                    case "transferProgram" => transferProgram(params.head, reqId)
-                    case "executeProgramMethod" => executeProgramMethod(params.head, reqId)
-                    case "programCall" => programCall(params.head, reqId)
-                    case "filter" => bloomFilter(params, reqId)
-                  }
-                }
-
-                futureResponse map {
-                  response => Await.result(response, timeout.duration)
-                } match {
-                  case Success(resp) => SuccessResponse(resp, reqId)
-                  case Failure(e) =>
-                    ErrorResponse(e, 500, reqId)
-                }
-            }
-          }
-        }
-      }
-  }}
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "getProgramSignature" => getProgramSignature(params.head, id)
+      case "createCode" => createCode(params.head, id)
+      case "createProgram" => createProgram(params.head, id)
+      case "transferProgram" => transferProgram(params.head, id)
+      case "executeProgramMethod" => executeProgramMethod(params.head, id)
+      case "programCall" => programCall(params.head, id)
+      case "filter" => bloomFilter(params, id)
+    }
 
   def getProgramSignature(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>

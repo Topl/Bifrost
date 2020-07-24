@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.{Bip39, PrivateKey25519}
 import bifrost.history.History
-import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
+import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -14,14 +14,13 @@ import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                          (implicit val context: ActorRefFactory)extends ApiRouteWithView {
@@ -29,60 +28,23 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
   type MS = State
   type VL = Wallet
   type MP = MemPool
-  override val route: Route = pathPrefix("wallet") {
-    walletRoute
-  }
+  override val route: Route = pathPrefix("wallet") { basicRoute(handlers) }
 
-  def walletRoute: Route = path("") {
-    entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          viewAsync().map { _ =>
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
-              case Right(request) =>
-                val futureResponse: Try[Future[Json]] = Try {
-                  val id = (request \\ "id").head.asString.get
-                  reqId = id
-                  require((request \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (request \\ "params").head.asArray.get
-                  //todo: why is there an enforcement on the size of params?
-                  require(params.size <= 5, s"size of params is ${params.size}")
-
-                  (request \\ "method").head.asString.get match {
-                    case "transferPolys"  => transferPolys(params.head, id)
-                    case "transferArbits" => transferArbits(params.head, id)
-                    case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
-                    case "transferPolysPrototype" => transferPolysPrototype(params.head, id)
-                    case "balances"         => balances(params.head, id)
-                    case "unlockKeyfile"    => unlockKeyfile(params.head, id)
-                    case "lockKeyfile"      => lockKeyfile(params.head, id)
-                    case "generateKeyfile"  => generateKeyfile(params.head, id)
-                    case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-                    case "importSeedPhrase" => importKeyfile(params.head, id)
-                    case "signTx"           => signTx(params.head, id)
-                    case "broadcastTx"      => broadcastTx(params.head, id)
-                  }
-                }
-                futureResponse map { response =>
-                  Await.result(response, timeout.duration)
-                } match {
-                  case Success(resp) => SuccessResponse(resp, reqId)
-                  case Failure(e) =>
-                    ErrorResponse(
-                      e,
-                      500,
-                      reqId,
-                      verbose = settings.verboseAPI
-                    )
-                }
-            }
-          }
-        }
-      }
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "transferPolys"  => transferPolys(params.head, id)
+      case "transferArbits" => transferArbits(params.head, id)
+      case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
+      case "transferPolysPrototype" => transferPolysPrototype(params.head, id)
+      case "balances"         => balances(params.head, id)
+      case "unlockKeyfile"    => unlockKeyfile(params.head, id)
+      case "lockKeyfile"      => lockKeyfile(params.head, id)
+      case "generateKeyfile"  => generateKeyfile(params.head, id)
+      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+      case "importSeedPhrase" => importKeyfile(params.head, id)
+      case "signTx"           => signTx(params.head, id)
+      case "broadcastTx"      => broadcastTx(params.head, id)
     }
-  }
 
   /**  #### Summary
     *    Transfer Polys from an account to a specified recipient.
