@@ -5,10 +5,11 @@ import bifrost.BifrostGenerators
 import bifrost.modifier.block.Block
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
-import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class StorageCacheSpec extends PropSpec
+class StorageCacheSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
   with BifrostGenerators {

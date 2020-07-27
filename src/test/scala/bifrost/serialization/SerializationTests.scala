@@ -8,19 +8,20 @@ import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSeriali
 import bifrost.modifier.transaction.serialization._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Success}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
 /**
   * Created by cykoz on 4/12/17.
   */
-class SerializationTests extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class SerializationTests extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

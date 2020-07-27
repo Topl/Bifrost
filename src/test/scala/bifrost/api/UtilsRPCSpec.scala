@@ -8,13 +8,14 @@ import bifrost.api.http.UtilsApiRoute
 import bifrost.BifrostGenerators
 import bifrost.crypto.FastCryptographicHash
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 
-class UtilsRPCSpec extends WordSpec
+class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {

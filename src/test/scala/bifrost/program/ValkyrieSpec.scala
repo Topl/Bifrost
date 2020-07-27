@@ -10,7 +10,6 @@ import org.graalvm.polyglot.{Context, Instrument}
 import com.oracle.truffle.polyglot._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
-import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.encode.Base58
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
@@ -18,8 +17,10 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.settings.Settings
 import bifrost.state.StateSpec
 import bifrost.wallet.Wallet
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ValkyrieSpec extends PropSpec
+class ValkyrieSpec extends AnyPropSpec
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

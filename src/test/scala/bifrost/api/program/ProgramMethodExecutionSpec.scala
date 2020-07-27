@@ -7,10 +7,11 @@ import bifrost.api.http.ProgramApiRoute
 import bifrost.modifier.box.{Box, CodeBoxSerializer}
 import io.circe.parser.parse
 import io.iohk.iodb.ByteArrayWrapper
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramMethodExecutionSpec extends WordSpec
+class ProgramMethodExecutionSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with ProgramMockState {

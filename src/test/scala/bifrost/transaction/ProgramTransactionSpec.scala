@@ -14,17 +14,18 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Co
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramTransactionSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class ProgramTransactionSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

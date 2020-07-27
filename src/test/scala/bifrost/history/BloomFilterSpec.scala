@@ -8,17 +8,18 @@ import bifrost.modifier.block.{Block, Bloom}
 import bifrost.state.StateSpec
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
 import scorex.crypto.encode.Base58
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.collection.BitSet
 import scala.util.Try
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class BloomFilterSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class BloomFilterSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

@@ -19,7 +19,6 @@ import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
 import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import io.circe.Json
@@ -31,11 +30,13 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 7/3/2017.
   */
-class AssetRPCSpec extends WordSpec
+class AssetRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
