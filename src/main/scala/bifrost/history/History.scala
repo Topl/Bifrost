@@ -10,8 +10,8 @@ import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
-import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
+import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
 import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -20,7 +20,7 @@ import scala.annotation.tailrec
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -30,7 +30,8 @@ import scala.util.{Success, Failure, Try}
   * @param validators rule sets that dictate validity of blocks in the history
   */
 class History(val storage: Storage, settings: AppSettings, validators: Seq[BlockValidator[Block]])
-  extends GenericHistory[Block, BifrostSyncInfo, History] with Logging with BifrostEncoding {
+  extends GenericHistory[Block, BifrostSyncInfo, History]
+    with Logging with BifrostEncoding {
 
   override type NVCT = History
 

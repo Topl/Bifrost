@@ -10,7 +10,7 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.modifier.ModifierId
-import bifrost.network.BifrostSyncInfo
+import bifrost.network.{BifrostModifiersCache, BifrostSyncInfo, ModifiersCache}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
 import bifrost.state.State
@@ -31,10 +31,14 @@ class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider
   override type MS = State
   override type VL = Wallet
   override type MP = MemPool
+  type PMOD = Block
+
+  override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
+    new BifrostModifiersCache(appSettings.network.maxModifiersCacheSize)
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockCompanion,
-    GenericTransaction.modifierTypeId -> TransactionCompanion)
+      GenericTransaction.modifierTypeId -> TransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)

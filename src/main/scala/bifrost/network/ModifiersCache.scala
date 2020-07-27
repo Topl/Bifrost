@@ -1,9 +1,10 @@
 package bifrost.network
 
-import bifrost.history.HistoryReader
+import bifrost.history.{History, HistoryReader}
 import bifrost.modifier.{ContainsModifiers, ModifierId}
-import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.utils.{Logging, RecoverableModifierError}
+import bifrost.modifier.block.Block
+import bifrost.nodeView.{BifrostNodeViewModifier, PersistentNodeViewModifier}
+import bifrost.utils.{Logging, MalformedModifierError, RecoverableModifierError}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -109,7 +110,7 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
 }
 
 class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
-(override val maxSize: Int) extends LRUCache[PMOD, HR] with Logging {
+(override val maxSize: Int) extends ModifiersCache[PMOD, HR] with LRUCache[PMOD, HR] with Logging {
 
   /**
     * Default implementation is just about to scan. Not efficient at all and should be probably rewritten in a
@@ -134,6 +135,37 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
           false
         case Success(_) =>
           true
+      }
+    }.map(_._1)
+  }
+}
+
+class BifrostModifiersCache(override val maxSize: Int)
+  extends DefaultModifiersCache[Block, History](maxSize) {
+
+  /**
+    * @param history - an interface to history which could be needed to define a candidate
+    * @return - candidate if it is found
+    */
+  @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
+  override def findCandidateKey(history: History): Option[K] = {
+    def tryToApply(k: K, v: Block): Boolean = {
+      history.applicableTry(v) match {
+        case Failure(e) if e.isInstanceOf[MalformedModifierError] ⇒
+          log.warn(s"Modifier ${v.encodedId} is permanently invalid and will be removed from cache", e)
+          remove(k)
+          false
+        case m ⇒ m.isSuccess
+      }
+    }
+
+    val bestBlock: ModifierId = history.bestBlockId
+
+    // try to apply blocks sequentially from the best block
+    cache.find { case(k, v) ⇒
+      v match {
+        case _ if v.parentId == bestBlock ⇒ tryToApply(k, v)
+        case _ ⇒ false
       }
     }.map(_._1)
   }

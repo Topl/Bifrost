@@ -5,9 +5,9 @@ import bifrost.modifier.block.Block._
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.syntax._
 // fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
 import scorex.crypto.encode.Base58
@@ -41,7 +41,7 @@ case class Block(parentId: BlockId,
                  txs: Seq[Transaction],
                  inflation: Long = 0L,
                  protocolVersion: Version)
-  extends PersistentNodeViewModifier {
+  extends BifrostNodeViewModifier {
 
   type M = Block
 
@@ -113,5 +113,19 @@ object Block {
         }
     ).toSeq
     BloomTopics(bloomBitSet).toByteArray
+  }
+
+  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    Map(
+      "id" -> Base58.encode(idToBytes(b.id)).asJson,
+      "parentId" -> Base58.encode(idToBytes(b.parentId)).asJson,
+      "timestamp" -> b.timestamp.asJson,
+      "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
+      "signature" -> Base58.encode(b.signature.signature).asJson,
+      "txs" -> b.txs.map(_.json).asJson,
+      "inflation" -> b.inflation.asJson,
+      "version" -> b.version.asJson,
+      "blockSize" -> b.serializer.toBytes(b).length.asJson
+    ).asJson
   }
 }
