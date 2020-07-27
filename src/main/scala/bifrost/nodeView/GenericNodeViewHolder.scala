@@ -71,11 +71,11 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
   // ----------- CONTEXT
   override def receive: Receive =
     processRemoteModifiers orElse
-      processLocallyGeneratedModifiers orElse
-      transactionsProcessing orElse
-      getCurrentInfo orElse
-      getNodeViewChanges orElse
-      nonsense
+    processLocallyGeneratedModifiers orElse
+    transactionsProcessing orElse
+    getCurrentInfo orElse
+    getNodeViewChanges orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   /**
