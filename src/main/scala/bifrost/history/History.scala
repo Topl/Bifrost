@@ -2,18 +2,18 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.modifier.block.{Block, BlockValidator, Bloom}
-import bifrost.forging.ForgingSettings
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.consensus.DifficultyBlockValidator
-import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
 import bifrost.crypto.PrivateKey25519
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.forging.ForgingSettings
+import bifrost.history.GenericHistory.{HistoryComparisonResult, ProgressInfo}
+import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
 import bifrost.utils.Logging
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.annotation.tailrec
@@ -162,8 +162,6 @@ class History(val storage: Storage,
     ProgressInfo[Block](rollbackPoint, throwBlocks, applyBlocks)
   }
 
-  private def bounded(value: BigInt, min: BigInt, max: BigInt): BigInt = max.min(value.max(min))
-
   /**
     * Forms a list of available blocks to build upon
     *
@@ -195,7 +193,7 @@ class History(val storage: Storage,
     /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
     chainBack(bestBlock, inList) match {
       case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
-      case Some(chain) =>
+      case Some(_) =>
         log.warn("Found chain without ids from remote")
         None
       case _ => None
@@ -226,25 +224,6 @@ class History(val storage: Storage,
 
   override def syncInfo(answer: Boolean): BifrostSyncInfo =
     BifrostSyncInfo(answer, lastBlocks(BifrostSyncInfo.MaxLastBlocks, bestBlock).map(_.id), score)
-
-  /**
-    * Given a sequence of blocks, finds the subset of blocks that diverge from the local state's sequence. This works
-    * back from the most recent block to earlier blocks until one is found that exists in both sequences.
-    *
-    * @param otherLastBlocks the sequence of blocks against which to compare the local list
-    * @param suffixFound     the sequence of blocks so far that do not match the local state
-    * @return the eventual sequence of blocks that differs, including the merge point block
-    */
-  @tailrec
-  private def divergentSuffix(otherLastBlocks: Seq[ModifierId],
-                              suffixFound: Seq[ModifierId] = Seq()): Seq[ModifierId] = {
-    val head = otherLastBlocks.head
-    val newSuffix = suffixFound :+ head
-    modifierById(head) match {
-      case Some(b) => newSuffix
-      case None => if (otherLastBlocks.length <= 1) Seq() else divergentSuffix(otherLastBlocks.tail, newSuffix)
-    }
-  }
 
   /**
     * Whether another's node syncinfo shows that another node is ahead or behind ours
@@ -432,11 +411,10 @@ object History extends Logging {
   def readOrGenerate(settings: ForgingSettings): History = {
     val dataDirOpt = settings.dataDirOpt.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
-    val logDirOpt = settings.logDirOpt
-    readOrGenerate(dataDir, logDirOpt, settings)
+    readOrGenerate(dataDir, settings)
   }
 
-  def readOrGenerate(dataDir: String, logDirOpt: Option[String], settings: ForgingSettings): History = {
+  def readOrGenerate(dataDir: String, settings: ForgingSettings): History = {
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)

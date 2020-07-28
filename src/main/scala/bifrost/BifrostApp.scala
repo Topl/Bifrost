@@ -12,9 +12,9 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.{BifrostLocalInterface, BifrostSyncInfoMessageSpec, NetworkController, NodeViewSynchronizer, UPnP}
-import bifrost.network.message.{GetPeersSpec, InvSpec, MessageHandler, MessageSpec, ModifiersSpec, PeersSpec, RequestModifierSpec}
+import bifrost.network.message._
 import bifrost.network.peer.PeerManager
+import bifrost.network._
 import bifrost.nodeView.NodeViewHolder
 import bifrost.utils.Logging
 import com.sun.management.HotSpotDiagnosticMXBean

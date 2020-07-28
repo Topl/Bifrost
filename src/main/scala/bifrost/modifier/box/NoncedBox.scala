@@ -1,9 +1,9 @@
 package bifrost.modifier.box
 
+import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import scorex.crypto.encode.Base58
 
 /**
@@ -44,6 +44,8 @@ trait NoncedBoxSerializer {
 
     val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
+
+    require(typeStr.nonEmpty)
 
     val numReadBytes = Ints.BYTES + typeLen
 
