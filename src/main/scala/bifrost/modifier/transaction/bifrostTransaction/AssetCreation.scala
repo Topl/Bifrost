@@ -9,8 +9,8 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationCompanion
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -118,7 +118,6 @@ object AssetCreation {
                      data: String): Try[AssetCreation] = Try {
 
     val selectedSecret = w.secretByPublicImage(issuer).get
-    val fakeSigs = IndexedSeq(Signature25519(Array()))
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
 
