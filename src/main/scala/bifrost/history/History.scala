@@ -475,16 +475,14 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       chainBack(block, _ ⇒ false, size).get
     } else {
       val ids = info.lastBlockIds
-      //TODO handle error case if not found
-      val branchPoint: ModifierId = ids.view.reverse
-        .find(m ⇒ storage.modifierById(m).isDefined).get
-      val remoteHeight = storage.heightOf(branchPoint).get
-      val heightFrom = Math.min(height, remoteHeight + size)
-      println(s"heightFrom: $heightFrom")
-      println(s"size: $size")
-      println(s"ids: $ids")
-      val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
-      chainBack(startBlock, _.parentId == branchPoint, size).get
+      val branchPointOpt: Option[ModifierId] = ids.view.reverse
+        .find(m ⇒ storage.modifierById(m).isDefined).orElse(None)
+      branchPointOpt.toSeq.flatMap { branchPoint ⇒
+        val remoteHeight = storage.heightOf(branchPoint).get
+        val heightFrom = Math.min(height, remoteHeight + size)
+        val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
+        chainBack(startBlock, _.parentId == branchPoint, size).get
+      }
     }
   }
 
