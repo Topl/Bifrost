@@ -6,16 +6,16 @@ import akka.actor.{Actor, ActorRef, Cancellable, SupervisorStrategy}
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
-import com.google.common.primitives.Ints
 import bifrost.network.message.MessageHandler
 import bifrost.network.peer.PeerManager
 import bifrost.network.peer.PeerManager.{AddToBlacklist, Handshaked}
 import bifrost.settings.Settings
 import bifrost.utils.Logging
+import com.google.common.primitives.Ints
 
-import scala.util.{Failure, Random, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.{Failure, Random, Success}
 
 case class ConnectedPeer(socketAddress: InetSocketAddress, handlerRef: ActorRef) {
 
