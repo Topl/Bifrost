@@ -4,12 +4,12 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base64
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 case class ExecutionBuilderTerms(terms: String){
 

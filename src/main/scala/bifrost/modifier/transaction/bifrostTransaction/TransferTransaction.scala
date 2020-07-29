@@ -1,9 +1,9 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.PublicKeyNoncedBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._
