@@ -50,7 +50,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     .map(d => bytesToId(d.data))
     .getOrElse(ModifierId(History.GenesisParentId))
 
-  def bestChainScore: Long = scoreOf(bestBlockId).get
+  def bestChainScore: BigInt = scoreOf(bestBlockId).get
 
   def bestBlock: Block = {
     require(chainHeight > 0, "History is empty")
@@ -109,7 +109,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff)))
+      Seq(blockScoreKey(b.id) -> ByteArrayWrapper((parentChainScore(b) + BigInt(diff)).toByteArray))
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
@@ -169,10 +169,10 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))
 
-  def scoreOf(blockId: ModifierId): Option[Long] =
+  def scoreOf(blockId: ModifierId): Option[BigInt] =
     blockCache
       .get(blockScoreKey(blockId))
-      .map(b => Longs.fromByteArray(b.data))
+      .map(b => BigInt(b.data))
 
   def heightOf(blockId: ModifierId): Option[Long] =
     blockCache
@@ -209,7 +209,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .get(ByteArrayWrapper(transactionId))
       .map(_.data)
 
-  def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
+  def parentChainScore(b: Block): BigInt = scoreOf(b.parentId).getOrElse(0L)
 
   def parentHeight(b: Block): Long = heightOf(b.parentId).getOrElse(0L)
 

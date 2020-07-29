@@ -117,6 +117,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
         log.debug(s"Failed to generate block")
     }
 
+    // fixme: JAA - if we want this to happen last then we should make it dependent on something earlier in the function call
     context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
   }
 
