@@ -1,8 +1,7 @@
 package bifrost.crypto
 
-import bifrost.serialization.{BytesSerializable, Serializer}
-import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.serialization.{BytesSerializable, Serializer}
 import com.google.common.primitives.Bytes
 import scorex.crypto.signatures.Curve25519
 
@@ -24,8 +23,6 @@ trait SecretCompanion[S <: Secret] {
   type PK = S#PK
 
   type PR <: ProofOfKnowledge[S, _ <: ProofOfKnowledgeProposition[S]]
-
-  def owns(secret: S, box: GenericBox[_, Long]): Boolean
 
   def sign(secret: S, message: Array[Byte]): PR
 
@@ -60,13 +57,6 @@ object PrivateKey25519Serializer extends Serializer[PrivateKey25519] {
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
 
   override type PR = Signature25519
-
-  override def owns(secret: PrivateKey25519, box: GenericBox[_, Long]): Boolean = {
-    box.proposition match {
-      case p: PublicKey25519Proposition => p.pubKeyBytes sameElements secret.publicKeyBytes
-      case _ => false
-    }
-  }
 
   override def sign(secret: PrivateKey25519, message: Array[Byte]): Signature25519 = {
     Signature25519(Curve25519.sign(secret.privKeyBytes, message))

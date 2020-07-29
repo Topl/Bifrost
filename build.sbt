@@ -58,17 +58,18 @@ val testingDependencies = Seq(
   "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
 )
 
-libraryDependencies ++= Seq(
-  "com.chuusai" %% "shapeless" % "2.3.3",
+val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "1.2.3",
-  "com.google.guava" % "guava" % "19.0"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.whispersystems" % "curve25519-java" % "0.4.1"
+)
 
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
-  "org.whispersystems" % "curve25519-java" % "0.4.1",
-)
+  "com.chuusai" %% "shapeless" % "2.3.3",
+  "com.google.guava" % "guava" % "19.0"
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
+
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -97,7 +98,13 @@ libraryDependencies  ++= Seq(
   "com.typesafe" % "config" % "1.3.3",
 )
 
-scalacOptions ++= Seq("-feature", "-deprecation")
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-Xfatal-warnings",
+  "-Xlint"
+)
 
 javaOptions ++= Seq(
   "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
@@ -127,9 +134,7 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
 
-Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-
-Compile / run / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 
 Test / fork := false
 
@@ -138,8 +143,6 @@ Compile / run / fork := true
 pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
-
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
@@ -175,3 +178,11 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
+  .settings(
+    commonSettings,
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies
+  )
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+

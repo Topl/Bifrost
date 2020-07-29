@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.serialization.Serializer
+import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
+import bifrost.serialization.Serializer
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
@@ -28,6 +28,8 @@ object ProgramTransactionCompanion extends Serializer[ProgramTransaction] {
 
     val typeLength = Ints.fromByteArray(bytes.take(Ints.BYTES))
     val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
+
+    require(typeStr == "ProgramTransaction")
 
     /* Grab the rest of the bytes, which should begin similarly (with sub-type) */
     val newBytes = bytes.slice(Ints.BYTES + typeLength, bytes.length)
