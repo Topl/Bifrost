@@ -14,6 +14,16 @@ class KeyManagerSpec extends WordSpec with Matchers{
       val proof = PrivateKey25519Companion.sign(sk,messageToSign)
       assert(PrivateKey25519Companion.verify(messageToSign, pk, proof))
     }
+    "foreign private key yields invalid signature" in {
+      val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
+      val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
+      val (sk1, pk1) = PrivateKey25519Companion.generateKeys(randomBytes1)
+      val (sk2, pk2) = PrivateKey25519Companion.generateKeys(randomBytes2)
+
+      val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
+      val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
+      assert(!PrivateKey25519Companion.verify(messageToSign, pk2, proof))
+    }
   }
 
   "Generating keys" should {
