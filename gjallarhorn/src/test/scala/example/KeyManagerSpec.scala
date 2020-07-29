@@ -14,10 +14,6 @@ class KeyManagerSpec extends WordSpec with Matchers{
       val proof = PrivateKey25519Companion.sign(sk,messageToSign)
       assert(PrivateKey25519Companion.verify(messageToSign, pk, proof))
     }
-
-    "foreign private key yields invalid signature" in {
-
-    }
   }
 
   "Generating keys" should {
@@ -56,47 +52,4 @@ class KeyManagerSpec extends WordSpec with Matchers{
       assert(skBOB != null && pkBOB != null && skBOB.isInstanceOf[PrivateKey25519] && pkBOB.isInstanceOf[PublicKey25519Proposition])
     }
   }
-  //------------------------------------------------------------------
-  // Keys (within keyfile) store/import test cases
-  "Keys within a key file" should {
-    "be stored within a keyfile" in {
-
-    }
-
-    "be imported from a keyfile" in {
-
-    }
-
-    "whose export is formatted in JSON" in {
-
-    }
-
-    "whose format is Bifrost compatible" in {
-
-    }
-  }
-//------------------------------------------------------------------
-  // KeyFile Lock/Unlock test cases
-  "A key file" should {
-    "be locked" in {
-
-    }
-
-    "be unlocked" in {
-
-    }
-  }
-  //------------------------------------------------------------------
-  // KeyManager Lock/Unlock test cases
-  "A key manager instance" should {
-    "be locked" in {
-
-    }
-
-    "be unlocked" in {
-
-    }
-  }
-  //------------------------------------------------------------------
-
 }
