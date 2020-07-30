@@ -65,16 +65,16 @@ class KeyManagerSpec extends WordSpec with Matchers{
 
   "A key manager instance" should {
     "have 3 keyfiles" in {
-      val keyManager = KeyManager(Set(), "Users/juliang/Desktop/Topl/Bifrost/keyfiles/node1")
+      val keyManager = KeyManager(Set(), "keyfiles/node1")
       assert(keyManager.publicKeys.size == 3)
     }
     "be unlocked" in {
-      val keyManager = KeyManager(Set(), "/keyfiles/node1")
+      val keyManager = KeyManager(Set(), "keyfiles/node1")
       keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       assert(keyManager.secrets.size == 1)
     }
     "be locked" in {
-      val keyManager = KeyManager(Set(), "/keyfiles/node1")
+      val keyManager = KeyManager(Set(), "keyfiles/node1")
       keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       keyManager.lockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       assert(keyManager.secrets.size == 0)
