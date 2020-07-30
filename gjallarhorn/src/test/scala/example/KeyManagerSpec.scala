@@ -101,10 +101,11 @@ class KeyManagerSpec extends WordSpec with Matchers{
       val password = "password"
       val seed = Blake2b256(java.util.UUID.randomUUID.toString)
       val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
+      KeyFile(password, seed, keyFileDir)
 
       val keyManager = KeyManager(Set(), keyFileDir)
 
-      keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+      keyManager.unlockKeyFile(Base58.encode(pub.pubKeyBytes), password)
       assert(keyManager.secrets.size == 1)
     }
     "be locked yes path" in {
