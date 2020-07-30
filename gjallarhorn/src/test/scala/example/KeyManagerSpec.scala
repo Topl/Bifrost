@@ -91,11 +91,19 @@ class KeyManagerSpec extends WordSpec with Matchers{
         }
         pub
       }
-      keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.publicKeys.size == 3)
+
+      Try(path.deleteRecursively())
     }
     "be unlocked yes path" in {
-      val keyManager = KeyManager(Set(), "keyfiles/node1")
+      Try(path.deleteRecursively())
+      Try(path.createDirectory())
+      val password = "password"
+      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
+      val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
+
+      val keyManager = KeyManager(Set(), keyFileDir)
+
       keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       assert(keyManager.secrets.size == 1)
     }
