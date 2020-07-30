@@ -6,13 +6,14 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Random, Success, Try}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramSpec extends PropSpec
+class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

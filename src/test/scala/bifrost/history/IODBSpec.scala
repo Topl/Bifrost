@@ -7,13 +7,14 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.NodeViewModifier._
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.encode.Base58
 
 import scala.util.Random
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class IODBSpec extends PropSpec
+class IODBSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

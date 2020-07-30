@@ -4,11 +4,12 @@ import bifrost.BifrostGenerators
 import bifrost.modifier.block.Block
 import bifrost.nodeView.NodeViewModifier.ModifierId
 import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scorex.crypto.encode.Base58
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class BifrostHistorySpec extends PropSpec
+class BifrostHistorySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
   with BifrostGenerators {
