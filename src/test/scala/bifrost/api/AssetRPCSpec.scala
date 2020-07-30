@@ -1,6 +1,6 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -8,17 +8,19 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.{AssetApiRoute, WalletApiRoute}
 import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import bifrost.history.History
+import bifrost.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -44,8 +46,9 @@ class AssetRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
@@ -67,8 +70,11 @@ class AssetRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -108,17 +114,18 @@ class AssetRPCSpec extends AnyWordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
         view().state.applyModifier(tempBlock)
         view().pool.remove(txInstance)
@@ -304,7 +311,8 @@ class AssetRPCSpec extends AnyWordSpec
 
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }

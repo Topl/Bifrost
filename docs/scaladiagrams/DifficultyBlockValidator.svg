@@ -63,15 +63,15 @@
 <path fill="none" stroke="#000000" d="M181.0957,-215.8314C181.0957,-208.131 181.0957,-198.9743 181.0957,-190.4166"/>
 <polygon fill="#000000" stroke="#000000" points="184.5958,-190.4132 181.0957,-180.4133 177.5958,-190.4133 184.5958,-190.4132"/>
 </g>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node6" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="166.0957" cy="-18" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="166.0957" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="166.0957" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
-<!-- BifrostStorage&#45;&gt;ScorexLogging -->
+<!-- BifrostStorage&#45;&gt;Logging -->
 <g id="edge5" class="edge">
-<title>BifrostStorage&#45;&gt;ScorexLogging</title>
+<title>BifrostStorage&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M214.5096,-218.759C230.1766,-209.794 247.477,-196.8741 257.0957,-180 280.9031,-138.2349 287.4573,-113.4443 263.0957,-72 253.4126,-55.5269 236.6816,-43.714 219.8139,-35.4225"/>
 <polygon fill="#000000" stroke="#000000" points="221.0244,-32.128 210.4728,-31.1711 218.1247,-38.4992 221.0244,-32.128"/>
 </g>
@@ -99,9 +99,9 @@
 <path fill="none" stroke="#000000" d="M181.0957,-143.8314C181.0957,-136.131 181.0957,-126.9743 181.0957,-118.4166"/>
 <polygon fill="#000000" stroke="#000000" points="184.5958,-118.4132 181.0957,-108.4133 177.5958,-118.4133 184.5958,-118.4132"/>
 </g>
-<!-- Settings&#45;&gt;ScorexLogging -->
+<!-- Settings&#45;&gt;Logging -->
 <g id="edge8" class="edge">
-<title>Settings&#45;&gt;ScorexLogging</title>
+<title>Settings&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M74.3677,-75.4297C90.6115,-65.2597 112.5853,-51.5022 130.9536,-40.002"/>
 <polygon fill="#000000" stroke="#000000" points="133.0217,-42.8366 139.6402,-34.5634 129.3071,-36.9035 133.0217,-42.8366"/>
 </g>

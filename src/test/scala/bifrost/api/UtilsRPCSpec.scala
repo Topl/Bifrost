@@ -5,8 +5,8 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.BifrostGenerators
-import bifrost.api.http.UtilsApiRoute
 import bifrost.crypto.FastCryptographicHash
+import bifrost.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 

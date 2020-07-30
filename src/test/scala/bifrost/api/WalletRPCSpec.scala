@@ -2,7 +2,7 @@ package bifrost.api
 
 import java.io.File
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -10,13 +10,15 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.WalletApiRoute
 import bifrost.history.History
+import bifrost.http.api.routes.WalletApiRoute
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
@@ -37,8 +39,9 @@ class WalletRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
@@ -51,8 +54,11 @@ class WalletRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -112,7 +118,8 @@ class WalletRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }
@@ -163,7 +170,8 @@ class WalletRPCSpec extends AnyWordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }

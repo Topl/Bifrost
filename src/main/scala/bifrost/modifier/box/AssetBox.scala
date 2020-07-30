@@ -1,7 +1,7 @@
 package bifrost.modifier.box
 
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
@@ -29,9 +29,9 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
   ).asJson
 }
 
-object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer {
+object AssetBoxSerializer extends BifrostSerializer[AssetBox] with NoncedBoxSerializer {
 
-  def toBytes(obj: AssetBox): Array[Byte] = {
+  override def toBytes(obj: AssetBox): Array[Byte] = {
     noncedBoxToBytes(obj, "AssetBox") ++
       obj.issuer.pubKeyBytes ++
       obj.assetCode.getBytes ++
@@ -59,4 +59,8 @@ object AssetBoxSerializer extends Serializer[AssetBox] with NoncedBoxSerializer 
 
     AssetBox(params._1, params._2, params._3, asset, issuer, data)
   }
+
+  override def serialize(obj: AssetBox, w: Writer): Unit = ???
+
+  override def parse(r: Reader): AssetBox = ???
 }

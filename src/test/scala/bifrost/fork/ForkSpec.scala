@@ -1,19 +1,19 @@
 
 package bifrost.fork
 
+import java.time.Instant
+
 import bifrost.BifrostGenerators
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
-import bifrost.forging.ForgingSettings
 import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import io.circe
-import io.circe.syntax._
 import org.scalatest.BeforeAndAfterAll
+import bifrost.settings.{AppSettings, StartupOpts}
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
@@ -29,37 +29,35 @@ class ForkSpec extends AnyPropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val settingsFilename = "testSettings.json"
-
-  lazy val testSettings_version3: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
-  lazy val testSettings_version0: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename) +
-      ("version" -> (List(0,0,0).asJson)) +
-      ("forkHeight" -> 3.asJson)
-  }
+  private val settingsFilename = "src/test/resources/test.conf"
+  val testSettings_version1: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val originalSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val testSettings_version0: AppSettings = originalSettings
+    .copy(version = "0.0.0",
+          forgingSettings = originalSettings.forgingSettings.copy(forkHeight = 3, version = 0))
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings_version0)
   var history: HIS = gs._1
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
+  println("Just before prop")
+
   property("Appending version3 blocks before height = forkHeight should fail") {
     val tempBlock_version3 = Block(history.bestBlockId,
       System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       0L,
-      testSettings_version3.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     history.modifierById(tempBlock_version3.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version3.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -71,14 +69,14 @@ class ForkSpec extends AnyPropSpec
   property("Appending version3 blocks after height = forkHeight should work") {
 
     println(s"history.height: ${history.height}")
-    for(i <- 2L to testSettings_version0.forkHeight) {
+    for(i <- 2L to testSettings_version0.forgingSettings.forkHeight) {
       val tempBlock = Block(history.bestBlockId,
-        System.currentTimeMillis(),
-        ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+        Instant.now().toEpochMilli,
+        ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
         Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
         Seq(),
         0L,
-        testSettings_version0.version)
+        testSettings_version0.forgingSettings.version)
 
       Thread.sleep(1000)
 
@@ -87,12 +85,12 @@ class ForkSpec extends AnyPropSpec
     }
 
     val tempBlock_version3_1 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3_1).get._1
     assert(history.modifierById(tempBlock_version3_1.id).isDefined)
@@ -100,21 +98,21 @@ class ForkSpec extends AnyPropSpec
     Thread.sleep(1000)
 
     val tempBlock_version3_2 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3_2).get._1
     assert(history.modifierById(tempBlock_version3_2.id).isDefined)
 
-    history.height shouldEqual testSettings_version0.forkHeight + 2
+    history.height shouldEqual testSettings_version0.forgingSettings.forkHeight + 2
 
     history.storage.rollback(tempBlock_version3_1.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -122,9 +120,9 @@ class ForkSpec extends AnyPropSpec
       )
     )
 
-    history.height shouldEqual testSettings_version0.forkHeight
+    history.height shouldEqual testSettings_version0.forgingSettings.forkHeight
 
-    assert(history.height == testSettings_version0.forkHeight)
+    assert(history.height == testSettings_version0.forgingSettings.forkHeight)
   }
 
   property("Appending version0 blocks after height = forkHeight should fail") {
@@ -133,19 +131,19 @@ class ForkSpec extends AnyPropSpec
     Thread.sleep(1000)
     
     val tempBlock_version0 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version0.version)
+      testSettings_version0.forgingSettings.version)
 
     history = history.append(tempBlock_version0).get._1
     history.modifierById(tempBlock_version0.id).isDefined shouldBe false
 
     history.storage.rollback(tempBlock_version0.parentId)
     history = new History(history.storage,
-      testSettings_version3,
+      testSettings_version1,
       Seq(
         new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
@@ -160,23 +158,23 @@ class ForkSpec extends AnyPropSpec
     Thread.sleep(1000)
 
     val tempBlock_version3 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version3.version)
+      testSettings_version1.forgingSettings.version)
 
     history = history.append(tempBlock_version3).get._1
     assert(history.modifierById(tempBlock_version3.id).isDefined)
 
     val tempBlock_version0 = Block(history.bestBlockId,
-      System.currentTimeMillis(),
-      ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+      Instant.now().toEpochMilli,
+      ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, Long.MaxValue),
       Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
       Seq(),
       10L,
-      testSettings_version0.version)
+      testSettings_version0.forgingSettings.version)
 
     val appendResult = history.append(tempBlock_version0)
     appendResult match {
@@ -196,7 +194,7 @@ class ForkSpec extends AnyPropSpec
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new History(history.storage,
-          testSettings_version3,
+          testSettings_version1,
           Seq(
             new DifficultyBlockValidator(history.storage)
             //new ParentBlockValidator(storage),

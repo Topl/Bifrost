@@ -8,6 +8,7 @@ import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.serialization.AssetTransferCompanion
 import bifrost.state.TokenBoxRegistry
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.syntax._
@@ -28,7 +29,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override type M = AssetTransfer
 
-  override lazy val serializer = AssetTransferCompanion
+  override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferCompanion
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
@@ -49,7 +50,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   }
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "AssetTransfer".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,

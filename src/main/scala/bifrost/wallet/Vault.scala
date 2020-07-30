@@ -1,8 +1,8 @@
 package bifrost.wallet
 
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.nodeView.{NodeViewComponent, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.modifier.ModifierId
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 
@@ -10,11 +10,11 @@ import scala.util.Try
   * Abstract interface for Vault, a storage for node-specific information
   */
 
-trait Vault[P <: Proposition, TX <: GenericTransaction[P],
-            PMOD <: PersistentNodeViewModifier[P, TX], V <: Vault[P, TX, PMOD, V]] extends NodeViewComponent {
+trait Vault[TX <: GenericTransaction[_],
+            PMOD <: PersistentNodeViewModifier, V <: Vault[TX, PMOD, V]] extends NodeViewComponent with VaultReader {
   self: V =>
 
-  type VersionTag = NodeViewModifier.ModifierId
+  type VersionTag = ModifierId
 
   def scanOffchain(tx: TX): V
 
@@ -27,4 +27,6 @@ trait Vault[P <: Proposition, TX <: GenericTransaction[P],
   }
 
   def rollback(to: VersionTag): Try[V]
+
+  def getReader: VaultReader = this
 }

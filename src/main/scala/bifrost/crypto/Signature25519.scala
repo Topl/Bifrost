@@ -1,7 +1,7 @@
 package bifrost.crypto
 
 import bifrost.modifier.box.proposition.{Proposition, PublicKey25519Proposition}
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -19,17 +19,21 @@ case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[Priva
 
   override type M = Signature25519
 
-  override def serializer: Serializer[Signature25519] = Signature25519Serializer
+  override def serializer: BifrostSerializer[Signature25519] = Signature25519Serializer
 
   override def toString: String = s"Signature25519(${Base58.encode(signature)})"
 }
 
-object Signature25519Serializer extends Serializer[Signature25519] {
+object Signature25519Serializer extends BifrostSerializer[Signature25519] {
   override def toBytes(obj: Signature25519): Array[Byte] = obj.signature
 
   override def parseBytes(bytes: Array[Byte]): Try[Signature25519] = Try(Signature25519(bytes))
+
+  override def serialize(obj: Signature25519, w: Writer): Unit = ???
+
+  override def parse(r: Reader): Signature25519 = ???
 }
 
 object Signature25519 {
-  lazy val SignatureSize = Curve25519.SignatureLength
+  lazy val SignatureSize: Int = Curve25519.SignatureLength
 }

@@ -9,6 +9,7 @@ import bifrost.modifier.box.{Box, CodeBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
 import bifrost.program.ProgramPreprocessor
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -26,7 +27,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
   override type M = CodeCreation
 
-  lazy val serializer = CodeBoxCreationCompanion
+  lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationCompanion
 
   override def toString: String = s"CodeCreation(${json.noSpaces})"
 
@@ -56,7 +57,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
   }
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "CodeCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> Base58.encode(to.pubKeyBytes).asJson,

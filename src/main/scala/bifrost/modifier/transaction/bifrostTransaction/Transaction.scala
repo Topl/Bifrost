@@ -4,16 +4,18 @@ import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.BoxTransaction
-import bifrost.settings.Settings
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import scorex.crypto.encode.Base58
 
-trait TransactionSettings extends Settings
+trait TransactionSettings
 
 trait Transaction
   extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
+
+  override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
   val boxIdsToOpen: IndexedSeq[Array[Byte]]
 }
@@ -21,6 +23,8 @@ trait Transaction
 object Transaction {
   type Nonce = Long
   type Value = Long
+
+  val modifierTypeId = ModifierTypeId @@ (2: Byte)
 
   def stringToPubKey(rawString: String): PublicKey25519Proposition =
     PublicKey25519Proposition(Base58.decode(rawString).get)

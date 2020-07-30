@@ -1,6 +1,8 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import java.net.InetSocketAddress
+
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
@@ -8,18 +10,23 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.Forger
+import bifrost.consensus.ForgerRef
 import bifrost.history.History
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.message._
-import bifrost.network.peer.PeerManager
 import bifrost.network._
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.nodeView.NodeViewHolder
+import bifrost.network.message._
+import bifrost.network.peer.{PeerFeature, PeerManagerRef}
+import bifrost.nodeView.CurrentView
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
+import bifrost.settings.BifrostContext
 import bifrost.state.{State, StateChanges}
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
@@ -46,43 +53,51 @@ class ProgramRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-  //p2p
-  lazy val upnp = new UPnP(settings)
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
 
-  private lazy val basicSpecs =
+  protected val features: Seq[PeerFeature] = Seq()
+  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
+
+  private lazy val basicSpecs = {
+    val invSpec = new InvSpec(settings.network.maxInvObjects)
+    val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
+    val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
+    val featureSerializers: PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
     Seq(
       GetPeersSpec,
-      PeersSpec,
-      InvSpec,
-      RequestModifierSpec,
-      ModifiersSpec
+      new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
+      invSpec,
+      requestModifierSpec,
+      modifiersSpec
     )
+  }
 
-  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
+  //an address to send to peers
+  lazy val externalSocketAddress: Option[InetSocketAddress] = {
+    settings.network.declaredAddress orElse None
+  }
 
-  val peerManagerRef: ActorRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
-
-  val nProps: Props = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-  val networkController: ActorRef = actorSystem.actorOf(nProps, "networkController")
-
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
-
-  val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
+  val bifrostContext: BifrostContext = BifrostContext(
+    messageSpecs = basicSpecs ++ additionalMessageSpecs,
+    features = features,
+    upnpGateway = None,
+    timeProvider = timeProvider,
+    externalNodeAddress = externalSocketAddress
   )
 
-  val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[NodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
-  )
+  val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
+
+  val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
+
+  val nodeViewSynchronizer: ActorRef =
+    NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
+      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
+      BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
+
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -100,9 +115,11 @@ class ProgramRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   // Unlock Secrets
   val gw: Wallet = view().vault
@@ -130,7 +147,8 @@ class ProgramRPCSpec extends AnyWordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+      val txHashId = ModifierId(Base58.decode(txHash).get)
+      val txInstance: Transaction = view().pool.getById(txHashId).get
       txInstance.newBoxes.foreach {
         case b: ExecutionBox =>
           executionBox = Some(b)
@@ -139,8 +157,9 @@ class ProgramRPCSpec extends AnyWordSpec
       val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
         txInstance.newBoxes.toSet,
         System.currentTimeMillis())
+      val versionId = ModifierId(Ints.toByteArray(version))
 
-      view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
+      view().state.applyChanges(boxSC, versionId).get
       view().pool.remove(txInstance)
     }
 

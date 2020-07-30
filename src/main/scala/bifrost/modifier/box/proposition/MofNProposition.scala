@@ -2,7 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.box.proposition.PublicKey25519Proposition._
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
@@ -40,7 +40,7 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
 
   override type M = MofNProposition
 
-  override def serializer: Serializer[MofNProposition] = MofNPropositionSerializer
+  override def serializer: BifrostSerializer[MofNProposition] = MofNPropositionSerializer
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: MofNProposition => p.m == m && p.setOfPubKeyBytes == setOfPubKeyBytes
@@ -51,7 +51,12 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
 
 }
 
-object MofNPropositionSerializer extends Serializer[MofNProposition] {
+object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
+
+  override def serialize(obj: MofNProposition, w: Writer): Unit = ???
+
+  override def parse(r: Reader): MofNProposition = ???
+
   override def toBytes(obj: MofNProposition): Array[Byte] = Bytes.concat(
     Ints.toByteArray(obj.m),
     Ints.toByteArray(obj.setOfPubKeyBytes.size),

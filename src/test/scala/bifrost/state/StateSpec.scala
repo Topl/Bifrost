@@ -1,9 +1,8 @@
 package bifrost.state
 
-import bifrost.forging.ForgingSettings
 import bifrost.nodeView.NodeViewHolder
+import bifrost.settings.{AppSettings, StartupOpts}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe
 import org.scalatest.BeforeAndAfterAll
 
 import scala.reflect.io.Path
@@ -54,10 +53,10 @@ class StateSpec extends AnyPropSpec
         .get
 
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(poT), 10L, settings.version)
 
       require(BifrostStateSpec.genesisState.validate(poT).isSuccess)
@@ -121,10 +120,10 @@ class StateSpec extends AnyPropSpec
     val tx = ProfileTransaction(privateKey.publicImage, signature, Map("role" -> role.toString), 0L, timestamp)
 
     val block = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      Array.fill(Block.signatureLength)(-1: Byte),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx),
       10L,
       settings.version)
@@ -179,10 +178,10 @@ class StateSpec extends AnyPropSpec
       val recipient = pubkeys(Random.nextInt(pubkeys.size))
       val poT = PolyTransfer.create(gw, toReceive, Random.nextInt(100),"").get
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(poT),
         10L,
         settings.version
@@ -222,10 +221,10 @@ class StateSpec extends AnyPropSpec
       val toReceive = pubkeys.map(_ -> (Gen.choose(0, 100L).sample.get + initialBalance))
       val arT = ArbitTransfer.create(gw, toReceive, Random.nextInt(100),"").get
       val block = Block(
-        Array.fill(Block.SignatureLength)(-1: Byte),
+        Array.fill(Block.signatureLength)(-1: Byte),
         Instant.now().toEpochMilli,
         ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-        Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+        Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
         Seq(arT),
         10L,
         settings.version
@@ -245,10 +244,8 @@ object StateSpec {
   import MinimalState.VersionTag
   import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 
-  val settingsFilename = "testSettings.json"
-  lazy val testSettings: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
+  private val settingsFilename = "src/test/resources/test.conf"
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())

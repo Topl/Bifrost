@@ -1,7 +1,7 @@
 package bifrost.modifier.box
 
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 import scala.util.Try
 
@@ -11,9 +11,9 @@ case class PolyBox(override val proposition: PublicKey25519Proposition,
   override lazy val typeOfBox: String = "Poly"
 }
 
-object PolyBoxSerializer extends Serializer[PolyBox] with NoncedBoxSerializer {
+object PolyBoxSerializer extends BifrostSerializer[PolyBox] with NoncedBoxSerializer {
 
-  def toBytes(obj: PolyBox): Array[Byte] = {
+  override def toBytes(obj: PolyBox): Array[Byte] = {
     noncedBoxToBytes(obj, "PolyBox")
   }
 
@@ -22,4 +22,7 @@ object PolyBoxSerializer extends Serializer[PolyBox] with NoncedBoxSerializer {
     PolyBox(params._1, params._2, params._3)
   }
 
+  override def serialize(obj: PolyBox, w: Writer): Unit = ???
+
+  override def parse(r: Reader): PolyBox = ???
 }
