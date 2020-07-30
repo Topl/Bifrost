@@ -1,7 +1,11 @@
 package example
 
 import org.scalatest.{Matchers, WordSpec}
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
+
+import scala.reflect.io.Path
+import scala.util.Try
 
 class KeyManagerSpec extends WordSpec with Matchers{
   "A signed message" should {
@@ -64,16 +68,38 @@ class KeyManagerSpec extends WordSpec with Matchers{
   }
 
   "A key manager instance" should {
+
+    val keyFileDir = "keyfiles/keyManagerTest"
+    val path: Path = Path(keyFileDir)
+
     "have 3 keyfiles" in {
-      val keyManager = KeyManager(Set(), "keyfiles/node1")
+      Try(path.deleteRecursively())
+      Try(path.createDirectory())
+      val password = "password"
+
+      val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
+      val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
+      val seed3 = Blake2b256(java.util.UUID.randomUUID.toString)
+
+      val seeds = Set(seed1, seed2, seed3)
+      val keyManager = KeyManager(Set(), keyFileDir)
+
+      val pubKeys = seeds.map { seed =>
+        val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
+        if (!keyManager.publicKeys.contains(pub)) {
+          KeyFile(password, seed, keyFileDir)
+        }
+        pub
+      }
+      keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.publicKeys.size == 3)
     }
-    "be unlocked" in {
+    "be unlocked yes path" in {
       val keyManager = KeyManager(Set(), "keyfiles/node1")
       keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       assert(keyManager.secrets.size == 1)
     }
-    "be locked" in {
+    "be locked yes path" in {
       val keyManager = KeyManager(Set(), "keyfiles/node1")
       keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
       keyManager.lockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
