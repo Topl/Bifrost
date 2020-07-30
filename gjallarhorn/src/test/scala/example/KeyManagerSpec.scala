@@ -68,7 +68,6 @@ class KeyManagerSpec extends WordSpec with Matchers{
   }
 
   "A key manager instance" should {
-
     val keyFileDir = "keyfiles/keyManagerTest"
     val path: Path = Path(keyFileDir)
 
@@ -123,6 +122,31 @@ class KeyManagerSpec extends WordSpec with Matchers{
       keyManager.lockKeyFile(Base58.encode(pub.pubKeyBytes), password)
       assert(keyManager.secrets.size == 0)
       Try(path.deleteRecursively())
+    }
+  }
+
+  "A keyfile" should {
+    val keyFileDir = "keyfiles/keyManagerTest"
+    val path: Path = Path(keyFileDir)
+
+    "be in a Bifrost compatible format" in {
+      ???
+    }
+    "have keys stored in the proper format" in {
+
+    }
+    "be used to import keys" in {
+      Try(path.deleteRecursively())
+      Try(path.createDirectory())
+      val password = "password"
+      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
+      val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+      val keyFile = KeyFile(password, seed, keyFileDir)
+
+      val privKey = keyFile.getPrivateKey(password).get
+      assert(privKey.privKeyBytes === priv.privKeyBytes)
+      val pubKey = privKey.publicKeyBytes
+      assert(pubKey === pub.pubKeyBytes)
     }
   }
 }
