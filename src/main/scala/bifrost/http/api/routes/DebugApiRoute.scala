@@ -3,7 +3,7 @@ package bifrost.http.api.routes
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
-import bifrost.http.api.{ApiRouteWithView, ErrorResponse, SuccessResponse}
+import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -11,13 +11,11 @@ import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
 
 case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
@@ -26,49 +24,15 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
   type MS = State
   type VL = Wallet
   type MP = MemPool
-  override val route: Route = pathPrefix("debug") { debugRoute }
+  override val route: Route = pathPrefix("debug") { basicRoute(handlers) }
 
-  def debugRoute: Route = path("") {
-    entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          viewAsync().map { view =>
-            var reqId = ""
-            parse(body) match {
-              case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
-              case Right(request) =>
-                val futureResponse: Try[Future[Json]] = Try {
-                  val id = (request \\ "id").head.asString.get
-                  reqId = id
-                  require((request \\ "jsonrpc").head.asString.get == "2.0")
-                  val params = (request \\ "params").head.asArray.get
-                  require(params.size <= 5, s"size of params is ${params.size}")
-
-                  (request \\ "method").head.asString.get match {
-                    case "info"       => infoRoute(params.head, id)
-                    case "delay"      => delay(params.head, id)
-                    case "myBlocks"   => myBlocks(params.head, id)
-                    case "generators" => generators(params.head, id)
-                  }
-                }
-                futureResponse map { response =>
-                  Await.result(response, timeout.duration)
-                } match {
-                  case Success(resp) => SuccessResponse(resp, reqId)
-                  case Failure(e) =>
-                    ErrorResponse(
-                      e,
-                      500,
-                      reqId,
-                      verbose = settings.verboseAPI
-                    )
-                }
-            }
-          }
-        }
-      }
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "info" => infoRoute(params.head, id)
+      case "delay" => delay(params.head, id)
+      case "myBlocks" => myBlocks(params.head, id)
+      case "generators" => generators(params.head, id)
     }
-  }
 
   /**  #### Summary
     *    Retrieve the best block
@@ -87,7 +51,7 @@ case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     * @return
     */
   private def infoRoute(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
+    viewAsync().map {view =>
       Map(
         "height" -> view.history.height.toString.asJson,
         "score" -> view.history.score.asJson,

@@ -6,71 +6,36 @@ import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
 import bifrost.history.History
-import bifrost.http.api.{ApiRoute, ErrorResponse, SuccessResponse}
+import bifrost.http.api.ApiRoute
 import bifrost.mempool.MemPool
 import bifrost.settings.AppSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
-import io.circe.parser.parse
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ExecutionContext, Future}
 
-case class UtilsApiRoute(override val settings: AppSettings)(implicit val context: ActorRefFactory) extends ApiRoute {
+case class UtilsApiRoute(override val settings: AppSettings)
+                        (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
   type HIS = History
   type MS = State
   type VL = Wallet
   type MP = MemPool
+  override val route: Route = pathPrefix("utils") { basicRoute(handlers) }
 
-  val SeedSize = 32
-
-  override val route: Route = pathPrefix("utils") {
-    utilsRoute
-  }
-
-  def utilsRoute: Route = path("") {
-    entity(as[String]) { body =>
-      withAuth {
-        postJsonRoute {
-          var reqId = ""
-          parse(body) match {
-            case Left(failure) => ErrorResponse(failure.getCause, 400, reqId)
-            case Right(request) =>
-              val response: Try[Json] = Try {
-                val id = (request \\ "id").head.asString.get
-                reqId = id
-                require((request \\ "jsonrpc").head.asString.get == "2.0")
-                val params = (request \\ "params").head.asArray.get
-                require(params.size <= 5, s"size of params is ${params.size}")
-
-                (request \\ "method").head.asString.get match {
-                  case "seed"         => seedRoute(params.head, id)
-                  case "seedOfLength" => seedOfLength(params.head, id)
-                  case "hashBlake2b"  => hashBlake2b(params.head, id)
-                }
-              }
-              response match {
-                case Success(resp) => SuccessResponse(resp, reqId)
-                case Failure(e) =>
-                  ErrorResponse(
-                    e,
-                    500,
-                    reqId,
-                    verbose = settings.verboseAPI
-                  )
-              }
-          }
-        }
-      }
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "seed"         => seedRoute(params.head, id)
+      case "seedOfLength" => seedOfLength(params.head, id)
+      case "hashBlake2b"  => hashBlake2b(params.head, id)
     }
-  }
 
-  private def seed(length: Int): Json = {
+  private def generateSeed (length: Int): String = {
     val seed = new Array[Byte](length)
     new SecureRandom().nextBytes(seed) //seed mutated here!
-    Map("seed" -> Base58.encode(seed)).asJson
+    Base58.encode(seed)
   }
 
   /**  #### Summary
@@ -87,8 +52,9 @@ case class UtilsApiRoute(override val settings: AppSettings)(implicit val contex
     * @param id request identifier
     * @return
     */
-  private def seedRoute(params: Json, id: String): Json = {
-    seed(SeedSize)
+  private def seedRoute(params: Json, id: String): Future[Json] = {
+    val seedSize = 32 // todo: JAA - read this from a more appropriate place. Bip39 spec or something?
+    Future(Map("seed" -> generateSeed(seedSize)).asJson)
   }
 
   /**  #### Summary
@@ -104,9 +70,9 @@ case class UtilsApiRoute(override val settings: AppSettings)(implicit val contex
     * @param id request identifier
     * @return
     */
-  private def seedOfLength(params: Json, id: String): Json = {
+  private def seedOfLength(params: Json, id: String): Future[Json] = {
     val length: Int = (params \\ "length").head.asNumber.get.toInt.get
-    seed(length)
+    Future(Map("seed" -> generateSeed(length)).asJson)
   }
 
   /** 
@@ -123,11 +89,11 @@ case class UtilsApiRoute(override val settings: AppSettings)(implicit val contex
     * @param id request identifier
     * @return
     */
-  private def hashBlake2b(params: Json, id: String): Json = {
+  private def hashBlake2b(params: Json, id: String): Future[Json] = {
     val message: String = (params \\ "message").head.asString.get
-    Map(
+    Future(Map(
       "message" -> message,
       "hash" -> Base58.encode(FastCryptographicHash(message))
-    ).asJson
+    ).asJson)
   }
 }
