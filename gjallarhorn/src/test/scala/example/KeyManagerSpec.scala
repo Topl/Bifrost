@@ -14,11 +14,11 @@ class KeyManagerSpec extends WordSpec with Matchers{
       val proof = PrivateKey25519Companion.sign(sk,messageToSign)
       assert(PrivateKey25519Companion.verify(messageToSign, pk, proof))
     }
-    "foreign private key yields invalid signature" in {
+    "yield an invalid signature if signed with incorrect foreign key" in {
       val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
       val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (sk1, pk1) = PrivateKey25519Companion.generateKeys(randomBytes1)
-      val (sk2, pk2) = PrivateKey25519Companion.generateKeys(randomBytes2)
+      val (sk1, _) = PrivateKey25519Companion.generateKeys(randomBytes1)
+      val (_, pk2) = PrivateKey25519Companion.generateKeys(randomBytes2)
 
       val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
       val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
@@ -60,6 +60,24 @@ class KeyManagerSpec extends WordSpec with Matchers{
 
       assert(skALICE != null && pkALICE != null && skALICE.isInstanceOf[PrivateKey25519] && pkALICE.isInstanceOf[PublicKey25519Proposition])
       assert(skBOB != null && pkBOB != null && skBOB.isInstanceOf[PrivateKey25519] && pkBOB.isInstanceOf[PublicKey25519Proposition])
+    }
+  }
+
+  "A key manager instance" should {
+    "have 3 keyfiles" in {
+      val keyManager = KeyManager(Set(), "Users/juliang/Desktop/Topl/Bifrost/keyfiles/node1")
+      assert(keyManager.publicKeys.size == 3)
+    }
+    "be unlocked" in {
+      val keyManager = KeyManager(Set(), "/keyfiles/node1")
+      keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+      assert(keyManager.secrets.size == 1)
+    }
+    "be locked" in {
+      val keyManager = KeyManager(Set(), "/keyfiles/node1")
+      keyManager.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+      keyManager.lockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+      assert(keyManager.secrets.size == 0)
     }
   }
 }
