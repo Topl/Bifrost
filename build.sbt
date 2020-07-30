@@ -56,15 +56,16 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.0.+" % Test,
-  "org.scalatest" %% "scalatest" % "3.0.+" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.0" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.0" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
 )
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
   "org.scorexfoundation" %% "scrypto" % "1.3.3",
-  "com.google.guava" % "guava" % "23.0"
+  "com.google.guava" % "guava" % "29.0-jre"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
@@ -84,18 +85,18 @@ libraryDependencies ++= Seq(
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0.1"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.2.0.1"
+libraryDependencies += "org.graalvm.js" % "js" % "19.2.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0.1"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.1"
 
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.0",
-  "com.google.protobuf" % "protobuf-java" % "3.12.2",
+  "com.google.protobuf" % "protobuf-java" % "3.12.4",
   "com.thesamet.scalapb" %% "lenses" % "0.10.7",
   "com.typesafe" % "config" % "1.3.4",
 )

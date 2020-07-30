@@ -4,13 +4,15 @@ import bifrost.forging.ForgingSettings
 import bifrost.nodeView.NodeViewHolder
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.BeforeAndAfterAll
 
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class StateSpec extends PropSpec
+class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

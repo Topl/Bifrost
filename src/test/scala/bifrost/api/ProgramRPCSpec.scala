@@ -25,19 +25,20 @@ import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 6/13/2017.
   */
 
-class ProgramRPCSpec extends WordSpec
+class ProgramRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {

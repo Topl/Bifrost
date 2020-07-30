@@ -12,15 +12,17 @@ import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.BeforeAndAfterAll
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class TokenBoxRegistrySpec extends PropSpec
+class TokenBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

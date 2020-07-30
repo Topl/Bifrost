@@ -3,10 +3,11 @@ package bifrost.state
 import bifrost.modifier.box.{Box, PolyBox}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramSpec extends PropSpec
+class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -26,4 +27,3 @@ class ProgramSpec extends PropSpec
       .toSet
   }
 }
-
