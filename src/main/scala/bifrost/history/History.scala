@@ -4,14 +4,14 @@ import java.io.File
 
 import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
 import bifrost.history.GenericHistory._
-import bifrost.modifier.ModifierId
 import bifrost.history.History.GenesisParentId
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockValidator, Bloom}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.BifrostSyncInfo
-import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
 import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -38,7 +38,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   require(NodeViewModifier.ModifierIdSize == 32, "32 bytes ids assumed")
 
   lazy val height: Long = storage.chainHeight
-  lazy val score: Long = storage.bestChainScore
+  lazy val score: BigInt = storage.bestChainScore
   lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock

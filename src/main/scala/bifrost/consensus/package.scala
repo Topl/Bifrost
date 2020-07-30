@@ -14,6 +14,7 @@ package object consensus {
 
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
+
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
