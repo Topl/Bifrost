@@ -133,7 +133,17 @@ class KeyManagerSpec extends WordSpec with Matchers{
       ???
     }
     "have keys stored in the proper format" in {
+      Try(path.deleteRecursively())
+      Try(path.createDirectory())
+      val password = "password"
+      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
+      val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+      val keyFile = KeyFile(password, seed, keyFileDir)
 
+      val privKey = keyFile.getPrivateKey(password).get
+      assert(privKey.isInstanceOf[PrivateKey25519])
+      val pubKey = privKey.publicKeyBytes
+      assert(pubKey.isInstanceOf[Array[Byte]])
     }
     "be used to import keys" in {
       Try(path.deleteRecursively())
