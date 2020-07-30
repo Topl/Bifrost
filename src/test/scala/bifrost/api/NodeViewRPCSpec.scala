@@ -1,6 +1,6 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -8,17 +8,19 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.crypto.Signature25519
 import bifrost.history.History
+import bifrost.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.state.State
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -40,8 +42,9 @@ class NodeViewRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
+  val timeProvider = new NetworkTimeProvider(settings.ntp)
+  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
+  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
   val route: Route = NodeViewApiRoute(settings, nodeViewHolderRef).route
 
   val routeAsset: Route = AssetApiRoute(settings, nodeViewHolderRef).route
@@ -64,8 +67,11 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -82,7 +88,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   var txHash: String = ""
   var assetTxHash: String = ""
   var assetTxInstance: Transaction = _
-  var blockId: Block.BlockId = Array[Byte]()
+  var blockId: Block.BlockId = ModifierId(Array[Byte]())
 
   val requestBody: ByteString = ByteString(
     s"""
@@ -132,16 +138,17 @@ class NodeViewRPCSpec extends AnyWordSpec
         }
         txHash shouldEqual assetTxHash
         assert(txHashesArray.size <= 100)
-        assetTxInstance = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        assetTxInstance = view().pool.getById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId), 0L, 10000L),
+          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
         history.append(tempBlock)
         blockId = tempBlock.id
@@ -204,7 +211,7 @@ class NodeViewRPCSpec extends AnyWordSpec
            |   "id": "1",
            |   "method": "blockById",
            |   "params": [{
-           |      "blockId": "${Base58.encode(blockId)}"
+           |      "blockId": "$blockId"
            |   }]
            |}
            |

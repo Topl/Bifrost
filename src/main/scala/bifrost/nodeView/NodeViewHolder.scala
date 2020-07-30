@@ -1,35 +1,44 @@
 package bifrost.nodeView
 
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
-import bifrost.forging.ForgingSettings
+import akka.actor.{ActorRef, ActorSystem, Props}
+import bifrost.crypto.PrivateKey25519Companion
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
-import bifrost.network.BifrostSyncInfo
+import bifrost.modifier.ModifierId
+import bifrost.network.{BifrostModifiersCache, BifrostSyncInfo, ModifiersCache}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.serialization.Serializer
+import bifrost.settings.AppSettings
 import bifrost.state.State
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, NetworkTimeProvider}
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
-class NodeViewHolder(settings: ForgingSettings)
-  extends GenericNodeViewHolder[Any, ProofOfKnowledgeProposition[PrivateKey25519], Transaction, Box, Block] {
+import scala.concurrent.ExecutionContext
 
-  override val networkChunkSize: Int = settings.networkChunkSize
+class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
+  extends GenericNodeViewHolder[Transaction, Block] {
+
+  override lazy val settings: AppSettings = appSettings
+
   override type SI = BifrostSyncInfo
   override type HIS = History
   override type MS = State
   override type VL = Wallet
   override type MP = MemPool
+  type PMOD = Block
 
-  override lazy val modifierCompanions: Map[ModifierTypeId, Serializer[_ <: NodeViewModifier]] =
-    Map(Block.ModifierTypeId -> BlockCompanion,
-    GenericTransaction.ModifierTypeId -> TransactionCompanion)
+  override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
+    new BifrostModifiersCache(appSettings.network.maxModifiersCacheSize)
+
+  lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
+    Map(Block.modifierTypeId -> BlockCompanion,
+      GenericTransaction.modifierTypeId -> TransactionCompanion)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
@@ -47,7 +56,7 @@ class NodeViewHolder(settings: ForgingSettings)
       Some(
         (
           x,
-          State.readOrGenerate(settings, true, x),
+          State.readOrGenerate(settings, callFromGenesis = true, x),
           Wallet.readOrGenerate(settings, 1),
           MemPool.emptyPool
         )
@@ -70,7 +79,7 @@ object NodeViewHolder extends Logging {
   type NodeView = (HIS, MS, VL, MP)
 
   //noinspection ScalaStyle
-  def initializeGenesis(settings: ForgingSettings): NodeView = {
+  def initializeGenesis(settings: AppSettings): NodeView = {
     val GenesisAccountsNum = 50
     val GenesisBalance = 100000000L
 
@@ -125,7 +134,7 @@ object NodeViewHolder extends Logging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = Block.create(settings.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, 10L, settings.version) // arbitrary inflation for first block of 10 Arbits
+    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, 0L, settings.forgingSettings.version)
 
     var history = History.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1
@@ -133,7 +142,7 @@ object NodeViewHolder extends Logging {
     val gs = State.genesisState(settings, Seq(genesisBlock), history)
     val gw = Wallet.genesisWallet(settings, Seq(genesisBlock))
 
-    assert(!Base58.encode(settings.walletSeed).startsWith("genesis") || gw.boxes().flatMap(_.box match {
+    assert(!settings.walletSeed.startsWith("genesis") || gw.boxes().flatMap(_.box match {
       case ab: ArbitBox => Some(ab.value)
       case _ => None
     }).sum >= GenesisBalance)
@@ -142,4 +151,19 @@ object NodeViewHolder extends Logging {
 
     (history, gs, gw, MemPool.emptyPool)
   }
+}
+
+object NodeViewHolderRef {
+
+  def props(settings: AppSettings,
+            timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props = Props(new NodeViewHolder(settings, timeProvider))
+
+  def apply(settings: AppSettings,
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, timeProvider))
+
+  def apply(name: String,
+            settings: AppSettings,
+            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, timeProvider), name)
 }

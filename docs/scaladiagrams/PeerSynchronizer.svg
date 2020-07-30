@@ -9,11 +9,11 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 112)">
 <title>diagram</title>
 <polygon fill="#ffffff" stroke="transparent" points="-4,4 -4,-112 318.5415,-112 318.5415,4 -4,4"/>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node1" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="64.9942" cy="-18" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="64.9942" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="64.9942" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
 <!-- PeerSynchronizer -->
 <g id="node2" class="node">
@@ -21,9 +21,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="191.9942" cy="-90" rx="73.387" ry="18"/>
 <text text-anchor="middle" x="191.9942" y="-86.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeerSynchronizer</text>
 </g>
-<!-- PeerSynchronizer&#45;&gt;ScorexLogging -->
+<!-- PeerSynchronizer&#45;&gt;Logging -->
 <g id="edge4" class="edge">
-<title>PeerSynchronizer&#45;&gt;ScorexLogging</title>
+<title>PeerSynchronizer&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M162.5387,-73.3008C144.7001,-63.1876 121.7724,-50.1892 102.628,-39.3357"/>
 <polygon fill="#000000" stroke="#000000" points="104.2776,-36.2476 93.8522,-34.3604 100.8253,-42.3371 104.2776,-36.2476"/>
 </g>

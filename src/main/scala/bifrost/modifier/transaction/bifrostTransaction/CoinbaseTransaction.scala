@@ -7,6 +7,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
@@ -21,7 +22,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
                                 blockID: Array[Byte]) extends Transaction {
   override type M = CoinbaseTransaction
 
-  lazy val serializer = CoinbaseTransactionCompanion
+  lazy val serializer: BifrostSerializer[CoinbaseTransaction] = CoinbaseTransactionCompanion
 
   override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
 
@@ -29,13 +30,13 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
 
-  lazy val hashNoNonces = FastCryptographicHash(
+  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed
   )
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  val nonce = nonceFromDigest(FastCryptographicHash(
+  val nonce: Nonce = nonceFromDigest(FastCryptographicHash(
     "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
@@ -48,7 +49,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     }
 
   override lazy val json: Json = Map( // tx in json form
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "CoinbaseTransaction".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> to.map { s =>
@@ -65,7 +66,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
   ).asJson
 
   def commonMessageToSign: Array[Byte] =
-    if(newBoxes.size > 0) {
+    if(newBoxes.nonEmpty) {
       newBoxes.head.bytes}
     else {
       Array[Byte]()} ++ // is the new box + the timestamp + the fee,

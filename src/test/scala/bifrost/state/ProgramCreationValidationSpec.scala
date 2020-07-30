@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
@@ -94,13 +95,13 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
@@ -124,11 +125,11 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(23))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(23)))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(24))
+          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(24)))
           .get
 
         require(returnedPolyBoxes
@@ -204,7 +205,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(25)))
           .get
 
         val newState = preparedState.validate(invalidPC)
@@ -292,25 +293,25 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
         val firstCCAddBlock = Block(
-          Array.fill(Block.SignatureLength)(1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val necessaryState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(29))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
           .get
 
         val preparedChanges = necessaryState.changes(firstCCAddBlock).get
         val preparedState = necessaryState
-          .applyChanges(preparedChanges, Ints.toByteArray(30))
+          .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
           .get
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(31))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(31)))
           .get
 
         val newState = preparedState.validate(cc)

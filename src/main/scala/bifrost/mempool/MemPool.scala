@@ -1,7 +1,7 @@
 package bifrost.mempool
 
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.NodeViewModifier.ModifierId
+import bifrost.modifier.ModifierId
 import bifrost.utils.Logging
 import io.iohk.iodb.ByteArrayWrapper
 
@@ -18,15 +18,15 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
   private val boxesInMempool = new TrieMap[ByteArrayWrapper, ByteArrayWrapper]()
 
   //getters
-  override def getById(id: ModifierId): Option[Transaction] = unconfirmed.get(key(id))
+  override def getById(id: ModifierId): Option[Transaction] = unconfirmed.get(key(id.hashBytes))
 
-  override def contains(id: ModifierId): Boolean = unconfirmed.contains(key(id))
+  override def contains(id: ModifierId): Boolean = unconfirmed.contains(key(id.hashBytes))
 
   override def getAll(ids: Seq[ModifierId]): Seq[Transaction] = ids.flatMap(getById)
 
   //modifiers
   override def put(tx: Transaction): Try[MemPool] = Try {
-    unconfirmed.put(key(tx.id), tx)
+    unconfirmed.put(key(tx.id.hashBytes), tx)
     tx.boxIdsToOpen.foreach(boxId => {
       val exists = boxesInMempool.contains(key(boxId))
       require(!exists)
@@ -38,7 +38,7 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
   }
 
   override def put(txs: Iterable[Transaction]): Try[MemPool] = Try {
-    txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
+    txs.foreach(tx => unconfirmed.put(key(tx.id.hashBytes), tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach(boxId => {
       val exists = boxesInMempool.contains(key(boxId))
       require(!exists)
@@ -52,7 +52,7 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
   }
 
   override def putWithoutCheck(txs: Iterable[Transaction]): MemPool = {
-    txs.foreach(tx => unconfirmed.put(key(tx.id), tx))
+    txs.foreach(tx => unconfirmed.put(key(tx.id.hashBytes), tx))
     txs.foreach(tx => {
       tx.boxIdsToOpen.map(boxId => {
         boxesInMempool.put(key(boxId), key(boxId))
@@ -62,7 +62,7 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
   }
 
   override def remove(tx: Transaction): MemPool = {
-    unconfirmed.remove(key(tx.id))
+    unconfirmed.remove(key(tx.id.hashBytes))
     this
   }
 
@@ -84,6 +84,8 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
   }
 
   override def size: Int = unconfirmed.size
+
+  override def modifierById(modifierId: ModifierId): Option[Transaction] = ???
 }
 
 

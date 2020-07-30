@@ -3,6 +3,7 @@ package bifrost.history
 
 import bifrost.BifrostGenerators
 import bifrost.modifier.block.Block
+import bifrost.settings.{AppSettings, StartupOpts}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -16,8 +17,7 @@ class StorageCacheSpec extends AnyPropSpec
 
   var history: History = generateHistory
 
-  private val conf: Config = ConfigFactory.load("application")
-  private val cacheSize: Int = conf.getInt("cache.cacheSize")
+
 
   property("The genesis block is stored in cache") {
     val genesisBlockId = ByteArrayWrapper(Array.fill(history.storage.storage.keySize)(-1: Byte))
@@ -64,17 +64,23 @@ class StorageCacheSpec extends AnyPropSpec
       val block:Block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history.append(block).get._1
-      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id)) shouldEqual
-        history.storage.storage.get(ByteArrayWrapper(block.id))
+      history.storage.blockCache.getIfPresent(ByteArrayWrapper(block.id.hashBytes)) shouldEqual
+        history.storage.storage.get(ByteArrayWrapper(block.id.hashBytes))
     }
   }
 
+  /* -----This test need to be done with smaller cacheSize or it will take very long to append enough entries----- */
+  /* --------This test is commented out, change cacheSize in test.conf if we need to test this again------- */
+  /*
+  private val cacheSize: Int = settings.cacheSize
+
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
+
     /* Append one block */
     val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
     history = history.append(fstBlock).get._1
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) should not be null
+    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) should not be null
 
     /* Append a number of new blocks, so that we store more entries than the cache size limit */
     /* Assuming an average new block creates more than 50 entries */
@@ -84,8 +90,9 @@ class StorageCacheSpec extends AnyPropSpec
       history = history.append(oneBlock).get._1
     }
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id)) shouldBe null
+    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
+  */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     val block: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)

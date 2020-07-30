@@ -1,16 +1,16 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.box.{ExecutionBox, ExecutionBoxSerializer}
+import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
+object ProgramTransferCompanion extends BifrostSerializer[ProgramTransfer]{
 
   override def toBytes(obj: ProgramTransfer): Array[Byte] = {
 
@@ -72,4 +72,8 @@ object ProgramTransferCompanion extends Serializer[ProgramTransfer]{
 
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }
+
+  override def parse(r: Reader): ProgramTransfer = ???
+
+  override def serialize(obj: ProgramTransfer, w: Writer): Unit = ???
 }

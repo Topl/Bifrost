@@ -3,7 +3,7 @@ package bifrost.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import bifrost.api.http.ProgramApiRoute
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.box.Box
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
@@ -15,7 +15,7 @@ class ProgramTransferSpec extends AnyWordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   "ProgramTransfer" should {
 

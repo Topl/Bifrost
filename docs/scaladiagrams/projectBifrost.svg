@@ -45,15 +45,15 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="706.9942" cy="-450" rx="61.99" ry="18"/>
 <text text-anchor="middle" x="706.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostHistory</text>
 </g>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node4" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="2251.9942" cy="-162" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="2251.9942" y="-158.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="2251.9942" y="-158.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
-<!-- BifrostHistory&#45;&gt;ScorexLogging -->
+<!-- BifrostHistory&#45;&gt;Logging -->
 <g id="edge2" class="edge">
-<title>BifrostHistory&#45;&gt;ScorexLogging</title>
+<title>BifrostHistory&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M768.7204,-449.2398C1016.8068,-445.9991 1965.3714,-431.83 2744.9942,-396 2989.7035,-384.7536 3677.5284,-502.7856 3844.9942,-324 3893.3658,-272.3588 3853.7582,-262.014 3438.9942,-216 3222.0477,-191.9319 2552.6416,-170.7547 2327.0782,-164.1358"/>
 <polygon fill="#000000" stroke="#000000" points="2327.0938,-160.6348 2316.9957,-163.841 2326.8891,-167.6318 2327.0938,-160.6348"/>
 </g>
@@ -357,9 +357,9 @@
 <path fill="none" stroke="#000000" d="M2767.4671,-293.5791C2760.0964,-291.4357 2752.3514,-289.4382 2744.9942,-288 2570.2481,-253.8401 2517.2696,-300.6608 2345.9942,-252 2343.8643,-251.3949 2341.7101,-250.6638 2339.5702,-249.8471"/>
 <polygon fill="#000000" stroke="#000000" points="2340.9656,-246.6374 2330.4004,-245.8448 2338.1654,-253.0529 2340.9656,-246.6374"/>
 </g>
-<!-- GenericApplication&#45;&gt;ScorexLogging -->
+<!-- GenericApplication&#45;&gt;Logging -->
 <g id="edge132" class="edge">
-<title>GenericApplication&#45;&gt;ScorexLogging</title>
+<title>GenericApplication&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2576.4046,-222.5118C2505.1526,-209.2212 2388.3939,-187.4424 2316.0935,-173.9563"/>
 <polygon fill="#000000" stroke="#000000" points="2316.6682,-170.5033 2306.196,-172.1102 2315.3846,-177.3846 2316.6682,-170.5033"/>
 </g>
@@ -561,9 +561,9 @@
 <path fill="none" stroke="#000000" d="M1284.1666,-290.0209C1310.0179,-279.1994 1344.3232,-264.839 1371.7285,-253.3671"/>
 <polygon fill="#000000" stroke="#000000" points="1373.2362,-256.5303 1381.1091,-249.4403 1370.5332,-250.0732 1373.2362,-256.5303"/>
 </g>
-<!-- Settings&#45;&gt;ScorexLogging -->
+<!-- Settings&#45;&gt;Logging -->
 <g id="edge188" class="edge">
-<title>Settings&#45;&gt;ScorexLogging</title>
+<title>Settings&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2154.8999,-219.7751C2172.2205,-209.4687 2195.9508,-195.3482 2215.6155,-183.6469"/>
 <polygon fill="#000000" stroke="#000000" points="2217.5229,-186.5847 2224.3268,-178.4632 2213.9434,-180.5691 2217.5229,-186.5847"/>
 </g>
@@ -645,9 +645,9 @@
 <path fill="none" stroke="#000000" d="M119.9493,-432.2022C110.8651,-423.2425 99.7112,-412.2414 89.8312,-402.4968"/>
 <polygon fill="#000000" stroke="#000000" points="92.1572,-399.8749 82.5797,-395.3446 87.2416,-404.8586 92.1572,-399.8749"/>
 </g>
-<!-- BifrostStorage&#45;&gt;ScorexLogging -->
+<!-- BifrostStorage&#45;&gt;Logging -->
 <g id="edge66" class="edge">
-<title>BifrostStorage&#45;&gt;ScorexLogging</title>
+<title>BifrostStorage&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M203.8629,-359.8598C198.3674,-339.8929 193.4583,-307.9829 209.9942,-288 319.0248,-156.2414 418.0136,-234.8306 587.9942,-216 902.2769,-181.1835 1894.8358,-166.4353 2176.6905,-162.884"/>
 <polygon fill="#000000" stroke="#000000" points="2176.8562,-166.3823 2186.8116,-162.7574 2176.7686,-159.3828 2176.8562,-166.3823"/>
 </g>
@@ -681,9 +681,9 @@
 <path fill="none" stroke="#000000" d="M4585.5147,-221.4586C4638.801,-209.201 4720.0254,-190.5168 4777.1715,-177.3714"/>
 <polygon fill="#000000" stroke="#000000" points="4778.2324,-180.7188 4787.1932,-175.066 4776.6631,-173.897 4778.2324,-180.7188"/>
 </g>
-<!-- ProgramApiRoute&#45;&gt;ScorexLogging -->
+<!-- ProgramApiRoute&#45;&gt;Logging -->
 <g id="edge35" class="edge">
-<title>ProgramApiRoute&#45;&gt;ScorexLogging</title>
+<title>ProgramApiRoute&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M4477.9207,-221.0646C4467.7134,-219.0213 4457.0657,-217.1924 4446.9942,-216 4233.2178,-190.6903 2687.6674,-168.0017 2327.0701,-163.0149"/>
 <polygon fill="#000000" stroke="#000000" points="2327.0489,-159.5144 2317.0015,-162.876 2326.9523,-166.5137 2327.0489,-159.5144"/>
 </g>
@@ -915,9 +915,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="2213.9942" cy="-378" rx="57.6901" ry="18"/>
 <text text-anchor="middle" x="2213.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeerManager</text>
 </g>
-<!-- PeerManager&#45;&gt;ScorexLogging -->
+<!-- PeerManager&#45;&gt;Logging -->
 <g id="edge55" class="edge">
-<title>PeerManager&#45;&gt;ScorexLogging</title>
+<title>PeerManager&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2217.1687,-359.9555C2223.7908,-322.3144 2239.1188,-235.1867 2247.0464,-190.1246"/>
 <polygon fill="#000000" stroke="#000000" points="2250.5164,-190.6003 2248.802,-180.1451 2243.6222,-189.3874 2250.5164,-190.6003"/>
 </g>
@@ -1311,9 +1311,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="1434.9942" cy="-378" rx="63.0888" ry="18"/>
 <text text-anchor="middle" x="1434.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScoreObserver</text>
 </g>
-<!-- ScoreObserver&#45;&gt;ScorexLogging -->
+<!-- ScoreObserver&#45;&gt;Logging -->
 <g id="edge92" class="edge">
-<title>ScoreObserver&#45;&gt;ScorexLogging</title>
+<title>ScoreObserver&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M1438.8903,-359.8287C1444.2832,-339.2137 1456.068,-306.1148 1478.9942,-288 1586.6832,-202.9113 2005.224,-173.667 2177.3878,-165.1046"/>
 <polygon fill="#000000" stroke="#000000" points="2177.8081,-168.5884 2187.6258,-164.6055 2177.4672,-161.5967 2177.8081,-168.5884"/>
 </g>
@@ -1509,9 +1509,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="1794.9942" cy="-378" rx="77.1866" ry="18"/>
 <text text-anchor="middle" x="1794.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">NetworkController</text>
 </g>
-<!-- NetworkController&#45;&gt;ScorexLogging -->
+<!-- NetworkController&#45;&gt;Logging -->
 <g id="edge113" class="edge">
-<title>NetworkController&#45;&gt;ScorexLogging</title>
+<title>NetworkController&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M1777.044,-360.43C1759.9732,-341.5319 1739.0818,-311.0899 1754.9942,-288 1803.0191,-218.3132 2053.9126,-182.6328 2179.8,-168.8884"/>
 <polygon fill="#000000" stroke="#000000" points="2180.5442,-172.3287 2190.1133,-167.781 2179.7968,-165.3687 2180.5442,-172.3287"/>
 </g>
@@ -1551,9 +1551,9 @@
 <path fill="none" stroke="#000000" d="M1794.9942,-359.8314C1794.9942,-352.131 1794.9942,-342.9743 1794.9942,-334.4166"/>
 <polygon fill="#000000" stroke="#000000" points="1798.4943,-334.4132 1794.9942,-324.4133 1791.4943,-334.4133 1798.4943,-334.4132"/>
 </g>
-<!-- UPnP&#45;&gt;ScorexLogging -->
+<!-- UPnP&#45;&gt;Logging -->
 <g id="edge131" class="edge">
-<title>UPnP&#45;&gt;ScorexLogging</title>
+<title>UPnP&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M1819.3235,-294.4493C1824.4486,-292.1867 1829.8592,-289.922 1834.9942,-288 1960.8247,-240.9034 2112.8292,-198.4946 2194.0844,-176.9476"/>
 <polygon fill="#000000" stroke="#000000" points="2195.3396,-180.2362 2204.1144,-174.2987 2193.5522,-173.4683 2195.3396,-180.2362"/>
 </g>
@@ -1593,15 +1593,15 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="2414.9942" cy="-234" rx="60.3893" ry="18"/>
 <text text-anchor="middle" x="2414.9942" y="-230.3" font-family="Times,serif" font-size="14.00" fill="#000000">NetworkTime</text>
 </g>
-<!-- NetworkTime&#45;&gt;ScorexLogging -->
+<!-- NetworkTime&#45;&gt;Logging -->
 <g id="edge117" class="edge">
-<title>NetworkTime&#45;&gt;ScorexLogging</title>
+<title>NetworkTime&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2377.2869,-219.7751C2351.5794,-209.0441 2317.714,-194.1784 2291.6191,-182.2136"/>
 <polygon fill="#000000" stroke="#000000" points="2292.9323,-178.9649 2282.3862,-177.9498 2289.9975,-185.32 2292.9323,-178.9649"/>
 </g>
-<!-- NetworkTime&#45;&gt;ScorexLogging -->
+<!-- NetworkTime&#45;&gt;Logging -->
 <g id="edge118" class="edge">
-<title>NetworkTime&#45;&gt;ScorexLogging</title>
+<title>NetworkTime&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2384.9225,-218.1993C2361.0711,-207.0905 2327.4283,-192.1876 2299.907,-180.5198"/>
 <polygon fill="#000000" stroke="#000000" points="2301.0284,-177.1943 2290.4538,-176.5391 2298.3118,-183.6457 2301.0284,-177.1943"/>
 </g>
@@ -1635,9 +1635,9 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="931.9942" cy="-378" rx="34.394" ry="18"/>
 <text text-anchor="middle" x="931.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">Forger</text>
 </g>
-<!-- Forger&#45;&gt;ScorexLogging -->
+<!-- Forger&#45;&gt;Logging -->
 <g id="edge193" class="edge">
-<title>Forger&#45;&gt;ScorexLogging</title>
+<title>Forger&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M921.4424,-360.5855C902.9249,-327.5539 869.9795,-255.5728 907.9942,-216 952.1675,-170.0163 1899.5178,-163.1899 2176.5465,-162.1766"/>
 <polygon fill="#000000" stroke="#000000" points="2176.9096,-165.6754 2186.8972,-162.1403 2176.885,-158.6755 2176.9096,-165.6754"/>
 </g>
@@ -1875,9 +1875,9 @@
 <ellipse fill="#ff8c00" stroke="#000000" cx="1280.9942" cy="-378" rx="73.387" ry="18"/>
 <text text-anchor="middle" x="1280.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeerSynchronizer</text>
 </g>
-<!-- PeerSynchronizer&#45;&gt;ScorexLogging -->
+<!-- PeerSynchronizer&#45;&gt;Logging -->
 <g id="edge152" class="edge">
-<title>PeerSynchronizer&#45;&gt;ScorexLogging</title>
+<title>PeerSynchronizer&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M1311.74,-361.6208C1350.003,-341.8058 1417.7844,-308.5544 1478.9942,-288 1726.5687,-204.8639 2037.7718,-175.5509 2177.7665,-166.0949"/>
 <polygon fill="#000000" stroke="#000000" points="2178.2039,-169.5737 2187.9512,-165.4218 2177.7422,-162.589 2178.2039,-169.5737"/>
 </g>
@@ -1953,9 +1953,9 @@
 <ellipse fill="#deb887" stroke="#000000" cx="2428.9942" cy="-378" rx="94.7833" ry="18"/>
 <text text-anchor="middle" x="2428.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">PeerConnectionHandler</text>
 </g>
-<!-- PeerConnectionHandler&#45;&gt;ScorexLogging -->
+<!-- PeerConnectionHandler&#45;&gt;Logging -->
 <g id="edge161" class="edge">
-<title>PeerConnectionHandler&#45;&gt;ScorexLogging</title>
+<title>PeerConnectionHandler&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2456.0412,-360.5819C2467.9027,-351.3071 2480.5697,-338.7593 2486.9942,-324 2494.6695,-306.3673 2494.6919,-228.9122 2483.9942,-216 2463.6988,-191.5033 2384.0058,-176.9472 2323.6383,-169.231"/>
 <polygon fill="#000000" stroke="#000000" points="2323.7248,-165.7151 2313.3705,-167.96 2322.8647,-172.6621 2323.7248,-165.7151"/>
 </g>
@@ -1989,9 +1989,9 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="2638.9942" cy="-378" rx="97.4827" ry="18"/>
 <text text-anchor="middle" x="2638.9942" y="-374.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostNodeViewHolder</text>
 </g>
-<!-- BifrostNodeViewHolder&#45;&gt;ScorexLogging -->
+<!-- BifrostNodeViewHolder&#45;&gt;Logging -->
 <g id="edge176" class="edge">
-<title>BifrostNodeViewHolder&#45;&gt;ScorexLogging</title>
+<title>BifrostNodeViewHolder&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M2722.535,-368.6428C2778.659,-360.4371 2845.4521,-346.2736 2862.9942,-324 2875.7414,-307.8147 2873.2481,-232.3497 2856.9942,-216 2820.338,-179.1276 2481.0975,-167.0185 2327.2405,-163.4016"/>
 <polygon fill="#000000" stroke="#000000" points="2327.0121,-159.8956 2316.9345,-163.1655 2326.8517,-166.8937 2327.0121,-159.8956"/>
 </g>
