@@ -30,6 +30,11 @@ class KeyManagerSpec extends WordSpec with Matchers{
       assert(!PrivateKey25519Companion.verify(messageToSign, pk2, proof))
     }
     "sign and verify as expected when msg is deterministic" in {
+      val (sk, pk) =  PrivateKey25519Companion.generateKeys(Blake2b256("keyBytes"))
+      val messageBytes = Blake2b256("messageBytes")
+
+      val proof = PrivateKey25519Companion.sign(sk,messageBytes)
+      assert(PrivateKey25519Companion.verify(messageBytes, pk, proof))
 
     }
   }
