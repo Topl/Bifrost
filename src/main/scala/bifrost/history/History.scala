@@ -441,8 +441,13 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param progressInfo - what suffix failed to be applied because of an invalid modifier
     * @return modified history and new progress info
     */
-  override def reportModifierIsInvalid(modifier: Block, progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = ???
-
+  override def reportModifierIsInvalid(modifier: Block,
+                                       progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = {
+    drop(modifier.id)
+    val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+    (new History(storage, settings, validators), progInfo)
+  }
+  
   /**
     * Whether a modifier could be applied to the history
     *
