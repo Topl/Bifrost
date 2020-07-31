@@ -1,5 +1,6 @@
 package example
 
+import example.KeyManager.getListOfFiles
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
@@ -27,6 +28,9 @@ class KeyManagerSpec extends WordSpec with Matchers{
       val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
       val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
       assert(!PrivateKey25519Companion.verify(messageToSign, pk2, proof))
+    }
+    "sign and verify as expected when msg is deterministic" in {
+
     }
   }
 
@@ -129,21 +133,30 @@ class KeyManagerSpec extends WordSpec with Matchers{
     val keyFileDir = "keyfiles/keyManagerTest"
     val path: Path = Path(keyFileDir)
 
-    "be in a Bifrost compatible format" in {
-      ???
+    "export is formatted JSON to keystore file" in {
+      Try(path.deleteRecursively())
+      Try(path.createDirectory())
+      val password = "password"
+      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
+      val (_, _) = PrivateKey25519Companion.generateKeys(seed)
+      val keyFile = KeyFile(password, seed, keyFileDir)
+      val readFile = KeyFile.readFile((getListOfFiles(keyFileDir).head).getPath)
+      assert(keyFile.equals(readFile))
+      Try(path.deleteRecursively())
     }
     "have keys stored in the proper format" in {
       Try(path.deleteRecursively())
       Try(path.createDirectory())
       val password = "password"
       val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+      val (_, _) = PrivateKey25519Companion.generateKeys(seed)
       val keyFile = KeyFile(password, seed, keyFileDir)
 
       val privKey = keyFile.getPrivateKey(password).get
       assert(privKey.isInstanceOf[PrivateKey25519])
       val pubKey = privKey.publicKeyBytes
       assert(pubKey.isInstanceOf[Array[Byte]])
+      Try(path.deleteRecursively())
     }
     "be used to import keys" in {
       Try(path.deleteRecursively())
@@ -157,6 +170,7 @@ class KeyManagerSpec extends WordSpec with Matchers{
       assert(privKey.privKeyBytes === priv.privKeyBytes)
       val pubKey = privKey.publicKeyBytes
       assert(pubKey === pub.pubKeyBytes)
+      Try(path.deleteRecursively())
     }
   }
 }

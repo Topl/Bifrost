@@ -55,6 +55,18 @@ case class KeyFile(pubKeyBytes: Array[Byte],
     ).asJson,
     "publicKeyId" -> Base58.encode(pubKeyBytes).asJson
   ).asJson
+
+  override def equals(obj: Any): Boolean = obj match {
+    case k: KeyFile => {
+      (k.pubKeyBytes sameElements pubKeyBytes) && (k.cipherText sameElements cipherText) &&
+        (k.mac sameElements mac) &&
+        (k.salt sameElements salt) &&
+        (k.iv sameElements iv)
+    }
+    case _ => false
+  }
+
+  override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
 }
 
 object KeyFile {
