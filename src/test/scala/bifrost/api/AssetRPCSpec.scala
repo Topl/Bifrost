@@ -1,6 +1,6 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, PoisonPill}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -21,11 +21,12 @@ import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurr
 import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.settings.BifrostContext
 import bifrost.state.State
-import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -33,8 +34,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 7/3/2017.
@@ -49,13 +48,7 @@ class AssetRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  private val bifrostContext: BifrostContext = BifrostContext(
-    messageSpecs = Map(),
-    features = Seq(),
-    upnpGateway = None,
-    timeProvider = new NetworkTimeProvider(settings.ntp),
-    externalNodeAddress = None
-  )
+  protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
@@ -359,6 +352,6 @@ class AssetRPCSpec extends AnyWordSpec
 
   override def afterAll() {
     view().pool.unconfirmed.clear
-    actorSystem.terminate
+    nodeViewHolderRef ! PoisonPill
   }
 }

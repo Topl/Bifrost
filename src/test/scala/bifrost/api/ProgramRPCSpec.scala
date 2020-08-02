@@ -47,13 +47,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  private val bifrostContext: BifrostContext = BifrostContext(
-    messageSpecs = Map(),
-    features = Seq(),
-    upnpGateway = None,
-    timeProvider = new NetworkTimeProvider(settings.ntp),
-    externalNodeAddress = None
-  )
+  protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)

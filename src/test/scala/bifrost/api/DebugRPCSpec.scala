@@ -15,7 +15,6 @@ import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurr
 import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.settings.BifrostContext
 import bifrost.state.State
-import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -36,13 +35,7 @@ class DebugRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  private val bifrostContext: BifrostContext = BifrostContext(
-    messageSpecs = Map(),
-    features = Seq(),
-    upnpGateway = None,
-    timeProvider = new NetworkTimeProvider(settings.ntp),
-    externalNodeAddress = None
-  )
+  protected val bifrostContext = new BifrostContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
