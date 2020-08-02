@@ -57,31 +57,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // save environment into a variable for reference throughout the application
   protected val bifrostContext = new BifrostContext(settings, upnpGateway)
 
-//  // save your address for sending to others peers
-//  lazy val externalSocketAddress: Option[InetSocketAddress] = {
-//    settings.network.declaredAddress orElse {
-//      upnpGateway.map(u => new InetSocketAddress(u.externalAddress, u.mappedPort))
-//    }
-//  }
-//
-//  // save a common time provider to be used
-//  private val timeProvider = new NetworkTimeProvider(settings.ntp)
-//
-//  // enumerate features and message specs present for communicating between peers
-//  private val features: Seq[peer.PeerFeature] = Seq()
-//  private val msgSpecs = {
-//    val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
-//
-//    Map(
-//      "syncInfo" -> BifrostSyncInfoMessageSpec,
-//      "getPeersSpec" -> new GetPeersSpec,
-//      "peersSpec" -> new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
-//      "invSpec" -> new InvSpec(settings.network.maxInvObjects),
-//      "requestModifierSpec" -> new RequestModifierSpec(settings.network.maxInvObjects),
-//      "modifiersSpec" -> new ModifiersSpec(settings.network.maxPacketSize)
-//    )
-//  }
-
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
   private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings.network, bifrostContext)
@@ -169,7 +144,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
       case Failure(ex) =>
-        log.error(s"${Console.YELLOW}Failed to bind to ${httpHost}:${httpPort}. Terminating application!${Console.RESET}", ex)
+        log.error(s"${Console.YELLOW}Failed to bind to $httpHost:$httpPort. Terminating application!${Console.RESET}", ex)
         BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 

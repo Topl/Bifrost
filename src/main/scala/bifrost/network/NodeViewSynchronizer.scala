@@ -58,11 +58,11 @@ class NodeViewSynchronizer[
 
   protected val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] = NodeViewModifier.modifierSerializers
 
-  // todo: JAA - consider changing this messageSpec map to a class so we can have type safety when assigning these values?
+  // define convenience variables for accessing in the messages specs
   protected val invSpec: InvSpec = bifrostContext.nodeViewSyncRemoteMessages.invSpec
   protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
   protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
-  protected val syncInfoSpec: MessageSpec[BifrostSyncInfo] = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
+  protected val syncInfoSpec: SyncInfoSpec = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
 
   protected val deliveryTracker = new DeliveryTracker(context.system, deliveryTimeout, maxDeliveryChecks, self)
   protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
@@ -339,7 +339,9 @@ class NodeViewSynchronizer[
 
   protected def sendSync(syncTracker: SyncTracker, history: HR): Unit = {
     val peers = statusTracker.peersToSyncWith()
-    val msg = Message[BifrostSyncInfo](syncInfoSpec, Right(history.syncInfo), None)
+    // todo: JAA - 2020.08.02 - may want to reconsider type system of syncInfo to avoid manually casting
+    // todo:       history.syncInfo to the sub-type BifrostSyncInfo
+    val msg = Message(syncInfoSpec, Right(history.syncInfo.asInstanceOf[BifrostSyncInfo]), None)
     if (peers.nonEmpty) {
       networkControllerRef ! SendToNetwork(msg, SendToPeers(peers))
     }
@@ -453,7 +455,7 @@ class NodeViewSynchronizer[
 object NodeViewSynchronizer {
 
   case class RemoteMessageHandler (
-                               syncInfoSpec: MessageSpec[BifrostSyncInfo],
+                               syncInfoSpec: SyncInfoSpec,
                                invSpec: InvSpec,
                                requestModifierSpec: RequestModifierSpec,
                                modifiersSpec: ModifiersSpec) {

@@ -492,16 +492,20 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     *
     * @return
     */
-  override def syncInfo: BifrostSyncInfo = if(isEmpty) {
-    BifrostSyncInfo(Seq.empty)
-  } else {
-    val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
-    if(startingPoints.headOption.exists(x ⇒ isGenesis(modifierById(x).get))) {
-      BifrostSyncInfo(ModifierId(GenesisParentId) +: startingPoints)
+  override def syncInfo: BifrostSyncInfo =
+    if(isEmpty) {
+      BifrostSyncInfo(Seq.empty)
+
     } else {
-      BifrostSyncInfo(startingPoints)
+      val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
+
+      if(startingPoints.headOption.exists(x ⇒ isGenesis(modifierById(x).get))) {
+        BifrostSyncInfo(ModifierId(GenesisParentId) +: startingPoints)
+
+      } else {
+        BifrostSyncInfo(startingPoints)
+      }
     }
-  }
 
   /**
     * Return last count headers from best headers chain if exist or chain up to genesis otherwise

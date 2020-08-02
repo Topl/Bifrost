@@ -40,13 +40,13 @@ object NodeViewModifier {
   object ModifierTypeId extends TaggedType[Byte]
   type ModifierTypeId = ModifierTypeId.Type
 
-  //type ModifierId = ModifierId
-
   val ModifierIdSize: Int = Try(ConfigFactory.load().getConfig("app").getInt("modifierIdSize")).getOrElse(DefaultIdSize)
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
-    Map(Block.modifierTypeId -> BlockCompanion,
-      Transaction.modifierTypeId -> TransactionCompanion)
+    Map(
+      Block.modifierTypeId -> BlockCompanion,
+      Transaction.modifierTypeId -> TransactionCompanion
+    )
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
     List(ids.headOption, ids.lastOption)

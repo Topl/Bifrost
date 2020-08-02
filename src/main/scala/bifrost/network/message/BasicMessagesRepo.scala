@@ -22,10 +22,12 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   *
   * Payload of this message should be determined in underlying applications.
   */
-object SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
+class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
-  val messageCode: MessageCode = 65: Byte
-  val messageName: String = "Sync"
+  import SyncInfoSpec._
+
+  override val messageCode: MessageCode = MessageCode
+  override val messageName: String = MessageName
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
@@ -37,6 +39,11 @@ object SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
     val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
     BifrostSyncInfo(ids)
   }
+}
+
+object SyncInfoSpec {
+  val MessageCode: Byte = 55
+  val MessageName: String = "Inv"
 }
 
 /**
