@@ -9,30 +9,29 @@ import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 case class BifrostSyncInfo(lastBlockIds: Seq[ModifierId]) extends SyncInfo {
 
-  override def startingPoints: Seq[(ModifierTypeId, ModifierId)] =
-    lastBlockIds.map(b => Block.modifierTypeId -> b)
+  //type M = BifrostSyncInfo
 
-  override type M = BifrostSyncInfo
+  def startingPoints: Seq[(ModifierTypeId, ModifierId)] = lastBlockIds.map(b => Block.modifierTypeId -> b)
 
-  override def serializer: BifrostSerializer[BifrostSyncInfo] = BifrostSyncInfoSerializer
+  //override def serializer: BifrostSerializer[BifrostSyncInfo] = BifrostSyncInfoSerializer
 }
 
 object BifrostSyncInfo {
   val MaxLastBlocks = 1000
 }
 
-object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
+//object BifrostSyncInfoSerializer extends BifrostSerializer[BifrostSyncInfo] {
+//
+//  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = {
+//    w.putUShort(obj.lastBlockIds.size)
+//    obj.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+//  }
+//
+//  override def parse(r: Reader): BifrostSyncInfo = {
+//    val length = r.getUShort()
+//    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+//    BifrostSyncInfo(ids)
+//  }
+//}
 
-  override def serialize(obj: BifrostSyncInfo, w: Writer): Unit = {
-    w.putUShort(obj.lastBlockIds.size)
-    obj.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
-  }
-
-  override def parse(r: Reader): BifrostSyncInfo = {
-    val length = r.getUShort()
-    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
-    BifrostSyncInfo(ids)
-  }
-}
-
-object BifrostSyncInfoMessageSpec extends SyncInfoMessageSpec[BifrostSyncInfo](BifrostSyncInfoSerializer)
+//class BifrostSyncInfoMessageSpec extends SyncInfoMessageSpec[BifrostSyncInfo](BifrostSyncInfoSerializer)

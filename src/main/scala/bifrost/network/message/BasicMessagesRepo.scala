@@ -7,7 +7,7 @@ import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{Reader, Writer}
 import bifrost.utils.{Logging, bytesToId, idToBytes}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
@@ -22,14 +22,21 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   *
   * Payload of this message should be determined in underlying applications.
   */
-class SyncInfoMessageSpec[SI <: SyncInfo](serializer: BifrostSerializer[SI]) extends MessageSpecV1[SI] {
+object SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
-  override val messageCode: MessageCode = 65: Byte
-  override val messageName: String = "Sync"
+  val messageCode: MessageCode = 65: Byte
+  val messageName: String = "Sync"
 
-  override def serialize(data: SI, w: Writer): Unit = serializer.serialize(data, w)
+  override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
+    w.putUShort(data.lastBlockIds.size)
+    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+  }
 
-  override def parse(r: Reader): SI = serializer.parse(r)
+  override def parse(r: Reader): BifrostSyncInfo = {
+    val length = r.getUShort()
+    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+    BifrostSyncInfo(ids)
+  }
 }
 
 /**

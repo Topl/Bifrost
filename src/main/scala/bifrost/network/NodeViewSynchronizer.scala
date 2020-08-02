@@ -62,7 +62,7 @@ class NodeViewSynchronizer[
   protected val invSpec: InvSpec = bifrostContext.nodeViewSyncRemoteMessages.invSpec
   protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
   protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
-  protected val syncInfoSpec: BifrostSyncInfoMessageSpec.type = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
+  protected val syncInfoSpec: MessageSpec[BifrostSyncInfo] = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
 
   protected val deliveryTracker = new DeliveryTracker(context.system, deliveryTimeout, maxDeliveryChecks, self)
   protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
@@ -339,7 +339,7 @@ class NodeViewSynchronizer[
 
   protected def sendSync(syncTracker: SyncTracker, history: HR): Unit = {
     val peers = statusTracker.peersToSyncWith()
-    val msg = Message(syncInfoSpec, Right(history.syncInfo), None)
+    val msg = Message[BifrostSyncInfo](syncInfoSpec, Right(history.syncInfo), None)
     if (peers.nonEmpty) {
       networkControllerRef ! SendToNetwork(msg, SendToPeers(peers))
     }
@@ -453,7 +453,7 @@ class NodeViewSynchronizer[
 object NodeViewSynchronizer {
 
   case class RemoteMessageHandler (
-                               syncInfoSpec: SyncInfoMessageSpec[BifrostSyncInfo],
+                               syncInfoSpec: MessageSpec[BifrostSyncInfo],
                                invSpec: InvSpec,
                                requestModifierSpec: RequestModifierSpec,
                                modifiersSpec: ModifiersSpec) {
@@ -563,32 +563,37 @@ object NodeViewSynchronizerRef {
                 networkSettings: NetworkSettings,
                 bifrostContext: BifrostContext
               )
-   (implicit ec: ExecutionContext): Props = {
+   (implicit ec: ExecutionContext): Props =
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
-  }
 
-  def apply[TX <: Transaction,
-  SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag]
-  (networkControllerRef: ActorRef,
-   viewHolderRef: ActorRef,
-   networkSettings: NetworkSettings,
-   bifrostContext: BifrostContext)
+  def apply[
+    TX <: Transaction,
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI] : ClassTag,
+    MR <: MemPoolReader[TX] : ClassTag
+  ](
+                networkControllerRef: ActorRef,
+                viewHolderRef: ActorRef,
+                networkSettings: NetworkSettings,
+                bifrostContext: BifrostContext
+              )
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
-  def apply[TX <: Transaction,
-  SI <: SyncInfo,
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag]
-  (name: String,
-   networkControllerRef: ActorRef,
-   viewHolderRef: ActorRef,
-   networkSettings: NetworkSettings,
-   bifrostContext: BifrostContext)
+  def apply[
+    TX <: Transaction,
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI] : ClassTag,
+    MR <: MemPoolReader[TX] : ClassTag
+  ](
+                name: String,
+                networkControllerRef: ActorRef,
+                viewHolderRef: ActorRef,
+                networkSettings: NetworkSettings,
+                bifrostContext: BifrostContext
+              )
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext), name)
 }

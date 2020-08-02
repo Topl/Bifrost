@@ -35,7 +35,7 @@ class BifrostContext(settings: AppSettings, val upnpGateway: Option[Gateway]) (i
 
   // instantiate and populate the local message handler for node view management requests from remote peers
   val nodeViewSyncRemoteMessages: NodeViewSynchronizer.RemoteMessageHandler = {
-    val syncInfoSpec = BifrostSyncInfoMessageSpec
+    val syncInfoSpec: MessageSpec[BifrostSyncInfo] = SyncInfoSpec
     val invSpec = new InvSpec(settings.network.maxInvObjects)
     val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
     val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
