@@ -1,15 +1,14 @@
 package bifrost.network.message
 
-import bifrost.network.{message, _}
-import bifrost.network.message.Message.MessageCode
 import bifrost.modifier.ModifierId
+import bifrost.network.message
+import bifrost.network.message.Message.MessageCode
 import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import bifrost.utils.{bytesToId, idToBytes}
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, bytesToId, idToBytes}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
@@ -179,17 +178,23 @@ object ModifiersSpec {
   * its database of available nodes rather than waiting for unsolicited `Peers`
   * messages to arrive over time.
   */
-object GetPeersSpec extends MessageSpecV1[Unit] {
-  override val messageCode: Message.MessageCode = 1: Byte
+class GetPeersSpec extends MessageSpecV1[Unit] with Logging {
 
-  override val messageName: String = "GetPeers message"
+  import GetPeersSpec._
 
-  // todo: JAA - 2020.07.19 - is there a better way to handle this to show it shouldn't be called?
+  override val messageCode: MessageCode = MessageCode
+  override val messageName: String = MessageName
+
   override def serialize(obj: Unit, w: Writer): Unit = {}
 
   override def parse(r: Reader): Unit = {
     require(r.remaining == 0, "Non-empty data for GetPeers")
   }
+}
+
+object GetPeersSpec {
+  val MessageCode: MessageCode = 1: Byte
+  val MessageName: String = "GetPeers message"
 }
 
 /**

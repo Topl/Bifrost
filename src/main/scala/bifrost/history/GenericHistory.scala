@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.modifier.ModifierId
-import bifrost.network.SyncInfo
+import bifrost.network.message.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.BifrostEncoder

@@ -3,7 +3,7 @@ package bifrost.network
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Nonsense, Unknown, Younger}
+import bifrost.history.GenericHistory._
 import bifrost.history.HistoryReader
 import bifrost.mempool.MemPoolReader
 import bifrost.modifier.ModifierId
@@ -11,13 +11,12 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.message._
 import bifrost.network.peer.{ConnectedPeer, PenaltyType}
-import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
-import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.settings.NetworkSettings
+import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.state.StateReader
-import bifrost.utils.{Logging, NetworkTimeProvider, BifrostEncoding, MalformedModifierError}
 import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{BifrostEncoding, Logging, MalformedModifierError}
 import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
@@ -31,46 +30,49 @@ import scala.util.{Failure, Success}
   *
   * @param networkControllerRef reference to network controller actor
   * @param viewHolderRef        reference to node view holder actor
-  * @param syncInfoSpec         SyncInfo specification
   * @tparam TX  transaction
-  * @tparam SIS SyncInfoMessage specification
   */
-class NodeViewSynchronizer[TX <: Transaction,
-  SI <: SyncInfo,
-  SIS <: SyncInfoMessageSpec[SI],
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag]
-  (networkControllerRef: ActorRef,
-     viewHolderRef: ActorRef,
-     syncInfoSpec: SIS,
-     networkSettings: NetworkSettings,
-     timeProvider: NetworkTimeProvider,
-     modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext) extends Actor
-      with Logging with BifrostEncoding {
+class NodeViewSynchronizer[
+                            TX <: Transaction,
+                            SI <: SyncInfo,
+                            PMOD <: PersistentNodeViewModifier,
+                            HR <: HistoryReader[PMOD, SI] : ClassTag,
+                            MR <: MemPoolReader[TX] : ClassTag
+                          ]                          (
+                                                       networkControllerRef: ActorRef,
+                                                       viewHolderRef: ActorRef,
+                                                       networkSettings: NetworkSettings,
+                                                       bifrostContext: BifrostContext
+                                                     )
+                           (implicit ec: ExecutionContext) extends Actor with Logging with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
+  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
   import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
-  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 
   protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
-  protected val invSpec = new InvSpec(networkSettings.maxInvObjects)
-  protected val requestModifierSpec = new RequestModifierSpec(networkSettings.maxInvObjects)
-  protected val modifiersSpec = new ModifiersSpec(networkSettings.maxPacketSize)
+  protected val desiredInvObjects: Int = networkSettings.desiredInvObjects
+
+  protected val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] = NodeViewModifier.modifierSerializers
+
+  // todo: JAA - consider changing this messageSpec map to a class so we can have type safety when assigning these values?
+  protected val invSpec: InvSpec = bifrostContext.nodeViewSyncRemoteMessages.invSpec
+  protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
+  protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
+  protected val syncInfoSpec: BifrostSyncInfoMessageSpec.type = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
 
   protected val deliveryTracker = new DeliveryTracker(context.system, deliveryTimeout, maxDeliveryChecks, self)
-  protected val statusTracker = new SyncTracker(self, context, networkSettings, timeProvider)
+  protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
 
   protected var historyReaderOpt: Option[HR] = None
   protected var mempoolReaderOpt: Option[MR] = None
 
   override def preStart(): Unit = {
     //register as a handler for synchronization-specific types of messages
-    val messageSpecs: Seq[MessageSpec[_]] = Seq(invSpec, requestModifierSpec, modifiersSpec, syncInfoSpec)
-    networkControllerRef ! RegisterMessageSpecs(messageSpecs, self)
+    networkControllerRef ! RegisterMessageSpecs(bifrostContext.nodeViewSyncRemoteMessages.toSeq, self)
 
     //register as a listener for peers got connected (handshaked) or disconnected
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
@@ -107,7 +109,7 @@ class NodeViewSynchronizer[TX <: Transaction,
 
       historyReaderOpt match {
         case Some(historyReader) =>
-          val ext = historyReader.continuationIds(syncInfo, networkSettings.desiredInvObjects)
+          val ext = historyReader.continuationIds(syncInfo, desiredInvObjects)
           val comparison = historyReader.compare(syncInfo)
           log.debug(s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
             s"Comparison result is $comparison. Sending extension of length ${ext.length}")
@@ -450,6 +452,15 @@ class NodeViewSynchronizer[TX <: Transaction,
 
 object NodeViewSynchronizer {
 
+  case class RemoteMessageHandler (
+                               syncInfoSpec: SyncInfoMessageSpec[BifrostSyncInfo],
+                               invSpec: InvSpec,
+                               requestModifierSpec: RequestModifierSpec,
+                               modifiersSpec: ModifiersSpec) {
+
+    def toSeq: Seq[MessageSpec[_]] = Seq(syncInfoSpec, invSpec, requestModifierSpec, modifiersSpec)
+  }
+
   object Events {
 
     trait NodeViewSynchronizerEvent
@@ -540,51 +551,44 @@ object NodeViewSynchronizer {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NodeViewSynchronizerRef {
-  def props[TX <: Transaction,
-  SI <: SyncInfo,
-  SIS <: SyncInfoMessageSpec[SI],
-  PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag]
-  (networkControllerRef: ActorRef,
-   viewHolderRef: ActorRef,
-   syncInfoSpec: SIS,
-   networkSettings: NetworkSettings,
-   timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])(implicit ec: ExecutionContext): Props =
-    Props(new NodeViewSynchronizer[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef, syncInfoSpec,
-      networkSettings, timeProvider, modifierSerializers))
+  def props[
+    TX <: Transaction,
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI] : ClassTag,
+    MR <: MemPoolReader[TX] : ClassTag
+  ]           (
+                networkControllerRef: ActorRef,
+                viewHolderRef: ActorRef,
+                networkSettings: NetworkSettings,
+                bifrostContext: BifrostContext
+              )
+   (implicit ec: ExecutionContext): Props = {
+    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
+  }
 
   def apply[TX <: Transaction,
   SI <: SyncInfo,
-  SIS <: SyncInfoMessageSpec[SI],
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI] : ClassTag,
   MR <: MemPoolReader[TX] : ClassTag]
   (networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
-   syncInfoSpec: SIS,
    networkSettings: NetworkSettings,
-   timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])
+   bifrostContext: BifrostContext)
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef,
-      syncInfoSpec, networkSettings, timeProvider, modifierSerializers))
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
   def apply[TX <: Transaction,
   SI <: SyncInfo,
-  SIS <: SyncInfoMessageSpec[SI],
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI] : ClassTag,
   MR <: MemPoolReader[TX] : ClassTag]
   (name: String,
    networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
-   syncInfoSpec: SIS,
    networkSettings: NetworkSettings,
-   timeProvider: NetworkTimeProvider,
-   modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]])
+   bifrostContext: BifrostContext)
   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, SIS, PMOD, HR, MR](networkControllerRef, viewHolderRef,
-      syncInfoSpec, networkSettings, timeProvider, modifierSerializers), name)
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext), name)
 }

@@ -19,6 +19,7 @@ import bifrost.modifier.box.{ArbitBox, AssetBox}
 import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.settings.BifrostContext
 import bifrost.state.State
 import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
@@ -46,9 +47,21 @@ class AssetRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
-  implicit val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // save environment into a variable for reference throughout the application
+  private val bifrostContext: BifrostContext = BifrostContext(
+    messageSpecs = Map(),
+    features = Seq(),
+    upnpGateway = None,
+    timeProvider = new NetworkTimeProvider(settings.ntp),
+    externalNodeAddress = None
+  )
+
+  // Create Bifrost singleton actors
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+
+  // setup route for testing
   val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
   val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 

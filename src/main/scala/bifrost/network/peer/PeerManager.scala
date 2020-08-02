@@ -5,7 +5,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import bifrost.settings.BifrostContext
 import bifrost.network._
-import bifrost.settings.AppSettings
+import bifrost.settings.NetworkSettings
 import bifrost.utils.NetworkUtils
 import bifrost.utils.Logging
 
@@ -16,7 +16,7 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager(settings: AppSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext) extends Actor with Logging {
+class PeerManager(settings: NetworkSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
@@ -24,11 +24,11 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext)(implici
   // Import the types of messages this actor can SEND
   import bifrost.network.NetworkController.ReceivableMessages._
 
-  private val peerDatabase = new InMemoryPeerDatabase(settings.network, bifrostContext.timeProvider)
+  private val peerDatabase = new InMemoryPeerDatabase(settings, bifrostContext.timeProvider)
 
   if (peerDatabase.isEmpty) {
     // fill database with peers from config file if empty
-    settings.network.knownPeers.foreach { address =>
+    settings.knownPeers.foreach { address =>
       if (!isSelf(address)) {
         peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
       }
@@ -103,7 +103,7 @@ class PeerManager(settings: AppSettings, bifrostContext: BifrostContext)(implici
     * Given a peer's address, returns `true` if the peer is the same is this node.
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, bifrostContext.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, settings.bindAddress, bifrostContext.externalNodeAddress)
   }
 
   private def isSelf(peerSpec: PeerSpec): Boolean = {
@@ -198,16 +198,17 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: AppSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext): Props = {
+  def props(settings: NetworkSettings, bifrostContext: BifrostContext)
+           (implicit ec: ExecutionContext): Props = {
     Props(new PeerManager(settings, bifrostContext))
   }
 
-  def apply(settings: AppSettings, bifrostContext: BifrostContext)
+  def apply(settings: NetworkSettings, bifrostContext: BifrostContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, bifrostContext))
   }
 
-  def apply(name: String, settings: AppSettings, bifrostContext: BifrostContext)
+  def apply(name: String, settings: NetworkSettings, bifrostContext: BifrostContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, bifrostContext), name)
   }

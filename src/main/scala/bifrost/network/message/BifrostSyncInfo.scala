@@ -1,10 +1,9 @@
-package bifrost.network
+package bifrost.network.message
 
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.network.message.SyncInfoMessageSpec
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 

@@ -5,14 +5,15 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.serialization._
-import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
+import bifrost.network.BifrostSyncInfoSerializer
+import bifrost.network.message.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Success}
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 

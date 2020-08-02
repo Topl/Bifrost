@@ -1,7 +1,5 @@
 package bifrost.api
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
@@ -10,20 +8,14 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.consensus.ForgerRef
 import bifrost.history.History
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network._
-import bifrost.network.message._
-import bifrost.network.peer.{PeerFeature, PeerManagerRef}
-import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{NodeViewHolderRef, NodeViewModifier}
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.settings.BifrostContext
 import bifrost.state.{State, StateChanges}
 import bifrost.utils.NetworkTimeProvider
@@ -32,14 +24,14 @@ import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 6/13/2017.
@@ -53,50 +45,21 @@ class ProgramRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
-  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
-
-  protected val features: Seq[PeerFeature] = Seq()
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-
-  private lazy val basicSpecs = {
-    val invSpec = new InvSpec(settings.network.maxInvObjects)
-    val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
-    val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
-    val featureSerializers: PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
-    Seq(
-      GetPeersSpec,
-      new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects),
-      invSpec,
-      requestModifierSpec,
-      modifiersSpec
-    )
-  }
-
-  //an address to send to peers
-  lazy val externalSocketAddress: Option[InetSocketAddress] = {
-    settings.network.declaredAddress orElse None
-  }
-
-  val bifrostContext: BifrostContext = BifrostContext(
-    messageSpecs = basicSpecs ++ additionalMessageSpecs,
-    features = features,
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // save environment into a variable for reference throughout the application
+  private val bifrostContext: BifrostContext = BifrostContext(
+    messageSpecs = Map(),
+    features = Seq(),
     upnpGateway = None,
-    timeProvider = timeProvider,
-    externalNodeAddress = externalSocketAddress
+    timeProvider = new NetworkTimeProvider(settings.ntp),
+    externalNodeAddress = None
   )
 
-  val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, bifrostContext)
+  // Create Bifrost singleton actors
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-  val networkControllerRef: ActorRef = NetworkControllerRef("networkController" ,settings.network, peerManagerRef, bifrostContext, peerManagerRef)
-
-  val forgerRef: ActorRef = ForgerRef("forger", settings, nodeViewHolderRef)
-
-  val nodeViewSynchronizer: ActorRef =
-    NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, BifrostSyncInfoMessageSpec.type, Block, History, MemPool](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef,
-      BifrostSyncInfoMessageSpec, settings.network, timeProvider, NodeViewModifier.modifierSerializers)
-
+  // setup route for testing
   val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
