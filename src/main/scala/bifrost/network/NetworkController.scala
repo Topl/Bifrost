@@ -84,19 +84,14 @@ class NetworkController(
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
-    case "Bind" =>
-      //bind to listen for incoming connections
-      val bindResponse: Unit = (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)).onComplete({
-        case Success(Tcp.Bound(addr)) =>
-          log.info(s"${Console.YELLOW}Peer-to-peer protocol bound to ${addr}${Console.RESET}")
-          scheduleConnectionToPeer()
-          context become operational
+    case BindP2P =>
+      // send a bind signal to the TCP manager to designate this actor as the handler to accept incoming connections
+      sender() ! (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false))
 
-        case Success(_) | Failure(_) =>
-          throw new Error("Error while attempting to bind to P2P port")
-      })
-
-      sender ! bindResponse
+    case BecomeOperational =>
+      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
+      scheduleConnectionToPeer()
+      context become operational
   }
 
   private def registerHandlers: Receive = {
@@ -523,6 +518,10 @@ object NetworkController {
     case object ShutdownNetwork
 
     case object GetConnectedPeers
+
+    case object BindP2P
+
+    case object BecomeOperational
 
   }
 
