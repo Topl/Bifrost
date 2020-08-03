@@ -6,7 +6,8 @@ import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.{DefaultModifiersCache, ModifiersCache, SyncInfo}
+import bifrost.network.message.SyncInfo
+import bifrost.network.{DefaultModifiersCache, ModifiersCache}
 import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}

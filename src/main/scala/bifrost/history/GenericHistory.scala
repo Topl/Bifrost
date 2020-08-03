@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.modifier.ModifierId
-import bifrost.network.SyncInfo
+import bifrost.network.message.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.BifrostEncoder
@@ -21,9 +21,11 @@ import scala.util.Try
   * function has been used instead, even in PoW systems.
   */
 
-trait GenericHistory[PM <: PersistentNodeViewModifier,
-SI <: SyncInfo,
-HT <: GenericHistory[PM, SI, HT]] extends NodeViewComponent with HistoryReader[PM, SI] {
+trait GenericHistory[
+  PM <: PersistentNodeViewModifier,
+  SI <: SyncInfo,
+  HT <: GenericHistory[PM, SI, HT]
+] extends NodeViewComponent with HistoryReader[PM, SI] {
 
   import GenericHistory._
 
