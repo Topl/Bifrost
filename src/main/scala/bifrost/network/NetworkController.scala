@@ -364,7 +364,7 @@ class NetworkController(
     * @param handler ActorRef on PeerConnectionHandler actor
     * @return Some(ConnectedPeer) when the connection exists for this handler, and None otherwise
     */
-  private def connectionForHandler(handler: ActorRef) = {
+  private def connectionForHandler(handler: ActorRef): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.handlerRef == handler
     }
@@ -376,7 +376,7 @@ class NetworkController(
     * @param peerAddress - socket address of peer
     * @return Some(ConnectedPeer) when the connection exists for this peer, and None otherwise
     */
-  private def connectionForPeerAddress(peerAddress: InetSocketAddress) = {
+  private def connectionForPeerAddress(peerAddress: InetSocketAddress): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.connectionId.remoteAddress == peerAddress ||
       connectedPeer.peerInfo.exists(peerInfo =>
@@ -421,7 +421,7 @@ class NetworkController(
     * @param localSocketAddress - local socket address of the connection to the peer
     * @return - socket address of the node
     */
-  private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress) = {
+  private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress): Option[InetSocketAddress] = {
     val localAddr = localSocketAddress.getAddress
     bifrostContext.externalNodeAddress match {
       case Some(extAddr) =>
@@ -487,10 +487,7 @@ class NetworkController(
   /**
     * Register a new penalty for given peer address.
     */
-  private def penalize(
-      peerAddress: InetSocketAddress,
-      penaltyType: PenaltyType
-  ): Unit =
+  private def penalize(peerAddress: InetSocketAddress, penaltyType: PenaltyType): Unit =
     peerManagerRef ! Penalize(peerAddress, penaltyType)
 
 }

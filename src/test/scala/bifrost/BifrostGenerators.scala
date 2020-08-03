@@ -12,7 +12,7 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.network.BifrostSyncInfo
+import bifrost.network.message.BifrostSyncInfo
 import bifrost.program.{Program, ProgramPreprocessor, _}
 import bifrost.settings.{AppSettings, StartupOpts}
 import io.circe.{Json, JsonObject}
@@ -22,7 +22,6 @@ import org.scalacheck.{Arbitrary, Gen}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Random, Try}
-
 import bifrost.utils.Logging
 
 /**

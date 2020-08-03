@@ -10,21 +10,20 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.modifier.ModifierId
-import bifrost.network.{BifrostModifiersCache, BifrostSyncInfo, ModifiersCache}
+import bifrost.network.message.BifrostSyncInfo
+import bifrost.network.{BifrostModifiersCache, ModifiersCache}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.AppSettings
+import bifrost.settings.{AppSettings, BifrostContext}
 import bifrost.state.State
-import bifrost.utils.{Logging, NetworkTimeProvider}
+import bifrost.utils.{Logging, TimeProvider}
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext)
+class NodeViewHolder(override val settings: AppSettings, bifrostContext: BifrostContext)(implicit ec: ExecutionContext)
   extends GenericNodeViewHolder[Transaction, Block] {
-
-  override lazy val settings: AppSettings = appSettings
 
   override type SI = BifrostSyncInfo
   override type HIS = History
@@ -33,8 +32,10 @@ class NodeViewHolder(appSettings: AppSettings, timeProvider: NetworkTimeProvider
   override type MP = MemPool
   type PMOD = Block
 
+  private val timeProvider: TimeProvider = bifrostContext.timeProvider
+
   override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
-    new BifrostModifiersCache(appSettings.network.maxModifiersCacheSize)
+    new BifrostModifiersCache(settings.network.maxModifiersCacheSize)
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockCompanion,
@@ -155,15 +156,15 @@ object NodeViewHolder extends Logging {
 
 object NodeViewHolderRef {
 
-  def props(settings: AppSettings,
-            timeProvider: NetworkTimeProvider)(implicit ec: ExecutionContext): Props = Props(new NodeViewHolder(settings, timeProvider))
+  def props(settings: AppSettings, bifrostContext: BifrostContext)
+           (implicit ec: ExecutionContext): Props =
+    Props(new NodeViewHolder(settings, bifrostContext))
 
-  def apply(settings: AppSettings,
-            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, timeProvider))
+  def apply(settings: AppSettings, bifrostContext: BifrostContext)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, bifrostContext))
 
-  def apply(name: String,
-            settings: AppSettings,
-            timeProvider: NetworkTimeProvider)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, timeProvider), name)
+  def apply(name: String, settings: AppSettings, bifrostContext: BifrostContext)
+           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(settings, bifrostContext), name)
 }
