@@ -1,6 +1,5 @@
 package bifrost.history
 
-import bifrost.consensus.ModifierSemanticValidity
 import bifrost.history.GenericHistory.ModifierIds
 import bifrost.history.GenericHistory.HistoryComparisonResult
 import bifrost.modifier.ContainsModifiers
@@ -26,14 +25,6 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
     * @return `Success` if modifier can be applied, `Failure(ModifierError)` if can not
     */
   def applicableTry(modifier: PM): Try[Unit]
-
-  /**
-    * Return semantic validity status of modifier with id == modifierId
-    *
-    * @param modifierId - modifier id to check
-    * @return
-    */
-  def isSemanticallyValid(modifierId: ModifierId): ModifierSemanticValidity
 
   //todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]

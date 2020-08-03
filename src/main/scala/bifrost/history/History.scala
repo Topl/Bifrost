@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
+import bifrost.consensus.DifficultyBlockValidator
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -459,14 +459,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       case b: Block ⇒ Success(())
     }
   }
-
-  /**
-    * Return semantic validity status of modifier with id == modifierId
-    *
-    * @param modifierId - modifier id to check
-    * @return
-    */
-  override def isSemanticallyValid(modifierId: ModifierId): ModifierSemanticValidity = ???
 
   /**
     * Ids of modifiers, that node with info should download and apply to synchronize
