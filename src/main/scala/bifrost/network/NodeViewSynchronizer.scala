@@ -30,23 +30,24 @@ import scala.util.{Failure, Success}
   *
   * @param networkControllerRef reference to network controller actor
   * @param viewHolderRef        reference to node view holder actor
-  * @tparam TX  transaction
+  * @tparam TX transaction
   */
 class NodeViewSynchronizer[
-                            TX <: Transaction,
-                            SI <: SyncInfo,
-                            PMOD <: PersistentNodeViewModifier,
-                            HR <: HistoryReader[PMOD, SI] : ClassTag,
-                            MR <: MemPoolReader[TX] : ClassTag
-                          ]                          (
-                                                       networkControllerRef: ActorRef,
-                                                       viewHolderRef: ActorRef,
-                                                       networkSettings: NetworkSettings,
-                                                       bifrostContext: BifrostContext
-                                                     )
-                           (implicit ec: ExecutionContext) extends Actor with Logging with BifrostEncoding {
+  TX <: Transaction,
+  SI <: SyncInfo,
+  PMOD <: PersistentNodeViewModifier,
+  HR <: HistoryReader[PMOD, SI] : ClassTag,
+  MR <: MemPoolReader[TX] : ClassTag
+](
+   networkControllerRef: ActorRef,
+   viewHolderRef: ActorRef,
+   networkSettings: NetworkSettings,
+   bifrostContext: BifrostContext
+ )
+ (implicit ec: ExecutionContext) extends Actor with Logging with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
+
   import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
   import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer
@@ -89,17 +90,17 @@ class NodeViewSynchronizer[
     statusTracker.scheduleSendSyncInfo()
   }
 
-////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
   override def receive: Receive =
     processDataFromPeer orElse
-    processSyncStatus orElse
-    manageModifiers orElse
-    viewHolderEvents orElse
-    peerManagerEvents orElse
-    nonsense
+      processSyncStatus orElse
+      manageModifiers orElse
+      viewHolderEvents orElse
+      peerManagerEvents orElse
+      nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processDataFromPeer: Receive = {
@@ -319,8 +320,8 @@ class NodeViewSynchronizer[
       log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 
-////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   private def readersOpt: Option[(HR, MR)] = historyReaderOpt.flatMap(h => mempoolReaderOpt.map(mp => (h, mp)))
 
@@ -454,11 +455,11 @@ class NodeViewSynchronizer[
 
 object NodeViewSynchronizer {
 
-  case class RemoteMessageHandler (
-                               syncInfoSpec: SyncInfoSpec,
-                               invSpec: InvSpec,
-                               requestModifierSpec: RequestModifierSpec,
-                               modifiersSpec: ModifiersSpec) {
+  case class RemoteMessageHandler(
+                                   syncInfoSpec: SyncInfoSpec,
+                                   invSpec: InvSpec,
+                                   requestModifierSpec: RequestModifierSpec,
+                                   modifiersSpec: ModifiersSpec) {
 
     def toSeq: Seq[MessageSpec[_]] = Seq(syncInfoSpec, invSpec, requestModifierSpec, modifiersSpec)
   }
@@ -559,12 +560,12 @@ object NodeViewSynchronizerRef {
     PMOD <: PersistentNodeViewModifier,
     HR <: HistoryReader[PMOD, SI] : ClassTag,
     MR <: MemPoolReader[TX] : ClassTag
-  ]           (
-                networkControllerRef: ActorRef,
-                viewHolderRef: ActorRef,
-                networkSettings: NetworkSettings,
-                bifrostContext: BifrostContext
-              )
+  ](
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     networkSettings: NetworkSettings,
+     bifrostContext: BifrostContext
+   )
    (implicit ec: ExecutionContext): Props =
     Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
@@ -575,12 +576,12 @@ object NodeViewSynchronizerRef {
     HR <: HistoryReader[PMOD, SI] : ClassTag,
     MR <: MemPoolReader[TX] : ClassTag
   ](
-                networkControllerRef: ActorRef,
-                viewHolderRef: ActorRef,
-                networkSettings: NetworkSettings,
-                bifrostContext: BifrostContext
-              )
-  (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     networkSettings: NetworkSettings,
+     bifrostContext: BifrostContext
+   )
+   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
   def apply[
@@ -590,12 +591,12 @@ object NodeViewSynchronizerRef {
     HR <: HistoryReader[PMOD, SI] : ClassTag,
     MR <: MemPoolReader[TX] : ClassTag
   ](
-                name: String,
-                networkControllerRef: ActorRef,
-                viewHolderRef: ActorRef,
-                networkSettings: NetworkSettings,
-                bifrostContext: BifrostContext
-              )
-  (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+     name: String,
+     networkControllerRef: ActorRef,
+     viewHolderRef: ActorRef,
+     networkSettings: NetworkSettings,
+     bifrostContext: BifrostContext
+   )
+   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext), name)
 }
