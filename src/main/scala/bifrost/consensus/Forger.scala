@@ -11,7 +11,7 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{CoinbaseTransaction, Transaction}
 import bifrost.nodeView.CurrentView
-import bifrost.settings.AppSettings
+import bifrost.settings.ForgingSettings
 import bifrost.state.State
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
@@ -23,7 +23,7 @@ import scala.util.Try
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
  * Must be singleton
  */
-class Forger(settings: AppSettings, viewHolderRef: ActorRef)
+class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor RECEIVES
@@ -36,8 +36,8 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
   //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
 
   override def preStart(): Unit = {
-    if (settings.forgingSettings.tryForging) {
-      context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(self ! StartForging)
+    if (settings.tryForging) {
+      context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
     }
   }
@@ -109,7 +109,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
 
     val transactions = pickTransactions(m, s, h.bestBlock, (h, s, w, m)).get
 
-    iteration(h.bestBlock, h.difficulty, boxKeys, transactions, settings.forgingSettings.version) match {
+    iteration(h.bestBlock, h.difficulty, boxKeys, transactions, settings.version) match {
       case Some(block) =>
         log.debug(s"Locally generated block: $block")
         viewHolderRef ! LocallyGeneratedModifier[Block](block)
@@ -117,8 +117,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
         log.debug(s"Failed to generate block")
     }
 
-    // fixme: JAA - if we want this to happen last then we should make it dependent on something earlier in the function call
-    context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
   }
 
   def pickTransactions(memPool: MemPool,
@@ -154,7 +153,7 @@ class Forger(settings: AppSettings, viewHolderRef: ActorRef)
                 txsToInclude: Seq[Transaction],
                 version: Block.Version): Option[Block] = {
 
-    val targetTime = settings.forgingSettings.targetBlockTime
+    val targetTime = settings.targetBlockTime
     val timestamp = Instant.now().toEpochMilli // save a common timestamp for use in this method call
     val target = calcAdjustedTarget(parent, difficulty, targetTime, timestamp)
 
@@ -196,12 +195,12 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props(settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit ec: ExecutionContext): Props =
+  def props(settings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit ec: ExecutionContext): Props =
     Props(new Forger(settings, nodeViewHolderRef))
 
-  def apply(settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(settings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, nodeViewHolderRef))
 
-  def apply(name: String, settings: AppSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+  def apply(name: String, settings: ForgingSettings, nodeViewHolderRef: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props(settings, nodeViewHolderRef), name)
 }

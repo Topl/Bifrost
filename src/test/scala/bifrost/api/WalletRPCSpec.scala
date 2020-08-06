@@ -2,7 +2,7 @@ package bifrost.api
 
 import java.io.File
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -17,18 +17,18 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.settings.BifrostContext
 import bifrost.state.State
-import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 
 class WalletRPCSpec extends AnyWordSpec
@@ -39,9 +39,15 @@ class WalletRPCSpec extends AnyWordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val timeProvider = new NetworkTimeProvider(settings.ntp)
-  val actorSystem: ActorSystem = ActorSystem(settings.network.agentName)
-  val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, timeProvider)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // save environment into a variable for reference throughout the application
+  protected val bifrostContext = new BifrostContext(settings, None)
+
+  // Create Bifrost singleton actors
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+
+  // setup route for testing
   val route: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {

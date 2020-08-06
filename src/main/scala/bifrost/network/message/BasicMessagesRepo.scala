@@ -1,15 +1,14 @@
 package bifrost.network.message
 
-import bifrost.network.{message, _}
-import bifrost.network.message.Message.MessageCode
 import bifrost.modifier.ModifierId
+import bifrost.network.message
+import bifrost.network.message.Message.MessageCode
 import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import bifrost.utils.{bytesToId, idToBytes}
-import bifrost.utils.Logging
+import bifrost.utils.serialization.{Reader, Writer}
+import bifrost.utils.{Logging, bytesToId, idToBytes}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
@@ -23,14 +22,28 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   *
   * Payload of this message should be determined in underlying applications.
   */
-class SyncInfoMessageSpec[SI <: SyncInfo](serializer: BifrostSerializer[SI]) extends MessageSpecV1[SI] {
+class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
-  override val messageCode: MessageCode = 65: Byte
-  override val messageName: String = "Sync"
+  import SyncInfoSpec._
 
-  override def serialize(data: SI, w: Writer): Unit = serializer.serialize(data, w)
+  override val messageCode: MessageCode = MessageCode
+  override val messageName: String = MessageName
 
-  override def parse(r: Reader): SI = serializer.parse(r)
+  override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
+    w.putUShort(data.lastBlockIds.size)
+    data.lastBlockIds.foreach(id ⇒ w.putBytes(id.hashBytes))
+  }
+
+  override def parse(r: Reader): BifrostSyncInfo = {
+    val length = r.getUShort()
+    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+    BifrostSyncInfo(ids)
+  }
+}
+
+object SyncInfoSpec {
+  val MessageCode: Byte = 55
+  val MessageName: String = "Inv"
 }
 
 /**
@@ -179,17 +192,23 @@ object ModifiersSpec {
   * its database of available nodes rather than waiting for unsolicited `Peers`
   * messages to arrive over time.
   */
-object GetPeersSpec extends MessageSpecV1[Unit] {
-  override val messageCode: Message.MessageCode = 1: Byte
+class GetPeersSpec extends MessageSpecV1[Unit] with Logging {
 
-  override val messageName: String = "GetPeers message"
+  import GetPeersSpec._
 
-  // todo: JAA - 2020.07.19 - is there a better way to handle this to show it shouldn't be called?
+  override val messageCode: MessageCode = MessageCode
+  override val messageName: String = MessageName
+
   override def serialize(obj: Unit, w: Writer): Unit = {}
 
   override def parse(r: Reader): Unit = {
     require(r.remaining == 0, "Non-empty data for GetPeers")
   }
+}
+
+object GetPeersSpec {
+  val MessageCode: MessageCode = 1: Byte
+  val MessageName: String = "GetPeers message"
 }
 
 /**
