@@ -61,7 +61,6 @@ class NetworkController(
 
   override def preStart(): Unit = {
     log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
-    validateDeclaredAddress() //check own declared address for validity
     context become initialization
   }
 
@@ -85,8 +84,15 @@ class NetworkController(
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
     case BindP2P =>
-      // send a bind signal to the TCP manager to designate this actor as the handler to accept incoming connections
-      sender() ! (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false))
+      //check own declared address for validity
+      val addrValidationResult = if (validateDeclaredAddress()) {
+        // send a bind signal to the TCP manager to designate this actor as the handler to accept incoming connections
+        tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+      } else {
+        throw new Error("Address validation failed. Aborting application startup.")
+      }
+
+      sender() ! addrValidationResult
 
     case BecomeOperational =>
       log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
@@ -440,15 +446,19 @@ class NetworkController(
     }
   }
 
-  private def validateDeclaredAddress(): Unit = {
-    if (!settings.localOnly) {
-      settings.declaredAddress.foreach { mySocketAddress =>
+  private def validateDeclaredAddress(): Boolean = {
+    //if (!settings.localOnly)
+    settings.declaredAddress match {
+      case Some(mySocketAddress: InetSocketAddress) =>
         Try {
           val uri = new URI("http://" + mySocketAddress)
           val myHost = uri.getHost
           val myAddress = InetAddress.getAllByName(myHost)
 
+          // this is a list of your local interface addresses
           val listenAddresses = NetworkUtils.getListenAddresses(bindAddress)
+
+          // this is a list of your external address as determined by the upnp gateway
           val upnpAddress = bifrostContext.upnpGateway.map(_.externalAddress)
 
           val valid =
@@ -457,15 +467,24 @@ class NetworkController(
             )
 
           if (!valid) {
-            log.error(s"""Declared address validation failed:
+            log.error(
+              s"""Declared address validation failed:
                  | $mySocketAddress not match any of the listening address: $listenAddresses
                  | or Gateway WAN address: $upnpAddress""".stripMargin)
           }
-        } recover {
-          case t: Throwable =>
-            log.error("Declared address validation failed: ", t)
+
+          valid
+        } match {
+          case Success(res: Boolean) if res  => true   // address was valid
+          case Success(res: Boolean) if !res  => false // address was not valid
+          case Failure(ex) =>
+            log.error("There was an error while attempting to validate the declared address: ", ex)
+            false
         }
-      }
+
+      case None =>
+        log.info(s"No declared address was provided. Skipping address validation.")
+        true
     }
   }
 
