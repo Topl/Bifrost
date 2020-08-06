@@ -1,6 +1,7 @@
 package bifrost.modifier.block
 
 import bifrost.crypto.Signature25519
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
@@ -59,9 +60,41 @@ object BlockCompanion extends BifrostSerializer[Block] {
     }
   }
 
-  override def serialize(obj: Block, w: Writer): Unit = ???
+  override def serialize(block: Block, w: Writer): Unit = ???
 
-  override def parse(r: Reader): Block = ???
+  override def parse(r: Reader): Block = {
+    // The order of the getByte, getLong... calls should not be changed
+
+    // ?: maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
+
+    // TODO: Identify version
+    // we should get the entire bytes instead of bytes.tail so we can identify if we are forming a block for 2xandbefore
+    // But can we? In storage.scala we determine whether to use parseBytes or 2xnbefore from the blockId, and then
+    // just use bytes.head to determine if there is a Block.modifierTypeId
+    val parseBytesType = ???
+
+    // here using ModifierId instead of bytesToId, we could get rid of bytesToId soon
+    val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
+
+    val timestamp: Long = r.getLong()
+
+    // why is generatorBoxLen a long? scorex uses toIntExact to make sure the Long does not exceed the length of an Int
+    val generatorBoxLen: Int = r.getLong().toInt
+
+    val version: Byte = r.getByte()
+
+    // BoxSerializer.parseBytes: should switch to using .getBytes later
+    val generatorBox: ArbitBox = BoxSerializer.parseBytes(r.getBytes(generatorBoxLen)).get.asInstanceOf[ArbitBox]
+
+    val inflation: Long = r.getLong()
+    val signature: Signature25519 = Signature25519(r.getBytes(Signature25519.SignatureSize))
+    val txsLength: Int = r.getInt()
+
+    // implement parse in TransactionCompanion and its specific transactionCompanions 3 layer of companions
+    val txs: Seq[Transaction] = (0 until txsLength) map { _ => TransactionCompanion.parse(r)}
+
+    Block(parentId, timestamp, generatorBox, signature, txs, inflation, version)
+  }
 
   override def toBytes(block: Block): Array[Byte] = {
     block.version match {
@@ -97,7 +130,7 @@ object BlockCompanion extends BifrostSerializer[Block] {
     val signature = Signature25519(bytes.slice(numBytesRead + generatorBoxLen.toInt + Longs.BYTES,
       numBytesRead + generatorBoxLen.toInt + Longs.BYTES + Signature25519.SignatureSize))
 
-    numBytesRead += generatorBoxLen.toInt + Signature25519.SignatureSize + Longs.BYTES
+    numBytesRead += generatorBoxLen.toInt + Longs.BYTES + Signature25519.SignatureSize
 
     val numTxExpected = Ints.fromByteArray(bytes.slice(numBytesRead, numBytesRead + Ints.BYTES))
     numBytesRead += Ints.BYTES

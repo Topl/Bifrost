@@ -15,6 +15,10 @@ import scala.util.Try
 //noinspection ScalaStyle
 object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 
+  override def serialize(obj: ProgramCreation, w: Writer): Unit = ???
+
+  override def parse(r: Reader): ProgramCreation = ???
+
   override def toBytes(m: ProgramCreation): Array[Byte] = {
     ProgramTransactionCompanion.prefixBytes ++ toChildBytes(m)
   }
@@ -110,8 +114,4 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 
     ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, feePreBoxes, fees, timestamp, data)
   }
-
-  override def parse(r: Reader): ProgramCreation = ???
-
-  override def serialize(obj: ProgramCreation, w: Writer): Unit = ???
 }

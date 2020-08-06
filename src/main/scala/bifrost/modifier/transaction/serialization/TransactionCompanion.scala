@@ -29,7 +29,9 @@ object TransactionCompanion extends BifrostSerializer[Transaction] {
     }
   }
 
-  override def parse(r: Reader): Transaction = ???
-
   override def serialize(obj: Transaction, w: Writer): Unit = ???
+
+  override def parse(r: Reader): Transaction = {
+    ???
+  }
 }
