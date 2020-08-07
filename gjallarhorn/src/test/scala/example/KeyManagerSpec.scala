@@ -101,7 +101,7 @@ class KeyManagerSpec extends WordSpec with Matchers{
   "A keyfile" should {
     "export is formatted JSON to keystore file" in {
       val keyFile = keyFiles.head
-      val readFile = KeyFile.readFile((getListOfFiles(keyFileDir).head).getPath)
+      val readFile = KeyFile.readFile(getListOfFiles(keyFileDir)(0).getPath)
       assert(keyFile.equals(readFile))
     }
     "have keys stored in the proper format" in {
