@@ -14,13 +14,15 @@ import bifrost.nodeView.NodeViewHolder
 import bifrost.state.ProgramBoxRegistry
 import io.circe
 import io.circe.syntax._
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
+import org.scalatest.BeforeAndAfterAll
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ForkSpec extends PropSpec
+class ForkSpec extends AnyPropSpec
   with Matchers
   with BeforeAndAfterAll
   with BifrostGenerators

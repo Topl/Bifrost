@@ -6,12 +6,13 @@ import bifrost.crypto.PrivateKey25519
 import bifrost.state.{State, StateSpec}
 import bifrost.modifier.transaction.bifrostTransaction.{Transaction, CoinbaseTransaction}
 import bifrost.modifier.box.ArbitBox
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class CoinbaseTransactionSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class CoinbaseTransactionSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {

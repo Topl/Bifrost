@@ -11,18 +11,20 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import com.google.common.primitives.Ints
 import io.circe
 import org.scalacheck.Gen
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
+import org.scalatest.BeforeAndAfterAll
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Random, Try}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class StateSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class StateSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators

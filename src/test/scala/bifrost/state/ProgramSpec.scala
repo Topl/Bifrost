@@ -4,13 +4,14 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.box.Box
 import bifrost.modifier.box.PolyBox
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class ProgramSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
