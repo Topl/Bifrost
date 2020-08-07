@@ -16,6 +16,30 @@ class KeyManagerSpec extends WordSpec with Matchers{
   val (sk3, pk3) =  PrivateKey25519Companion.generateKeys(Blake2b256("keyBytes"))
   val (sk4, pk4) =  PrivateKey25519Companion.generateKeys(randomBytes1)
 
+  val keyFileDir = "keyfiles/keyManagerTest"
+  val path: Path = Path(keyFileDir)
+  Try(path.deleteRecursively())
+  Try(path.createDirectory())
+  val password = "password"
+
+  val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
+  val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
+  val seed3 = Blake2b256(java.util.UUID.randomUUID.toString)
+
+  val seeds = Set(seed1, seed2, seed3)
+  val keyManager = KeyManager(Set(), keyFileDir)
+  var pubKeys: Set[PublicKey25519Proposition] = Set()
+  var privKeys: Set[PrivateKey25519] = Set()
+  var keyFiles: Set[KeyFile] = Set()
+  seeds.map { seed =>
+    val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+    if (!keyManager.publicKeys.contains(pub)) {
+      keyFiles += KeyFile(password, seed, keyFileDir)
+    }
+    pubKeys += pub
+    privKeys += priv
+  }
+
   "A signed message" should {
     val messageBytes = Blake2b256("messageBytes")
     val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -60,105 +84,37 @@ class KeyManagerSpec extends WordSpec with Matchers{
   }
 
   "A key manager instance" should {
-    val keyFileDir = "keyfiles/keyManagerTest"
-    val path: Path = Path(keyFileDir)
-
     "have 3 keyfiles" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-
-      val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
-      val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
-      val seed3 = Blake2b256(java.util.UUID.randomUUID.toString)
-
-      val seeds = Set(seed1, seed2, seed3)
-      val keyManager = KeyManager(Set(), keyFileDir)
-
-      seeds.map { seed =>
-        val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
-        if (!keyManager.publicKeys.contains(pub)) {
-          KeyFile(password, seed, keyFileDir)
-        }
-        pub
-      }
       assert(keyManager.publicKeys.size == 3)
-
-      Try(path.deleteRecursively())
+      assert(getListOfFiles(keyFileDir).size == 3)
     }
     "be unlocked yes path" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
-      KeyFile(password, seed, keyFileDir)
-
-      val keyManager = KeyManager(Set(), keyFileDir)
-
-      keyManager.unlockKeyFile(Base58.encode(pub.pubKeyBytes), password)
+      keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 1)
-      Try(path.deleteRecursively())
     }
     "be locked yes path" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (_, pub) = PrivateKey25519Companion.generateKeys(seed)
-      KeyFile(password, seed, keyFileDir)
-
-      val keyManager = KeyManager(Set(), keyFileDir)
-
-      keyManager.unlockKeyFile(Base58.encode(pub.pubKeyBytes), password)
-      keyManager.lockKeyFile(Base58.encode(pub.pubKeyBytes), password)
+      keyManager.lockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 0)
-      Try(path.deleteRecursively())
     }
   }
 
   "A keyfile" should {
-    val keyFileDir = "keyfiles/keyManagerTest"
-    val path: Path = Path(keyFileDir)
-
     "export is formatted JSON to keystore file" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (_, _) = PrivateKey25519Companion.generateKeys(seed)
-      val keyFile = KeyFile(password, seed, keyFileDir)
+      val keyFile = keyFiles.head
       val readFile = KeyFile.readFile((getListOfFiles(keyFileDir).head).getPath)
       assert(keyFile.equals(readFile))
-      Try(path.deleteRecursively())
     }
     "have keys stored in the proper format" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (_, _) = PrivateKey25519Companion.generateKeys(seed)
-      val keyFile = KeyFile(password, seed, keyFileDir)
-
-      val privKey = keyFile.getPrivateKey(password).get
+      val privKey = keyFiles.head.getPrivateKey(password).get
       assert(privKey.isInstanceOf[PrivateKey25519])
       val pubKey = privKey.publicKeyBytes
       assert(pubKey.isInstanceOf[Array[Byte]])
-      Try(path.deleteRecursively())
     }
     "be used to import keys" in {
-      Try(path.deleteRecursively())
-      Try(path.createDirectory())
-      val password = "password"
-      val seed = Blake2b256(java.util.UUID.randomUUID.toString)
-      val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
-      val keyFile = KeyFile(password, seed, keyFileDir)
-
-      val privKey = keyFile.getPrivateKey(password).get
-      assert(privKey.privKeyBytes === priv.privKeyBytes)
+      val privKey = keyFiles.head.getPrivateKey(password).get
+      assert(privKey.privKeyBytes === privKeys.head.privKeyBytes)
       val pubKey = privKey.publicKeyBytes
-      assert(pubKey === pub.pubKeyBytes)
-      Try(path.deleteRecursively())
+      assert(pubKey === pubKeys.head.pubKeyBytes)
     }
   }
 }
