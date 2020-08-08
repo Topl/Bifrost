@@ -26,6 +26,8 @@ import scala.util.Try
 class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
+  type CV = CurrentView[History, State, Wallet, MemPool]
+
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
@@ -92,7 +94,7 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
    * @param view the view returned from NodeViewHolder
    * @return
    */
-  def actOnCurrentView(view: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = view
+  def actOnCurrentView(view: CV): CV = view
 
   private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
@@ -107,7 +109,7 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
     log.debug(s"Trying to generate block on top of ${h.bestBlock.id} with balance " +
       s"${boxKeys.map(_._1.value).sum}")
 
-    val transactions = pickTransactions(m, s, h.bestBlock, (h, s, w, m)).get
+    val transactions = pickTransactions(m, s, w, h.bestBlock).get
 
     iteration(h.bestBlock, h.difficulty, boxKeys, transactions, settings.version) match {
       case Some(block) =>
@@ -122,13 +124,13 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
 
   def pickTransactions(memPool: MemPool,
                        state: State,
-                       parent: Block,
-                       view: (History, State, Wallet, MemPool)
+                       wallet: Wallet,
+                       parent: Block
                       ): Try[Seq[Transaction]] = Try {
 
-    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(view._3.secrets.head.publicImage.pubKeyBytes)
+    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(wallet.secrets.head.publicImage.pubKeyBytes)
     val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
-    lazy val CB = CoinbaseTransaction.createAndApply(view._3, IndexedSeq((to, infVal)), parent.id.hashBytes).get
+    lazy val CB = CoinbaseTransaction.createAndApply(wallet, IndexedSeq((to, infVal)), parent.id.hashBytes).get
     val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
       val invalidBoxes = tx.newBoxes.forall(b ⇒ state.closedBox(b.id).isEmpty)

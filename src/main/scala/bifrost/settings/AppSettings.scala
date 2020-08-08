@@ -86,6 +86,7 @@ object AppSettings extends Logging with SettingsReaders {
 
     val networkPath = args.networkTypeOpt.flatMap{
       networkType =>
+        // todo: JAA - check if this works with a fat-jar since resources are no longer in this location
         Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 

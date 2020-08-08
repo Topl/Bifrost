@@ -65,6 +65,8 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     context become handshaking
   }
 
+  override def postStop(): Unit = log.info(s"Peer handler to $connectionId destroyed")
+
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
@@ -217,8 +219,6 @@ class PeerConnectionHandler(val settings: NetworkSettings,
 ////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  override def postStop(): Unit = log.info(s"Peer handler to $connectionId destroyed")
-
   private def buffer(id: Long, msg: ByteString): Unit = {
     outMessagesBuffer += id -> msg
   }
@@ -235,7 +235,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     }
   }
 
-  private def createHandshakeMessage() = {
+  private def createHandshakeMessage(): Handshake = {
     message.Handshake(
       PeerSpec(
         settings.agentName,

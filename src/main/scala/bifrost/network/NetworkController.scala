@@ -61,7 +61,6 @@ class NetworkController(
 
   override def preStart(): Unit = {
     log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
-    validateDeclaredAddress() //check own declared address for validity
     context become initialization
   }
 
@@ -84,19 +83,21 @@ class NetworkController(
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def bindingLogic: Receive = {
-    case "Bind" =>
-      //bind to listen for incoming connections
-      val bindResponse: Unit = (tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)).onComplete({
-        case Success(Tcp.Bound(addr)) =>
-          log.info(s"${Console.YELLOW}Peer-to-peer protocol bound to ${addr}${Console.RESET}")
-          scheduleConnectionToPeer()
-          context become operational
+    case BindP2P =>
+      //check own declared address for validity
+      val addrValidationResult = if (validateDeclaredAddress()) {
+        // send a bind signal to the TCP manager to designate this actor as the handler to accept incoming connections
+        tcpManager ? Tcp.Bind(self, bindAddress, options = Nil, pullMode = false)
+      } else {
+        throw new Error("Address validation failed. Aborting application startup.")
+      }
 
-        case Success(_) | Failure(_) =>
-          throw new Error("Error while attempting to bind to P2P port")
-      })
+      sender() ! addrValidationResult
 
-      sender ! bindResponse
+    case BecomeOperational =>
+      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
+      scheduleConnectionToPeer()
+      context become operational
   }
 
   private def registerHandlers: Receive = {
@@ -363,7 +364,7 @@ class NetworkController(
     * @param handler ActorRef on PeerConnectionHandler actor
     * @return Some(ConnectedPeer) when the connection exists for this handler, and None otherwise
     */
-  private def connectionForHandler(handler: ActorRef) = {
+  private def connectionForHandler(handler: ActorRef): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.handlerRef == handler
     }
@@ -375,7 +376,7 @@ class NetworkController(
     * @param peerAddress - socket address of peer
     * @return Some(ConnectedPeer) when the connection exists for this peer, and None otherwise
     */
-  private def connectionForPeerAddress(peerAddress: InetSocketAddress) = {
+  private def connectionForPeerAddress(peerAddress: InetSocketAddress): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.connectionId.remoteAddress == peerAddress ||
       connectedPeer.peerInfo.exists(peerInfo =>
@@ -420,7 +421,7 @@ class NetworkController(
     * @param localSocketAddress - local socket address of the connection to the peer
     * @return - socket address of the node
     */
-  private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress) = {
+  private def getNodeAddressForPeer(localSocketAddress: InetSocketAddress): Option[InetSocketAddress] = {
     val localAddr = localSocketAddress.getAddress
     bifrostContext.externalNodeAddress match {
       case Some(extAddr) =>
@@ -444,15 +445,19 @@ class NetworkController(
     }
   }
 
-  private def validateDeclaredAddress(): Unit = {
-    if (!settings.localOnly) {
-      settings.declaredAddress.foreach { mySocketAddress =>
+  private def validateDeclaredAddress(): Boolean = {
+    //if (!settings.localOnly)
+    settings.declaredAddress match {
+      case Some(mySocketAddress: InetSocketAddress) =>
         Try {
           val uri = new URI("http://" + mySocketAddress)
           val myHost = uri.getHost
           val myAddress = InetAddress.getAllByName(myHost)
 
+          // this is a list of your local interface addresses
           val listenAddresses = NetworkUtils.getListenAddresses(bindAddress)
+
+          // this is a list of your external address as determined by the upnp gateway
           val upnpAddress = bifrostContext.upnpGateway.map(_.externalAddress)
 
           val valid =
@@ -461,15 +466,24 @@ class NetworkController(
             )
 
           if (!valid) {
-            log.error(s"""Declared address validation failed:
+            log.error(
+              s"""Declared address validation failed:
                  | $mySocketAddress not match any of the listening address: $listenAddresses
                  | or Gateway WAN address: $upnpAddress""".stripMargin)
           }
-        } recover {
-          case t: Throwable =>
-            log.error("Declared address validation failed: ", t)
+
+          valid
+        } match {
+          case Success(res: Boolean) if res  => true   // address was valid
+          case Success(res: Boolean) if !res  => false // address was not valid
+          case Failure(ex) =>
+            log.error("There was an error while attempting to validate the declared address: ", ex)
+            false
         }
-      }
+
+      case None =>
+        log.info(s"No declared address was provided. Skipping address validation.")
+        true
     }
   }
 
@@ -486,10 +500,7 @@ class NetworkController(
   /**
     * Register a new penalty for given peer address.
     */
-  private def penalize(
-      peerAddress: InetSocketAddress,
-      penaltyType: PenaltyType
-  ): Unit =
+  private def penalize(peerAddress: InetSocketAddress, penaltyType: PenaltyType): Unit =
     peerManagerRef ! Penalize(peerAddress, penaltyType)
 
 }
@@ -522,6 +533,10 @@ object NetworkController {
     case object ShutdownNetwork
 
     case object GetConnectedPeers
+
+    case object BindP2P
+
+    case object BecomeOperational
 
   }
 

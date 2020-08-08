@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
+import akka.io.Tcp
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
@@ -28,7 +29,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
@@ -128,14 +129,22 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpHost = "0.0.0.0"
     val httpPort = settings.rpcPort
 
-    // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
-    (networkControllerRef ? "Bind").onComplete {
-      case Success(_) =>
-        log.info(s"${Console.YELLOW}P2P server is bound and in the operational state${Console.RESET}")
+    def failedP2P(): Unit = {
+      log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
+      BifrostApp.shutdown(actorSystem, actorsToStop)
+    }
 
-      case Failure(ex) =>
-        log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}", ex)
-        BifrostApp.shutdown(actorSystem, actorsToStop)
+    // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
+    (networkControllerRef ? NetworkController.ReceivableMessages.BindP2P).onComplete {
+      case Success(bindResponse: Future[Any]) =>
+        bindResponse.onComplete({
+          case Success(Tcp.Bound(addr)) =>
+            log.info(s"${Console.YELLOW}P2P protocol bound to ${addr}${Console.RESET}")
+            networkControllerRef ! NetworkController.ReceivableMessages.BecomeOperational
+
+          case Success(_) | Failure(_) => failedP2P()
+        })
+      case Success(_) | Failure(_) => failedP2P()
     }
 
     // trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure
