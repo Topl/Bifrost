@@ -116,9 +116,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
 
     "[F3-A3-T11] TEST: Confirm JBOK Multiple Keyfile Relationship" in {
       //Sufficient that second keypair is generated purely from entropy (randomBytes)
-      var (skN, pkN) == PrivateKey25519Companion.generateKeys(randomBytes2)
-      assert(sk2.equals(skN))
-      // sk is secret (private) key
+      assert((sk2, pk2) == PrivateKey25519Companion.generateKeys(randomBytes2))
     }
   }
   //------------------------------------------------------------------------------------
