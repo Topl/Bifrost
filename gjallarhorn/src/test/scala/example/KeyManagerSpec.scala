@@ -49,7 +49,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
     privKeys += priv
   }
   //------------------------------------------------------------------------------------
-  //TEST ARCHETYPE: Signed messages
+  //TEST ARCHETYPE: Signed Messages
   "[F3-A1-XX] ARCHETYPE: A signed message" should {
     val messageBytes = Blake2b256("sameEntropic") //Should have same input to check determinism
     val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -92,6 +92,10 @@ class KeyManagerSpec extends WordSpec with Matchers {
 
       assert(sk1 != null && pk1 != null && sk1.isInstanceOf[PrivateKey25519] && pk1.isInstanceOf[PublicKey25519Proposition])
       assert(sk2 != null && pk2 != null && sk2.isInstanceOf[PrivateKey25519] && pk2.isInstanceOf[PublicKey25519Proposition])
+    }
+
+    "[F3-A2-T7] TEST: Private Key is sufficiently long, 256-bit/32-byte length" in {
+      assert((pk1.asInstanceOf[String]).length() == 256 || ((sk1.privKeyBytes).asInstanceOf[String]).length() == 32)
     }
   }
   //------------------------------------------------------------------------------------
