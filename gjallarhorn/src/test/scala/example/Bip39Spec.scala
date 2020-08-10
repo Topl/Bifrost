@@ -18,16 +18,19 @@ class Bip39Spec extends FlatSpec with Matchers {
   val lang = "en"
   //phrase translator
   val pt = Bip39.apply(lang)
+  //------------------------------------------------------------------------------------
 
   "The wordlists" should "pass checksum" in {
     assert(pt.verifyPhraseList)
   }
+  //------------------------------------------------------------------------------------
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     println("seed hex: "+seedHex)
     println("seed phrase: "+phrase)
   }
+  //------------------------------------------------------------------------------------
 
   "A seed phrase" should "be translated to hex" in{
     val phraseGood = "news excite upon nothing begin candy oblige situate figure method over tomato"
@@ -75,7 +78,7 @@ class Bip39Spec extends FlatSpec with Matchers {
 
     assert(pt.phraseToHex(phrase) == seedHex)
   }
-
+  //------------------------------------------------------------------------------------
   "A key file" should "be generated" in {
     Try(path.deleteRecursively())
     Try(path.createDirectory())

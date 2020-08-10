@@ -47,28 +47,28 @@ class KeyManagerSpec extends WordSpec with Matchers {
   }
   //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: Signed messages
-  "ARCHETYPE #1: A signed message" should {
+  "[F3-A1-XX] ARCHETYPE: A signed message" should {
     val messageBytes = Blake2b256("messageBytes")
     val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
 
-    "TEST #1: match its signature to the expected sender private key" in {
+    "[F3-A1-T1] TEST: Match its signature to the expected sender private key" in {
       //Entropic input to input for pub/priv keypair
       val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
       assert(PrivateKey25519Companion.verify(messageToSign, pk1, proof))
     }
-    "TEST #2: yield an invalid signature if signed with incorrect foreign key" in {
+    "[F3-A1-T2] TEST: Yield an invalid signature if signed with incorrect foreign key" in {
       val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
       assert(!PrivateKey25519Companion.verify(messageToSign, pk2, proof))
     }
-    "TEST #3: sign and verify as expected when msg is deterministic" in {
+    "[F3-A1-T3] TEST: Sign and verify as expected when msg is deterministic" in {
       val proof = PrivateKey25519Companion.sign(sk3,messageBytes)
       assert(PrivateKey25519Companion.verify(messageBytes, pk3, proof))
     }
   }
-//------------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: Key Generation
-  "ARCHETYPE #2: Generating keys" should {
-    "come as a private key and public key pair" in {
+  "[F3-A2-XX] ARCHETYPE: Generating keys" should {
+    "[F3-A2-T4] TEST: Come as a private key and public key pair" in {
       //Entropic input used to make pub/priv keypair
       assert(sk1 != null)
       assert(pk1 != null)
@@ -76,13 +76,13 @@ class KeyManagerSpec extends WordSpec with Matchers {
       assert(pk1.isInstanceOf[PublicKey25519Proposition])
     }
 
-    "be deterministic" in {
+    "[F3-A2-T5] TEST: Be deterministic" in {
       //Used the same entropic input
       assert(sk1.privKeyBytes === sk4.privKeyBytes)
       assert(pk1.equals(pk4))
     }
 
-    "have sufficient randomness in entropic keypair gen" in {
+    "[F3-A2-T6] TEST: Have sufficient randomness in entropic keypair gen" in {
       //Valid pretest to ensure sufficiently random input so no shared keys
       assert(randomBytes1 != randomBytes2)
 
@@ -92,35 +92,35 @@ class KeyManagerSpec extends WordSpec with Matchers {
   }
   //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: KeyManager
-  "ARCHETYPE #3: A key manager instance" should {
-    "have 3 keyfiles" in {
+  "[F3-A3-XX] ARCHETYPE: A key manager instance" should {
+    "[F3-A3-T7] TEST: Have 3 keyfiles" in {
       assert(keyManager.publicKeys.size == 3)
       assert(getListOfFiles(keyFileDir).size == 3)
     }
-    "be unlocked yes path" in {
+    "[F3-A3-T8] TEST: Be unlocked yes path" in {
       keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 1)
     }
-    "be locked yes path" in {
+    "[F3-A3-T9] TEST: Be locked yes path" in {
       keyManager.lockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 0)
     }
   }
   //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: KeyFile
-  "ARCHETYPE #4: A keyfile" should {
-    "export is formatted JSON to keystore file" in {
+  "[F3-A4-XX] ARCHETYPE: A keyfile" should {
+    "TEST: Export is formatted JSON to keystore file" in {
       val keyFile = keyFiles.head
       val readFile = KeyFile.readFile(getListOfFiles(keyFileDir)(0).getPath)
       assert(keyFile.equals(readFile))
     }
-    "have keys stored in the proper format" in {
+    "TEST: Have keys stored in the proper format" in {
       val privKey = keyFiles.head.getPrivateKey(password).get
       assert(privKey.isInstanceOf[PrivateKey25519])
       val pubKey = privKey.publicKeyBytes
       assert(pubKey.isInstanceOf[Array[Byte]])
     }
-    "be used to import keys" in {
+    "TEST: Be used to import keys" in {
       val privKey = keyFiles.head.getPrivateKey(password).get
       assert(privKey.privKeyBytes === privKeys.head.privKeyBytes)
       val pubKey = privKey.publicKeyBytes
@@ -130,3 +130,12 @@ class KeyManagerSpec extends WordSpec with Matchers {
   //------------------------------------------------------------------------------------
 
 }
+
+//FILE: 3
+
+/*
+  TEST FORMAT (FAT)
+    - F: File #
+    - A: Archetype to group relevant tests
+    - T: Specific Test
+*/
