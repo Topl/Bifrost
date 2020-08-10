@@ -1,3 +1,5 @@
+//FILE #3
+
 package example
 
 import example.KeyManager.getListOfFiles
@@ -12,10 +14,10 @@ class KeyManagerSpec extends WordSpec with Matchers {
   val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
 
-  // Four keypairs for full test range
+  // Four keypairs for full test range, use library keygen method
   val (sk1, pk1) = PrivateKey25519Companion.generateKeys(randomBytes1)
   val (sk2, pk2) = PrivateKey25519Companion.generateKeys(randomBytes2)
-  val (sk3, pk3) =  PrivateKey25519Companion.generateKeys(Blake2b256("keyBytes")) //Hash of this string was taken as input instead of entropy
+  val (sk3, pk3) =  PrivateKey25519Companion.generateKeys(Blake2b256("sameEntropic")) //Hash of this string was taken as input instead of entropy
   val (sk4, pk4) =  PrivateKey25519Companion.generateKeys(randomBytes1)
 
   //Filepath to write keypairs
@@ -30,6 +32,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
   val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
   val seed3 = Blake2b256(java.util.UUID.randomUUID.toString)
 
+  //Tripartite Seeds in JBOK configuration
   val seeds = Set(seed1, seed2, seed3)
   val keyManager = KeyManager(Set(), keyFileDir)
   var pubKeys: Set[PublicKey25519Proposition] = Set()
@@ -48,7 +51,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
   //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: Signed messages
   "[F3-A1-XX] ARCHETYPE: A signed message" should {
-    val messageBytes = Blake2b256("messageBytes")
+    val messageBytes = Blake2b256("sameEntropic") //Should have same input to check determinism
     val messageToSign = Blake2b256(java.util.UUID.randomUUID.toString)
 
     "[F3-A1-T1] TEST: Match its signature to the expected sender private key" in {
@@ -62,6 +65,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
     }
     "[F3-A1-T3] TEST: Sign and verify as expected when msg is deterministic" in {
       val proof = PrivateKey25519Companion.sign(sk3,messageBytes)
+      //Utilize same input. Proving hashing function AND keygen methods are deterministic
       assert(PrivateKey25519Companion.verify(messageBytes, pk3, proof))
     }
   }
@@ -130,8 +134,6 @@ class KeyManagerSpec extends WordSpec with Matchers {
   //------------------------------------------------------------------------------------
 
 }
-
-//FILE: 3
 
 /*
   TEST FORMAT (FAT)
