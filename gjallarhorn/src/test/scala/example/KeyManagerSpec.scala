@@ -101,17 +101,24 @@ class KeyManagerSpec extends WordSpec with Matchers {
   //------------------------------------------------------------------------------------
   //TEST ARCHETYPE: KeyManager
   "[F3-A3-XX] ARCHETYPE: A key manager instance" should {
-    "[F3-A3-T7] TEST: Have 3 keyfiles" in {
+    "[F3-A3-T8] TEST: Have 3 keyfiles" in {
       assert(keyManager.publicKeys.size == 3)
       assert(getListOfFiles(keyFileDir).size == 3)
     }
-    "[F3-A3-T8] TEST: Be unlocked yes path" in {
+    "[F3-A3-T9] TEST: Be unlocked yes path" in {
       keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 1)
     }
-    "[F3-A3-T9] TEST: Be locked yes path" in {
+    "[F3-A3-T10] TEST: Be locked yes path" in {
       keyManager.lockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
       assert(keyManager.secrets.size == 0)
+    }
+
+    "[F3-A3-T11] TEST: Confirm JBOK Multiple Keyfile Relationship" in {
+      //Sufficient that second keypair is generated purely from entropy (randomBytes)
+      var (skN, pkN) == PrivateKey25519Companion.generateKeys(randomBytes2)
+      assert(sk2.equals(skN))
+      // sk is secret (private) key
     }
   }
   //------------------------------------------------------------------------------------
