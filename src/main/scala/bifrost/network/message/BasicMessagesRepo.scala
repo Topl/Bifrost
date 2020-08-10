@@ -42,8 +42,8 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 }
 
 object SyncInfoSpec {
-  val MessageCode: Byte = 55
-  val MessageName: String = "Inv"
+  val MessageCode: Byte = 65
+  val MessageName: String = "Sync"
 }
 
 /**
