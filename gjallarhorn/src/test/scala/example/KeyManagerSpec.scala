@@ -129,13 +129,13 @@ class KeyManagerSpec extends WordSpec with Matchers {
       val readFile = KeyFile.readFile(getListOfFiles(keyFileDir)(0).getPath)
       assert(keyFile.equals(readFile))
     }
-    "TEST: Have keys stored in the proper format" in {
+    "[F3-A4-12] TEST: Have keys stored in the proper format" in {
       val privKey = keyFiles.head.getPrivateKey(password).get
       assert(privKey.isInstanceOf[PrivateKey25519])
       val pubKey = privKey.publicKeyBytes
       assert(pubKey.isInstanceOf[Array[Byte]])
     }
-    "TEST: Be used to import keys" in {
+    "[F3-A4-13] TEST: Be used to import keys" in {
       val privKey = keyFiles.head.getPrivateKey(password).get
       assert(privKey.privKeyBytes === privKeys.head.privKeyBytes)
       val pubKey = privKey.publicKeyBytes
@@ -145,7 +145,6 @@ class KeyManagerSpec extends WordSpec with Matchers {
   //------------------------------------------------------------------------------------
 
 }
-
 /*
   TEST FORMAT (FAT)
     - F: File #
