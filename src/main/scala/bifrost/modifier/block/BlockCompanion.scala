@@ -65,25 +65,20 @@ object BlockCompanion extends BifrostSerializer[Block] {
   override def parse(r: Reader): Block = {
     // The order of the getByte, getLong... calls should not be changed
 
-    // ?: maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
+    // TODO: maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
 
-    // TODO: Identify version
-    // we should get the entire bytes instead of bytes.tail so we can identify if we are forming a block for 2xandbefore
-    // But can we? In storage.scala we determine whether to use parseBytes or 2xnbefore from the blockId, and then
-    // just use bytes.head to determine if there is a Block.modifierTypeId
-    val parseBytesType = ???
-
-    // here using ModifierId instead of bytesToId, we could get rid of bytesToId soon
+    // TODO: here using ModifierId instead of bytesToId, we could get rid of bytesToId soon
     val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
 
     val timestamp: Long = r.getLong()
 
-    // why is generatorBoxLen a long? scorex uses toIntExact to make sure the Long does not exceed the length of an Int
+    // TODO: why is generatorBoxLen a long? scorex uses toIntExact to make sure the Long does not exceed the length of an Int
     val generatorBoxLen: Int = r.getLong().toInt
 
+    // Version should be used next to determine if we need additional procedures in parsing
     val version: Byte = r.getByte()
 
-    // BoxSerializer.parseBytes: should switch to using .getBytes later
+    // TODO: BoxSerializer.parseBytes: should switch to using .getBytes later
     val generatorBox: ArbitBox = BoxSerializer.parseBytes(r.getBytes(generatorBoxLen)).get.asInstanceOf[ArbitBox]
 
     val inflation: Long = r.getLong()
