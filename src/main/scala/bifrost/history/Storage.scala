@@ -1,15 +1,19 @@
 package bifrost.history
 
+import java.math.BigInteger
+
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.modifier.ModifierId
 import bifrost.settings.AppSettings
-import bifrost.utils.{bytesToId, idToBytes, Logging}
+import bifrost.utils.{Logging, bytesToId, idToBytes}
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
+
+import scala.math.BigInt
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
@@ -172,7 +176,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   def scoreOf(blockId: ModifierId): Option[BigInt] =
     blockCache
       .get(blockScoreKey(blockId))
-      .map(b => BigInt(b.data))
+      .map(b => new BigInt(new BigInteger(b.data)))
 
   def heightOf(blockId: ModifierId): Option[Long] =
     blockCache
