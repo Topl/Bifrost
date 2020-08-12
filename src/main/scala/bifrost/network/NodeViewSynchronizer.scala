@@ -124,7 +124,7 @@ class NodeViewSynchronizer[
       }
 
     // Object ids coming from other node.
-    case DataFromPeer(spec, invData: InvData@unchecked, peer) if spec.messageCode == InvSpec.MessageCode =>
+    case DataFromPeer(spec, invData: InvData@unchecked, remote) if spec.messageCode == InvSpec.MessageCode =>
 
       (mempoolReaderOpt, historyReaderOpt) match {
         // Filter out modifier ids that are already in process (requested, received or applied)
@@ -140,8 +140,8 @@ class NodeViewSynchronizer[
           // request unknown ids from peer and set this ids to requested state.
           if (newModifierIds.nonEmpty) {
             val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, newModifierIds)), None)
-            peer.handlerRef ! msg
-            deliveryTracker.setRequested(newModifierIds, modifierTypeId, Some(peer))
+            remote.handlerRef ! msg
+            deliveryTracker.setRequested(newModifierIds, modifierTypeId, Some(remote))
           }
 
         case _ =>
