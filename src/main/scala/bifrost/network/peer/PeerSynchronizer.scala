@@ -45,7 +45,7 @@ class PeerSynchronizer(networkControllerRef: ActorRef,
 
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
-    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>
+    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.MessageCode && peers.cast[Seq[PeerSpec]].isDefined =>
       peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
 
     case DataFromPeer(spec, _, peer) if spec.messageCode == GetPeersSpec.MessageCode =>
