@@ -106,7 +106,7 @@ class NodeViewSynchronizer[
   protected def processDataFromPeer: Receive = {
 
     // sync info is coming from another node
-    case DataFromPeer(spec, syncInfo: SI@unchecked, remote) if spec.messageCode == syncInfoSpec.messageCode =>
+    case DataFromPeer(spec, syncInfo: SI@unchecked, remote) if spec.messageCode == SyncInfoSpec.MessageCode =>
 
       historyReaderOpt match {
         case Some(historyReader) =>

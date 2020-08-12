@@ -218,9 +218,9 @@ object GetPeersSpec {
 class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[Seq[PeerSpec]] {
   private val peerSpecSerializer = new PeerSpecSerializer(featureSerializers)
 
-  override val messageCode: Message.MessageCode = PeersSpec.messageCode
+  override val messageCode: Message.MessageCode = PeersSpec.MessageCode
 
-  override val messageName: String = PeersSpec.messageName
+  override val messageName: String = PeersSpec.MessageName
 
   override def serialize(peers: Seq[PeerSpec], w: Writer): Unit = {
     w.putUInt(peers.size)
@@ -238,8 +238,8 @@ class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) ex
 
 object PeersSpec {
   val MaxPeersInMessage: Int = 100
-  val messageCode: Message.MessageCode = 2: Byte
-  val messageName: String = "Peers message"
+  val MessageCode: MessageCode = 2: Byte
+  val MessageName: String = "Peers message"
 }
 
 /**
@@ -251,8 +251,8 @@ class HandshakeSpec(featureSerializers: PeerFeature.Serializers, sizeLimit: Int)
 
   private val peersDataSerializer = new PeerSpecSerializer(featureSerializers)
 
-  override val messageCode: MessageCode = HandshakeSpec.messageCode
-  override val messageName: String = HandshakeSpec.messageName
+  override val messageCode: MessageCode = HandshakeSpec.MessageCode
+  override val messageName: String = HandshakeSpec.MessageName
 
   override def serialize(obj: Handshake, w: Writer): Unit = {
     w.putULong(obj.time)
@@ -268,6 +268,6 @@ class HandshakeSpec(featureSerializers: PeerFeature.Serializers, sizeLimit: Int)
 }
 
 object HandshakeSpec {
-  val messageCode: MessageCode = 75: Byte
-  val messageName: String = "Handshake"
+  val MessageCode: MessageCode = 75: Byte
+  val MessageName: String = "Handshake"
 }
