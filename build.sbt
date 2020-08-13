@@ -182,7 +182,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ akkaDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
