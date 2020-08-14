@@ -1,11 +1,9 @@
 package bifrost.history
 
-import java.math.BigInteger
-
 import bifrost.crypto.FastCryptographicHash
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockCompanion}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.modifier.ModifierId
 import bifrost.settings.AppSettings
 import bifrost.utils.{Logging, bytesToId, idToBytes}
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
@@ -13,7 +11,6 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
 
-import scala.math.BigInt
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
@@ -54,7 +51,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     .map(d => bytesToId(d.data))
     .getOrElse(ModifierId(History.GenesisParentId))
 
-  def bestChainScore: BigInt = scoreOf(bestBlockId).get
+  def bestChainScore: Long = scoreOf(bestBlockId).get
 
   def bestBlock: Block = {
     require(chainHeight > 0, "History is empty")
@@ -113,7 +110,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockScoreKey(b.id) -> ByteArrayWrapper((parentChainScore(b) + BigInt(diff)).toByteArray))
+      Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff / 10000000000L)))
 
     val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
 
@@ -173,10 +170,10 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
   private def blockBloomKey(blockId: Array[Byte]): ByteArrayWrapper =
     ByteArrayWrapper(Sha256("bloom".getBytes ++ blockId))
 
-  def scoreOf(blockId: ModifierId): Option[BigInt] =
+  def scoreOf(blockId: ModifierId): Option[Long] =
     blockCache
       .get(blockScoreKey(blockId))
-      .map(b => new BigInt(new BigInteger(b.data)))
+      .map(b => Longs.fromByteArray(b.data))
 
   def heightOf(blockId: ModifierId): Option[Long] =
     blockCache
@@ -213,7 +210,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .get(ByteArrayWrapper(transactionId))
       .map(_.data)
 
-  def parentChainScore(b: Block): BigInt = scoreOf(b.parentId).getOrElse(0L)
+  def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 
   def parentHeight(b: Block): Long = heightOf(b.parentId).getOrElse(0L)
 
