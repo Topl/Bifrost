@@ -6,6 +6,8 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
 import example.requests.Requests
 import org.scalatest.{AsyncFlatSpec, Matchers}
+import scorex.crypto.encode.Base58
+import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.Future
 
@@ -19,8 +21,8 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val requests = new Requests
 
-  val keyOne = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ" //PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2
-  val keyTwo = "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb" //PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2
+  val keyOne = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
+  val keyTwo = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
 
   val amount = 10
 
@@ -44,11 +46,11 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
      */
   }
 
-  "sign transaction" {
-
-  }
-
-  "broadcast transaction" {
-
-  }
+//  "sign transaction" {
+//
+//  }
+//
+//  "broadcast transaction" {
+//
+//  }
 }
