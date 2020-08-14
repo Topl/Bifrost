@@ -109,6 +109,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
+    // reference Bifrost #519 & #527 for discussion on this division of the score
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff / 10000000000L)))
 
