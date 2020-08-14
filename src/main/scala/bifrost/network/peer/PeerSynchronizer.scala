@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{GetPeersSpec, Message, MessageSpec, PeersSpec}
-import bifrost.network.{SendToPeers, SendToRandom}
+import bifrost.network.{SendToPeer, SendToPeers, SendToRandom}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
@@ -53,7 +53,7 @@ class PeerSynchronizer(networkControllerRef: ActorRef,
         .mapTo[Seq[PeerInfo]]
         .foreach { peers =>
           val msg = Message(peersSpec, Right(peers.map(_.peerSpec)), None)
-          networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
+          networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
         }
 
     case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
