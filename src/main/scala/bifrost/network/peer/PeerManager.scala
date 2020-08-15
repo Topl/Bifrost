@@ -41,7 +41,6 @@ class PeerManager(settings: NetworkSettings, bifrostContext: BifrostContext)(imp
   // ----------- CONTEXT
   override def receive: Receive =
     peersManagement orElse
-    apiInterface orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
@@ -77,18 +76,6 @@ class PeerManager(settings: NetworkSettings, bifrostContext: BifrostContext)(imp
 
     case get: GetPeers[_] =>
       sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, bifrostContext)
-  }
-
-  // TODO: JAA - 2020.07.15 - I don't think this case will ever be hit because the get above will catch the
-  // GetAllPeers and GetBlackListedPeers since they both extend type GetPeers
-  private def apiInterface: Receive = {
-
-    case GetAllPeers =>
-      log.trace(s"Get all peers: ${peerDatabase.knownPeers}")
-      sender() ! peerDatabase.knownPeers
-
-    case GetBlacklistedPeers =>
-      sender() ! peerDatabase.blacklistedPeers
   }
 
   private def nonsense: Receive = {
