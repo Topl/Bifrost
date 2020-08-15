@@ -140,8 +140,8 @@ class NodeViewSynchronizer[
           // request unknown ids from peer and set this ids to requested state.
           if (newModifierIds.nonEmpty) {
             val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, newModifierIds)), None)
-            networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
-            deliveryTracker.setRequested(newModifierIds, modifierTypeId, Some(peer))
+            networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
+            deliveryTracker.setRequested(newModifierIds, modifierTypeId, Some(remote))
           }
 
         case _ =>
