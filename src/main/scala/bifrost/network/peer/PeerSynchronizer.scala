@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{GetPeersSpec, Message, MessageSpec, PeersSpec}
-import bifrost.network.{SendToPeers, SendToRandom}
+import bifrost.network.{SendToPeer, SendToPeers, SendToRandom}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
@@ -45,20 +45,22 @@ class PeerSynchronizer(networkControllerRef: ActorRef,
 
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
-    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>
+    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.MessageCode && peers.cast[Seq[PeerSpec]].isDefined =>
       peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
 
-    case DataFromPeer(spec, _, peer) if spec.messageCode == getPeersSpec.messageCode =>
+    case DataFromPeer(spec, _, peer) if spec.messageCode == GetPeersSpec.MessageCode =>
       (peerManager ? RecentlySeenPeers(settings.maxPeerSpecObjects))
         .mapTo[Seq[PeerInfo]]
         .foreach { peers =>
           val msg = Message(peersSpec, Right(peers.map(_.peerSpec)), None)
-          networkControllerRef ! SendToNetwork(msg, SendToPeers(Seq(peer)))
+          networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
         }
 
     case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
