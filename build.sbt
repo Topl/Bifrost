@@ -92,7 +92,7 @@ libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.0",
-  "com.google.protobuf" % "protobuf-java" % "3.5.1",
+  "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.7.0",
   "com.typesafe" % "config" % "1.3.3",
 )
