@@ -225,26 +225,25 @@ class NodeViewSynchronizer[
 
     // Respond with data from the local node
     case ResponseFromLocal(peer, _, modifiers: Seq[NodeViewModifier]) =>
+      @tailrec
+      def sendByParts(modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
+        var size = 5 //message type id + message size
+        val batch = mods.takeWhile { case (_, modBytes) =>
+          size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
+          size < networkSettings.maxPacketSize
+        }
+        peer.handlerRef ! Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
+        val remaining = mods.drop(batch.length)
+        if (remaining.nonEmpty) {
+          sendByParts(modType, remaining)
+        }
+      }
+
       modifiers.headOption.foreach { head =>
         val modType = head.modifierTypeId
-
-        @tailrec
-        def sendByParts(mods: Seq[(ModifierId, Array[Byte])]): Unit = {
-          var size = 5 //message type id + message size
-          val batch = mods.takeWhile { case (_, modBytes) =>
-            size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
-            size < networkSettings.maxPacketSize
-          }
-          peer.handlerRef ! Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
-          val remaining = mods.drop(batch.length)
-          if (remaining.nonEmpty) {
-            sendByParts(remaining)
-          }
-        }
-
         modifierSerializers.get(modType) match {
           case Some(serializer: BifrostSerializer[NodeViewModifier]) =>
-            sendByParts(modifiers.map(m => m.id -> serializer.toBytes(m)))
+            sendByParts(modType, modifiers.map(m => m.id -> serializer.toBytes(m)))
           case _ =>
             log.error(s"Undefined serializer for modifier of type $modType")
         }
