@@ -45,10 +45,10 @@ class PeerSynchronizer(networkControllerRef: ActorRef,
 
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
-    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.messageCode && peers.cast[Seq[PeerSpec]].isDefined =>
+    case DataFromPeer(spec, peers: Seq[PeerSpec]@unchecked, _) if spec.messageCode == PeersSpec.MessageCode && peers.cast[Seq[PeerSpec]].isDefined =>
       peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
 
-    case DataFromPeer(spec, _, peer) if spec.messageCode == getPeersSpec.messageCode =>
+    case DataFromPeer(spec, _, peer) if spec.messageCode == GetPeersSpec.MessageCode =>
       (peerManager ? RecentlySeenPeers(settings.maxPeerSpecObjects))
         .mapTo[Seq[PeerInfo]]
         .foreach { peers =>
@@ -59,6 +59,8 @@ class PeerSynchronizer(networkControllerRef: ActorRef,
     case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////

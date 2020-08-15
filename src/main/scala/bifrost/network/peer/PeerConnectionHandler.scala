@@ -57,11 +57,13 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     context watch connection // per Akka docs this "signs the death pact: this actor terminates when connection breaks"
     connection ! Tcp.Register(self, keepOpenOnPeerClosed = false, useResumeWriting = true)
 
-    // todo: JAA - do we still get back a WritingResumed even if the actor isn't errored?
-    // I'm pretty sure this was from an experiment with pull mode, which requires this line.
-    // This may have also been kept for basically a 'Hello' message which initiates the handshake
+    // On instantiation of a PeerConnectionHandler, send ResumeReading to the TCP system since the
+    // connection was created with pullMode = true (this is done in the NetworkController)
+    // https://doc.akka.io/docs/akka/current/io-tcp.html#read-back-pressure-with-pull-mode
+    // JAA - 20200810 - I think this is done to give the PCH time to spin up before the TCP system forwards it messages
     connection ! Tcp.ResumeReading
 
+    // transition to create and listen for a handshake from the remote peer
     context become handshaking
   }
 
@@ -78,14 +80,15 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   override def receive: Receive = nonsense
 
   private def handshaking: Receive = {
-    // todo: JAA - consider replacing this with a case watching for WritingResumed because that is what should
-    // todo:       trigger a message to be sent back to this actor resulting in the creation of a handshake
+    // When the PCH context becomes handshaking, this will create a handshake that is sent to the remote peer
+    // NOTE: This process is only executed once and subsequent messages are handled by the partial functions below
     handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
     (self ! HandshakeTimeout))
     val hb = handshakeSerializer.toBytes(createHandshakeMessage())
     connection ! Tcp.Write(ByteString(hb), Tcp.NoAck)
     log.info(s"Handshake sent to $connectionId")
 
+    // receive and processes message from remote peer (prior to sending data)
     receiveAndHandleHandshake orElse
     handshakeTimeout orElse
     fatalCommands orElse
