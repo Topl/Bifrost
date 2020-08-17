@@ -118,7 +118,7 @@ object ProgramPreprocessor {
       cleanInitjs
     }
 
-    val announcedRegistry: Option[Map[String, Seq[String]]] =
+    val annoncedRegistry: Option[Map[String, Seq[String]]] =
       (json \\ "interface").headOption.map(_.as[Map[String, Seq[String]]].right.get)
 
     val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
@@ -126,13 +126,13 @@ object ProgramPreprocessor {
       .map(_.as[(String, String)].right.get)
       .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
 
-    val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
+    val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, annoncedRegistry)(args)
 
     ProgramPreprocessor(name, initjs, interface, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
   }
 
   //noinspection ScalaStyle
-  private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
+  private def deriveFromInit(initjs: String, name: String, annoncedRegistry: Option[Map[String, Seq[String]]] = None)(args: JsonObject):
     (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
 
     val jsre: Context = Context.create("js")
@@ -174,8 +174,8 @@ object ProgramPreprocessor {
 
     val code: Map[String, String] = deriveFunctions(jsre, initjs)
 
-    val interface = if(announcedRegistry.isDefined && checkRegistry(jsre, announcedRegistry.get)) {
-      announcedRegistry.get
+    val interface = if(annoncedRegistry.isDefined && checkRegistry(jsre, annoncedRegistry.get)) {
+      annoncedRegistry.get
     } else {
       val interfaceRes = deriveRegistry(jsre, initjs)
 
@@ -185,11 +185,11 @@ object ProgramPreprocessor {
     (interface, /*cleanModuleState,*/ variables, code)
   }
 
-  private def checkRegistry(jsre: Context, announcedRegistry: Map[String, Seq[String]]): Boolean = {
-    announcedRegistry.keySet.forall(k => {
+  private def checkRegistry(jsre: Context, annoncedRegistry: Map[String, Seq[String]]): Boolean = {
+    annoncedRegistry.keySet.forall(k => {
       jsre.eval("js",
         s"""
-           |typeof c.$k === "function" ? getParameters(c.$k).length === ${announcedRegistry(k).size} : false
+           |typeof c.$k === "function" ? getParameters(c.$k).length === ${annoncedRegistry(k).size} : false
          """.stripMargin
       ).asInstanceOf[Boolean]
     })
