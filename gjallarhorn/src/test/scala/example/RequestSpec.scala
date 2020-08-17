@@ -1,5 +1,6 @@
 package example
 
+//Import relevant akka libraries
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
@@ -21,6 +22,8 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val requests = new Requests
 
+  //Encode two keys after generating them from entropy
+    //Keys are NOT the same, per each instance of entropic input
   val keyOne = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
   val keyTwo = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
 
@@ -49,6 +52,24 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 //  "sign transaction" {
 //
 //  }
+
+    "A transaction signed in Bifrost" should {
+      val transactionBytes = Blake2b256(???)
+      val transactionToSign = Blake2b256(java.util.UUID.randomUUID.toString)
+
+      //NAIVE, Incomplete format to be filled in later
+      "Invalid signed transaction in Bifrost" in {
+        val proof = PrivateKey25519Companion.sign(???, transactionToSign)
+        assert(PrivateKey25519Companion.verify(transactionToSign, ???, proof))
+      }
+
+      //NAIVE, Incomplete format to be filled in later
+      "Invalid signed transaction in Bifrost" in {
+        val proof = PrivateKey25519Companion.sign(???, transactionToSign)
+        assert(!PrivateKey25519Companion.verify(transactionToSign, ???, proof))
+      }
+    }
+
 //
 //  "broadcast transaction" {
 //
