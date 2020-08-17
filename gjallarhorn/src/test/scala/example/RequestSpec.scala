@@ -53,24 +53,6 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 //
 //  }
 
-    "A transaction signed in Bifrost" should {
-      val transactionBytes = Blake2b256(???)
-      val transactionToSign = Blake2b256(java.util.UUID.randomUUID.toString)
-
-      //NAIVE, Incomplete format to be filled in later
-      "Invalid signed transaction in Bifrost" in {
-        val proof = PrivateKey25519Companion.sign(???, transactionToSign)
-        assert(PrivateKey25519Companion.verify(transactionToSign, ???, proof))
-      }
-
-      //NAIVE, Incomplete format to be filled in later
-      "Invalid signed transaction in Bifrost" in {
-        val proof = PrivateKey25519Companion.sign(???, transactionToSign)
-        assert(!PrivateKey25519Companion.verify(transactionToSign, ???, proof))
-      }
-    }
-
-//
 //  "broadcast transaction" {
 //
 //  }
