@@ -1,5 +1,6 @@
 package example.requests
 
+//Import relevant actor libraries
 import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorLogging, ActorSystem}
 import akka.http.scaladsl.Http
@@ -28,6 +29,7 @@ class Requests extends { //Actor with ActorLogging {
 
   //override def receive: Receive = ???
 
+  //Generic Method for HTTP POST request
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
@@ -36,6 +38,7 @@ class Requests extends { //Actor with ActorLogging {
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
+  //Generic fields for transaction
   def transaction(method: String, issuer: String, recipient: String, amount: Int): ByteString = {
     var requestBody: ByteString = ByteString.empty
     method match {
