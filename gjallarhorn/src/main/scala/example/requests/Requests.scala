@@ -49,11 +49,9 @@ class Requests extends { //Actor with ActorLogging {
   def signTx(transaction: Json, keyManager: KeyManager, signingKeys: List[String], passwords: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
-    val issuer =  PublicKey25519Proposition(Base58.decode((tx \\ "issuer").head.asString.get).get) // match this to private key in gjallarhorn
     val messageToSign = (result \\ "messageToSign").head
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
-    var privKeys: Set[PrivateKey25519] = Set()
-    var sk: PrivateKey25519 = null
+    var sigs: Set[String] = Set()
     signingKeys.map(
       key => {
         val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
@@ -61,27 +59,34 @@ class Requests extends { //Actor with ActorLogging {
           val keyFile = KeyManager.getListOfFiles(keyManager.defaultKeyDir).map(
             file => KeyFile.readFile(file.getPath))
             .filter(
-              k => k.pubKeyBytes == pubKey.pubKeyBytes
+              k => k.pubKeyBytes sameElements pubKey.pubKeyBytes
             ).head
           passwords.map(
             pswd => {
               if (keyFile.getPrivateKey(pswd).get.isInstanceOf[PrivateKey25519]) {
-                privKeys += keyFile.getPrivateKey(pswd).get
+                val privKey = keyFile.getPrivateKey(pswd).get
+                println(privKey.privKeyBytes sameElements keyManager.secrets.head.privKeyBytes)
+
+//                if (keyManager.secrets.contains(privKey)) { //  checking if unlocked
+                if (privKey.privKeyBytes sameElements keyManager.secrets.head.privKeyBytes) { // temp fix
+                  println("im unlocked")
+                  sigs += PrivateKey25519Companion.sign(privKey, messageToSign.asString.get.getBytes).toString
+                }
+                print(sigs)
               }
             }
           )
         }
       }
     )
-    var sigs: Set[String] = Set()
-    privKeys.foreach(
-      k => if (keyManager.secrets.contains(k)) {
-        sigs += PrivateKey25519Companion.sign(k, messageToSign.asString.get.getBytes).toString
-      }
-    ) // checking that all the keys are unlocked, then signing
-    transaction.deepMerge(Map(
+    println(sigs)
+    val newTx = tx.deepMerge(Map(
       "signatures" -> sigs.toString().asJson
     ).asJson)
+    val newResult = Map("formattedTx"-> newTx).asJson
+    transaction.deepMerge(
+      Map("result" -> newResult).asJson
+    )
   }
 
   def transaction(method: String, issuer: String, recipient: String, amount: Int): ByteString = {

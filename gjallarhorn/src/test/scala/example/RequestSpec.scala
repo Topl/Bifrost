@@ -34,7 +34,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
-  val password = "password"
+  val password = "pass"
 
   val keyFile = KeyFile(password, seed1, keyFileDir)
   val keyManager = KeyManager(Set(), keyFileDir)
@@ -70,7 +70,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   it should "receive JSON from sign transaction" in {
     val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
-    val passwords = List("password")
+    val passwords = List("pass")
     lazy val formattedTx = Map(
       "txType"-> "AssetCreation".asJson,
       "txHash"-> "AVUzHAQ1HLp5gSxvTVoLgqdHQjeHsG7rVLxj5Pd6onmF".asJson,
