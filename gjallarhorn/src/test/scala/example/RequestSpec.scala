@@ -46,36 +46,18 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val amount = 10
 
+  var transaction = Json.Null
+
   it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
-    val response = requests.sendRequest(createAssetRequest)
-    println(response)
-    assert(response != null)
+    transaction = requests.sendRequest(createAssetRequest)
+    println(transaction)
+    assert(transaction != null)
   }
 
 
   it should "receive JSON from sign transaction" in {
     val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
-    val passwords = List("pass")
-    lazy val formattedTx = Map(
-      "txType"-> "AssetCreation".asJson,
-      "txHash"-> "AVUzHAQ1HLp5gSxvTVoLgqdHQjeHsG7rVLxj5Pd6onmF".asJson,
-      "signatures"-> {}.asJson,
-      "data"-> "".asJson,
-      "issuer"->s"${issuer.head}".asJson,
-      "assetCode"-> "test_1".asJson,
-      "fee"-> 0.asJson
-    )
-    lazy val transaction = Map(
-      "jsonrpc" -> "2.0".asJson,
-      "id" -> "1".asJson,
-      "method" -> "signTx".asJson,
-      "result" -> Map (
-        "formattedTx" -> formattedTx.asJson,
-        "messageToSign" -> "test-message".asJson
-      ).asJson
-    ).asJson
-    println(transaction)
     val JSON = requests.signTx(transaction, keyManager, issuer)
     println(JSON)
     assert((JSON \\ "signatures").head != null)
