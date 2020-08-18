@@ -46,35 +46,11 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val amount = 10
 
-  var tx = "".asJson
-
   it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
-
-    val sendTx = requests.httpPOST(createAssetRequest)
-
-    val response: Future[HttpResponse] = http.singleRequest(sendTx)
-
-    response.map { res => {
-
-      // fold the stream of bytes into a single ByteString
-      val data: Future[ByteString] = res.entity.dataBytes.runFold(ByteString.empty){ case (acc,b) => acc ++ b}
-      // transform the ByteString to JSON
-      val parsedData: Future[Json] = data.map { x =>
-        parser.parse(x.utf8String) match {
-          case Right(parsed) => parsed
-          case Left(e) => throw e.getCause
-        }
-      }
-
-      tx = Await.result(parsedData, 2 seconds)
-
-      println(s"$tx")
-
-      res.status shouldBe StatusCodes.OK
-      // transforming ByteString to JSON -> should be its own fxn because used a lot (data being received from requests)
-      }
-    }
+    val response = requests.sendRequest(createAssetRequest)
+    println(response)
+    assert(response != null)
   }
 
 
@@ -99,9 +75,9 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
         "messageToSign" -> "test-message".asJson
       ).asJson
     ).asJson
-    print(transaction)
-    val JSON = requests.signTx(transaction, keyManager, issuer, passwords)
-    print(JSON)
+    println(transaction)
+    val JSON = requests.signTx(transaction, keyManager, issuer)
+    println(JSON)
     assert((JSON \\ "signatures").head != null)
   }
 
