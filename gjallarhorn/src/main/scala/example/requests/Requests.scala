@@ -51,14 +51,13 @@ class Requests extends { //Actor with ActorLogging {
     val tx = (result \\ "formattedTx").head
     val issuer =  PublicKey25519Proposition(Base58.decode((tx \\ "issuer").head.asString.get).get) // match this to private key in gjallarhorn
     val messageToSign = (result \\ "messageToSign").head
-    assert(signingKeys.contains(issuer))
+    assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
     var privKeys: Set[PrivateKey25519] = Set()
     var sk: PrivateKey25519 = null
     signingKeys.map(
       key => {
         val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
         if (keyManager.publicKeys.contains(pubKey)) {
-          var isIssuer = false
           val keyFile = KeyManager.getListOfFiles(keyManager.defaultKeyDir).map(
             file => KeyFile.readFile(file.getPath))
             .filter(

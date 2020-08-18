@@ -9,8 +9,11 @@ import example.requests.Requests
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
+import io.circe.syntax._
 
 import scala.concurrent.Future
+import scala.reflect.io.Path
+import scala.util.Try
 
 class RequestSpec extends AsyncFlatSpec with Matchers {
 
@@ -22,15 +25,25 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val requests = new Requests
 
-  //Encode two keys after generating them from entropy
-    //Keys are NOT the same, per each instance of entropic input
-  val keyOne = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
-  val keyTwo = Base58.encode(PrivateKey25519Companion.generateKeys(Blake2b256(java.util.UUID.randomUUID.toString))._2.pubKeyBytes)
+  val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
+  val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
+  val (sk1, pk1) = PrivateKey25519Companion.generateKeys(seed1)
+  val (sk2, pk2) = PrivateKey25519Companion.generateKeys(seed2)
+
+  val keyFileDir = "keyfiles/keyManagerTest"
+  val path: Path = Path(keyFileDir)
+  Try(path.deleteRecursively())
+  Try(path.createDirectory())
+  val password = "password"
+
+  val keyFile = KeyFile(password, seed1, keyFileDir)
+  val keyManager = KeyManager(Set(), keyFileDir)
+  keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
   val amount = 10
 
-  it should "receive a successful response from Bifrost" in {
-    val createAssetRequest = requests.transaction("createAssetsPrototype", keyOne, keyTwo, amount)
+  it should "receive a successful response from Bifrost upon creating asset" in {
+    val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
 
     val sendTx = requests.httpPOST(createAssetRequest)
 
@@ -43,26 +56,6 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
       // transforming ByteString to JSON -> should be its own fxn because used a lot (data being received from requests)
       }
     }
-
-    /* to check the values here???
-    viewAsync().map { view =>
-      val issuer = PublicKey25519Proposition(
-        Base58.decode((params \\ "issuer").head.asString.get).get
-      )
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-      )
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val assetCode: String =
-        (params \\ "assetCode").head.asString.getOrElse("")
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
-     */
-
     /*response.map {
       case response@HttpResponse(StatusCodes.OK, headers, entity, _) =>
         entity.dataBytes.runFold(ByteString(""))(_ ++ _).foreach { body =>
@@ -74,9 +67,37 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
      */
   }
 
-//  "sign transaction" {
-//
-//  }
+
+  it should "receive JSON from sign transaction" in {
+    val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
+    val passwords = List("password")
+    lazy val formattedTx = Map(
+      "txType"-> "AssetCreation".asJson,
+      "txHash"-> "AVUzHAQ1HLp5gSxvTVoLgqdHQjeHsG7rVLxj5Pd6onmF".asJson,
+      "signatures"-> {}.asJson,
+      "data"-> "".asJson,
+      "issuer"->s"${issuer.head}".asJson,
+      "assetCode"-> "test_1".asJson,
+      "fee"-> 0.asJson
+    )
+    lazy val result = "result" -> Map (
+      "formattedTx" -> formattedTx.asJson,
+      "messageToSign" -> "test-message".asJson
+    )
+    lazy val transaction = Map(
+      "jsonrpc" -> "2.0".asJson,
+      "id" -> "1".asJson,
+      "method" -> "signTx".asJson,
+      "result" -> Map (
+        "formattedTx" -> formattedTx.asJson,
+        "messageToSign" -> "test-message".asJson
+      ).asJson
+    ).asJson
+    print(transaction)
+    val JSON = requests.signTx(transaction, keyManager, issuer, passwords)
+    print(JSON)
+    assert((JSON \\ "signatures").head != null)
+  }
 
 //  "broadcast transaction" {
 //
