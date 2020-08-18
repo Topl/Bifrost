@@ -65,11 +65,7 @@ class Requests extends { //Actor with ActorLogging {
             pswd => {
               if (keyFile.getPrivateKey(pswd).get.isInstanceOf[PrivateKey25519]) {
                 val privKey = keyFile.getPrivateKey(pswd).get
-                println(privKey.privKeyBytes sameElements keyManager.secrets.head.privKeyBytes)
-
-//                if (keyManager.secrets.contains(privKey)) { //  checking if unlocked
-                if (privKey.privKeyBytes sameElements keyManager.secrets.head.privKeyBytes) { // temp fix
-                  println("im unlocked")
+                if (keyManager.isUnlocked(privKey)) {
                   sigs += PrivateKey25519Companion.sign(privKey, messageToSign.asString.get.getBytes).toString
                 }
                 print(sigs)
