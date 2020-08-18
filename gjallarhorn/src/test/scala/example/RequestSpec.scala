@@ -5,13 +5,17 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
 import example.requests.Requests
+import io.circe.{Json, ParsingFailure, parser}
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import io.circe.syntax._
 
-import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -42,6 +46,8 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val amount = 10
 
+  var tx = "".asJson
+
   it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
 
@@ -50,21 +56,25 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
     val response: Future[HttpResponse] = http.singleRequest(sendTx)
 
     response.map { res => {
+
+      // fold the stream of bytes into a single ByteString
+      val data: Future[ByteString] = res.entity.dataBytes.runFold(ByteString.empty){ case (acc,b) => acc ++ b}
+      // transform the ByteString to JSON
+      val parsedData: Future[Json] = data.map { x =>
+        parser.parse(x.utf8String) match {
+          case Right(parsed) => parsed
+          case Left(e) => throw e.getCause
+        }
+      }
+
+      tx = Await.result(parsedData, 2 seconds)
+
+      println(s"$tx")
+
       res.status shouldBe StatusCodes.OK
-//      res.entity.dataBytes
-      // need to change it to something other than a foreach to return ByteString -> later to be parsed as JSON
       // transforming ByteString to JSON -> should be its own fxn because used a lot (data being received from requests)
       }
     }
-    /*response.map {
-      case response@HttpResponse(StatusCodes.OK, headers, entity, _) =>
-        entity.dataBytes.runFold(ByteString(""))(_ ++ _).foreach { body =>
-          println(body.utf8String)
-        }
-      case response @ HttpResponse(code, _, _, _) =>
-        println(code)
-    }
-     */
   }
 
 
