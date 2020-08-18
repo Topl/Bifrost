@@ -80,9 +80,12 @@ class Requests extends { //Actor with ActorLogging {
       "signatures" -> sigs.toString().asJson
     ).asJson)
     val newResult = Map("formattedTx"-> newTx).asJson
-    transaction.deepMerge(
-      Map("result" -> newResult).asJson
-    )
+    Map(
+      "jsonrpc" -> (transaction \\ "jsonrpc").head.asJson,
+      "id" -> (transaction \\ "id").head.asJson,
+      "result" -> newResult
+    ).asJson
+
   }
 
   def transaction(method: String, issuer: String, recipient: String, amount: Int): ByteString = {

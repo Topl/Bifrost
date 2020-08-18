@@ -80,10 +80,6 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
       "assetCode"-> "test_1".asJson,
       "fee"-> 0.asJson
     )
-    lazy val result = "result" -> Map (
-      "formattedTx" -> formattedTx.asJson,
-      "messageToSign" -> "test-message".asJson
-    )
     lazy val transaction = Map(
       "jsonrpc" -> "2.0".asJson,
       "id" -> "1".asJson,
