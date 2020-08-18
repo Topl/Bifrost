@@ -49,42 +49,35 @@ class Requests extends { //Actor with ActorLogging {
     .runFold(ByteString.empty){ case (acc,b) => acc ++ b}
    */
 
+
   // should we check that the keys in signing keys can be used to sign the message
   // i.e. all the keys have to be unlocked..
   // check that the signing keys match the ones in issuer.
 
-  def signTx(transaction: Json, keyManager: KeyManager, signingKeys: List[String], passwords: List[String]): Json = {
+  def signTx(transaction: Json, keyManager: KeyManager, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
-    var sigs: String = "{"
-    signingKeys.map(
+
+    var sigs: Set[Json] = Set()
+    signingKeys.map{
       key => {
         val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
-        if (keyManager.publicKeys.contains(pubKey)) {
-          val keyFile = KeyManager.getListOfFiles(keyManager.defaultKeyDir).map(
-            file => KeyFile.readFile(file.getPath))
-            .filter(
-              k => k.pubKeyBytes sameElements pubKey.pubKeyBytes
-            ).head
-          passwords.map(
-            pswd => {
-              if (keyFile.getPrivateKey(pswd).get.isInstanceOf[PrivateKey25519]) {
-                val privKey = keyFile.getPrivateKey(pswd).get
-                if (keyManager.isUnlocked(privKey)) {
-                  sigs += Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.asString.get.getBytes).signature) + ","
-                }
-              }
-            }
-          )
+        val privKeys = keyManager.secrets.filter{
+          privKey => privKey.publicKeyBytes sameElements pubKey.pubKeyBytes
+        }
+        if (privKeys.size == 1) {
+          val signature = Base58.encode(PrivateKey25519Companion.sign(privKeys.head, messageToSign.asString.get.getBytes).signature)
+          sigs += Map(
+            s"$key" -> signature.asJson
+          ).asJson
         }
       }
-    )
-    sigs = sigs.dropRight(1)
-    sigs += "}"
+    }
+
     val newTx = tx.deepMerge(Map(
-      "signatures" -> sigs.toString().asJson
+      "signatures" -> sigs.asJson
     ).asJson)
     val newResult = Map("formattedTx"-> newTx).asJson
     Map(
