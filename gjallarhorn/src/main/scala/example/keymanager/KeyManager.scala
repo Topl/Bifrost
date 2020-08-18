@@ -19,6 +19,12 @@ case class KeyManager(var secrets: Set[PrivateKey25519], defaultKeyDir: String) 
       .toSet
   }
 
+  def isUnlocked(privateKey: PrivateKey25519): Boolean = {
+    secrets.map{
+      privKey => privKey.privKeyBytes sameElements privateKey.privKeyBytes
+    }.head
+  }
+
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))
