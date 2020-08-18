@@ -36,7 +36,32 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
     val response: Future[HttpResponse] = http.singleRequest(sendTx)
 
-    response.map { res => res.status shouldBe StatusCodes.OK }
+    response.map { res => {
+      res.status shouldBe StatusCodes.OK
+//      res.entity.dataBytes
+      // need to change it to something other than a foreach to return ByteString -> later to be parsed as JSON
+      // transforming ByteString to JSON -> should be its own fxn because used a lot (data being received from requests)
+      }
+    }
+
+    /* to check the values here???
+    viewAsync().map { view =>
+      val issuer = PublicKey25519Proposition(
+        Base58.decode((params \\ "issuer").head.asString.get).get
+      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+        Base58.decode((params \\ "recipient").head.asString.get).get
+      )
+      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+      val assetCode: String =
+        (params \\ "assetCode").head.asString.getOrElse("")
+      val fee: Long =
+        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val data: String = (params \\ "data").headOption match {
+        case Some(dataStr) => dataStr.asString.getOrElse("")
+        case None          => ""
+      }
+     */
 
     /*response.map {
       case response@HttpResponse(StatusCodes.OK, headers, entity, _) =>
