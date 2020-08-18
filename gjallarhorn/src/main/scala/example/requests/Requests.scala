@@ -7,6 +7,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Source
 import akka.util.{ByteString, Timeout}
 import example.KeyManager.getListOfFiles
 import example.{PrivateKey25519Companion, PublicKey25519Proposition, _}
@@ -41,6 +42,12 @@ class Requests extends { //Actor with ActorLogging {
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
+
+  /*
+  //TODO Fix problem with needing a materializer in runFold
+  def entityToByteString(data: Source[ByteString, Any]): Future[ByteString] = data
+    .runFold(ByteString.empty){ case (acc,b) => acc ++ b}
+   */
 
   // should we check that the keys in signing keys can be used to sign the message
   // i.e. all the keys have to be unlocked..
