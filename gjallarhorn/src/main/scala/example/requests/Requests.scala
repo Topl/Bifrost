@@ -3,7 +3,7 @@ package example.requests
 //Import relevant actor libraries
 import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorLogging, ActorSystem}
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
@@ -11,16 +11,21 @@ import akka.stream.scaladsl.Source
 import akka.util.{ByteString, Timeout}
 import example.KeyManager.getListOfFiles
 import example.{PrivateKey25519Companion, PublicKey25519Proposition, _}
-import io.circe.Json
+import io.circe.{Json, parser}
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.util.Try
 import scorex.crypto.encode.Base58
 
 class Requests extends { //Actor with ActorLogging {
+  implicit val actorSystem: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  import actorSystem.dispatcher
+
+  val http: HttpExt = Http(actorSystem)
 
   /*
   implicit val system = ActorSystem()
@@ -43,8 +48,28 @@ class Requests extends { //Actor with ActorLogging {
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
+  def requestResponseByteString(request: HttpRequest): Future[ByteString] = {
+    val response = http.singleRequest(request)
+    response.flatMap {
+      case _@HttpResponse(StatusCodes.OK, _, entity, _) =>
+        entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b }
+      case _ => sys.error("something wrong")
+    }
+  }
+
+  def byteStringToJSON(data: Future[ByteString]): Json = {
+    val parsedData: Future[Json] = data.map { x =>
+      parser.parse(x.utf8String) match {
+        case Right(parsed) => parsed
+        case Left(e) => throw e.getCause
+      }
+    }
+    Await.result(parsedData, 2 seconds)
+  }
+
+
   /*
-  //TODO Fix problem with needing a materializer in runFold
+//  TODO Fix problem with needing a materializer in runFold
   def entityToByteString(data: Source[ByteString, Any]): Future[ByteString] = data
     .runFold(ByteString.empty){ case (acc,b) => acc ++ b}
    */
@@ -61,7 +86,7 @@ class Requests extends { //Actor with ActorLogging {
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
 
     var sigs: Set[Json] = Set()
-    signingKeys.map{
+    signingKeys.foreach{
       key => {
         val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
         val privKeys = keyManager.secrets.filter{
@@ -85,7 +110,6 @@ class Requests extends { //Actor with ActorLogging {
       "id" -> (transaction \\ "id").head.asJson,
       "result" -> newResult
     ).asJson
-
   }
 
   def transaction(method: String, issuer: String, recipient: String, amount: Int): ByteString = {
@@ -115,21 +139,12 @@ class Requests extends { //Actor with ActorLogging {
     requestBody
   }
 
-  /*def sendRequest(request: ByteString): Future[String]  = {
+  def sendRequest(request: ByteString): Json  = {
+    val sendTx = httpPOST(request)
+    val data = requestResponseByteString(sendTx)
+    byteStringToJSON(data)
 
-    var res: String = ""
-
-    Http().singleRequest(httpPOST(request)).map {
-      case response@HttpResponse(StatusCodes.OK, headers, entity, _) =>
-        entity.dataBytes.runFold(ByteString(""))(_ ++ _).foreach { body =>
-          res = body.utf8String
-        }
-        res
-      case _ => sys.error("something wrong")
-    }
   }
-}
 
-   */
 }
 
