@@ -51,7 +51,7 @@ class Requests extends { //Actor with ActorLogging {
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
-    var sigs: Set[String] = Set()
+    var sigs: String = "{"
     signingKeys.map(
       key => {
         val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
@@ -66,16 +66,16 @@ class Requests extends { //Actor with ActorLogging {
               if (keyFile.getPrivateKey(pswd).get.isInstanceOf[PrivateKey25519]) {
                 val privKey = keyFile.getPrivateKey(pswd).get
                 if (keyManager.isUnlocked(privKey)) {
-                  sigs += PrivateKey25519Companion.sign(privKey, messageToSign.asString.get.getBytes).toString
+                  sigs += Base58.encode(PrivateKey25519Companion.sign(privKey, messageToSign.asString.get.getBytes).signature) + ","
                 }
-                print(sigs)
               }
             }
           )
         }
       }
     )
-    println(sigs)
+    sigs = sigs.dropRight(1)
+    sigs += "}"
     val newTx = tx.deepMerge(Map(
       "signatures" -> sigs.toString().asJson
     ).asJson)
