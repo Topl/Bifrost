@@ -37,10 +37,9 @@ case class PeerSpec(agentName: String,
 class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
 
-    w.putShortString(obj.agentName)
+    w.putByteString(obj.agentName)
     ApplicationVersionSerializer.serialize(obj.protocolVersion, w)
-    w.putShortString(obj.nodeName)
-
+    w.putByteString(obj.nodeName)
 
     w.putOption(obj.declaredAddress) { (writer, isa) =>
       val addr = isa.getAddress.getAddress
@@ -60,12 +59,12 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
 
   override def parse(r: Reader): PeerSpec = {
 
-    val appName = r.getShortString()
+    val appName = r.getByteString()
     require(appName.nonEmpty)
 
     val protocolVersion = ApplicationVersionSerializer.parse(r)
 
-    val nodeName = r.getShortString()
+    val nodeName = r.getByteString()
 
     val declaredAddressOpt = r.getOption {
       val fas = r.getUByte()
@@ -87,5 +86,4 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
 
     PeerSpec(appName, protocolVersion, nodeName, declaredAddressOpt, feats)
   }
-
 }
