@@ -55,11 +55,13 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
     assert(transaction != null)
   }
 
-
   it should "receive JSON from sign transaction" in {
     val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
     val JSON = requests.signTx(transaction, keyManager, issuer)
     println(JSON)
+    val sigs = (JSON \\ "signatures").head.asObject.get
+    issuer.foreach(key => assert(sigs.contains(key)))
+
     assert((JSON \\ "signatures").head != null)
   }
 

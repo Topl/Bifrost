@@ -15,7 +15,7 @@ import io.circe.{Json, parser}
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.util.Try
 import scorex.crypto.encode.Base58
@@ -23,7 +23,6 @@ import scorex.crypto.encode.Base58
 class Requests extends { //Actor with ActorLogging {
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  import actorSystem.dispatcher
 
   val http: HttpExt = Http(actorSystem)
 
@@ -85,24 +84,20 @@ class Requests extends { //Actor with ActorLogging {
     val messageToSign = (result \\ "messageToSign").head
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
 
-    var sigs: Set[Json] = Set()
-    signingKeys.foreach{
-      key => {
-        val pubKey = PublicKey25519Proposition(Base58.decode(key).get)
-        val privKeys = keyManager.secrets.filter{
-          privKey => privKey.publicKeyBytes sameElements pubKey.pubKeyBytes
+    var sigs: List[(String, String)] = signingKeys.map { pk =>
+      val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
+      val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
+
+      privKey match {
+            case Some(sk) =>
+              val signature = Base58.encode(PrivateKey25519Companion.sign(sk, messageToSign.asString.get.getBytes).signature)
+              (pk, signature)
+            case None => throw new NoSuchElementException
+          }
         }
-        if (privKeys.size == 1) {
-          val signature = Base58.encode(PrivateKey25519Companion.sign(privKeys.head, messageToSign.asString.get.getBytes).signature)
-          sigs += Map(
-            s"$key" -> signature.asJson
-          ).asJson
-        }
-      }
-    }
 
     val newTx = tx.deepMerge(Map(
-      "signatures" -> sigs.asJson
+      "signatures" -> sigs.toMap.asJson
     ).asJson)
     val newResult = Map("formattedTx"-> newTx).asJson
     Map(
