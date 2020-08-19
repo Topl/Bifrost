@@ -247,7 +247,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         Younger
       case Some(_) =>
         //We are on different forks now.
-        if (info.lastBlockIds.view.reverse.exists(m => contains(m))) {
+        if (info.lastBlockIds.view.reverse.exists(m => contains(m) || (m.hashBytes sameElements GenesisParentId))) {
           //Return Younger, because we can send blocks from our fork that other node can download.
           Fork
         } else {
