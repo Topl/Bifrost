@@ -25,7 +25,13 @@ trait Reader {
     * Decode String is shorter than 256 bytes
     * @return
     */
-  def getShortString(): String
+  def getByteString(): String
+
+  /**
+    * Decode String is shorter than 256 bytes
+    * @return
+    */
+  def getUShortString(): String
 
   /**
     * Get a byte at current position without advancing the position.
@@ -136,4 +142,3 @@ trait Reader {
 object Reader {
   type Aux[CCH] = Reader{ type CH = CCH }
 }
-

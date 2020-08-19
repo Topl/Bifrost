@@ -113,13 +113,18 @@ trait VLQReader extends Reader {
     *
     * @return
     */
-  @inline override def getShortString(): String = {
+  @inline override def getByteString(): String = {
     val size = getUByte()
     new String(getBytes(size))
   }
-}
 
-object VLQReader {
-
-
+  /**
+    * Decode String is shorter than 256 bytes
+    *
+    * @return
+    */
+  @inline override def getUShortString(): String = {
+    val size = getUShort()
+    new String(getBytes(size))
+  }
 }
