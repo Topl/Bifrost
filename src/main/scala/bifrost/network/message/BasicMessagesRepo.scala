@@ -156,7 +156,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(idToBytes(id))
+      w.putBytes(id.hashBytes)
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }
