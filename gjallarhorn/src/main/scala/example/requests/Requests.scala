@@ -39,10 +39,10 @@ class Requests extends { //Actor with ActorLogging {
   //override def receive: Receive = ???
 
   //Generic Method for HTTP POST request
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
+  def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "http://localhost:9085/asset/",
+      uri = s"http://localhost:9085/$path/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
@@ -66,6 +66,20 @@ class Requests extends { //Actor with ActorLogging {
     Await.result(parsedData, 2 seconds)
   }
 
+  def jsonToByteString(data: Json): ByteString = {
+    val result = (data \\ "result").head
+    val tx = (result \\ "formattedTx").head
+    val params = Map(
+      "tx" -> tx
+    ).asJson
+    val newJSON = Map(
+      "jsonrpc" -> (data \\ "jsonrpc").head,
+      "id" -> (data \\ "id").head,
+      "method" -> "broadcastTx".asJson,
+      "params" -> List(params).asJson
+    ).asJson
+    ByteString(newJSON.toString.getBytes())
+  }
 
   /*
 //  TODO Fix problem with needing a materializer in runFold
@@ -89,12 +103,13 @@ class Requests extends { //Actor with ActorLogging {
       val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
       privKey match {
-            case Some(sk) =>
-              val signature = Base58.encode(PrivateKey25519Companion.sign(sk, messageToSign.asString.get.getBytes).signature)
-              (pk, signature)
-            case None => throw new NoSuchElementException
-          }
+        case Some(sk) => {
+          val signature = Base58.encode(PrivateKey25519Companion.sign(sk, Base58.decode(messageToSign.asString.get).get).signature)
+          (pk, signature)
         }
+        case None => throw new NoSuchElementException
+      }
+    }
 
     val newTx = tx.deepMerge(Map(
       "signatures" -> sigs.toMap.asJson
@@ -134,11 +149,16 @@ class Requests extends { //Actor with ActorLogging {
     requestBody
   }
 
-  def sendRequest(request: ByteString): Json  = {
-    val sendTx = httpPOST(request)
+  def sendRequest(request: ByteString, path: String): Json  = {
+    val sendTx = httpPOST(request, path)
     val data = requestResponseByteString(sendTx)
     byteStringToJSON(data)
+  }
 
+  def broadcastTx(signedTransaction: Json): Json = {
+    val tx = jsonToByteString(signedTransaction)
+    println(tx)
+    sendRequest(tx, "wallet")
   }
 
 }
