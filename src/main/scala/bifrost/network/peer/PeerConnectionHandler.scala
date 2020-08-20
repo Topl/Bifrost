@@ -82,11 +82,7 @@ class PeerConnectionHandler(val settings: NetworkSettings,
   private def handshaking: Receive = {
     // When the PCH context becomes handshaking, this will create a handshake that is sent to the remote peer
     // NOTE: This process is only executed once and subsequent messages are handled by the partial functions below
-    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)
-    (self ! HandshakeTimeout))
-    val hb = handshakeSerializer.toBytes(createHandshakeMessage())
-    connection ! Tcp.Write(ByteString(hb), Tcp.NoAck)
-    log.info(s"Handshake sent to $connectionId")
+    createHandshakeMessage() // create handshake with timeout and then continue to process messages
 
     // receive and processes message from remote peer (prior to sending data)
     receiveAndHandleHandshake orElse
@@ -238,8 +234,8 @@ class PeerConnectionHandler(val settings: NetworkSettings,
     }
   }
 
-  private def createHandshakeMessage(): Handshake = {
-    message.Handshake(
+  private def createHandshakeMessage(): Unit = {
+    val nodeInfo = message.Handshake(
       PeerSpec(
         settings.agentName,
         Version(settings.appVersion),
@@ -249,6 +245,13 @@ class PeerConnectionHandler(val settings: NetworkSettings,
       ),
       bifrostContext.timeProvider.time()
     )
+
+    // create, save, and schedule a timeout option. The variable lets us cancel the timeout message if a handshake is received
+    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)(self ! HandshakeTimeout))
+
+    // send a handshake message with our node information to the remote peer
+    connection ! Tcp.Write(ByteString(handshakeSerializer.toBytes(nodeInfo)), Tcp.NoAck)
+    log.info(s"Handshake sent to $connectionId")
   }
 
   private def processHandshake(receivedHandshake: Handshake): Unit = {
