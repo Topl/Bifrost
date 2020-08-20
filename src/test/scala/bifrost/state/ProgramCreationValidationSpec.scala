@@ -129,7 +129,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(24)))
+          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
           .get
 
         require(returnedPolyBoxes
@@ -307,7 +307,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
           .get
 
-        val preparedChanges = necessaryState.changes(firstCCAddBlock).get
+        val preparedChanges = StateChanges(firstCCAddBlock).get
         val preparedState = necessaryState
           .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
           .get

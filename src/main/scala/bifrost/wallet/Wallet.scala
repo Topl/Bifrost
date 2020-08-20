@@ -10,7 +10,7 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
-import bifrost.state.State
+import bifrost.state.{State, StateChanges}
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -184,7 +184,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   override def scanPersistent(modifier: Block): Wallet = {
     log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
-    val changes = State.changes(modifier).get
+    val changes = StateChanges(modifier).get
 
     val newBoxes = changes
       .toAppend

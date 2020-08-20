@@ -656,7 +656,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
           throw new Exception(s"Could not find valid transaction type $txType")
       }
 
-      view.state.semanticValidity(txInstance)
+      State.syntacticValidity(txInstance)
       nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](txInstance)
       txInstance.json
     }

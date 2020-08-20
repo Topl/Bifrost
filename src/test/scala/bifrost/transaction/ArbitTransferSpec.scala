@@ -16,7 +16,7 @@ class ArbitTransferSpec extends AnyPropSpec
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
     forAll(validArbitTransferGen) {
-      at: ArbitTransfer => State.semanticValidity(at).isSuccess shouldBe true
+      at: ArbitTransfer => State.syntacticValidity(at).isSuccess shouldBe true
     }
   }
 }
