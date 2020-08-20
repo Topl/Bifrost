@@ -7,6 +7,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.utils.{bytesToId, idToBytes}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.Extensions._
 import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.annotation.tailrec
@@ -65,25 +66,28 @@ object BlockCompanion extends BifrostSerializer[Block] {
   override def parse(r: Reader): Block = {
     // The order of the getByte, getLong... calls should not be changed
 
-    // TODO: maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
+    // TODO: Jing - maybe we could check that the size of bytes to read in reader is less or equal to the max size of a block
 
-    // TODO: here using ModifierId instead of bytesToId, we could get rid of bytesToId soon
+    // TODO: Jing - here using ModifierId instead of bytesToId, we could get rid of bytesToId soon
     val parentId: ModifierId = ModifierId(r.getBytes(Block.blockIdLength))
 
-    val timestamp: Long = r.getLong()
+    val timestamp: Long = r.getULong()
 
-    // TODO: why is generatorBoxLen a long? scorex uses toIntExact to make sure the Long does not exceed the length of an Int
-    val generatorBoxLen: Int = r.getLong().toInt
+    // TODO: Jing - scorex uses toIntExact to make sure the Long does not exceed the length of an Int
+    // TODO: Jing - generatorBoxLen is probably not useful anymore
+//    val generatorBoxLen: Int = r.getUInt().toIntExact
 
-    // Version should be used next to determine if we need additional procedures in parsing
+    // Version should be used in the future to determine if we need additional procedures in parsing
     val version: Byte = r.getByte()
 
-    // TODO: BoxSerializer.parseBytes: should switch to using .getBytes later
-    val generatorBox: ArbitBox = BoxSerializer.parseBytes(r.getBytes(generatorBoxLen)).get.asInstanceOf[ArbitBox]
+    // TODO: Jing - BoxSerializer.parseBytes: should switch to using .getBytes later
+    val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
+    // TODO: Jing - Can inflation be negative?
     val inflation: Long = r.getLong()
+
     val signature: Signature25519 = Signature25519(r.getBytes(Signature25519.SignatureSize))
-    val txsLength: Int = r.getInt()
+    val txsLength: Int = r.getUInt().toIntExact
 
     // implement parse in TransactionCompanion and its specific transactionCompanions 3 layer of companions
     val txs: Seq[Transaction] = (0 until txsLength) map { _ => TransactionCompanion.parse(r)}

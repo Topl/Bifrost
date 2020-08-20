@@ -3,21 +3,21 @@ package bifrost.modifier.box
 import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition}
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.Extensions._
+import com.google.common.primitives.Longs
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
-
 //TODO change codeBoxIds to codeBoxUUIDs
 case class ExecutionBox(override val proposition: PublicKey25519Proposition,
-                                override val nonce: Long,
-                                override val value: UUID,
-                                stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from ProgramBoxRegistry
-                                codeBoxIds: Seq[Array[Byte]]
-                                ) extends ProgramBox(proposition, nonce, value) {
+                        override val nonce: Long,
+                        override val value: UUID,
+                        stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from ProgramBoxRegistry
+                        codeBoxIds: Seq[Array[Byte]]
+                        ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "ExecutionBox"
 
@@ -40,6 +40,7 @@ object ExecutionBox {
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "execution".getBytes ++ Longs.toByteArray(nonce))
 
+  // TODO: Jing - Check if this is used anywhere
   implicit val decodeCodeBox: Decoder[ExecutionBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
     uuid <- c.downField("uuid").as[UUID]
@@ -56,74 +57,114 @@ object ExecutionBox {
   }
 }
 
-object ExecutionBoxSerializer {
+object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 
-  def toBytes(obj: ExecutionBox): Array[Byte] = {
+  override def serialize(obj: ExecutionBox, w: Writer): Unit = {
+    w.putByteString("ExecutionBox")
+    ProgramBoxSerializer.serialize(obj, w)
 
-    val boxType = "ExecutionBox"
-    Bytes.concat(
-      Ints.toByteArray(boxType.getBytes.length),
-      boxType.getBytes,
-      obj.proposition.pubKeyBytes,
-      Longs.toByteArray(obj.nonce),
-      Longs.toByteArray(obj.value.getMostSignificantBits),
-      Longs.toByteArray(obj.value.getLeastSignificantBits),
-      Ints.toByteArray(obj.stateBoxUUIDs.length),
-      obj.stateBoxUUIDs.foldLeft(Array[Byte]()) {
-        (arr, x) =>
-          arr ++ Bytes.concat(
-            Longs.toByteArray(x.getMostSignificantBits),
-            Longs.toByteArray(x.getLeastSignificantBits)
-          )
-      },
-      Ints.toByteArray(obj.codeBoxIds.length),
-      obj.codeBoxIds.foldLeft(Array[Byte]()) {
-        (arr, x) => arr ++ x
-      }
-    )
-  }
+    /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
+    w.putUInt(obj.stateBoxUUIDs.length)
 
-  def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
-    var takenBytes = 0
-
-    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
-    takenBytes += Ints.BYTES
-
-    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
-    takenBytes += boxTypeLength
-
-    require(boxType == "ExecutionBox")
-
-    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
-    takenBytes += Constants25519.PubKeyLength
-
-    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
-    takenBytes += Longs.BYTES
-
-    val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
-      Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + 2 * Longs.BYTES)))
-    takenBytes += Longs.BYTES * 2
-
-    val stateBoxUUIDsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
-    takenBytes += Ints.BYTES
-
-    var stateBoxUUIDs = Seq[UUID]()
-    for (_ <- 1 to stateBoxUUIDsLength) {
-      val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
-        Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + Longs.BYTES * 2)))
-      takenBytes += Longs.BYTES * 2
-      stateBoxUUIDs = stateBoxUUIDs :+ uuid
+    obj.stateBoxUUIDs.foreach { id =>
+      w.putLong(id.getMostSignificantBits)
+      w.putLong(id.getLeastSignificantBits)
     }
 
-    val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
-    takenBytes += Ints.BYTES
-
-    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { i =>
-      val id: Array[Byte] = obj.slice(takenBytes + i * (4 * Longs.BYTES), takenBytes + (i + 1) * (4 * Longs.BYTES))
-      id
+    /* codeBoxIds: Seq[Array[Byte]] */
+    w.putUInt(obj.codeBoxIds.length)
+    obj.codeBoxIds.foreach{id =>
+      w.putUInt(id.length)
+      w.putBytes(id)
     }
-    takenBytes += Longs.BYTES * 4 * codeBoxIdsLength
-
-    ExecutionBox(prop, nonce, uuid, stateBoxUUIDs, codeBoxIds)
   }
+
+  override def parse(r: Reader): ExecutionBox = {
+    val programBox: ProgramBox = ProgramBoxSerializer.parse(r)
+
+    /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
+    val stateBoxUUIDsLength: Int = r.getUInt().toIntExact
+    val stateBoxUUIDs: Seq[UUID] = (0 until stateBoxUUIDsLength).map(_ => new UUID(r.getLong(), r.getLong()))
+
+    /* codeBoxIds: Seq[Array[Byte]] */
+    val codeBoxIdsLength: Int = r.getUInt().toIntExact
+
+    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map{_ =>
+      val idLength: Int = r.getUInt().toIntExact
+      r.getBytes(idLength)
+    }
+
+    ExecutionBox(programBox.proposition, programBox.nonce, programBox.value, stateBoxUUIDs, codeBoxIds)
+  }
+
+// TODO: Jing - remove
+//
+//  def toBytes(obj: ExecutionBox): Array[Byte] = {
+//
+//    val boxType = "ExecutionBox"
+//    Bytes.concat(
+//      Ints.toByteArray(boxType.getBytes.length),
+//      boxType.getBytes,
+//      obj.proposition.pubKeyBytes,
+//      Longs.toByteArray(obj.nonce),
+//      Longs.toByteArray(obj.value.getMostSignificantBits),
+//      Longs.toByteArray(obj.value.getLeastSignificantBits),
+//      Ints.toByteArray(obj.stateBoxUUIDs.length),
+//      obj.stateBoxUUIDs.foldLeft(Array[Byte]()) {
+//        (arr, x) =>
+//          arr ++ Bytes.concat(
+//            Longs.toByteArray(x.getMostSignificantBits),
+//            Longs.toByteArray(x.getLeastSignificantBits)
+//          )
+//      },
+//      Ints.toByteArray(obj.codeBoxIds.length),
+//      obj.codeBoxIds.foldLeft(Array[Byte]()) {
+//        (arr, x) => arr ++ x
+//      }
+//    )
+//  }
+//
+//  def parseBytes(obj: Array[Byte]): Try[ExecutionBox] = Try {
+//    var takenBytes = 0
+//
+//    val boxTypeLength = Ints.fromByteArray(obj.take(Ints.BYTES))
+//    takenBytes += Ints.BYTES
+//
+//    val boxType = new String(obj.slice(takenBytes, takenBytes + boxTypeLength))
+//    takenBytes += boxTypeLength
+//
+//    require(boxType == "ExecutionBox")
+//
+//    val prop = PublicKey25519Proposition(obj.slice(takenBytes, takenBytes + Constants25519.PubKeyLength))
+//    takenBytes += Constants25519.PubKeyLength
+//
+//    val nonce = Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES))
+//    takenBytes += Longs.BYTES
+//
+//    val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
+//      Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + 2 * Longs.BYTES)))
+//    takenBytes += Longs.BYTES * 2
+//
+//    val stateBoxUUIDsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+//    takenBytes += Ints.BYTES
+//
+//    var stateBoxUUIDs = Seq[UUID]()
+//    for (_ <- 1 to stateBoxUUIDsLength) {
+//      val uuid = new UUID(Longs.fromByteArray(obj.slice(takenBytes, takenBytes + Longs.BYTES)),
+//        Longs.fromByteArray(obj.slice(takenBytes + Longs.BYTES, takenBytes + Longs.BYTES * 2)))
+//      takenBytes += Longs.BYTES * 2
+//      stateBoxUUIDs = stateBoxUUIDs :+ uuid
+//    }
+//
+//    val codeBoxIdsLength = Ints.fromByteArray(obj.slice(takenBytes, takenBytes + Ints.BYTES))
+//    takenBytes += Ints.BYTES
+//
+//    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map { i =>
+//      val id: Array[Byte] = obj.slice(takenBytes + i * (4 * Longs.BYTES), takenBytes + (i + 1) * (4 * Longs.BYTES))
+//      id
+//    }
+//    takenBytes += Longs.BYTES * 4 * codeBoxIdsLength
+//
+//    ExecutionBox(prop, nonce, uuid, stateBoxUUIDs, codeBoxIds)
+//  }
 }

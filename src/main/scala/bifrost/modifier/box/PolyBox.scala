@@ -11,18 +11,26 @@ case class PolyBox(override val proposition: PublicKey25519Proposition,
   override lazy val typeOfBox: String = "Poly"
 }
 
-object PolyBoxSerializer extends BifrostSerializer[PolyBox] with NoncedBoxSerializer {
+object PolyBoxSerializer extends BifrostSerializer[PolyBox] {
 
-  override def toBytes(obj: PolyBox): Array[Byte] = {
-    noncedBoxToBytes(obj, "PolyBox")
+  override def serialize(obj: PolyBox, w: Writer): Unit = {
+    w.putByteString("PolyBox")
+    NoncedBoxSerializer.serialize(obj, w)
   }
 
-  override def parseBytes(bytes: Array[Byte]): Try[PolyBox] = Try {
-    val params = noncedBoxParseBytes(bytes)
-    PolyBox(params._1, params._2, params._3)
+  override def parse(r: Reader): PolyBox = {
+    val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
+    PolyBox(noncedBox.proposition, noncedBox.nonce, noncedBox.value)
   }
 
-  override def serialize(obj: PolyBox, w: Writer): Unit = ???
-
-  override def parse(r: Reader): PolyBox = ???
+// TODO: Jing - remove
+//
+//  override def toBytes(obj: PolyBox): Array[Byte] = {
+//    noncedBoxToBytes(obj, "PolyBox")
+//  }
+//
+//  override def parseBytes(bytes: Array[Byte]): Try[PolyBox] = Try {
+//    val params = noncedBoxParseBytes(bytes)
+//    PolyBox(params._1, params._2, params._3)
+//  }
 }
