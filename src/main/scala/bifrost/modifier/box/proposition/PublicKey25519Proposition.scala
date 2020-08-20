@@ -34,23 +34,15 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
-
-}
-
-object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {
-  override def toBytes(obj: PublicKey25519Proposition): Array[Byte] = obj.pubKeyBytes
-
-  override def parseBytes(bytes: Array[Byte]): Try[PublicKey25519Proposition] = Try(PublicKey25519Proposition(bytes))
-
-  override def serialize(obj: PublicKey25519Proposition, w: Writer): Unit = ???
-
-  override def parse(r: Reader): PublicKey25519Proposition = ???
 }
 
 object PublicKey25519Proposition {
+
   val AddressVersion: Byte = 1
   val ChecksumLength = 4
   val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
+
+  // TODO: Jing - consider moving these methods into the case class above
 
   def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
 
@@ -68,6 +60,17 @@ object PublicKey25519Proposition {
         else Failure(new Exception("Wrong checksum"))
       }
     }
+}
+
+object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {
+
+  override def serialize(obj: PublicKey25519Proposition, w: Writer): Unit = {
+    w.putBytes(obj.pubKeyBytes)
+  }
+
+  override def parse(r: Reader): PublicKey25519Proposition = {
+    PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
+  }
 }
 
 object Constants25519 {
