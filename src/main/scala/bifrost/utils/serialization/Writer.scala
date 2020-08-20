@@ -143,7 +143,7 @@ trait Writer {
     * @param s String
     * @return
     */
-  def putUShortString(s: String): this.type
+  def putIntString(s: String): this.type
 
   /**
     * Returns encoded result

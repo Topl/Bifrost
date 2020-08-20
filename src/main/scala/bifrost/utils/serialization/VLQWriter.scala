@@ -158,10 +158,10 @@ trait VLQWriter extends Writer {
     * @param s String
     * @return
     */
-  override def putUShortString(s: String): this.type = {
+  override def putIntString(s: String): this.type = {
     val bytes = s.getBytes
     require(bytes.size < 65536)
-    putUShort(bytes.size.toByte)
+    putUInt(bytes.size.toByte)
     putBytes(bytes)
     this
   }

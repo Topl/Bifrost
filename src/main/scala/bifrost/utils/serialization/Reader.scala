@@ -31,7 +31,7 @@ trait Reader {
     * Decode String is shorter than 256 bytes
     * @return
     */
-  def getUShortString(): String
+  def getIntString(): String
 
   /**
     * Get a byte at current position without advancing the position.
