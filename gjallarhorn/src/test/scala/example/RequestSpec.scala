@@ -47,25 +47,28 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
   val amount = 10
 
   var transaction = Json.Null
+  var signedTransaction = Json.Null
 
   it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
-    transaction = requests.sendRequest(createAssetRequest)
+    transaction = requests.sendRequest(createAssetRequest, "asset")
     println(transaction)
     assert(transaction != null)
   }
 
   it should "receive JSON from sign transaction" in {
     val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
-    val JSON = requests.signTx(transaction, keyManager, issuer)
-    println(JSON)
-    val sigs = (JSON \\ "signatures").head.asObject.get
+    signedTransaction = requests.signTx(transaction, keyManager, issuer)
+    println(signedTransaction)
+    val sigs = (signedTransaction \\ "signatures").head.asObject.get
     issuer.foreach(key => assert(sigs.contains(key)))
 
-    assert((JSON \\ "signatures").head != null)
+    assert((signedTransaction \\ "signatures").head != null)
   }
 
-//  "broadcast transaction" {
-//
-//  }
+  it should "receive JSON from broadcast transaction" in {
+    val response = requests.broadcastTx(signedTransaction)
+    println(response)
+    assert(response != null)
+  }
 }
