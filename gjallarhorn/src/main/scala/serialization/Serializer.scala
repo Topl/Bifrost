@@ -1,4 +1,4 @@
-package example.serialization
+package serialization
 
 import scala.util.Try
 

@@ -1,9 +1,10 @@
-package example
+package keymanager
 
 import java.io.File
 
 import scorex.crypto.encode.Base58
 import com.typesafe.scalalogging.StrictLogging
+import crypto.{PrivateKey25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
 
 import scala.util.{Failure, Success}
 
@@ -17,12 +18,6 @@ case class KeyManager(var secrets: Set[PrivateKey25519], defaultKeyDir: String) 
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
-  }
-
-  def isUnlocked(privateKey: PrivateKey25519): Boolean = {
-    secrets.map{
-      privKey => privKey.privKeyBytes sameElements privateKey.privKeyBytes
-    }.head
   }
 
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
@@ -40,8 +35,6 @@ case class KeyManager(var secrets: Set[PrivateKey25519], defaultKeyDir: String) 
     }
     // ensure no duplicate by comparing privKey strings
     if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
-      // secrets.empty // should empty the current set of secrets meaning unlock only allows a single key to be unlocked
-      // at once
       secrets += privKey.head
     } else {
       logger.warn(s"$publicKeyString is already unlocked")

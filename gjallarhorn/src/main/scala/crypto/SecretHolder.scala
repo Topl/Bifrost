@@ -1,4 +1,4 @@
-package example
+package crypto
 
 import serialization.{BytesSerializable, Serializer}
 import com.google.common.primitives.Bytes

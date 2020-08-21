@@ -1,4 +1,4 @@
-package example.serialization
+package serialization
 
 trait BytesSerializable extends Serializable {
 

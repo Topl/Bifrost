@@ -1,4 +1,4 @@
-package example
+package keymanager
 
 import java.io.{BufferedWriter, FileWriter}
 import java.lang.reflect.Constructor
@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
+import crypto.{PrivateKey25519, PrivateKey25519Companion}
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
