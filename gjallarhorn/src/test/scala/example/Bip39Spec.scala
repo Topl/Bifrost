@@ -1,6 +1,7 @@
 package example
 
-import example.KeyFile.uuid
+import keymanager.{Bip39, KeyFile}
+import keymanager.KeyFile.uuid
 import org.scalatest._
 
 import scala.reflect.io.Path

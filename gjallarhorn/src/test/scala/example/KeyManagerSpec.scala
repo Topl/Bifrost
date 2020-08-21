@@ -2,7 +2,8 @@
 
 package example
 
-import example.KeyManager.getListOfFiles
+import crypto.{PrivateKey25519, PrivateKey25519Companion, PublicKey25519Proposition}
+import keymanager.{KeyFile, KeyManager}
 import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
@@ -103,7 +104,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
   "[F3-A3-XX] ARCHETYPE: A key manager instance" should {
     "[F3-A3-T8] TEST: Have 3 keyfiles" in {
       assert(keyManager.publicKeys.size == 3)
-      assert(getListOfFiles(keyFileDir).size == 3)
+      assert(KeyManager.getListOfFiles(keyFileDir).size == 3)
     }
     "[F3-A3-T9] TEST: Be unlocked yes path" in {
       keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
@@ -124,7 +125,7 @@ class KeyManagerSpec extends WordSpec with Matchers {
   "[F3-A4-XX] ARCHETYPE: A keyfile" should {
     "TEST: Export is formatted JSON to keystore file" in {
       val keyFile = keyFiles.head
-      val readFile = KeyFile.readFile(getListOfFiles(keyFileDir)(0).getPath)
+      val readFile = KeyFile.readFile(KeyManager.getListOfFiles(keyFileDir)(0).getPath)
       assert(keyFile.equals(readFile))
     }
     "[F3-A4-12] TEST: Have keys stored in the proper format" in {

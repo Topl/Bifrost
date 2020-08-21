@@ -1,21 +1,16 @@
 package example
 
-//Import relevant akka libraries
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import example.requests.Requests
-import io.circe.{Json, ParsingFailure, parser}
+import crypto.PrivateKey25519Companion
+import _root_.requests.Requests
+import io.circe.{Json}
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import io.circe.syntax._
+import keymanager.{KeyFile, KeyManager}
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -23,7 +18,6 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-  import actorSystem.dispatcher
 
   val http: HttpExt = Http(actorSystem)
 
