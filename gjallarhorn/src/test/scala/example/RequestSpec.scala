@@ -5,7 +5,8 @@ import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import crypto.PrivateKey25519Companion
 import _root_.requests.Requests
-import io.circe.{Json}
+import akka.util.ByteString
+import io.circe.Json
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
@@ -44,25 +45,37 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
   var signedTransaction = Json.Null
 
   it should "receive a successful response from Bifrost upon creating asset" in {
-    val createAssetRequest = requests.transaction("createAssetsPrototype", Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), amount)
+    val createAssetRequest = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "createAssetsPrototype",
+         |   "params": [{
+         |     "issuer": "${Base58.encode(pk1.pubKeyBytes)}",
+         |     "recipient": "${Base58.encode(pk2.pubKeyBytes)}",
+         |     "amount": $amount,
+         |     "assetCode": "etherAssets",
+         |     "fee": 0,
+         |     "data": ""
+         |   }]
+         |}
+         """.stripMargin)
     transaction = requests.sendRequest(createAssetRequest, "asset")
-    println(transaction)
-    assert(transaction != null)
+    assert(transaction.isInstanceOf[Json])
   }
 
   it should "receive JSON from sign transaction" in {
     val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
-    println(signedTransaction)
     val sigs = (signedTransaction \\ "signatures").head.asObject.get
     issuer.foreach(key => assert(sigs.contains(key)))
 
-    assert((signedTransaction \\ "signatures").head != null)
+    assert((signedTransaction \\ "signatures").head.asObject.isDefined)
   }
 
   it should "receive JSON from broadcast transaction" in {
     val response = requests.broadcastTx(signedTransaction)
-    println(response)
-    assert(response != null)
+    assert(response.isInstanceOf[Json])
   }
 }
