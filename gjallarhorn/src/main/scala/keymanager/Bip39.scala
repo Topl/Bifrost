@@ -1,4 +1,4 @@
-package example
+package keymanager
 
 import com.typesafe.scalalogging.StrictLogging
 import scorex.crypto.hash.Sha256

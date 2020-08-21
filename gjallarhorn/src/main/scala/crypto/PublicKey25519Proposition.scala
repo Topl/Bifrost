@@ -1,4 +1,4 @@
-package example
+package crypto
 
 import serialization.Serializer
 import scorex.crypto.encode.Base58

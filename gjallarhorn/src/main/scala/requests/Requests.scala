@@ -1,42 +1,29 @@
-package example.requests
+package requests
 
-//Import relevant actor libraries
-import akka.actor.Status.{Failure, Success}
-import akka.actor.{Actor, ActorLogging, ActorSystem}
+import akka.actor.{ActorSystem}
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Source
 import akka.util.{ByteString, Timeout}
-import example.KeyManager.getListOfFiles
-import example.{PrivateKey25519Companion, PublicKey25519Proposition, _}
+import keymanager.KeyManager
+import crypto.{PrivateKey25519Companion, PublicKey25519Proposition, _}
 import io.circe.{Json, parser}
 import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.util.Try
+
 import scorex.crypto.encode.Base58
 
-class Requests extends { //Actor with ActorLogging {
+class Requests extends {
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val http: HttpExt = Http(actorSystem)
 
-  /*
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
-  implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-  val http = Http(system)
-
-   */
-
   val timeout: Timeout = Timeout(10.seconds)
-
-  //override def receive: Receive = ???
 
   //Generic Method for HTTP POST request
   def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
@@ -80,17 +67,6 @@ class Requests extends { //Actor with ActorLogging {
     ).asJson
     ByteString(newJSON.toString.getBytes())
   }
-
-  /*
-//  TODO Fix problem with needing a materializer in runFold
-  def entityToByteString(data: Source[ByteString, Any]): Future[ByteString] = data
-    .runFold(ByteString.empty){ case (acc,b) => acc ++ b}
-   */
-
-
-  // should we check that the keys in signing keys can be used to sign the message
-  // i.e. all the keys have to be unlocked..
-  // check that the signing keys match the ones in issuer.
 
   def signTx(transaction: Json, keyManager: KeyManager, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
@@ -157,7 +133,6 @@ class Requests extends { //Actor with ActorLogging {
 
   def broadcastTx(signedTransaction: Json): Json = {
     val tx = jsonToByteString(signedTransaction)
-    println(tx)
     sendRequest(tx, "wallet")
   }
 
