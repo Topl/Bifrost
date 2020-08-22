@@ -10,11 +10,12 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class CodeCreationSpec extends WordSpec
+class CodeCreationSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with ProgramMockState {

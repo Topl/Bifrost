@@ -15,7 +15,6 @@ import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
 import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import bifrost.modifier.block.Block
 import bifrost.crypto.Signature25519
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
@@ -29,8 +28,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class NodeViewRPCSpec extends WordSpec
+class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {

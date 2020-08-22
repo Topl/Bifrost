@@ -5,17 +5,18 @@ import java.io.File
 import bifrost.modifier.block.Block
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
 import bifrost.nodeView.NodeViewModifier._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import scorex.crypto.encode.Base58
 
 import scala.util.Random
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class IODBSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class IODBSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
