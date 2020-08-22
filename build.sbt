@@ -53,7 +53,7 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.0.+" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.0.+" % Test,
   "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
 )
