@@ -70,7 +70,7 @@ case class State(
       }
     }
 
-  private def lastVersionString =
+  private def lastVersionString: String =
     storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
   def validate(transaction: TX): Try[Unit] = {
