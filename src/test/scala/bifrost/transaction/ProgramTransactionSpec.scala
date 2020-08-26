@@ -16,12 +16,13 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.collection.immutable.Seq
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramTransactionSpec extends PropSpec
+class ProgramTransactionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

@@ -5,8 +5,11 @@ name := "bifrost"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.11",
+  semanticdbEnabled := true, // enable SemanticDB for Scalafix
+  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
-  version := "1.1.0"
+  version := "1.1.0",
+//  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
 scalaVersion := "2.12.11"
@@ -19,8 +22,8 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.5.30"
-val akkaHttpVersion = "10.1.11"
+val akkaVersion = "2.5.31"
+val akkaHttpVersion = "10.1.12"
 val circeVersion = "0.13.0"
 
 val akkaDependencies = Seq(
@@ -35,7 +38,7 @@ val akkaDependencies = Seq(
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
-  "commons-net" % "commons-net" % "3.6"
+  "commons-net" % "commons-net" % "3.7"
 )
 
 val apiDependencies = Seq(
@@ -49,13 +52,14 @@ val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
   "ch.qos.logback" % "logback-classic" % "1.2.3",
   "ch.qos.logback" % "logback-core" % "1.2.3",
-  "org.slf4j" % "slf4j-api" % "1.7.25"
+  "org.slf4j" % "slf4j-api" % "1.7.30"
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.0.+" % Test,
-  "org.scalatest" %% "scalatest" % "3.0.+" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.1" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.1" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
 )
 
 val cryptoDependencies = Seq(
@@ -67,43 +71,54 @@ val cryptoDependencies = Seq(
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.chuusai" %% "shapeless" % "2.3.3",
+<<<<<<< HEAD
   "com.google.guava" % "guava" % "19.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
 
+=======
+  "com.google.guava" % "guava" % "19.0",
+  "com.iheart" %% "ficus" % "1.4.7",
+  "org.rudogma" %% "supertagged" % "1.4",
+  "com.joefkelley" %% "argyle" % "1.0.0"
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
+>>>>>>> 59a2fd9dcbb66375733d1b2f6cc8b856d03b94c1
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.0.5",
-  "io.kamon" %% "kamon-core" % "2.1.0",
-  "io.kamon" %% "kamon-influxdb" % "2.1.0",
-  "io.kamon" %% "kamon-zipkin" % "2.1.0",
+  "io.kamon" %% "kamon-bundle" % "2.0.6",
+  "io.kamon" %% "kamon-core" % "2.1.4",
+  "io.kamon" %% "kamon-influxdb" % "2.1.4",
+  "io.kamon" %% "kamon-zipkin" % "2.1.4",
   //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
   //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.0"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.2.0"
+libraryDependencies += "org.graalvm.js" % "js" % "19.2.1"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.0"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.1"
 
 
 libraryDependencies  ++= Seq(
-  "org.scalanlp" %% "breeze" % "1.0",
-  "com.google.protobuf" % "protobuf-java" % "3.5.1",
-  "com.thesamet.scalapb" %% "lenses" % "0.7.0",
-  "com.typesafe" % "config" % "1.3.3",
+  "org.scalanlp" %% "breeze" % "1.1",
+  "com.google.protobuf" % "protobuf-java" % "3.12.4",
+  "com.thesamet.scalapb" %% "lenses" % "0.10.8",
+  "com.typesafe" % "config" % "1.3.4",
 )
 
 scalacOptions ++= Seq(
   "-deprecation",
   "-feature",
+  "-language:higherKinds",
+  "-language:postfixOps",
   "-unchecked",
   "-Xfatal-warnings",
-  "-Xlint"
+  "-Xlint:",
+  "-Ywarn-unused:-implicits,-privates"
 )
 
 javaOptions ++= Seq(
@@ -182,7 +197,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ akkaDependencies
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 

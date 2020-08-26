@@ -3,7 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.crypto.Signature25519
-import bifrost.forging.ForgingSettings
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -11,16 +11,18 @@ import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import io.circe
-import org.scalatest.{BeforeAndAfterAll, Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.BeforeAndAfterAll
+import bifrost.settings.{AppSettings, StartupOpts}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class TokenBoxRegistrySpec extends PropSpec
+class TokenBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -31,10 +33,8 @@ class TokenBoxRegistrySpec extends PropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val settingsFilename = "testSettings.json"
-  lazy val testSettings: ForgingSettings = new ForgingSettings {
-    override val settingsJSON: Map[String, circe.Json] = settingsFromFile(settingsFilename)
-  }
+  private val settingsFilename = "src/test/resources/test.conf"
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
@@ -58,7 +58,7 @@ class TokenBoxRegistrySpec extends PropSpec
       .map(_.box.asInstanceOf[ArbitBox])
     assert(oldArbitBoxes.length == 1)
 
-    assert(genesisState.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(genesisState.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
     val tx1 = ArbitTransfer.create(genesisState.tbr,
       gw,
@@ -69,11 +69,11 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
-      Seq(tx1), 10L, settings.version)
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      Seq(tx1), 10L, settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)
 
@@ -83,11 +83,9 @@ class TokenBoxRegistrySpec extends PropSpec
 
     val newWallet1 = gw.scanPersistent(block1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
     assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
@@ -104,11 +102,11 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block2 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
-      Seq(tx2), 10L, settings.version)
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      Seq(tx2), 10L, settings.forgingSettings.version)
 
     require(newState1.validate(tx2).isSuccess)
 
@@ -119,15 +117,12 @@ class TokenBoxRegistrySpec extends PropSpec
     val newWallet2 = newWallet1.scanPersistent(block2)
 
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 2)
+    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 2)
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
     assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
-      .filter(_.isInstanceOf[ArbitBox])
-      .foldLeft(true) {(acc, i) => acc && (i.value == 99999995 || i.value == 4)})
+      .filter(_.isInstanceOf[ArbitBox]).forall(i => i.value == 99999995 || i.value == 4))
 
     assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 1)
@@ -149,11 +144,11 @@ class TokenBoxRegistrySpec extends PropSpec
     ).get
 
     val block1 = Block(
-      Array.fill(Block.SignatureLength)(-1: Byte),
+      ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
       ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
-      Seq(tx1), 10L, settings.version)
+      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      Seq(tx1), 10L, settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)
 
@@ -161,11 +156,9 @@ class TokenBoxRegistrySpec extends PropSpec
       .applyChanges(genesisState.changes(block1).get, block1.id)
       .get
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
-      .filter(_.isInstanceOf[ArbitBox]).length == 1)
+    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
 
     assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)

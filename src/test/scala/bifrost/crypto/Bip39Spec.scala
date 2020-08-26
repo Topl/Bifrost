@@ -1,16 +1,17 @@
 package bifrost.crypto
 
 import bifrost.crypto.KeyFile.uuid
-import org.scalatest._
 
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /*
  * Test class for verifying BIP39 phrase translator class
  */
 
-class Bip39Spec extends FlatSpec with Matchers {
+class Bip39Spec extends AnyFlatSpec with Matchers {
 
   val keyFileDir = "/tmp/bifrost/test-data/keyfiles/bip39test"
   val path: Path = Path(keyFileDir)

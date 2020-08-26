@@ -1,6 +1,6 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
@@ -8,24 +8,24 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.api.http.ProgramApiRoute
-import bifrost.forging.Forger
 import bifrost.history.History
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network.message._
-import bifrost.network.peer.PeerManager
-import bifrost.network._
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.nodeView.NodeViewHolder
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.settings.BifrostContext
 import bifrost.state.{State, StateChanges}
+import bifrost.utils.NetworkTimeProvider
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
@@ -37,7 +37,7 @@ import scala.util.Try
   * Created by cykoz on 6/13/2017.
   */
 
-class ProgramRPCSpec extends WordSpec
+class ProgramRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
@@ -45,43 +45,16 @@ class ProgramRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem: ActorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  protected val additionalMessageSpecs: Seq[MessageSpec[_]] = Seq(BifrostSyncInfoMessageSpec)
-  //p2p
-  lazy val upnp = new UPnP(settings)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // save environment into a variable for reference throughout the application
+  protected val bifrostContext = new BifrostContext(settings, None)
 
-  private lazy val basicSpecs =
-    Seq(
-      GetPeersSpec,
-      PeersSpec,
-      InvSpec,
-      RequestModifierSpec,
-      ModifiersSpec
-    )
+  // Create Bifrost singleton actors
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
-  lazy val messagesHandler: MessageHandler = MessageHandler(basicSpecs ++ additionalMessageSpecs)
-
-  val peerManagerRef: ActorRef = actorSystem.actorOf(Props(classOf[PeerManager], settings))
-
-  val nProps: Props = Props(classOf[NetworkController], settings, messagesHandler, upnp, peerManagerRef)
-  val networkController: ActorRef = actorSystem.actorOf(nProps, "networkController")
-
-  val forger: ActorRef = actorSystem.actorOf(Props(classOf[Forger], settings, nodeViewHolderRef))
-
-  val localInterface: ActorRef = actorSystem.actorOf(
-    Props(classOf[BifrostLocalInterface], nodeViewHolderRef, forger, settings)
-  )
-
-  val nodeViewSynchronizer: ActorRef = actorSystem.actorOf(
-    Props(classOf[NodeViewSynchronizer],
-          networkController,
-          nodeViewHolderRef,
-          localInterface,
-          BifrostSyncInfoMessageSpec)
-  )
-
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  // setup route for testing
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -99,9 +72,11 @@ class ProgramRPCSpec extends WordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
 
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetCurrentView)
-      .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   // Unlock Secrets
   val gw: Wallet = view().vault
@@ -129,7 +104,8 @@ class ProgramRPCSpec extends WordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+      val txHashId = ModifierId(Base58.decode(txHash).get)
+      val txInstance: Transaction = view().pool.getById(txHashId).get
       txInstance.newBoxes.foreach {
         case b: ExecutionBox =>
           executionBox = Some(b)
@@ -138,8 +114,9 @@ class ProgramRPCSpec extends WordSpec
       val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
         txInstance.newBoxes.toSet,
         System.currentTimeMillis())
+      val versionId = ModifierId(Ints.toByteArray(version))
 
-      view().state.applyChanges(boxSC, Ints.toByteArray(version)).get
+      view().state.applyChanges(boxSC, versionId).get
       view().pool.remove(txInstance)
     }
 

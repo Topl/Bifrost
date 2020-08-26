@@ -2,17 +2,21 @@ package bifrost.modifier.block
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.block.Block._
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
 import bifrost.modifier.box.{ArbitBox, BoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
-import io.circe.Json
+import bifrost.modifier.ModifierId
+import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
+import io.circe.{Encoder, Json}
 import io.circe.syntax._
+// fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+// fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
 import scala.collection.BitSet
+import bifrost.utils.idToBytes
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -37,11 +41,11 @@ case class Block(parentId: BlockId,
                  txs: Seq[Transaction],
                  inflation: Long = 0L,
                  protocolVersion: Version)
-  extends PersistentNodeViewModifier[ProofOfKnowledgeProposition[PrivateKey25519], Transaction] {
+  extends BifrostNodeViewModifier {
 
   type M = Block
 
-  lazy val modifierTypeId: Byte = Block.ModifierTypeId
+  lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
@@ -49,11 +53,15 @@ case class Block(parentId: BlockId,
 
   lazy val version: Version = protocolVersion
 
-  lazy val id: BlockId = FastCryptographicHash(serializer.messageToSign(this))
+  lazy val id: BlockId = bytesToId(serializedId)
+
+  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.messageToSign(this))
+
+  lazy val serializedParentId: Array[Byte] = idToBytes(parentId)
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "parentId" -> Base58.encode(parentId).asJson,
+    "id" -> Base58.encode(idToBytes(id)).asJson,
+    "parentId" -> Base58.encode(idToBytes(parentId)).asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
@@ -65,11 +73,11 @@ case class Block(parentId: BlockId,
 }
 
 object Block {
-  val BlockIdLength: Int = NodeViewModifier.ModifierIdSize
-  val ModifierTypeId = 3: Byte
-  val SignatureLength = 64
+  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
+  val modifierTypeId = ModifierTypeId @@ (3: Byte)
+  val signatureLength = 64
 
-  type BlockId = NodeViewModifier.ModifierId
+  type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
   type GenerationSignature = Array[Byte]
@@ -86,7 +94,7 @@ object Block {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
     val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
-    if (parentId sameElements Array.fill(32)(1: Byte)) {
+    if (parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
       unsigned.copy(signature = Signature25519(genesisSignature))
@@ -106,5 +114,18 @@ object Block {
     ).toSeq
     BloomTopics(bloomBitSet).toByteArray
   }
-}
 
+  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    Map(
+      "id" -> Base58.encode(idToBytes(b.id)).asJson,
+      "parentId" -> Base58.encode(idToBytes(b.parentId)).asJson,
+      "timestamp" -> b.timestamp.asJson,
+      "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
+      "signature" -> Base58.encode(b.signature.signature).asJson,
+      "txs" -> b.txs.map(_.json).asJson,
+      "inflation" -> b.inflation.asJson,
+      "version" -> b.version.asJson,
+      "blockSize" -> b.serializer.toBytes(b).length.asJson
+    ).asJson
+  }
+}

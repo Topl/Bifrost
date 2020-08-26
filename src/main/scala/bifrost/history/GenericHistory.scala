@@ -1,10 +1,10 @@
 package bifrost.history
 
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.network.SyncInfo
-import bifrost.nodeView.NodeViewModifier.{ModifierId, ModifierTypeId}
+import bifrost.modifier.ModifierId
+import bifrost.network.message.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -21,14 +21,13 @@ import scala.util.Try
   * function has been used instead, even in PoW systems.
   */
 
-trait GenericHistory[P <: Proposition,
-TX <: GenericTransaction[P],
-PM <: PersistentNodeViewModifier[P, TX],
-SI <: SyncInfo,
-HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
+trait GenericHistory[
+  PM <: PersistentNodeViewModifier,
+  SI <: SyncInfo,
+  HT <: GenericHistory[PM, SI, HT]
+] extends NodeViewComponent with HistoryReader[PM, SI] {
 
   import GenericHistory._
-  import bifrost.nodeView.NodeViewModifier.ModifierId
 
   /**
     * Is there's no history, even genesis block
@@ -41,7 +40,7 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
     * @param persistentModifier - modifier
     * @return
     */
-  def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
+  override def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
 
   /**
     * Whether the history contains a modifier with the given id
@@ -49,7 +48,7 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
     * @param id - modifier's id
     * @return
     */
-  def contains(id: ModifierId): Boolean = modifierById(id).isDefined
+  override def contains(id: ModifierId): Boolean = modifierById(id).isDefined
 
   /**
     * Whether a modifier could be applied to the history
@@ -57,11 +56,11 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
     * @param modifier - modifier to apply
     * @return
     */
-  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_ sameElements modifier.parentId)
+  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.hashBytes sameElements modifier.parentId.hashBytes)
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = Base58.decode(modifierId).toOption.flatMap(modifierById)
+  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 
@@ -71,49 +70,71 @@ HT <: GenericHistory[P, TX, PM, SI, HT]] extends NodeViewComponent {
   def openSurfaceIds(): Seq[ModifierId]
 
   //todo: argument should be ID | Seq[ID]
-  def continuation(from: ModifierIds, size: Int): Option[Seq[PM]] = {
-    continuationIds(from, size).map { ids =>
-      ids.map(_._2).flatMap(id => modifierById(id))
-    }
-  }
-
-  //todo: argument should be ID | Seq[ID]
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
-  def syncInfo(answer: Boolean): SI
+  def syncInfo: SI
 
   /**
-    * Whether another's node syncinfo shows that another node is ahead or behind ours
+    * Report that modifier is valid from point of view of the state component
     *
-    * @param other other's node sync info
-    * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
+    * @param modifier - valid modifier
+    * @return modified history
     */
-  def compare(other: SI): HistoryComparisonResult.Value
+  def reportModifierIsValid(modifier: PM): HT
+
+  /**
+    * Report that modifier is invalid from other nodeViewHolder components point of view
+    *
+    * @param modifier     - invalid modifier
+    * @param progressInfo - what suffix failed to be applied because of an invalid modifier
+    * @return modified history and new progress info
+    */
+  def reportModifierIsInvalid(modifier: PM, progressInfo: ProgressInfo[PM]): (HT, ProgressInfo[PM])
+
+  def getReader: HistoryReader[PM, SI] = this
 }
 
 object GenericHistory {
 
   type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
 
-  object HistoryComparisonResult extends Enumeration {
-    val Equal = Value(1)
-    val Younger = Value(2)
-    val Older = Value(3)
-    val Nonsense = Value(4)
-  }
+  sealed trait HistoryComparisonResult
 
-  case class ProgressInfo[PM <: PersistentNodeViewModifier[_, _]](branchPoint: Option[ModifierId],
-                                                                  toRemove: Seq[PM],
-                                                                  toApply: Seq[PM]) {
+  case object Equal extends HistoryComparisonResult
 
-    require(branchPoint.isDefined == toRemove.nonEmpty)
+  case object Younger extends HistoryComparisonResult
 
-    lazy val rollbackNeeded = toRemove.nonEmpty
-    lazy val appendedId = toApply.last.id
+  case object Fork extends HistoryComparisonResult
+
+  case object Older extends HistoryComparisonResult
+
+  case object Nonsense extends HistoryComparisonResult
+
+  case object Unknown extends HistoryComparisonResult
+
+  /**
+    * Info returned by history to nodeViewHolder after modifier application
+    *
+    * @param branchPoint - branch point in case of rollback
+    * @param toRemove    - modifiers to remove from current node view
+    * @param toApply     - modifiers to apply to current node view
+    * @param toDownload  - modifiers to download from other nodes
+    * @tparam PM - type of used modifier
+    */
+  case class ProgressInfo[PM <: PersistentNodeViewModifier](branchPoint: Option[ModifierId],
+                                                            toRemove: Seq[PM],
+                                                            toApply: Seq[PM],
+                                                            toDownload: Seq[(ModifierTypeId, ModifierId)])
+                                                           (implicit encoder: BifrostEncoder) {
+
+    if (toRemove.nonEmpty)
+      require(branchPoint.isDefined, s"Branch point should be defined for non-empty `toRemove`")
+
+    lazy val chainSwitchingNeeded: Boolean = toRemove.nonEmpty
 
     override def toString: String = {
-      s"Modifications(${branchPoint.map(Base58.encode)}, ${toRemove.map(_.encodedId)}, ${toApply.map(_.encodedId)})"
+      s"ProgressInfo(BranchPoint: ${branchPoint.map(encoder.encodeId)}, " +
+        s" to remove: ${toRemove.map(_.encodedId)}, to apply: ${toApply.map(_.encodedId)})"
     }
   }
-
 }

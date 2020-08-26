@@ -1,7 +1,8 @@
 package bifrost.crypto
 
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.serialization.{BytesSerializable, Serializer}
+import bifrost.serialization.BytesSerializable
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Bytes
 import scorex.crypto.signatures.Curve25519
 
@@ -43,15 +44,19 @@ case class PrivateKey25519(privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte
   override lazy val publicImage: PublicKey25519Proposition = PublicKey25519Proposition(publicKeyBytes)
   override type M = PrivateKey25519
 
-  override def serializer: Serializer[PrivateKey25519] = PrivateKey25519Serializer
+  override def serializer: BifrostSerializer[PrivateKey25519] = PrivateKey25519Serializer
 }
 
-object PrivateKey25519Serializer extends Serializer[PrivateKey25519] {
+object PrivateKey25519Serializer extends BifrostSerializer[PrivateKey25519] {
   override def toBytes(obj: PrivateKey25519): Array[Byte] = Bytes.concat(obj.privKeyBytes, obj.publicKeyBytes)
 
   override def parseBytes(bytes: Array[Byte]): Try[PrivateKey25519] = Try {
     PrivateKey25519(bytes.slice(0, 32), bytes.slice(32, 64))
   }
+
+  override def serialize(obj: PrivateKey25519, w: Writer): Unit = ???
+
+  override def parse(r: Reader): PrivateKey25519 = ???
 }
 
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {

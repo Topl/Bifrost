@@ -5,16 +5,17 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import bifrost.BifrostGenerators
-import bifrost.api.http.UtilsApiRoute
 import bifrost.crypto.FastCryptographicHash
+import bifrost.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 
-class UtilsRPCSpec extends WordSpec
+class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {

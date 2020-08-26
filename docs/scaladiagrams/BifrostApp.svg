@@ -9,11 +9,11 @@
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 184)">
 <title>diagram</title>
 <polygon fill="#ffffff" stroke="transparent" points="-4,4 -4,-184 353.139,-184 353.139,4 -4,4"/>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node1" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="79.9429" cy="-18" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="79.9429" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="79.9429" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
 <!-- GenericApplication -->
 <g id="node2" class="node">
@@ -21,9 +21,9 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="79.9429" cy="-90" rx="79.8859" ry="18"/>
 <text text-anchor="middle" x="79.9429" y="-86.3" font-family="Times,serif" font-size="14.00" fill="#000000">GenericApplication</text>
 </g>
-<!-- GenericApplication&#45;&gt;ScorexLogging -->
+<!-- GenericApplication&#45;&gt;Logging -->
 <g id="edge1" class="edge">
-<title>GenericApplication&#45;&gt;ScorexLogging</title>
+<title>GenericApplication&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M79.9429,-71.8314C79.9429,-64.131 79.9429,-54.9743 79.9429,-46.4166"/>
 <polygon fill="#000000" stroke="#000000" points="83.443,-46.4132 79.9429,-36.4133 76.443,-46.4133 83.443,-46.4132"/>
 </g>

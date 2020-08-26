@@ -3,18 +3,19 @@ package bifrost.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import bifrost.api.http.ProgramApiRoute
+import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.box.Box
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ProgramMethodExecutionSpec extends WordSpec
+class ProgramMethodExecutionSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef, networkController).route
+  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
 
   "executeProgramMethod" should {
 

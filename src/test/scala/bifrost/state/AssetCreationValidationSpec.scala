@@ -3,6 +3,7 @@ package bifrost.state
 import java.time.Instant
 
 import bifrost.crypto.Signature25519
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -20,24 +21,24 @@ class AssetCreationValidationSpec extends StateSpec {
     forAll(validAssetCreationGen) {
       assetCreation: AssetCreation =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetCreation),
           10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(7))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(7)))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(8))
+          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(8)))
           .get
 
         assetCreation.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
@@ -65,7 +66,7 @@ class AssetCreationValidationSpec extends StateSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(9))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(9)))
           .get
 
         val newState = preparedState.validate(invalidAC)

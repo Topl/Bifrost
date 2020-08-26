@@ -1,15 +1,15 @@
 package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer, PolyTransfer, TransferTransaction}
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object TransferTransactionCompanion extends Serializer[TransferTransaction] {
-  val typeBytes = "TransferTransaction".getBytes
+object TransferTransactionCompanion extends BifrostSerializer[TransferTransaction] {
+  val typeBytes: Array[Byte] = "TransferTransaction".getBytes
 
-  val prefixBytes = Ints.toByteArray(typeBytes.length) ++ typeBytes
+  val prefixBytes: Array[Byte] = Ints.toByteArray(typeBytes.length) ++ typeBytes
 
   override def toBytes(m: TransferTransaction): Array[Byte] = {
     prefixBytes ++
@@ -38,4 +38,8 @@ object TransferTransactionCompanion extends Serializer[TransferTransaction] {
       case "AssetTransfer" => AssetTransferCompanion.parseBytes(newBytes).get
     }
   }
+
+  override def parse(r: Reader): TransferTransaction = ???
+
+  override def serialize(obj: TransferTransaction, w: Writer): Unit = ???
 }

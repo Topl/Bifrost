@@ -1,17 +1,14 @@
 package bifrost.state
 
-import bifrost.forging.ForgingSettings
-import io.circe.Json
-
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
 //noinspection ScalaStyle
 class ProgramMethodExecutionValidationSpec extends ProgramSpec {
 
-  val forgingSettings = new ForgingSettings {
-    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
-  }
+//  val forgingSettings = new ForgingSettings {
+//    override def settingsJSON: Map[String, Json] = super.settingsFromFile("testSettings.json")
+//  }
 
   //val pbr = ProgramBoxRegistry.readOrGenerate(forgingSettings)
 
@@ -97,10 +94,10 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       cme: ProgramMethodExecution =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          Array.fill(Block.signatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cme),
           10L,
           settings.version
@@ -338,10 +335,10 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          Array.fill(Block.signatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programMethodExecution),
           10L,
           settings.version
@@ -435,10 +432,10 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
     forAll(semanticallyValidProgramMethodExecutionGen) {
       programMethodExecution: ProgramMethodExecution =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          Array.fill(Block.signatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programMethodExecution),
           10L,
           settings.version

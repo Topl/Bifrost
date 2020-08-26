@@ -2,18 +2,17 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
 import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
+import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.bifrostTransaction.{AssetRedemption, _}
 import bifrost.program.{ExecutionBuilderCompanion, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.util.{Failure, Success, Try}
 
@@ -42,9 +41,9 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     Program(Map(
       "parties" -> Map(
-      Base58.encode(producer.pubKeyBytes) -> "producer",
-      Base58.encode(investor.pubKeyBytes) -> "investor",
-      Base58.encode(hub.pubKeyBytes) -> "hub"
+        Base58.encode(producer.pubKeyBytes) -> "producer",
+        Base58.encode(investor.pubKeyBytes) -> "investor",
+        Base58.encode(hub.pubKeyBytes) -> "hub"
       ).asJson,
       "executionBuilder" -> executionBuilder,
       "lastUpdated" -> System.currentTimeMillis().asJson
@@ -148,12 +147,12 @@ trait ValidGenerators extends BifrostGenerators {
     val state = Map("a" -> "0").asJson
 
     val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
-    val codeBox = CodeBox(sender, 1L,  UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
+    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
       Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
 
     val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
-//    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
+    //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
     val executionBox = ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
 
 
@@ -264,10 +263,10 @@ trait ValidGenerators extends BifrostGenerators {
       to,
       fakeSigs,
       timestamp,
-      id).messageToSign
+      id.hashBytes).messageToSign
     // sign with own key because coinbase is literally giving yourself money
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
-    CoinbaseTransaction(to, signatures, timestamp, id)
+    CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
@@ -306,55 +305,5 @@ trait ValidGenerators extends BifrostGenerators {
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
-
-  lazy val validAssetRedemptionGen: Gen[AssetRedemption] = for {
-    assetLength <- positiveTinyIntGen
-    hub <- propositionGen
-    fee <- positiveLongGen
-    timestamp <- positiveLongGen
-    data <- stringGen
-  } yield {
-    val assets = (0 until assetLength).map { _ => sampleUntilNonEmpty(stringGen) }
-
-    val fromKeyPairs: IndexedSeq[(PublicKey25519Proposition, PrivateKey25519)] = keyPairSetGen
-      .sample
-      .get
-      .map(kp => kp._2 -> kp._1)
-      .toIndexedSeq
-
-    val availableToRedeem: Map[String, IndexedSeq[(PublicKey25519Proposition, Nonce)]] = assets
-      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
-        .map { _ =>
-          sampleUntilNonEmpty(Gen.oneOf(fromKeyPairs))._1 ->
-            sampleUntilNonEmpty(Gen.choose(Long.MinValue, Long.MaxValue))
-        })
-      .toMap
-
-    val toKeyPairs = keyPairSetGen
-      .sample
-      .get
-      .toIndexedSeq
-
-    val remainderAllocations: Map[String, IndexedSeq[(PublicKey25519Proposition, Long)]] = assets
-      .map(_ -> (0 until sampleUntilNonEmpty(positiveTinyIntGen))
-        .map { _ =>
-          sampleUntilNonEmpty(Gen.oneOf(toKeyPairs))._2 -> sampleUntilNonEmpty(positiveMediumIntGen).toLong
-        })
-      .toMap
-
-    val dummySigs = availableToRedeem
-      .map(entry => entry._1 -> entry._2
-        .map(_ => Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte))))
-
-    val dummyTx = AssetRedemption(availableToRedeem, remainderAllocations, dummySigs, hub, fee, timestamp, data)
-
-    val fromKeyMap = fromKeyPairs.toMap
-    val signatures = availableToRedeem
-      .map {
-        case (assetId, boxes) =>
-          assetId -> boxes.map(b => PrivateKey25519Companion.sign(fromKeyMap(b._1), dummyTx.messageToSign))
-      }
-
-    dummyTx.copy(signatures = signatures)
-  }
 }
+

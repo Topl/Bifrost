@@ -10,9 +10,9 @@ import scala.util.Try
   *
   * @tparam TX -type of transaction the pool contains
   */
-trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent {
+trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
 
-  import bifrost.nodeView.NodeViewModifier.ModifierId
+  import bifrost.modifier.ModifierId
 
   //getters
   def getById(id: ModifierId): Option[TX]
@@ -20,7 +20,7 @@ trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends No
   def contains(id: ModifierId): Boolean
 
   //get ids from Seq, not presenting in mempool
-  def notIn(ids: Seq[ModifierId]): Seq[ModifierId] = ids.filter(id => !contains(id))
+  override def notIn(ids: Seq[ModifierId]): Seq[ModifierId] = ids.filter(id => !contains(id))
 
   def getAll(ids: Seq[ModifierId]): Seq[TX]
 
@@ -35,9 +35,11 @@ trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends No
 
   def take(limit: Int): Iterable[TX]
 
-  def filter(txs: Seq[TX]): M = filter(t => !txs.exists(_.id sameElements t.id))
+  def filter(txs: Seq[TX]): M = filter(t => !txs.exists(_.id == t.id))
 
   def filter(condition: TX => Boolean): M
 
   def size: Int
+
+  def getReader: MemPoolReader[TX] = this
 }

@@ -5,20 +5,20 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.serialization._
-import bifrost.network.{BifrostSyncInfo, BifrostSyncInfoSerializer}
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.util.{Failure, Success}
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
 /**
   * Created by cykoz on 4/12/17.
   */
-class SerializationTests extends PropSpec
+class SerializationTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -203,18 +203,6 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("AssetRedemption Serialization") {
-    forAll(assetRedemptionGen) {
-      ar: AssetRedemption =>
-        val parsed = AssetRedemptionCompanion
-          .parseBytes(AssetRedemptionCompanion.toBytes(ar))
-          .get
-
-        AssetRedemptionCompanion.toBytes(parsed) sameElements
-          AssetRedemptionCompanion.toBytes(ar) shouldBe true
-    }
-  }
-
   property("CodeCreation Serialization") {
     forAll(codeBoxCreationGen) {
       ccc: CodeCreation =>
@@ -253,17 +241,20 @@ class SerializationTests extends PropSpec
     }
   }
 
-  property("BifrostSyncInfo Serialization") {
-    forAll(bifrostSyncInfoGen) {
-      syncInfo: BifrostSyncInfo =>
-        val parsed = BifrostSyncInfoSerializer
-          .parseBytes(BifrostSyncInfoSerializer.toBytes(syncInfo))
-          .get
 
-        BifrostSyncInfoSerializer.toBytes(parsed) sameElements
-          BifrostSyncInfoSerializer.toBytes(syncInfo) shouldBe true
-    }
-  }
+  // todo: JAA - 2020.08.02 - this was removed as SyncInfo uses the standard message parsing pattern now.
+  // todo:       We should be sure to move this test to where ever message serialization is tested
+//  property("BifrostSyncInfo Serialization") {
+//    forAll(bifrostSyncInfoGen) {
+//      syncInfo: BifrostSyncInfo =>
+//        val parsed = BifrostSyncInfoSerializer
+//          .parseBytes(BifrostSyncInfoSerializer.toBytes(syncInfo))
+//          .get
+//
+//        BifrostSyncInfoSerializer.toBytes(parsed) sameElements
+//          BifrostSyncInfoSerializer.toBytes(syncInfo) shouldBe true
+//    }
+//  }
 
   property("Bloom Serialization") {
     forAll(intSeqGen) {

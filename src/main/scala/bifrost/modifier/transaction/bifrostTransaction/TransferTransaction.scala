@@ -20,7 +20,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  lazy val hashNoNonces = FastCryptographicHash(
+  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
       //Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
@@ -29,7 +29,7 @@ abstract class TransferTransaction(val from: IndexedSeq[(PublicKey25519Propositi
 
   def json(txType: String): Json =
     Map(
-      "txHash" -> Base58.encode(id).asJson,
+      "txHash" -> id.toString.asJson,
       "txType" -> txType.asJson,
       "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
       "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,

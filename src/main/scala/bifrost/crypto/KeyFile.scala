@@ -82,7 +82,7 @@ object KeyFile {
 
     val salt = FastCryptographicHash(uuid)
 
-    var (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
+    val (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
 
@@ -101,11 +101,13 @@ object KeyFile {
   def getPkFromSk(sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
 
   def readFile(filename: String): KeyFile = {
-    val jsonString = scala.io.Source.fromFile(filename).mkString
-    parse(jsonString).right.get.as[KeyFile] match {
+    val jsonString = scala.io.Source.fromFile(filename)
+    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
       case Right(f: KeyFile) => f
       case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
     }
+    jsonString.close()
+    key
   }
 
   implicit val decodeKeyFile: Decoder[KeyFile] = (c: HCursor) => for {

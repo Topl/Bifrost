@@ -3,10 +3,11 @@ package bifrost.transaction
 import bifrost.modifier.transaction.bifrostTransaction.CoinbaseTransaction
 import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.{Matchers, PropSpec}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class CoinbaseTransactionSpec extends PropSpec
+class CoinbaseTransactionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers

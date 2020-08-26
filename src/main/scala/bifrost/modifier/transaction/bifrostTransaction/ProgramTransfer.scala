@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, ExecutionBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramTransferCompanion
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
@@ -28,7 +28,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
   override type M = ProgramTransfer
 
-  override lazy val serializer: Serializer[ProgramTransfer] = ProgramTransferCompanion
+  override lazy val serializer: BifrostSerializer[ProgramTransfer] = ProgramTransferCompanion
 
   override def toString: String = s"ProgramTransfer(${json.noSpaces})"
 
@@ -61,7 +61,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
   )
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "ProgramTransfer".asJson,
     "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
     "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,
