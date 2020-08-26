@@ -3,11 +3,11 @@ package example
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
-import crypto.PrivateKey25519Companion
 import _root_.requests.Requests
 import akka.util.ByteString
 import io.circe.Json
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import keymanager.{KeyFile, KeyManager}

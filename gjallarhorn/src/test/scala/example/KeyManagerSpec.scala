@@ -4,14 +4,15 @@ package example
 
 import crypto.{PrivateKey25519, PrivateKey25519Companion, PublicKey25519Proposition}
 import keymanager.{KeyFile, KeyManager}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
 import scala.reflect.io.Path
 import scala.util.Try
 
-class KeyManagerSpec extends WordSpec with Matchers {
+class KeyManagerSpec extends AnyWordSpec with Matchers {
   val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
 

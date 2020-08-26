@@ -23,7 +23,7 @@ test in assembly := {}
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
 val akkaVersion = "2.5.31"
-val akkaHttpVersion = "10.1.12"
+val akkaHttpVersion = "10.2.0"
 val circeVersion = "0.13.0"
 
 val akkaDependencies = Seq(
@@ -71,17 +71,11 @@ val cryptoDependencies = Seq(
 libraryDependencies ++= Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.chuusai" %% "shapeless" % "2.3.3",
-<<<<<<< HEAD
-  "com.google.guava" % "guava" % "19.0"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
-
-=======
   "com.google.guava" % "guava" % "19.0",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
   "com.joefkelley" %% "argyle" % "1.0.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
->>>>>>> 59a2fd9dcbb66375733d1b2f6cc8b856d03b94c1
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -197,7 +191,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies
+    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ akkaDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
