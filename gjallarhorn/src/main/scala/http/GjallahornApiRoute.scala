@@ -31,8 +31,8 @@ class GjallahornApiRoute {
   val requestHandler: HttpRequest => HttpResponse = {
     case HttpRequest(POST, Uri.Path("/transaction"), _, entity, _) =>
       val postBody = r.byteStringToJSON(entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b })
-      val tx = r.transaction((postBody \\ "method"), )
-      HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`,))
+      val tx = r.transaction((postBody \\ "method"), (postBody \\ "issuer"), (postBody \\ "recipient"), (postBody \\ "amount"))
+      HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, tx))
 
     case HttpRequest(GET, Uri.Path("/ping"), _, _, _) =>
       HttpResponse(entity = "PONG!")
