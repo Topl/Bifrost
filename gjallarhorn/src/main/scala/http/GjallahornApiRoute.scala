@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model._
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
+import akka.util.ByteString
 import requests.Requests
 import io.circe.Json
 
@@ -20,18 +21,18 @@ class GjallahornApiRoute {
 
   val r = new Requests
 
-  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-    method match {
-      case "transaction" => r.transaction(params.head, id)
-      case "signTx" => r.signTx(params.head, id)
-      case "broadcastTx" => r.broadcastTx(params.head, id)
-    }
+//  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+//    method match {
+//      case "transaction" => r.transaction(params.head, id)
+//      case "signTx" => r.signTx(params.head, id)
+//      case "broadcastTx" => r.broadcastTx(params.head, id)
+//    }
 
   val requestHandler: HttpRequest => HttpResponse = {
-    case HttpRequest(GET, Uri.Path("/transaction"), _, _, _) =>
-      HttpResponse(entity = HttpEntity(
-        ContentTypes.`text/html(UTF-8)`,
-        "<html><body>Hello world!</body></html>"))
+    case HttpRequest(POST, Uri.Path("/transaction"), _, entity, _) =>
+      val postBody = r.byteStringToJSON(entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b })
+      val tx = r.transaction((postBody \\ "method"), )
+      HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`,))
 
     case HttpRequest(GET, Uri.Path("/ping"), _, _, _) =>
       HttpResponse(entity = "PONG!")

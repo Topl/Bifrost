@@ -5,6 +5,7 @@ import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import _root_.requests.Requests
 import akka.util.ByteString
+import crypto.PrivateKey25519Companion
 import io.circe.Json
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
