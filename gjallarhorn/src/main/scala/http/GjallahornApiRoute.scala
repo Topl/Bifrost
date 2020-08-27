@@ -17,7 +17,8 @@ class GjallahornApiRoute extends ApiRoute {
   //DOMAIN: KeyManagerActor
     //[???] Is it possible to extend strict logging for actors?
   object KeyManagerActor {
-
+    case class lockKeyFile(publicKeyString: String, password: String)
+    case class unlockKeyFile(publicKeyString: String, password: String)
   }
 
   //Essential for unique instantiation of KeyManagerActor
@@ -27,7 +28,12 @@ class GjallahornApiRoute extends ApiRoute {
   }
 
   class KeyManagerActor {
+    //If stateful actor, list variables here
 
+    override def receive: Receive = {
+      case lockKeyFile(publicKeyString, password) => ???
+      case unlockKeyFile(publicKeyString, password) => ???
+    }
   }
 
 //--------------------------------------------------------------------------------------
