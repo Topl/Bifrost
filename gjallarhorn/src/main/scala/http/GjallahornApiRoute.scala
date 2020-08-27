@@ -29,6 +29,7 @@ class GjallahornApiRoute extends ApiRoute {
     method match {
       case "transaction" => createAssetsPrototype(params.head, id)
       case "signTx" => signTx(params.head, id)
+      case "broadcastTx" => broadcastTx(params.head, id)
     }
 
   def createAssetsPrototype(params: Json, id: String): Future[Json] = {
@@ -64,25 +65,28 @@ class GjallahornApiRoute extends ApiRoute {
     r.signTx(tx, keyManager, props)
   }
 
+  def broadcastTx(params: Json, id: String): Future[Json] = {
+    r.broadcastTx(params)
+  }
 
 
 
+  /*
+    transaction
+
+    broadcast
+
+    sign
+
+    postJSON route
+
+    API response.scala
+
+    basicRoute --> check dev branch - in ApiRoute
+  }
+  routes
+
+  need a handler (look at AssetAPI Route)
+   */
 }
 
-/*
-  transaction
-
-  broadcast
-
-  sign
-
-  postJSON route
-
-  API response.scala
-
-  basicRoute --> check dev branch - in ApiRoute
-}
-routes
-
-need a handler (look at AssetAPI Route)
- */
