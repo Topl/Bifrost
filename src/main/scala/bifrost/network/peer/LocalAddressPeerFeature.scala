@@ -9,7 +9,7 @@ case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeatu
   override type M = LocalAddressPeerFeature
   override val featureId: PeerFeature.Id = LocalAddressPeerFeature.featureId
 
-  override def serializer: LocalAddressPeerFeatureSerializer.type = LocalAddressPeerFeatureSerializer
+  def serializer: LocalAddressPeerFeatureSerializer.type = LocalAddressPeerFeatureSerializer
 }
 
 object LocalAddressPeerFeature {

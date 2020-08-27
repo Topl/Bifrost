@@ -47,7 +47,6 @@ class NodeViewSynchronizer[
  (implicit ec: ExecutionContext) extends Actor with Logging with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
-
   import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
   import bifrost.network.SharedNetworkMessages.ReceivableMessages.DataFromPeer

@@ -5,8 +5,8 @@ import bifrost.crypto.PrivateKey25519Companion
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.modifier.ModifierId
