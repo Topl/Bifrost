@@ -4,46 +4,52 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
-import requests.Requests
+import requests.{ApiRoute, Requests}
 import io.circe.Json
+import io.circe.syntax._
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.Future
 
-class GjallahornApiRoute {
+class GjallahornApiRoute extends ApiRoute {
 
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val serverSource = Http().newServerAt("localhost", 9086).connectionSource()
-
   val r = new Requests
+  override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
-//  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
-//    method match {
-//      case "transaction" => r.transaction(params.head, id)
-//      case "signTx" => r.signTx(params.head, id)
-//      case "broadcastTx" => r.broadcastTx(params.head, id)
-//    }
+  def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
+    method match {
+      case "transaction" => createAssetsPrototype(params.head, id)
+    }
 
-  val requestHandler: HttpRequest => HttpResponse = {
-    case HttpRequest(POST, Uri.Path("/transaction"), _, entity, _) =>
-      val postBody = r.byteStringToJSON(entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b })
-      val tx = r.transaction((postBody \\ "method"), (postBody \\ "issuer"), (postBody \\ "recipient"), (postBody \\ "amount"))
-      HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, tx))
+  def createAssetsPrototype(params: Json, id: String): Future[Json] = {
+    val issuer = (params \\ "issuer").head.asString.get
+    val recipient = (params \\ "recipient").head.asString.get
+    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+    val assetCode: String =
+      (params \\ "assetCode").head.asString.getOrElse("")
+    val fee: Long =
+      (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+    val data: String = (params \\ "data").headOption match {
+      case Some(dataStr) => dataStr.asString.getOrElse("")
+      case None          => ""
+    }
 
-    case HttpRequest(GET, Uri.Path("/ping"), _, _, _) =>
-      HttpResponse(entity = "PONG!")
-
-    case HttpRequest(GET, Uri.Path("/crash"), _, _, _) =>
-      sys.error("BOOM!")
-
-    case r: HttpRequest =>
-      r.discardEntityBytes() // important to drain incoming HTTP Entity stream
-      HttpResponse(404, entity = "Unknown resource!")
+    val tx = r.transaction("createAssetsPrototype", issuer, recipient, amount)
+    Map(
+      "formattedTx" ->  r.byteStringToJSON(tx),
+      "messageToSign" -> (r.byteStringToJSON(tx) \\ "messageToSign").head
+    ).asJson
   }
+
+
+
 
 }
 

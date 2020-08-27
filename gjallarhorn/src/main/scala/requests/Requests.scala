@@ -1,6 +1,6 @@
 package requests
 
-import akka.actor.{ActorSystem}
+import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
@@ -14,8 +14,9 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-
 import scorex.crypto.encode.Base58
+
+import scala.util.Try
 
 class Requests extends {
   implicit val actorSystem: ActorSystem = ActorSystem()
@@ -51,6 +52,13 @@ class Requests extends {
       }
     }
     Await.result(parsedData, 2 seconds)
+  }
+
+  def byteStringToJSON(data: ByteString): Json = {
+    parser.parse(data.utf8String) match {
+        case Right(parsed) => parsed
+        case Left(e) => throw e.getCause
+      }
   }
 
   def jsonToByteString(data: Json): ByteString = {
@@ -98,7 +106,7 @@ class Requests extends {
     ).asJson
   }
 
-  def transaction(method: String, issuer: String, recipient: String, amount: Int): ByteString = {
+  def transaction(method: String, issuer: String, recipient: String, amount: Long): ByteString = {
     var requestBody: ByteString = ByteString.empty
     method match {
       case "createAssetsPrototype" => {
