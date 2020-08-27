@@ -1,6 +1,8 @@
 package http
 
-import akka.actor.ActorSystem
+//Akka Actor Dependencies
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model._
@@ -26,7 +28,7 @@ class GjallahornApiRoute extends ApiRoute {
 
   //DOMAIN: KeyManagerActor
   object KeyManagerActor {
-
+    def apply()
   }
 
   //Essential for unique instantiation of KeyManagerActor
