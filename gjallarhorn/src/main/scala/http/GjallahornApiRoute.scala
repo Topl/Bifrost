@@ -1,39 +1,29 @@
 package http
 
 //Akka Actor Dependencies
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Sink
-import akka.util.ByteString
-import crypto.PrivateKey25519
-import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.KeyManager
-import scorex.crypto.encode.Base58
-
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class GjallahornApiRoute extends ApiRoute {
 
+  //Necessary Akka Actor Components
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val ec: ExecutionContext = system.dispatcher
 //--------------------------------------------------------------------------------------
   //PROSPECTIVE ACTOR FUNCTIONALITY
 
   //DOMAIN: KeyManagerActor
+    //[???] Is it possible to extend strict logging for actors?
   object KeyManagerActor {
-    def apply()
+
   }
 
   //Essential for unique instantiation of KeyManagerActor
   object KeyManagerActorRef {
-
+    def apply(var secrets: Set[PrivateKey25519], defaultKeyDir: String)(implicit actorsystem: ActorSystem, ec: ExecutionContext): ActorRef = actorsystem.actorOf(props(secrets, defaultKeyDir))
+    def props(var secrets: Set[PrivateKey25519], defaultKeyDir: String)(implicit ec: ExecutionContext): Props = Props(new KeyManagerActor(secrets, defaultKeyDir))
   }
 
   class KeyManagerActor {
