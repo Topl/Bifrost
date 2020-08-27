@@ -26,6 +26,7 @@ class GjallahornApiRoute extends ApiRoute {
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
       case "transaction" => createAssetsPrototype(params.head, id)
+      case "signTx" => signTx(params.head, id)
     }
 
   def createAssetsPrototype(params: Json, id: String): Future[Json] = {
@@ -42,10 +43,14 @@ class GjallahornApiRoute extends ApiRoute {
     }
 
     val tx = r.transaction("createAssetsPrototype", issuer, recipient, amount)
-    Map(
-      "formattedTx" ->  r.byteStringToJSON(tx),
-      "messageToSign" -> (r.byteStringToJSON(tx) \\ "messageToSign").head
-    ).asJson
+    r.sendRequest(tx, "asset")
+  }
+
+  def signTx(params: Json, id: String): Future[Json] = {
+    val props = (params \\ "signingKeys").head.asArray.get
+    val tx = (params \\ "protoTx").head
+    val keyManager = (params \\ "keyManager").head
+    r.signTx(tx, keyManager, props)
   }
 
 
