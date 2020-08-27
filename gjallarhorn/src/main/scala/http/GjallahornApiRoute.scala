@@ -8,9 +8,11 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
+import crypto.PrivateKey25519
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
+import keymanager.KeyManager
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Future
@@ -47,9 +49,18 @@ class GjallahornApiRoute extends ApiRoute {
   }
 
   def signTx(params: Json, id: String): Future[Json] = {
-    val props = (params \\ "signingKeys").head.asArray.get
+    val props = (params \\ "signingKeys").head.asArray.get.map(k =>
+     k.asString.get
+    ).toList
     val tx = (params \\ "protoTx").head
-    val keyManager = (params \\ "keyManager").head
+    // this is going to be sketchy... but there's no other way to get the keyManager instance...
+    val secrets = (params \\ "secrets").head.asArray.get.map(k =>
+      ???
+    )
+    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
+
+    val keyManager = KeyManager(secrets, defaultKeyDir)
+
     r.signTx(tx, keyManager, props)
   }
 
