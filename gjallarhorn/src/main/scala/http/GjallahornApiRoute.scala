@@ -21,7 +21,24 @@ class GjallahornApiRoute extends ApiRoute {
 
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+//--------------------------------------------------------------------------------------
+  //PROSPECTIVE ACTOR FUNCTIONALITY
 
+  //DOMAIN: KeyManagerActor
+  object KeyManagerActor {
+
+  }
+
+  //Essential for unique instantiation of KeyManagerActor
+  object KeyManagerActorRef {
+
+  }
+
+  class KeyManagerActor {
+
+  }
+
+//--------------------------------------------------------------------------------------
   val r = new Requests
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
