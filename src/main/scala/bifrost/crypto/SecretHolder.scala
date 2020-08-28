@@ -51,15 +51,26 @@ case class PrivateKey25519(privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte
 }
 
 object PrivateKey25519Serializer extends BifrostSerializer[PrivateKey25519] {
-  override def toBytes(obj: PrivateKey25519): Array[Byte] = Bytes.concat(obj.privKeyBytes, obj.publicKeyBytes)
 
-  override def parseBytes(bytes: Array[Byte]): Try[PrivateKey25519] = Try {
-    PrivateKey25519(bytes.slice(0, 32), bytes.slice(32, 64))
+  override def serialize(obj: PrivateKey25519, w: Writer): Unit = {
+    /* privKeyBytes: Array[Byte] */
+    w.putBytes(obj.privKeyBytes)
+
+    /* publicKeyBytes: Array[Byte] */
+    w.putBytes(obj.publicKeyBytes)
   }
 
-  override def serialize(obj: PrivateKey25519, w: Writer): Unit = ???
+  override def parse(r: Reader): PrivateKey25519 = {
+    PrivateKey25519(r.getBytes(Curve25519.KeyLength), r.getBytes(Curve25519.KeyLength))
+  }
 
-  override def parse(r: Reader): PrivateKey25519 = ???
+//  TODO: Jing - remove
+//
+//  override def toBytes(obj: PrivateKey25519): Array[Byte] = Bytes.concat(obj.privKeyBytes, obj.publicKeyBytes)
+//
+//  override def parseBytes(bytes: Array[Byte]): Try[PrivateKey25519] = Try {
+//    PrivateKey25519(bytes.slice(0, 32), bytes.slice(32, 64))
+//  }
 }
 
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
