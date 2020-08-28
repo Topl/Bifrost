@@ -12,6 +12,24 @@ import scala.util.Try
 
 object ProgramTransactionCompanion extends BifrostSerializer[ProgramTransaction] {
 
+  override def serialize(obj: ProgramTransaction, w: Writer): Unit = {
+    obj match {
+      case cc: ProgramCreation =>
+        w.putByteString("ProgramCreation")
+        ProgramCreationCompanion.serialize(cc, w)
+      case cme: ProgramMethodExecution =>
+        w.putByteString("ProgramMethodExecution")
+        ProgramMethodExecutionCompanion.serialize(cme, w)
+    }
+  }
+
+  override def parse(r: Reader): ProgramTransaction = {
+    r.getByteString() match {
+      case "ProgramCreation" => ProgramCreationCompanion.parse(r)
+      case "ProgramMethodExecution" => ProgramMethodExecutionCompanion.parse(r)
+    }
+  }
+
   val typeBytes: Array[Byte] = "ProgramTransaction".getBytes
 
   val prefixBytes: Array[Byte] = Ints.toByteArray(typeBytes.length) ++ typeBytes
@@ -99,8 +117,4 @@ object ProgramTransactionCompanion extends BifrostSerializer[ProgramTransaction]
 
     (owner, signatures, feePreBoxes, fees, timestamp)
   }
-
-  override def parse(r: Reader): ProgramTransaction = ???
-
-  override def serialize(obj: ProgramTransaction, w: Writer): Unit = ???
 }
