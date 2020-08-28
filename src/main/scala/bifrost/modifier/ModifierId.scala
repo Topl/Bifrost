@@ -12,9 +12,11 @@ case class ModifierId(hashBytes: Array[Byte]) {
     java.util.Arrays.equals(hashBytes, o.asInstanceOf[ModifierId].hashBytes)
   }
 
+
   override def toString: String = Base58.encode(hashBytes)
 }
 
 object ModifierId {
 
+  implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 }

@@ -33,7 +33,7 @@ class BlockProcessor {
   val BestChainMarker: Array[Byte] = Array(1: Byte)
   val NonBestChainMarker: Array[Byte] = Array(0: Byte)
 
-  private implicit val ord: Ordering[CacheBlock] = Ordering[(Int, Array[Byte])].on(x => (x.height, x.id.hashBytes))
+  private implicit val ord: Ordering[CacheBlock] = Ordering[(Int, ModifierId)].on(x => (x.height, x.id))
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 
