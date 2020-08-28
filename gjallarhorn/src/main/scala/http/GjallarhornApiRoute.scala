@@ -11,7 +11,7 @@ import keymanager.KeyManager
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class GjallahornApiRoute(implicit val context: ActorRefFactory) extends ApiRoute {
+class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
