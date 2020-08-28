@@ -14,7 +14,7 @@ import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager
 import scorex.crypto.encode.Base58
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class GjallahornApiRoute extends ApiRoute {
@@ -24,6 +24,8 @@ class GjallahornApiRoute extends ApiRoute {
 
   val r = new Requests
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
+
+  Http().newServerAt("localhost", 9086).bind(route)
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
@@ -46,7 +48,7 @@ class GjallahornApiRoute extends ApiRoute {
     }
 
     val tx = r.transaction("createAssetsPrototype", issuer, recipient, amount)
-    r.sendRequest(tx, "asset")
+    Future{r.sendRequest(tx, "asset")}
   }
 
   def signTx(params: Json, id: String): Future[Json] = {
@@ -55,18 +57,15 @@ class GjallahornApiRoute extends ApiRoute {
     ).toList
     val tx = (params \\ "protoTx").head
     // this is going to be sketchy... but there's no other way to get the keyManager instance...
-    val secrets = (params \\ "secrets").head.asArray.get.map(k =>
-      ???
-    )
     val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
+    val keyManager = KeyManager(Set(), defaultKeyDir)
 
-    val keyManager = KeyManager(secrets, defaultKeyDir)
+    Future{r.signTx(tx, keyManager, props)}
 
-    r.signTx(tx, keyManager, props)
   }
 
   def broadcastTx(params: Json, id: String): Future[Json] = {
-    r.broadcastTx(params)
+    Future{r.broadcastTx(params)}
   }
 
 
