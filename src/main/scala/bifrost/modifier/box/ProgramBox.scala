@@ -29,7 +29,7 @@ object ProgramBoxSerializer extends BifrostSerializer[ProgramBox] {
 
   override def serialize(obj: ProgramBox, w: Writer): Unit = {
     PublicKey25519PropositionSerializer.serialize(obj.proposition, w)
-    w.putULong(obj.nonce)
+    w.putLong(obj.nonce)
 
     // The SignificantBits could be negative longs
     w.putLong(obj.value.getMostSignificantBits)
@@ -39,7 +39,7 @@ object ProgramBoxSerializer extends BifrostSerializer[ProgramBox] {
   override def parse(r: Reader): ProgramBox = {
     new ProgramBox(
       PublicKey25519PropositionSerializer.parse(r),
-      r.getULong(),
+      r.getLong(),
       /* A UUID represents a 128-bit value, the two longs are the most and least significant 64 bits of this UUID */
       new UUID(r.getLong(), r.getLong())
     )

@@ -14,7 +14,6 @@ case class PolyBox(override val proposition: PublicKey25519Proposition,
 object PolyBoxSerializer extends BifrostSerializer[PolyBox] {
 
   override def serialize(obj: PolyBox, w: Writer): Unit = {
-    w.putByteString("PolyBox")
     NoncedBoxSerializer.serialize(obj, w)
   }
 

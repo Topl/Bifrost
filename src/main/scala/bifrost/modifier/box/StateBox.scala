@@ -5,7 +5,6 @@ import java.util.UUID
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import bifrost.utils.Extensions._
 import com.google.common.primitives.Longs
 import io.circe.parser
 import io.circe.syntax._
@@ -55,22 +54,16 @@ object StateBox {
 object StateBoxSerializer extends BifrostSerializer[StateBox] {
 
   override def serialize(obj: StateBox, w: Writer): Unit = {
-    w.putByteString("StateBox")
     ProgramBoxSerializer.serialize(obj, w)
 
     /* state: Json, JSON representation of JS Variable Declarations */
-    val state: Array[Byte] = obj.state.noSpaces.getBytes
-    w.putUInt(state.length)
-    w.putBytes(state)
+    w.putIntString(obj.state.noSpaces)
   }
 
   override def parse(r: Reader): StateBox = {
     val programBox: ProgramBox = ProgramBoxSerializer.parse(r)
 
-    /* state: Json, JSON representation of JS Variable Declarations */
-    val stateLength: Int = r.getUInt().toIntExact
-    val stateString: String = new String(r.getBytes(stateLength))
-    val state: Json = parser.parse(stateString) match {
+    val state: Json = parser.parse(r.getIntString()) match {
       case Left(f) => throw f
       case Right(j: Json) => j
     }

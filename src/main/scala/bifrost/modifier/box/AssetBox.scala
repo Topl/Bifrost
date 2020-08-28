@@ -32,10 +32,14 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
 
     // TODO: Jing - Do we want to serialize in the same order as the fields in the case class? (asset-issuer-data)
     // TODO: Jing - Do we want to stick with the same naming scheme? (amount/value)
-    w.putByteString("AssetBox")
     NoncedBoxSerializer.serialize(obj, w)
-    PublicKey25519PropositionSerializer.serialize(obj.issuer, w)
+
+    /* assetCode: String */
     w.putIntString(obj.assetCode)
+
+    PublicKey25519PropositionSerializer.serialize(obj.issuer, w)
+
+    /* data: String */
     w.putIntString(obj.data)
   }
 

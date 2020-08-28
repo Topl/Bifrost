@@ -12,7 +12,6 @@ case class ArbitBox(override val proposition: PublicKey25519Proposition,
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {
 
   override def serialize(obj: ArbitBox, w: Writer): Unit = {
-    w.putByteString("ArbitBox")
     NoncedBoxSerializer.serialize(obj, w)
   }
 

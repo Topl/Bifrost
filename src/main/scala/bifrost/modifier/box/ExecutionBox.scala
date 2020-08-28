@@ -60,12 +60,10 @@ object ExecutionBox {
 object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 
   override def serialize(obj: ExecutionBox, w: Writer): Unit = {
-    w.putByteString("ExecutionBox")
     ProgramBoxSerializer.serialize(obj, w)
 
     /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
     w.putUInt(obj.stateBoxUUIDs.length)
-
     obj.stateBoxUUIDs.foreach { id =>
       w.putLong(id.getMostSignificantBits)
       w.putLong(id.getLeastSignificantBits)

@@ -30,15 +30,20 @@ import scorex.crypto.encode.Base58
 object NoncedBoxSerializer extends BifrostSerializer[NoncedBox] {
 
   override def serialize(obj: NoncedBox, w: Writer): Unit = {
+    /* proposition: PublicKey25519Proposition */
     PublicKey25519PropositionSerializer.serialize(obj.proposition, w)
-    w.putULong(obj.nonce)
+
+    /* nonce: Long */
+    w.putLong(obj.nonce)
+
+    /* value: Long */
     w.putULong(obj.value)
   }
 
   override def parse(r: Reader): NoncedBox = {
     new NoncedBox(
       PublicKey25519PropositionSerializer.parse(r),
-      r.getULong(),
+      r.getLong(),
       r.getULong()
     )
   }

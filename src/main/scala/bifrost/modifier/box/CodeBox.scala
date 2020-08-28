@@ -57,7 +57,6 @@ object CodeBox {
 object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
 
   override def serialize(obj: CodeBox, w: Writer): Unit = {
-    w.putByteString("CodeBox")
     ProgramBoxSerializer.serialize(obj, w)
 
     /* code: Seq[String], List of strings of JS functions */
@@ -66,7 +65,6 @@ object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
 
     /* interface: Map[String, Seq[String]] */
     w.putUInt(obj.interface.size)
-
     obj.interface.foreach { case (methodName, params) =>
       w.putIntString(methodName)
       w.putUInt(params.length)

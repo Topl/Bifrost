@@ -36,12 +36,24 @@ object BoxSerializer extends BifrostSerializer[Box] {
 
   override def serialize(obj: Box, w: Writer): Unit = {
     obj match {
-      case p: PolyBox => PolyBoxSerializer.serialize(p, w)
-      case a: ArbitBox => ArbitBoxSerializer.serialize(a, w)
-      case as: AssetBox => AssetBoxSerializer.serialize(as, w)
-      case sb: StateBox => StateBoxSerializer.serialize(sb, w)
-      case cb: CodeBox => CodeBoxSerializer.serialize(cb, w)
-      case eb: ExecutionBox => ExecutionBoxSerializer.serialize(eb, w)
+      case p: PolyBox =>
+        w.putByteString("PolyBox")
+        PolyBoxSerializer.serialize(p, w)
+      case a: ArbitBox =>
+        w.putByteString("ArbitBox")
+        ArbitBoxSerializer.serialize(a, w)
+      case as: AssetBox =>
+        w.putByteString("AssetBox")
+        AssetBoxSerializer.serialize(as, w)
+      case sb: StateBox =>
+        w.putByteString("StateBox")
+        StateBoxSerializer.serialize(sb, w)
+      case cb: CodeBox =>
+        w.putByteString("CodeBox")
+        CodeBoxSerializer.serialize(cb, w)
+      case eb: ExecutionBox =>
+        w.putByteString("ExecutionBox")
+        ExecutionBoxSerializer.serialize(eb, w)
       case _ => throw new Exception("Unanticipated Box type")
     }
   }
