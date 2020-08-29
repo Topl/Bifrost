@@ -77,7 +77,7 @@ object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
 
     /* code: Seq[String], List of strings of JS functions */
     val codeLength: Int = r.getUInt().toIntExact
-    val code: Seq[String] = (0 until codeLength).map(_ => r.getIntString()
+    val code: Seq[String] = (0 until codeLength).map(_ => r.getIntString())
 
     /* interface: Map[String, Seq[String]] */
     val interfaceSize: Int = r.getUInt().toIntExact
