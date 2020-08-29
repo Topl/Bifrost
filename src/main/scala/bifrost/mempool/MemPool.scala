@@ -85,7 +85,9 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
 
   override def size: Int = unconfirmed.size
 
-  override def modifierById(modifierId: ModifierId): Option[Transaction] = ???
+  override def modifierById(modifierId: ModifierId): Option[Transaction] = {
+    unconfirmed.get(ByteArrayWrapper(modifierId.hashBytes))
+  }
 }
 
 
