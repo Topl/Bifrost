@@ -65,10 +65,16 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
         bytes.head match {
           case Block.modifierTypeId =>
             val parsed = {
+              BlockCompanion.parseBytes(bytes.tail)
+
+              //  TODO: Jing - remove
+              //
+              /*
               heightOf(blockId) match {
                 case Some(x) if x <= settings.forgingSettings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
                 case _ => BlockCompanion.parseBytes(bytes.tail)
               }
+              */
             }
             parsed match {
               case Failure(e) =>
