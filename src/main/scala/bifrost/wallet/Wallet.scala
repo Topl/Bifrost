@@ -40,9 +40,6 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
 
-  //not implemented intentionally for now
-  def historyTransactions: Seq[WalletTransaction[PI, Transaction]] = ???
-
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction
   def boxes(): Seq[WalletBox[Any, PI, Box]] = {
