@@ -44,7 +44,7 @@ object AssetTransferCompanion extends BifrostSerializer[AssetTransfer] with Tran
     w.putIntString(obj.data)
 
     /* issuer: PublicKey25519Proposition */
-    PublicKey25519PropositionSerializer.serialize(obj.issuer)
+    PublicKey25519PropositionSerializer.serialize(obj.issuer, w)
 
     /* assetCode: String */
     w.putIntString(obj.assetCode)
