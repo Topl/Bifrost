@@ -104,15 +104,16 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         // Determine if this block is on the canonical chain
         val builtOnBestChain = applicable(block)
         // Check that the new block's parent is the last best block
-        val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
-          log.debug(s"New orphaned block ${block.id.toString}")
-          ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-        } else if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) { // new block parent is best block so far
-          log.debug(s"New best block ${block.id.toString}")
-          ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-        } else { // we want to swap to a fork
-          bestForkChanges(block)
-        }
+        val mod: ProgressInfo[Block] =
+          // new block parent is best block so far
+          if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) {
+            log.debug(s"New best block ${block.id.toString}")
+            ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+          } else {
+            // we want to check for a fork
+            val processor = new BlockProcessor
+            processor.process(block)
+          }
 
         storage.update(block, difficulty, builtOnBestChain)
         (new History(storage, settings, validators), mod)

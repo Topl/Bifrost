@@ -1,18 +1,32 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
+import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.nodeView.NodeViewModifier.idToBytes
+import bifrost.utils.BifrostEncoding
 import io.iohk.iodb.ByteArrayWrapper
 
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor {
+class BlockProcessor extends BifrostEncoding {
 
+  /**
+    * Process a single block and determine if any of the possible chains in the
+    * chain cache are taller than the main chain section
+    *
+    * @param block - new block to put in cache
+    * @return
+    */
+  def process(block: Block): ProgressInfo[Block] = {
+    ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+  }
+}
 
+  object BlockProcessor {
 
-
-  case class CacheBlock(id: ModifierId, height: Int)
+    case class CacheBlock(id: ModifierId, height: Int)
 
   /**
     * Stores links mapping ((id, height) -> parentId) of blocks that could possibly be applied.
