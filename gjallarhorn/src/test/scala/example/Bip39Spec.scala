@@ -2,13 +2,14 @@ package example
 
 import keymanager.{Bip39, KeyFile}
 import keymanager.KeyFile.uuid
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.reflect.io.Path
 import scala.util.Try
 import scorex.crypto.hash.Blake2b256
 
-class Bip39Spec extends FlatSpec with Matchers {
+class Bip39Spec extends AnyFlatSpec with Matchers {
 
   val keyFileDir = "/tmp/gjallarhorn/test-data/keyfiles/bip39test"
   val path: Path = Path(keyFileDir)
