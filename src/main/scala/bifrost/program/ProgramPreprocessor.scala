@@ -3,7 +3,7 @@ package bifrost.program
 import java.nio.file.{Files, Path}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.coding.Gzip
+import akka.http.scaladsl.coding.{Coders, Gzip}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import bifrost.crypto.Signature25519
@@ -20,7 +20,7 @@ import scorex.crypto.encode.{Base58, Base64}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.matching.Regex
 
@@ -35,10 +35,13 @@ case class ProgramPreprocessor(name: String,
                                code: Map[String, String],
                                signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
 
+  implicit val system = ActorSystem("QuickStart")
+  implicit val materializer = ActorMaterializer()
+
   lazy val json: Json = Map(
     //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
     "name" -> name.asJson,
-    "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
+    "initjs" -> Base64.encode(Await.result(Coders.Gzip.encodeAsync(ByteString(initjs.getBytes)), 10 seconds).toArray[Byte]).asJson,
     "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
     "variables" -> variables.asJson,
     "code" -> code.map(a => a._1 -> a._2).asJson,
@@ -336,7 +339,7 @@ object ProgramPreprocessor {
   } yield {
 
     def decodeGzip(zipped: String): Future[ByteString] = {
-      Gzip.decode(ByteString(Base64.decode(zipped)))
+      Coders.Gzip.decode(ByteString(Base64.decode(zipped)))
     }
 
     Await.result({
