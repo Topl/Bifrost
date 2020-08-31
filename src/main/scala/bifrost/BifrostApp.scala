@@ -147,8 +147,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       case Success(_) | Failure(_) => failedP2P()
     }
 
-    // trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure
-    Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort).onComplete {
+    Http().newServerAt(httpHost, httpPort).bindFlow(httpService.compositeRoute).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 

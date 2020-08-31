@@ -61,7 +61,7 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "transaction" => createAssetsPrototype(params.head, id)
+      case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
       case "signTx" => signTx(params.head, id)
       case "broadcastTx" => broadcastTx(params.head, id)
     }
