@@ -225,25 +225,12 @@ class NodeViewSynchronizer[
 
     // Respond with data from the local node
     case ResponseFromLocal(peer, _, modifiers: Seq[NodeViewModifier]) =>
-      @tailrec
-      def sendByParts(modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
-        var size = 5 //message type id + message size
-        val batch = mods.takeWhile { case (_, modBytes) =>
-          size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
-          size < networkSettings.maxPacketSize
-        }
-        peer.handlerRef ! Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
-        val remaining = mods.drop(batch.length)
-        if (remaining.nonEmpty) {
-          sendByParts(modType, remaining)
-        }
-      }
-
+      // retrieve the serializer for the modifier and then send to the remote peer
       modifiers.headOption.foreach { head =>
         val modType = head.modifierTypeId
         modifierSerializers.get(modType) match {
           case Some(serializer: BifrostSerializer[NodeViewModifier]) =>
-            sendByParts(modType, modifiers.map(m => m.id -> serializer.toBytes(m)))
+            sendByParts(peer, modType, modifiers.map(m => m.id -> serializer.toBytes(m)))
           case _ =>
             log.error(s"Undefined serializer for modifier of type $modType")
         }
@@ -354,6 +341,31 @@ class NodeViewSynchronizer[
         val msg = Message(invSpec, Right(InvData(mid, mods)), None)
         networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
     }
+
+  /**
+   * Sends a sequence of local modifiers to a remote peer in chunks determined by the maximum packet size
+   *
+   * @param modType type of modifier that is being sent
+   * @param mods sequence of local modifiers to be sent
+   */
+  @tailrec
+  private def sendByParts(peer: ConnectedPeer, modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
+    var size = 5 //message type id + message size
+    val batch = mods.takeWhile { case (_, modBytes) =>
+      size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
+      size < networkSettings.maxPacketSize
+    }
+
+    // send the chunk of modifiers to the remote
+    val msg = Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
+    networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
+
+    // check if any modifiers are remaining, if so, call this function again
+    val remaining = mods.drop(batch.length)
+    if (remaining.nonEmpty) {
+      sendByParts(peer, modType, remaining)
+    }
+  }
 
   /**
     * Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
