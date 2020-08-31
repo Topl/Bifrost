@@ -2,8 +2,10 @@ package http
 
 import akka.actor.{ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import keymanager.KeyManager
@@ -11,7 +13,18 @@ import keymanager.KeyManager
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends ApiRoute {
+object GjallarhornApiRoute {
+  val r = new Requests
+  def requestResponseByteString(request: HttpRequest): Future[ByteString] = {
+    r.requestResponseByteString(request)
+  }
+
+  def byteStringToJSON(data: Future[ByteString]): Json = {
+    r.byteStringToJSON(data)
+  }
+}
+
+case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -85,6 +98,7 @@ class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends ApiRout
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     Future{r.broadcastTx(params)}
   }
+
 
 
 
