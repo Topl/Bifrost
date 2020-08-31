@@ -98,26 +98,5 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     Future{r.broadcastTx(params)}
   }
-
-
-
-
-  /*
-    transaction
-
-    broadcast
-
-    sign
-
-    postJSON route
-
-    API response.scala
-
-    basicRoute --> check dev branch - in ApiRoute
-  }
-  routes
-
-  need a handler (look at AssetAPI Route)
-   */
 }
 

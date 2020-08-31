@@ -35,7 +35,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRoute
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = "http:localhost:9086/gjallarhorn/",
+      uri = "/gjallarhorn/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
@@ -60,7 +60,6 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRoute
 
     httpPOST(createAssetRequest) ~> route ~> check {
       val res = parse(responseAs[String]).right.get
-      print(res)
       (res \\ "error").isEmpty shouldBe true
       (res \\ "result").head.asObject.isDefined shouldBe true
     }
