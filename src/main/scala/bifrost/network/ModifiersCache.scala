@@ -164,8 +164,8 @@ class BifrostModifiersCache(override val maxSize: Int)
     // try to apply blocks sequentially from the best block
     cache.find { case(k, v) ⇒
       v match {
-        case _ if v.parentId == bestBlock ⇒ tryToApply(k, v)
-        case _ ⇒ false
+        case _ if v.parentId == bestBlock ⇒ tryToApply(k, v) // Tuxman: here for handling headers in the future
+        case _ ⇒ tryToApply(k, v)
       }
     }.map(_._1)
   }

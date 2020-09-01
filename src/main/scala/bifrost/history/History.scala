@@ -43,6 +43,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
 
+  val processor = new BlockProcessor
 
   /**
     * Is there's no history, even genesis block
@@ -106,12 +107,11 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         // Check that the new block's parent is the last best block
         val mod: ProgressInfo[Block] =
           // new block parent is best block so far
-          if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) {
+          if (block.parentId == storage.bestBlockId) {
             log.debug(s"New best block ${block.id.toString}")
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
           } else {
             // we want to check for a fork
-            val processor = new BlockProcessor
             processor.process(this, block)
           }
 

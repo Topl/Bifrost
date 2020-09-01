@@ -25,7 +25,7 @@ class BlockProcessor extends BifrostEncoding with Logging {
     * @return
     */
   def process(history: History, block: Block): ProgressInfo[Block] = {
-    val parentId = block.id
+    val parentId = block.parentId
     if(history.contains(parentId)) {
       chainCache = chainCache.add (block.id, parentId, history.storage.heightOf(parentId).get + 1)
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
@@ -33,6 +33,7 @@ class BlockProcessor extends BifrostEncoding with Logging {
       chainCache.getParent(parentId) match {
         case Some(parent) ⇒
           chainCache.add(block.id, parent.id, parent.height + 1)
+
           ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
         case None ⇒
           log.warn(s"Received orphan block")
