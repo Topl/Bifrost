@@ -8,9 +8,9 @@ import crypto.{PrivateKey25519, ProofOfKnowledgeProposition, PublicKey25519Propo
 
 import scala.util.{Failure, Success}
 
-case class KeyManager(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extends StrictLogging {
+case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extends StrictLogging {
 
-  import KeyManager._
+  import Keys._
   type S = PrivateKey25519
   type PI = ProofOfKnowledgeProposition[S]
 
@@ -62,7 +62,7 @@ case class KeyManager(var secrets: Set[PrivateKey25519], defaultKeyDir: String) 
   }
 }
 
-object KeyManager{
+object Keys{
   def getListOfFiles(dir: String): List[File] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {

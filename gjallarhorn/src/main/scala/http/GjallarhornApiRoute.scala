@@ -8,7 +8,7 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
-import keymanager.KeyManager
+import keymanager.Keys
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -90,7 +90,7 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
     val tx = (params \\ "protoTx").head
     // this is going to be sketchy... but there's no other way to get the keyManager instance...
     val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
-    val keyManager = KeyManager(Set(), defaultKeyDir)
+    val keyManager = Keys(Set(), defaultKeyDir)
 
     Future{r.signTx(tx, keyManager, props)}
   }

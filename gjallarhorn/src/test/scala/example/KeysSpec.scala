@@ -3,7 +3,7 @@
 package example
 
 import crypto.{PrivateKey25519, PrivateKey25519Companion, PublicKey25519Proposition}
-import keymanager.{KeyFile, KeyManager}
+import keymanager.{KeyFile, Keys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
@@ -12,7 +12,7 @@ import scorex.crypto.hash.Blake2b256
 import scala.reflect.io.Path
 import scala.util.Try
 
-class KeyManagerSpec extends AnyWordSpec with Matchers {
+class KeysSpec extends AnyWordSpec with Matchers {
   val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
 
@@ -36,7 +36,7 @@ class KeyManagerSpec extends AnyWordSpec with Matchers {
 
   //Tripartite Seeds in JBOK configuration
   val seeds = Set(seed1, seed2, seed3)
-  val keyManager = KeyManager(Set(), keyFileDir)
+  val keyManager = Keys(Set(), keyFileDir)
   var pubKeys: Set[PublicKey25519Proposition] = Set()
   var privKeys: Set[PrivateKey25519] = Set()
   var keyFiles: Set[KeyFile] = Set()
@@ -105,7 +105,7 @@ class KeyManagerSpec extends AnyWordSpec with Matchers {
   "[F3-A3-XX] ARCHETYPE: A key manager instance" should {
     "[F3-A3-T8] TEST: Have 3 keyfiles" in {
       assert(keyManager.publicKeys.size == 3)
-      assert(KeyManager.getListOfFiles(keyFileDir).size == 3)
+      assert(Keys.getListOfFiles(keyFileDir).size == 3)
     }
     "[F3-A3-T9] TEST: Be unlocked yes path" in {
       keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
@@ -126,7 +126,7 @@ class KeyManagerSpec extends AnyWordSpec with Matchers {
   "[F3-A4-XX] ARCHETYPE: A keyfile" should {
     "TEST: Export is formatted JSON to keystore file" in {
       val keyFile = keyFiles.head
-      val readFile = KeyFile.readFile(KeyManager.getListOfFiles(keyFileDir)(0).getPath)
+      val readFile = KeyFile.readFile(Keys.getListOfFiles(keyFileDir)(0).getPath)
       assert(keyFile.equals(readFile))
     }
     "[F3-A4-12] TEST: Have keys stored in the proper format" in {

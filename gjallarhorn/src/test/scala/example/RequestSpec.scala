@@ -11,7 +11,7 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import keymanager.{KeyFile, KeyManager}
+import keymanager.{KeyFile, Keys}
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -37,7 +37,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
   val password = "pass"
 
   val keyFile = KeyFile(password, seed1, keyFileDir)
-  val keyManager = KeyManager(Set(), keyFileDir)
+  val keyManager = Keys(Set(), keyFileDir)
   keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
   val amount = 10

@@ -6,7 +6,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
-import keymanager.KeyManager
+import keymanager.Keys
 import crypto.{PrivateKey25519Companion, PublicKey25519Proposition, _}
 import io.circe.{Json, parser}
 import io.circe.syntax._
@@ -76,7 +76,7 @@ class Requests extends {
     ByteString(newJSON.toString.getBytes())
   }
 
-  def signTx(transaction: Json, keyManager: KeyManager, signingKeys: List[String]): Json = {
+  def signTx(transaction: Json, keyManager: Keys, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
