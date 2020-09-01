@@ -37,6 +37,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
     /* assetCode: String */
     w.putIntString(obj.assetCode)
 
+    /* issuer: PublicKey25519Proposition */
     PublicKey25519PropositionSerializer.serialize(obj.issuer, w)
 
     /* data: String */
@@ -45,10 +46,11 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
 
   override def parse(r: Reader): AssetBox = {
     val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
 
     // putIntString encode String that is shorter than 2147483647 bytes
     val asset: String = r.getIntString()
+
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
     val data: String = r.getIntString()
 
     AssetBox(noncedBox.proposition, noncedBox.nonce, noncedBox.value, asset, issuer, data)
