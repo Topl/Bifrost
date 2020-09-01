@@ -8,6 +8,7 @@ import bifrost.nodeView.NodeViewModifier.idToBytes
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.ByteArrayWrapper
 
+import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
 class BlockProcessor extends BifrostEncoding with Logging {
@@ -27,18 +28,29 @@ class BlockProcessor extends BifrostEncoding with Logging {
     val parentId = block.id
     if(history.contains(parentId)) {
       chainCache = chainCache.add (block.id, parentId, history.storage.heightOf(parentId).get + 1)
-    }
-    else {
-      chainCache.getParentId(parentId, _) match {
+      ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+    } else {
+      chainCache.getParent(parentId) match {
         case Some(parent) ⇒
-          chainCache.add(block.id, parentId, chainCache.getParentHeight(parent).get + 1)
+          chainCache.add(block.id, parent.id, parent.height + 1)
+          ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
         case None ⇒
           log.warn(s"Received orphan block")
           ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
       }
     }
+  }
 
-    ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+  private def possibleChain(from: CacheBlock): Seq[ModifierId] = {
+    @tailrec
+    def loop(currBlock: Option[ModifierId], height: Long, acc: Seq[ModifierId]): Seq[ModifierId] = {
+      currBlock match {
+        case Some(block) ⇒
+          loop(chainCache.getParentId(block, height), height - 1, block +: acc)
+        case None ⇒ acc
+      }
+    }
+    loop(Some(from.id), from.height, Seq.empty)
   }
 }
 
@@ -54,6 +66,8 @@ class BlockProcessor extends BifrostEncoding with Logging {
     val nonEmpty: Boolean = cache.nonEmpty
 
     def getParentId(id: ModifierId, height: Long): Option[ModifierId] = cache.get(CacheBlock(id, height))
+
+    def getParent(id: ModifierId): Option[CacheBlock] = cache.keys.find(k ⇒ k.id == id)
 
     def getParentHeight(id: ModifierId): Option[Long] = cache.keys.find(k ⇒ k.id == id).map(_.height)
 
