@@ -8,6 +8,7 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.State

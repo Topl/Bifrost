@@ -8,6 +8,7 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderCompanion

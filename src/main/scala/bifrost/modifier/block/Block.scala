@@ -2,11 +2,12 @@ package bifrost.modifier.block
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.block.Block._
-import bifrost.modifier.box.{ArbitBox, BoxSerializer}
+import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
 import io.circe.{Encoder, Json}
 import io.circe.syntax._
 // fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?

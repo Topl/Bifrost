@@ -1,8 +1,10 @@
 package bifrost.modifier.block
 
-import bifrost.crypto.{Signature25519, Signature25519Serializer}
+import bifrost.crypto.Signature25519
+import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.{ArbitBox, BoxSerializer}
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionCompanion
 import bifrost.utils.{bytesToId, idToBytes}

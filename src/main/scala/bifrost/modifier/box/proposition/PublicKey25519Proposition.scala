@@ -62,17 +62,6 @@ object PublicKey25519Proposition {
     }
 }
 
-object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {
-
-  override def serialize(obj: PublicKey25519Proposition, w: Writer): Unit = {
-    w.putBytes(obj.pubKeyBytes)
-  }
-
-  override def parse(r: Reader): PublicKey25519Proposition = {
-    PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
-  }
-}
-
 object Constants25519 {
   val PrivKeyLength = 32
   val PubKeyLength = 32

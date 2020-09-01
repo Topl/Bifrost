@@ -4,6 +4,7 @@ import java.io.File
 
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging

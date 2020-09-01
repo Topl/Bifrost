@@ -1,5 +1,6 @@
 package bifrost.crypto
 
+import bifrost.crypto.serialization.PrivateKey25519Serializer
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.serialization.BytesSerializable
@@ -48,29 +49,6 @@ case class PrivateKey25519(privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte
   override type M = PrivateKey25519
 
   override def serializer: BifrostSerializer[PrivateKey25519] = PrivateKey25519Serializer
-}
-
-object PrivateKey25519Serializer extends BifrostSerializer[PrivateKey25519] {
-
-  override def serialize(obj: PrivateKey25519, w: Writer): Unit = {
-    /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privKeyBytes)
-
-    /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKeyBytes)
-  }
-
-  override def parse(r: Reader): PrivateKey25519 = {
-    PrivateKey25519(r.getBytes(Curve25519.KeyLength), r.getBytes(Curve25519.KeyLength))
-  }
-
-//  TODO: Jing - remove
-//
-//  override def toBytes(obj: PrivateKey25519): Array[Byte] = Bytes.concat(obj.privKeyBytes, obj.publicKeyBytes)
-//
-//  override def parseBytes(bytes: Array[Byte]): Try[PrivateKey25519] = Try {
-//    PrivateKey25519(bytes.slice(0, 32), bytes.slice(32, 64))
-//  }
 }
 
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {

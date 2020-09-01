@@ -2,7 +2,8 @@ package bifrost.modifier.transaction.serialization
 
 import java.util.UUID
 
-import bifrost.crypto.{Signature25519, Signature25519Serializer}
+import bifrost.crypto.Signature25519
+import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce

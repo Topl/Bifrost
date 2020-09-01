@@ -2,23 +2,16 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.crypto.{
-  FastCryptographicHash,
-  MultiSignature25519,
-  PrivateKey25519,
-  Signature25519
-}
+import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
 import bifrost.history.History
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{
-  ProofOfKnowledgeProposition,
-  PublicKey25519Proposition
-}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.serialization.{BoxSerializer, ExecutionBoxSerializer}
 import bifrost.nodeView.NodeViewModifier.idToBytes
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
