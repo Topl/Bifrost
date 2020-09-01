@@ -112,7 +112,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           } else {
             // we want to check for a fork
             val processor = new BlockProcessor
-            processor.process(block)
+            processor.process(this, block)
           }
 
         storage.update(block, difficulty, builtOnBestChain)
