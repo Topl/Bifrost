@@ -107,9 +107,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
     val executionBox = ExecutionBox(owner, execNonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(owner, execNonce)), stateUUIDs, Seq(codeBox.id))
 
-    val investorDeductedBoxes: PolyBox = PolyBox(owner, investorNonce, leftOver)
+    val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
 
-    IndexedSeq(executionBox, stateBox, codeBox) :+ investorDeductedBoxes // nonInvestorDeductedBoxes
+    IndexedSeq(executionBox, stateBox, codeBox) :+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
