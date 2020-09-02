@@ -11,7 +11,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object CoinbaseTransactionCompanion extends BifrostSerializer[CoinbaseTransaction] {
+object CoinbaseTransactionSerializer extends BifrostSerializer[CoinbaseTransaction] {
 
   override def serialize(obj: CoinbaseTransaction, w: Writer): Unit = {
     /* to: IndexedSeq[(PublicKey25519Proposition, Long)] */

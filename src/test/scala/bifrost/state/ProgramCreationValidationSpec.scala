@@ -11,7 +11,7 @@ import bifrost.modifier.box._
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.program.ExecutionBuilderCompanion
+import bifrost.program.ExecutionBuilderSerializer
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
@@ -54,7 +54,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     }
 
     val messageToSign = Bytes.concat(
-      ExecutionBuilderCompanion.toBytes(executionBuilder),
+      ExecutionBuilderSerializer.toBytes(executionBuilder),
       owner.pubKeyBytes,
       data.getBytes)
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))

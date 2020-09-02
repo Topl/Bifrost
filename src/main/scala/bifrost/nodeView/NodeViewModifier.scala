@@ -2,8 +2,8 @@ package bifrost.nodeView
 
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.transaction.serialization.TransactionCompanion
+import bifrost.modifier.block.{Block, BlockSerializer}
+import bifrost.modifier.transaction.serialization.TransactionSerializer
 import bifrost.network.message.InvData
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
 import bifrost.utils.BifrostEncoder
@@ -44,8 +44,8 @@ object NodeViewModifier {
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(
-      Block.modifierTypeId -> BlockCompanion,
-      Transaction.modifierTypeId -> TransactionCompanion
+      Block.modifierTypeId -> BlockSerializer,
+      Transaction.modifierTypeId -> TransactionSerializer
     )
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {

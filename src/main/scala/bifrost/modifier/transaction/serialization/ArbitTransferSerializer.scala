@@ -11,7 +11,7 @@ import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object ArbitTransferCompanion extends BifrostSerializer[ArbitTransfer] with TransferSerializer {
+object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer] with TransferSerializer {
 
   override def serialize(obj: ArbitTransfer, w: Writer): Unit = {
     /* from: IndexedSeq[(PublicKey25519Proposition, Nonce)] */
@@ -77,7 +77,7 @@ object ArbitTransferCompanion extends BifrostSerializer[ArbitTransfer] with Tran
 // TODO: Jing - remove
 //
 //  override def toBytes(ac: ArbitTransfer): Array[Byte] = {
-//    TransferTransactionCompanion.prefixBytes ++ toChildBytes(ac)
+//    TransferTransactionSerializer.prefixBytes ++ toChildBytes(ac)
 //  }
 //
 //  def toChildBytes(ac: ArbitTransfer): Array[Byte] = {

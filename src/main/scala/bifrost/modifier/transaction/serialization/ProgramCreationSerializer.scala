@@ -7,7 +7,7 @@ import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
+import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
 import com.google.common.primitives.{Bytes, Ints, Longs}
@@ -15,11 +15,11 @@ import com.google.common.primitives.{Bytes, Ints, Longs}
 import scala.util.Try
 
 //noinspection ScalaStyle
-object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
+object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
 
   override def serialize(obj: ProgramCreation, w: Writer): Unit = {
     /* executionBuilder: ExecutionBuilder */
-    ExecutionBuilderCompanion.serialize(obj.executionBuilder, w)
+    ExecutionBuilderSerializer.serialize(obj.executionBuilder, w)
 
     /* readOnlyStateBoxes: Seq[UUID] */
     w.putUInt(obj.readOnlyStateBoxes.length)
@@ -62,7 +62,7 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
   }
 
   override def parse(r: Reader): ProgramCreation = {
-    val executionBuilder: ExecutionBuilder = ExecutionBuilderCompanion.parse(r)
+    val executionBuilder: ExecutionBuilder = ExecutionBuilderSerializer.parse(r)
     val readOnlyStateBoxesLength: Int = r.getUInt().toIntExact
     val readOnlyStateBoxes: Seq[UUID] = (0 until readOnlyStateBoxesLength).map(_ => new UUID(r.getLong(), r.getLong()))
     val preInvestmentBoxesLength: Int = r.getUInt().toIntExact
@@ -99,14 +99,14 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 // TODO: Jing - remove
 //
 //  override def toBytes(m: ProgramCreation): Array[Byte] = {
-//    ProgramTransactionCompanion.prefixBytes ++ toChildBytes(m)
+//    ProgramTransactionSerializer.prefixBytes ++ toChildBytes(m)
 //  }
 //
 //  def toChildBytes(m: ProgramCreation): Array[Byte] = {
 //
 //    val typeBytes = "ProgramCreation".getBytes
 //
-//    val executionBuilderBytes = ExecutionBuilderCompanion.toBytes(m.executionBuilder)
+//    val executionBuilderBytes = ExecutionBuilderSerializer.toBytes(m.executionBuilder)
 //
 //    Bytes.concat(
 //      /* First two arguments MUST STAY */
@@ -125,7 +125,7 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 //      },
 //      Ints.toByteArray(m.data.getBytes.length),
 //      m.data.getBytes,
-//      ProgramTransactionCompanion.commonToBytes(m)
+//      ProgramTransactionSerializer.commonToBytes(m)
 //
 //    )
 //  }
@@ -158,7 +158,7 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 //
 //    numReadBytes += Longs.BYTES
 //
-//    val executionBuilder = ExecutionBuilderCompanion.parseBytes(bytesWithoutType.slice(numReadBytes,
+//    val executionBuilder = ExecutionBuilderSerializer.parseBytes(bytesWithoutType.slice(numReadBytes,
 //      numReadBytes + executionBuilderLength.toInt)).get
 //
 //    numReadBytes += executionBuilderLength.toInt
@@ -188,7 +188,7 @@ object ProgramCreationCompanion extends BifrostSerializer[ProgramCreation] {
 //    signatures: Map[PublicKey25519Proposition, Signature25519],
 //    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
 //    fees: Map[PublicKey25519Proposition, Long],
-//    timestamp: Long) = ProgramTransactionCompanion.commonParseBytes(bytesWithoutType.slice(numReadBytes,
+//    timestamp: Long) = ProgramTransactionSerializer.commonParseBytes(bytesWithoutType.slice(numReadBytes,
 //      bytesWithoutType.length))
 //
 //    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, feePreBoxes, fees, timestamp, data)

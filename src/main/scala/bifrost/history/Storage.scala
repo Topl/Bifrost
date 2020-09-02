@@ -1,7 +1,7 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.modifier.ModifierId
 import bifrost.settings.AppSettings
@@ -65,14 +65,14 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
         bytes.head match {
           case Block.modifierTypeId =>
             val parsed = {
-              BlockCompanion.parseBytes(bytes.tail)
+              BlockSerializer.parseBytes(bytes.tail)
 
               //  TODO: Jing - remove
               //
               /*
               heightOf(blockId) match {
-                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
-                case _ => BlockCompanion.parseBytes(bytes.tail)
+                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockSerializer.parseBytes2xAndBefore(bytes.tail)
+                case _ => BlockSerializer.parseBytes(bytes.tail)
               }
               */
             }

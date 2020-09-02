@@ -6,27 +6,27 @@ import com.google.common.primitives.Ints
 
 import scala.util.Try
 
-object TransferTransactionCompanion extends BifrostSerializer[TransferTransaction] {
+object TransferTransactionSerializer extends BifrostSerializer[TransferTransaction] {
 
   override def serialize(obj: TransferTransaction, w: Writer): Unit = {
     obj match {
       case sc: PolyTransfer =>
         w.putByteString("PolyTransfer")
-        PolyTransferCompanion.serialize(sc, w)
+        PolyTransferSerializer.serialize(sc, w)
       case ac: ArbitTransfer =>
         w.putByteString("ArbitTransfer")
-        ArbitTransferCompanion.serialize(ac, w)
+        ArbitTransferSerializer.serialize(ac, w)
       case at: AssetTransfer =>
         w.putByteString("AssetTransfer")
-        AssetTransferCompanion.serialize(at, w)
+        AssetTransferSerializer.serialize(at, w)
     }
   }
 
   override def parse(r: Reader): TransferTransaction = {
     r.getByteString() match {
-      case "PolyTransfer" => PolyTransferCompanion.parse(r)
-      case "ArbitTransfer" => ArbitTransferCompanion.parse(r)
-      case "AssetTransfer" => AssetTransferCompanion.parse(r)
+      case "PolyTransfer" => PolyTransferSerializer.parse(r)
+      case "ArbitTransfer" => ArbitTransferSerializer.parse(r)
+      case "AssetTransfer" => AssetTransferSerializer.parse(r)
     }
   }
 
@@ -39,9 +39,9 @@ object TransferTransactionCompanion extends BifrostSerializer[TransferTransactio
 //  override def toBytes(m: TransferTransaction): Array[Byte] = {
 //    prefixBytes ++
 //      (m match {
-//        case sc: PolyTransfer => PolyTransferCompanion.toChildBytes(sc)
-//        case ac: ArbitTransfer => ArbitTransferCompanion.toChildBytes(ac)
-//        case at: AssetTransfer => AssetTransferCompanion.toChildBytes(at)
+//        case sc: PolyTransfer => PolyTransferSerializer.toChildBytes(sc)
+//        case ac: ArbitTransfer => ArbitTransferSerializer.toChildBytes(ac)
+//        case at: AssetTransfer => AssetTransferSerializer.toChildBytes(at)
 //      })
 //  }
 //
@@ -58,9 +58,9 @@ object TransferTransactionCompanion extends BifrostSerializer[TransferTransactio
 //    val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 //
 //    newTypeStr match {
-//      case "PolyTransfer" => PolyTransferCompanion.parseBytes(newBytes).get
-//      case "ArbitTransfer" => ArbitTransferCompanion.parseBytes(newBytes).get
-//      case "AssetTransfer" => AssetTransferCompanion.parseBytes(newBytes).get
+//      case "PolyTransfer" => PolyTransferSerializer.parseBytes(newBytes).get
+//      case "ArbitTransfer" => ArbitTransferSerializer.parseBytes(newBytes).get
+//      case "AssetTransfer" => AssetTransferSerializer.parseBytes(newBytes).get
 //    }
 //  }
 }

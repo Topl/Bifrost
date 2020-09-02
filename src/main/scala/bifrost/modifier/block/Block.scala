@@ -50,7 +50,7 @@ case class Block(parentId: BlockId,
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
-  lazy val serializer = BlockCompanion
+  lazy val serializer = BlockSerializer
 
   lazy val version: Version = protocolVersion
 

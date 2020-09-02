@@ -15,7 +15,7 @@ import io.circe.{Json, parser}
 
 import scala.util.Try
 
-object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodExecution] {
+object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 
   override def serialize(obj: ProgramMethodExecution, w: Writer): Unit = {
     /* state: Seq[StateBox] */
@@ -100,7 +100,7 @@ object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodEx
 // TODO: Jing - remove
 //
 //  override def toBytes(cme: ProgramMethodExecution): Array[Byte] = {
-//    ProgramTransactionCompanion.prefixBytes ++ toChildBytes(cme)
+//    ProgramTransactionSerializer.prefixBytes ++ toChildBytes(cme)
 //  }
 //
 //  def toChildBytes(cme: ProgramMethodExecution): Array[Byte] = {
@@ -122,7 +122,7 @@ object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodEx
 //      cme.methodParams.noSpaces.getBytes,
 //      Ints.toByteArray(cme.data.getBytes.length),
 //      cme.data.getBytes,
-//      ProgramTransactionCompanion.commonToBytes(cme)
+//      ProgramTransactionSerializer.commonToBytes(cme)
 //    )
 //  }
 //
@@ -187,7 +187,7 @@ object ProgramMethodExecutionCompanion extends BifrostSerializer[ProgramMethodEx
 //    signatures: Map[PublicKey25519Proposition, Signature25519],
 //    feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]],
 //    fees: Map[PublicKey25519Proposition, Long],
-//    timestamp: Long) = ProgramTransactionCompanion.commonParseBytes(bytes.slice(numReadBytes,
+//    timestamp: Long) = ProgramTransactionSerializer.commonParseBytes(bytes.slice(numReadBytes,
 //      bytes.length))
 //
 //    bifrostTransaction.ProgramMethodExecution(state, code, executionBox, methodName,

@@ -12,7 +12,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object ProgramTransferCompanion extends BifrostSerializer[ProgramTransfer]{
+object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
 
   override def serialize(obj: ProgramTransfer, w: Writer): Unit = {
     /* from: PublicKey25519Proposition */

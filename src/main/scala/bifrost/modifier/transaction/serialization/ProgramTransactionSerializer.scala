@@ -10,23 +10,23 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object ProgramTransactionCompanion extends BifrostSerializer[ProgramTransaction] {
+object ProgramTransactionSerializer extends BifrostSerializer[ProgramTransaction] {
 
   override def serialize(obj: ProgramTransaction, w: Writer): Unit = {
     obj match {
       case cc: ProgramCreation =>
         w.putByteString("ProgramCreation")
-        ProgramCreationCompanion.serialize(cc, w)
+        ProgramCreationSerializer.serialize(cc, w)
       case cme: ProgramMethodExecution =>
         w.putByteString("ProgramMethodExecution")
-        ProgramMethodExecutionCompanion.serialize(cme, w)
+        ProgramMethodExecutionSerializer.serialize(cme, w)
     }
   }
 
   override def parse(r: Reader): ProgramTransaction = {
     r.getByteString() match {
-      case "ProgramCreation" => ProgramCreationCompanion.parse(r)
-      case "ProgramMethodExecution" => ProgramMethodExecutionCompanion.parse(r)
+      case "ProgramCreation" => ProgramCreationSerializer.parse(r)
+      case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parse(r)
     }
   }
 
@@ -39,8 +39,8 @@ object ProgramTransactionCompanion extends BifrostSerializer[ProgramTransaction]
 //  override def toBytes(m: ProgramTransaction): Array[Byte] = {
 //    prefixBytes ++
 //      (m match {
-//        case cc: ProgramCreation => ProgramCreationCompanion.toChildBytes(cc)
-//        case cme: ProgramMethodExecution => ProgramMethodExecutionCompanion.toChildBytes(cme)
+//        case cc: ProgramCreation => ProgramCreationSerializer.toChildBytes(cc)
+//        case cme: ProgramMethodExecution => ProgramMethodExecutionSerializer.toChildBytes(cme)
 //      })
 //  }
 //
@@ -58,8 +58,8 @@ object ProgramTransactionCompanion extends BifrostSerializer[ProgramTransaction]
 //    val newTypeStr = new String(newBytes.slice(Ints.BYTES, Ints.BYTES + newTypeLength))
 //
 //    newTypeStr match {
-//      case "ProgramCreation" => ProgramCreationCompanion.parseBytes(newBytes).get
-//      case "ProgramMethodExecution" => ProgramMethodExecutionCompanion.parseBytes(newBytes).get
+//      case "ProgramCreation" => ProgramCreationSerializer.parseBytes(newBytes).get
+//      case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parseBytes(newBytes).get
 //    }
 //  }
 //

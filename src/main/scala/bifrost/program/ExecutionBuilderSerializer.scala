@@ -6,7 +6,7 @@ import io.circe.parser
 
 import scala.util.Try
 
-object ExecutionBuilderCompanion extends BifrostSerializer[ExecutionBuilder] {
+object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {
 
   override def serialize(obj: ExecutionBuilder, w: Writer): Unit = {
     w.putIntString(obj.terms.json.noSpaces)

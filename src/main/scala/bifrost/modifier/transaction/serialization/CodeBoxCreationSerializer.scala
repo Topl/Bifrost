@@ -10,7 +10,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object CodeBoxCreationCompanion extends BifrostSerializer[CodeCreation]{
+object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
 
   override def serialize(obj: CodeCreation, w: Writer): Unit = {
     w.putByteString("CodeCreation")

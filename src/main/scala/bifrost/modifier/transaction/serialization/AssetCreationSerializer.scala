@@ -12,7 +12,7 @@ import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
-object AssetCreationCompanion extends BifrostSerializer[AssetCreation] {
+object AssetCreationSerializer extends BifrostSerializer[AssetCreation] {
 
   override def serialize(obj: AssetCreation, w: Writer): Unit = {
     /* to: IndexedSeq[(PublicKey25519Proposition, Long)] */
