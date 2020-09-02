@@ -1,8 +1,15 @@
 package keymanager
 
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import keymanager.KeyFile.uuid
 import scorex.crypto.hash.Blake2b256
+
+import keymanager.KeyFile._
+
+//Instantiate Necessary Actor System and Execution Context
+implicit val actorsystem = ActorSystem("KeyManagerActorSys") //check name arbitrage?
+implicit val ec: ExecutionContext = actorsystem.dispatcher
 
 //DOMAIN: KeyManager Actor
 object KeyManagerActor {
@@ -26,8 +33,11 @@ class KeyManager extends Actor {
 
   //Overload messaging, stateful necessary
   override def receive: Receive = {
-    case GenerateKeyFile(password, seed, defaultKeyDir) => KeyFile.apply(password, seed, defaultKeyDir)
+    case GenerateKeyFile(password, seed, defaultKeyDir) =>
+      KeyFile.apply(password, seed, defaultKeyDir)
+
     case UnlockKeyFile(pubKeyString, password) => ???
+
     case LockKeyFile(pubKeyString, password) => ???
   }
 }
