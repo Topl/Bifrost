@@ -130,48 +130,48 @@ class SerializationTests extends AnyPropSpec
   property("PolyTransfer Serialization") {
     forAll(polyTransferGen) {
       sc: PolyTransfer =>
-        val parsed = TransferTransactionSerializer
-          .parseBytes(TransferTransactionSerializer.toBytes(sc))
+        val parsed = PolyTransferSerializer
+          .parseBytes(PolyTransferSerializer.toBytes(sc))
           .get
 
-        TransferTransactionSerializer.toBytes(parsed) sameElements
-          TransferTransactionSerializer.toBytes(sc) shouldBe true
+        PolyTransferSerializer.toBytes(parsed) sameElements
+          PolyTransferSerializer.toBytes(sc) shouldBe true
     }
   }
 
   property("ArbitTransfer Serialization") {
     forAll(arbitTransferGen) {
       ac: ArbitTransfer =>
-        val parsed = TransferTransactionSerializer
-          .parseBytes(TransferTransactionSerializer.toBytes(ac))
+        val parsed = ArbitTransferSerializer
+          .parseBytes(ArbitTransferSerializer.toBytes(ac))
           .get
 
-        TransferTransactionSerializer.toBytes(parsed) sameElements
-          TransferTransactionSerializer.toBytes(ac) shouldBe true
+        ArbitTransferSerializer.toBytes(parsed) sameElements
+          ArbitTransferSerializer.toBytes(ac) shouldBe true
     }
   }
 
   property("AssetTransfer Serialization") {
     forAll(assetTransferGen) {
       at: AssetTransfer =>
-        val parsed = TransferTransactionSerializer
-          .parseBytes(TransferTransactionSerializer.toBytes(at))
+        val parsed = AssetTransferSerializer
+          .parseBytes(AssetTransferSerializer.toBytes(at))
           .get
 
-        TransferTransactionSerializer.toBytes(parsed) sameElements
-          TransferTransactionSerializer.toBytes(at) shouldBe true
+        AssetTransferSerializer.toBytes(parsed) sameElements
+          AssetTransferSerializer.toBytes(at) shouldBe true
     }
   }
 
   property("ProgramCreation Serialization") {
     forAll(programCreationGen) {
       c: ProgramCreation =>
-        val parsed = ProgramTransactionSerializer
-          .parseBytes(ProgramTransactionSerializer.toBytes(c))
+        val parsed = ProgramCreationSerializer
+          .parseBytes(ProgramCreationSerializer.toBytes(c))
           .get
 
-        val parsedBytes = ProgramTransactionSerializer.toBytes(parsed)
-        val directParsedBytes = ProgramTransactionSerializer.toBytes(c)
+        val parsedBytes = ProgramCreationSerializer.toBytes(parsed)
+        val directParsedBytes = ProgramCreationSerializer.toBytes(c)
 
         c.executionBuilder shouldEqual parsed.asInstanceOf[ProgramCreation].executionBuilder
         c.json shouldEqual parsed.asInstanceOf[ProgramCreation].json
@@ -183,12 +183,12 @@ class SerializationTests extends AnyPropSpec
   property("ProgramMethodExecution Serialization") {
     forAll(programMethodExecutionGen) {
       c: ProgramMethodExecution =>
-        val parsed = ProgramTransactionSerializer
-          .parseBytes(ProgramTransactionSerializer.toBytes(c))
+        val parsed = ProgramMethodExecutionSerializer
+          .parseBytes(ProgramMethodExecutionSerializer.toBytes(c))
           .get
 
-        ProgramTransactionSerializer.toBytes(parsed) sameElements
-          ProgramTransactionSerializer.toBytes(c) shouldBe true
+        ProgramMethodExecutionSerializer.toBytes(parsed) sameElements
+          ProgramMethodExecutionSerializer.toBytes(c) shouldBe true
     }
   }
 

@@ -7,29 +7,47 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
 
   override def serialize(obj: Transaction, w: Writer): Unit = {
     obj match {
-      case c: ProgramTransaction =>
-        w.putByteString("ProgramTransaction")
-        ProgramTransactionSerializer.serialize(c, w)
-      case prT: ProgramTransfer =>
+      case obj: ProgramCreation =>
+        w.putByteString("ProgramCreation")
+        ProgramCreationSerializer.serialize(obj, w)
+      case obj: ProgramMethodExecution =>
+        w.putByteString("ProgramMethodExecution")
+        ProgramMethodExecutionSerializer.serialize(obj, w)
+
+      case obj: ProgramTransfer =>
         w.putByteString("ProgramTransfer")
-        ProgramTransferSerializer.serialize(prT, w)
-      case p: TransferTransaction =>
-        w.putByteString("TransferTransaction")
-        TransferTransactionSerializer.serialize(p, w)
-      case ac: AssetCreation =>
+        ProgramTransferSerializer.serialize(obj, w)
+
+      case obj: PolyTransfer =>
+        w.putByteString("PolyTransfer")
+        PolyTransferSerializer.serialize(obj, w)
+      case obj: ArbitTransfer =>
+        w.putByteString("ArbitTransfer")
+        ArbitTransferSerializer.serialize(obj, w)
+      case obj: AssetTransfer =>
+        w.putByteString("AssetTransfer")
+        AssetTransferSerializer.serialize(obj, w)
+
+      case obj: AssetCreation =>
         w.putByteString("AssetCreation")
-        AssetCreationSerializer.serialize(ac, w)
-      case cb: CoinbaseTransaction =>
+        AssetCreationSerializer.serialize(obj, w)
+      case obj: CoinbaseTransaction =>
         w.putByteString("CoinbaseTransaction")
-        CoinbaseTransactionSerializer.serialize(cb, w)
+        CoinbaseTransactionSerializer.serialize(obj, w)
     }
   }
 
   override def parse(r: Reader): Transaction = {
     r.getByteString() match {
-      case "ProgramTransaction" => ProgramTransactionSerializer.parse(r)
+      case "ProgramCreation" => ProgramCreationSerializer.parse(r)
+      case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parse(r)
+
       case "ProgramTransfer" => ProgramTransferSerializer.parse(r)
-      case "TransferTransaction" => TransferTransactionSerializer.parse(r)
+
+      case "PolyTransfer" => PolyTransferSerializer.parse(r)
+      case "ArbitTransfer" => ArbitTransferSerializer.parse(r)
+      case "AssetTransfer" => AssetTransferSerializer.parse(r)
+
       case "AssetCreation" => AssetCreationSerializer.parse(r)
       case "CoinbaseTransaction" => CoinbaseTransactionSerializer.parse(r)
     }
