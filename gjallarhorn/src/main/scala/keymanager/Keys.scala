@@ -20,6 +20,14 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
       .toSet
   }
 
+  def listOpenKeyFiles: Set[String] = {
+    secrets
+      .flatMap(_ match {
+        case pkp: PrivateKey25519 => Some(Base58.encode(pkp.publicKeyBytes))
+        case _                    => None
+      })
+  }
+
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))

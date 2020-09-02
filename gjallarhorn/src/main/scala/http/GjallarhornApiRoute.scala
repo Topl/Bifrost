@@ -8,6 +8,7 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
+import io.circe.syntax._
 import keymanager.Keys
 
 import scala.concurrent.Future
@@ -64,6 +65,7 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
       case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
       case "signTx" => signTx(params.head, id)
       case "broadcastTx" => broadcastTx(params.head, id)
+      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
     }
 
   private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
@@ -97,6 +99,12 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
 
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     Future{r.broadcastTx(params)}
+  }
+
+  private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
+    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
+    val keyManager = Keys(Set(), defaultKeyDir)
+    Future{keyManager.listOpenKeyFiles.asJson}
   }
 }
 
