@@ -1,9 +1,8 @@
 package keymanager
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import keymanager.KeyFile.uuid
 import scorex.crypto.hash.Blake2b256
-
 
 //DOMAIN: KeyManager Actor
 object KeyManagerActor {
@@ -22,7 +21,8 @@ class KeyManager extends Actor {
 
   import KeyManager._
 
-  val keyManager = Keys(Set.empty, "")
+  //val keyManager = Keys(Set.empty, "")
+  //VAR keyManager to be assigned said attribute from instantiation, not left empty as default
 
   //Overload messaging, stateful necessary
   override def receive: Receive = {
