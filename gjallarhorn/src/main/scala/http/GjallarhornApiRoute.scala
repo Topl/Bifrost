@@ -29,32 +29,7 @@ case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends Ap
 //  //Necessary Akka Actor Components
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-////--------------------------------------------------------------------------------------
-//  //PROSPECTIVE ACTOR FUNCTIONALITY3
-//
-//  //DOMAIN: KeyManagerActor
-//    //[???] Is it possible to extend strict logging for actors?
-//  object KeyManagerActor {
-//    case class lockKeyFile(publicKeyString: String, password: String)
-//    case class unlockKeyFile(publicKeyString: String, password: String)
-//  }
-//
-//  //Essential for unique instantiation of KeyManagerActor
-//  object KeyManagerActorRef {
-//    def apply(var secrets: Set[PrivateKey25519], defaultKeyDir: String)(implicit actorsystem: ActorSystem, ec: ExecutionContext): ActorRef = actorsystem.actorOf(props(secrets, defaultKeyDir))
-//    def props(var secrets: Set[PrivateKey25519], defaultKeyDir: String)(implicit ec: ExecutionContext): Props = Props(new KeyManagerActor(secrets, defaultKeyDir))
-//  }
-//
-//  class KeyManagerActor {
-//    //If stateful actor, list variables here
-//
-//    override def receive: Receive = {
-//      case lockKeyFile(publicKeyString, password) => ???
-//      case unlockKeyFile(publicKeyString, password) => ???
-//    }
-//  }
 
-//--------------------------------------------------------------------------------------
   val r = new Requests
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
