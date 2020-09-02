@@ -5,11 +5,8 @@ import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.ArbitTransfer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
-import com.google.common.primitives.Ints
-
-import scala.util.Try
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitTransferSerializer extends BifrostSerializer[ArbitTransfer] with TransferSerializer {
 

@@ -1,23 +1,23 @@
 package bifrost.modifier.block
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block._
 import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.modifier.ModifierId
 import bifrost.modifier.box.serialization.BoxSerializer
-import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
-import io.circe.{Encoder, Json}
+import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import io.circe.syntax._
+import io.circe.{Encoder, Json}
 // fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
+import bifrost.utils.idToBytes
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import bifrost.utils.idToBytes
 
 /**
  * A block is an atomic piece of data network participates are agreed on.

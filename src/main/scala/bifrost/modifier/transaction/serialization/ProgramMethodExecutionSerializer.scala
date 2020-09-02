@@ -5,15 +5,11 @@ import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import bifrost.modifier.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
-import com.google.common.primitives.{Bytes, Ints}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import io.circe.{Json, parser}
-
-import scala.util.Try
 
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 

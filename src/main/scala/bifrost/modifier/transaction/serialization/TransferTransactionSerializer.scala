@@ -2,9 +2,6 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetTransfer, PolyTransfer, TransferTransaction}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.Ints
-
-import scala.util.Try
 
 object TransferTransactionSerializer extends BifrostSerializer[TransferTransaction] {
 

@@ -1,11 +1,11 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.modifier.ModifierId
 import bifrost.settings.AppSettings
-import bifrost.utils.{bytesToId, idToBytes, Logging}
+import bifrost.utils.{Logging, bytesToId, idToBytes}
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}

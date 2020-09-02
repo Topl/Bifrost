@@ -4,11 +4,8 @@ import bifrost.crypto.serialization.PrivateKey25519Serializer
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.serialization.BytesSerializable
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.Bytes
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.Curve25519
-
-import scala.util.Try
 
 trait Secret extends BytesSerializable {
   self =>

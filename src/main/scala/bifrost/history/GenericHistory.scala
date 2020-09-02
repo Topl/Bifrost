@@ -2,8 +2,8 @@ package bifrost.history
 
 import bifrost.modifier.ModifierId
 import bifrost.network.message.SyncInfo
-import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
 

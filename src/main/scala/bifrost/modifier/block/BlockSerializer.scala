@@ -7,13 +7,8 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionSerializer
-import bifrost.utils.{bytesToId, idToBytes}
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
-import com.google.common.primitives.{Bytes, Ints, Longs}
-
-import scala.annotation.tailrec
-import scala.util.Try
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockSerializer extends BifrostSerializer[Block] {
 

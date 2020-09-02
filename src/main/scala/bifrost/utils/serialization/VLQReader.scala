@@ -2,8 +2,8 @@ package bifrost.utils.serialization
 
 import java.util
 
-import bifrost.utils.encode.ZigZagEncoder._
 import bifrost.utils.Extensions._
+import bifrost.utils.encode.ZigZagEncoder._
 
 trait VLQReader extends Reader {
 

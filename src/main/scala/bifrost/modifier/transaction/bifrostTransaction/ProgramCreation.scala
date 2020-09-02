@@ -3,8 +3,8 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramCreationSerializer
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}

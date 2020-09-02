@@ -1,8 +1,7 @@
 package bifrost.modifier.box.proposition
 
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
-import com.google.common.primitives.{Bytes, Ints}
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
 

@@ -14,8 +14,8 @@ import bifrost.state.ProgramBoxRegistry
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 
 import scala.util.Try
 

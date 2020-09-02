@@ -4,19 +4,19 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.history.History
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockSerializer}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionSerializer
-import bifrost.modifier.ModifierId
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.network.{BifrostModifiersCache, ModifiersCache}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.{AppSettings, BifrostContext}
 import bifrost.state.State
-import bifrost.utils.{Logging, TimeProvider}
 import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{Logging, TimeProvider}
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 

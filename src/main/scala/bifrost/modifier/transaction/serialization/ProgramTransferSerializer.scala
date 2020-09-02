@@ -3,14 +3,10 @@ package bifrost.modifier.transaction.serialization
 import bifrost.crypto.Signature25519
 import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box.ExecutionBox
-import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition, PublicKey25519PropositionSerializer}
+import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import bifrost.modifier.box.serialization.ExecutionBoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.{Bytes, Ints, Longs}
-import scorex.crypto.signatures.Curve25519
-
-import scala.util.Try
 
 object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
 

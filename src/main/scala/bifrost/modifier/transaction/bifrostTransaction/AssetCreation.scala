@@ -7,8 +7,8 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationSerializer
-import bifrost.wallet.Wallet
 import bifrost.utils.idToBytes
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}

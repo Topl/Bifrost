@@ -8,11 +8,8 @@ import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey255
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
-import com.google.common.primitives.{Bytes, Ints, Longs}
-
-import scala.util.Try
+import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 //noinspection ScalaStyle
 object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {

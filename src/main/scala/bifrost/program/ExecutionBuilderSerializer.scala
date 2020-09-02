@@ -1,10 +1,7 @@
 package bifrost.program
 
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.parser
-
-import scala.util.Try
 
 object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {
 

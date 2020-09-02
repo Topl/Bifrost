@@ -5,9 +5,6 @@ import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.{Bytes, Longs}
-
-import scala.util.Try
 
 class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: BifrostSerializer[B])
   extends BifrostSerializer[WalletBox[T, P, B]] {
