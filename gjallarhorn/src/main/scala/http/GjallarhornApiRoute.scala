@@ -1,6 +1,6 @@
 package http
 
-import akka.actor.{ActorRefFactory, ActorSystem}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server.Route
@@ -25,7 +25,7 @@ object GjallarhornApiRoute {
   }
 }
 
-case class GjallarhornApiRoute(implicit val context: ActorRefFactory) extends ApiRoute {
+case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
   implicit val actorsystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
