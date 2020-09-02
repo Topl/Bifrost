@@ -30,20 +30,4 @@ class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDe
 
     WalletBox[T, P, B](box, transactionId, createdAt)(subclassDeser)
   }
-
-
-// TODO: Jing - remove
-//
-//  override def toBytes(box: WalletBox[T, P, B]): Array[Byte] = {
-//    Bytes.concat(box.transactionId.hashBytes, Longs.toByteArray(box.createdAt), box.box.bytes)
-//  }
-//
-//  override def parseBytes(bytes: Array[Byte]): Try[WalletBox[T, P, B]] = Try {
-//    val txId = ModifierId(bytes.slice(0, NodeViewModifier.ModifierIdSize))
-//    val createdAt = Longs.fromByteArray(
-//      bytes.slice(NodeViewModifier.ModifierIdSize, NodeViewModifier.ModifierIdSize + 8))
-//    val boxB = bytes.slice(NodeViewModifier.ModifierIdSize + 8, bytes.length)
-//    val box: B = subclassDeser.parseBytes(boxB).get
-//    WalletBox[T, P, B](box, txId, createdAt)(subclassDeser)
-//  }
 }

@@ -19,23 +19,4 @@ object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature255
 
     MultiSignature25519(signatureSet)
   }
-
-  //  TODO: Jing - remove
-  //
-  //  override def toBytes(obj: MultiSignature25519): Array[Byte] =
-  //    Ints.toByteArray(obj.signatureSet.size) ++
-  //      obj
-  //        .signatureSet
-  //        .foldLeft(Array[Byte]())((total, sig) => total ++ sig.signature)
-  //
-  //  override def parseBytes(bytes: Array[Byte]): Try[MultiSignature25519] = Try {
-  //    val numSignatures = Ints.fromByteArray(bytes.take(Ints.BYTES))
-  //    val signatureSet: Set[Signature25519] = (0 until numSignatures).map {
-  //      i =>
-  //        Signature25519(bytes.slice(Ints.BYTES + i * MultiSignature25519.SignatureSize,
-  //                                   Ints.BYTES + (i + 1) * MultiSignature25519.SignatureSize))
-  //    }.toSet
-  //
-  //    MultiSignature25519(signatureSet)
-  //  }
 }

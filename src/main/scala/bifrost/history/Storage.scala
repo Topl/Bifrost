@@ -64,18 +64,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
         val bytes = bw.data
         bytes.head match {
           case Block.modifierTypeId =>
-            val parsed = {
-              BlockSerializer.parseBytes(bytes.tail)
-
-              //  TODO: Jing - remove
-              //
-              /*
-              heightOf(blockId) match {
-                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockSerializer.parseBytes2xAndBefore(bytes.tail)
-                case _ => BlockSerializer.parseBytes(bytes.tail)
-              }
-              */
-            }
+            val parsed = BlockSerializer.parseBytes(bytes.tail)
             parsed match {
               case Failure(e) =>
                 log.warn("Failed to parse bytes from db", e)

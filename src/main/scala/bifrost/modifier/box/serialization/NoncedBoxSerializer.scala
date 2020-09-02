@@ -24,35 +24,4 @@ object NoncedBoxSerializer extends BifrostSerializer[NoncedBox] {
       r.getULong()
     )
   }
-
-  // TODO: Jing - remove
-  //
-  //  def noncedBoxToBytes(obj: NoncedBox, boxType: String): Array[Byte] = {
-  //    Bytes.concat(
-  //      Ints.toByteArray(boxType.getBytes.length),
-  //      boxType.getBytes,
-  //      obj.proposition.pubKeyBytes,
-  //      Longs.toByteArray(obj.nonce),
-  //      Longs.toByteArray(obj.value)
-  //    )
-  //  }
-  //
-  //  def noncedBoxParseBytes(bytes: Array[Byte]): (PublicKey25519Proposition, Long, Long) = {
-  //
-  //    val typeLen = Ints.fromByteArray(bytes.take(Ints.BYTES))
-  //    val typeStr: String = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLen))
-  //
-  //    require(typeStr.nonEmpty)
-  //
-  //    val numReadBytes = Ints.BYTES + typeLen
-  //
-  //    val pk = PublicKey25519Proposition(bytes.slice(numReadBytes, numReadBytes + Constants25519.PubKeyLength))
-  //    val nonce = Longs.fromByteArray(bytes.slice(numReadBytes + Constants25519.PubKeyLength,
-  //                                                numReadBytes + Constants25519.PubKeyLength + Longs.BYTES))
-  //
-  //    val curReadBytes = numReadBytes + Constants25519.PubKeyLength + Longs.BYTES
-  //
-  //    val value = Longs.fromByteArray(bytes.slice(curReadBytes, curReadBytes + Longs.BYTES))
-  //    (pk, nonce, value)
-  //  }
 }

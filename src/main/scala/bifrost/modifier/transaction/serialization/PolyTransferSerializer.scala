@@ -73,25 +73,4 @@ object PolyTransferSerializer extends BifrostSerializer[PolyTransfer] with Trans
 
     PolyTransfer(from, to, signatures, fee, timestamp, data)
   }
-
-// TODO: Jing - remove
-//
-//  override def toBytes(sc: PolyTransfer): Array[Byte] = {
-//    TransferTransactionSerializer.prefixBytes ++ toChildBytes(sc)
-//  }
-//
-//  def toChildBytes(sc: PolyTransfer): Array[Byte] = {
-//    transferToBytes(sc, "PolyTransfer") ++
-//    sc.data.getBytes ++
-//    Ints.toByteArray(sc.data.getBytes.length)
-//  }
-//
-//  override def parseBytes(bytes: Array[Byte]): Try[PolyTransfer] = Try {
-//    val params = parametersParseBytes(bytes)
-//    val dataLen: Int = Ints.fromByteArray(bytes.slice(bytes.length - Ints.BYTES, bytes.length))
-//    val data: String = new String(
-//      bytes.slice(bytes.length - Ints.BYTES - dataLen, bytes.length - Ints.BYTES)
-//    )
-//    PolyTransfer(params._1, params._2, params._3, params._4, params._5, data)
-//  }
 }

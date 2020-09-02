@@ -9,23 +9,20 @@ import scala.util.Try
 
 trait BifrostSerializer[Content] extends Serializer[Content, Content, Reader, Writer] {
 
-// TODO: Jing - remove
-// TODO: Jing - not used anywhere
-//
-//  def toByteString(obj: Content): ByteString = {
-//    val writer = new VLQByteStringWriter()
-//    serialize(obj, writer)
-//    writer.result()
-//  }
-//
-//  def parseByteString(byteString: ByteString): Content = {
-//    val reader = new VLQByteStringReader(byteString)
-//    parse(reader)
-//  }
-//
-//  def parseByteStringTry(byteString: ByteString): Try[Content] = {
-//    Try(parseByteString(byteString))
-//  }
+  def toByteString(obj: Content): ByteString = {
+    val writer = new VLQByteStringWriter()
+    serialize(obj, writer)
+    writer.result()
+  }
+
+  def parseByteString(byteString: ByteString): Content = {
+    val reader = new VLQByteStringReader(byteString)
+    parse(reader)
+  }
+
+  def parseByteStringTry(byteString: ByteString): Try[Content] = {
+    Try(parseByteString(byteString))
+  }
 
   def toBytes(obj: Content): Array[Byte] = {
     val writer = new VLQByteBufferWriter(new ByteArrayBuilder())

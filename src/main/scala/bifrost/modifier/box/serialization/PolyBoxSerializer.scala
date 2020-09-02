@@ -13,15 +13,4 @@ object PolyBoxSerializer extends BifrostSerializer[PolyBox] {
     val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
     PolyBox(noncedBox.proposition, noncedBox.nonce, noncedBox.value)
   }
-
-  // TODO: Jing - remove
-  //
-  //  override def toBytes(obj: PolyBox): Array[Byte] = {
-  //    noncedBoxToBytes(obj, "PolyBox")
-  //  }
-  //
-  //  override def parseBytes(bytes: Array[Byte]): Try[PolyBox] = Try {
-  //    val params = noncedBoxParseBytes(bytes)
-  //    PolyBox(params._1, params._2, params._3)
-  //  }
 }

@@ -545,7 +545,7 @@ object History extends Logging {
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        log.info("Closing block storage...")
+        log.debug("Closing block storage...")
         blockStorage.close()
       }
     })

@@ -109,7 +109,7 @@ object ProgramBoxRegistry extends Logging {
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
-        log.info("Closing programBoxRegistry storage...")
+        log.debug("Closing programBoxRegistry storage...")
         pbrStore.close()
       }
     })

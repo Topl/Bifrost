@@ -37,27 +37,4 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
       case "CoinbaseTransaction" => CoinbaseTransactionSerializer.parse(r)
     }
   }
-
-// TODO: Jing - remove
-//
-//  override def toBytes(m: Transaction): Array[Byte] = m match {
-//    case c: ProgramTransaction => ProgramTransactionSerializer.toBytes(c)
-//    case prT: ProgramTransfer => ProgramTransferSerializer.toBytes(prT)
-//    case p: TransferTransaction => TransferTransactionSerializer.toBytes(p)
-//    case ac: AssetCreation => AssetCreationSerializer.toBytes(ac)
-//    case cb: CoinbaseTransaction => CoinbaseTransactionSerializer.toBytes(cb)
-//  }
-//
-//  override def parseBytes(bytes: Array[Byte]): Try[Transaction] = Try {
-//    val typeLength = Ints.fromByteArray(bytes.slice(0, Ints.BYTES))
-//    val typeStr = new String(bytes.slice(Ints.BYTES, Ints.BYTES + typeLength))
-//
-//    typeStr match {
-//      case "ProgramTransaction" => ProgramTransactionSerializer.parseBytes(bytes).get
-//      case "ProgramTransfer" => ProgramTransferSerializer.parseBytes(bytes).get
-//      case "TransferTransaction" => TransferTransactionSerializer.parseBytes(bytes).get
-//      case "AssetCreation" => AssetCreationSerializer.parseBytes(bytes).get
-//      case "CoinbaseTransaction" => CoinbaseTransactionSerializer.parseBytes(bytes).get
-//    }
-//  }
 }

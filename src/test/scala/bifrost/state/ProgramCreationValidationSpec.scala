@@ -163,15 +163,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         programCreation.fees.foreach { case (prop, fee) =>
-
-          // TODO: Jing - remove
-          // val output = (returnedPolyBox collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-
           val output = if (returnedPolyBox.proposition equals prop) returnedPolyBox.value else 0
-
-          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
-            pb.value }).sum
-
+          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
           val investment = 0
 
           output shouldEqual (input - fee - investment)
