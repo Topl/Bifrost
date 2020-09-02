@@ -215,7 +215,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Int, startBlock: Block): Seq[Block] = {
+  def lastBlocks(count: Long, startBlock: Block): Seq[Block] = {
     @tailrec
     def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
       if (acc.length >= count) acc
