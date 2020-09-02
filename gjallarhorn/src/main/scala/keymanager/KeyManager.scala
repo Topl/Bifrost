@@ -2,10 +2,6 @@ package keymanager
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import scorex.crypto.hash.Blake2b256
-
-import keymanager.KeyFile._
 
 //Instantiate Necessary Actor System and Execution Context
 implicit val actorsystem = ActorSystem("KeyManagerActorSys") //check name arbitrage?
@@ -28,6 +24,9 @@ class KeyManager extends Actor {
 
   import KeyManager._
 
+  //Unique data types
+  type S = PrivateKey25519
+  type PI = ProofOfKnowledgeProposition[S]
   //val keyManager = Keys(Set.empty, "")
   //VAR keyManager to be assigned said attribute from instantiation, not left empty as default
 
@@ -39,5 +38,12 @@ class KeyManager extends Actor {
     case UnlockKeyFile(pubKeyString, password) => ???
 
     case LockKeyFile(pubKeyString, password) => ???
+  }
+
+  //Key Manager Helper Methods
+  def publicKeys: Set[PI] = {
+    //secrets.map(_.publicImage)
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
+      .toSet
   }
 }
