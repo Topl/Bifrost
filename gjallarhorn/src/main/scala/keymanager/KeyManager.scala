@@ -1,5 +1,7 @@
 package keymanager
 
+import java.io.File
+
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
@@ -45,5 +47,22 @@ class KeyManager extends Actor {
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
+  }
+
+  def listOpenKeyFiles: Set[String] = {
+    secrets
+      .flatMap(_ match {
+        case pkp: PrivateKey25519 => Some(Base58.encode(pkp.publicKeyBytes))
+        case _                    => None
+      })
+  }
+
+  def getListOfFiles(dir: String): List[File] = {
+    val d = new File(dir)
+    if (d.exists && d.isDirectory) {
+      d.listFiles.filter(_.isFile).toList
+    } else {
+      List[File]()
+    }
   }
 }
