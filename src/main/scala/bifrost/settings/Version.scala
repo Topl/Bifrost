@@ -9,7 +9,7 @@ import bifrost.utils.serialization._
 case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
   override type M = Version
 
-  override def serializer: BifrostSerializer[Version] = ApplicationVersionSerializer
+  override def serializer: BifrostSerializer[Version] = VersionSerializer
 
   override def compare(that: Version): Int = if (this.firstDigit != that.firstDigit) {
     this.firstDigit - that.firstDigit

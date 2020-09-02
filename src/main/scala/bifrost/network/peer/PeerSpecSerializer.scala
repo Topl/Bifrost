@@ -2,7 +2,7 @@ package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import bifrost.settings.ApplicationVersionSerializer
+import bifrost.settings.VersionSerializer
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import bifrost.utils.Extensions._
 
@@ -10,7 +10,7 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
 
     w.putByteString(obj.agentName)
-    ApplicationVersionSerializer.serialize(obj.protocolVersion, w)
+    VersionSerializer.serialize(obj.protocolVersion, w)
     w.putByteString(obj.nodeName)
 
     w.putOption(obj.declaredAddress) { (writer, isa) =>
@@ -34,7 +34,7 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
     val appName = r.getByteString()
     require(appName.nonEmpty)
 
-    val protocolVersion = ApplicationVersionSerializer.parse(r)
+    val protocolVersion = VersionSerializer.parse(r)
 
     val nodeName = r.getByteString()
 

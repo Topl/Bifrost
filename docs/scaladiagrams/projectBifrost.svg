@@ -2283,13 +2283,13 @@
 <path fill="none" stroke="#000000" d="M12973.2952,-436.919C12957.5948,-434.945 12941.3276,-433.178 12925.9942,-432 12349.308,-387.6965 10457.9646,-379.3333 10112.4409,-378.1638"/>
 <polygon fill="#000000" stroke="#000000" points="10112.2144,-374.6631 10102.2028,-378.1298 10112.1911,-381.6631 10112.2144,-374.6631"/>
 </g>
-<!-- ApplicationVersionSerializer -->
+<!-- VersionSerializer -->
 <g id="node186" class="node">
 <title>ApplicationVersionSerializer</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="13314.9942" cy="-450" rx="113.9803" ry="18"/>
 <text text-anchor="middle" x="13314.9942" y="-446.3" font-family="Times,serif" font-size="14.00" fill="#000000">ApplicationVersionSerializer</text>
 </g>
-<!-- ApplicationVersionSerializer&#45;&gt;Serializer -->
+<!-- VersionSerializer&#45;&gt;Serializer -->
 <g id="edge191" class="edge">
 <title>ApplicationVersionSerializer&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M13236.4256,-436.9729C13221.6995,-434.9662 13206.4062,-433.1738 13191.9942,-432 12873.6199,-406.0688 10502.8955,-382.2791 10112.3763,-378.5163"/>
