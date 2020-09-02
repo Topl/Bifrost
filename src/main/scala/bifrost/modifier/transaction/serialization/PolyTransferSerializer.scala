@@ -8,7 +8,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object PolyTransferSerializer extends BifrostSerializer[PolyTransfer] with TransferSerializer {
+object PolyTransferSerializer extends BifrostSerializer[PolyTransfer] {
 
   override def serialize(obj: PolyTransfer, w: Writer): Unit = {
     /* from: IndexedSeq[(PublicKey25519Proposition, Nonce)] */

@@ -8,7 +8,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object AssetTransferSerializer extends BifrostSerializer[AssetTransfer] with TransferSerializer {
+object AssetTransferSerializer extends BifrostSerializer[AssetTransfer] {
 
   override def serialize(obj: AssetTransfer, w: Writer): Unit = {
     /* from: IndexedSeq[(PublicKey25519Proposition, Nonce)] */
