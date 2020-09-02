@@ -8,8 +8,6 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
 
   override def serialize(obj: AssetBox, w: Writer): Unit = {
 
-    // TODO: Jing - Do we want to serialize in the same order as the fields in the case class? (asset-issuer-data)
-    // TODO: Jing - Do we want to stick with the same naming scheme? (amount/value)
     NoncedBoxSerializer.serialize(obj, w)
 
     /* assetCode: String */
@@ -25,7 +23,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
   override def parse(r: Reader): AssetBox = {
     val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
 
-    // putIntString encode String that is shorter than 2147483647 bytes
+    /* putIntString encode String that is shorter than 2147483647 bytes */
     val asset: String = r.getIntString()
 
     val issuer: PublicKey25519Proposition = PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
