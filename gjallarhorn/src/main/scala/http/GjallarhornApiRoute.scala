@@ -9,7 +9,10 @@ import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
+import keymanager.KeyFile.uuid
+import keymanager.KeyManager._
 import keymanager.Keys
+import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,6 +44,7 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
       case "signTx" => signTx(params.head, id)
       case "broadcastTx" => broadcastTx(params.head, id)
       case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+      case "generateKeyfile" => generateKeyfile(params.head, id)
     }
 
   private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
@@ -77,9 +81,15 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
   }
 
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
-    val keyManager = Keys(Set(), defaultKeyDir)
-    Future{keyManager.listOpenKeyFiles.asJson}
+//    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
+//    val keyManager = Keys(Set(), defaultKeyDir) // change this -> take in KeyManager ref?
+    Future{(keyManager ! ListOpenKeyFiles).asJson}
   }
+
+  private def generateKeyfile(params: Json, id: String): Future[Json] = {
+    val password = (params \\ "password").head.toString()
+    Future{(keyManager ! GenerateKeyFile(password, Blake2b256(uuid), "")).asJson } // fix this - need director
+  }
+
 }
 
