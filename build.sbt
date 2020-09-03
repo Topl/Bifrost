@@ -38,7 +38,7 @@ val akkaDependencies = Seq(
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
-  "commons-net" % "commons-net" % "3.6"
+  "commons-net" % "commons-net" % "3.7"
 )
 
 val apiDependencies = Seq(
@@ -56,8 +56,8 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.2.0" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.0" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.1" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.1" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
   "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
 )
@@ -98,9 +98,9 @@ libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.1"
 
 
 libraryDependencies  ++= Seq(
-  "org.scalanlp" %% "breeze" % "1.0",
+  "org.scalanlp" %% "breeze" % "1.1",
   "com.google.protobuf" % "protobuf-java" % "3.12.4",
-  "com.thesamet.scalapb" %% "lenses" % "0.10.7",
+  "com.thesamet.scalapb" %% "lenses" % "0.10.8",
   "com.typesafe" % "config" % "1.3.4",
 )
 

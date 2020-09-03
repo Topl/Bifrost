@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.consensus.{DifficultyBlockValidator, ModifierSemanticValidity}
+import bifrost.consensus.DifficultyBlockValidator
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -441,8 +441,13 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param progressInfo - what suffix failed to be applied because of an invalid modifier
     * @return modified history and new progress info
     */
-  override def reportModifierIsInvalid(modifier: Block, progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = ???
-
+  override def reportModifierIsInvalid(modifier: Block,
+                                       progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = {
+    drop(modifier.id)
+    val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
+    (new History(storage, settings, validators), progInfo)
+  }
+  
   /**
     * Whether a modifier could be applied to the history
     *
@@ -454,14 +459,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       case b: Block ⇒ Success(())
     }
   }
-
-  /**
-    * Return semantic validity status of modifier with id == modifierId
-    *
-    * @param modifierId - modifier id to check
-    * @return
-    */
-  override def isSemanticallyValid(modifierId: ModifierId): ModifierSemanticValidity = ???
 
   /**
     * Ids of modifiers, that node with info should download and apply to synchronize
