@@ -41,5 +41,8 @@ trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends No
 
   def size: Int
 
+  /**
+    * @return read-only copy of this state
+    */
   def getReader: MemPoolReader[TX] = this
 }

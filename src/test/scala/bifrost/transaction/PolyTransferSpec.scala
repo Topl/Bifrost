@@ -17,7 +17,7 @@ class PolyTransferSpec extends AnyPropSpec
   property("Generated PolyTransfer Tx should be valid") {
     forAll(validPolyTransferGen) {
       polyTransfer: PolyTransfer =>
-        State.semanticValidity(polyTransfer).isSuccess shouldBe true
+        State.syntacticValidity(polyTransfer).isSuccess shouldBe true
     }
   }
 
@@ -25,7 +25,7 @@ class PolyTransferSpec extends AnyPropSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(polyTransferGen) { polyTransfer =>
-      State.semanticValidity(polyTransfer).isSuccess shouldBe false
+      State.syntacticValidity(polyTransfer).isSuccess shouldBe false
     }
   }
 
@@ -33,7 +33,7 @@ class PolyTransferSpec extends AnyPropSpec
     // Create invalid PolyTransfer
     // send tx to state
     forAll(arbitTransferGen) { arbitTransfer =>
-      State.semanticValidity(arbitTransfer).isSuccess shouldBe false
+      State.syntacticValidity(arbitTransfer).isSuccess shouldBe false
     }
   }
 }

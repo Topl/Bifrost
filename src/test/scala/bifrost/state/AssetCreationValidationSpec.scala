@@ -38,7 +38,7 @@ class AssetCreationValidationSpec extends StateSpec {
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(8)))
+          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(8)))
           .get
 
         assetCreation.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
