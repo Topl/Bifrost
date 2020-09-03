@@ -1,6 +1,7 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
@@ -14,8 +15,8 @@ class KeyManager(keyDir: String) extends Actor {
   //Overload messaging, stateful necessary
   // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
-    case GenerateKeyFile(password, seed, defaultKeyDir) =>
-      sender() ! KeyFile.apply(password, seed, defaultKeyDir)
+    case GenerateKeyFile(password) =>
+      sender ! Base58.encode(KeyFile(password, defaultKeyDir = keyManager.defaultKeyDir).pubKeyBytes)
 
     case UnlockKeyFile(pubKeyString, password) => keyManager.unlockKeyFile(pubKeyString, password)
 
@@ -27,7 +28,7 @@ class KeyManager(keyDir: String) extends Actor {
 }
 
 object KeyManager {
-  case class GenerateKeyFile(password: String, seed: Array[Byte], defaultKeyDir: String)
+  case class GenerateKeyFile(password: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
   case class getOpenKeyfiles()

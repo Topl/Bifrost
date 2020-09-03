@@ -86,8 +86,7 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
     val password = (params \\ "password").head.toString()
-    Future{(keyManager ! GenerateKeyFile(password, Blake2b256(uuid), "")).asJson } // fix this - need director
+    (keyManager ? GenerateKeyFile(password)).mapTo[String].map(_.asJson)
   }
-
 }
 
