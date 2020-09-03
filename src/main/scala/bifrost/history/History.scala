@@ -463,9 +463,9 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
-    if(isEmpty) {
+    if (isEmpty) {
       info.startingPoints
-    } else if(info.lastBlockIds.isEmpty) {
+    } else if (info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
       val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
       chainBack(block, _ ⇒ false, size).get
