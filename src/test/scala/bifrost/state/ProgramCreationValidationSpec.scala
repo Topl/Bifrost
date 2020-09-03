@@ -101,7 +101,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
-          10L,
           settings.forgingSettings.version
         )
 
@@ -295,7 +294,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
-          10L,
           settings.forgingSettings.version
         )
 

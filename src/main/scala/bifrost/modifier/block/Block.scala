@@ -40,7 +40,6 @@ case class Block(parentId: BlockId,
                  forgerBox: ArbitBox,
                  signature: Signature25519,
                  txs: Seq[Transaction],
-                 inflation: Long = 0L,
                  protocolVersion: Version)
   extends BifrostNodeViewModifier {
 
@@ -67,7 +66,6 @@ case class Block(parentId: BlockId,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson,
-    "inflation" -> inflation.asJson,
     "version" -> version.asJson,
     "blockSize" -> serializer.toBytes(this).length.asJson
   ).asJson
@@ -90,11 +88,10 @@ object Block {
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
-             inflation: Long,
              version: Version): Block = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
-    val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
+    val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
     if (parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
@@ -124,7 +121,6 @@ object Block {
       "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
       "txs" -> b.txs.map(_.json).asJson,
-      "inflation" -> b.inflation.asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
     ).asJson

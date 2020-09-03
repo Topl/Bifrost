@@ -40,7 +40,6 @@ class BloomFilterSpec extends AnyPropSpec
     arbitBoxGen.sample.get,
     signatureGen.sample.get,
     Seq(tx),
-    10L
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       val block = Block(history.bestBlockId,
@@ -48,7 +47,6 @@ class BloomFilterSpec extends AnyPropSpec
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,
                                txs,
-                               10L,
                                settings.version
       )
 

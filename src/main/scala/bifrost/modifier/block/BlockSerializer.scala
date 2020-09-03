@@ -25,9 +25,6 @@ object BlockSerializer extends BifrostSerializer[Block] {
     /* generatorBox: ArbitBox */
     BoxSerializer.serialize(block.forgerBox, w)
 
-    /* inflation: Long */
-    w.putLong(block.inflation)
-
     /* signature: Signature25519 */
     Signature25519Serializer.serialize(block.signature, w)
 
@@ -53,14 +50,11 @@ object BlockSerializer extends BifrostSerializer[Block] {
 
     val generatorBox: ArbitBox = BoxSerializer.parse(r).asInstanceOf[ArbitBox]
 
-    // TODO: Jing - Can inflation be negative?
-    val inflation: Long = r.getLong()
-
     val signature: Signature25519 = Signature25519Serializer.parse(r)
 
     val txsLength: Int = r.getUInt().toIntExact
     val txs: Seq[Transaction] = (0 until txsLength).map(_ => TransactionSerializer.parse(r))
 
-    Block(parentId, timestamp, generatorBox, signature, txs, inflation, version)
+    Block(parentId, timestamp, generatorBox, signature, txs, version)
   }
 }
