@@ -1,9 +1,6 @@
 package keymanager
 
-import java.io.File
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.ExecutionContext
 
@@ -15,7 +12,7 @@ class KeyManager(keyDir: String) extends Actor {
   val keyManager: Keys = Keys(Set.empty, keyDir)
 
   //Overload messaging, stateful necessary
-  // is the idea here to have another keys actor??? So that the keymanager requests using ask (?), then key tells (!) sender?
+  // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
     case GenerateKeyFile(password, seed, defaultKeyDir) =>
       sender() ! KeyFile.apply(password, seed, defaultKeyDir)
@@ -24,7 +21,8 @@ class KeyManager(keyDir: String) extends Actor {
 
     case LockKeyFile(pubKeyString, password) => keyManager.lockKeyFile(pubKeyString, password)
 
-    case ListOpenKeyFiles() => keyManager.listOpenKeyFiles
+    case getOpenKeyfiles() =>
+      sender ! keyManager.listOpenKeyFiles
   }
 }
 
@@ -32,7 +30,7 @@ object KeyManager {
   case class GenerateKeyFile(password: String, seed: Array[Byte], defaultKeyDir: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
-  case class ListOpenKeyFiles()
+  case class getOpenKeyfiles()
 }
 
 object KeyManagerRef {

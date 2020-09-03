@@ -4,12 +4,12 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
-import keymanager.KeyFile.uuid
 import keymanager.KeyManager._
 import keymanager.Keys
 import scorex.crypto.hash.Blake2b256
@@ -81,9 +81,7 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
   }
 
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-//    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
-//    val keyManager = Keys(Set(), defaultKeyDir) // change this -> take in KeyManager ref?
-    Future{(keyManager ! ListOpenKeyFiles).asJson}
+    (keyManager ? getOpenKeyfiles()).mapTo[Set[String]].map(_.asJson)
   }
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {
