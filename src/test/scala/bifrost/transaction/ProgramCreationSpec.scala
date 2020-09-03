@@ -24,7 +24,7 @@ class ProgramCreationSpec extends AnyPropSpec
   property("Generated ProgramCreation Tx should be valid") {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
-        val semanticValid = State.semanticValidity(programCreation)
+        val semanticValid = State.syntacticValidity(programCreation)
         semanticValid shouldBe a[Success[_]]
     }
   }
@@ -40,7 +40,7 @@ class ProgramCreationSpec extends AnyPropSpec
           programCreation.signatures +
             (programCreation.signatures.head._1 -> Signature25519(wrongSig))
 
-        State.semanticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
+        State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }
   }
 /*

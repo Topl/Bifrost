@@ -92,6 +92,9 @@ trait GenericHistory[
     */
   def reportModifierIsInvalid(modifier: PM, progressInfo: ProgressInfo[PM]): (HT, ProgressInfo[PM])
 
+  /**
+    * @return read-only copy of this history
+    */
   def getReader: HistoryReader[PM, SI] = this
 }
 
