@@ -3,6 +3,7 @@ package bifrost.history
 import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
+import bifrost.history.BlockProcessor.{CacheBlock, ChainCache}
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -11,7 +12,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
+import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
 import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -43,8 +44,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
 
-  val processor = new BlockProcessor
-
   /**
     * Is there's no history, even genesis block
     *
@@ -67,7 +66,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param block block to append
     * @return the update history including `block` as the most recent block
     */
-  override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
+  override def append(cache: ChainCache, block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
 
@@ -89,18 +88,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         (new History(storage, settings, validators), progInfo)
       } else {
 
-        // Calculate the block difficulty according to
-        // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
-        val blockTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-        val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
-        val parentDifficulty = storage.difficultyOf(block.parentId).get
-        val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
-        // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
-        val difficulty: Long = if (averageDelay > targetTime) {
-          (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
-        } else {
-          (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
-        }
 
         // Determine if this block is on the canonical chain
         val builtOnBestChain = applicable(block)
@@ -109,19 +96,35 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           // new block parent is best block so far
           if (block.parentId == storage.bestBlockId) {
             log.debug(s"New best block ${block.id.toString}")
+            storage.update(block, difficulty, builtOnBestChain)
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
           } else {
             // we want to check for a fork
+            val processor = new BlockProcessor(cache)
             processor.process(this, block)
           }
 
-        storage.update(block, difficulty, builtOnBestChain)
         (new History(storage, settings, validators), mod)
       }
     }
     log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
                s"Best score is $score. Pair: $bestBlockId")
     res
+  }
+
+  def calculateDifficulty(block: Block): Long = {
+    // Calculate the block difficulty according to
+    // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
+    val blockTimes = lastBlocks(4, block).map(prev => prev.timestamp)
+    val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
+    val parentDifficulty = storage.difficultyOf(block.parentId).get
+    val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
+    // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
+    if (averageDelay > targetTime) {
+      (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
+    } else {
+      (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
+    }
   }
 
   /**

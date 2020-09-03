@@ -1,6 +1,7 @@
 package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
+import bifrost.history.BlockProcessor.ChainCache
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
@@ -11,11 +12,11 @@ import io.iohk.iodb.ByteArrayWrapper
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor extends BifrostEncoding with Logging {
+class BlockProcessor(cache: ChainCache) extends BifrostEncoding with Logging {
 
   import BlockProcessor._
 
-  private var chainCache = emptyCache
+  private var chainCache = cache
 
   /**
     * Process a single block and determine if any of the possible chains in the
@@ -38,6 +39,12 @@ class BlockProcessor extends BifrostEncoding with Logging {
             val newChain = possibleChain(CacheBlock(block, newHeight))
             val commonAncestor = history.modifierById(newChain.head.parentId).get
             val oldChain = history.lastBlocks((history.height - history.storage.heightOf(commonAncestor.id).get), history.bestBlock)
+
+            history.storage.rollback(commonAncestor.id)
+            newChain.foreach { b ⇒
+              history.storage.update(b, history.storage.parentDifficulty(b), true)
+            }
+
             ProgressInfo(Some(commonAncestor.id), oldChain, newChain, Seq.empty)
           } else {
             ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)

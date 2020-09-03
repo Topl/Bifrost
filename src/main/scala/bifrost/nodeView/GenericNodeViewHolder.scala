@@ -1,7 +1,8 @@
 package bifrost.nodeView
 
 import akka.actor.Actor
-import bifrost.history.GenericHistory
+import bifrost.history.BlockProcessor.ChainCache
+import bifrost.history.{BlockProcessor, GenericHistory}
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
@@ -57,6 +58,8 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     */
   protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
     new DefaultModifiersCache[PMOD, HIS](settings.network.maxModifiersCacheSize)
+
+  protected lazy val chainCache: ChainCache = BlockProcessor.emptyCache
 
   /**
     * The main data structure a node software is taking care about, a node view consists
@@ -355,7 +358,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
       log.info(s"Apply modifier ${pmod.encodedId} of type ${pmod.modifierTypeId} to nodeViewHolder")
 
-      history().append(pmod) match {
+      history().append(chainCache, pmod) match {
         case Success((historyBeforeStUpdate, progressInfo)) =>
           log.debug(s"Going to apply modifications to the state: $progressInfo")
           context.system.eventStream.publish(SyntacticallySuccessfulModifier(pmod))

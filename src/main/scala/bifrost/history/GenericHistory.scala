@@ -1,5 +1,6 @@
 package bifrost.history
 
+import bifrost.history.BlockProcessor.ChainCache
 import bifrost.modifier.ModifierId
 import bifrost.network.message.SyncInfo
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
@@ -62,7 +63,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
 
-  def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
+  def append(cache: ChainCache, modifier: PM): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 
