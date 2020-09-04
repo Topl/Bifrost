@@ -7,11 +7,13 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
 import keymanager.Keys
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.Future
@@ -69,11 +71,8 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
      k.asString.get
     ).toList
     val tx = (params \\ "protoTx").head
-    // this is going to be sketchy... but there's no other way to get the keyManager instance...
-    val defaultKeyDir = (params \\  "defaultKeyDir").head.asString.get
-    val keyManager = Keys(Set(), defaultKeyDir)
-
-    Future{r.signTx(tx, keyManager, props)}
+    val messageToSign = (params \\ "messageToSign").head
+    (keyManager ? SignTx(tx, props, messageToSign)).mapTo[String].map(_.asJson)
   }
 
   private def broadcastTx(params: Json, id: String): Future[Json] = {
@@ -81,7 +80,7 @@ case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: Actor
   }
 
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-    (keyManager ? getOpenKeyfiles()).mapTo[Set[String]].map(_.asJson)
+    (keyManager ? GetOpenKeyfiles()).mapTo[Set[String]].map(_.asJson)
   }
 
   private def generateKeyfile(params: Json, id: String): Future[Json] = {

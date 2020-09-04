@@ -1,6 +1,9 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
+import io.circe.Json
+import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext
@@ -22,8 +25,27 @@ class KeyManager(keyDir: String) extends Actor {
 
     case LockKeyFile(pubKeyString, password) => keyManager.lockKeyFile(pubKeyString, password)
 
-    case getOpenKeyfiles() =>
+    case GetOpenKeyfiles() =>
       sender ! keyManager.listOpenKeyFiles
+
+    case SignTx(tx, keys, msg) =>
+      var sigs: List[(String, String)] = keys.map { pk =>
+        val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
+        val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
+
+        privKey match {
+          case Some(sk) => {
+            val signature = Base58.encode(PrivateKey25519Companion.sign(sk, Base58.decode(msg.asString.get).get).signature)
+            (pk, signature)
+          }
+          case None => throw new NoSuchElementException
+        }
+      }
+      // not sure this is necessary, but seems like it? Updating the signatures field
+      val newTx = tx.deepMerge(Map(
+        "signatures" -> sigs.toMap.asJson
+      ).asJson)
+      sender ! Map("formattedTx"-> newTx).asJson
   }
 }
 
@@ -31,7 +53,8 @@ object KeyManager {
   case class GenerateKeyFile(password: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
-  case class getOpenKeyfiles()
+  case class GetOpenKeyfiles()
+  case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
 }
 
 object KeyManagerRef {
