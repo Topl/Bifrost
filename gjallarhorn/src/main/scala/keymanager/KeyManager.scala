@@ -29,7 +29,7 @@ class KeyManager(keyDir: String) extends Actor {
       sender ! keyManager.listOpenKeyFiles
 
     case SignTx(tx, keys, msg) =>
-      var sigs: List[(String, String)] = keys.map { pk =>
+      val sigs: List[(String, String)] = keys.map { pk =>
         val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
         val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 

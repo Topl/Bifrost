@@ -7,14 +7,10 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
-import keymanager.Keys
-import scorex.crypto.encode.Base58
-import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
