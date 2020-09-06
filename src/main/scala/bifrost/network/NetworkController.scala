@@ -110,25 +110,18 @@ class NetworkController(
 
   private def businessLogic: Receive = {
     //a message coming in from another peer
-    case message.Message(spec, Left(msgBytes), Some(remote)) =>
+    case msg @ message.Message(spec, Left(msgBytes), Some(remote)) =>
       val msgId = spec.messageCode
 
-      spec.parseBytes(msgBytes) match {
-        case Success(content) =>
-          messageHandlers.get(msgId) match {
-            case Some(handler) =>
-              handler ! DataFromPeer(spec, content, remote)
+      messageHandlers.get(msgId) match {
+        case Some(handler) =>
+          handler ! msg
 
-            case None =>
-              log.error(s"No handlers found for message $remote: " + msgId)
-          }
-        case Failure(e) =>
-          log.error(s"Failed to deserialize data from $remote: ", e)
-          penalize(
-            remote.connectionId.remoteAddress,
-            PenaltyType.PermanentPenalty
-          )
+        case None =>
+          log.error(s"No handlers found for message $remote: " + msgId)
       }
+
+
 
     case SendToNetwork(msg: message.Message[_], sendingStrategy) =>
       filterConnections(sendingStrategy, msg.spec.protocolVersion).foreach {
