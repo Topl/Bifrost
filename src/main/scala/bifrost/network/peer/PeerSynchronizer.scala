@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{GetPeersSpec, Message, MessageSpec, PeersSpec}
-import bifrost.network.{SendToPeer, SendToRandom, message}
+import bifrost.network.{SendToPeer, SendToRandom}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
@@ -54,7 +54,7 @@ class PeerSynchronizer(
   override def receive: Receive = {
 
     // data received from a remote peer
-    case message.Message(spec, Left(msgBytes), Some(remote)) =>
+    case Message(spec, Left(msgBytes), Some(remote)) =>
       // attempt to parse the message
       spec.parseBytes(msgBytes) match {
         // if a message could be parsed, match the type of content found and ensure the messageCode also matches

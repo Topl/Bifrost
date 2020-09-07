@@ -36,7 +36,6 @@ class NetworkController(
   import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import PeerManager.ReceivableMessages._
-  import SharedNetworkMessages.ReceivableMessages.DataFromPeer
 
   private lazy val bindAddress = settings.bindAddress
   private implicit val system: ActorSystem = context.system
@@ -109,25 +108,18 @@ class NetworkController(
   }
 
   private def businessLogic: Receive = {
-    //a message coming in from another peer
-    case msg @ message.Message(spec, Left(msgBytes), Some(remote)) =>
-      val msgId = spec.messageCode
-
-      messageHandlers.get(msgId) match {
-        case Some(handler) =>
-          handler ! msg
-
-        case None =>
-          log.error(s"No handlers found for message $remote: " + msgId)
+    // a message was RECEIVED from a remote peer
+    case msg @ Message(spec, _, Some(remote)) =>
+      messageHandlers.get(spec.messageCode) match {
+        case Some(handler) => handler ! msg // forward the message to the appropriate handler for processing
+        case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
       }
 
-
-
-    case SendToNetwork(msg: message.Message[_], sendingStrategy) =>
+    // a message to be SENT to a remote peer
+    case SendToNetwork(msg: Message[_], sendingStrategy) =>
       filterConnections(sendingStrategy, msg.spec.protocolVersion).foreach {
         connectedPeer => connectedPeer.handlerRef ! msg
       }
-
   }
 
   private def peerCommands: Receive = {
