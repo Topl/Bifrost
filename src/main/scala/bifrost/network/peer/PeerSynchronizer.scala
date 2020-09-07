@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{GetPeersSpec, Message, MessageSpec, PeersSpec}
-import bifrost.network.{SendToPeer, SendToRandom}
+import bifrost.network.{SendToPeer, SendToRandom, Synchronizer}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
@@ -12,28 +12,36 @@ import shapeless.syntax.typeable._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 /**
   * Responsible for discovering and sharing new peers.
   */
 class PeerSynchronizer(
-    networkControllerRef: ActorRef,
+    val networkControllerRef: ActorRef,
     peerManager: ActorRef,
     settings: NetworkSettings,
     bifrostContext: BifrostContext
 )(implicit ec: ExecutionContext)
     extends Actor
+    with Synchronizer
     with Logging {
 
   // Import the types of messages this actor can SEND
-  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
   import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
 
+  // types of remote messages to be handled by this synchronizer
   protected val peersSpec: PeersSpec = bifrostContext.peerSyncRemoteMessages.peersSpec
   protected val getPeersSpec: GetPeersSpec = bifrostContext.peerSyncRemoteMessages.getPeersSpec
+
+  // partial functions for identifying local method handlers for the messages above
+  protected val msgHandlers: PartialFunction[Message[_], Unit] = {
+    case Message(spec, peers: Seq[PeerSpec] @unchecked, _) if spec.messageCode == PeersSpec.MessageCode    => addNewPeers(peers)
+    case Message(spec, _, Some(remote))                    if spec.messageCode == GetPeersSpec.MessageCode => gossipPeers(remote)
+  }
+
 
   override def preStart: Unit = {
     networkControllerRef ! RegisterMessageSpecs(
@@ -54,24 +62,8 @@ class PeerSynchronizer(
   override def receive: Receive = {
 
     // data received from a remote peer
-    case Message(spec, Left(msgBytes), Some(remote)) =>
-      // attempt to parse the message
-      spec.parseBytes(msgBytes) match {
-        // if a message could be parsed, match the type of content found and ensure the messageCode also matches
-        case Success(content) =>
-          content match {
-            case peers: Seq[PeerSpec] if spec.messageCode == PeersSpec.MessageCode    => addNewPeers(peers)
-            case _                    if spec.messageCode == GetPeersSpec.MessageCode => gossipPeers(remote)
-          }
-
-        // if a message could not be parsed, penalize the remote peer
-        case Failure(e) =>
-          log.error(s"Failed to deserialize data from $remote: ", e)
-          networkControllerRef ! PenalizePeer(
-            remote.connectionId.remoteAddress,
-            PenaltyType.PermanentPenalty
-          )
-      }
+    case Message(spec, Left(msgBytes), source) =>
+      parseAndHandle(spec, msgBytes, source)
 
     // fall-through method for reporting unhandled messages
     case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")

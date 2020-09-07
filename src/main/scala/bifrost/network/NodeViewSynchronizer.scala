@@ -39,12 +39,12 @@ class NodeViewSynchronizer[
   HR <: HistoryReader[PMOD, SI] : ClassTag,
   MR <: MemPoolReader[TX] : ClassTag
 ](
-   networkControllerRef: ActorRef,
+   val networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
    networkSettings: NetworkSettings,
    bifrostContext: BifrostContext
  )
- (implicit ec: ExecutionContext) extends Actor with Logging with BifrostEncoding {
+ (implicit ec: ExecutionContext) extends Actor with Synchronizer with Logging with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
   import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -62,6 +62,14 @@ class NodeViewSynchronizer[
   protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
   protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
   protected val syncInfoSpec: SyncInfoSpec = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
+
+  // partial functions for identifying local method handlers for the messages above
+  protected val msgHandlers: PartialFunction[Message[_], Unit] = {
+    case Message(spec, data: SI @unchecked, Some(remote))            if spec.messageCode == SyncInfoSpec.MessageCode        => gotRemoteSyncInfo(data, remote)
+    case Message(spec, data: InvData @unchecked, Some(remote))       if spec.messageCode == InvSpec.MessageCode             => gotRemoteInventory(data, remote)
+    case Message(spec, data: InvData @unchecked, Some(remote))       if spec.messageCode == RequestModifierSpec.MessageCode => gotModifierRequest(data, remote)
+    case Message(spec, data: ModifiersData @unchecked, Some(remote)) if spec.messageCode == ModifiersSpec.MessageCode       => gotRemoteModifiers(data, remote)
+  }
 
   protected val deliveryTracker = new DeliveryTracker(context.system, deliveryTimeout, maxDeliveryChecks, self)
   protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
@@ -102,27 +110,8 @@ class NodeViewSynchronizer[
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processDataFromPeer: Receive = {
-    // data received from a remote peer
-    case Message(spec, Left(msgBytes), Some(remote)) =>
-      // attempt to parse the message
-      spec.parseBytes(msgBytes) match {
-        // if a message could be parsed, match the type of content found and ensure the messageCode also matches
-        case Success(content) =>
-          content match {
-            case data: SI            if spec.messageCode == SyncInfoSpec.MessageCode        => gotRemoteSyncInfo(data, remote)
-            case data: InvData       if spec.messageCode == InvSpec.MessageCode             => gotRemoteInventory(data, remote)
-            case data: InvData       if spec.messageCode == RequestModifierSpec.MessageCode => gotModifierRequest(data, remote)
-            case data: ModifiersData if spec.messageCode == ModifiersSpec.MessageCode       => gotRemoteModifiers(data, remote)
-          }
-
-        // if a message could not be parsed, penalize the remote peer
-        case Failure(e) =>
-          log.error(s"Failed to deserialize data from $remote: ", e)
-          networkControllerRef ! PenalizePeer(
-            remote.connectionId.remoteAddress,
-            PenaltyType.PermanentPenalty
-          )
-      }
+    case Message(spec, Left(msgBytes), source) =>
+      parseAndHandle(spec, msgBytes, source)
   }
 
   protected def processSyncStatus: Receive = {
