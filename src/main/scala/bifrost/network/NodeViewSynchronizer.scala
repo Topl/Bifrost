@@ -484,6 +484,10 @@ class NodeViewSynchronizer[
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.MisbehaviorPenalty)
   }
 
+  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+  }
+
   /**
     * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
     * but peer that can deliver it is unknown.

@@ -17,7 +17,7 @@ import scala.language.postfixOps
   * Responsible for discovering and sharing new peers.
   */
 class PeerSynchronizer(
-    val networkControllerRef: ActorRef,
+    networkControllerRef: ActorRef,
     peerManager: ActorRef,
     settings: NetworkSettings,
     bifrostContext: BifrostContext
@@ -27,7 +27,7 @@ class PeerSynchronizer(
     with Logging {
 
   // Import the types of messages this actor can SEND
-  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork}
+  import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork, PenalizePeer}
   import bifrost.network.peer.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
@@ -89,6 +89,10 @@ class PeerSynchronizer(
         val msg = Message(peersSpec, Right(peers.map(_.peerSpec)), None)
         networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
       }
+
+  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
