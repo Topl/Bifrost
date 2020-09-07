@@ -51,13 +51,13 @@ class NodeViewSynchronizer[
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 
-  protected val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
-  protected val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
+  // the maximum number of inventory modifiers to compare with remote peers
   protected val desiredInvObjects: Int = networkSettings.desiredInvObjects
 
+  // serializers for blocks and transactions
   protected val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] = NodeViewModifier.modifierSerializers
 
-  // define convenience variables for accessing in the messages specs
+  // convenience variables for accessing the messages specs
   protected val invSpec: InvSpec = bifrostContext.nodeViewSyncRemoteMessages.invSpec
   protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
   protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
@@ -71,7 +71,7 @@ class NodeViewSynchronizer[
     case Message(spec, data: ModifiersData @unchecked, Some(remote)) if spec.messageCode == ModifiersSpec.MessageCode       => gotRemoteModifiers(data, remote)
   }
 
-  protected val deliveryTracker = new DeliveryTracker(context.system, deliveryTimeout, maxDeliveryChecks, self)
+  protected val deliveryTracker = new DeliveryTracker(self, context, networkSettings)
   protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
 
   protected var historyReaderOpt: Option[HR] = None
@@ -138,7 +138,7 @@ class NodeViewSynchronizer[
 
   protected def manageModifiers: Receive = {
 
-    // Request data from a remote node
+    // Request data from any remote node
     case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
       if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
         requestDownload(modifierTypeId, Seq(modifierId), None)
@@ -159,22 +159,37 @@ class NodeViewSynchronizer[
 
     // check whether requested modifiers have been delivered to the local node from a remote peer
     case CheckDelivery(peerOpt, modifierTypeId, modifierId) =>
-      // Do nothing, if modifier is already in a different state (it might be already received, applied, etc.),
+      // Do nothing if the modifier is already in a different state (it might be already received, applied, etc.),
       if (deliveryTracker.status(modifierId) == ModifiersStatus.Requested) {
-        peerOpt match {
-          // if a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum
-          case Some(peer) =>
-            log.info(s"Peer ${peer.toString} has not delivered requested modifier ${encoder.encodeId(modifierId)} on time")
-            penalizeNonDeliveringPeer(peer)
-            deliveryTracker.onStillWaiting(peer, modifierTypeId, modifierId)
-          case None =>
-            // If original peer could not deliver the modifier we requested, ask another random peer
-            // Since we need this modifier - no limit for number of attempts
-            // todo: should we not have a limit on the number of asks? Could I be malicious and send 'Invs' for fake
-            // todo: modifiers and then never respond?
-            log.info(s"Modifier ${encoder.encodeId(modifierId)} was not delivered on time")
+
+        // update the check count of the modifiers that we are waiting on and schedule the next check
+        deliveryTracker.onStillWaiting(peerOpt, modifierTypeId, modifierId) match {
+          // handle whether we should continue to look for this modifier
+          case Success(underMaxAttempts) =>
+            peerOpt match {
+              // this is the case that we are continuing to wait on a specific peer to respond
+              case Some(peer) if underMaxAttempts =>
+                // a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum
+                log.info(s"Peer ${peer.toString} has not delivered requested modifier ${encoder.encodeId(modifierId)} on time")
+                penalizeNonDeliveringPeer(peer)
+
+              // this is the case that we are going to start asking anyone for this modifier
+              case Some(_) =>
+                log.info(s"Modifier ${encoder.encodeId(modifierId)} was not delivered on time. Transitioning to ask random peers.")
+                // request must have been sent previously to have scheduled a CheckDelivery
+                requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
+
+              // this handles multiple attempts to ask random peers for a modifier
+              case None =>
+                log.info(s"Modifier ${encoder.encodeId(modifierId)} still had not been delivered.")
+                // request must have been sent previously to have scheduled a CheckDelivery
+                requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
+            }
+
+          // we should stop expecting this modifier since we have tried multiple parties several times
+          case Failure(ex) =>
+            log.warn(s"Aborting attempts to retrieve modifier - $ex")
             deliveryTracker.setUnknown(modifierId)
-            requestDownload(modifierTypeId, Seq(modifierId), None)
         }
       }
   }
@@ -354,22 +369,27 @@ class NodeViewSynchronizer[
 
   /**
    * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
-   * but peer that can deliver it is unknown.
-   * Request this modifier from random peer.
+   * but a peer that can deliver may be unknown
    */
-  protected def requestDownload(
-                                 modifierTypeId: ModifierTypeId,
+  protected def requestDownload( modifierTypeId: ModifierTypeId,
                                  modifierIds: Seq[ModifierId],
-                                 peer: Option[ConnectedPeer]
+                                 peer: Option[ConnectedPeer],
+                                 previouslyRequested: Boolean = false,
                                ): Unit = {
     val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, modifierIds)), None)
     val sendStrategy = peer match {
       case Some(remote) => SendToPeer(remote)
       case None         => SendToRandom
     }
-    deliveryTracker.setRequested(modifierIds, modifierTypeId, peer)
+
+    // boolean to control whether there may already be an entry in deliveryTracker for these modifiers
+    if (!previouslyRequested) deliveryTracker.setRequested(modifierIds, modifierTypeId, peer)
+
+    // send out our request to the network using the determined strategy
     networkControllerRef ! SendToNetwork(msg, sendStrategy)
   }
+
+
 
   /**
    * Announce the local synchronization status by broadcasting the latest blocks ids
