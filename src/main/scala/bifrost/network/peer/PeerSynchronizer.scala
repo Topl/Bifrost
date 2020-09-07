@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{GetPeersSpec, Message, MessageSpec, PeersSpec}
-import bifrost.network.{SendToPeer, SendToPeers, SendToRandom}
+import bifrost.network.{SendToPeer, SendToRandom}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.utils.Logging
 import shapeless.syntax.typeable._
