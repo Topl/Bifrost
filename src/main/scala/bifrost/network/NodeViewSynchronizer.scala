@@ -136,12 +136,8 @@ class NodeViewSynchronizer[
               invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
           }
 
-          // request unknown ids from peer and set this ids to requested state.
-          if (newModifierIds.nonEmpty) {
-            val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, newModifierIds)), None)
-            networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
-            deliveryTracker.setRequested(newModifierIds, modifierTypeId, Some(remote))
-          }
+          // request unknown ids from the peer that announced the unknown modifiers
+          if (newModifierIds.nonEmpty) requestDownload(modifierTypeId, newModifierIds, Some(remote))
 
         case _ =>
           log.warn(s"Got inventory data from peer while readers are not ready ${(mempoolReaderOpt, historyReaderOpt)}")
@@ -197,7 +193,7 @@ class NodeViewSynchronizer[
 
     // send local sync status to a peer
     case SendLocalSyncInfo =>
-      historyReaderOpt.foreach(sendSync(statusTracker, _))
+      historyReaderOpt.foreach(sendSync)
 
     // receive a sync status from a peer
     case OtherNodeSyncingStatus(remote, status, ext) =>
@@ -220,7 +216,7 @@ class NodeViewSynchronizer[
     // Request data from a remote node
     case DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) =>
       if (deliveryTracker.status(modifierId, historyReaderOpt.toSeq) == ModifiersStatus.Unknown) {
-        requestDownload(modifierTypeId, Seq(modifierId))
+        requestDownload(modifierTypeId, Seq(modifierId), None)
       }
 
     // Respond with data from the local node
@@ -253,7 +249,7 @@ class NodeViewSynchronizer[
             // todo: modifiers and then never respond?
             log.info(s"Modifier ${encoder.encodeId(modifierId)} was not delivered on time")
             deliveryTracker.setUnknown(modifierId)
-            requestDownload(modifierTypeId, Seq(modifierId))
+            requestDownload(modifierTypeId, Seq(modifierId), None)
         }
       }
   }
@@ -333,10 +329,14 @@ class NodeViewSynchronizer[
    * but peer that can deliver it is unknown.
    * Request this modifier from random peer.
    */
-  protected def requestDownload(modifierTypeId: ModifierTypeId, modifierIds: Seq[ModifierId]): Unit = {
-    deliveryTracker.setRequested(modifierIds, modifierTypeId, None)
+  protected def requestDownload(modifierTypeId: ModifierTypeId, modifierIds: Seq[ModifierId], peer: Option[ConnectedPeer]): Unit = {
     val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, modifierIds)), None)
-    networkControllerRef ! SendToNetwork(msg, SendToRandom)
+    val sendStrategy = peer match {
+      case Some(remote) => SendToPeer(remote)
+      case None         => SendToRandom
+    }
+    deliveryTracker.setRequested(modifierIds, modifierTypeId, peer)
+    networkControllerRef ! SendToNetwork(msg, sendStrategy)
   }
 
   /**
@@ -406,9 +406,8 @@ class NodeViewSynchronizer[
             true
         }
       case None =>
-        log.error("Got modifier while history reader is not ready")
-        deliveryTracker.setReceived(pmod.id, remote)
-        true
+        log.error("Got modifiers from remote while history reader is not ready")
+        false
     }
   }
 
