@@ -39,7 +39,7 @@ class NodeViewSynchronizer[
   HR <: HistoryReader[PMOD, SI] : ClassTag,
   MR <: MemPoolReader[TX] : ClassTag
 ](
-   val networkControllerRef: ActorRef,
+   networkControllerRef: ActorRef,
    viewHolderRef: ActorRef,
    networkSettings: NetworkSettings,
    bifrostContext: BifrostContext
