@@ -21,7 +21,6 @@ import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success}
 
@@ -91,8 +90,11 @@ class NodeViewSynchronizer[
     context.system.eventStream.subscribe(self, classOf[ModificationOutcome])
     context.system.eventStream.subscribe(self, classOf[DownloadRequest])
     context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[PMOD]])
+
+    // instantiate the internal NodeViewSynchronizer state for History and Mempool
     viewHolderRef ! GetNodeViewChanges(history = true, state = false, vault = false, mempool = true)
 
+    // schedules a SendLocalSyncInfo message to be sent at a fixed interval
     statusTracker.scheduleSendSyncInfo()
   }
 
@@ -115,25 +117,9 @@ class NodeViewSynchronizer[
   }
 
   protected def processSyncStatus: Receive = {
-
     // send local sync status to a peer
     case SendLocalSyncInfo =>
       historyReaderOpt.foreach(sendSync)
-
-    // receive a sync status from a peer
-    case OtherNodeSyncingStatus(remote, status, ext) =>
-      statusTracker.updateStatus(remote, status)
-
-      status match {
-        case Unknown =>
-          //todo: should we ban peer if its status is unknown after getting info from it?
-          log.warn("Peer status is still unknown")
-        case Nonsense =>
-          log.warn("Got nonsense")
-        case Younger | Fork =>
-          sendExtension(remote, status, ext)
-        case _ => // does nothing for `Equal` and `Older`
-      }
   }
 
   protected def manageModifiers: Receive = {
@@ -174,14 +160,9 @@ class NodeViewSynchronizer[
                 penalizeNonDeliveringPeer(peer)
 
               // this is the case that we are going to start asking anyone for this modifier
-              case Some(_) =>
-                log.info(s"Modifier ${encoder.encodeId(modifierId)} was not delivered on time. Transitioning to ask random peers.")
-                // request must have been sent previously to have scheduled a CheckDelivery
-                requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
-
-              // this handles multiple attempts to ask random peers for a modifier
-              case None =>
-                log.info(s"Modifier ${encoder.encodeId(modifierId)} still had not been delivered.")
+              // we'll keep hitting this case until no peer is specified and we hit the maximum number of tries again
+              case Some(_) | None =>
+                log.info(s"Modifier ${encoder.encodeId(modifierId)} still has not been delivered. Querying random peers")
                 // request must have been sent previously to have scheduled a CheckDelivery
                 requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
             }
@@ -256,15 +237,32 @@ class NodeViewSynchronizer[
       case Some(historyReader) =>
         val ext = historyReader.continuationIds(syncInfo, desiredInvObjects)
         val comparison = historyReader.compare(syncInfo)
-        log.debug(s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
-          s"Comparison result is $comparison. Sending extension of length ${ext.length}")
-        log.debug(s"Extension ids: ${idsToString(ext)}")
 
         if (!(ext.nonEmpty || comparison != Younger))
           log.warn("Extension is empty while comparison is younger")
 
-        self ! OtherNodeSyncingStatus(remote, comparison, ext)
+        statusTracker.updateStatus(remote, comparison)
+
+        comparison match {
+          case Unknown =>
+            //todo: should we ban peer if its status is unknown after getting info from it?
+            log.warn("Peer status is still unknown")
+
+          case Nonsense =>
+            log.warn("Got nonsense")
+
+          case Younger | Fork =>
+            log.debug(s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
+              s"Comparison result is $comparison. Sending extension of length ${ext.length}")
+            log.debug(s"Extension ids: ${idsToString(ext)}")
+
+            sendExtension(remote, comparison, ext)
+
+          case _ => // does nothing for `Equal` and `Older`
+        }
+
       case _ =>
+        log.warn(s"Got sync information from a peer while history reader was not available")
     }
 
 
@@ -290,7 +288,7 @@ class NodeViewSynchronizer[
         if (newModifierIds.nonEmpty) requestDownload(modifierTypeId, newModifierIds, Some(remote))
 
       case _ =>
-        log.warn(s"Got inventory data from peer while readers are not ready ${(mempoolReaderOpt, historyReaderOpt)}")
+        log.warn(s"Got inventory data from peer while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
     }
 
 
@@ -312,7 +310,7 @@ class NodeViewSynchronizer[
         self ! ResponseFromLocal(remote, invData.typeId, objs)
 
       case _ =>
-        log.warn(s"Data was requested while readers are not ready ${(mempoolReaderOpt, historyReaderOpt)}")
+        log.warn(s"Data was requested while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
     }
 
 

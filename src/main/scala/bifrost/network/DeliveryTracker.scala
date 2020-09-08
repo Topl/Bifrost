@@ -91,7 +91,7 @@ class DeliveryTracker( nvsRef: ActorRef,
       setUnknown(id) // clear status of modifiers so we can update below
 
       // Determine if we should continue to wait on a particular peer or if we should start asking other random peers
-      // but only ask up to the number the maxDeliveryChecks
+      // but only ask up to the number of maxDeliveryChecks
       peerOpt match {
         // case for waiting on anyone to provide a modifier
         case _ if checks < maxDeliveryChecks  =>
