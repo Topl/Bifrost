@@ -26,7 +26,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
     /* putIntString encode String that is shorter than 2147483647 bytes */
     val asset: String = r.getIntString()
 
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
+    val issuer: PublicKey25519Proposition = PublicKey25519PropositionSerializer.parse(r)
     val data: String = r.getIntString()
 
     AssetBox(noncedBox.proposition, noncedBox.nonce, noncedBox.value, asset, issuer, data)
