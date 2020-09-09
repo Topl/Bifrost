@@ -120,7 +120,7 @@ trait VLQReader extends Reader {
   }
 
   /**
-    * Decode String is shorter than 256 bytes
+    * Decode String is greater than 256 bytes
     *
     * @return
     */
