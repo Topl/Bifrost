@@ -2,6 +2,7 @@ package bifrost.utils.serialization
 
 import java.util
 
+import bifrost.utils.Extensions._
 import bifrost.utils.encode.ZigZagEncoder._
 
 trait VLQReader extends Reader {
@@ -113,13 +114,18 @@ trait VLQReader extends Reader {
     *
     * @return
     */
-  @inline override def getShortString(): String = {
+  @inline override def getByteString(): String = {
     val size = getUByte()
     new String(getBytes(size))
   }
-}
 
-object VLQReader {
-
-
+  /**
+    * Decode String is greater than 256 bytes
+    *
+    * @return
+    */
+  @inline override def getIntString(): String = {
+    val size = getUInt().toIntExact
+    new String(getBytes(size))
+  }
 }

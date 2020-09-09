@@ -6,7 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.serialization.AssetTransferCompanion
+import bifrost.modifier.transaction.serialization.AssetTransferSerializer
 import bifrost.state.TokenBoxRegistry
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
@@ -29,7 +29,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override type M = AssetTransfer
 
-  override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferCompanion
+  override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 

@@ -8,6 +8,7 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.StateChanges
@@ -40,9 +41,6 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
            .grouped(store.keySize)
            .toSeq)
     .getOrElse(Seq[Array[Byte]]())
-
-  //not implemented intentionally for now
-  def historyTransactions: Seq[WalletTransaction[PI, Transaction]] = ???
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction

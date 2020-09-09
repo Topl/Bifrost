@@ -6,9 +6,9 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.serialization.AssetCreationCompanion
-import bifrost.wallet.Wallet
+import bifrost.modifier.transaction.serialization.AssetCreationSerializer
 import bifrost.utils.idToBytes
+import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
@@ -28,7 +28,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override type M = AssetCreation
 
-  lazy val serializer = AssetCreationCompanion
+  lazy val serializer = AssetCreationSerializer
 
   override def toString: String = s"AssetCreation(${json.noSpaces})"
 

@@ -144,10 +144,24 @@ trait VLQWriter extends Writer {
     * @param s String
     * @return
     */
-  override def putShortString(s: String): this.type = {
+  override def putByteString(s: String): this.type = {
     val bytes = s.getBytes
     require(bytes.size < 256)
     putUByte(bytes.size.toByte)
+    putBytes(bytes)
+    this
+  }
+
+  /**
+    * Encode String that is longer than 256 bytes
+    *
+    * @param s String
+    * @return
+    */
+  override def putIntString(s: String): this.type = {
+    val bytes = s.getBytes
+    require(bytes.size < Int.MaxValue)
+    putUInt(bytes.size)
     putBytes(bytes)
     this
   }

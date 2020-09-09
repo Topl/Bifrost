@@ -3,11 +3,9 @@ package bifrost.network.peer
 import java.net.{InetAddress, InetSocketAddress}
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import bifrost.settings.BifrostContext
 import bifrost.network._
-import bifrost.settings.NetworkSettings
-import bifrost.utils.NetworkUtils
-import bifrost.utils.Logging
+import bifrost.settings.{BifrostContext, NetworkSettings}
+import bifrost.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random

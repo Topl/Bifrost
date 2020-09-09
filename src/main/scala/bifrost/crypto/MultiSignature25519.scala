@@ -1,12 +1,10 @@
 package bifrost.crypto
 
+import bifrost.crypto.serialization.MultiSignature25519Serializer
 import bifrost.modifier.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import com.google.common.primitives.Ints
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-
-import scala.util.Try
 
 case class MultiSignature25519(signatureSet: Set[Signature25519])
   extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
@@ -37,29 +35,6 @@ case class MultiSignature25519(signatureSet: Set[Signature25519])
     signatureSet.tail.map(s => Base58.encode(s.signature))
       .foldLeft(Base58.encode(signatureSet.head.signature))(_ + ", " + _)
   })"
-}
-
-object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature25519] {
-  override def toBytes(obj: MultiSignature25519): Array[Byte] =
-    Ints.toByteArray(obj.signatureSet.size) ++
-      obj
-        .signatureSet
-        .foldLeft(Array[Byte]())((total, sig) => total ++ sig.signature)
-
-  override def parseBytes(bytes: Array[Byte]): Try[MultiSignature25519] = Try {
-    val numSignatures = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val signatureSet: Set[Signature25519] = (0 until numSignatures).map {
-      i =>
-        Signature25519(bytes.slice(Ints.BYTES + i * MultiSignature25519.SignatureSize,
-                                   Ints.BYTES + (i + 1) * MultiSignature25519.SignatureSize))
-    }.toSet
-
-    MultiSignature25519(signatureSet)
-  }
-
-  override def serialize(obj: MultiSignature25519, w: Writer): Unit = ???
-
-  override def parse(r: Reader): MultiSignature25519 = ???
 }
 
 object MultiSignature25519 {

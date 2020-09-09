@@ -7,9 +7,9 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-abstract class ProgramBox(override val proposition: PublicKey25519Proposition,
-                          override val nonce: Long,
-                          override val value: UUID) extends Box(proposition, nonce, value) {
+class ProgramBox(override val proposition: PublicKey25519Proposition,
+                 override val nonce: Long,
+                 override val value: UUID) extends Box(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
@@ -22,5 +22,4 @@ abstract class ProgramBox(override val proposition: PublicKey25519Proposition,
     "value" -> value.toString.asJson,
     "nonce" -> nonce.toString.asJson
   ).asJson
-
 }

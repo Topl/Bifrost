@@ -7,15 +7,15 @@ import bifrost.history.History
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.serialization.ProgramMethodExecutionCompanion
+import bifrost.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import bifrost.program.Program
 import bifrost.settings.AppSettings
 import bifrost.state.ProgramBoxRegistry
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 
 import scala.util.Try
 
@@ -100,7 +100,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
     }.toSeq.asJson
   )).asJson
 
-  override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionCompanion
+  override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     FastCryptographicHash(executionBox.bytes ++ hashNoNonces),

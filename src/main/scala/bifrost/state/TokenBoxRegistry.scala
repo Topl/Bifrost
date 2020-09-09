@@ -4,6 +4,7 @@ import java.io.File
 
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -74,7 +75,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
       boxIdsToRemove
         .flatMap(boxId => closedBox(boxId.data))
         .foreach {
-          case box: NoncedBox =>
+          case box: TokenBox =>
             boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
           //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
           case _ =>
@@ -82,7 +83,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
 
       keyFilteredBoxesToAdd
         .foreach({
-          case box: NoncedBox =>
+          case box: TokenBox =>
             boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
           //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
           case _ =>
