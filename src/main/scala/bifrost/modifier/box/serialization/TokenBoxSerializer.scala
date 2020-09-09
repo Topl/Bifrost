@@ -1,12 +1,12 @@
 package bifrost.modifier.box.serialization
 
-import bifrost.modifier.box.NoncedBox
+import bifrost.modifier.box.TokenBox
 import bifrost.modifier.box.proposition.PublicKey25519PropositionSerializer
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-object NoncedBoxSerializer extends BifrostSerializer[NoncedBox] {
+object TokenBoxSerializer extends BifrostSerializer[TokenBox] {
 
-  override def serialize(obj: NoncedBox, w: Writer): Unit = {
+  override def serialize(obj: TokenBox, w: Writer): Unit = {
     /* proposition: PublicKey25519Proposition */
     PublicKey25519PropositionSerializer.serialize(obj.proposition, w)
 
@@ -17,8 +17,8 @@ object NoncedBoxSerializer extends BifrostSerializer[NoncedBox] {
     w.putULong(obj.value)
   }
 
-  override def parse(r: Reader): NoncedBox = {
-    new NoncedBox(
+  override def parse(r: Reader): TokenBox = {
+    new TokenBox(
       PublicKey25519PropositionSerializer.parse(r),
       r.getLong(),
       r.getULong()

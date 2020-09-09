@@ -9,13 +9,13 @@ import scorex.crypto.encode.Base58
   * Created by cykoz on 5/15/2017.
   */
 
- class NoncedBox(override val proposition: PublicKey25519Proposition,
-                 override val nonce: Long,
-                 override val value: Long) extends Box(proposition, nonce, value) {
+ class TokenBox(override val proposition: PublicKey25519Proposition,
+                override val nonce: Long,
+                override val value: Long) extends Box(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
-  lazy val typeOfBox: String = "NoncedBox"
+  lazy val typeOfBox: String = "TokenBox"
 
   lazy val json: Json = Map(
     "id" -> Base58.encode(id).asJson,
