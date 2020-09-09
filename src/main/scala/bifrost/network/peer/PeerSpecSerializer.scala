@@ -2,17 +2,22 @@ package bifrost.network.peer
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import bifrost.settings.VersionSerializer
+import bifrost.settings.{Version, VersionSerializer}
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
   override def serialize(obj: PeerSpec, w: Writer): Unit = {
-
+    /* agentName: String */
     w.putByteString(obj.agentName)
-    VersionSerializer.serialize(obj.protocolVersion, w)
+
+    /* version: Version */
+    VersionSerializer.serialize(obj.version, w)
+
+    /* nodeName: String */
     w.putByteString(obj.nodeName)
 
+    /* declaredAddress: Option[InetSocketAddress] */
     w.putOption(obj.declaredAddress) { (writer, isa) =>
       val addr = isa.getAddress.getAddress
       writer.put((addr.size + 4).toByteExact)
@@ -20,6 +25,7 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
       writer.putUInt(isa.getPort)
     }
 
+    /* features: Seq[PeerFeature] */
     w.put(obj.features.size.toByteExact)
     obj.features.foreach { f =>
       w.put(f.featureId)
@@ -31,22 +37,22 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
 
   override def parse(r: Reader): PeerSpec = {
 
-    val appName = r.getByteString()
+    val appName: String = r.getByteString()
     require(appName.nonEmpty)
 
-    val version = VersionSerializer.parse(r)
+    val version: Version = VersionSerializer.parse(r)
 
-    val nodeName = r.getByteString()
+    val nodeName: String = r.getByteString()
 
-    val declaredAddressOpt = r.getOption {
+    val declaredAddressOpt: Option[InetSocketAddress] = r.getOption {
       val fas = r.getUByte()
       val fa = r.getBytes(fas - 4)
       val port = r.getUInt().toIntExact
       new InetSocketAddress(InetAddress.getByAddress(fa), port)
     }
 
-    val featuresCount = r.getByte()
-    val feats = (1 to featuresCount).flatMap { _ =>
+    val featuresCount: Int = r.getByte()
+    val feats: Seq[PeerFeature] = (1 to featuresCount).flatMap { _ =>
       val featId = r.getByte()
       val featBytesCount = r.getUShort().toShortExact
       val featChunk = r.getChunk(featBytesCount)

@@ -40,7 +40,7 @@ case class Block(parentId: BlockId,
                  forgerBox: ArbitBox,
                  signature: Signature25519,
                  txs: Seq[Transaction],
-                 protocolVersion: Version)
+                 version: Version)
   extends BifrostNodeViewModifier {
 
   type M = Block
@@ -51,7 +51,7 @@ case class Block(parentId: BlockId,
 
   lazy val serializer = BlockSerializer
 
-  lazy val version: Version = protocolVersion
+  lazy val version: Version = version
 
   lazy val id: BlockId = bytesToId(serializedId)
 

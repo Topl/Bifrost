@@ -131,7 +131,7 @@ class NetworkController(
       }
 
     case SendToNetwork(msg: message.Message[_], sendingStrategy) =>
-      filterConnections(sendingStrategy, msg.spec.protocolVersion).foreach {
+      filterConnections(sendingStrategy, msg.spec.version).foreach {
         connectedPeer => connectedPeer.handlerRef ! msg
       }
 
@@ -354,7 +354,7 @@ class NetworkController(
   ): Seq[ConnectedPeer] = {
     sendingStrategy.choose(
       connections.values.toSeq
-        .filter(_.peerInfo.exists(_.peerSpec.protocolVersion >= version))
+        .filter(_.peerInfo.exists(_.peerSpec.version >= version))
     )
   }
 
