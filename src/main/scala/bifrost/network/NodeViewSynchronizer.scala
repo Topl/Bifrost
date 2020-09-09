@@ -144,35 +144,7 @@ class NodeViewSynchronizer[
       }
 
     // check whether requested modifiers have been delivered to the local node from a remote peer
-    case CheckDelivery(peerOpt, modifierTypeId, modifierId) =>
-      // Do nothing if the modifier is already in a different state (it might be already received, applied, etc.),
-      if (deliveryTracker.status(modifierId) == ModifiersStatus.Requested) {
-
-        // update the check count of the modifiers that we are waiting on and schedule the next check
-        deliveryTracker.onStillWaiting(peerOpt, modifierTypeId, modifierId) match {
-          // handle whether we should continue to look for this modifier
-          case Success(underMaxAttempts) =>
-            peerOpt match {
-              // this is the case that we are continuing to wait on a specific peer to respond
-              case Some(peer) if underMaxAttempts =>
-                // a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum
-                log.info(s"Peer ${peer.toString} has not delivered requested modifier ${encoder.encodeId(modifierId)} on time")
-                penalizeNonDeliveringPeer(peer)
-
-              // this is the case that we are going to start asking anyone for this modifier
-              // we'll keep hitting this case until no peer is specified and we hit the maximum number of tries again
-              case Some(_) | None =>
-                log.info(s"Modifier ${encoder.encodeId(modifierId)} still has not been delivered. Querying random peers")
-                // request must have been sent previously to have scheduled a CheckDelivery
-                requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
-            }
-
-          // we should stop expecting this modifier since we have tried multiple parties several times
-          case Failure(ex) =>
-            log.warn(s"Aborting attempts to retrieve modifier - $ex")
-            deliveryTracker.setUnknown(modifierId)
-        }
-      }
+    case CheckDelivery(peerOpt, modifierTypeId, modifierId) => checkDelivery(peerOpt, modifierTypeId, modifierId)
   }
 
   protected def viewHolderEvents: Receive = {
@@ -387,6 +359,59 @@ class NodeViewSynchronizer[
     networkControllerRef ! SendToNetwork(msg, sendStrategy)
   }
 
+
+  /**
+    * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
+    * If the modifier request targetted a peer, then we will wait for that peer to respond for a fixed interval before
+    * transitioning to asking for the modifier from other random connected peers. If we still do not receive the modifier
+    * after asking random peers for a fixed interval of time, we will stop requesting it.
+    * The truth table implementing this behavior is shown below:
+    *
+    * | peerOpt? | maxTries? | send new request? | actions
+    * |----------|-----------|-------------------|-----------
+    * |  Yes     |  No       |  No               |  penalize peer & schedule next check
+    * |  Yes     |  Yes      |  Yes              |  request download from random & schedule next check
+    * |  No      |  No       |  Yes              |  request download from random & schedule next check
+    * |  No      |  Yes      |  No               |  remove modifiers from Requested tracker and stop requesting
+    *
+    * @param peerOpt optional connected peer that we are expecting the modifier from (None if we asked random peers)
+    * @param modifierTypeId type of modifier being asked for
+    * @param modifierId unique id of the requested modifier
+    */
+  protected def checkDelivery( peerOpt: Option[ConnectedPeer],
+                               modifierTypeId: ModifierTypeId,
+                               modifierId: ModifierId ): Unit = {
+
+    // Do nothing if the modifier is already in a different state (it might be already received, applied, etc.),
+    if (deliveryTracker.status(modifierId) == ModifiersStatus.Requested) {
+
+      // update the check count of the modifiers that we are waiting on and schedule the next check
+      deliveryTracker.onStillWaiting(peerOpt, modifierTypeId, modifierId) match {
+        // handle whether we should continue to look for this modifier
+        case Success(underMaxAttempts) =>
+          peerOpt match {
+            // this is the case that we are continuing to wait on a specific peer to respond
+            case Some(peer) if underMaxAttempts =>
+              // a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum
+              log.info(s"Peer ${peer.toString} has not delivered requested modifier ${encoder.encodeId(modifierId)} on time")
+              penalizeNonDeliveringPeer(peer)
+
+            // this is the case that we are going to start asking anyone for this modifier
+            // we'll keep hitting this case until no peer is specified and we hit the maximum number of tries again
+            case Some(_) | None =>
+              log.info(s"Modifier ${encoder.encodeId(modifierId)} still has not been delivered. Querying random peers")
+              // request must have been sent previously to have scheduled a CheckDelivery
+              requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
+          }
+
+        // we should stop expecting this modifier since we have tried multiple parties several times
+        case Failure(ex) =>
+          log.warn(s"Aborting attempts to retrieve modifier - $ex")
+          deliveryTracker.setUnknown(modifierId)
+      }
+    }
+
+  }
 
 
   /**
