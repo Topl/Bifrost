@@ -144,7 +144,8 @@ class NodeViewSynchronizer[
       }
 
     // check whether requested modifiers have been delivered to the local node from a remote peer
-    case CheckDelivery(peerOpt, modifierTypeId, modifierId) => checkDelivery(peerOpt, modifierTypeId, modifierId)
+    case CheckDelivery(peerOpt, modifierTypeId, modifierId) =>
+      checkDelivery(peerOpt, modifierTypeId, modifierId)
   }
 
   protected def viewHolderEvents: Receive = {
