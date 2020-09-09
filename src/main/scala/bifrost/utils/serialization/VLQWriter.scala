@@ -160,7 +160,7 @@ trait VLQWriter extends Writer {
     */
   override def putIntString(s: String): this.type = {
     val bytes = s.getBytes
-    require(bytes.size < Short.MaxValue)
+    require(bytes.size < Int.MaxValue)
     putUInt(bytes.size)
     putBytes(bytes)
     this
