@@ -1,14 +1,14 @@
 package bifrost.modifier.box.serialization
 
 import bifrost.modifier.box.proposition.{Constants25519, PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import bifrost.modifier.box.{AssetBox, NoncedBox}
+import bifrost.modifier.box.{AssetBox, TokenBox}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
 
   override def serialize(obj: AssetBox, w: Writer): Unit = {
 
-    NoncedBoxSerializer.serialize(obj, w)
+    TokenBoxSerializer.serialize(obj, w)
 
     /* assetCode: String */
     w.putIntString(obj.assetCode)
@@ -21,7 +21,7 @@ object AssetBoxSerializer extends BifrostSerializer[AssetBox] {
   }
 
   override def parse(r: Reader): AssetBox = {
-    val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
+    val noncedBox: TokenBox = TokenBoxSerializer.parse(r)
 
     /* putIntString encode String that is shorter than 2147483647 bytes */
     val asset: String = r.getIntString()

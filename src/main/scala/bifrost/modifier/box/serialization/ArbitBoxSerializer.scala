@@ -1,16 +1,16 @@
 package bifrost.modifier.box.serialization
 
-import bifrost.modifier.box.{ArbitBox, NoncedBox}
+import bifrost.modifier.box.{ArbitBox, TokenBox}
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {
 
   override def serialize(obj: ArbitBox, w: Writer): Unit = {
-    NoncedBoxSerializer.serialize(obj, w)
+    TokenBoxSerializer.serialize(obj, w)
   }
 
   override def parse(r: Reader): ArbitBox = {
-    val noncedBox: NoncedBox = NoncedBoxSerializer.parse(r)
+    val noncedBox: TokenBox = TokenBoxSerializer.parse(r)
     ArbitBox(noncedBox.proposition, noncedBox.nonce, noncedBox.value)
   }
 }
