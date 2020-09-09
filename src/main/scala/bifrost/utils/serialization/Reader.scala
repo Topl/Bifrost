@@ -22,13 +22,13 @@ trait Reader {
   def getChunk(size: Int): CH
 
   /**
-    * Decode String is shorter than 256 bytes
+    * Decode String that is shorter than 256 in size
     * @return
     */
   def getByteString(): String
 
   /**
-    * Decode String is shorter than 256 bytes
+    * Decode String longer than 256 bytes
     * @return
     */
   def getIntString(): String
