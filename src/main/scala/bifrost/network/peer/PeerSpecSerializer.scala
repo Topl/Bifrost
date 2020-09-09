@@ -34,7 +34,7 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
     val appName = r.getByteString()
     require(appName.nonEmpty)
 
-    val protocolVersion = VersionSerializer.parse(r)
+    val version = VersionSerializer.parse(r)
 
     val nodeName = r.getByteString()
 
@@ -56,6 +56,6 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
       }
     }
 
-    PeerSpec(appName, protocolVersion, nodeName, declaredAddressOpt, feats)
+    PeerSpec(appName, version, nodeName, declaredAddressOpt, feats)
   }
 }
