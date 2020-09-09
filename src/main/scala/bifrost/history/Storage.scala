@@ -2,7 +2,7 @@ package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.settings.AppSettings
 import bifrost.utils.{Logging, bytesToId, idToBytes}
@@ -65,12 +65,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
         val bytes = bw.data
         bytes.head match {
           case Block.modifierTypeId =>
-            val parsed = {
-              heightOf(blockId) match {
-                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
-                case _ => BlockCompanion.parseBytes(bytes.tail)
-              }
-            }
+            val parsed = BlockSerializer.parseBytes(bytes.tail)
             parsed match {
               case Failure(e) =>
                 log.warn("Failed to parse bytes from db", e)

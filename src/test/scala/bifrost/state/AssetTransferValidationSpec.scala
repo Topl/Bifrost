@@ -14,7 +14,6 @@ class AssetTransferValidationSpec extends StateSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetTransfer),
-          10L,
           settings.version
         )
 

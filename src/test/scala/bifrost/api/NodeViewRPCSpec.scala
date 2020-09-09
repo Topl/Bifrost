@@ -153,7 +153,6 @@ class NodeViewRPCSpec extends AnyWordSpec
           ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
-          10L,
           settings.forgingSettings.version
         )
         history.append(tempBlock)

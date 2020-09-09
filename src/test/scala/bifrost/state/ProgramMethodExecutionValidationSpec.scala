@@ -99,7 +99,6 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cme),
-          10L,
           settings.version
         )
 
@@ -340,7 +339,6 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programMethodExecution),
-          10L,
           settings.version
         )
 
@@ -437,7 +435,6 @@ class ProgramMethodExecutionValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programMethodExecution),
-          10L,
           settings.version
         )
 

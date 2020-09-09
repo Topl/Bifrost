@@ -1,9 +1,9 @@
 package bifrost.network
 
 import bifrost.history.{History, HistoryReader}
-import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.modifier.block.Block
-import bifrost.nodeView.{BifrostNodeViewModifier, PersistentNodeViewModifier}
+import bifrost.modifier.{ContainsModifiers, ModifierId}
+import bifrost.nodeView.PersistentNodeViewModifier
 import bifrost.utils.{Logging, MalformedModifierError, RecoverableModifierError}
 
 import scala.annotation.tailrec

@@ -12,6 +12,7 @@ import scala.util.Try
 class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
   import Message._
+
   import scala.language.existentials
 
   private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN

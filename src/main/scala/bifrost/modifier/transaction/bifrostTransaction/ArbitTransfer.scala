@@ -6,7 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.serialization.ArbitTransferCompanion
+import bifrost.modifier.transaction.serialization.ArbitTransferSerializer
 import bifrost.state.TokenBoxRegistry
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
@@ -24,7 +24,7 @@ case class ArbitTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override type M = ArbitTransfer
 
-  override lazy val serializer = ArbitTransferCompanion
+  override lazy val serializer = ArbitTransferSerializer
 
   override def toString: String = s"ArbitTransfer(${json.noSpaces})"
 
