@@ -12,8 +12,8 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import org.scalatest.BeforeAndAfterAll
 import bifrost.settings.{AppSettings, StartupOpts}
+import org.scalatest.BeforeAndAfterAll
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
