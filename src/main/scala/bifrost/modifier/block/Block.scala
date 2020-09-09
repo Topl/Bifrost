@@ -51,8 +51,6 @@ case class Block(parentId: BlockId,
 
   lazy val serializer = BlockSerializer
 
-  lazy val version: Version = version
-
   lazy val id: BlockId = bytesToId(serializedId)
 
   lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.toBytes(this))
