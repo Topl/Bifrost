@@ -24,8 +24,6 @@ import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -33,6 +31,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
