@@ -12,7 +12,6 @@ import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey2
 import bifrost.modifier.box.serialization.{BoxSerializer, ExecutionBoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.nodeView.NodeViewModifier.idToBytes
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -59,7 +58,7 @@ case class State(
         log.debug(
           s"Rollback BifrostState to $version from version $lastVersionString"
         )
-        storage.rollback(ByteArrayWrapper(idToBytes(version)))
+        storage.rollback(ByteArrayWrapper(version.hashBytes))
         tbr.rollbackTo(version, storage)
         pbr.rollbackTo(version, storage)
         val timestamp: Long = Longs.fromByteArray(
