@@ -3,21 +3,19 @@ package bifrost.nodeView
 import akka.actor.{ActorRef, ActorSystem, Props}
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.history.{BlockProcessor, History}
-import bifrost.history.BlockProcessor.ChainCache
 import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionCompanion
-import bifrost.modifier.ModifierId
 import bifrost.network.message.BifrostSyncInfo
-import bifrost.network.{BifrostModifiersCache, ModifiersCache}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.{AppSettings, BifrostContext}
 import bifrost.state.State
-import bifrost.utils.{Logging, TimeProvider}
 import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{Logging, TimeProvider}
 import bifrost.wallet.Wallet
 import scorex.crypto.encode.Base58
 
@@ -36,9 +34,7 @@ class NodeViewHolder(override val settings: AppSettings, bifrostContext: Bifrost
   private val timeProvider: TimeProvider = bifrostContext.timeProvider
 
   override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
-    new BifrostModifiersCache(settings.network.maxModifiersCacheSize)
-
-  override protected lazy val chainCache: ChainCache = BlockProcessor.emptyCache
+    new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockCompanion,
@@ -142,7 +138,7 @@ object NodeViewHolder extends Logging {
     val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, 0L, settings.forgingSettings.version)
 
     var history = History.readOrGenerate(settings)
-    history = history.append(BlockProcessor.emptyCache, genesisBlock).get._1
+    history = history.append(genesisBlock).get._1
 
     val gs = State.genesisState(settings, Seq(genesisBlock), history)
     val gw = Wallet.genesisWallet(settings, Seq(genesisBlock))

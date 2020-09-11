@@ -1,10 +1,9 @@
 package bifrost.history
 
-import bifrost.history.BlockProcessor.ChainCache
 import bifrost.modifier.ModifierId
 import bifrost.network.message.SyncInfo
-import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.utils.BifrostEncoder
 import scorex.crypto.encode.Base58
 
@@ -63,7 +62,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
 
-  def append(cache: ChainCache, modifier: PM): Try[(HT, ProgressInfo[PM])]
+  def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 

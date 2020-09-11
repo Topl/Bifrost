@@ -28,5 +28,4 @@ package object consensus {
 
     BigDecimal(target * timeDelta.toDouble / targetBlockDelay.toUnit(MILLISECONDS))
   }
-
 }

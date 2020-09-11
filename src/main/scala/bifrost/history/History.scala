@@ -3,7 +3,6 @@ package bifrost.history
 import java.io.File
 
 import bifrost.consensus.DifficultyBlockValidator
-import bifrost.history.BlockProcessor.{CacheBlock, ChainCache}
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -12,7 +11,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{bytesToId, idToBytes, ModifierTypeId}
+import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
 import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -44,6 +43,9 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
 
+  /** This cache helps us to keep track of tines sprouting off the canonical chain */
+  lazy val fullBlockProcessor: BlockProcessor = BlockProcessor()
+
   /**
     * Is there's no history, even genesis block
     *
@@ -66,7 +68,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param block block to append
     * @return the update history including `block` as the most recent block
     */
-  override def append(cache: ChainCache, block: Block): Try[(History, ProgressInfo[Block])] = Try {
+  override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
 
@@ -85,26 +87,36 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       if (isGenesis(block)) {
         storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
         val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+
+        // construct result and return
         (new History(storage, settings, validators), progInfo)
+
       } else {
-
-
-        // Determine if this block is on the canonical chain
-        val builtOnBestChain = applicable(block)
-        // Check that the new block's parent is the last best block
-        val mod: ProgressInfo[Block] =
-          // new block parent is best block so far
+        val progInfo: ProgressInfo[Block] =
+          // Check if the new block extends the last best block
           if (block.parentId == storage.bestBlockId) {
             log.debug(s"New best block ${block.id.toString}")
-            storage.update(block, difficulty, builtOnBestChain)
+            storage.update(block, calculateDifficulty(block), isBest = true)
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+
+          // if not, we'll check for a fork
           } else {
             // we want to check for a fork
-            val processor = new BlockProcessor(cache)
-            processor.process(this, block)
+            val forkProgInfo = fullBlockProcessor.process(this, block)
+
+            // check if we need to update storage after checking for forks
+            if (forkProgInfo.branchPoint.nonEmpty) {
+              storage.rollback(forkProgInfo.branchPoint.get)
+              forkProgInfo.toApply.foreach { b ⇒
+                storage.update(b, storage.parentDifficulty(b), true)
+              }
+            }
+
+            forkProgInfo
           }
 
-        (new History(storage, settings, validators), mod)
+        // construct result and return
+        (new History(storage, settings, validators), progInfo)
       }
     }
     log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
@@ -462,6 +474,17 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     modifier match {
       case b: Block ⇒ Success(())
     }
+  }
+
+  /**
+   * Checks whether the modifier can be appended to the canonical chain or a tine
+   * in the chain cache
+   *
+   * @param modifier new block to be tracked in history
+   * @return 'true' if the block extends a known block, false otherwise
+   */
+  override def extendsKnownTine(modifier: Block): Boolean = {
+    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
   }
 
   /**
