@@ -85,6 +85,9 @@ class BlockProcessor(cache: ChainCache) extends BifrostEncoding with Logging {
 
 object BlockProcessor {
 
+  private implicit val ord: Ordering[CacheBlock] =
+    Ordering[(Long, ModifierId)].on(x => (x.height, x.block.id))
+
   def apply(): BlockProcessor = new BlockProcessor(emptyCache)
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
@@ -93,9 +96,6 @@ object BlockProcessor {
     ByteArrayWrapper(
       FastCryptographicHash("main_chain".getBytes ++ idToBytes(id))
     )
-
-  private implicit val ord: Ordering[CacheBlock] =
-    Ordering[(Long, ModifierId)].on(x => (x.height, x.block.id))
 
   /** Wrapper for storing a block and its height in the chain cache */
   case class CacheBlock(block: Block, height: Long)

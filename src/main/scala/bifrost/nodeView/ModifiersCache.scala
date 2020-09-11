@@ -72,11 +72,7 @@ trait ModifiersCache[PMOD <: PersistentNodeViewModifier, H <: HistoryReader[PMOD
   }
 
   def popCandidate(history: H): Option[V] = {
-    findCandidateKey(history).flatMap(k => {
-      println(s">>>>>>>> removing $k\n")
-      remove(k)
-    }
-    )
+    findCandidateKey(history).flatMap(k => remove(k))
   }
 }
 
@@ -140,34 +136,3 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
     }.map(_._1)
   }
 }
-
-//class BifrostModifiersCache(override val maxSize: Int)
-//  extends DefaultModifiersCache[Block, History](maxSize) {
-//
-//  /**
-//    * @param history - an interface to history which could be needed to define a candidate
-//    * @return - candidate if it is found
-//    */
-//  @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
-//  override def findCandidateKey(history: History): Option[K] = {
-//    def tryToApply(k: K, v: Block): Boolean = {
-//      history.applicableTry(v) match {
-//        case Failure(e) if e.isInstanceOf[MalformedModifierError] ⇒
-//          log.warn(s"Modifier ${v.encodedId} is permanently invalid and will be removed from cache", e)
-//          remove(k)
-//          false
-//        case m ⇒ m.isSuccess
-//      }
-//    }
-//
-//    val bestBlock: ModifierId = history.bestBlockId
-//
-//    // try to apply blocks sequentially from the best block
-//    cache.find { case(k, v) ⇒
-//      v match {
-//        case _ if v.parentId == bestBlock ⇒ tryToApply(k, v) // Tuxman: here for handling headers in the future
-//        case _ ⇒ tryToApply(k, v)
-//      }
-//    }.map(_._1)
-//  }
-//}

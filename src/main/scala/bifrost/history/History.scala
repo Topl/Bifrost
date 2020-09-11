@@ -92,7 +92,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val progInfo: ProgressInfo[Block] =
           // Check if the new block extends the last best block
           if (block.parentId == storage.bestBlockId) {
-            println("\n >>>>>>>>>>>>>>>>>> new best block \n")
             log.debug(s"New best block ${block.id.toString}")
             storage.update(block, calculateDifficulty(block), isBest = true)
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
@@ -100,12 +99,10 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           // if not, we'll check for a fork
           } else {
             // we want to check for a fork
-            println("\n >>>>>>>>>>>>>>>>>> checking branching \n")
             val forkProgInfo = History.fullBlockProcessor.process(this, block)
 
             // check if we need to update storage after checking for forks
             if (forkProgInfo.branchPoint.nonEmpty) {
-              println("\n >>>>>>>>>>>>>>>>>> branching \n")
               storage.rollback(forkProgInfo.branchPoint.get)
               // todo: need to fix this difficulty calculation
               forkProgInfo.toApply.foreach { b ⇒
@@ -482,8 +479,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
    * @return 'true' if the block extends a known block, false otherwise
    */
   override def extendsKnownTine(modifier: Block): Boolean = {
-    println(s"${applicable(modifier)} || ${History.fullBlockProcessor.applicableInCache(modifier)}")
-    println(s"${modifier.parentId}")
     applicable(modifier) || History.fullBlockProcessor.applicableInCache(modifier)
   }
 
@@ -491,16 +486,22 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
-    if(isEmpty) {
+    // case where we are at genesis
+    if (isEmpty) {
       info.startingPoints
+
+    // case where the remote is at genesis
     } else if(info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
       val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
       chainBack(block, _ ⇒ false, size).get
+
+    // case where the remote node is younger or on a recent fork (branchPoint less than size blocks back)
     } else {
       val ids = info.lastBlockIds
       val branchPointOpt: Option[ModifierId] = ids.view.reverse
         .find(m ⇒ storage.modifierById(m).isDefined).orElse(None)
+
       branchPointOpt.toSeq.flatMap { branchPoint ⇒
         val remoteHeight = storage.heightOf(branchPoint).get
         val heightFrom = Math.min(height, remoteHeight + size)
