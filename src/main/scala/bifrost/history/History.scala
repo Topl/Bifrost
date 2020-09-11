@@ -20,7 +20,7 @@ import scala.annotation.tailrec
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -42,9 +42,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
-
-  /** This cache helps us to keep track of tines sprouting off the canonical chain */
-  lazy val fullBlockProcessor: BlockProcessor = BlockProcessor()
 
   /**
     * Is there's no history, even genesis block
@@ -72,14 +69,14 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
     log.debug(s"Trying to append block ${block.id} to history")
 
-    val validationResults = validators.map(_.validate(block))
-
-    // TODO: JAA - shouldn't we reject blocks that fail validation?
-    validationResults.foreach {
-      case Failure(e) => log.warn(s"Block validation failed", e)
-      case _ =>
-    }
-    validationResults.foreach(_.get)
+//    val validationResults = validators.map(_.validate(block))
+//
+//    // TODO: JAA - shouldn't we reject blocks that fail validation?
+//    validationResults.foreach {
+//      case Failure(e) => log.warn(s"Block validation failed", e)
+//      case _ =>
+//    }
+//    validationResults.foreach(_.get)
 
 
     val res: (History, ProgressInfo[Block]) = {
@@ -95,6 +92,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val progInfo: ProgressInfo[Block] =
           // Check if the new block extends the last best block
           if (block.parentId == storage.bestBlockId) {
+            println("\n >>>>>>>>>>>>>>>>>> new best block \n")
             log.debug(s"New best block ${block.id.toString}")
             storage.update(block, calculateDifficulty(block), isBest = true)
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
@@ -102,11 +100,14 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           // if not, we'll check for a fork
           } else {
             // we want to check for a fork
-            val forkProgInfo = fullBlockProcessor.process(this, block)
+            println("\n >>>>>>>>>>>>>>>>>> checking branching \n")
+            val forkProgInfo = History.fullBlockProcessor.process(this, block)
 
             // check if we need to update storage after checking for forks
             if (forkProgInfo.branchPoint.nonEmpty) {
+              println("\n >>>>>>>>>>>>>>>>>> branching \n")
               storage.rollback(forkProgInfo.branchPoint.get)
+              // todo: need to fix this difficulty calculation
               forkProgInfo.toApply.foreach { b ⇒
                 storage.update(b, storage.parentDifficulty(b), true)
               }
@@ -391,11 +392,8 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       }
     }
 
-    if(limit == 0) {
-      None
-    } else {
-      Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
-    }
+    if (limit == 0) None
+    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
   }
 
   /**
@@ -484,7 +482,9 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
    * @return 'true' if the block extends a known block, false otherwise
    */
   override def extendsKnownTine(modifier: Block): Boolean = {
-    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
+    println(s"${applicable(modifier)} || ${History.fullBlockProcessor.applicableInCache(modifier)}")
+    println(s"${modifier.parentId}")
+    applicable(modifier) || History.fullBlockProcessor.applicableInCache(modifier)
   }
 
   /**
@@ -505,7 +505,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val remoteHeight = storage.heightOf(branchPoint).get
         val heightFrom = Math.min(height, remoteHeight + size)
         val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
-        chainBack(startBlock, _.parentId == branchPoint, size).get
+        chainBack(startBlock, _.id == branchPoint, size).get
       }
     }
   }
@@ -555,6 +555,12 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 object History extends Logging {
 
   val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
+
+  /** This cache helps us to keep track of tines sprouting off the canonical chain */
+  // todo: JAA - implement this in a more robust manner, perhaps a processors trait
+  //             that is shared amongst block processors, header processor, etc. then
+  //             pass in a Seq[Processors] to new instances of History
+  lazy val fullBlockProcessor: BlockProcessor = BlockProcessor()
 
   def readOrGenerate(settings: AppSettings): History = {
     val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")

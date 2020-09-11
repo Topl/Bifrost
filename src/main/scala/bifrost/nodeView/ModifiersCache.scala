@@ -72,7 +72,11 @@ trait ModifiersCache[PMOD <: PersistentNodeViewModifier, H <: HistoryReader[PMOD
   }
 
   def popCandidate(history: H): Option[V] = {
-    findCandidateKey(history).flatMap(k => remove(k))
+    findCandidateKey(history).flatMap(k => {
+      println(s">>>>>>>> removing $k\n")
+      remove(k)
+    }
+    )
   }
 }
 
@@ -82,7 +86,7 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
 
   // The eviction queue can contain elements already removed, as we're not removing a key from it when
   // the key is got removed from the cache. When size of eviction queue exceeds maximum size of the cache by
-  // the value below(so the queue contains at least "cleaningThreshold" keys aleady removed from the cache),
+  // the value below(so the queue contains at least "cleaningThreshold" keys already removed from the cache),
   // complete scan and cleaning of removed keys happen.
   private val cleaningThreshold = 50
 
@@ -120,16 +124,20 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
   override def findCandidateKey(history: HR): Option[K] = {
 
     // find any blocks that can be removed from the default cache
-    cache.find { case (k, v) =>
+    cache.find { case (_, v) =>
 
       // first look for the each block's parent in the cache
       modifierById(v.parentId) match {
 
         // if found, do nothing and leave the modifier in the cache for now
-        case Some(_) => false
+        case Some(_) =>
+          println(">>>>>>>>>>>>>> found parent in cache")
+          false
 
         // see if the given block can be applied to the canonical chain or the ordered chain cache
-        case None => history.extendsKnownTine(v)
+        case None =>
+          println("\n >>>>>>>>>>>> checking extends")
+          history.extendsKnownTine(v)
       }
     }.map(_._1)
   }

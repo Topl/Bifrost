@@ -86,10 +86,6 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
    */
   protected def processRemoteModifiers: Receive = {
     case ModifiersFromRemote(mods: Seq[PMOD]) =>
-      mods.foreach(m => modifiersCache.put(m.id, m))
-
-      log.debug(s"Cache size before: ${modifiersCache.size}")
-
       @tailrec
       def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
         modifiersCache.popCandidate(history()) match {
@@ -100,6 +96,9 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
             applied
         }
       }
+
+      mods.foreach(m => modifiersCache.put(m.id, m))
+      log.debug(s"Cache size before: ${modifiersCache.size}")
 
       val applied = applyLoop(Seq())
       val cleared = modifiersCache.cleanOverfull()
