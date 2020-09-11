@@ -59,10 +59,6 @@ object NodeViewModifier {
   }
 
   def idsToString(invData: InvData)(implicit encoder: BifrostEncoder): String = idsToString(invData.typeId, invData.ids)
-
-  def bytesToId: Array[Byte] => ModifierId = bifrost.utils.bytesToId
-
-  def idToBytes: ModifierId => Array[Byte] = bifrost.utils.idToBytes
 }
 
 

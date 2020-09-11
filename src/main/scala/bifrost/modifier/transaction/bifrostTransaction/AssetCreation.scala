@@ -7,7 +7,6 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationSerializer
-import bifrost.utils.idToBytes
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
@@ -58,7 +57,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
      }
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(idToBytes(id)).asJson,
+    "txHash" -> Base58.encode(id.hashBytes).asJson,
     "txType" -> "AssetCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> to.map { case (prop, value) =>
