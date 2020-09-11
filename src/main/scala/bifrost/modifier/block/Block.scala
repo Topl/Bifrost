@@ -6,7 +6,7 @@ import bifrost.modifier.block.Block._
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import io.circe.syntax._
 import io.circe.{Encoder, Json}
@@ -14,7 +14,6 @@ import io.circe.{Encoder, Json}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
-import bifrost.utils.idToBytes
 import serializer.BloomTopics
 
 import scala.collection.BitSet
@@ -51,15 +50,15 @@ case class Block(parentId: BlockId,
 
   lazy val serializer = BlockSerializer
 
-  lazy val id: BlockId = bytesToId(serializedId)
+  lazy val id: BlockId = ModifierId(serializedId)
 
   lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.toBytes(this))
 
-  lazy val serializedParentId: Array[Byte] = idToBytes(parentId)
+  lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(idToBytes(id)).asJson,
-    "parentId" -> Base58.encode(idToBytes(parentId)).asJson,
+    "id" -> Base58.encode(serializedId).asJson,
+    "parentId" -> Base58.encode(serializedParentId).asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
@@ -113,8 +112,8 @@ object Block {
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
-      "id" -> Base58.encode(idToBytes(b.id)).asJson,
-      "parentId" -> Base58.encode(idToBytes(b.parentId)).asJson,
+      "id" -> Base58.encode(b.serializedId).asJson,
+      "parentId" -> Base58.encode(b.serializedParentId).asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
