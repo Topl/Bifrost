@@ -12,7 +12,7 @@ import io.iohk.iodb.ByteArrayWrapper
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor(cache: ChainCache) extends BifrostEncoding with Logging {
+class BlockProcessor private (cache: ChainCache, val maxDepth: Int) extends BifrostEncoding with Logging {
 
   import BlockProcessor._
 
@@ -35,7 +35,7 @@ class BlockProcessor(cache: ChainCache) extends BifrostEncoding with Logging {
     */
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
-    if (history.applicable(block)) {
+    val pi: ProgressInfo[Block] = if (history.applicable(block)) {
       chainCache = chainCache.add(block, history.storage.heightOf(block.parentId).get + 1)
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
@@ -62,6 +62,12 @@ class BlockProcessor(cache: ChainCache) extends BifrostEncoding with Logging {
       log.warn(s"Received orphan block")
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
     }
+
+    // following the calculation of progressInfo, clean up the cache below the maxDepth
+    chainCache = chainCache.dropUntil(history.height - maxDepth)
+
+    // return ProgressInfo to the append method
+    pi
   }
 
   /**
@@ -88,7 +94,7 @@ object BlockProcessor {
   private implicit val ord: Ordering[CacheBlock] =
     Ordering[(Long, ModifierId)].on(x => (x.height, x.block.id))
 
-  def apply(): BlockProcessor = new BlockProcessor(emptyCache)
+  def apply(maxDepth: Int): BlockProcessor = new BlockProcessor(emptyCache, maxDepth)
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 

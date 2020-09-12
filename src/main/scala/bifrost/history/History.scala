@@ -29,9 +29,11 @@ import scala.util.{Success, Try}
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History(val storage: Storage, settings: AppSettings, validators: Seq[BlockValidator[Block]])
-  extends GenericHistory[Block, BifrostSyncInfo, History]
-    with Logging with BifrostEncoding {
+class History ( val storage: Storage,
+                val fullBlockProcessor: BlockProcessor,
+                settings: AppSettings,
+                validators: Seq[BlockValidator[Block]]
+              ) extends GenericHistory[Block, BifrostSyncInfo, History] with Logging with BifrostEncoding {
 
   override type NVCT = History
 
@@ -86,7 +88,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
         // construct result and return
-        (new History(storage, settings, validators), progInfo)
+        (new History(storage, fullBlockProcessor, settings, validators), progInfo)
 
       } else {
         val progInfo: ProgressInfo[Block] =
@@ -99,7 +101,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           // if not, we'll check for a fork
           } else {
             // we want to check for a fork
-            val forkProgInfo = History.fullBlockProcessor.process(this, block)
+            val forkProgInfo = fullBlockProcessor.process(this, block)
 
             // check if we need to update storage after checking for forks
             if (forkProgInfo.branchPoint.nonEmpty) {
@@ -114,7 +116,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
           }
 
         // construct result and return
-        (new History(storage, settings, validators), progInfo)
+        (new History(storage, fullBlockProcessor, settings, validators), progInfo)
       }
     }
     log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
@@ -152,7 +154,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id)
-    new History(storage, settings, validators)
+    new History(storage, fullBlockProcessor, settings, validators)
   }
 
   /**
@@ -456,7 +458,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
                                        progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, settings, validators), progInfo)
+    (new History(storage, fullBlockProcessor, settings, validators), progInfo)
   }
   
   /**
@@ -479,7 +481,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
    * @return 'true' if the block extends a known block, false otherwise
    */
   override def extendsKnownTine(modifier: Block): Boolean = {
-    applicable(modifier) || History.fullBlockProcessor.applicableInCache(modifier)
+    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
   }
 
   /**
@@ -557,12 +559,6 @@ object History extends Logging {
 
   val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
 
-  /** This cache helps us to keep track of tines sprouting off the canonical chain */
-  // todo: JAA - implement this in a more robust manner, perhaps a processors trait
-  //             that is shared amongst block processors, header processor, etc. then
-  //             pass in a Seq[Processors] to new instances of History
-  lazy val fullBlockProcessor: BlockProcessor = BlockProcessor()
-
   def readOrGenerate(settings: AppSettings): History = {
     val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
@@ -570,16 +566,10 @@ object History extends Logging {
   }
 
   def readOrGenerate(dataDir: String, settings: AppSettings): History = {
+
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
-
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        log.info("Closing block storage...")
-        blockStorage.close()
-      }
-    })
 
     val storage = new Storage(blockStorage, settings)
 
@@ -590,6 +580,16 @@ object History extends Logging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    new History(storage, settings, validators)
+    /** This cache helps us to keep track of tines sprouting off the canonical chain */
+    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
+
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        log.info("Closing block storage...")
+        blockStorage.close()
+      }
+    })
+
+    new History(storage, blockProcessor, settings, validators)
   }
 }

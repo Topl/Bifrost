@@ -398,14 +398,17 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
                            stateToApply: MS,
                            suffixTrimmed: IndexedSeq[PMOD],
                            progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
-    val updateInfoSample = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
-    progressInfo.toApply.foldLeft(updateInfoSample) { case (updateInfo, modToApply) =>
+
+    val updateInfoInit = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
+
+    progressInfo.toApply.foldLeft(updateInfoInit) { case (updateInfo, modToApply) =>
       if (updateInfo.failedMod.isEmpty) {
         updateInfo.state.applyModifier(modToApply) match {
           case Success(stateAfterApply) =>
             val newHis = history.reportModifierIsValid(modToApply)
             context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
             UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
+
           case Failure(e) =>
             val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
             context.system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
