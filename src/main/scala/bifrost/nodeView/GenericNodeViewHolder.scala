@@ -70,41 +70,21 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   // ----------- CONTEXT
   override def receive: Receive =
-    processRemoteModifiers orElse
-    processLocallyGeneratedModifiers orElse
+    processModifiers orElse
     transactionsProcessing orElse
     getCurrentInfo orElse
     getNodeViewChanges orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
-  /**
-   * Process new modifiers from remote.
-   * Put all candidates to modifiersCache and then try to apply as much modifiers from cache as possible.
-   * Clear cache if it's size exceeds size limit.
-   * Publish `ModifiersProcessingResult` message with all just applied and removed from cache modifiers.
-   */
-  protected def processRemoteModifiers: Receive = {
+
+  protected def processModifiers: Receive = {
     case ModifiersFromRemote(mods: Seq[PMOD]) =>
-      @tailrec
-      def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
-        modifiersCache.popCandidate(history()) match {
-          case Some(mod) =>
-            pmodModify(mod)
-            applyLoop(mod +: applied)
-          case None =>
-            applied
-        }
-      }
+      processRemoteModifiers(mods)
 
-      mods.foreach(m => modifiersCache.put(m.id, m))
-      log.debug(s"Cache size before: ${modifiersCache.size}")
-
-      val applied = applyLoop(Seq())
-      val cleared = modifiersCache.cleanOverfull()
-
-      context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
-      log.debug(s"Cache size after: ${modifiersCache.size}")
+    case lm: LocallyGeneratedModifier[PMOD] =>
+      log.info(s"Got locally generated modifier ${lm.pmod.encodedId} of type ${lm.pmod.modifierTypeId}")
+      pmodModify(lm.pmod)
   }
 
   protected def transactionsProcessing: Receive = {
@@ -118,12 +98,6 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
         val e = new Exception("Became invalid")
         context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
       }
-  }
-
-  protected def processLocallyGeneratedModifiers: Receive = {
-    case lm: LocallyGeneratedModifier[PMOD] =>
-      log.info(s"Got locally generated modifier ${lm.pmod.encodedId} of type ${lm.pmod.modifierTypeId}")
-      pmodModify(lm.pmod)
   }
 
   protected def getCurrentInfo: Receive = {
@@ -167,6 +141,51 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
   protected def memoryPool(): MP = nodeView._4
 
+  /**
+   * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
+   * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
+   * This indicates that no more modifiers in the cache can be appended into history
+   *
+   * @param mods recieved persistent modifiers from the remote peer
+   */
+  protected def processRemoteModifiers(mods: Seq[PMOD]): Unit = {
+    /** First-order loop that tries to pop blocks out of the cache and apply them into history */
+    @tailrec
+    def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
+      modifiersCache.popCandidate(history()) match {
+        case Some(mod) =>
+          pmodModify(mod)
+          applyLoop(mod +: applied)
+        case None =>
+          applied
+      }
+    }
+
+    /** Second-order loop that continues to call the first-order loop until the size of the cache remains constant */
+    @tailrec
+    def applyAllApplicable(acc: Seq[PMOD], startSize: Int): Seq[PMOD] = {
+      val applied = applyLoop(acc)
+      if (modifiersCache.size == startSize) applied
+      else applyAllApplicable(applied, modifiersCache.size)
+    }
+
+    // add all newly received modifiers to the cache
+    mods.foreach(m => modifiersCache.put(m.id, m))
+
+    // record the initial size for comparison
+    val initialSize = modifiersCache.size
+
+    // begin looping through the cache and trying to apply all applicable modifiers
+    val applied = applyAllApplicable(Seq(), initialSize)
+
+    // clean the cache if it is growing too large
+    val cleared = modifiersCache.cleanOverfull()
+
+    context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
+    log.debug(s"Cache size before: $initialSize")
+    log.debug(s"Cache size after: ${modifiersCache.size}")
+  }
+
   protected def txModify(tx: TX): Unit = {
     //todo: async validation?
     val errorOpt: Option[Throwable] = minimalState() match {
@@ -193,156 +212,6 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
       case Some(e) =>
         context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
-    }
-  }
-
-  /**
-    * Update NodeView with new components and notify subscribers of changed components
-    *
-    * @param updatedHistory
-    * @param updatedState
-    * @param updatedVault
-    * @param updatedMempool
-    */
-  protected def updateNodeView(updatedHistory: Option[HIS] = None,
-                               updatedState: Option[MS] = None,
-                               updatedVault: Option[VL] = None,
-                               updatedMempool: Option[MP] = None): Unit = {
-    val newNodeView = (updatedHistory.getOrElse(history()),
-      updatedState.getOrElse(minimalState()),
-      updatedVault.getOrElse(vault()),
-      updatedMempool.getOrElse(memoryPool()))
-    if (updatedHistory.nonEmpty) {
-      context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
-    }
-    if (updatedState.nonEmpty) {
-      context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
-    }
-    if (updatedVault.nonEmpty) {
-      context.system.eventStream.publish(ChangedVault(newNodeView._3.getReader))
-    }
-    if (updatedMempool.nonEmpty) {
-      context.system.eventStream.publish(ChangedMempool(newNodeView._4.getReader))
-    }
-    nodeView = newNodeView
-  }
-
-  protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
-    case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
-    case _ => Seq()
-  }
-
-  //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
-  //todo: validity of remaining transactions in a synchronous way. Do this job async!
-  protected def updateMemPool(blocksRemoved: Seq[PMOD], blocksApplied: Seq[PMOD], memPool: MP, state: MS): MP = {
-    val rolledBackTxs = blocksRemoved.flatMap(extractTransactions)
-
-    val appliedTxs = blocksApplied.flatMap(extractTransactions)
-
-    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
-      !appliedTxs.exists(t => t.id == tx.id) && {
-        state match {
-          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
-          case _ => true
-        }
-      }
-    }
-  }
-
-  private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
-    pi.toDownload.foreach { case (tid, id) =>
-      context.system.eventStream.publish(DownloadRequest(tid, id))
-    }
-
-  private def trimChainSuffix(suffix: IndexedSeq[PMOD], rollbackPoint: ModifierId): IndexedSeq[PMOD] = {
-    val idx = suffix.indexWhere(_.id == rollbackPoint)
-    if (idx == -1) IndexedSeq() else suffix.drop(idx)
-  }
-
-  /**
-
-  Assume that history knows the following blocktree:
-
-           G
-          / \
-         *   G
-        /     \
-       *       G
-
-    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
-    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
-    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
-    incorrect:
-
-           G
-          / \
-         G   G
-        /     \
-       B       G
-      /
-     *
-
-  In this case history should be informed about the bad modifier and it should retarget state
-
-    //todo: improve the comment below
-
-    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
-    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
-    earlier than a rollback point of an initial progressInfo.
-    **/
-
-  @tailrec
-  private def updateState(history: HIS,
-                          state: MS,
-                          progressInfo: ProgressInfo[PMOD],
-                          suffixApplied: IndexedSeq[PMOD]): (HIS, Try[MS], Seq[PMOD]) = {
-    requestDownloads(progressInfo)
-
-    val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
-      @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-      val branchingPoint = progressInfo.branchPoint.get //todo: .get
-      if (state.version != branchingPoint) {
-        state.rollbackTo(branchingPoint) -> trimChainSuffix(suffixApplied, branchingPoint)
-      } else Success(state) -> IndexedSeq()
-    } else Success(state) -> suffixApplied
-
-    stateToApplyTry match {
-      case Success(stateToApply) =>
-        val stateUpdateInfo = applyState(history, stateToApply, suffixTrimmed, progressInfo)
-
-        stateUpdateInfo.failedMod match {
-          case Some(_) =>
-            @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-            val alternativeProgressInfo = stateUpdateInfo.alternativeProgressInfo.get
-            updateState(stateUpdateInfo.history, stateUpdateInfo.state, alternativeProgressInfo, stateUpdateInfo.suffix)
-          case None => (stateUpdateInfo.history, Success(stateUpdateInfo.state), stateUpdateInfo.suffix)
-        }
-      case Failure(e) =>
-        log.error("Rollback failed: ", e)
-        context.system.eventStream.publish(RollbackFailed)
-        //todo: what to return here? the situation is totally wrong
-        ???
-    }
-  }
-
-  protected def applyState(history: HIS,
-                           stateToApply: MS,
-                           suffixTrimmed: IndexedSeq[PMOD],
-                           progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
-    val updateInfoSample = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
-    progressInfo.toApply.foldLeft(updateInfoSample) { case (updateInfo, modToApply) =>
-      if (updateInfo.failedMod.isEmpty) {
-        updateInfo.state.applyModifier(modToApply) match {
-          case Success(stateAfterApply) =>
-            val newHis = history.reportModifierIsValid(modToApply)
-            context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
-            UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
-          case Failure(e) =>
-            val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
-            context.system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
-            UpdateInformation(newHis, updateInfo.state, Some(modToApply), Some(newProgressInfo), updateInfo.suffix)
-        }
-      } else updateInfo
     }
   }
 
@@ -395,6 +264,156 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
       log.warn(s"Trying to apply modifier ${pmod.encodedId} that's already in history")
     }
 
+  protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
+    case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
+    case _ => Seq()
+  }
+
+  private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
+    pi.toDownload.foreach { case (tid, id) =>
+      context.system.eventStream.publish(DownloadRequest(tid, id))
+    }
+
+  private def trimChainSuffix(suffix: IndexedSeq[PMOD], rollbackPoint: ModifierId): IndexedSeq[PMOD] = {
+    val idx = suffix.indexWhere(_.id == rollbackPoint)
+    if (idx == -1) IndexedSeq() else suffix.drop(idx)
+  }
+
+
+  /** Below is a description of how state updates are managed */
+  /** ------------------------------------------------------------------------------------------------------------------- /
+  Assume that history knows the following blocktree:
+
+           G
+          / \
+         *   G
+        /     \
+       *       G
+
+    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
+    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
+    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
+    incorrect:
+
+           G
+          / \
+         G   G
+        /     \
+       B       G
+      /
+     *
+
+  In this case history should be informed about the bad modifier and it should retarget state
+
+    //todo: improve the comment below
+
+    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
+    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
+    earlier than a rollback point of an initial progressInfo.
+  / ---------------------------------------------------------------------------------------------------------------------- **/
+
+  @tailrec
+  private def updateState(history: HIS,
+                          state: MS,
+                          progressInfo: ProgressInfo[PMOD],
+                          suffixApplied: IndexedSeq[PMOD]): (HIS, Try[MS], Seq[PMOD]) = {
+    requestDownloads(progressInfo)
+
+    val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
+      @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
+      val branchingPoint = progressInfo.branchPoint.get //todo: .get
+      if (state.version != branchingPoint) {
+        state.rollbackTo(branchingPoint) -> trimChainSuffix(suffixApplied, branchingPoint)
+      } else Success(state) -> IndexedSeq()
+    } else Success(state) -> suffixApplied
+
+    stateToApplyTry match {
+      case Success(stateToApply) =>
+        val stateUpdateInfo = applyState(history, stateToApply, suffixTrimmed, progressInfo)
+
+        stateUpdateInfo.failedMod match {
+          case Some(_) =>
+            @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
+            val alternativeProgressInfo = stateUpdateInfo.alternativeProgressInfo.get
+            updateState(stateUpdateInfo.history, stateUpdateInfo.state, alternativeProgressInfo, stateUpdateInfo.suffix)
+          case None => (stateUpdateInfo.history, Success(stateUpdateInfo.state), stateUpdateInfo.suffix)
+        }
+      case Failure(e) =>
+        log.error("Rollback failed: ", e)
+        context.system.eventStream.publish(RollbackFailed)
+        //todo: what to return here? the situation is totally wrong
+        ???
+    }
+  }
+
+  /**
+   * Update NodeView with new components and notify subscribers of changed components
+   *
+   * @param updatedHistory
+   * @param updatedState
+   * @param updatedVault
+   * @param updatedMempool
+   */
+  protected def updateNodeView(updatedHistory: Option[HIS] = None,
+                               updatedState: Option[MS] = None,
+                               updatedVault: Option[VL] = None,
+                               updatedMempool: Option[MP] = None): Unit = {
+    val newNodeView = (updatedHistory.getOrElse(history()),
+      updatedState.getOrElse(minimalState()),
+      updatedVault.getOrElse(vault()),
+      updatedMempool.getOrElse(memoryPool()))
+    if (updatedHistory.nonEmpty) {
+      context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
+    }
+    if (updatedState.nonEmpty) {
+      context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
+    }
+    if (updatedVault.nonEmpty) {
+      context.system.eventStream.publish(ChangedVault(newNodeView._3.getReader))
+    }
+    if (updatedMempool.nonEmpty) {
+      context.system.eventStream.publish(ChangedMempool(newNodeView._4.getReader))
+    }
+    nodeView = newNodeView
+  }
+
+  //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
+  //todo: validity of remaining transactions in a synchronous way. Do this job async!
+  protected def updateMemPool(blocksRemoved: Seq[PMOD], blocksApplied: Seq[PMOD], memPool: MP, state: MS): MP = {
+    val rolledBackTxs = blocksRemoved.flatMap(extractTransactions)
+
+    val appliedTxs = blocksApplied.flatMap(extractTransactions)
+
+    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
+      !appliedTxs.exists(t => t.id == tx.id) && {
+        state match {
+          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
+          case _ => true
+        }
+      }
+    }
+  }
+
+  protected def applyState(history: HIS,
+                           stateToApply: MS,
+                           suffixTrimmed: IndexedSeq[PMOD],
+                           progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
+    val updateInfoSample = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
+    progressInfo.toApply.foldLeft(updateInfoSample) { case (updateInfo, modToApply) =>
+      if (updateInfo.failedMod.isEmpty) {
+        updateInfo.state.applyModifier(modToApply) match {
+          case Success(stateAfterApply) =>
+            val newHis = history.reportModifierIsValid(modToApply)
+            context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
+            UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
+          case Failure(e) =>
+            val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
+            context.system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
+            UpdateInformation(newHis, updateInfo.state, Some(modToApply), Some(newProgressInfo), updateInfo.suffix)
+        }
+      } else updateInfo
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
