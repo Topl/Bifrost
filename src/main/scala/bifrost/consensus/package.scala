@@ -12,6 +12,7 @@ package object consensus {
   // TODO: JAA - 2020.07.21 - This is the maximum number of Arbits that are issued. It probably shouldn't be
   // TODO: hard-coded
   // these variables are left as vars since they need to be determined at runtime from the network config
+  // todo: JAA - figure out a better way to do this
   private val MaxTarget: Long = 5000000000L
   private var targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
 

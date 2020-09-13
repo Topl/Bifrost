@@ -262,10 +262,9 @@ class NetworkController(
     * @param connectionId - connection detailed info
     * @param connection - connection ActorRef
     */
-  private def createPeerConnectionHandler(
-      connectionId: ConnectionId,
-      connection: ActorRef
-  ): Unit = {
+  private def createPeerConnectionHandler( connectionId: ConnectionId,
+                                           connection: ActorRef
+                                         ): Unit = {
     log.info {
       connectionId.direction match {
         case Incoming =>
@@ -313,10 +312,9 @@ class NetworkController(
     unconfirmedConnections -= connectionId.remoteAddress
   }
 
-  private def handleHandshake(
-      peerInfo: PeerInfo,
-      peerHandlerRef: ActorRef
-  ): Unit = {
+  private def handleHandshake( peerInfo: PeerInfo,
+                               peerHandlerRef: ActorRef
+                             ): Unit = {
     connectionForHandler(peerHandlerRef).foreach { connectedPeer =>
       val remoteAddress = connectedPeer.connectionId.remoteAddress
       val peerAddress = peerInfo.peerSpec.address.getOrElse(remoteAddress)
@@ -348,10 +346,9 @@ class NetworkController(
     * @param version         - minimal version required
     * @return sequence of ConnectedPeer instances according SendingStrategy
     */
-  private def filterConnections(
-      sendingStrategy: SendingStrategy,
-      version: Version
-  ): Seq[ConnectedPeer] = {
+  private def filterConnections( sendingStrategy: SendingStrategy,
+                                 version: Version
+                               ): Seq[ConnectedPeer] = {
     sendingStrategy.choose(
       connections.values.toSeq
         .filter(_.peerInfo.exists(_.peerSpec.protocolVersion >= version))
@@ -445,8 +442,8 @@ class NetworkController(
     }
   }
 
+  /** Attempts to validate the declared address defined in the settings file */
   private def validateDeclaredAddress(): Boolean = {
-    //if (!settings.localOnly)
     settings.declaredAddress match {
       case Some(mySocketAddress: InetSocketAddress) =>
         Try {

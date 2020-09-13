@@ -22,7 +22,7 @@ class BlockValidatorSpec extends AnyPropSpec
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history.append(block).get._1
       val blockTime = FiniteDuration(1, "second")
-      val validator = new DifficultyBlockValidator(newHistory.storage, blockTime)
+      val validator = new DifficultyBlockValidator(newHistory.storage)
       validator.validate(nextBlock).isSuccess shouldBe false
     }
   }

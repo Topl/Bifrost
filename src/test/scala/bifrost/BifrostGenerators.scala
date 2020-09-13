@@ -5,7 +5,7 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.history.{History, Storage}
+import bifrost.history.{BlockProcessor, History, Storage}
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
@@ -661,7 +661,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new History(storage, settings, validators)
+    var history = new History(storage, BlockProcessor(1024), settings, validators)
 
     val genesisBlock = genesisBlockGen.sample.get
 

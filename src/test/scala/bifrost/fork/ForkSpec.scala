@@ -62,7 +62,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
+        new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -118,7 +118,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
+        new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -150,7 +150,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
+        new DifficultyBlockValidator(history.storage)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -202,7 +202,7 @@ class ForkSpec extends AnyPropSpec
           BlockProcessor(1024),
           testSettings_version1,
           Seq(
-            new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
+            new DifficultyBlockValidator(history.storage)
             //new ParentBlockValidator(storage),
             //new SemanticBlockValidator(FastCryptographicHash)
           )

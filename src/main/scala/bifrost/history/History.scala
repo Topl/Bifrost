@@ -18,7 +18,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.util.{Success, Try}
+import scala.util.{Success, Failure, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -69,65 +69,70 @@ class History ( val storage: Storage,
 
     log.debug(s"Trying to append block ${block.id} to history")
 
-//    val validationResults = validators.map(_.validate(block))
-//
-//    // TODO: JAA - shouldn't we reject blocks that fail validation?
-//    validationResults.foreach {
-//      case Failure(e) => log.warn(s"Block validation failed", e)
-//      case _ =>
-//    }
-//    validationResults.foreach(_.get)
+    // test new block against all validators
+    val validationResults = validators.map(_.validate(block)).map {
+      case Failure(e) =>
+        log.warn(s"Block validation failed", e)
+        false
 
+      case _ => true
+    }
 
-    val res: (History, ProgressInfo[Block]) = {
+    // check if all block validation passed
+    if (validationResults.forall(_ == true)) {
+      val res: (History, ProgressInfo[Block]) = {
 
-      if (isGenesis(block)) {
-        storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
-        val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+        if (isGenesis(block)) {
+          storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
+          val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-        // construct result and return
-        (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+          // construct result and return
+          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
 
-      } else {
-        val progInfo: ProgressInfo[Block] =
+        } else {
+          val progInfo: ProgressInfo[Block] =
           // Check if the new block extends the last best block
-          if (block.parentId == storage.bestBlockId) {
-            log.debug(s"New best block ${block.id.toString}")
+            if (block.parentId == storage.bestBlockId) {
+              log.debug(s"New best block ${block.id.toString}")
 
-            // calculate the new base difficulty
-            val parentDifficulty = storage.difficultyOf(block.parentId).get
-            val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-            val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+              // calculate the new base difficulty
+              val parentDifficulty = storage.difficultyOf(block.parentId).get
+              val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
+              val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
 
-            // update storage
-            storage.update(block, newBaseDifficulty, isBest = true)
-            ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+              // update storage
+              storage.update(block, newBaseDifficulty, isBest = true)
+              ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-          // if not, we'll check for a fork
-          } else {
-            // we want to check for a fork
-            val forkProgInfo = fullBlockProcessor.process(this, block)
+              // if not, we'll check for a fork
+            } else {
+              // we want to check for a fork
+              val forkProgInfo = fullBlockProcessor.process(this, block)
 
-            // check if we need to update storage after checking for forks
-            if (forkProgInfo.branchPoint.nonEmpty) {
-              storage.rollback(forkProgInfo.branchPoint.get)
+              // check if we need to update storage after checking for forks
+              if (forkProgInfo.branchPoint.nonEmpty) {
+                storage.rollback(forkProgInfo.branchPoint.get)
 
-              forkProgInfo.toApply.foreach { b ⇒
-                val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
-                storage.update(b, baseDifficulty, isBest = true)
+                forkProgInfo.toApply.foreach { b ⇒
+                  val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
+                  storage.update(b, baseDifficulty, isBest = true)
+                }
               }
+
+              forkProgInfo
             }
 
-            forkProgInfo
-          }
-
-        // construct result and return
-        (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+          // construct result and return
+          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+        }
       }
+      log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
+        s"Best score is $score. Pair: $bestBlockId")
+      res
+
+    } else {
+      throw new Error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}")
     }
-    log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
-               s"Best score is $score. Pair: $bestBlockId")
-    res
   }
 
 //  def calculateDifficulty(parentBlock: Block, prevTimes: Timestamp): Long = {
@@ -347,6 +352,12 @@ class History ( val storage: Storage,
     loop(idToBytes(storage.bestBlockId), Seq())
   }
 
+  /**
+   * Returns a set of transactions matching the specified topics
+   *
+   * @param queryBloomTopics topics to search the the block bloom filter for
+   * @return
+   */
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
@@ -573,21 +584,21 @@ object History extends Logging {
 
   def readOrGenerate(dataDir: String, settings: AppSettings): History = {
 
+    /** Setup persistent on-disk storage */
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
-
     val storage = new Storage(blockStorage, settings)
 
+    /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
+    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
+
     val validators = Seq(
-      new consensus.DifficultyBlockValidator(storage)
+      new consensus.DifficultyBlockValidator(storage, blockProcessor)
       // fixme: JAA - 2020.07.19 - why are these commented out?
       //new ParentBlockValidator(storage),
       //new SemanticBlockValidator(FastCryptographicHash)
     )
-
-    /** This cache helps us to keep track of tines sprouting off the canonical chain */
-    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
