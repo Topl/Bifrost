@@ -1,5 +1,6 @@
 package bifrost.history
 
+import bifrost.consensus
 import bifrost.crypto.FastCryptographicHash
 import bifrost.history.BlockProcessor.ChainCache
 import bifrost.history.GenericHistory.ProgressInfo
@@ -12,7 +13,7 @@ import io.iohk.iodb.ByteArrayWrapper
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor private (cache: ChainCache, val maxDepth: Int) extends BifrostEncoding with Logging {
+class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostEncoding with Logging {
 
   import BlockProcessor._
 
@@ -35,6 +36,14 @@ class BlockProcessor private (cache: ChainCache, val maxDepth: Int) extends Bifr
   def contains(id: ModifierId): Boolean = chainCache.getCacheBlock(id).nonEmpty
 
   /**
+    * Publicly accessible method to retrieve a block from the cache
+    *
+    * @param id id of the block to retrieve
+    * @return
+    */
+  def getCacheBlock(id: ModifierId): Option[CacheBlock] = chainCache.getCacheBlock(id)
+
+  /**
     * Process a single block and determine if any of the possible chains in the
     * chain cache are taller than the main chain section
     *
@@ -44,17 +53,31 @@ class BlockProcessor private (cache: ChainCache, val maxDepth: Int) extends Bifr
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
-      chainCache = chainCache.add(block, history.storage.heightOf(block.parentId).get + 1)
+      val parentDifficulty = history.storage.difficultyOf(block.parentId).get
+      val prevTimes = history.lastBlocks(4, block).map(prev => prev.timestamp)
+
+      val newHeight = history.storage.heightOf(block.parentId).get + 1
+      val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+
+      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
+
       ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
 
     // if not starting a new branch, can it extend an already known tine?
     } else if (applicableInCache(block)) {
-        val newHeight = chainCache.getHeight(block.parentId).get + 1
-        chainCache = chainCache.add(block, newHeight)
+      val cacheParent = chainCache.getCacheBlock(block.parentId).get
+
+      val parentDifficulty = cacheParent.baseDifficulty
+      val prevTimes = (cacheParent.prevBlockTimes :+ block.timestamp).tail
+
+      val newHeight = cacheParent.height + 1
+      val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+
+      chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
 
         // if new chain is longer, calculate and return the ProgressInfo needed to switch tines
         if (newHeight > history.height) {
-          val newChain = possibleChain(CacheBlock(block, newHeight))
+          val newChain = possibleChain(chainCache.getCacheBlock(block.id).get)
           val commonAncestor = history.modifierById(newChain.head.parentId).get
           val oldChain = history.lastBlocks(
             history.height - history.storage.heightOf(commonAncestor.id).get,
@@ -112,15 +135,18 @@ object BlockProcessor {
     )
 
   /** Wrapper for storing a block and its height in the chain cache */
-  case class CacheBlock(block: Block, height: Long)
+  case class CacheBlock(block: Block, height: Long, baseDifficulty: Long, prevBlockTimes: Seq[Block.Timestamp])
 
   /** Stores links mapping ((id, height) -> parentId) of blocks that could possibly be applied. */
   case class ChainCache(cache: TreeMap[CacheBlock, ModifierId]) {
 
     val nonEmpty: Boolean = cache.nonEmpty
 
-    def getParentId(block: Block, height: Long): Option[ModifierId] =
-      cache.get(CacheBlock(block, height))
+    def getParentId(id: ModifierId): Option[ModifierId] =
+      getCacheBlock(id) match {
+        case Some(cb) => cache.get(cb)
+        case None     => None
+      }
 
     def getCacheBlock(id: ModifierId): Option[CacheBlock] =
       cache.keys.find(k ⇒ k.block.id == id)
@@ -128,14 +154,13 @@ object BlockProcessor {
     def getHeight(id: ModifierId): Option[Long] =
       cache.keys.find(k ⇒ k.block.id == id).map(_.height)
 
-    def add(block: Block, height: Long): ChainCache =
-      ChainCache(cache.insert(CacheBlock(block, height), block.parentId))
+    def add(block: Block, height: Long, parentDifficulty: Long, prevTimes: Seq[Block.Timestamp]): ChainCache = {
+      val cacheBlock = CacheBlock(block, height, parentDifficulty, prevTimes)
+      ChainCache(cache.insert(cacheBlock, block.parentId))
+    }
 
     def dropUntil(height: Long): ChainCache =
       ChainCache(cache.dropWhile(_._1.height < height))
 
-    // todo: JAA - should have some way to clean up the cache so it doesn't keep growing
-    //             Perhaps dropping when their height is below a max value? This could involve
-    //             tracking the max height and comparing as blocks are placed in.
   }
 }

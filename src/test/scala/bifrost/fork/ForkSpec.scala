@@ -6,7 +6,7 @@ import java.time.Instant
 import bifrost.BifrostGenerators
 import bifrost.consensus.DifficultyBlockValidator
 import bifrost.crypto.Signature25519
-import bifrost.history.History
+import bifrost.history.{BlockProcessor, History}
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -20,6 +20,8 @@ import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+
+import scala.concurrent.duration.FiniteDuration
 
 class ForkSpec extends AnyPropSpec
   with Matchers
@@ -57,9 +59,10 @@ class ForkSpec extends AnyPropSpec
 
     history.storage.rollback(tempBlock_version3.parentId)
     history = new History(history.storage,
+      BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -112,9 +115,10 @@ class ForkSpec extends AnyPropSpec
 
     history.storage.rollback(tempBlock_version3_1.parentId)
     history = new History(history.storage,
+      BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -143,9 +147,10 @@ class ForkSpec extends AnyPropSpec
 
     history.storage.rollback(tempBlock_version0.parentId)
     history = new History(history.storage,
+      BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -194,9 +199,10 @@ class ForkSpec extends AnyPropSpec
 
         history.storage.rollback(tempBlock_version3.parentId)
         history = new History(history.storage,
+          BlockProcessor(1024),
           testSettings_version1,
           Seq(
-            new DifficultyBlockValidator(history.storage)
+            new DifficultyBlockValidator(history.storage, FiniteDuration(1, "second"))
             //new ParentBlockValidator(storage),
             //new SemanticBlockValidator(FastCryptographicHash)
           )

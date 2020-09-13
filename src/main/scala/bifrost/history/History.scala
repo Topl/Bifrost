@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.consensus.DifficultyBlockValidator
+import bifrost.consensus
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -18,8 +18,6 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.concurrent.duration.MILLISECONDS
-import scala.math.{max, min}
 import scala.util.{Success, Try}
 
 /**
@@ -95,7 +93,14 @@ class History ( val storage: Storage,
           // Check if the new block extends the last best block
           if (block.parentId == storage.bestBlockId) {
             log.debug(s"New best block ${block.id.toString}")
-            storage.update(block, calculateDifficulty(block), isBest = true)
+
+            // calculate the new base difficulty
+            val parentDifficulty = storage.difficultyOf(block.parentId).get
+            val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
+            val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+
+            // update storage
+            storage.update(block, newBaseDifficulty, isBest = true)
             ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // if not, we'll check for a fork
@@ -106,9 +111,10 @@ class History ( val storage: Storage,
             // check if we need to update storage after checking for forks
             if (forkProgInfo.branchPoint.nonEmpty) {
               storage.rollback(forkProgInfo.branchPoint.get)
-              // todo: need to fix this difficulty calculation
+
               forkProgInfo.toApply.foreach { b ⇒
-                storage.update(b, storage.parentDifficulty(b), true)
+                val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
+                storage.update(b, baseDifficulty, isBest = true)
               }
             }
 
@@ -124,20 +130,20 @@ class History ( val storage: Storage,
     res
   }
 
-  def calculateDifficulty(block: Block): Long = {
-    // Calculate the block difficulty according to
-    // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
-    val blockTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-    val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
-    val parentDifficulty = storage.difficultyOf(block.parentId).get
-    val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
-    // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
-    if (averageDelay > targetTime) {
-      (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
-    } else {
-      (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
-    }
-  }
+//  def calculateDifficulty(parentBlock: Block, prevTimes: Timestamp): Long = {
+//    // Calculate the block difficulty according to
+//    // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
+//    val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
+//    val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
+//    val parentDifficulty = storage.difficultyOf(block.parentId).get
+//    val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
+//    // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
+//    if (averageDelay > targetTime) {
+//      (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
+//    } else {
+//      (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
+//    }
+//  }
 
   /**
     * Removes this block (and its children) from the history and rolls back to the state after the parent block
@@ -574,7 +580,7 @@ object History extends Logging {
     val storage = new Storage(blockStorage, settings)
 
     val validators = Seq(
-      new DifficultyBlockValidator(storage)
+      new consensus.DifficultyBlockValidator(storage)
       // fixme: JAA - 2020.07.19 - why are these commented out?
       //new ParentBlockValidator(storage),
       //new SemanticBlockValidator(FastCryptographicHash)
