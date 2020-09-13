@@ -12,16 +12,14 @@ import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.NodeViewHolder
 import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
-import org.scalatest.BeforeAndAfterAll
 import bifrost.settings.{AppSettings, StartupOpts}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 import scorex.crypto.signatures.Curve25519
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
-
-import scala.concurrent.duration.FiniteDuration
 
 class ForkSpec extends AnyPropSpec
   with Matchers
@@ -62,7 +60,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, history.fullBlockProcessor)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -118,7 +116,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, history.fullBlockProcessor)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -150,7 +148,7 @@ class ForkSpec extends AnyPropSpec
       BlockProcessor(1024),
       testSettings_version1,
       Seq(
-        new DifficultyBlockValidator(history.storage)
+        new DifficultyBlockValidator(history.storage, history.fullBlockProcessor)
         //new ParentBlockValidator(storage),
         //new SemanticBlockValidator(FastCryptographicHash)
       )
@@ -202,7 +200,7 @@ class ForkSpec extends AnyPropSpec
           BlockProcessor(1024),
           testSettings_version1,
           Seq(
-            new DifficultyBlockValidator(history.storage)
+            new DifficultyBlockValidator(history.storage, history.fullBlockProcessor)
             //new ParentBlockValidator(storage),
             //new SemanticBlockValidator(FastCryptographicHash)
           )
