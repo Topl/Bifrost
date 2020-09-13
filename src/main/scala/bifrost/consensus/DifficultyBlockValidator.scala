@@ -14,11 +14,10 @@ class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
     if (!storage.isGenesis(block)) {
       val parent = storage.modifierById(block.parentId).get
       val parentDifficulty = storage.parentDifficulty(block)
-      val targetTime = storage.settings.forgingSettings.targetBlockTime
       val timestamp = block.timestamp
 
       val hit = calcHit(parent)(block.forgerBox)
-      val target = calcAdjustedTarget(parent, parentDifficulty, targetTime, timestamp)
+      val target = calcAdjustedTarget(parent, parentDifficulty, timestamp)
       val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
 
       require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty, ")

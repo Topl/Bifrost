@@ -11,6 +11,7 @@ import scala.math.{max, min}
 package object consensus {
   // TODO: JAA - 2020.07.21 - This is the maximum number of Arbits that are issued. It probably shouldn't be
   // TODO: hard-coded
+  // these variables are left as vars since they need to be determined at runtime from the network config
   private val MaxTarget: Long = 5000000000L
   private var targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
 
@@ -18,21 +19,36 @@ package object consensus {
     this.targetBlockTime = blockTime
   }
 
+  /**
+   * Defines how we calculate the test value for determining eligibility to forge
+   *
+   * @param lastBlock previous block
+   * @param box       box to be used for the test value
+   * @return the test value to be compared to the adjusted difficulty
+   */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
     val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
 
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
 
+  /**
+   * Calculates the adjusted difficulty for forging based on the time passed since the previous block
+   *
+   * @param parent         previous block
+   * @param baseDifficulty base difficulty of the parent block
+   * @param timestamp      the current timestamp
+   * @return the adjusted difficulty
+   */
   def calcAdjustedTarget(parent: Block,
-                         difficulty: Long,
-                         targetBlockDelay: FiniteDuration,
+                         baseDifficulty: Long,
                          timestamp: Long): BigDecimal = {
 
-    val target: Double = difficulty.toDouble / MaxTarget.toDouble
+    val target: Double = baseDifficulty.toDouble / MaxTarget.toDouble
     val timeDelta = timestamp - parent.timestamp
+    require(timeDelta > 0)
 
-    BigDecimal(target * timeDelta.toDouble / targetBlockDelay.toUnit(MILLISECONDS))
+    BigDecimal(target * timeDelta.toDouble / targetBlockTime.toUnit(MILLISECONDS))
   }
 
   /**

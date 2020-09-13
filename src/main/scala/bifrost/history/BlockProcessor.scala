@@ -120,7 +120,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
   }
 }
 
-object BlockProcessor {
+object BlockProcessor extends Logging {
 
   private implicit val ord: Ordering[CacheBlock] =
     Ordering[(Long, ModifierId)].on(x => (x.height, x.block.id))
@@ -156,6 +156,8 @@ object BlockProcessor {
 
     def add(block: Block, height: Long, parentDifficulty: Long, prevTimes: Seq[Block.Timestamp]): ChainCache = {
       val cacheBlock = CacheBlock(block, height, parentDifficulty, prevTimes)
+
+      log.debug(s"Added new block to chain cache: $cacheBlock")
       ChainCache(cache.insert(cacheBlock, block.parentId))
     }
 

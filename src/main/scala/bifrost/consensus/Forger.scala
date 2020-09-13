@@ -35,9 +35,10 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
   import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
-  //private val infQ = ActorSystem("infChannel").actorOf(Props[InflationQuery], "infQ") // inflation query actor
 
   override def preStart(): Unit = {
+    setBlockTime(settings.targetBlockTime)
+
     if (settings.tryForging) {
       context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
@@ -155,9 +156,8 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
                 txsToInclude: Seq[Transaction],
                 version: Block.Version): Option[Block] = {
 
-    val targetTime = settings.targetBlockTime
     val timestamp = Instant.now().toEpochMilli // save a common timestamp for use in this method call
-    val target = calcAdjustedTarget(parent, difficulty, targetTime, timestamp)
+    val target = calcAdjustedTarget(parent, difficulty, timestamp)
 
     val successfulHits = boxKeys.map { boxKey =>
       val h = calcHit(parent)(boxKey._1)

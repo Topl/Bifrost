@@ -91,7 +91,7 @@ object AppSettings extends Logging with SettingsReaders {
         Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    args.networkTypeOpt.fold(log.warn("Running without network config"))(
+    args.networkTypeOpt.fold(log.warn("No network specified. Running as local testnet."))(
       networkType => log.info(s"Running in ${networkType.verboseName} network mode"))
 
     val networkConfigFileOpt = for {
