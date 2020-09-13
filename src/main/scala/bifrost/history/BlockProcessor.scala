@@ -27,6 +27,14 @@ class BlockProcessor private (cache: ChainCache, val maxDepth: Int) extends Bifr
   def applicableInCache(modifier: Block): Boolean = chainCache.getCacheBlock(modifier.parentId).nonEmpty
 
   /**
+    * Publicly accessible method to check if a block exists in the cache
+    *
+    * @param id block id that we are checking for
+    * @return 'true' is the block ID of the given modifier is available in the cache
+    */
+  def contains(id: ModifierId): Boolean = chainCache.getCacheBlock(id).nonEmpty
+
+  /**
     * Process a single block and determine if any of the possible chains in the
     * chain cache are taller than the main chain section
     *

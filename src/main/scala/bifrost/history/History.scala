@@ -53,13 +53,13 @@ class History ( val storage: Storage,
   override def isEmpty: Boolean = height <= 0
 
   override def applicable(block: Block): Boolean = {
-    contains(block.parentId)
+    modifierById(block.parentId).isDefined
   }
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    if (id.hashBytes sameElements History.GenesisParentId) true else modifierById(id).isDefined
+    (id.hashBytes sameElements History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -263,7 +263,7 @@ class History ( val storage: Storage,
         Younger
       case Some(_) =>
         //We are on different forks now.
-        if (info.lastBlockIds.view.reverse.exists(m => contains(m) || (m.hashBytes sameElements GenesisParentId))) {
+        if (info.lastBlockIds.view.reverse.exists(id => contains(id))) {
           //Return Younger, because we can send blocks from our fork that other node can download.
           Fork
         } else {
