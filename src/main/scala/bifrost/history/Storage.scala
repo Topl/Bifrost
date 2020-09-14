@@ -2,10 +2,10 @@ package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.settings.AppSettings
-import bifrost.utils.{Logging, bytesToId, idToBytes}
+import bifrost.utils.Logging
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -48,7 +48,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
-    .map(d => bytesToId(d.data))
+    .map(d => ModifierId(d.data))
     .getOrElse(ModifierId(History.GenesisParentId))
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
@@ -60,17 +60,12 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
 
   def modifierById(blockId: ModifierId): Option[Block] = {
     blockCache
-      .get(ByteArrayWrapper(idToBytes(blockId)))
+      .get(ByteArrayWrapper(blockId.hashBytes))
       .flatMap { bw =>
         val bytes = bw.data
         bytes.head match {
           case Block.modifierTypeId =>
-            val parsed = {
-              heightOf(blockId) match {
-                case Some(x) if x <= settings.forgingSettings.forkHeight => BlockCompanion.parseBytes2xAndBefore(bytes.tail)
-                case _ => BlockCompanion.parseBytes(bytes.tail)
-              }
-            }
+            val parsed = BlockSerializer.parseBytes(bytes.tail)
             parsed match {
               case Failure(e) =>
                 log.warn("Failed to parse bytes from db", e)
@@ -147,7 +142,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
     blockCache.invalidateAll()
-    storage.rollback(ByteArrayWrapper(idToBytes(parentId)))
+    storage.rollback(ByteArrayWrapper(parentId.hashBytes))
   }
 
   private def blockScoreKey(blockId: ModifierId): ByteArrayWrapper =
@@ -192,7 +187,7 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
-        .get(blockDiffKey(idToBytes(blockId)))
+        .get(blockDiffKey(blockId.hashBytes))
         .map(b => Longs.fromByteArray(b.data))
     }
 

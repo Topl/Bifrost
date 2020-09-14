@@ -4,8 +4,8 @@ package bifrost.state
   * Created by cykoz on 4/13/17.
   */
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.state.MinimalState.VersionTag
 

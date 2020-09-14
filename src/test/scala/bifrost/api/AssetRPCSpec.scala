@@ -25,8 +25,6 @@ import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
@@ -34,6 +32,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 7/3/2017.
@@ -130,7 +130,6 @@ class AssetRPCSpec extends AnyWordSpec
           ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
-          10L,
           settings.forgingSettings.version
         )
         view().state.applyModifier(tempBlock)

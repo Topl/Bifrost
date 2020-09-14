@@ -8,9 +8,10 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.program.ExecutionBuilderCompanion
+import bifrost.program.ExecutionBuilderSerializer
 import com.google.common.primitives.{Bytes, Ints}
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
@@ -53,7 +54,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     }
 
     val messageToSign = Bytes.concat(
-      ExecutionBuilderCompanion.toBytes(executionBuilder),
+      ExecutionBuilderSerializer.toBytes(executionBuilder),
       owner.pubKeyBytes,
       data.getBytes)
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
@@ -100,7 +101,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
-          10L,
           settings.forgingSettings.version
         )
 
@@ -109,14 +109,15 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
         val codeBox = programCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
-        val returnedPolyBoxes: Traversable[PolyBox] = programCreation.newBoxes.tail.drop(2).map {
+        val returnedPolyBox: PolyBox = programCreation.newBoxes.last match {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
 
-        val stateBoxBytes = StateBoxSerializer.toBytes(stateBox)
-        val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
-        val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
+        val stateBoxBytes = BoxSerializer.toBytes(stateBox)
+        val codeBoxBytes = BoxSerializer.toBytes(codeBox)
+        val executionBoxBytes = BoxSerializer.toBytes(executionBox)
+        val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
 
         val necessaryBoxesSC = StateChanges(
           Set(),
@@ -132,11 +133,10 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
           .get
 
-        require(returnedPolyBoxes
-                  .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
-                    case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
-                    case None => false
-                  }))
+        require(newState.storage.get(ByteArrayWrapper(returnedPolyBox.id)) match {
+                  case Some(wrapper) => wrapper.data sameElements returnedPolyBoxBytes
+                  case None => false
+                })
 
         require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements stateBoxBytes
@@ -154,7 +154,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         })
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
-        returnedPolyBoxes.map(_.value).sum shouldEqual
+        returnedPolyBox.value shouldEqual
           preExistingPolyBoxes
             .map { case pb: PolyBox => pb.value }
             .sum - programCreation.fee
@@ -162,12 +162,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         programCreation.fees.foreach { case (prop, fee) =>
-
-          val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-
-          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
-            pb.value }).sum
-
+          val output = if (returnedPolyBox.proposition equals prop) returnedPolyBox.value else 0
+          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
           val investment = 0
 
           output shouldEqual (input - fee - investment)
@@ -298,7 +294,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
-          10L,
           settings.forgingSettings.version
         )
 

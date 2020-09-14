@@ -8,8 +8,7 @@ import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoB
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import bifrost.network.peer.ConnectedPeer
 import bifrost.settings.NetworkSettings
-import bifrost.utils.TimeProvider
-import bifrost.utils.Logging
+import bifrost.utils.{Logging, TimeProvider}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext

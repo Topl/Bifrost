@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.program.ExecutionBuilderCompanion
+import bifrost.program.ExecutionBuilderSerializer
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
@@ -75,7 +75,7 @@ class ProgramTransactionSpec extends AnyPropSpec
     }
 
     val messageToSign = Bytes.concat(
-      ExecutionBuilderCompanion.toBytes(executionBuilder),
+      ExecutionBuilderSerializer.toBytes(executionBuilder),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       keyPair._2.pubKeyBytes,
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),

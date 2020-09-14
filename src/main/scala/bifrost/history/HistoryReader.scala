@@ -1,11 +1,9 @@
 package bifrost.history
 
-import bifrost.history.GenericHistory.ModifierIds
-import bifrost.history.GenericHistory.HistoryComparisonResult
-import bifrost.modifier.ContainsModifiers
-import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
-import bifrost.modifier.ModifierId
+import bifrost.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
+import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.network.message.SyncInfo
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 

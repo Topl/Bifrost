@@ -7,11 +7,11 @@ package bifrost.history
 import bifrost.modifier.block.Bloom
 import bifrost.{BifrostGenerators, ValidGenerators}
 
+import scala.collection.BitSet
+
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-
-import scala.collection.BitSet
 
 class BloomFilterSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -40,7 +40,6 @@ class BloomFilterSpec extends AnyPropSpec
     arbitBoxGen.sample.get,
     signatureGen.sample.get,
     Seq(tx),
-    10L
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       val block = Block(history.bestBlockId,
@@ -48,7 +47,6 @@ class BloomFilterSpec extends AnyPropSpec
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,
                                txs,
-                               10L,
                                settings.version
       )
 

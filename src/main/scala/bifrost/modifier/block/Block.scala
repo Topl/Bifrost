@@ -1,14 +1,15 @@
 package bifrost.modifier.block
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.modifier.block.Block._
-import bifrost.modifier.box.{ArbitBox, BoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
-import io.circe.{Encoder, Json}
+import bifrost.modifier.block.Block._
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import io.circe.syntax._
+import io.circe.{Encoder, Json}
 // fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
@@ -16,7 +17,6 @@ import scorex.crypto.signatures.Curve25519
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import bifrost.utils.idToBytes
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -39,8 +39,7 @@ case class Block(parentId: BlockId,
                  forgerBox: ArbitBox,
                  signature: Signature25519,
                  txs: Seq[Transaction],
-                 inflation: Long = 0L,
-                 protocolVersion: Version)
+                 version: Version)
   extends BifrostNodeViewModifier {
 
   type M = Block
@@ -49,24 +48,21 @@ case class Block(parentId: BlockId,
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
-  lazy val serializer = BlockCompanion
+  lazy val serializer = BlockSerializer
 
-  lazy val version: Version = protocolVersion
+  lazy val id: BlockId = ModifierId(serializedId)
 
-  lazy val id: BlockId = bytesToId(serializedId)
+  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.toBytes(this))
 
-  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.messageToSign(this))
-
-  lazy val serializedParentId: Array[Byte] = idToBytes(parentId)
+  lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(idToBytes(id)).asJson,
-    "parentId" -> Base58.encode(idToBytes(parentId)).asJson,
+    "id" -> Base58.encode(serializedId).asJson,
+    "parentId" -> Base58.encode(serializedParentId).asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson,
-    "inflation" -> inflation.asJson,
     "version" -> version.asJson,
     "blockSize" -> serializer.toBytes(this).length.asJson
   ).asJson
@@ -89,11 +85,10 @@ object Block {
              box: ArbitBox,
              //attachment: Array[Byte],
              privateKey: PrivateKey25519,
-             inflation: Long,
              version: Version): Block = {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
-    val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
+    val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
     if (parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
       // genesis block will skip signature check
       val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
@@ -117,13 +112,12 @@ object Block {
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
-      "id" -> Base58.encode(idToBytes(b.id)).asJson,
-      "parentId" -> Base58.encode(idToBytes(b.parentId)).asJson,
+      "id" -> Base58.encode(b.serializedId).asJson,
+      "parentId" -> Base58.encode(b.serializedParentId).asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
       "txs" -> b.txs.map(_.json).asJson,
-      "inflation" -> b.inflation.asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
     ).asJson

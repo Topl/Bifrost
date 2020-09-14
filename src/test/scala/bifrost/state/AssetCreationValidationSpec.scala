@@ -26,7 +26,6 @@ class AssetCreationValidationSpec extends StateSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetCreation),
-          10L,
           settings.forgingSettings.version
         )
 

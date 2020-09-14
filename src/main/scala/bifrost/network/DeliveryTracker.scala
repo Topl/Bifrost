@@ -3,13 +3,12 @@ package bifrost.network
 import akka.actor.{ActorContext, ActorRef, Cancellable}
 import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.network.ModifiersStatus._
-import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.network.peer.ConnectedPeer
+import bifrost.nodeView.NodeViewModifier
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.NetworkSettings
-import bifrost.utils.BifrostEncoding
-import bifrost.utils.Logging
+import bifrost.utils.{BifrostEncoding, Logging}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext

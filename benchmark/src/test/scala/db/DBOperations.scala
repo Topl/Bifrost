@@ -6,7 +6,7 @@ import bifrost.modifier.ModifierId
 import org.openjdk.jmh.annotations._
 import bifrost.BifrostGenerators
 import bifrost.history._
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockSerializer}
 import io.iohk.iodb.ByteArrayWrapper
 
 
@@ -41,7 +41,7 @@ class DBOperations extends BifrostGenerators {
     for (_ <- 1 to numLastBlocks) {
       val currentBlock: Block = history.storage.storage.get(ByteArrayWrapper(tmpStorageBlockId.hashBytes)).map { bw =>
         val bytes = bw.data
-        BlockCompanion.parseBytes(bytes.tail).get
+        BlockSerializer.parseBytes(bytes.tail).get
       }.get
       tmpStorageBlockId = currentBlock.parentId
     }
@@ -55,7 +55,7 @@ class DBOperations extends BifrostGenerators {
       val currentBlock: Block = history.storage.blockCache.getIfPresent(ByteArrayWrapper(tmpCacheBlockId.hashBytes)).map {
         bw =>
           val bytes = bw.data
-          BlockCompanion.parseBytes(bytes.tail).get
+          BlockSerializer.parseBytes(bytes.tail).get
       }.get
       tmpCacheBlockId = currentBlock.parentId
     }

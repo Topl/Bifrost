@@ -8,7 +8,7 @@ import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{Reader, Writer}
-import bifrost.utils.{Logging, bytesToId, idToBytes}
+import bifrost.utils.Logging
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
@@ -36,7 +36,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def parse(r: Reader): BifrostSyncInfo = {
     val length = r.getUShort()
-    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+    val ids = (1 to length).map(_ ⇒ ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize)))
     BifrostSyncInfo(ids)
   }
 }
@@ -68,7 +68,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     w.put(typeId)
     w.putUInt(elems.size)
     elems.foreach { id =>
-      val bytes = idToBytes(id)
+      val bytes = id.hashBytes
       assert(bytes.length == NodeViewModifier.ModifierIdSize)
       w.putBytes(bytes)
     }
@@ -80,7 +80,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
     val elems = (0 until count).map { _ =>
-      bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize))
+      ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize))
     }
 
     InvData(typeId, elems)
@@ -156,7 +156,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(idToBytes(id))
+      w.putBytes(id.hashBytes)
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }
@@ -171,7 +171,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     val typeId = ModifierTypeId @@ r.getByte()
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
-      val id = bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize))
+      val id = ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize))
       val objBytesCnt = r.getUInt().toIntExact
       val obj = r.getBytes(objBytesCnt)
       id -> obj
