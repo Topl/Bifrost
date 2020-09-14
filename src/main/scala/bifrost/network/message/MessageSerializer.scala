@@ -11,8 +11,6 @@ import scala.util.Try
 
 class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
-  import Message._
-
   import scala.language.existentials
 
   private implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
@@ -27,7 +25,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
       .putInt(obj.dataLength)
 
     if (obj.dataLength > 0) {
-      val checksum = Blake2b256.hash(obj.dataBytes).take(ChecksumLength)
+      val checksum = Blake2b256.hash(obj.dataBytes).take(Message.ChecksumLength)
       builder.putBytes(checksum).putBytes(obj.dataBytes)
     }
 
@@ -36,11 +34,11 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
   //MAGIC ++ Array(spec.messageCode) ++ Ints.toByteArray(dataLength) ++ dataWithChecksum
   def deserialize(byteString: ByteString, sourceOpt: Option[ConnectedPeer]): Try[Option[Message[_]]] = Try {
-    if (byteString.length < HeaderLength) {
+    if (byteString.length < Message.HeaderLength) {
       None
     } else {
       val it = byteString.iterator
-      val magic = it.getBytes(MagicLength)
+      val magic = it.getBytes(Message.MagicLength)
       val msgCode = it.getByte
       val length = it.getInt
 
@@ -56,13 +54,13 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
 
       val spec = specsMap.getOrElse(msgCode, throw new Error(s"No message handler found for $msgCode"))
 
-      if (length != 0 && byteString.length < length + HeaderLength + ChecksumLength) {
+      if (length != 0 && byteString.length < length + Message.HeaderLength + Message.ChecksumLength) {
         None
       } else {
         val msgData = if (length > 0) {
-          val checksum = it.getBytes(ChecksumLength)
+          val checksum = it.getBytes(Message.ChecksumLength)
           val data = it.getBytes(length)
-          val digest = Blake2b256.hash(data).take(ChecksumLength)
+          val digest = Blake2b256.hash(data).take(Message.ChecksumLength)
 
           //peer reported incorrect checksum
           if (!java.util.Arrays.equals(checksum, digest)) {
