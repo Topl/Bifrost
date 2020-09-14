@@ -6,7 +6,6 @@ import bifrost.history.BlockProcessor.ChainCache
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.nodeView.NodeViewModifier.idToBytes
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.ByteArrayWrapper
 
@@ -131,7 +130,7 @@ object BlockProcessor extends Logging {
 
   def chainStatusKey(id: ModifierId): ByteArrayWrapper =
     ByteArrayWrapper(
-      FastCryptographicHash("main_chain".getBytes ++ idToBytes(id))
+      FastCryptographicHash("main_chain".getBytes ++ id.hashBytes)
     )
 
   /** Wrapper for storing a block and its height in the chain cache */

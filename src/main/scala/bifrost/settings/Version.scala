@@ -9,7 +9,7 @@ import bifrost.utils.serialization._
 case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
   override type M = Version
 
-  override def serializer: BifrostSerializer[Version] = ApplicationVersionSerializer
+  override def serializer: BifrostSerializer[Version] = VersionSerializer
 
   override def compare(that: Version): Int = if (this.firstDigit != that.firstDigit) {
     this.firstDigit - that.firstDigit
@@ -28,22 +28,4 @@ object Version {
 
   val initial: Version = Version(0, 0, 1)
   val last: Version = Version(0, 0, 1)
-}
-
-object ApplicationVersionSerializer extends BifrostSerializer[Version] {
-  val SerializedVersionLength: Int = 3
-
-  override def serialize(obj: Version, w: Writer): Unit = {
-    w.put(obj.firstDigit)
-    w.put(obj.secondDigit)
-    w.put(obj.thirdDigit)
-  }
-
-  override def parse(r: Reader): Version = {
-    Version(
-      r.getByte(),
-      r.getByte(),
-      r.getByte()
-    )
-  }
 }

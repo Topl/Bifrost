@@ -2,8 +2,8 @@ package bifrost.network.peer
 
 import java.net.InetSocketAddress
 
-import bifrost.settings.Version
 import bifrost.network.ConnectionDirection
+import bifrost.settings.Version
 
 /**
   * Information about peer to be stored in PeerDatabase

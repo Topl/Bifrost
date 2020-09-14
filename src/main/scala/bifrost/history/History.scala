@@ -11,7 +11,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId, idToBytes}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -203,7 +203,7 @@ class History ( val storage: Storage,
     */
   override def openSurfaceIds(): Seq[ModifierId] =
     if (isEmpty) {
-      Seq(bytesToId(History.GenesisParentId))
+      Seq(ModifierId(History.GenesisParentId))
     } else {
       Seq(bestBlockId)
     } // TODO return sequence of exposed endpoints?
@@ -346,10 +346,10 @@ class History ( val storage: Storage,
       case Some(value) =>
         if (f(storage.bloomOf(current).get)) loop(value, current +: acc) else loop(value, acc)
       case None =>
-        if (f(storage.bloomOf(current).get)) (current +: acc).map(bytesToId(_)) else acc.map(bytesToId(_))
+        if (f(storage.bloomOf(current).get)) (current +: acc).map(ModifierId(_)) else acc.map(ModifierId(_))
     }
 
-    loop(idToBytes(storage.bestBlockId), Seq())
+    loop(storage.bestBlockId.hashBytes, Seq())
   }
 
   /**
@@ -567,7 +567,7 @@ class History ( val storage: Storage,
 //    */
   /*def idsAtHeight(height: Int): Seq[ModifierId] =
     storage.getIndex(heightIdsKey(height: Int))
-      .getOrElse(Array()).grouped(32).map(bytesToId).toSeq
+      .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
    */
 }
 

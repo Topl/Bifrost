@@ -7,7 +7,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, CodeBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
+import bifrost.modifier.transaction.serialization.CodeBoxCreationSerializer
 import bifrost.program.ProgramPreprocessor
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
@@ -27,7 +27,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
   override type M = CodeCreation
 
-  lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationCompanion
+  lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationSerializer
 
   override def toString: String = s"CodeCreation(${json.noSpaces})"
 

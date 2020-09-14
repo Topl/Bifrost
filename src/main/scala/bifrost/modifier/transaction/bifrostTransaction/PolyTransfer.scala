@@ -6,7 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{Box, PolyBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.modifier.transaction.serialization.PolyTransferCompanion
+import bifrost.modifier.transaction.serialization.PolyTransferSerializer
 import bifrost.state.TokenBoxRegistry
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
@@ -24,7 +24,7 @@ case class PolyTransfer(override val from: IndexedSeq[(PublicKey25519Proposition
 
   override type M = PolyTransfer
 
-  override lazy val serializer = PolyTransferCompanion
+  override lazy val serializer = PolyTransferSerializer
 
   override def toString: String = s"PolyTransfer(${json.noSpaces})"
 

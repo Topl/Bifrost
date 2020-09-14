@@ -22,10 +22,16 @@ trait Reader {
   def getChunk(size: Int): CH
 
   /**
-    * Decode String is shorter than 256 bytes
+    * Decode String that is shorter than 256 in size
     * @return
     */
-  def getShortString(): String
+  def getByteString(): String
+
+  /**
+    * Decode String longer than 256 bytes
+    * @return
+    */
+  def getIntString(): String
 
   /**
     * Get a byte at current position without advancing the position.
@@ -136,4 +142,3 @@ trait Reader {
 object Reader {
   type Aux[CCH] = Reader{ type CH = CCH }
 }
-

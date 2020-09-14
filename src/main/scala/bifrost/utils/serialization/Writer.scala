@@ -136,7 +136,14 @@ trait Writer {
     * @param s String
     * @return
     */
-  def putShortString(s: String): this.type
+  def putByteString(s: String): this.type
+
+  /**
+    * Encode String is shorter than 256 bytes
+    * @param s String
+    * @return
+    */
+  def putIntString(s: String): this.type
 
   /**
     * Returns encoded result

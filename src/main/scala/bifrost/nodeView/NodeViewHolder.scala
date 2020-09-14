@@ -2,14 +2,14 @@ package bifrost.nodeView
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import bifrost.crypto.PrivateKey25519Companion
-import bifrost.history.{BlockProcessor, History}
+import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockCompanion}
+import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
-import bifrost.modifier.transaction.serialization.TransactionCompanion
+import bifrost.modifier.transaction.serialization.TransactionSerializer
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.{AppSettings, BifrostContext}
@@ -37,8 +37,8 @@ class NodeViewHolder(override val settings: AppSettings, bifrostContext: Bifrost
     new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
-    Map(Block.modifierTypeId -> BlockCompanion,
-      GenericTransaction.modifierTypeId -> TransactionCompanion)
+    Map(Block.modifierTypeId -> BlockSerializer,
+      GenericTransaction.modifierTypeId -> TransactionSerializer)
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
@@ -135,7 +135,7 @@ object NodeViewHolder extends Logging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, 0L, settings.forgingSettings.version)
+    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
 
     var history = History.readOrGenerate(settings)
     history = history.append(genesisBlock).get._1

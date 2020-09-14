@@ -1,14 +1,13 @@
 package bifrost.nodeView
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockCompanion}
-import bifrost.modifier.transaction.serialization.TransactionCompanion
+import bifrost.modifier.block.{Block, BlockSerializer}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.serialization.TransactionSerializer
 import bifrost.network.message.InvData
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
-import bifrost.utils.BifrostEncoder
-import bifrost.utils.BifrostEncoding
 import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{BifrostEncoder, BifrostEncoding}
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 
@@ -44,8 +43,8 @@ object NodeViewModifier {
 
   val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(
-      Block.modifierTypeId -> BlockCompanion,
-      Transaction.modifierTypeId -> TransactionCompanion
+      Block.modifierTypeId -> BlockSerializer,
+      Transaction.modifierTypeId -> TransactionSerializer
     )
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
@@ -60,10 +59,6 @@ object NodeViewModifier {
   }
 
   def idsToString(invData: InvData)(implicit encoder: BifrostEncoder): String = idsToString(invData.typeId, invData.ids)
-
-  def bytesToId: Array[Byte] => ModifierId = bifrost.utils.bytesToId
-
-  def idToBytes: ModifierId => Array[Byte] = bifrost.utils.idToBytes
 }
 
 

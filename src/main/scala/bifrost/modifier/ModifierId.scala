@@ -17,6 +17,6 @@ case class ModifierId(hashBytes: Array[Byte]) {
 }
 
 object ModifierId {
-
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
+
 }

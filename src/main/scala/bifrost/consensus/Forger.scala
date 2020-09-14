@@ -166,13 +166,7 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
     log.debug(s"Successful hits: ${successfulHits.size}")
 
     successfulHits.headOption.map { case (boxKey, _) =>
-      if (txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.nonEmpty) {
-        Block.create(parent.id, timestamp, txsToInclude, boxKey._1, boxKey._2,
-          txsToInclude.head.asInstanceOf[CoinbaseTransaction].newBoxes.head.asInstanceOf[ArbitBox].value, version) // inflation val
-      }
-      else {
-        Block.create(parent.id, timestamp, txsToInclude, boxKey._1, boxKey._2, 0, version)
-      }
+      Block.create(parent.id, timestamp, txsToInclude, boxKey._1, boxKey._2, version)
     }
   }
 
