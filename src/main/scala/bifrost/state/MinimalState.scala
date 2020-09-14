@@ -15,9 +15,9 @@ import scala.util.Try
   * Abstract functional interface of state which is a result of a sequential blocks applying
   */
 
-trait MinimalState[
-M <: PersistentNodeViewModifier,
-MS <: MinimalState[M, MS]] extends NodeViewComponent with StateReader {
+trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
+    extends NodeViewComponent
+    with StateReader {
   self: MS =>
 
   def version: VersionTag
@@ -36,9 +36,9 @@ object MinimalState {
 trait StateFeature
 
 trait TransactionValidation[TX <: Transaction] extends StateFeature {
-  def isValid(tx: TX): Boolean = validate(tx).isSuccess
-
   def filterValid(txs: Seq[TX]): Seq[TX] = txs.filter(isValid)
+
+  def isValid(tx: TX): Boolean = validate(tx).isSuccess
 
   def validate(tx: TX): Try[Unit]
 }
