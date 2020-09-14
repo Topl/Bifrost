@@ -115,7 +115,8 @@ class NetworkController(
         case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
       }
 
-    case SendToNetwork(msg: message.Message[_], sendingStrategy) =>
+    // a message to be SENT to a remote peer
+    case SendToNetwork(msg: Message[_], sendingStrategy) =>
       filterConnections(sendingStrategy, msg.spec.version).foreach {
         connectedPeer => connectedPeer.handlerRef ! msg
       }
