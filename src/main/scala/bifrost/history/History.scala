@@ -135,21 +135,6 @@ class History ( val storage: Storage,
     }
   }
 
-//  def calculateDifficulty(parentBlock: Block, prevTimes: Timestamp): Long = {
-//    // Calculate the block difficulty according to
-//    // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
-//    val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-//    val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
-//    val parentDifficulty = storage.difficultyOf(block.parentId).get
-//    val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
-//    // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
-//    if (averageDelay > targetTime) {
-//      (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
-//    } else {
-//      (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
-//    }
-//  }
-
   /**
     * Removes this block (and its children) from the history and rolls back to the state after the parent block
     *
