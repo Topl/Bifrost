@@ -1,12 +1,13 @@
 package bifrost.network
 
-import akka.actor.{ActorRef, ActorSystem, Cancellable}
+import akka.actor.{ActorContext, ActorRef, Cancellable}
 import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.network.ModifiersStatus._
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import bifrost.network.peer.ConnectedPeer
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.settings.NetworkSettings
 import bifrost.utils.{BifrostEncoding, Logging}
 
 import scala.collection.mutable
@@ -35,14 +36,18 @@ import scala.util.{Failure, Try}
   * This class is not thread-save so it should be used only as a local field of an actor
   * and its methods should not be called from lambdas, Future, Future.map, etc.
   */
-class DeliveryTracker(system: ActorSystem,
-                      deliveryTimeout: FiniteDuration,
-                      maxDeliveryChecks: Int,
-                      nvsRef: ActorRef) extends Logging with BifrostEncoding {
+class DeliveryTracker( nvsRef: ActorRef,
+                       context: ActorContext,
+                       networkSettings: NetworkSettings,
+                       ) extends Logging with BifrostEncoding {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
-  def requestedSize: Int = requested.size
+  protected class StopExpectingError(mid: ModifierId, checks: Int)
+    extends Error(s"Stop expecting ${encoder.encodeId(mid)} due to exceeded number of retries $checks")
+
+  private val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
+  private val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks
 
   // when a remote peer is asked a modifier we add the requested data to `requested`
   protected val requested: mutable.Map[ModifierId, RequestedInfo] = mutable.Map()
@@ -52,6 +57,8 @@ class DeliveryTracker(system: ActorSystem,
 
   // when our node received a modifier we put it to `received`
   protected val received: mutable.Map[ModifierId, ConnectedPeer] = mutable.Map()
+
+  def requestedSize: Int = requested.size
 
   /**
     * @return status of modifier `id`.
@@ -76,13 +83,30 @@ class DeliveryTracker(system: ActorSystem,
     *
     * @return `true` if number of checks was not exceed, `false` otherwise
     */
-  def onStillWaiting(cp: ConnectedPeer, typeId: ModifierTypeId, id: ModifierId)
-                    (implicit ec: ExecutionContext): Try[Unit] =
-    tryWithLogging {
+  def onStillWaiting(peerOpt: Option[ConnectedPeer], typeId: ModifierTypeId, id: ModifierId)
+                    (implicit ec: ExecutionContext): Try[Boolean] =
+    tryWithLogging[Boolean] {
       val checks = requested(id).checks + 1
-      setUnknown(id)
-      if (checks < maxDeliveryChecks) setRequested(id, typeId,  Some(cp), checks)
-      else throw new StopExpectingError(id, checks)
+      setUnknown(id) // clear status of modifiers so we can update below
+
+      // Determine if we should continue to wait on a particular peer or if we should start asking other random peers
+      // but only ask up to the number of maxDeliveryChecks
+      peerOpt match {
+        // case for waiting on anyone to provide a modifier
+        case _ if checks < maxDeliveryChecks  =>
+          setRequested(id, typeId, peerOpt, checks)
+          true
+
+        // case for transitioning to ask anyone for the modifier
+        case Some(_) if checks >= maxDeliveryChecks =>
+          setRequested(id, typeId,  None)
+          false
+
+        // case where we've exhausted attempts to get the modifier so stop checking for it
+        case None if checks >= maxDeliveryChecks =>
+          throw new StopExpectingError(id, checks)
+      }
+
     }
 
   /**
@@ -92,7 +116,7 @@ class DeliveryTracker(system: ActorSystem,
                   (implicit ec: ExecutionContext): Unit =
     tryWithLogging {
       require(isCorrectTransition(status(id), Requested), s"Illegal status transition: ${status(id)} -> Requested")
-      val cancellable = system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
+      val cancellable = context.system.scheduler.scheduleOnce(deliveryTimeout, nvsRef, CheckDelivery(supplierOpt, typeId, id))
       requested.put(id, RequestedInfo(supplierOpt, cancellable, checksDone))
     }
 
@@ -203,8 +227,5 @@ class DeliveryTracker(system: ActorSystem,
       case _ =>
         ()
     }
-
-  class StopExpectingError(mid: ModifierId, checks: Int)
-    extends Error(s"Stop expecting ${encoder.encodeId(mid)} due to exceeded number of retries $checks")
 
 }

@@ -193,33 +193,6 @@ class History ( val storage: Storage,
       Seq(bestBlockId)
     } // TODO return sequence of exposed endpoints?
 
-
-  //TODO used in tests, but should replace with HistoryReader.continuationIds
-  /**
-    * Gather blocks from after `from` that should be added to the chain
-    *
-    * @param from the list of known blocks from which to gather continuation
-    * @param size the number of blocks to return after `from`
-    * @return
-    */
-  def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
-                               size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
-
-    /* Whether m is a genesis block or is in `from` */
-    def inList(m: Block): Boolean = idInList(m.id) || isGenesis(m)
-
-    def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
-
-    /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
-    chainBack(bestBlock, inList) match {
-      case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
-      case Some(_) =>
-        log.warn("Found chain without ids from remote")
-        None
-      case _ => None
-    }
-  }
-
   /**
     * Return specified number of Bifrost blocks, ordered back from last one
     *
@@ -472,6 +445,32 @@ class History ( val storage: Storage,
   override def applicableTry(modifier: Block): Try[Unit] = {
     modifier match {
       case b: Block ⇒ Success(())
+    }
+  }
+
+  //TODO used in tests, but should replace with HistoryReader.continuationIds
+  /**
+    * Gather blocks from after `from` that should be added to the chain
+    *
+    * @param from the list of known blocks from which to gather continuation
+    * @param size the number of blocks to return after `from`
+    * @return
+    */
+  def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
+                      size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+
+    /* Whether m is a genesis block or is in `from` */
+    def inList(m: Block): Boolean = idInList(m.id) || isGenesis(m)
+
+    def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
+
+    /* Extend chain back until end of `from` is found, then return <size> blocks continuing from that point */
+    chainBack(bestBlock, inList) match {
+      case Some(chain) if chain.exists(id => idInList(id._2)) => Some(chain.take(size))
+      case Some(_) =>
+        log.warn("Found chain without ids from remote")
+        None
+      case _ => None
     }
   }
 

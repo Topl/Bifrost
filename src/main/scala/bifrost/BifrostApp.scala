@@ -34,15 +34,19 @@ import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
+  // todo: JAA - 2020.08.27 - We aren't using these anywhere currently. We could use an dependency injection pattern
+  // todo:       and try to have this be where we define concrete type for the application, or we could remove.
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type TX = Transaction
   type PMOD = Block
   type NVHT = NodeViewHolder
 
+  // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
   log.debug(s"Starting application with settings \n$settings")
 
+  // Setup name limit defined in application.conf
   private val conf: Config = ConfigFactory.load("application")
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
 
@@ -87,7 +91,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   sys.addShutdownHook(BifrostApp.shutdown(actorSystem, actorsToStop))
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
-  // Register controllers for all API routes
+  // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
     UtilsApiRoute(settings),
     AssetApiRoute(settings, nodeViewHolderRef),
@@ -118,6 +122,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   System.out.printf("jvmci.Compiler = %s%n", compiler)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def run(): Unit = {
     require(settings.network.agentName.length <= ApplicationNameLimit)
 
@@ -160,17 +166,23 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   }
 }
 
+// This is the primary application object and is the entry point for Bifrost to begin execution
 object BifrostApp extends Logging {
+  // check if Kamon instrumentation should be started.
+  // DO NOT MOVE!! This must happen before anything else!
   private val conf: Config = ConfigFactory.load("application")
   if (conf.getBoolean("kamon.enable")) Kamon.init()
 
-  import com.joefkelley.argyle._
+  import com.joefkelley.argyle._ // import for parsing command line arguments
 
+  // parse command line arguments
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
       optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
     ).to[StartupOpts]
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def main(args: Array[String]): Unit =
     argParser.parse(args) match {
       case Success(argsParsed) => new BifrostApp(argsParsed).run()
