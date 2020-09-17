@@ -26,12 +26,23 @@ trait ApiRoute extends Directives {
 
   def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
+  /**
+    * Returns json route based on API response and method.
+    * @param fn - an API response.
+    * @param method
+    * @return - the JSON route.
+    */
   private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
     complete(
       HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
     )
   }
 
+  /**
+    * Returns a route if the API key is valid.
+    * @param route
+    * @return
+    */
   def withAuth(route: => Route): Route = {
     optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
@@ -39,6 +50,11 @@ trait ApiRoute extends Directives {
     }
   }
 
+  /**
+    * Checks if a key is a valid API key.
+    * @param keyOpt
+    * @return - true if the key is a valid API key, false otherwise.
+    */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[CryptographicHash#Digest] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
