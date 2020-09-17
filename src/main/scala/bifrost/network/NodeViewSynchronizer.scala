@@ -11,7 +11,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.message._
 import bifrost.network.peer.{ConnectedPeer, PenaltyType}
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
+import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
 import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import bifrost.settings.{BifrostContext, NetworkSettings}
 import bifrost.state.StateReader
@@ -35,15 +35,18 @@ class NodeViewSynchronizer[
   TX <: Transaction,
   SI <: SyncInfo,
   PMOD <: PersistentNodeViewModifier,
-  HR <: HistoryReader[PMOD, SI] : ClassTag,
-  MR <: MemPoolReader[TX] : ClassTag
+  HR <: HistoryReader[PMOD, SI]: ClassTag,
+  MR <: MemPoolReader[TX]: ClassTag
 ](
-   networkControllerRef: ActorRef,
-   viewHolderRef: ActorRef,
-   networkSettings: NetworkSettings,
-   bifrostContext: BifrostContext
- )
- (implicit ec: ExecutionContext) extends Actor with Synchronizer with Logging with BifrostEncoding {
+  networkControllerRef: ActorRef,
+  viewHolderRef: ActorRef,
+  networkSettings: NetworkSettings,
+  bifrostContext: BifrostContext
+)(implicit ec: ExecutionContext)
+    extends Actor
+    with Synchronizer
+    with Logging
+    with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
   import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -64,10 +67,10 @@ class NodeViewSynchronizer[
 
   // partial functions for identifying local method handlers for the messages above
   protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
-    case (spec: SyncInfoSpec, data: SI@unchecked, remote)   => gotRemoteSyncInfo(data, remote)
-    case (spec: InvSpec, data: InvData, remote)             => gotRemoteInventory(data, remote)
-    case (spec: RequestModifierSpec, data: InvData, remote) => gotModifierRequest(data, remote)
-    case (spec: ModifiersSpec, data: ModifiersData, remote) => gotRemoteModifiers(data, remote)
+    case (_: SyncInfoSpec, data: SI @unchecked, remote)  => gotRemoteSyncInfo(data, remote)
+    case (_: InvSpec, data: InvData, remote)             => gotRemoteInventory(data, remote)
+    case (_: RequestModifierSpec, data: InvData, remote) => gotModifierRequest(data, remote)
+    case (_: ModifiersSpec, data: ModifiersData, remote) => gotRemoteModifiers(data, remote)
   }
 
   protected val deliveryTracker = new DeliveryTracker(self, context, networkSettings)
@@ -104,16 +107,15 @@ class NodeViewSynchronizer[
   // ----------- CONTEXT
   override def receive: Receive =
     processDataFromPeer orElse
-      processSyncStatus orElse
-      manageModifiers orElse
-      viewHolderEvents orElse
-      peerManagerEvents orElse
-      nonsense
+    processSyncStatus orElse
+    manageModifiers orElse
+    viewHolderEvents orElse
+    peerManagerEvents orElse
+    nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
-  protected def processDataFromPeer: Receive = {
-    case Message(spec, Left(msgBytes), Some(source)) =>
-      parseAndHandle(spec, msgBytes, source)
+  protected def processDataFromPeer: Receive = { case Message(spec, Left(msgBytes), Some(source)) =>
+    parseAndHandle(spec, msgBytes, source)
   }
 
   protected def processSyncStatus: Receive = {
@@ -191,140 +193,19 @@ class NodeViewSynchronizer[
       statusTracker.clearStatus(remote)
   }
 
-  protected def nonsense: Receive = {
-    case nonsense: Any =>
-      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
+  protected def nonsense: Receive = { case nonsense: Any =>
+    log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   /**
-   * Process sync info coming from another node
-   *
-   * @param syncInfo a set of modifier ids from the tip of the remote peers chain
-   * @param remote remote peer that sent the message
-   */
-  private def gotRemoteSyncInfo(syncInfo: SI, remote: ConnectedPeer): Unit =
-    historyReaderOpt match {
-      case Some(historyReader) =>
-        val ext = historyReader.continuationIds(syncInfo, desiredInvObjects)
-        val comparison = historyReader.compare(syncInfo)
-
-        if (!(ext.nonEmpty || comparison != Younger))
-          log.warn("Extension is empty while comparison is younger")
-
-        statusTracker.updateStatus(remote, comparison)
-
-        comparison match {
-          case Unknown =>
-            //todo: should we ban peer if its status is unknown after getting info from it?
-            log.warn("Peer status is still unknown")
-
-          case Nonsense =>
-            log.warn("Got nonsense")
-
-          case Younger | Fork =>
-            log.debug(s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
-              s"Comparison result is $comparison. Sending extension of length ${ext.length}")
-            log.debug(s"Extension ids: ${idsToString(ext)}")
-
-            sendExtension(remote, comparison, ext)
-
-          case _ => // does nothing for `Equal` and `Older`
-        }
-
-      case _ =>
-        log.warn(s"Got sync information from a peer while history reader was not available")
-    }
-
-
-  /**
-   * Process object ids coming from other node.
-   *
-   * @param invData inventory data (a sequence of modifier ids)
-   * @param remote remote peer that sent the message
-   */
-  private def gotRemoteInventory(invData: InvData, remote: ConnectedPeer): Unit =
-    (mempoolReaderOpt, historyReaderOpt) match {
-      // Filter out modifier ids that are already in process (requested, received or applied)
-      case (Some(mempool), Some(history)) =>
-        val modifierTypeId = invData.typeId
-        val newModifierIds = modifierTypeId match {
-          case Transaction.modifierTypeId =>
-            invData.ids.filter(mid => deliveryTracker.status(mid, mempool) == ModifiersStatus.Unknown)
-          case _ =>
-            invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
-        }
-
-        // request unknown ids from the peer that announced the unknown modifiers
-        if (newModifierIds.nonEmpty) requestDownload(modifierTypeId, newModifierIds, Some(remote))
-
-      case _ =>
-        log.warn(s"Got inventory data from peer while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
-    }
-
-
-  /**
-   * Process a remote peer asking for objects by their ids
-   *
-   * @param invData the set of modifiers ids that the peer would like to have sent to them
-   * @param remote remote peer that sent the message
-   */
-  private def gotModifierRequest(invData: InvData, remote: ConnectedPeer): Unit =
-    (mempoolReaderOpt, historyReaderOpt) match {
-      case (Some(mempool), Some(history)) =>
-        val objs: Seq[NodeViewModifier] = invData.typeId match {
-          case Transaction.modifierTypeId => mempool.getAll(invData.ids)
-          case _: ModifierTypeId          => invData.ids.flatMap(id => history.modifierById(id))
-        }
-        log.debug(s"Requested ${invData.ids.length} modifiers ${idsToString(invData)}, " +
-          s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} ")
-        self ! ResponseFromLocal(remote, invData.typeId, objs)
-
-      case _ =>
-        log.warn(s"Data was requested while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
-    }
-
-
-  /**
-   * Process modifiers received from a remote peer
-   *
-   * @param data modifier data that was previously requested from a remote peer
-   * @param remote remote peer that sent the message
-   */
-  private def gotRemoteModifiers(data: ModifiersData, remote: ConnectedPeer): Unit = {
-    val typeId = data.typeId
-    val modifiers = data.modifiers
-    log.info(s"Got ${modifiers.size} modifiers of type $typeId from remote connected peer: $remote")
-    log.trace(s"Received modifier ids ${modifiers.keySet.map(encoder.encodeId).mkString(",")}")
-
-    // filter out non-requested modifiers
-    val requestedModifiers = processSpam(remote, typeId, modifiers)
-
-    modifierSerializers.get(typeId) match {
-      case Some(serializer: BifrostSerializer[TX]@unchecked) if typeId == Transaction.modifierTypeId =>
-        // parse all transactions and send them to node view holder
-        val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
-        viewHolderRef ! TransactionsFromRemote(parsed)
-
-      case Some(serializer: BifrostSerializer[PMOD]@unchecked) =>
-        // parse all modifiers and put them to modifiers cache
-        val parsed: Iterable[PMOD] = parseModifiers(requestedModifiers, serializer, remote)
-        val valid: Iterable[PMOD] = parsed.filter(validateAndSetStatus(remote, _))
-        if (valid.nonEmpty) viewHolderRef ! ModifiersFromRemote[PMOD](valid)
-
-      case _ =>
-        log.error(s"Undefined serializer for modifier of type $typeId")
-    }
-  }
-
-  /**
-   * Announce a new modifier
-   *
-   * @param m the modifier to be broadcast
-   * @tparam M the type of modifier
-   */
+    * Announce a new modifier
+    *
+    * @param m the modifier to be broadcast
+    * @tparam M the type of modifier
+    */
   protected def broadcastModifierInv[M <: NodeViewModifier](m: M): Unit = {
     val msg = Message(invSpec, Right(InvData(m.modifierTypeId, Seq(m.id))), None)
     networkControllerRef ! SendToNetwork(msg, Broadcast)
@@ -339,49 +220,24 @@ class NodeViewSynchronizer[
   protected def requestMoreModifiers(applied: Seq[PMOD]): Unit = {}
 
   /**
-   * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
-   * but a peer that can deliver may be unknown
-   */
-  protected def requestDownload( modifierTypeId: ModifierTypeId,
-                                 modifierIds: Seq[ModifierId],
-                                 peer: Option[ConnectedPeer],
-                                 previouslyRequested: Boolean = false,
-                               ): Unit = {
-    val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, modifierIds)), None)
-    val sendStrategy = peer match {
-      case Some(remote) => SendToPeer(remote)
-      case None         => SendToRandom
-    }
-
-    // boolean to control whether there may already be an entry in deliveryTracker for these modifiers
-    if (!previouslyRequested) deliveryTracker.setRequested(modifierIds, modifierTypeId, peer)
-
-    // send out our request to the network using the determined strategy
-    networkControllerRef ! SendToNetwork(msg, sendStrategy)
-  }
-
-
-  /**
     * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
     * If the modifier request targeted a peer, then we will wait for that peer to respond for a fixed interval before
     * transitioning to asking for the modifier from other random connected peers. If we still do not receive the modifier
     * after asking random peers for a fixed interval of time, we will stop requesting it.
     * The truth table implementing this behavior is shown below:
     *
-    * | peerOpt? | maxTries? | send new request? | actions
-    * |----------|-----------|-------------------|-----------
-    * |  Yes     |  No       |  No               |  penalize peer & schedule next check
-    * |  Yes     |  Yes      |  Yes              |  request download from random & schedule next check
-    * |  No      |  No       |  Yes              |  request download from random & schedule next check
-    * |  No      |  Yes      |  No               |  remove modifiers from Requested tracker and stop requesting
+    * | peerOpt? | maxTries? | send new request? | actions                                                         |
+    * |----------|-----------|-------------------|-----------------------------------------------------------------|
+    * |  Yes     |  No       |  No               |  penalize peer & schedule next check                            |
+    * |  Yes     |  Yes      |  Yes              |  request download from random & schedule next check             |
+    * |  No      |  No       |  Yes              |  request download from random & schedule next check             |
+    * |  No      |  Yes      |  No               |  remove modifiers from Requested tracker and stop requesting    |
     *
     * @param peerOpt optional connected peer that we are expecting the modifier from (None if we asked random peers)
     * @param modifierTypeId type of modifier being asked for
     * @param modifierId unique id of the requested modifier
     */
-  protected def checkDelivery( peerOpt: Option[ConnectedPeer],
-                               modifierTypeId: ModifierTypeId,
-                               modifierId: ModifierId ): Unit = {
+  protected def checkDelivery(peerOpt: Option[ConnectedPeer], modifierTypeId: ModifierTypeId, modifierId: ModifierId): Unit = {
 
     // Do nothing if the modifier is already in a different state (it might be already received, applied, etc.),
     if (deliveryTracker.status(modifierId) == ModifiersStatus.Requested) {
@@ -414,13 +270,12 @@ class NodeViewSynchronizer[
 
   }
 
-
   /**
-   * Announce the local synchronization status by broadcasting the latest blocks ids
-   * from the tip of our chain
-   *
-   * @param history history reader to use in the construction of the message
-   */
+    * Announce the local synchronization status by broadcasting the latest blocks ids
+    * from the tip of our chain
+    *
+    * @param history history reader to use in the construction of the message
+    */
   protected def sendSync(history: HR): Unit = {
     val peers = statusTracker.peersToSyncWith()
     // todo: JAA - 2020.08.02 - may want to reconsider type system of syncInfo to avoid manually casting
@@ -431,52 +286,187 @@ class NodeViewSynchronizer[
     }
   }
 
+  protected def penalizeNonDeliveringPeer(peer: ConnectedPeer): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.NonDeliveryPenalty)
+  }
+
+  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+  }
 
   /**
-   * Send history extension to the (less developed) peer 'remote' which does not have it.
-   *
-   * @param remote remote peer ti send the message to
-   * @param status CURRENTLY UNUSED (JAA - 2020.09.06)
-   * @param ext the sequence of modifiers to send to the remote peer
-   */
-  def sendExtension(remote: ConnectedPeer, status: HistoryComparisonResult, ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
-    ext.groupBy(_._1).mapValues(_.map(_._2)).foreach {
-      case (mid, mods) =>
-        val msg = Message(invSpec, Right(InvData(mid, mods)), None)
-        networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
-    }
+    * Process sync info coming from another node
+    *
+    * @param syncInfo a set of modifier ids from the tip of the remote peers chain
+    * @param remote remote peer that sent the message
+    */
+  private def gotRemoteSyncInfo(syncInfo: SI, remote: ConnectedPeer): Unit = {
+    println(s"\n>>>>>>>>>>>>>> remote sync\n")
 
-  /**
-   * Sends a sequence of local modifiers to a remote peer in chunks determined by the maximum packet size
-   *
-   * @param modType type of modifier that is being sent
-   * @param mods sequence of local modifiers to be sent
-   */
-  @tailrec
-  private def sendByParts(peer: ConnectedPeer, modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
-    var size = 5 //message type id + message size
-    val batch = mods.takeWhile { case (_, modBytes) =>
-      size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
-      size < networkSettings.maxPacketSize
-    }
+    historyReaderOpt match {
+      case Some(historyReader) =>
+        val ext = historyReader.continuationIds(syncInfo, desiredInvObjects)
+        val comparison = historyReader.compare(syncInfo)
 
-    // send the chunk of modifiers to the remote
-    val msg = Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
-    networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
+        if (!(ext.nonEmpty || comparison != Younger))
+          log.warn("Extension is empty while comparison is younger")
 
-    // check if any modifiers are remaining, if so, call this function again
-    val remaining = mods.drop(batch.length)
-    if (remaining.nonEmpty) {
-      sendByParts(peer, modType, remaining)
+        statusTracker.updateStatus(remote, comparison)
+
+        comparison match {
+          case Unknown =>
+            //todo: should we ban peer if its status is unknown after getting info from it?
+            log.warn("Peer status is still unknown")
+
+          case Nonsense =>
+            log.warn("Got nonsense")
+
+          case Younger | Fork =>
+            log.debug(
+              s"Comparison with $remote having starting points ${idsToString(syncInfo.startingPoints)}. " +
+              s"Comparison result is $comparison. Sending extension of length ${ext.length}"
+            )
+            log.debug(s"Extension ids: ${idsToString(ext)}")
+
+            sendExtension(remote, comparison, ext)
+
+          case _ => // does nothing for `Equal` and `Older`
+        }
+
+      case _ =>
+        log.warn(s"Got sync information from a peer while history reader was not available")
     }
   }
 
   /**
-   * Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
-   * @param remote remote peer that sent a block to our node
-   * @param pmod a persistent modifier (block) received from a remote peer
-   * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
-   */
+    * Send history extension to the (less developed) peer 'remote' which does not have it.
+    *
+    * @param remote remote peer ti send the message to
+    * @param status CURRENTLY UNUSED (JAA - 2020.09.06)
+    * @param ext the sequence of modifiers to send to the remote peer
+    */
+  def sendExtension(remote: ConnectedPeer, status: HistoryComparisonResult, ext: Seq[(ModifierTypeId, ModifierId)]): Unit =
+    ext.groupBy(_._1).mapValues(_.map(_._2)).foreach { case (mid, mods) =>
+      val msg = Message(invSpec, Right(InvData(mid, mods)), None)
+      networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
+    }
+
+  /**
+    * Process object ids coming from other node.
+    *
+    * @param invData inventory data (a sequence of modifier ids)
+    * @param remote remote peer that sent the message
+    */
+  private def gotRemoteInventory(invData: InvData, remote: ConnectedPeer): Unit = {
+    println(s"\n>>>>>>>>>>>>>> remote inv\n")
+
+    (mempoolReaderOpt, historyReaderOpt) match {
+      // Filter out modifier ids that are already in process (requested, received or applied)
+      case (Some(mempool), Some(history)) =>
+        val modifierTypeId = invData.typeId
+        val newModifierIds = modifierTypeId match {
+          case Transaction.modifierTypeId =>
+            invData.ids.filter(mid => deliveryTracker.status(mid, mempool) == ModifiersStatus.Unknown)
+          case _ =>
+            invData.ids.filter(mid => deliveryTracker.status(mid, history) == ModifiersStatus.Unknown)
+        }
+
+        // request unknown ids from the peer that announced the unknown modifiers
+        if (newModifierIds.nonEmpty) requestDownload(modifierTypeId, newModifierIds, Some(remote))
+
+      case _ =>
+        log.warn(s"Got inventory data from peer while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
+    }
+  }
+
+  /**
+    * Our node needs modifiers of type `modifierTypeId` with ids `modifierIds`
+    * but a peer that can deliver may be unknown
+    */
+  protected def requestDownload(modifierTypeId: ModifierTypeId,
+                                modifierIds: Seq[ModifierId],
+                                peer: Option[ConnectedPeer],
+                                previouslyRequested: Boolean = false
+  ): Unit = {
+    val msg = Message(requestModifierSpec, Right(InvData(modifierTypeId, modifierIds)), None)
+    val sendStrategy = peer match {
+      case Some(remote) => SendToPeer(remote)
+      case None         => SendToRandom
+    }
+
+    // boolean to control whether there may already be an entry in deliveryTracker for these modifiers
+    if (!previouslyRequested) deliveryTracker.setRequested(modifierIds, modifierTypeId, peer)
+
+    // send out our request to the network using the determined strategy
+    networkControllerRef ! SendToNetwork(msg, sendStrategy)
+  }
+
+  /**
+    * Process a remote peer asking for objects by their ids
+    *
+    * @param invData the set of modifiers ids that the peer would like to have sent to them
+    * @param remote remote peer that sent the message
+    */
+  private def gotModifierRequest(invData: InvData, remote: ConnectedPeer): Unit = {
+    println(s"\n>>>>>>>>>>>>>> remote reqeust\n")
+
+    (mempoolReaderOpt, historyReaderOpt) match {
+      case (Some(mempool), Some(history)) =>
+        val objs: Seq[NodeViewModifier] = invData.typeId match {
+          case Transaction.modifierTypeId => mempool.getAll(invData.ids)
+          case _: ModifierTypeId          => invData.ids.flatMap(id => history.modifierById(id))
+        }
+        log.debug(
+          s"Requested ${invData.ids.length} modifiers ${idsToString(invData)}, " +
+          s"sending ${objs.length} modifiers ${idsToString(invData.typeId, objs.map(_.id))} "
+        )
+        self ! ResponseFromLocal(remote, invData.typeId, objs)
+
+      case _ =>
+        log.warn(s"Data was requested while readers are not available: ${(mempoolReaderOpt, historyReaderOpt)}")
+    }
+  }
+
+  /**
+    * Process modifiers received from a remote peer
+    *
+    * @param data modifier data that was previously requested from a remote peer
+    * @param remote remote peer that sent the message
+    */
+  private def gotRemoteModifiers(data: ModifiersData, remote: ConnectedPeer): Unit = {
+    println(s"\n>>>>>>>>>>>>>> remote mods\n")
+
+    val typeId = data.typeId
+    val modifiers = data.modifiers
+    log.info(s"Got ${modifiers.size} modifiers of type $typeId from remote connected peer: $remote")
+    log.trace(s"Received modifier ids ${modifiers.keySet.map(encoder.encodeId).mkString(",")}")
+
+    // filter out non-requested modifiers
+    val requestedModifiers = processSpam(remote, typeId, modifiers)
+
+    modifierSerializers.get(typeId) match {
+      case Some(serializer: BifrostSerializer[TX] @unchecked) if typeId == Transaction.modifierTypeId =>
+        // parse all transactions and send them to node view holder
+        val parsed: Iterable[TX] = parseModifiers(requestedModifiers, serializer, remote)
+        viewHolderRef ! TransactionsFromRemote(parsed)
+
+      case Some(serializer: BifrostSerializer[PMOD] @unchecked) =>
+        // parse all modifiers and put them to modifiers cache
+        val parsed: Iterable[PMOD] = parseModifiers(requestedModifiers, serializer, remote)
+        val valid: Iterable[PMOD] = parsed.filter(validateAndSetStatus(remote, _))
+        if (valid.nonEmpty) viewHolderRef ! ModifiersFromRemote[PMOD](valid)
+
+      case _ =>
+        log.error(s"Undefined serializer for modifier of type $typeId")
+    }
+  }
+
+  /**
+    * Move `pmod` to `Invalid` if it is permanently invalid, to `Received` otherwise
+    * @param remote remote peer that sent a block to our node
+    * @param pmod a persistent modifier (block) received from a remote peer
+    * @return boolean flagging whether the modifier was expected and ensuring it is syntactically valid
+    */
   @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
   private def validateAndSetStatus(remote: ConnectedPeer, pmod: PMOD): Boolean = {
     historyReaderOpt match {
@@ -506,7 +496,8 @@ class NodeViewSynchronizer[
     */
   private def parseModifiers[M <: NodeViewModifier](modifiers: Map[ModifierId, Array[Byte]],
                                                     serializer: BifrostSerializer[M],
-                                                    remote: ConnectedPeer): Iterable[M] = {
+                                                    remote: ConnectedPeer
+  ): Iterable[M] = {
     modifiers.flatMap { case (id, bytes) =>
       serializer.parseBytes(bytes) match {
         case Success(mod) if id == mod.id =>
@@ -520,6 +511,10 @@ class NodeViewSynchronizer[
     }
   }
 
+  protected def penalizeMisbehavingPeer(peer: ConnectedPeer): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.MisbehaviorPenalty)
+  }
+
   /**
     * Get modifiers from remote peer,
     * filter out spam modifiers and penalize peer for spam
@@ -528,34 +523,50 @@ class NodeViewSynchronizer[
     */
   private def processSpam(remote: ConnectedPeer,
                           typeId: ModifierTypeId,
-                          modifiers: Map[ModifierId, Array[Byte]]): Map[ModifierId, Array[Byte]] = {
+                          modifiers: Map[ModifierId, Array[Byte]]
+  ): Map[ModifierId, Array[Byte]] = {
 
     val (requested, spam) = modifiers.partition { case (id, _) =>
       deliveryTracker.status(id) == Requested
     }
 
     if (spam.nonEmpty) {
-      log.info(s"Spam attempt: peer $remote has sent a non-requested modifiers of type $typeId with ids" +
-        s": ${spam.keys.map(encoder.encodeId)}")
+      log.info(
+        s"Spam attempt: peer $remote has sent a non-requested modifiers of type $typeId with ids" +
+        s": ${spam.keys.map(encoder.encodeId)}"
+      )
       penalizeSpammingPeer(remote)
     }
     requested
-  }
-
-  protected def penalizeNonDeliveringPeer(peer: ConnectedPeer): Unit = {
-    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.NonDeliveryPenalty)
   }
 
   protected def penalizeSpammingPeer(peer: ConnectedPeer): Unit = {
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.SpamPenalty)
   }
 
-  protected def penalizeMisbehavingPeer(peer: ConnectedPeer): Unit = {
-    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.MisbehaviorPenalty)
-  }
+  /**
+    * Sends a sequence of local modifiers to a remote peer in chunks determined by the maximum packet size
+    *
+    * @param modType type of modifier that is being sent
+    * @param mods sequence of local modifiers to be sent
+    */
+  @tailrec
+  private def sendByParts(peer: ConnectedPeer, modType: ModifierTypeId, mods: Seq[(ModifierId, Array[Byte])]): Unit = {
+    var size = 5 //message type id + message size
+    val batch = mods.takeWhile { case (_, modBytes) =>
+      size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
+      size < networkSettings.maxPacketSize
+    }
 
-  override protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit = {
-    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+    // send the chunk of modifiers to the remote
+    val msg = Message(modifiersSpec, Right(ModifiersData(modType, batch.toMap)), None)
+    networkControllerRef ! SendToNetwork(msg, SendToPeer(peer))
+
+    // check if any modifiers are remaining, if so, call this function again
+    val remaining = mods.drop(batch.length)
+    if (remaining.nonEmpty) {
+      sendByParts(peer, modType, remaining)
+    }
   }
 
 }
@@ -565,10 +576,11 @@ class NodeViewSynchronizer[
 
 object NodeViewSynchronizer {
 
-  case class RemoteMessageHandler( syncInfoSpec: SyncInfoSpec,
-                                   invSpec: InvSpec,
-                                   requestModifierSpec: RequestModifierSpec,
-                                   modifiersSpec: ModifiersSpec) {
+  case class RemoteMessageHandler(syncInfoSpec: SyncInfoSpec,
+                                  invSpec: InvSpec,
+                                  requestModifierSpec: RequestModifierSpec,
+                                  modifiersSpec: ModifiersSpec
+  ) {
 
     def toSeq: Seq[MessageSpec[_]] = Seq(syncInfoSpec, invSpec, requestModifierSpec, modifiersSpec)
   }
@@ -585,8 +597,14 @@ object NodeViewSynchronizer {
 
   object ReceivableMessages {
 
-    // getLocalSyncInfo messages
-    case object SendLocalSyncInfo
+    trait PeerManagerEvent
+
+    trait NodeViewHolderEvent
+
+    trait NodeViewChange extends NodeViewHolderEvent
+
+    // hierarchy of events regarding modifiers application outcome
+    trait ModificationOutcome extends NodeViewHolderEvent
 
     case class ResponseFromLocal[M <: NodeViewModifier](source: ConnectedPeer, modifierTypeId: ModifierTypeId, localObjects: Seq[M])
 
@@ -594,25 +612,17 @@ object NodeViewSynchronizer {
       * Check delivery of modifier with type `modifierTypeId` and id `modifierId`.
       * `source` may be defined if we expect modifier from concrete peer or None if
       * we just need some modifier, but don't know who may it
-      *
       */
-    case class CheckDelivery(source: Option[ConnectedPeer],
-                             modifierTypeId: ModifierTypeId,
-                             modifierId: ModifierId)
+    case class CheckDelivery(source: Option[ConnectedPeer], modifierTypeId: ModifierTypeId, modifierId: ModifierId)
 
     case class OtherNodeSyncingStatus[SI <: SyncInfo](remote: ConnectedPeer,
                                                       status: HistoryComparisonResult,
-                                                      extension: Seq[(ModifierTypeId, ModifierId)])
-
-    trait PeerManagerEvent
+                                                      extension: Seq[(ModifierTypeId, ModifierId)]
+    )
 
     case class HandshakedPeer(remote: ConnectedPeer) extends PeerManagerEvent
 
     case class DisconnectedPeer(remote: InetSocketAddress) extends PeerManagerEvent
-
-    trait NodeViewHolderEvent
-
-    trait NodeViewChange extends NodeViewHolderEvent
 
     case class ChangedHistory[HR <: HistoryReader[_ <: PersistentNodeViewModifier, _ <: SyncInfo]](reader: HR) extends NodeViewChange
 
@@ -621,9 +631,6 @@ object NodeViewSynchronizer {
     case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
     case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
-
-    //todo: consider sending info on the rollback
-    case object RollbackFailed extends NodeViewHolderEvent
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 
@@ -637,9 +644,6 @@ object NodeViewSynchronizer {
       */
     case class ModifiersProcessingResult[PMOD <: PersistentNodeViewModifier](applied: Seq[PMOD], cleared: Seq[PMOD])
 
-    // hierarchy of events regarding modifiers application outcome
-    trait ModificationOutcome extends NodeViewHolderEvent
-
     /**
       * @param immediateFailure - a flag indicating whether a transaction was invalid by the moment it was received.
       */
@@ -647,13 +651,21 @@ object NodeViewSynchronizer {
 
     case class SuccessfulTransaction[TX <: Transaction](transaction: TX) extends ModificationOutcome
 
-    case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable) extends ModificationOutcome
+    case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
+        extends ModificationOutcome
 
-    case class SemanticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable) extends ModificationOutcome
+    case class SemanticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
+        extends ModificationOutcome
 
     case class SyntacticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends ModificationOutcome
 
     case class SemanticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends ModificationOutcome
+
+    // getLocalSyncInfo messages
+    case object SendLocalSyncInfo
+
+    //todo: consider sending info on the rollback
+    case object RollbackFailed extends NodeViewHolderEvent
 
   }
 
@@ -663,49 +675,47 @@ object NodeViewSynchronizer {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NodeViewSynchronizerRef {
-  def props[
-    TX <: Transaction,
-    SI <: SyncInfo,
-    PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI] : ClassTag,
-    MR <: MemPoolReader[TX] : ClassTag
-  ](
-     networkControllerRef: ActorRef,
-     viewHolderRef: ActorRef,
-     networkSettings: NetworkSettings,
-     bifrostContext: BifrostContext
-   )
-   (implicit ec: ExecutionContext): Props =
-    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
   def apply[
     TX <: Transaction,
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI] : ClassTag,
-    MR <: MemPoolReader[TX] : ClassTag
+    HR <: HistoryReader[PMOD, SI]: ClassTag,
+    MR <: MemPoolReader[TX]: ClassTag
   ](
-     networkControllerRef: ActorRef,
-     viewHolderRef: ActorRef,
-     networkSettings: NetworkSettings,
-     bifrostContext: BifrostContext
-   )
-   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    networkControllerRef: ActorRef,
+    viewHolderRef: ActorRef,
+    networkSettings: NetworkSettings,
+    bifrostContext: BifrostContext
+  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 
   def apply[
     TX <: Transaction,
     SI <: SyncInfo,
     PMOD <: PersistentNodeViewModifier,
-    HR <: HistoryReader[PMOD, SI] : ClassTag,
-    MR <: MemPoolReader[TX] : ClassTag
+    HR <: HistoryReader[PMOD, SI]: ClassTag,
+    MR <: MemPoolReader[TX]: ClassTag
   ](
-     name: String,
-     networkControllerRef: ActorRef,
-     viewHolderRef: ActorRef,
-     networkSettings: NetworkSettings,
-     bifrostContext: BifrostContext
-   )
-   (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    name: String,
+    networkControllerRef: ActorRef,
+    viewHolderRef: ActorRef,
+    networkSettings: NetworkSettings,
+    bifrostContext: BifrostContext
+  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
     system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext), name)
+
+  def props[
+    TX <: Transaction,
+    SI <: SyncInfo,
+    PMOD <: PersistentNodeViewModifier,
+    HR <: HistoryReader[PMOD, SI]: ClassTag,
+    MR <: MemPoolReader[TX]: ClassTag
+  ](
+    networkControllerRef: ActorRef,
+    viewHolderRef: ActorRef,
+    networkSettings: NetworkSettings,
+    bifrostContext: BifrostContext
+  )(implicit ec: ExecutionContext): Props =
+    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
 }

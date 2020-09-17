@@ -23,12 +23,9 @@ trait Synchronizer extends Logging {
     spec.parseBytes(msgBytes) match {
       // if a message could be parsed, match the type of content found and ensure a handler is defined
       case Success(content) =>
-        val msgWithContent = (spec, content, source)
-
-        println(s">>>>>>>>>>>>>>: ${msgHandlers.isDefinedAt(msgWithContent)}")
-
-        if (msgHandlers.isDefinedAt(msgWithContent)) msgHandlers.apply(msgWithContent)
-        else log.error(s"Function handler not found for the parsed message: $msgWithContent")
+        val parsedMsg = (spec, content, source)
+        if (msgHandlers.isDefinedAt(parsedMsg)) msgHandlers.apply(parsedMsg)
+        else log.error(s"Function handler not found for the parsed message: $parsedMsg")
 
       // if a message could not be parsed, penalize the remote peer
       case Failure(e) =>
