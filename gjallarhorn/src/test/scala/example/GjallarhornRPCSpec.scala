@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -13,6 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.parser.parse
+import keymanager.{KeyManager, KeyManagerRef}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
@@ -30,7 +31,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRoute
 
   val amount = 10
 
-  val route: Route = GjallarhornApiRoute().route
+  val keyManager: ActorRef = KeyManagerRef("keyManager", "keyfiles")
+
+  val route: Route = GjallarhornApiRoute(keyManager).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
