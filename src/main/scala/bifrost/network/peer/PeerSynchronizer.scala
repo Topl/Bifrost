@@ -16,15 +16,14 @@ import scala.language.postfixOps
 /**
   * Responsible for discovering and sharing new peers.
   */
-class PeerSynchronizer(
-    networkControllerRef: ActorRef,
-    peerManager: ActorRef,
-    settings: NetworkSettings,
-    bifrostContext: BifrostContext
-)(implicit ec: ExecutionContext)
-    extends Actor
-    with Synchronizer
-    with Logging {
+class PeerSynchronizer( networkControllerRef: ActorRef,
+                        peerManager: ActorRef,
+                        settings: NetworkSettings,
+                        bifrostContext: BifrostContext
+                      )(implicit ec: ExecutionContext)
+                          extends Actor
+                          with Synchronizer
+                          with Logging {
 
   // Import the types of messages this actor can SEND
   import bifrost.network.NetworkController.ReceivableMessages.{RegisterMessageSpecs, SendToNetwork, PenalizePeer}
@@ -37,11 +36,10 @@ class PeerSynchronizer(
   protected val getPeersSpec: GetPeersSpec = bifrostContext.peerSyncRemoteMessages.getPeersSpec
 
   // partial functions for identifying local method handlers for the messages above
-  protected val msgHandlers: PartialFunction[Message[_], Unit] = {
-    case Message(spec, peers: Seq[PeerSpec] @unchecked, _) if spec.messageCode == PeersSpec.MessageCode    => addNewPeers(peers)
-    case Message(spec, _, Some(remote))                    if spec.messageCode == GetPeersSpec.MessageCode => gossipPeers(remote)
+  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
+    case (spec: PeersSpec, data: Seq[PeerSpec]@unchecked, _) => addNewPeers(data)
+    case (spec: GetPeersSpec, _, remote)                     => gossipPeers(remote)
   }
-
 
   override def preStart: Unit = {
     networkControllerRef ! RegisterMessageSpecs(
@@ -62,7 +60,7 @@ class PeerSynchronizer(
   override def receive: Receive = {
 
     // data received from a remote peer
-    case Message(spec, Left(msgBytes), source) =>
+    case Message(spec, Left(msgBytes), Some(source)) =>
       parseAndHandle(spec, msgBytes, source)
 
     // fall-through method for reporting unhandled messages

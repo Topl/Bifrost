@@ -63,11 +63,11 @@ class NodeViewSynchronizer[
   protected val syncInfoSpec: SyncInfoSpec = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
 
   // partial functions for identifying local method handlers for the messages above
-  protected val msgHandlers: PartialFunction[Message[_], Unit] = {
-    case Message(spec, data: SI @unchecked, Some(remote))            if spec.messageCode == SyncInfoSpec.MessageCode        => gotRemoteSyncInfo(data, remote)
-    case Message(spec, data: InvData @unchecked, Some(remote))       if spec.messageCode == InvSpec.MessageCode             => gotRemoteInventory(data, remote)
-    case Message(spec, data: InvData @unchecked, Some(remote))       if spec.messageCode == RequestModifierSpec.MessageCode => gotModifierRequest(data, remote)
-    case Message(spec, data: ModifiersData @unchecked, Some(remote)) if spec.messageCode == ModifiersSpec.MessageCode       => gotRemoteModifiers(data, remote)
+  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
+    case (spec: SyncInfoSpec, data: SI@unchecked, remote)   => gotRemoteSyncInfo(data, remote)
+    case (spec: InvSpec, data: InvData, remote)             => gotRemoteInventory(data, remote)
+    case (spec: RequestModifierSpec, data: InvData, remote) => gotModifierRequest(data, remote)
+    case (spec: ModifiersSpec, data: ModifiersData, remote) => gotRemoteModifiers(data, remote)
   }
 
   protected val deliveryTracker = new DeliveryTracker(self, context, networkSettings)
@@ -112,7 +112,7 @@ class NodeViewSynchronizer[
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processDataFromPeer: Receive = {
-    case Message(spec, Left(msgBytes), source) =>
+    case Message(spec, Left(msgBytes), Some(source)) =>
       parseAndHandle(spec, msgBytes, source)
   }
 
@@ -363,7 +363,7 @@ class NodeViewSynchronizer[
 
   /**
     * Handles checking the status of modifiers that we have asked peers for using the `requestDownload` method.
-    * If the modifier request targetted a peer, then we will wait for that peer to respond for a fixed interval before
+    * If the modifier request targeted a peer, then we will wait for that peer to respond for a fixed interval before
     * transitioning to asking for the modifier from other random connected peers. If we still do not receive the modifier
     * after asking random peers for a fixed interval of time, we will stop requesting it.
     * The truth table implementing this behavior is shown below:

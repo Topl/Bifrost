@@ -10,7 +10,6 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.serialization.{BoxSerializer, ExecutionBoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
@@ -31,16 +30,14 @@ import scala.util.{Failure, Success, Try}
   * @param timestamp         timestamp of the block that results in this state
   * @param history           Main box storage
   */
-case class State(
-    storage: LSMStore,
-    override val version: VersionTag,
-    timestamp: Long,
-    history: History,
-    pbr: ProgramBoxRegistry = null,
-    tbr: TokenBoxRegistry = null,
-    nodeKeys: Set[ByteArrayWrapper] = null
-) extends MinimalState[Block, State]
-    with Logging {
+case class State( storage: LSMStore,
+                  override val version: VersionTag,
+                  timestamp: Long,
+                  history: History,
+                  pbr: ProgramBoxRegistry = null,
+                  tbr: TokenBoxRegistry = null,
+                  nodeKeys: Set[ByteArrayWrapper] = null
+                ) extends MinimalState[Block, State] with Logging {
 
   override type NVCT = State
   type TX = Transaction
