@@ -14,12 +14,20 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
   type S = PrivateKey25519
   type PI = ProofOfKnowledgeProposition[S]
 
+  /**
+    * Retrieves the public keys.
+    * @return - the public keys as ProofOfKnowledgePropositions
+    */
   def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
     getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
   }
 
+  /**
+    * A list of public keys - found by mapping all of the private keys to their public keys.
+    * @return - the list of public keys as strings.
+    */
   def listOpenKeyFiles: Set[String] = {
     secrets
       .flatMap(_ match {
@@ -28,6 +36,11 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
       })
   }
 
+  /**
+    * Given a public key and password, unlock the associated key file.
+    * @param publicKeyString
+    * @param password - password for the given public key.
+    */
   def unlockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))
@@ -49,6 +62,11 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
     }
   }
 
+  /**
+    * Given a public key and password, locks a key file.
+    * @param publicKeyString
+    * @param password - password associated with public key.
+    */
   def lockKeyFile(publicKeyString: String, password: String): Unit = {
     val keyfiles = getListOfFiles(defaultKeyDir)
       .map(file => KeyFile.readFile(file.getPath))

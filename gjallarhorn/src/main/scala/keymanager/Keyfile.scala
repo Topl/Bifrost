@@ -33,6 +33,11 @@ case class KeyFile(pubKeyBytes: Array[Byte],
 
   import KeyFile._
 
+  /**
+    * Retrieves the private key, given a password.
+    * @param password - password for the private key.
+    * @return - if the password is valid, returns the private key.
+    */
   def getPrivateKey(password: String): Try[PrivateKey25519] = Try {
     val derivedKey = getDerivedKey(password, salt)
     require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
@@ -57,6 +62,11 @@ case class KeyFile(pubKeyBytes: Array[Byte],
     "publicKeyId" -> Base58.encode(pubKeyBytes).asJson
   ).asJson
 
+  /**
+    * Checks if a given key file equals this key file.
+    * @param obj - the object being compared to this key file.
+    * @return - true if the given object equals this key file, false otherwise.
+    */
   override def equals(obj: Any): Boolean = obj match {
     case k: KeyFile => {
       (k.pubKeyBytes sameElements pubKeyBytes) && (k.cipherText sameElements cipherText) &&
@@ -72,10 +82,24 @@ case class KeyFile(pubKeyBytes: Array[Byte],
 
 object KeyFile {
 
+  /**
+    * Generates a derived key given a password and a salt.
+    * @param password
+    * @param salt
+    * @return - the derived key as an array of bytes.
+    */
   def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
     SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
+  /**
+    * Retrieves the encryption result based on the given parameters.
+    * @param derivedKey - generated key.
+    * @param ivData - data for the key file.
+    * @param inputText - text for the key file.
+    * @param encrypt - true for encryption, false for decryption.
+    * @return - returns encryption result.
+    */
   def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
   (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
@@ -91,6 +115,13 @@ object KeyFile {
 
   def uuid: String = java.util.UUID.randomUUID.toString
 
+  /**
+    * Creates a keyfile.
+    * @param password
+    * @param seed
+    * @param defaultKeyDir
+    * @return - returns a temp key file based on the parameters passed in.
+    */
   def apply(password: String, seed: Array[Byte] = Blake2b256(uuid), defaultKeyDir: String): KeyFile = {
 
     val salt = Blake2b256(uuid)
@@ -111,8 +142,18 @@ object KeyFile {
     tempFile
   }
 
+  /**
+    * Gets public key from private (secret) key.
+    * @param sk - secret key (or private key).
+    * @return - public key.
+    */
   def getPkFromSk(sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
 
+  /**
+    * Reads a file.
+    * @param filename - the name of a file.
+    * @return - returns the key file with the given file name.
+    */
   def readFile(filename: String): KeyFile = {
     val jsonString = scala.io.Source.fromFile(filename).mkString
     parse(jsonString).right.get.as[KeyFile] match {
