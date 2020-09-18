@@ -13,12 +13,17 @@ package object consensus {
   // TODO: hard-coded
   // these variables are left as vars since they need to be determined at runtime from the network config
   // todo: JAA - figure out a better way to do this
-  private val MaxTarget: Long = 5000000000L
-  private var targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
+  private var _maxStake: Long = 5000000000L
+  private var _targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
 
-  def setBlockTime(blockTime: FiniteDuration): Unit = {
-    this.targetBlockTime = blockTime
-  }
+  // setters
+  def maxStake_= (value: Long): Unit = _maxStake = value
+  def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
+
+  // getters
+  def targetBlockTime: FiniteDuration = _targetBlockTime
+  def maxStake: Long = _maxStake
+
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge
@@ -45,7 +50,7 @@ package object consensus {
                          baseDifficulty: Long,
                          timestamp: Long): BigDecimal = {
 
-    val target: Double = baseDifficulty.toDouble / MaxTarget.toDouble
+    val target: Double = baseDifficulty.toDouble / maxStake.toDouble
     val timeDelta = timestamp - parent.timestamp
     require(timeDelta > 0)
 
@@ -54,7 +59,7 @@ package object consensus {
 
   /**
     * Calculate the block difficulty according to
-    * https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
+    * [[https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29]]
     *
     * @param prevDifficulty the previous base difficulty
     * @param prevTimes      sequence of block times to calculate the average and compare to target

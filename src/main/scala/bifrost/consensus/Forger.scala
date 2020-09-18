@@ -37,7 +37,7 @@ class Forger(settings: ForgingSettings, viewHolderRef: ActorRef)
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
 
   override def preStart(): Unit = {
-    setBlockTime(settings.targetBlockTime)
+    targetBlockTime = settings.targetBlockTime
 
     if (settings.tryForging) {
       context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(self ! StartForging)
