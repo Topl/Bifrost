@@ -125,9 +125,12 @@ class KeysSpec extends AnyWordSpec with Matchers {
   //TEST ARCHETYPE: KeyFile
   "[F3-A4-XX] ARCHETYPE: A keyfile" should {
     "TEST: Export is formatted JSON to keystore file" in {
-      val keyFile = keyFiles.head
-      val readFile = KeyFile.readFile(Keys.getListOfFiles(keyFileDir)(0).getPath)
-      assert(keyFile.equals(readFile))
+      val exportedKeys: List[KeyFile] = Keys.getListOfFiles(keyFileDir)
+        .map(file => KeyFile.readFile(file.getPath))
+
+      keyFiles.foreach { key =>
+        exportedKeys.contains(key) shouldBe true
+      }
     }
     "[F3-A4-12] TEST: Have keys stored in the proper format" in {
       val privKey = keyFiles.head.getPrivateKey(password).get
