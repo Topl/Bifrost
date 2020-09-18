@@ -127,12 +127,10 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
 
         // if found, do nothing and leave the modifier in the cache for now
         case Some(_) =>
-          println(s"\n>>>>>>>>>>>>>> found parent in cache")
           false
 
         // see if the given block can be applied to the canonical chain or the ordered chain cache
         case None =>
-          println(s"\n>>>>>>>>>>>>> Checking known tines... can be appended: ${history.extendsKnownTine(v)}")
           history.extendsKnownTine(v)
       }
     }.map(_._1)

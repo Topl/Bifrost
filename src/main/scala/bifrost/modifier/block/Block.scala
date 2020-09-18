@@ -54,7 +54,10 @@ case class Block ( parentId: BlockId,
 
   lazy val id: BlockId = ModifierId(serializedId)
 
-  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.toBytes(this))
+  lazy val serializedId: Array[Byte] = {
+    val blockWithoutSig = this.copy(signature = Signature25519(Array.empty))
+    FastCryptographicHash(serializer.toBytes(blockWithoutSig))
+  }
 
   lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
