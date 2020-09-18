@@ -214,7 +214,7 @@ class History ( val storage: Storage,
   }
 
   /**
-    * Whether another's node syncinfo shows that another node is ahead or behind ours
+    * Whether another node's syncinfo shows that another node is ahead or behind ours
     *
     * @param info other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
@@ -448,14 +448,25 @@ class History ( val storage: Storage,
     }
   }
 
+  /**
+   * Checks whether the modifier can be appended to the canonical chain or a tine
+   * in the chain cache
+   *
+   * @param modifier new block to be tracked in history
+   * @return 'true' if the block extends a known block, false otherwise
+   */
+  override def extendsKnownTine(modifier: Block): Boolean = {
+    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
+  }
+
   //TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
-    * Gather blocks from after `from` that should be added to the chain
-    *
-    * @param from the list of known blocks from which to gather continuation
-    * @param size the number of blocks to return after `from`
-    * @return
-    */
+   * Gather blocks from after `from` that should be added to the chain
+   *
+   * @param from the list of known blocks from which to gather continuation
+   * @param size the number of blocks to return after `from`
+   * @return
+   */
   def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
                       size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
@@ -472,17 +483,6 @@ class History ( val storage: Storage,
         None
       case _ => None
     }
-  }
-
-  /**
-   * Checks whether the modifier can be appended to the canonical chain or a tine
-   * in the chain cache
-   *
-   * @param modifier new block to be tracked in history
-   * @return 'true' if the block extends a known block, false otherwise
-   */
-  override def extendsKnownTine(modifier: Block): Boolean = {
-    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
   }
 
   /**

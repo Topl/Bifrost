@@ -73,15 +73,15 @@ case class State( storage: LSMStore,
 
   def validate(transaction: TX): Try[Unit] = {
     transaction match {
-      case poT: PolyTransfer           => validatePolyTransfer(poT)
-      case arT: ArbitTransfer          => validateArbitTransfer(arT)
-      case asT: AssetTransfer          => validateAssetTransfer(asT)
-      case prT: ProgramTransfer        => validateProgramTransfer(prT)
-      case ac: AssetCreation           => validateAssetCreation(ac)
-      case cc: CodeCreation            => validateCodeCreation(cc)
-      case pc: ProgramCreation         => validateProgramCreation(pc)
-      case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
-      case cb: CoinbaseTransaction     => validateCoinbaseTransaction(cb)
+      case tx: PolyTransfer           => validatePolyTransfer(tx)
+      case tx: ArbitTransfer          => validateArbitTransfer(tx)
+      case tx: AssetTransfer          => validateAssetTransfer(tx)
+      case tx: ProgramTransfer        => validateProgramTransfer(tx)
+      case tx: AssetCreation          => validateAssetCreation(tx)
+      case tx: CodeCreation           => validateCodeCreation(tx)
+      case tx: ProgramCreation        => validateProgramCreation(tx)
+      case tx: ProgramMethodExecution => validateProgramMethodExecution(tx)
+      case tx: CoinbaseTransaction    => validateCoinbaseTransaction(tx)
       case _ =>
         throw new Exception(
           "State validity not implemented for " + transaction.getClass.toGenericString
@@ -625,15 +625,15 @@ object State extends Logging {
     */
   def syntacticValidity[TX](tx: TX): Try[Unit] = {
     tx match {
-      case poT: PolyTransfer           => PolyTransfer.validate(poT)
-      case arT: ArbitTransfer          => ArbitTransfer.validate(arT)
-      case asT: AssetTransfer          => AssetTransfer.validate(asT)
-      case prT: ProgramTransfer        => ProgramTransfer.validate(prT)
-      case ac: AssetCreation           => AssetCreation.validate(ac)
-      case cc: CodeCreation            => CodeCreation.validate(cc)
-      case pc: ProgramCreation         => ProgramCreation.validate(pc)
-      case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
-      case cb: CoinbaseTransaction     => CoinbaseTransaction.validate(cb)
+      case tx: PolyTransfer           => PolyTransfer.validate(tx)
+      case tx: ArbitTransfer          => ArbitTransfer.validate(tx)
+      case tx: AssetTransfer          => AssetTransfer.validate(tx)
+      case tx: ProgramTransfer        => ProgramTransfer.validate(tx)
+      case tx: AssetCreation          => AssetCreation.validate(tx)
+      case tx: CodeCreation           => CodeCreation.validate(tx)
+      case tx: ProgramCreation        => ProgramCreation.validate(tx)
+      case tx: ProgramMethodExecution => ProgramMethodExecution.validate(tx)
+      case tx: CoinbaseTransaction    => CoinbaseTransaction.validate(tx)
       case _ =>
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
@@ -662,11 +662,10 @@ object State extends Logging {
         .fold(Array.emptyByteArray)(_.data)
     )
 
-    var timestamp: Long = 0L
-    if (callFromGenesis) {
-      timestamp = System.currentTimeMillis()
+    val timestamp: Long = if (callFromGenesis) {
+      System.currentTimeMillis()
     } else {
-      timestamp = Longs.fromByteArray(
+      Longs.fromByteArray(
         stateStorage
           .get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)))
           .get

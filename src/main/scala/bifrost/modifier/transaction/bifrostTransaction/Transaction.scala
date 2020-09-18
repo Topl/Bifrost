@@ -11,8 +11,7 @@ import scorex.crypto.encode.Base58
 
 trait TransactionSettings
 
-trait Transaction
-  extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
+trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
   lazy val bloomTopics: Option[IndexedSeq[Array[Byte]]] = None
 
   override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
