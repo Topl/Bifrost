@@ -43,8 +43,7 @@ class NodeViewSynchronizer[
   networkSettings: NetworkSettings,
   bifrostContext: BifrostContext
 )(implicit ec: ExecutionContext)
-    extends Actor
-    with Synchronizer
+    extends Synchronizer
     with Logging
     with BifrostEncoding {
 
@@ -110,19 +109,16 @@ class NodeViewSynchronizer[
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive =
+  override def receive: Receive = {
     processDataFromPeer orElse
-    processSyncStatus orElse
-    manageModifiers orElse
-    viewHolderEvents orElse
-    peerManagerEvents orElse
-    nonsense
-
-  // ----------- MESSAGE PROCESSING FUNCTIONS
-  protected def processDataFromPeer: Receive = { case Message(spec, Left(msgBytes), Some(source)) =>
-    parseAndHandle(spec, msgBytes, source)
+      processSyncStatus orElse
+      manageModifiers orElse
+      viewHolderEvents orElse
+      peerManagerEvents orElse
+      nonsense
   }
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processSyncStatus: Receive = {
     // send local sync status to a peer
     case SendLocalSyncInfo =>
