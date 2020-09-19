@@ -68,6 +68,7 @@ class History ( val storage: Storage,
   override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
+    println(s"\n>>>>>>>>>>>>>> $block\n")
 
     // test new block against all validators
     val validationResults = validators.map(_.validate(block)).map {
@@ -92,7 +93,7 @@ class History ( val storage: Storage,
         } else {
           val progInfo: ProgressInfo[Block] =
           // Check if the new block extends the last best block
-            if (block.parentId == storage.bestBlockId) {
+            if (block.parentId.equals(storage.bestBlockId)) {
               log.debug(s"New best block ${block.id.toString}")
 
               // calculate the new base difficulty
