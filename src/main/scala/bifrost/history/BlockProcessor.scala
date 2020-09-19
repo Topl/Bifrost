@@ -67,7 +67,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
       val cacheParent = chainCache.getCacheBlock(block.parentId).get
 
       val parentDifficulty = cacheParent.baseDifficulty
-      val prevTimes = (cacheParent.prevBlockTimes :+ block.timestamp).tail
+      val prevTimes = (cacheParent.prevBlockTimes :+ block.timestamp).takeRight(4)
 
       val newHeight = cacheParent.height + 1
       val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)

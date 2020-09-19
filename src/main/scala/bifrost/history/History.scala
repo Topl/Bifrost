@@ -68,7 +68,6 @@ class History ( val storage: Storage,
   override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
-    println(s"\n>>>>>>>>>>>>>> $block\n")
 
     // test new block against all validators
     val validationResults = validators.map(_.validate(block)).map {
@@ -98,6 +97,7 @@ class History ( val storage: Storage,
 
               // calculate the new base difficulty
               val parentDifficulty = storage.difficultyOf(block.parentId).get
+              // fixme: number of blocks here should be part of consensus
               val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
               val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
 
