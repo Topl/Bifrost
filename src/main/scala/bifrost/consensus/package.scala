@@ -52,7 +52,7 @@ package object consensus {
 
     val target: Double = baseDifficulty.toDouble / maxStake.toDouble
     val timeDelta = timestamp - parent.timestamp
-    require(timeDelta > 0)
+    println(s"\n>>>>>>>>>>>>>> timeDelta: $timeDelta = $timestamp - ${parent.timestamp}")
 
     BigDecimal(target * timeDelta.toDouble / targetBlockTime.toUnit(MILLISECONDS))
   }

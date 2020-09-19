@@ -31,11 +31,14 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
   override type VL = Wallet
   override type MP = MemPool
   type PMOD = Block
+
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
         GenericTransaction.modifierTypeId -> TransactionSerializer)
+
   override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
     new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
+
   private val timeProvider: TimeProvider = bifrostContext.timeProvider
 
   override def preRestart ( reason: Throwable, message: Option[Any] ): Unit = {
