@@ -52,6 +52,10 @@ package object consensus {
 
     val target: Double = baseDifficulty.toDouble / maxStake.toDouble
     val timeDelta = timestamp - parent.timestamp
+    println(s"\n>>>>>>>>>>>>>> timeDelta: $timeDelta = $timestamp - ${parent.timestamp}")
+    println(s">>>>>>>>>>>>>>>> base difficulty: ${baseDifficulty}")
+    println(s">>>>>>>>>>>>>>>> target: ${target.toLong}")
+    println(s">>>>>>>>>>>>>>>> ratio of time: ${timeDelta.toDouble / targetBlockTime.toUnit(MILLISECONDS)}")
 
     BigDecimal(target * timeDelta.toDouble / targetBlockTime.toUnit(MILLISECONDS))
   }
@@ -69,10 +73,16 @@ package object consensus {
     val targetTimeMilli = targetBlockTime.toUnit(MILLISECONDS)
 
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
-    if (averageDelay > targetTimeMilli) {
+    val out = if (averageDelay > targetTimeMilli) {
       (prevDifficulty * min(averageDelay, targetTimeMilli * 1.1) / targetTimeMilli).toLong
     } else {
       (prevDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTimeMilli * 0.9) / targetTimeMilli) ))).toLong
     }
+
+    println(s"\n>>>>>>>>>>>>>>> New base difficulty: $out")
+    println(s">>>>>>>>>>>>>>> previous times: $prevTimes")
+    println(s">>>>>>>>>>>>>>> avg times: $averageDelay")
+    println(s">>>>>>>>>>>>>>> previous difficulty: $prevDifficulty")
+    out
   }
 }
