@@ -33,8 +33,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
       .toSeq)
     .getOrElse(Seq[Array[Byte]]())
 
-    def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] =
-    boxesByKey(publicKey.pubKeyBytes)
+  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] = boxesByKey(publicKey.pubKeyBytes)
 
   def boxesByKey(pubKeyBytes: Array[Byte]): Seq[Box] = {
     boxIdsByKey(pubKeyBytes)
@@ -61,59 +60,62 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+  def updateFromState(newVersion: VersionTag,
+                      keyFilteredBoxIdsToRemove: Set[Array[Byte]],
+                      keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] =
+    Try {
+      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
-    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
+      /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+      val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
 
-    var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
-    var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
-    //Getting set of public keys for boxes being removed and appended
-    //Using ByteArrayWrapper for sets since equality method uses a deep compare unlike a set of byte arrays
-    val keysSet: Set[ByteArrayWrapper] = {
-      boxIdsToRemove
-        .flatMap(boxId => closedBox(boxId.data))
-        .foreach {
-          case box: TokenBox =>
-            boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
-          //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
-          case _ =>
-        }
+      var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
+      var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
+      //Getting set of public keys for boxes being removed and appended
+      //Using ByteArrayWrapper for sets since equality method uses a deep compare unlike a set of byte arrays
+      val keysSet: Set[ByteArrayWrapper] = {
+        boxIdsToRemove
+          .flatMap(boxId => closedBox(boxId.data))
+          .foreach {
+            case box: TokenBox =>
+              boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
+            //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
+            case _ =>
+          }
 
-      keyFilteredBoxesToAdd
-        .foreach({
-          case box: TokenBox =>
-            boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
-          //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
-          case _ =>
-        })
+        keyFilteredBoxesToAdd
+          .foreach({
+            case box: TokenBox =>
+              boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
+            //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
+            case _ =>
+          })
 
-      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
-    }
+        (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
+      }
 
-    //Get old boxIds list for each of the above public keys
-    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
-      publicKey => publicKey -> boxIdsByKey(publicKey.data)
-    ).toMap
+      //Get old boxIds list for each of the above public keys
+      var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
+        publicKey => publicKey -> boxIdsByKey(publicKey.data)
+      ).toMap
 
-    //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
-    for((boxId, publicKey) <- boxesToRemove) {
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
-    }
-    for((boxId, publicKey) <- boxesToAppend) {
-      //Prepending to list is O(1) while appending is O(n)
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
-    }
+      //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
+      for((boxId, publicKey) <- boxesToRemove) {
+        keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
+      }
+      for((boxId, publicKey) <- boxesToAppend) {
+        //Prepending to list is O(1) while appending is O(n)
+        keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
+      }
 
-    tbrStore.update(
-      ByteArrayWrapper(newVersion.hashBytes),
-      Seq(),
-      keysToBoxIds.map(element =>
-        element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
-    )
+      tbrStore.update(
+        ByteArrayWrapper(newVersion.hashBytes),
+        Seq(),
+        keysToBoxIds.map(element =>
+          element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
+      )
 
-    TokenBoxRegistry(tbrStore, stateStore)
+      TokenBoxRegistry(tbrStore, stateStore)
   }
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[TokenBoxRegistry] = Try {

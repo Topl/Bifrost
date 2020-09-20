@@ -33,32 +33,35 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+  def updateFromState( newVersion: VersionTag,
+                       keyFilteredBoxIdsToRemove: Set[Array[Byte]],
+                       keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] =
+    Try {
+      log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
+      val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
-    //Getting all uuids being updated
-    val uuidsToAppend: Map[UUID, Array[Byte]] =
-      keyFilteredBoxesToAdd.filter(_.isInstanceOf[ProgramBox]).map(_.asInstanceOf[ProgramBox])
-        .map(box => box.value -> box.id).toMap
+      //Getting all uuids being updated
+      val uuidsToAppend: Map[UUID, Array[Byte]] =
+        keyFilteredBoxesToAdd.filter(_.isInstanceOf[ProgramBox]).map(_.asInstanceOf[ProgramBox])
+          .map(box => box.value -> box.id).toMap
 
-    //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
-    val uuidsToRemove: Set[UUID] =
-      boxIdsToRemove
-        .flatMap(boxId => closedBox(boxId.data))
-        .filter(box => box.isInstanceOf[ProgramBox])
-        .map(_.asInstanceOf[ProgramBox])
-        .filterNot(box => uuidsToAppend.contains(box.value))
-        .map(_.value)
+      //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
+      val uuidsToRemove: Set[UUID] =
+        boxIdsToRemove
+          .flatMap(boxId => closedBox(boxId.data))
+          .filter(box => box.isInstanceOf[ProgramBox])
+          .map(_.asInstanceOf[ProgramBox])
+          .filterNot(box => uuidsToAppend.contains(box.value))
+          .map(_.value)
 
-    pbrStore.update(
-      ByteArrayWrapper(newVersion.hashBytes),
-      uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw),
-      uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
-    )
+      pbrStore.update(
+        ByteArrayWrapper(newVersion.hashBytes),
+        uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw),
+        uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
+      )
 
-    ProgramBoxRegistry(pbrStore, stateStore)
+      ProgramBoxRegistry(pbrStore, stateStore)
   }
 
   //YT NOTE - implement if boxes dont have UUIDs in them
