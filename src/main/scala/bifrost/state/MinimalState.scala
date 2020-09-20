@@ -5,8 +5,7 @@ package bifrost.state
   */
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
+import bifrost.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
 import bifrost.state.MinimalState.VersionTag
 
 import scala.util.Try
@@ -16,8 +15,7 @@ import scala.util.Try
   */
 
 trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
-    extends NodeViewComponent
-    with StateReader {
+    extends NodeViewComponent {
   self: MS =>
 
   def version: VersionTag
@@ -25,20 +23,9 @@ trait MinimalState[M <: PersistentNodeViewModifier, MS <: MinimalState[M, MS]]
   def applyModifier(mod: M): Try[MS]
 
   def rollbackTo(version: VersionTag): Try[MS]
-
-  def getReader: StateReader = this
 }
 
 object MinimalState {
   type VersionTag = ModifierId
 }
 
-trait StateFeature
-
-trait TransactionValidation[TX <: Transaction] extends StateFeature {
-  def filterValid(txs: Seq[TX]): Seq[TX] = txs.filter(isValid)
-
-  def isValid(tx: TX): Boolean = validate(tx).isSuccess
-
-  def validate(tx: TX): Try[Unit]
-}

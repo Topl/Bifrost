@@ -205,24 +205,22 @@ trait TransferUtil {
       }
   }
 
-  def validateTx ( tx: TransferTransaction ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
-    require(tx.signatures.forall {
-      case (prop, sign) => sign.isValid(prop, tx.messageToSign)
-    })
-    require(tx.from.forall {
-      case (prop, nonce) => tx.signatures.contains(prop)
-    })
-    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
-    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
-  }
+  def validateTransfer ( tx: TransferTransaction, withSigs: Boolean = true ): Try[Unit] = Try {
+    require(tx.to.forall(_._2 >= 0L))   // amount sent must be greater than 0
+    require(tx.fee >= 0)                // fee must be non-negative
+    require(tx.timestamp >= 0)          // timestamp must be valid
 
-  def validateTxWithoutSignatures ( tx: TransferTransaction ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
+    // prototype transactions do not contain signatures at creation
+    if (withSigs) {
+      require(tx.signatures.forall {
+        case (prop, sign) => sign.isValid(prop, tx.messageToSign)
+      })
+      require(tx.from.forall {
+        case (prop, nonce) => tx.signatures.contains(prop)
+      })
+    }
+
+    // ensure that the input and output lists of box ids are unique
     val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
     require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }

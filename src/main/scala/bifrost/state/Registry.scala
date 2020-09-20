@@ -9,21 +9,63 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.util.Try
 
-trait Registry extends Logging {
+trait Registry[K, V] extends Logging {
 
-  val store: LSMStore
+  type DB = LSMStore // type of the utxoStore
 
-  def getBox(id: ModifierId, utxoStore: LSMStore): Option[Box] =
-    utxoStore.get(ByteArrayWrapper(id.hashBytes))
-      .map(_.data)
-      .map(BoxSerializer.parseBytes)
-      .flatMap(_.toOption)
+  val storage: LSMStore
+
+  /** Public method to close storage on termination */
+  def closeStorage(): Unit = storage.close()
+
+  /** Helper function to transform registry input key to ByteArrayWrapper */
+  def registryInput(key: K): ByteArrayWrapper
+
+  /** Helper function to transform registry output value from Array[Byte] */
+  def registryOutput(value: Array[Byte]): V
+
+  /** Helper function to transform UTXO input value to ByteArrayWrapper */
+  def utxoInput(value: V): ByteArrayWrapper
+
+  /**
+   * Lookup value stored by key in the registry
+   *
+   * @param key storage key used to identify value(s) in registry
+   * @return the value associated with the key within the registry
+   */
+  def lookup(key: K): Seq[V] =
+    storage
+      .get(registryInput(key))
+      .map(_.data.grouped(storage.keySize).toSeq.map(v => registryOutput(v)))
+      .getOrElse(Seq[V]())
+
+  /**
+   * Retrieve a sequence of boxes from the UTXO set based on the given key
+   *
+   * @param key storage key used to identify value(s) in registry
+   * @param utxoStore storage database containing the UTXO set
+   * @return a sequence of boxes stored beneath the specified key
+   */
+  def boxesByKey(key: K, utxoStore: DB): Seq[Box] = {
+    lookup(key)
+      .map(v => {
+        utxoStore.get(utxoInput(v))
+          .map(_.data)
+          .map(BoxSerializer.parseBytes)
+          .flatMap(_.toOption)
+      })
+      .filter {
+        case _: Some[Box] => true
+        case None => false
+      }
+      .map(_.get)
+  }
 
   def update( newVersion: VersionTag,
-              keyFilteredBoxIdsToRemove: Set[ModifierId],
-              keyFilteredBoxesToAdd: Set[Box]): Try[Registry]
+              utxoStore: DB,
+              boxIdsToRemove: Set[ModifierId],
+              boxesToAdd: Set[Box]): Try[Registry[K, V]]
 
-  def rollbackTo( version: VersionTag,
-                  utxoStore: LSMStore): Try[Registry]
+  def rollbackTo( version: VersionTag): Try[Registry[K, V]]
 
 }

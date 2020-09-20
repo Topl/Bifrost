@@ -37,15 +37,19 @@ case class State( storage: LSMStore,
                   pbr: ProgramBoxRegistry = null,
                   tbr: TokenBoxRegistry = null,
                   nodeKeys: Set[ByteArrayWrapper] = null
-                ) extends MinimalState[Block, State] with Logging {
+                ) extends MinimalState[Block, State]
+                          with StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+                          with Logging {
 
   override type NVCT = State
-  type TX = Transaction
+
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block
   type GSC = GenericStateChanges[Any, P, BX]
   type BSC = StateChanges
+
+  def getReader: StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any] = this
 
   override def rollbackTo(version: VersionTag): Try[NVCT] =
     Try {
@@ -71,10 +75,10 @@ case class State( storage: LSMStore,
   private def lastVersionString: String =
     storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  def validate(transaction: TX): Try[Unit] = {
+  def validate[TX](transaction: TX): Try[Unit] = {
     transaction match {
       case tx: PolyTransfer           => validatePolyTransfer(tx)
-      case tx: ArbitTransfer          => validateArbitTransfer(tx)
+      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
       case tx: AssetTransfer          => validateAssetTransfer(tx)
       case tx: ProgramTransfer        => validateProgramTransfer(tx)
       case tx: AssetCreation          => validateAssetCreation(tx)
@@ -89,55 +93,7 @@ case class State( storage: LSMStore,
     }
   }
 
-  private def validateArbitTransfer(arT: ArbitTransfer): Try[Unit] = {
 
-    val unlockers = generateUnlockers(arT.from, arT.signatures)
-
-    val statefulValid: Try[Unit] = {
-      val boxesSumTry: Try[Long] = {
-        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: ArbitBox) =>
-                if (
-                  unlocker.boxKey
-                    .isValid(box.proposition, arT.messageToSign)
-                ) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None =>
-                Failure(
-                  new Exception(
-                    s"Box for unlocker $unlocker is not in the state"
-                  )
-                )
-              case _ =>
-                Failure(new Exception("Invalid Box type for this transaction"))
-            }
-          )
-        )
-      }
-      //Determine enough arbits
-      boxesSumTry flatMap { openSum =>
-        if (
-          arT.newBoxes.map {
-            case p: ArbitBox => p.value
-            case _           => 0L
-          }.sum == openSum - arT.fee
-        ) {
-          Success[Unit](Unit)
-        } else {
-          Failure(new Exception("Negative fee"))
-        }
-      }
-
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(arT))
-  }
 
   /**
     * @param poT : the PolyTransfer to validate
@@ -481,46 +437,17 @@ case class State( storage: LSMStore,
     }
   }
 
-  def closedBox(boxId: Array[Byte]): Option[BX] =
+  def closedBox(id: Array[Byte]): Option[BX] =
     storage
-      .get(ByteArrayWrapper(boxId))
+      .get(ByteArrayWrapper(id))
       .map(_.data)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-  private def generateUnlockers( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
-                                 signatures: Map[PublicKey25519Proposition, Signature25519]
-                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map {
-      case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] =
-            PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.getOrElse(
-            prop,
-            throw new Exception("Signature not provided")
-          )
-        }
-    }
-  }
-
-  private def generateUnlockers( boxIds: Seq[Array[Byte]],
-                                 signature: Signature25519
-                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    boxIds.map { id =>
-      new BoxUnlocker[PublicKey25519Proposition] {
-        override val closedBoxId: Array[Byte] = id
-        override val boxKey: Signature25519 = signature
-      }
-    }
-  }
-
   override def applyModifier(mod: BPMOD): Try[State] =
     mod match {
-      case b: Block ⇒
-        StateChanges(b).flatMap(cs ⇒ applyChanges(cs, b.id))
-      //case a: Any ⇒
-      // Failure(new Exception(s"unknown modifier $a"))
+      case b: Block ⇒ StateChanges(b).flatMap(sc ⇒ applyChanges(sc, b.id))
+      case a: Any   ⇒ Failure(new Exception(s"unknown modifier $a"))
     }
 
   // not private because of tests
@@ -605,6 +532,8 @@ case class State( storage: LSMStore,
 
 object State extends Logging {
 
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+
   def genesisState(settings: AppSettings, initialBlocks: Seq[Block], history: History): State = {
     initialBlocks
       .foldLeft(readOrGenerate( settings, callFromGenesis = true, history)) {
@@ -635,6 +564,33 @@ object State extends Logging {
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
         )
+    }
+  }
+
+  private[transaction] def generateUnlockers( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
+                                              signatures: Map[PublicKey25519Proposition, Signature25519]
+                                             ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map {
+      case (prop, nonce) =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] =
+            PublicKeyNoncedBox.idFromBox(prop, nonce)
+          override val boxKey: Signature25519 = signatures.getOrElse(
+            prop,
+            throw new Exception("Signature not provided")
+            )
+        }
+    }
+  }
+
+  private[transaction] def generateUnlockers( boxIds: Seq[Array[Byte]],
+                                              signature: Signature25519
+                                            ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    boxIds.map { id =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signature
+      }
     }
   }
 

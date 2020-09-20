@@ -2,48 +2,29 @@ package bifrost.state
 
 import java.io.File
 
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Logging {
+case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Proposition, ModifierId] {
 
-  def closedBox(boxId: Array[Byte]): Option[Box] =
-    stateStore.get(ByteArrayWrapper(boxId))
-      .map(_.data)
-      .map(BoxSerializer.parseBytes)
-      .flatMap(_.toOption)
+  //----- input and output transformation functions
+  // registry key input type -> ByteArrayWrapper (LSMStore input type)
+  def registryInput(key: PublicKey25519Proposition): ByteArrayWrapper = ByteArrayWrapper(key.pubKeyBytes)
 
-  def boxIdsByKey(publicKey: PublicKey25519Proposition): Seq[Array[Byte]] =
-    boxIdsByKey(publicKey.pubKeyBytes)
+  // Array[Byte] (LSMStore store output type) -> registry key output type
+  def registryOutput(value: Array[Byte]): ModifierId = ModifierId(value)
 
-  //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
-  def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] =
-    tbrStore
-    .get(ByteArrayWrapper(pubKeyBytes))
-    .map(_
-      .data
-      .grouped(stateStore.keySize)
-      .toSeq)
-    .getOrElse(Seq[Array[Byte]]())
+  // utxo store input type -> ByteArrayWrapper (LSMStore input type)
+  def utxoInput(value: ModifierId): ByteArrayWrapper = ByteArrayWrapper(value.hashBytes)
 
-  def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] = boxesByKey(publicKey.pubKeyBytes)
-
-  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[Box] = {
-    boxIdsByKey(pubKeyBytes)
-      .map(id => closedBox(id))
-      .filter {
-        case box: Some[Box] => true
-        case None => false
-      }
-      .map(_.get)
-  }
 
   /**
     * @param newVersion - block id
@@ -60,17 +41,20 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
     *
     */
   //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag,
-                      keyFilteredBoxIdsToRemove: Set[Array[Byte]],
-                      keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] =
+  override def updateFromState(newVersion: VersionTag,
+                               utxoStore: DB,
+                               boxIdsToRemove: Set[ModifierId],
+                               boxesToAdd: Set[Box]): Try[TokenBoxRegistry] = {
     Try {
       log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
       /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-      val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
+      val toRemove: Set[ByteArrayWrapper] =
+        (boxIdsToRemove.map(b => b.hashBytes) -- boxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
 
       var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
       var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
+
       //Getting set of public keys for boxes being removed and appended
       //Using ByteArrayWrapper for sets since equality method uses a deep compare unlike a set of byte arrays
       val keysSet: Set[ByteArrayWrapper] = {
@@ -83,7 +67,7 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
             case _ =>
           }
 
-        keyFilteredBoxesToAdd
+        boxesToAdd
           .foreach({
             case box: TokenBox =>
               boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
@@ -108,23 +92,24 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
         keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
       }
 
-      tbrStore.update(
+      storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
         Seq(),
         keysToBoxIds.map(element =>
           element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
       )
 
-      TokenBoxRegistry(tbrStore, stateStore)
+      TokenBoxRegistry(storage)
+  }
   }
 
-  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[TokenBoxRegistry] = Try {
-    if (tbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
+  override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
+    if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      tbrStore.rollback(ByteArrayWrapper(version.hashBytes))
-      TokenBoxRegistry(tbrStore, stateStore)
+      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      TokenBoxRegistry(storage)
     }
   }
 
@@ -132,17 +117,16 @@ case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Lo
 
 object TokenBoxRegistry extends Logging {
 
-  def apply(s1: LSMStore, s2: LSMStore) : TokenBoxRegistry = {
-    new TokenBoxRegistry (s1, s2)
-  }
-
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
     val tbrDir = settings.tbrDir
     val logDir = settings.logDir
     tbrDir.map(readOrGenerate(_, logDir, settings, stateStore))
   }
 
-  def readOrGenerate(tbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): TokenBoxRegistry = {
+  def readOrGenerate(tbrDir: String,
+                     logDirOpt: Option[String],
+                     settings: AppSettings): TokenBoxRegistry = {
+
     val iFile = new File(s"$tbrDir")
     iFile.mkdirs()
     val tbrStore = new LSMStore(iFile)
@@ -154,7 +138,7 @@ object TokenBoxRegistry extends Logging {
       }
     })
 
-    TokenBoxRegistry(tbrStore, stateStore)
+    TokenBoxRegistry(tbrStore)
   }
 
 }

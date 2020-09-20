@@ -3,16 +3,17 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import bifrost.modifier.box.{ Box, PolyBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
 import bifrost.modifier.transaction.serialization.PolyTransferSerializer
-import bifrost.state.TokenBoxRegistry
+import bifrost.state.{ State, StateReader, TokenBoxRegistry }
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.Json
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                           override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -25,28 +26,33 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
 
   override type M = PolyTransfer
 
-  override lazy val serializer = PolyTransferSerializer
-  override lazy val newBoxes: Traversable[Box] = to
-    .filter(toInstance => toInstance._2 > 0L)
-    .zipWithIndex
-    .map {
-      case ((prop, value), idx) =>
-        val nonce = PolyTransfer
-          .nonceFromDigest(FastCryptographicHash("PolyTransfer".getBytes
-                                                   ++ prop.pubKeyBytes
-                                                   ++ hashNoNonces
-                                                   ++ Ints.toByteArray(idx)))
+  override lazy val serializer: BifrostSerializer[M] = PolyTransferSerializer
 
-        PolyBox(prop, nonce, value)
-    }
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
+
   override lazy val json: Json = super.json("PolyTransfer")
+
+  override lazy val newBoxes: Traversable[PolyBox] =
+    to.filter(toInstance => toInstance._2 > 0L)
+      .zipWithIndex
+      .map {
+        case ((prop, value), idx) =>
+          val nonce = PolyTransfer
+            .nonceFromDigest(FastCryptographicHash("PolyTransfer".getBytes
+                                                     ++ prop.pubKeyBytes
+                                                     ++ hashNoNonces
+                                                     ++ Ints.toByteArray(idx)))
+
+          PolyBox(prop, nonce, value)
+      }
 
   override def toString: String = s"PolyTransfer(${json.noSpaces})"
 
 }
 
 object PolyTransfer extends TransferUtil {
+
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
 
   def create ( tbr      : TokenBoxRegistry,
                w        : Wallet,
@@ -80,8 +86,38 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
 
-  def validate ( tx: PolyTransfer ): Try[Unit] = validateTx(tx)
+  def validatePrototype ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
 
-  def validatePrototype ( tx: PolyTransfer ): Try[Unit] = validateTxWithoutSignatures(tx)
+  def syntacticValidate(tx: ArbitTransfer): Try[Unit] = validateTransfer(tx)
+
+  def semanticValidate(tx: ArbitTransfer, state: SR): Try[Unit] = {
+
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _ => // continue processing
+    }
+
+    // compute transaction values used for validation
+    val txOutput = tx.newBoxes.map(b => b.value).sum
+    val unlockers = State.generateUnlockers(tx.from, tx.signatures)
+
+    // iterate through the unlockers and sum up the value of the box for each valid unlocker
+    unlockers.foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+      trySum.flatMap(partialSum =>
+                       state.closedBox(unlocker.closedBoxId) match {
+                         case Some(box: PolyBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
+                           Success(partialSum + box.value)
+                         case Some(_) => Failure(new Exception("Invalid unlocker"))
+                         case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+                         case _       => Failure(new Exception("Invalid Box type for this transaction"))
+                       }
+                     )
+    }) match {
+      case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
+      case Success(sum: Long) => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+      case Failure(e)         => throw e
+    }
+  }
 
 }

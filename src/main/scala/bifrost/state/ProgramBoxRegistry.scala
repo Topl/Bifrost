@@ -4,30 +4,33 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.serialization.BoxSerializer
-import bifrost.modifier.box.{Box, ProgramBox}
+import bifrost.modifier.box.{ Box, ProgramBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends Logging {
+case class ProgramBoxRegistry(storage: LSMStore) extends Registry[UUID, ModifierId] {
 
-  def closedBox(boxId: Array[Byte]): Option[Box] =
-    stateStore.get(ByteArrayWrapper(boxId))
-      .map(_.data)
-      .map(BoxSerializer.parseBytes)
-      .flatMap(_.toOption)
+  //----- input and output transformation functions
+  // registry key input type -> ByteArrayWrapper (LSMStore input type)
+  def registryInput ( key: UUID ): ByteArrayWrapper = {
+    ByteArrayWrapper(
+      FastCryptographicHash(
+        BigInt(key.getMostSignificantBits).toByteArray ++ BigInt(key.getLeastSignificantBits).toByteArray))
+  }
 
-  def getBoxId(k: UUID) : Option[Array[Byte]] =
-    pbrStore.get(ProgramBoxRegistry.uuidToBaw(k))
-      .map(_.data)
 
-  def getBox(k: UUID) : Option[Box] =
-    getBoxId(k).flatMap(closedBox)
+  // Array[Byte] (LSMStore store output type) -> registry key output type
+  def registryOutput(value: Array[Byte]): ModifierId = ModifierId(value)
+
+  // utxo store input type -> ByteArrayWrapper (LSMStore input type)
+  def utxoInput(value: ModifierId): ByteArrayWrapper = ByteArrayWrapper(value.hashBytes)
 
 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
@@ -39,7 +42,8 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
     Try {
       log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
-      val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
+      val boxIdsToRemove: Set[ByteArrayWrapper] =
+        (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
       //Getting all uuids being updated
       val uuidsToAppend: Map[UUID, Array[Byte]] =
@@ -49,55 +53,35 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
       //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
       val uuidsToRemove: Set[UUID] =
         boxIdsToRemove
-          .flatMap(boxId => closedBox(boxId.data))
+          .map(boxId => closedBox(boxId.data))
           .filter(box => box.isInstanceOf[ProgramBox])
           .map(_.asInstanceOf[ProgramBox])
           .filterNot(box => uuidsToAppend.contains(box.value))
           .map(_.value)
 
-      pbrStore.update(
+      storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
-        uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw),
+        uuidsToRemove.map(registryInput),
         uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
       )
 
-      ProgramBoxRegistry(pbrStore, stateStore)
-  }
-
-  //YT NOTE - implement if boxes dont have UUIDs in them
-  def updateFromState(versionTag: VersionTag, txs: Seq[Transaction]): Try[ProgramBoxRegistry] = Try {
-    ProgramBoxRegistry(pbrStore, stateStore)
+      ProgramBoxRegistry(storage)
   }
 
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[ProgramBoxRegistry] = Try {
-    if (pbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
+    if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      pbrStore.rollback(ByteArrayWrapper(version.hashBytes))
-      ProgramBoxRegistry(pbrStore, stateStore)
+      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      ProgramBoxRegistry(storage)
     }
   }
 
 }
 
 object ProgramBoxRegistry extends Logging {
-
-  final val bytesInAUUID = 16
-  final val bytesInABoxID = 32
-
-  def apply(s1: LSMStore, s2:LSMStore) : ProgramBoxRegistry = {
-    new ProgramBoxRegistry(s1, s2)
-  }
-
-  // UUID -> ByteArrayWrapper
-  def uuidToBaw(v: UUID): ByteArrayWrapper = {
-    ByteArrayWrapper(
-      FastCryptographicHash(
-        ByteArrayWrapper.fromLong(v.getMostSignificantBits).data ++
-        ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data))
-  }
 
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
     val pbrDirOpt = settings.pbrDir

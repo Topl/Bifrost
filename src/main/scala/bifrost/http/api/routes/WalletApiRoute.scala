@@ -337,6 +337,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
           data
         )
         .get
+
       // Update nodeView with new TX
       ArbitTransfer.validatePrototype(tx) match {
         case Success(_) =>
