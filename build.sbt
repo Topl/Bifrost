@@ -59,7 +59,9 @@ val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.2.2" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test,
+  "com.spotify" % "docker-client" % "8.16.0" % Test,
+  "org.asynchttpclient" % "async-http-client" % "2.7.0" % Test
 )
 
 libraryDependencies ++= Seq(
@@ -68,7 +70,7 @@ libraryDependencies ++= Seq(
   "com.google.guava" % "guava" % "29.0-jre",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
-  "com.joefkelley" %% "argyle" % "1.0.0"
+  "com.joefkelley" %% "argyle" % "1.0.0",
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 libraryDependencies ++= Seq(
@@ -153,6 +155,8 @@ pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
 
+assemblyJarName := s"bifrost-${version.value}.jar"
+
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
     case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
@@ -164,6 +168,13 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case "META-INF/truffle/instrument" => MergeStrategy.concat
     case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
+  }
+}
+
+assemblyExcludedJars in assembly := {
+  val cp = (fullClasspath in assembly).value
+  cp filter { el ⇒
+    (el.data.getName == "ValkyrieInstrument-1.0.jar")
   }
 }
 
