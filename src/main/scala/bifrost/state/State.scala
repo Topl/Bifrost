@@ -601,9 +601,6 @@ case class State( storage: LSMStore,
       )
       newSt
     }
-
-  // todo: JAA - shouldn't this be read in from a settings file or is it even needed (can we remove it from the trait?)
-  override def maxRollbackDepth: Int = 10
 }
 
 object State extends Logging {
@@ -689,6 +686,6 @@ object State extends Logging {
         .map(x => Base58.encode(x.data))}")
     else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys)
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys, )
   }
 }
