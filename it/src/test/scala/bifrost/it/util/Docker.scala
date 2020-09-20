@@ -72,7 +72,7 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
   private def buildContainerConfig(settings: AppSettings): ContainerConfig = {
 
 
-    val shellCmd = "echo Options: $OPTS; java $OPTS -jar /opt/bifrost/bifrost.jar"
+    val shellCmd = "echo Options: $OPTS; java $OPTS -jar /usr/src/bifrost/bifrost.jar"
 
     ContainerConfig.builder()
       .image(Docker.bifrostImage)
@@ -103,5 +103,5 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
 object Docker {
 
   val bifrostImage: String = "bifrost:latest"
-  val networkNamePrefix: String = "bifrost-it="
+  val networkNamePrefix: String = "bifrost-it"
 }
