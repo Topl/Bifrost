@@ -2,11 +2,12 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationSerializer
+import bifrost.state.{State, StateReader}
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
@@ -14,7 +15,7 @@ import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class AssetCreation (
                            to: IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -89,25 +90,9 @@ case class AssetCreation (
 
 object AssetCreation {
 
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+
   def nonceFromDigest (digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
-
-  def validate (tx: AssetCreation): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
-    require(
-      tx.signatures.forall({ case (prop, signature) =>
-        signature.isValid(prop, tx.messageToSign)
-      }),
-      "Invalid signatures"
-    )
-  }
-
-  def validatePrototype (tx: AssetCreation): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
-  }
 
   /**
     * Route here from AssetApiRoute
@@ -144,6 +129,35 @@ object AssetCreation {
     val timestamp = Instant.now.toEpochMilli
 
     AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data)
+  }
+
+  def syntacticValidate(tx: AssetCreation, withSigs: Boolean = true): Try[Unit] = Try {
+    require(tx.to.forall(_._2 >= 0L))
+    require(tx.fee >= 0)
+    require(tx.timestamp >= 0)
+
+    if (withSigs) {
+      require(tx.signatures.forall({ case (prop, signature) =>
+        signature.isValid(prop, tx.messageToSign)
+      }),
+        "Invalid signatures"
+      )
+    }
+
+    tx.newBoxes.size match {
+      //only one box should be created
+      case 1 if (tx.newBoxes.head.isInstanceOf[AssetBox]) => Success(Unit)
+      case _ => Failure(new Exception("Invalid transaction"))
+    }
+  }
+
+  def validatePrototype(tx: AssetCreation): Try[Unit] = syntacticValidate(tx, withSigs = false)
+
+  def semanticValidate(tx: AssetCreation, state: SR): Try[Unit] = {
+
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx)
+
   }
 
   implicit val decodeAssetCreation: Decoder[AssetCreation] = (c: HCursor) =>

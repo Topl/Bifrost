@@ -2,14 +2,13 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
-import bifrost.exceptions.TransactionValidationException
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.history.History
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.serialization.{BoxSerializer, ExecutionBoxSerializer}
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
@@ -18,7 +17,7 @@ import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -55,15 +54,15 @@ case class State( storage: LSMStore,
 
   def validate(transaction: TX): Try[Unit] = {
     transaction match {
+      case tx: CoinbaseTransaction    => CoinbaseTransaction.semanticValidate(tx, getReader)
       case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
       case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
       case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
-      case tx: ProgramTransfer        => validateProgramTransfer(tx)
-      case tx: AssetCreation          => validateAssetCreation(tx)
-      case tx: CodeCreation           => validateCodeCreation(tx)
-      case tx: ProgramCreation        => validateProgramCreation(tx)
-      case tx: ProgramMethodExecution => validateProgramMethodExecution(tx)
-      case tx: CoinbaseTransaction    => validateCoinbaseTransaction(tx)
+      case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
+      case tx: AssetCreation          => AssetCreation.semanticValidate(tx, getReader)
+      case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
+      case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
+      case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
       case _ =>
         throw new Exception(
           "State validity not implemented for " + transaction.getClass.toGenericString
@@ -94,307 +93,6 @@ case class State( storage: LSMStore,
 
   private def lastVersionString: String =
     storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
-
-  private def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
-
-    val unlockers = generateUnlockers(asT.from, asT.signatures)
-
-    val statefulValid: Try[Unit] = {
-      val boxesSumTry: Try[Long] = {
-        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-          partialRes
-            .flatMap(partialSum =>
-              /* Checks if unlocker is valid and if so adds to current running total */
-              closedBox(unlocker.closedBoxId) match {
-                case Some(box: AssetBox) =>
-                  if (
-                    unlocker.boxKey.isValid(
-                      box.proposition,
-                      asT.messageToSign
-                    ) && (box.issuer equals asT.issuer) && (box.assetCode equals asT.assetCode)
-                  ) {
-                    Success(partialSum + box.value)
-                  } else {
-                    Failure(new Exception("Incorrect unlocker"))
-                  }
-                case None =>
-                  Failure(
-                    new Exception(
-                      s"Box for unlocker $unlocker is not in the state"
-                    )
-                  )
-                case _ =>
-                  Failure(
-                    new Exception("Invalid Box type for this transaction")
-                  )
-              }
-            )
-        )
-      }
-      determineEnoughAssets(boxesSumTry, asT)
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(asT))
-  }
-
-  private def validateProgramTransfer(prT: ProgramTransfer): Try[Unit] = {
-    val from = Seq((prT.from, prT.executionBox.nonce))
-    val signature = Map(prT.from -> prT.signature)
-    val unlocker = generateUnlockers(from, signature).head
-
-    val statefulValid: Try[Unit] = {
-      prT.newBoxes.size match {
-        case 1 =>
-          if (prT.newBoxes.head.isInstanceOf[ExecutionBox])
-            Success[Unit](Unit)
-          else
-            Failure(new Exception("Incorrect box type"))
-
-        case _ => Failure(new Exception("Incorrect number of boxes created"))
-      }
-
-      closedBox(unlocker.closedBoxId) match {
-        case Some(box: ExecutionBox) =>
-          if (unlocker.boxKey.isValid(box.proposition, prT.messageToSign))
-            Success[Unit](Unit)
-          else
-            Failure(new Exception("Incorrect unlocker"))
-
-        case None =>
-          Failure(
-            new Exception(s"Box for unlocker $unlocker is not in the state")
-          )
-        case _ =>
-          Failure(new Exception("Invalid Box type for this transaction"))
-      }
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(prT))
-  }
-
-  private def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
-    val statefulValid: Try[Unit] = {
-      ac.newBoxes.size match {
-        //only one box should be created
-        case 1 =>
-          if (
-            ac.newBoxes.head
-              .isInstanceOf[AssetBox]
-          ) // the new box is an asset box
-          Success[Unit](Unit)
-            else
-            Failure(new Exception("Incorrect box type"))
-
-        case _ => Failure(new Exception("Incorrect number of boxes created"))
-      }
-    }
-    statefulValid.flatMap(_ => State.syntacticValidity(ac))
-  }
-
-  /**
-    * Check the code is valid chain code and the newly created CodeBox is
-    * formed properly
-    *
-    * @param cc : CodeCreation object
-    * @return
-    */
-  private def validateCodeCreation(cc: CodeCreation): Try[Unit] = {
-    val statefulValid: Try[Unit] = {
-      cc.newBoxes.size match {
-        //only one box should be created
-        case 1 =>
-          if (cc.newBoxes.head.isInstanceOf[CodeBox])
-            Success[Unit](Unit)
-          else
-            Failure(new Exception("Incorrect box type"))
-
-        case _ => Failure(new Exception("Incorrect number of boxes created"))
-      }
-    }
-    statefulValid.flatMap(_ => State.syntacticValidity(cc))
-  }
-
-  /**
-    * Validates ProgramCreation instance on its unlockers && timestamp of the program
-    *
-    * @param pc : ProgramCreation object
-    * @return
-    */
-  private def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
-
-    val unlockers = generateUnlockers(pc.boxIdsToOpen, pc.signatures.head._2)
-
-    val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
-        unlockersValid
-          .flatMap { _ =>
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box) =>
-                if (
-                  unlocker.boxKey
-                    .isValid(box.proposition, pc.messageToSign)
-                ) {
-                  Success(())
-                } else {
-                  Failure(
-                    new TransactionValidationException("Incorrect unlocker")
-                  )
-                }
-              case None =>
-                Failure(
-                  new TransactionValidationException(
-                    s"Box for unlocker $unlocker is not in the state"
-                  )
-                )
-            }
-          }
-      )
-
-    val statefulValid = unlockersValid flatMap { _ =>
-      val boxesAreNew = pc.newBoxes.forall(curBox =>
-        storage.get(ByteArrayWrapper(curBox.id)) match {
-          case Some(_) => false
-          case None    => true
-        }
-      )
-
-      if (boxesAreNew) {
-        Success[Unit](Unit)
-      } else {
-        Failure(
-          new TransactionValidationException(
-            "ProgramCreation attempts to overwrite existing program"
-          )
-        )
-      }
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(pc))
-  }
-
-  private def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
-    //TODO get execution box from box registry using UUID before using its actual id to get it from storage
-    val executionBoxBytes = storage.get(ByteArrayWrapper(pme.executionBox.id))
-
-    /* Program exists */
-    if (executionBoxBytes.isEmpty) {
-      throw new TransactionValidationException(
-        s"Program ${Base58.encode(pme.executionBox.id)} does not exist"
-      )
-    }
-
-    val executionBox: ExecutionBox =
-      ExecutionBoxSerializer.parseBytes(executionBoxBytes.get.data).get
-    val programProposition: PublicKey25519Proposition = executionBox.proposition
-
-    /* This person belongs to program */
-    if (
-      !MultiSignature25519(pme.signatures.values.toSet)
-        .isValid(programProposition, pme.messageToSign)
-    ) {
-      throw new TransactionValidationException(
-        s"Signature is invalid for ExecutionBox"
-      )
-    }
-
-    val unlockers = generateUnlockers(pme.boxIdsToOpen, pme.signatures.head._2)
-
-    val unlockersValid: Try[Unit] = unlockers
-      .foldLeft[Try[Unit]](Success(()))((unlockersValid, unlocker) =>
-        unlockersValid
-          .flatMap { _ =>
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box) =>
-                if (
-                  unlocker.boxKey
-                    .isValid(box.proposition, pme.messageToSign)
-                ) {
-                  Success(())
-                } else {
-                  Failure(
-                    new TransactionValidationException("Incorrect unlocker")
-                  )
-                }
-              case None =>
-                Failure(
-                  new TransactionValidationException(
-                    s"Box for unlocker $unlocker is not in the state"
-                  )
-                )
-            }
-          }
-      )
-
-    val statefulValid = unlockersValid flatMap { _ =>
-      //Checks that newBoxes being created don't already exist
-      val boxesAreNew = pme.newBoxes.forall(curBox =>
-        storage.get(ByteArrayWrapper(curBox.id)) match {
-          case Some(_) => false
-          case None    => true
-        }
-      )
-
-      if (boxesAreNew) {
-        Success[Unit](Unit)
-      } else {
-        Failure(
-          new TransactionValidationException(
-            "ProgramCreation attempts to overwrite existing program"
-          )
-        )
-      }
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(pme))
-  }
-
-  private def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
-    //val t = history.modifierById(cb.blockID).get
-    //def helper(m: Block): Boolean = { m.id sameElements t.id }
-    val validConstruction: Try[Unit] = {
-      /*
-      assert(cb.fee == 0L) // no fee for a coinbase tx
-      assert(cb.newBoxes.size == 1) // one one new box
-      assert(cb.newBoxes.head.isInstanceOf[ArbitBox]) // the new box is an arbit box
-       This will be implemented at a consensus level
-       */
-      Try {
-        // assert(cb.newBoxes.head.asInstanceOf[ArbitBox].value == history.modifierById(history.chainBack(history.bestBlock, helper).get.reverse(1)._2).get.inflation)
-      }
-    }
-    validConstruction
-
-  }
-
-  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
-    boxesSumTry flatMap { openSum =>
-      if (
-        tx.newBoxes.map {
-          case a: AssetBox => a.value
-          case _           => 0L
-        }.sum <= openSum
-      ) {
-        Success[Unit](Unit)
-      } else {
-        Failure(new Exception("Not enough assets"))
-      }
-    }
-  }
-
-  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
-    boxesSumTry flatMap { openSum =>
-      if (
-        tx.newBoxes.map {
-          case p: PolyBox => p.value
-          case _          => 0L
-        }.sum == openSum - tx.fee
-      ) {
-        Success[Unit](Unit)
-      } else {
-        Failure(new Exception("Negative fee"))
-      }
-    }
-  }
 
   def closedBox(id: Array[Byte]): Option[BX] =
     storage
@@ -491,8 +189,6 @@ case class State( storage: LSMStore,
 
 object State extends Logging {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
-
   def genesisState(settings: AppSettings, initialBlocks: Seq[Block], history: History): State = {
     initialBlocks
       .foldLeft(readOrGenerate( settings, callFromGenesis = true, history)) {
@@ -510,15 +206,15 @@ object State extends Logging {
     */
   def syntacticValidity[TX](tx: TX): Try[Unit] = {
     tx match {
-      case tx: PolyTransfer           => PolyTransfer.validate(tx)
-      case tx: ArbitTransfer          => ArbitTransfer.validate(tx)
-      case tx: AssetTransfer          => AssetTransfer.validate(tx)
-      case tx: ProgramTransfer        => ProgramTransfer.validate(tx)
-      case tx: AssetCreation          => AssetCreation.validate(tx)
-      case tx: CodeCreation           => CodeCreation.validate(tx)
-      case tx: ProgramCreation        => ProgramCreation.validate(tx)
-      case tx: ProgramMethodExecution => ProgramMethodExecution.validate(tx)
-      case tx: CoinbaseTransaction    => CoinbaseTransaction.validate(tx)
+      case tx: PolyTransfer           => PolyTransfer.syntacticValidate(tx)
+      case tx: ArbitTransfer          => ArbitTransfer.syntacticValidate(tx)
+      case tx: AssetTransfer          => AssetTransfer.syntacticValidate(tx)
+      case tx: ProgramTransfer        => ProgramTransfer.syntacticValidate(tx)
+      case tx: AssetCreation          => AssetCreation.syntacticValidate(tx)
+      case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
+      case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
+      case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
+      case tx: CoinbaseTransaction    => CoinbaseTransaction.syntacticValidate(tx)
       case _ =>
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
@@ -601,6 +297,6 @@ object State extends Logging {
         .map(x => Base58.encode(x.data))}")
     else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys, )
+    State(stateStorage, version, timestamp, history, pbr, tbr, nodeKeys )
   }
 }

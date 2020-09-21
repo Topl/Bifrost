@@ -2,18 +2,19 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
-import bifrost.modifier.box.{ ArbitBox, Box }
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.modifier.transaction.Validator
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.serialization.ArbitTransferSerializer
-import bifrost.state.{ State, StateReader, TokenBoxRegistry }
+import bifrost.state.{State, StateReader, TokenBoxRegistry}
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.Json
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                            override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -116,4 +117,5 @@ object ArbitTransfer extends TransferUtil {
   }
 
   def syntacticValidate ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx)
+
 }

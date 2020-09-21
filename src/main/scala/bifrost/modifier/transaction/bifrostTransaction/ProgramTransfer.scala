@@ -3,11 +3,12 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{Box, ExecutionBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramTransferSerializer
+import bifrost.state.{State, StateReader}
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
@@ -16,7 +17,7 @@ import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class ProgramTransfer(from: PublicKey25519Proposition,
                            to: PublicKey25519Proposition,
@@ -76,6 +77,8 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
 object ProgramTransfer {
 
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
   def createAndApply(w: Wallet,
@@ -107,11 +110,41 @@ object ProgramTransfer {
   }
    */
 
-  def validate(tx: ProgramTransfer): Try[Unit] = Try {
+  def validatePrototype(tx: ProgramTransfer): Try[Unit] = syntacticValidate(tx, withSigs = false)
+
+  def syntacticValidate(tx: ProgramTransfer, withSigs: Boolean = true): Try[Unit] = Try {
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
-    require(tx.signature.isValid(tx.from, tx.messageToSign))
+
+    if (withSigs) {
+      require(tx.signature.isValid(tx.from, tx.messageToSign))
+    }
+
+    // only allow a single box to be transferred
+    tx.newBoxes.size match {
+      case 1 if (tx.newBoxes.head.isInstanceOf[ExecutionBox]) => Success(Unit)
+      case _ => Failure(new Exception("Invalid transaction"))
+    }
+
+    // ensure unique list of inuts and output
     val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
     require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
+  }
+
+  def semanticValidate(tx: ProgramTransfer, state: SR): Try[Unit] = {
+
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx)
+
+    val from = Seq((tx.from, tx.executionBox.nonce))
+    val signature = Map(tx.from -> tx.signature)
+    val unlocker = State.generateUnlockers(from, signature).head
+
+    state.closedBox(unlocker.closedBoxId) match {
+      case Some(box: ExecutionBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
+      case Some(_) => Failure(new Exception("Invalid unlocker"))
+      case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+      case _       => Failure(new Exception("Invalid Box type for this transaction"))
+    }
   }
 }

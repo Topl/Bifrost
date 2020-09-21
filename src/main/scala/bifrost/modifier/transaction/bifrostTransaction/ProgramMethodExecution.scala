@@ -2,22 +2,26 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, Signature25519}
+import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
+import bifrost.exceptions.TransactionValidationException
 import bifrost.history.History
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.serialization.ExecutionBoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import bifrost.program.Program
 import bifrost.settings.AppSettings
-import bifrost.state.ProgramBoxRegistry
+import bifrost.state.{ProgramBoxRegistry, State, StateReader}
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
+import io.iohk.iodb.ByteArrayWrapper
+import scorex.crypto.encode.Base58
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class ProgramMethodExecution(state: Seq[StateBox],
                                   code: Seq[CodeBox],
@@ -119,6 +123,8 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
 object ProgramMethodExecution {
 
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+
   //YT NOTE - example of how to use static function to construct methodParams for PME tx
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
@@ -140,12 +146,52 @@ object ProgramMethodExecution {
     ProgramMethodExecution(state, code, execBox, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 
-  def validate(tx: ProgramMethodExecution): Try[Unit] = Try {
-
+  def syntacticValidate(tx: ProgramMethodExecution, withSigs: Boolean = true): Try[Unit] = Try {
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign)
       , "Either an invalid signature was submitted or the party listed was not part of the program.")
-
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
+
+  def validatePrototype(tx: ProgramMethodExecution): Try[Unit] = syntacticValidate(tx, withSigs = false)
+
+  def semanticValidate(tx: ProgramMethodExecution, state: SR): Try[Unit] = {
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _ => // continue processing
+    }
+
+    /* Program exists */
+    if (state.closedBox(tx.executionBox.id).isEmpty) {
+      throw new TransactionValidationException(s"Program ${Base58.encode(tx.executionBox.id)} does not exist")
+    }
+
+    //TODO get execution box from box registry using UUID before using its actual id to get it from storage
+    val executionBox: ExecutionBox = state.closedBox(tx.executionBox.id).get.asInstanceOf[ExecutionBox]
+    val programProposition: PublicKey25519Proposition = executionBox.proposition
+
+    /* This person belongs to program */
+    if (!MultiSignature25519(tx.signatures.values.toSet).isValid(programProposition, tx.messageToSign)) {
+      throw new TransactionValidationException(s"Signature is invalid for ExecutionBox")
+    }
+
+    // make sure we are not attempting to change an already deployed program
+    if (tx.newBoxes.forall(curBox => state.closedBox(curBox.id).isDefined)) {
+      Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
+    }
+
+    // check that the provided signatures generate valid unlockers
+    val unlockers = State.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
+    unlockers
+      .foldLeft[Try[Unit]](Success(()))((tryUnlock, unlocker) =>
+        tryUnlock
+          .flatMap { _ =>
+            state.closedBox(unlocker.closedBoxId) match {
+              case Some(box) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
+              case _ => Failure(new TransactionValidationException(s"Invalid transaction"))
+            }
+          }
+      )
+  }
 
   implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] = (c: HCursor) => for {
     state <- c.downField("state").as[Seq[StateBox]]

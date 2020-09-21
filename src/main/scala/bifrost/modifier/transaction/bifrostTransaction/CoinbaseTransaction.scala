@@ -2,11 +2,12 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionSerializer
+import bifrost.state.StateReader
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
@@ -14,7 +15,7 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                 signatures: IndexedSeq[Signature25519],
@@ -85,16 +86,9 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
 object CoinbaseTransaction {
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
 
-  def validate(tx: CoinbaseTransaction): Try[Unit] = Try {
-    require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
-    require(tx.fee == 0)
-    require(tx.timestamp >= 0)
-    require(tx.signatures.forall({ signature => // should be only one sig
-      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
-    }), "Invalid signature")
-  }
+  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
 
   def createAndApply(w: Wallet,
                      to: IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -108,5 +102,19 @@ object CoinbaseTransaction {
     CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
   }
 
+  def syntacticValidate(tx: CoinbaseTransaction, withSigs: Boolean = true): Try[Unit] = Try {
+    require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
+    require(tx.fee == 0)
+    require(tx.timestamp >= 0)
+    require(tx.signatures.forall({ signature => // should be only one sig
+      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+    }), "Invalid signature")
+  }
 
+  def validatePrototype(tx: CoinbaseTransaction): Try[Unit] = syntacticValidate(tx, withSigs = false)
+
+  def semanticValidate(tx: CoinbaseTransaction, state: SR): Try[Unit] = {
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx)
+  }
 }
