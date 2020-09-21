@@ -13,18 +13,17 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Proposition, ModifierId] {
+case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Proposition, Array[Byte]] {
+
+  type K = PublicKey25519Proposition
+  type V = Array[Byte]
 
   //----- input and output transformation functions
   // registry key input type -> ByteArrayWrapper (LSMStore input type)
-  def registryInput(key: PublicKey25519Proposition): ByteArrayWrapper = ByteArrayWrapper(key.pubKeyBytes)
+  override def registryInput(key: K): Array[Byte] = key.pubKeyBytes
 
   // Array[Byte] (LSMStore store output type) -> registry key output type
-  def registryOutput(value: Array[Byte]): ModifierId = ModifierId(value)
-
-  // utxo store input type -> ByteArrayWrapper (LSMStore input type)
-  def utxoInput(value: ModifierId): ByteArrayWrapper = ByteArrayWrapper(value.hashBytes)
-
+  override def registryOutput(value: Array[Byte]): V = value
 
   /**
     * @param newVersion - block id

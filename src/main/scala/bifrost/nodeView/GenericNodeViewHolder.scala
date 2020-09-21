@@ -5,15 +5,17 @@ import bifrost.history.GenericHistory
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.SyncInfo
 import bifrost.settings.AppSettings
-import bifrost.state.{MinimalState, TransactionValidation}
-import bifrost.utils.{BifrostEncoding, Logging}
+import bifrost.state.{ MinimalState, TransactionValidation }
+import bifrost.utils.{ BifrostEncoding, Logging }
 import bifrost.wallet.Vault
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Composite local view of the node
@@ -36,8 +38,10 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
 
   type SI <: SyncInfo
+  type P <: Proposition
+  type BX <: GenericBox[P, Any]
   type HIS <: GenericHistory[PMOD, SI, HIS]
-  type MS <: MinimalState[PMOD, MS]
+  type MS <: MinimalState[Any, P, BX, PMOD, MS]
   type VL <: Vault[TX, PMOD, VL]
   type MP <: MemoryPool[TX, MP]
 
@@ -63,7 +67,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     * state (result of log's modifiers application to pre-historical(genesis) state,
     * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
     */
-  private var nodeView: NodeView = restoreState().getOrElse(genesisState)
+  protected var nodeView: NodeView = restoreState().getOrElse(genesisState)
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////

@@ -10,7 +10,6 @@ import scala.util.Try
 
 case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
                          override val toAppend: Set[Box],
-                         timestamp: Long
                        ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
 object StateChanges {
@@ -19,9 +18,6 @@ object StateChanges {
   type BPMOD = Block
   type GSC = GenericStateChanges[Any, P, BX]
 
-
-  //todo - byte array set quality is incorrectly overloaded (shallow not deep), consider using ByteArrayWrapper instead
-  //todo - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
   def apply(mod: BPMOD): Try[GSC] =
     Try {
 
@@ -53,6 +49,6 @@ object StateChanges {
         else toAdd
 
       // return the state changes that can be applied
-      new StateChanges(toRemove, finalToAdd, mod.timestamp)
+      new StateChanges(toRemove, finalToAdd)
     }
 }

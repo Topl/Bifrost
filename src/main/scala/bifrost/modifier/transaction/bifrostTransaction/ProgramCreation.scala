@@ -160,7 +160,7 @@ object ProgramCreation {
     }
 
     // make sure we are not attempting to change an already deployed program
-    if (tx.newBoxes.forall(curBox => state.closedBox(curBox.id).isDefined)) {
+    if (tx.newBoxes.forall(curBox => state.getBox(curBox.id).isDefined)) {
       Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
     }
 
@@ -171,7 +171,7 @@ object ProgramCreation {
       .foldLeft[Try[Unit]](Success(Unit))((tryUnlock, unlocker) =>
         tryUnlock
           .flatMap { _ =>
-            state.closedBox(unlocker.closedBoxId) match {
+            state.getBox(unlocker.closedBoxId) match {
               case Some(box) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
               case _ => Failure(new TransactionValidationException(s"Box for unlocker $unlocker is not in the state"))
             }

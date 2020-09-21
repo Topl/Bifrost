@@ -101,7 +101,7 @@ object ArbitTransfer extends TransferUtil {
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
     unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
       trySum.flatMap(partialSum =>
-                       state.closedBox(unlocker.closedBoxId) match {
+                       state.getBox(unlocker.closedBoxId) match {
                          case Some(box: ArbitBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
                            Success(partialSum + box.value)
                          case Some(_) => Failure(new Exception("Invalid unlocker"))

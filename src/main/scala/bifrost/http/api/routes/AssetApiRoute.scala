@@ -261,7 +261,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       }
 
       val asset = view.state
-        .closedBox(Base58.decode(assetId).get)
+        .getBox(Base58.decode(assetId).get)
         .get
         .asInstanceOf[AssetBox]
 
@@ -336,7 +336,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       }
 
       val asset = view.state
-        .closedBox(Base58.decode(assetId).get)
+        .getBox(Base58.decode(assetId).get)
         .get
         .asInstanceOf[AssetBox]
 

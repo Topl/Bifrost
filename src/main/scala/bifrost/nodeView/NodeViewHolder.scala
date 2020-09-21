@@ -47,6 +47,13 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
     System.exit(100) // this actor shouldn't be restarted at all so kill the whole app if that happened
   }
 
+  override def postStop ( ): Unit = {
+    super.postStop()
+
+    nodeView._1.closeStorage() // close History storage
+    nodeView._2.closeStorage() // close State storage
+  }
+
   /**
    * Restore a local view during a node startup. If no any stored view found
    * (e.g. if it is a first launch of a node) None is to be returned
@@ -143,7 +150,7 @@ object NodeViewHolder extends Logging {
       s"with id ${genesisBlock.encodedId} does not match the required block for the chosen network mode.${Console.RESET}")
 
     val history = History.readOrGenerate(settings).append(genesisBlock).get._1
-    val state = State.genesisState(settings, Seq(genesisBlock), history)
+    val state = State.genesisState(settings, Seq(genesisBlock))
     val wallet = Wallet.genesisWallet(settings, Seq(genesisBlock))
 
     assert(!settings.walletSeed.startsWith("genesis") || wallet.boxes().flatMap(_.box match {
@@ -151,7 +158,7 @@ object NodeViewHolder extends Logging {
                                                                                 case _            => None
                                                                               }).sum >= GenesisBalance)
 
-    wallet.boxes().foreach(b => assert(state.closedBox(b.box.id).isDefined))
+    wallet.boxes().foreach(b => assert(state.getBox(b.box.id).isDefined))
 
     (history, state, wallet, MemPool.emptyPool)
   }

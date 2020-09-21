@@ -15,7 +15,7 @@ import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 
 import scala.concurrent.ExecutionContext
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -100,7 +100,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
     log.info("chain difficulty: " + h.difficulty)
 
     val boxes: Seq[ArbitBox] = w.boxes().filter(_.box match {
-      case a: ArbitBox => s.closedBox(a.id).isDefined
+      case a: ArbitBox => s.getBox(a.id).isDefined
       case _ => false
     }).map(_.box.asInstanceOf[ArbitBox])
 
@@ -128,24 +128,25 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
                       ): Try[Seq[Transaction]] = Try {
 
     lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(wallet.secrets.head.publicImage.pubKeyBytes)
-    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
-    lazy val CB = CoinbaseTransaction.createAndApply(wallet, IndexedSeq((to, infVal)), parent.id.hashBytes).get
-    val regTxs = memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txSoFar, tx) =>
-      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txSoFar.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      val invalidBoxes = tx.newBoxes.forall(b ⇒ state.closedBox(b.id).isEmpty)
-      val txValid = state.validate(tx)
-      if (txValid.isFailure) {
-        log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}")
-        txValid.failed.get.printStackTrace()
-        memPool.remove(tx)
-      }
-      if(!invalidBoxes) {
-        memPool.remove(tx)
-      }
 
-      if (txValid.isSuccess && txNotIncluded) txSoFar :+ tx else txSoFar
+    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+
+    // build the list of transactions to possibly be included in a block
+    CoinbaseTransaction.createAndApply(wallet, IndexedSeq((to, infVal)), parent.id.hashBytes).get +:
+    memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+
+      if (validBoxes) memPool.remove(tx)
+
+      state.validate(tx) match {
+        case Success(_) if txNotIncluded => txAcc :+ tx
+        case Success(_)                  => txAcc
+        case Failure(ex)                 =>
+          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+          txAcc
+      }
     }
-    CB +: regTxs
   }
 
   def iteration(parent: Block,

@@ -10,7 +10,7 @@ trait StateReader[BX <: GenericBox[P, T], P <: Proposition, T] extends NodeViewC
   //must be ID of last applied modifier
   def version: VersionTag
 
-  def closedBox(id: Array[Byte]): Option[BX]
+  def getBox ( id: Array[Byte]): Option[BX]
 
   def maxRollbackDepth: Int
 }

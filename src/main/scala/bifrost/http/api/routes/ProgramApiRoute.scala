@@ -123,7 +123,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       }
       val code: Seq[CodeBox] = executionBox.codeBoxIds.map { cb =>
         //programBoxId2Box(view.state, Base58.encode(cb)).asInstanceOf[CodeBox]
-        view.state.closedBox(cb).get.asInstanceOf[CodeBox]
+        view.state.getBox(cb).get.asInstanceOf[CodeBox]
       }
 
       val programJson: Json =
@@ -181,7 +181,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
   //TODO Return ProgramBox instead of Box
   private def programBoxId2Box(state: State, boxId: String): Box = {
-    state.closedBox(Base58.decode(boxId).get).get
+    state.getBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle

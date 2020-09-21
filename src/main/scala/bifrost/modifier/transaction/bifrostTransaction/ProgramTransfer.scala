@@ -143,7 +143,7 @@ object ProgramTransfer {
     val signature = Map(tx.from -> tx.signature)
     val unlocker = State.generateUnlockers(from, signature).head
 
-    state.closedBox(unlocker.closedBoxId) match {
+    state.getBox(unlocker.closedBoxId) match {
       case Some(box: ExecutionBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
       case Some(_) => Failure(new Exception("Invalid unlocker"))
       case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))

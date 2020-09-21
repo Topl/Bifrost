@@ -52,7 +52,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     val oldArbitBoxes = gw
       .boxesByKey("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
       .filter(_.box match {
-        case a: ArbitBox => genesisState.closedBox(a.id).isDefined
+        case a: ArbitBox => genesisState.getBox(a.id).isDefined
         case _ => false
       })
       .map(_.box.asInstanceOf[ArbitBox])
