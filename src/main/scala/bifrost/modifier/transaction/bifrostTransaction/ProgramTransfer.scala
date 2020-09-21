@@ -134,7 +134,10 @@ object ProgramTransfer {
   def semanticValidate(tx: ProgramTransfer, state: SR): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx)
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _ => // continue processing
+    }
 
     val from = Seq((tx.from, tx.executionBox.nonce))
     val signature = Map(tx.from -> tx.signature)

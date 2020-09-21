@@ -154,7 +154,10 @@ object ProgramCreation {
   def semanticValidate(tx: ProgramCreation, state: SR): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
-    syntacticValidate(tx)
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _ => // continue processing
+    }
 
     // make sure we are not attempting to change an already deployed program
     if (tx.newBoxes.forall(curBox => state.closedBox(curBox.id).isDefined)) {
