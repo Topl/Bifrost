@@ -1,25 +1,23 @@
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
-import com.sun.org.apache.xpath.internal.Arg
-import com.typesafe.config.{Config, ConfigFactory}
 import http.GjallarhornApiRoute
 import keymanager.KeyManagerRef
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 
-
+import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success}
 
 class GjallarhornApp(startupOpts: StartupOpts) extends Runnable {
 
-  implicit val system = ActorSystem("Gjallarhorn")
-  implicit val context = system.dispatcher
+  implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
+  implicit val context: ExecutionContextExecutor = system.dispatcher
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
   private val settings: AppSettings = AppSettings.read(startupOpts)
 
-  val httpPort = settings.rpcPort
+  val httpPort: Int = settings.rpcPort
 
   private val apiRoute: Route = GjallarhornApiRoute(keyManagerRef).route
   Http().newServerAt("localhost", httpPort).bind(apiRoute)
