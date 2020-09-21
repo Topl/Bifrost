@@ -86,11 +86,11 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
 
-  def validatePrototype ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype(tx: PolyTransfer): Try[Unit] = validateTransfer(tx, withSigs = false)
 
-  def syntacticValidate(tx: ArbitTransfer): Try[Unit] = validateTransfer(tx)
+  def syntacticValidate(tx: PolyTransfer): Try[Unit] = validateTransfer(tx)
 
-  def semanticValidate(tx: ArbitTransfer, state: SR): Try[Unit] = {
+  def semanticValidate(tx: PolyTransfer, state: SR): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {

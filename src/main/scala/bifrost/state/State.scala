@@ -38,11 +38,13 @@ case class State( storage: LSMStore,
                   tbr: TokenBoxRegistry = null,
                   nodeKeys: Set[ByteArrayWrapper] = null
                 ) extends MinimalState[Block, State]
+                          with TransactionValidation[Transaction]
                           with StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
                           with Logging {
 
   override type NVCT = State
 
+  type TX = Transaction
   type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block
@@ -50,6 +52,24 @@ case class State( storage: LSMStore,
   type BSC = StateChanges
 
   def getReader: StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any] = this
+
+  def validate(transaction: TX): Try[Unit] = {
+    transaction match {
+      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
+      case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
+      case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
+      case tx: ProgramTransfer        => validateProgramTransfer(tx)
+      case tx: AssetCreation          => validateAssetCreation(tx)
+      case tx: CodeCreation           => validateCodeCreation(tx)
+      case tx: ProgramCreation        => validateProgramCreation(tx)
+      case tx: ProgramMethodExecution => validateProgramMethodExecution(tx)
+      case tx: CoinbaseTransaction    => validateCoinbaseTransaction(tx)
+      case _ =>
+        throw new Exception(
+          "State validity not implemented for " + transaction.getClass.toGenericString
+        )
+    }
+  }
 
   override def rollbackTo(version: VersionTag): Try[NVCT] =
     Try {
@@ -74,67 +94,6 @@ case class State( storage: LSMStore,
 
   private def lastVersionString: String =
     storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
-
-  def validate[TX](transaction: TX): Try[Unit] = {
-    transaction match {
-      case tx: PolyTransfer           => validatePolyTransfer(tx)
-      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
-      case tx: AssetTransfer          => validateAssetTransfer(tx)
-      case tx: ProgramTransfer        => validateProgramTransfer(tx)
-      case tx: AssetCreation          => validateAssetCreation(tx)
-      case tx: CodeCreation           => validateCodeCreation(tx)
-      case tx: ProgramCreation        => validateProgramCreation(tx)
-      case tx: ProgramMethodExecution => validateProgramMethodExecution(tx)
-      case tx: CoinbaseTransaction    => validateCoinbaseTransaction(tx)
-      case _ =>
-        throw new Exception(
-          "State validity not implemented for " + transaction.getClass.toGenericString
-        )
-    }
-  }
-
-
-
-  /**
-    * @param poT : the PolyTransfer to validate
-    * @return
-    */
-  private def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
-
-    val unlockers = generateUnlockers(poT.from, poT.signatures)
-
-    val statefulValid: Try[Unit] = {
-      val boxesSumTry: Try[Long] = {
-        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: PolyBox) =>
-                if (
-                  unlocker.boxKey
-                    .isValid(box.proposition, poT.messageToSign)
-                ) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None =>
-                Failure(
-                  new Exception(
-                    s"Box for unlocker $unlocker is not in the state"
-                  )
-                )
-              case _ =>
-                Failure(new Exception("Invalid Box type for this transaction"))
-            }
-          )
-        )
-      }
-      determineEnoughPolys(boxesSumTry: Try[Long], poT)
-    }
-
-    statefulValid.flatMap(_ => State.syntacticValidity(poT))
-  }
 
   private def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
 

@@ -3,11 +3,11 @@ package bifrost.modifier.transaction.bifrostTransaction
 import java.time.Instant
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import bifrost.modifier.box.{AssetBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
 import bifrost.modifier.transaction.serialization.AssetTransferSerializer
-import bifrost.state.TokenBoxRegistry
+import bifrost.state.{State, StateReader, TokenBoxRegistry}
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints}
@@ -15,7 +15,7 @@ import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -31,9 +31,14 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
 
-  override def toString: String = s"AssetTransfer(${json.noSpaces})"
+  override lazy val messageToSign: Array[Byte] = Bytes.concat(
+    "AssetTransfer".getBytes(),
+    super.commonMessageToSign,
+    issuer.pubKeyBytes,
+    assetCode.getBytes,
+  )
 
-  override lazy val newBoxes: Traversable[Box] = to
+  override lazy val newBoxes: Traversable[AssetBox] = to
     .filter(toInstance => toInstance._2 > 0L)
     .zipWithIndex
     .map {
@@ -70,16 +75,13 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "data" -> data.asJson
   ).asJson
 
+  override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
-  override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    "AssetTransfer".getBytes(),
-    super.commonMessageToSign,
-    issuer.pubKeyBytes,
-    assetCode.getBytes,
-  )
 }
 
 object AssetTransfer extends TransferUtil {
+
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
 
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
             to: IndexedSeq[(PublicKey25519Proposition, Value)],
@@ -121,9 +123,39 @@ object AssetTransfer extends TransferUtil {
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }
 
-  def validate(tx: AssetTransfer): Try[Unit] = validateTx(tx)
+  def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTransfer(tx, withSigs = false)
 
-  def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTxWithoutSignatures(tx)
+  def syntacticValidate(tx: AssetTransfer): Try[Unit] = validateTransfer(tx)
+
+  def semanticValidate(tx: AssetTransfer, state: SR): Try[Unit] = {
+
+    // check that the transaction is correctly formed before checking state
+    syntacticValidate(tx) match {
+      case Failure(e) => throw e
+      case _ => // continue processing
+    }
+
+    // compute transaction values used for validation
+    val txOutput = tx.newBoxes.map(b => b.value).sum
+    val unlockers = State.generateUnlockers(tx.from, tx.signatures)
+
+    // iterate through the unlockers and sum up the value of the box for each valid unlocker
+    unlockers.foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+      trySum.flatMap(partialSum =>
+        state.closedBox(unlocker.closedBoxId) match {
+          case Some(box: AssetBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
+            Success(partialSum + box.value)
+          case Some(_) => Failure(new Exception("Invalid unlocker"))
+          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+          case _       => Failure(new Exception("Invalid Box type for this transaction"))
+        }
+      )
+    }) match {
+      case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
+      case Success(sum: Long) => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+      case Failure(e)         => throw e
+    }
+  }
 
   implicit val decodeAssetTransfer: Decoder[AssetTransfer] = (c: HCursor) => for {
     rawFrom <- c.downField("from").as[IndexedSeq[(String, String)]]
