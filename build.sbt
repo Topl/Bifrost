@@ -68,14 +68,16 @@ val cryptoDependencies = Seq(
   "org.whispersystems" % "curve25519-java" % "0.4.1"
 )
 
-libraryDependencies ++= Seq(
+val miscDependencies = Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.chuusai" %% "shapeless" % "2.3.3",
   "com.google.guava" % "guava" % "19.0",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
   "com.joefkelley" %% "argyle" % "1.0.0"
-) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies
+)
+
+libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -191,7 +193,7 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
 lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   .settings(
     commonSettings,
-    libraryDependencies ++= testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ akkaDependencies
+    libraryDependencies ++=akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ miscDependencies
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
