@@ -39,13 +39,12 @@ object GjallarhornApiRoute {
 
 case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
-  implicit val actorsystem = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  //implicit val actorsystem = ActorSystem()
+  //implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val r = new Requests
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
-  Http().newServerAt("localhost", 9086).bind(route)
 
   /**
     * Handles the different methods that are called.

@@ -1,26 +1,47 @@
 import akka.actor.{ActorRef, ActorSystem}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Route
+import com.sun.org.apache.xpath.internal.Arg
+import com.typesafe.config.{Config, ConfigFactory}
 import http.GjallarhornApiRoute
 import keymanager.KeyManagerRef
+import settings.{AppSettings, NetworkType, StartupOpts}
+import utils.Logging
 
-import scala.concurrent.ExecutionContext
 
-class GjallarhornApp extends Runnable {
+import scala.util.{Failure, Success}
+
+class GjallarhornApp(startupOpts: StartupOpts) extends Runnable {
 
   implicit val system = ActorSystem("Gjallarhorn")
   implicit val context = system.dispatcher
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
+  private val settings: AppSettings = AppSettings.read(startupOpts)
 
-  private val apiRoute = GjallarhornApiRoute(keyManagerRef)
+  val httpPort = settings.rpcPort
+
+  private val apiRoute: Route = GjallarhornApiRoute(keyManagerRef).route
+  Http().newServerAt("localhost", httpPort).bind(apiRoute)
 
   def run(): Unit = {
 
   }
 }
 
-object GjallarhornApp {
+object GjallarhornApp extends Logging {
+
+  import com.joefkelley.argyle._
+
+  val argParser: Arg[StartupOpts] = (
+    optional[String]("--config", "-c") and
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
+    ).to[StartupOpts]
 
   def main(args: Array[String]): Unit = {
-    new GjallarhornApp().run()
+    argParser.parse(args) match {
+      case Success(argsParsed) => new GjallarhornApp(argsParsed).run()
+      case Failure(e) => throw e
+    }
   }
 }
