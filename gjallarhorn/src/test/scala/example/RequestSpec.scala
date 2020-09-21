@@ -42,11 +42,11 @@ class RequestSpec extends AsyncFlatSpec with Matchers {
 
   val amount = 10
 
-  var transaction = Json.Null
-  var signedTransaction = Json.Null
+  var transaction: Json = Json.Null
+  var signedTransaction: Json = Json.Null
 
   it should "receive a successful response from Bifrost upon creating asset" in {
-    val createAssetRequest = ByteString(
+    val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",

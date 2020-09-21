@@ -51,7 +51,7 @@ class Requests extends {
         case Left(e) => throw e.getCause
       }
     }
-    Await.result(parsedData, 2 seconds)
+    Await.result(parsedData, 5 seconds)
   }
 
   def byteStringToJSON(data: ByteString): Json = {
