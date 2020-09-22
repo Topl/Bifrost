@@ -16,14 +16,16 @@ import keymanager.{KeyFile, Keys}
 import scala.reflect.io.Path
 import scala.util.Try
 
-class RequestSpec extends AsyncFlatSpec with Matchers {
+class RequestSpec extends AsyncFlatSpec
+  with Matchers
+  with GjallarhornGenerators {
 
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val http: HttpExt = Http(actorSystem)
 
-  val requests = new Requests
+  val requests = new Requests(settings)
 
   val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)

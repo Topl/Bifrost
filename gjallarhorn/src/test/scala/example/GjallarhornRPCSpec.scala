@@ -16,8 +16,12 @@ import io.circe.parser.parse
 import keymanager.{KeyManager, KeyManagerRef}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
+import settings.AppSettings
 
-class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRouteTest{
+class GjallarhornRPCSpec extends AsyncFlatSpec
+  with Matchers
+  with ScalatestRouteTest
+  with GjallarhornGenerators {
 
   implicit val actorSystem: ActorSystem = ActorSystem()
 //  implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -33,7 +37,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRoute
 
   val keyManager: ActorRef = KeyManagerRef("keyManager", "keyfiles")
 
-  val route: Route = GjallarhornApiRoute(keyManager).route
+  val route: Route = GjallarhornApiRoute(settings, keyManager).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

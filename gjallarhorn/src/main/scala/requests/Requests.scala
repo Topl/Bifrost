@@ -15,10 +15,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scorex.crypto.encode.Base58
+import settings.AppSettings
 
-import scala.util.Try
 
-class Requests extends {
+class Requests (settings: AppSettings) {
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -26,11 +26,14 @@ class Requests extends {
 
   val timeout: Timeout = Timeout(10.seconds)
 
+  val requestPort: Int = settings.requestPort
+  val requestAddress: String = settings.requestAddress
+
   //Generic Method for HTTP POST request
   def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = s"http://localhost:9085/$path/",
+      uri = s"http://$requestAddress:$requestPort/$path/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
@@ -51,7 +54,7 @@ class Requests extends {
         case Left(e) => throw e.getCause
       }
     }
-    Await.result(parsedData, 10 seconds)
+    Await.result(parsedData, 20 seconds)
   }
 
   def byteStringToJSON(data: ByteString): Json = {
@@ -145,4 +148,5 @@ class Requests extends {
   }
 
 }
+
 

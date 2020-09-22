@@ -9,18 +9,25 @@ import utils.Logging
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success}
 
-class GjallarhornApp(startupOpts: StartupOpts) extends Runnable {
+class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
   implicit val context: ExecutionContextExecutor = system.dispatcher
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
-  private val settings: AppSettings = AppSettings.read(startupOpts)
+  implicit val settings: AppSettings = AppSettings.read(startupOpts)
 
   val httpPort: Int = settings.rpcPort
 
-  private val apiRoute: Route = GjallarhornApiRoute(keyManagerRef).route
-  Http().newServerAt("localhost", httpPort).bind(apiRoute)
+  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef).route
+  Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
+    case Success(serverBinding) =>
+      log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
+
+    case Failure(ex) =>
+      log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. Terminating application!${Console.RESET}", ex)
+  }
+
 
   def run(): Unit = {
 

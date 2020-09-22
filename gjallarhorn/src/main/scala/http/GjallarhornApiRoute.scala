@@ -11,11 +11,12 @@ import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
+import settings.AppSettings
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object GjallarhornApiRoute {
+/*object GjallarhornApiRoute {
   val r = new Requests
 
   /**
@@ -35,14 +36,14 @@ object GjallarhornApiRoute {
   def byteStringToJSON(data: Future[ByteString]): Json = {
     r.byteStringToJSON(data)
   }
-}
+}*/
 
-case class GjallarhornApiRoute(keyManager: ActorRef)(implicit val context: ActorRefFactory) extends ApiRoute {
+case class GjallarhornApiRoute(settings: AppSettings, keyManager: ActorRef)(implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
   //implicit val actorsystem = ActorSystem()
   //implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val r = new Requests
+  val r = new Requests(settings)
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
 
 
