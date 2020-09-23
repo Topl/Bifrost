@@ -82,7 +82,7 @@ case class GjallarhornApiRoute(settings: AppSettings, keyManager: ActorRef)(impl
       case None          => ""
     }
 
-    val tx = r.transaction("createAssetsPrototype", issuer, recipient, amount)
+    val tx = r.transaction("createAssetsPrototype", params)
     Future{r.sendRequest(tx, "asset")}
   }
 

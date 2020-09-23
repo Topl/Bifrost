@@ -109,7 +109,7 @@ class Requests (settings: AppSettings) {
     ).asJson
   }
 
-  def transaction(method: String, issuer: String, recipient: String, amount: Long): ByteString = {
+  def transaction(method: String, params: Json): ByteString = {
     var requestBody: ByteString = ByteString.empty
     method match {
       case "createAssetsPrototype" => {
@@ -119,14 +119,7 @@ class Requests (settings: AppSettings) {
              |   "jsonrpc": "2.0",
              |   "id": "2",
              |   "method": "$method",
-             |   "params": [{
-             |     "issuer": "$issuer",
-             |     "recipient": "$recipient",
-             |     "amount": $amount,
-             |     "assetCode": "etherAssets",
-             |     "fee": 0,
-             |     "data": ""
-             |   }]
+             |   "params": [$params]
              |}
          """.stripMargin)
       }
