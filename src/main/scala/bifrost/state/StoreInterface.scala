@@ -1,4 +1,4 @@
-package bifrost.nodeView
+package bifrost.state
 
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 

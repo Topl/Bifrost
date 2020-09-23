@@ -37,7 +37,6 @@ case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Pr
     *         where M = Number of boxes to remove
     *         N = Number of boxes owned by a public key
     *         L = Number of boxes to append
-    *
     */
   //noinspection ScalaStyle
   override def updateFromState(newVersion: VersionTag,

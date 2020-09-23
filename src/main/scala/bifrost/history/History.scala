@@ -10,7 +10,7 @@ import bifrost.modifier.block.{ Block, BlockValidator, Bloom }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.BifrostSyncInfo
-import bifrost.nodeView.{ NodeViewModifier, StoreInterface }
+import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.AppSettings
 import bifrost.utils.{ BifrostEncoding, Logging }

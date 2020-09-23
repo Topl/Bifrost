@@ -2,29 +2,28 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{AssetBox, Box}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519 }
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.modifier.box.{ AssetBox, Box }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationSerializer
-import bifrost.state.{State, StateReader}
+import bifrost.state.StateReader
 import bifrost.wallet.Wallet
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{ Decoder, HCursor, Json }
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
-case class AssetCreation (
-                           to: IndexedSeq[(PublicKey25519Proposition, Long)],
+case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            signatures: Map[PublicKey25519Proposition, Signature25519],
                            assetCode: String,
-                           issuer   : PublicKey25519Proposition,
+                           issuer: PublicKey25519Proposition,
                            override val fee: Long,
                            override val timestamp: Long,
-                           data                  : String
+                           data: String
                          ) extends Transaction {
 
   override type M = AssetCreation
@@ -40,7 +39,7 @@ case class AssetCreation (
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
-  )
+    )
 
   override lazy val newBoxes: Traversable[Box] = to
     .filter(toInstance => toInstance._2 > 0L)
@@ -54,8 +53,8 @@ case class AssetCreation (
             assetCode.getBytes ++
             hashNoNonces ++
             Ints.toByteArray(idx)
+          )
         )
-      )
       AssetBox(prop, nonce, value, assetCode, issuer, data)
     }
 
@@ -74,17 +73,17 @@ case class AssetCreation (
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson,
     "data" -> data.asJson
-  ).asJson
+    ).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetCreation".getBytes(),
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-      newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes),
+      newBoxes.foldLeft(Array[Byte]())(( acc, x ) => acc ++ x.bytes),
     issuer.pubKeyBytes,
     assetCode.getBytes,
     Longs.toByteArray(fee),
     data.getBytes
-  )
+    )
 
 }
 
@@ -92,14 +91,14 @@ object AssetCreation {
 
   type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
 
-  def nonceFromDigest (digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+  def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
   /**
-    * Route here from AssetApiRoute
-    * Assumes that the WalletTrait contains the issuer's key information
-    * Takes WalletTrait from current view, and generates signature from issuer's public key
-    * Forms corresponding AssetCreation transaction
-    */
+   * Route here from AssetApiRoute
+   * Assumes that the WalletTrait contains the issuer's key information
+   * Takes WalletTrait from current view, and generates signature from issuer's public key
+   * Forms corresponding AssetCreation transaction
+   */
   def createAndApply (
                        w        : Wallet,
                        to       : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -131,36 +130,36 @@ object AssetCreation {
     AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data)
   }
 
-  def syntacticValidate(tx: AssetCreation, withSigs: Boolean = true): Try[Unit] = Try {
+  def syntacticValidate ( tx: AssetCreation, withSigs: Boolean = true ): Try[Unit] = Try {
     require(tx.to.forall(_._2 >= 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
 
-    if (withSigs) {
+    if ( withSigs ) {
       require(tx.signatures.forall({ case (prop, signature) =>
         signature.isValid(prop, tx.messageToSign)
       }),
-        "Invalid signatures"
-      )
+              "Invalid signatures"
+              )
     }
 
     tx.newBoxes.size match {
       //only one box should be created
       case 1 if (tx.newBoxes.head.isInstanceOf[AssetBox]) => Success(Unit)
-      case _ => Failure(new Exception("Invalid transaction"))
+      case _                                              => Failure(new Exception("Invalid transaction"))
     }
   }
 
-  def validatePrototype(tx: AssetCreation): Try[Unit] = syntacticValidate(tx, withSigs = false)
+  def validatePrototype ( tx: AssetCreation ): Try[Unit] = syntacticValidate(tx, withSigs = false)
 
-  def semanticValidate(tx: AssetCreation, state: SR): Try[Unit] = {
+  def semanticValidate ( tx: AssetCreation, state: SR ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx)
 
   }
 
-  implicit val decodeAssetCreation: Decoder[AssetCreation] = (c: HCursor) =>
+  implicit val decodeAssetCreation: Decoder[AssetCreation] = ( c: HCursor ) =>
     for {
       rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
       rawSignatures <- c.downField("signatures").as[Map[String, String]]
@@ -172,7 +171,7 @@ object AssetCreation {
     } yield {
       val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
       val signatures = rawSignatures.map { case (key, value) =>
-        if (value == "") {
+        if ( value == "" ) {
           (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
         } else {
           (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
@@ -188,7 +187,7 @@ object AssetCreation {
         fee,
         timestamp,
         data
-      )
+        )
     }
 
 
