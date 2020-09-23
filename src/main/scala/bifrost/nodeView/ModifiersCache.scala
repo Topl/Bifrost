@@ -1,14 +1,11 @@
-package bifrost.network
+package bifrost.nodeView
 
-import bifrost.history.{History, HistoryReader}
-import bifrost.modifier.block.Block
+import bifrost.history.HistoryReader
 import bifrost.modifier.{ContainsModifiers, ModifierId}
-import bifrost.nodeView.PersistentNodeViewModifier
-import bifrost.utils.{Logging, MalformedModifierError, RecoverableModifierError}
+import bifrost.utils.Logging
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.util.{Failure, Success}
 
 /**
   * A cache which is storing persistent modifiers not applied to history yet.
@@ -85,7 +82,7 @@ trait LRUCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryReader[PMOD, _]]
 
   // The eviction queue can contain elements already removed, as we're not removing a key from it when
   // the key is got removed from the cache. When size of eviction queue exceeds maximum size of the cache by
-  // the value below(so the queue contains at least "cleaningThreshold" keys aleady removed from the cache),
+  // the value below(so the queue contains at least "cleaningThreshold" keys already removed from the cache),
   // complete scan and cleaning of removed keys happen.
   private val cleaningThreshold = 50
 
@@ -122,50 +119,19 @@ class DefaultModifiersCache[PMOD <: PersistentNodeViewModifier, HR <: HistoryRea
   @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
   override def findCandidateKey(history: HR): Option[K] = {
 
-    cache.find { case (k, v) =>
-      history.applicableTry(v) match {
-        case Failure(e) if e.isInstanceOf[RecoverableModifierError] =>
-          // do nothing - modifier may be applied in future
+    // find any blocks that can be removed from the default cache
+    cache.find { case (_, v) =>
+
+      // first look for the each block's parent in the cache
+      modifierById(v.parentId) match {
+
+        // if found, do nothing and leave the modifier in the cache for now
+        case Some(_) =>
           false
-        case Failure(e) =>
-          // non-recoverable error - remove modifier from cache
-          // TODO blaklist peer who sent it
-          log.warn(s"Modifier ${v.encodedId} became permanently invalid and will be removed from cache", e)
-          remove(k)
-          false
-        case Success(_) =>
-          true
-      }
-    }.map(_._1)
-  }
-}
 
-class BifrostModifiersCache(override val maxSize: Int)
-  extends DefaultModifiersCache[Block, History](maxSize) {
-
-  /**
-    * @param history - an interface to history which could be needed to define a candidate
-    * @return - candidate if it is found
-    */
-  @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf"))
-  override def findCandidateKey(history: History): Option[K] = {
-    def tryToApply(k: K, v: Block): Boolean = {
-      history.applicableTry(v) match {
-        case Failure(e) if e.isInstanceOf[MalformedModifierError] ⇒
-          log.warn(s"Modifier ${v.encodedId} is permanently invalid and will be removed from cache", e)
-          remove(k)
-          false
-        case m ⇒ m.isSuccess
-      }
-    }
-
-    val bestBlock: ModifierId = history.bestBlockId
-
-    // try to apply blocks sequentially from the best block
-    cache.find { case(k, v) ⇒
-      v match {
-        case _ if v.parentId == bestBlock ⇒ tryToApply(k, v)
-        case _ ⇒ false
+        // see if the given block can be applied to the canonical chain or the ordered chain cache
+        case None =>
+          history.extendsKnownTine(v)
       }
     }.map(_._1)
   }

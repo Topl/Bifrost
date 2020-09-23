@@ -16,11 +16,13 @@ import bifrost.settings.Version
   * @param declaredAddress - Public network address of the node if any
   * @param features        - Set of node capabilities
   */
-case class PeerSpec(agentName: String,
-                    version: Version,
-                    nodeName: String,
-                    declaredAddress: Option[InetSocketAddress],
-                    features: Seq[PeerFeature]) {
+case class PeerSpec(
+  agentName: String,
+  version: Version,
+  nodeName: String,
+  declaredAddress: Option[InetSocketAddress],
+  features: Seq[PeerFeature]
+) {
 
   lazy val localAddressOpt: Option[InetSocketAddress] = {
     features.collectFirst { case LocalAddressPeerFeature(addr) => addr }

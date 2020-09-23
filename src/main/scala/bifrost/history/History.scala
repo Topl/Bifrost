@@ -2,7 +2,7 @@ package bifrost.history
 
 import java.io.File
 
-import bifrost.consensus.DifficultyBlockValidator
+import bifrost.consensus
 import bifrost.history.GenericHistory._
 import bifrost.history.History.GenesisParentId
 import bifrost.modifier.ModifierId
@@ -18,9 +18,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.concurrent.duration.MILLISECONDS
-import scala.math.{max, min}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Failure, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -29,9 +27,11 @@ import scala.util.{Failure, Success, Try}
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History(val storage: Storage, settings: AppSettings, validators: Seq[BlockValidator[Block]])
-  extends GenericHistory[Block, BifrostSyncInfo, History]
-    with Logging with BifrostEncoding {
+class History ( val storage: Storage,
+                val fullBlockProcessor: BlockProcessor,
+                settings: AppSettings,
+                validators: Seq[BlockValidator[Block]]
+              ) extends GenericHistory[Block, BifrostSyncInfo, History] with Logging with BifrostEncoding {
 
   override type NVCT = History
 
@@ -43,7 +43,6 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   lazy val difficulty: Long = storage.difficultyOf(bestBlockId).get
   lazy val bestBlock: Block = storage.bestBlock
 
-
   /**
     * Is there's no history, even genesis block
     *
@@ -52,13 +51,13 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   override def isEmpty: Boolean = height <= 0
 
   override def applicable(block: Block): Boolean = {
-    contains(block.parentId)
+    modifierById(block.parentId).isDefined
   }
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    if (id.hashBytes sameElements History.GenesisParentId) true else modifierById(id).isDefined
+    (id.hashBytes sameElements History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -70,57 +69,71 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
     log.debug(s"Trying to append block ${block.id} to history")
 
-    val validationResults = validators.map(_.validate(block))
+    // test new block against all validators
+    val validationResults = validators.map(_.validate(block)).map {
+      case Failure(e) =>
+        log.warn(s"Block validation failed", e)
+        false
 
-    // TODO: JAA - shouldn't we reject blocks that fail validation?
-    validationResults.foreach {
-      case Failure(e) => log.warn(s"Block validation failed", e)
-      case _ =>
+      case _ => true
     }
-    validationResults.foreach(_.get)
 
+    // check if all block validation passed
+    if (validationResults.forall(_ == true)) {
+      val res: (History, ProgressInfo[Block]) = {
 
-    val res: (History, ProgressInfo[Block]) = {
+        if (isGenesis(block)) {
+          storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
+          val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-      if (isGenesis(block)) {
-        storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
-        val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-        (new History(storage, settings, validators), progInfo)
-      } else {
+          // construct result and return
+          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
 
-        // Calculate the block difficulty according to
-        // https://nxtdocs.jelurida.com/Nxt_Whitepaper#Block_Creation_.28Forging.29
-        val blockTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-        val averageDelay = (blockTimes drop 1, blockTimes).zipped.map(_-_).sum / (blockTimes.length - 1)
-        val parentDifficulty = storage.difficultyOf(block.parentId).get
-        val targetTime = settings.forgingSettings.targetBlockTime.toUnit(MILLISECONDS)
-        // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
-        val difficulty: Long = if (averageDelay > targetTime) {
-          (parentDifficulty * min(averageDelay, targetTime * 1.1) / targetTime).toLong
         } else {
-          (parentDifficulty * (1 - 0.64 * (1 - (max(averageDelay, targetTime * 0.9) / targetTime) ))).toLong
-        }
+          val progInfo: ProgressInfo[Block] =
+          // Check if the new block extends the last best block
+            if (block.parentId.equals(storage.bestBlockId)) {
+              log.debug(s"New best block ${block.id.toString}")
 
-        // Determine if this block is on the canonical chain
-        val builtOnBestChain = applicable(block)
-        // Check that the new block's parent is the last best block
-        val mod: ProgressInfo[Block] = if (!builtOnBestChain) {
-          log.debug(s"New orphaned block ${block.id.toString}")
-          ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-        } else if (block.parentId.hashBytes sameElements storage.bestBlockId.hashBytes) { // new block parent is best block so far
-          log.debug(s"New best block ${block.id.toString}")
-          ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-        } else { // we want to swap to a fork
-          bestForkChanges(block)
-        }
+              // calculate the new base difficulty
+              val parentDifficulty = storage.difficultyOf(block.parentId).get
+              // fixme: number of blocks here should be part of consensus
+              val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
+              val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
 
-        storage.update(block, difficulty, builtOnBestChain)
-        (new History(storage, settings, validators), mod)
+              // update storage
+              storage.update(block, newBaseDifficulty, isBest = true)
+              ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+
+              // if not, we'll check for a fork
+            } else {
+              // we want to check for a fork
+              val forkProgInfo = fullBlockProcessor.process(this, block)
+
+              // check if we need to update storage after checking for forks
+              if (forkProgInfo.branchPoint.nonEmpty) {
+                storage.rollback(forkProgInfo.branchPoint.get)
+
+                forkProgInfo.toApply.foreach { b ⇒
+                  val baseDifficulty = fullBlockProcessor.getCacheBlock(b.id).get.baseDifficulty
+                  storage.update(b, baseDifficulty, isBest = true)
+                }
+              }
+
+              forkProgInfo
+            }
+
+          // construct result and return
+          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+        }
       }
+      log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
+        s"Best score is $score. Pair: $bestBlockId")
+      res
+
+    } else {
+      throw new Error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}")
     }
-    log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
-               s"Best score is $score. Pair: $bestBlockId")
-    res
   }
 
   /**
@@ -138,7 +151,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id)
-    new History(storage, settings, validators)
+    new History(storage, fullBlockProcessor, settings, validators)
   }
 
   /**
@@ -187,7 +200,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * @param count - how many blocks to return
     * @return blocks, in reverse order (starting from the most recent one)
     */
-  def lastBlocks(count: Int, startBlock: Block): Seq[Block] = {
+  def lastBlocks(count: Long, startBlock: Block): Seq[Block] = {
     @tailrec
     def loop(b: Block, acc: Seq[Block] = Seq()): Seq[Block] = {
       if (acc.length >= count) acc
@@ -202,7 +215,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
   }
 
   /**
-    * Whether another's node syncinfo shows that another node is ahead or behind ours
+    * Whether another node's syncinfo shows that another node is ahead or behind ours
     *
     * @param info other's node sync info
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
@@ -220,7 +233,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
         Younger
       case Some(_) =>
         //We are on different forks now.
-        if (info.lastBlockIds.view.reverse.exists(m => contains(m))) {
+        if (info.lastBlockIds.view.reverse.exists(id => contains(id))) {
           //Return Younger, because we can send blocks from our fork that other node can download.
           Fork
         } else {
@@ -298,6 +311,12 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     loop(storage.bestBlockId.hashBytes, Seq())
   }
 
+  /**
+   * Returns a set of transactions matching the specified topics
+   *
+   * @param queryBloomTopics topics to search the the block bloom filter for
+   * @return
+   */
   def bloomFilter(queryBloomTopics: IndexedSeq[Array[Byte]]): Seq[Transaction] = {
     val queryBloom: BitSet = Bloom.calcBloom(queryBloomTopics.head, queryBloomTopics.tail)
     val f: BitSet => Boolean = {
@@ -348,11 +367,8 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
       }
     }
 
-    if(limit == 0) {
-      None
-    } else {
-      Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
-    }
+    if (limit == 0) None
+    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
   }
 
   /**
@@ -418,7 +434,7 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
                                        progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, settings, validators), progInfo)
+    (new History(storage, fullBlockProcessor, settings, validators), progInfo)
   }
   
   /**
@@ -433,14 +449,25 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     }
   }
 
+  /**
+   * Checks whether the modifier can be appended to the canonical chain or a tine
+   * in the chain cache
+   *
+   * @param modifier new block to be tracked in history
+   * @return 'true' if the block extends a known block, false otherwise
+   */
+  override def extendsKnownTine(modifier: Block): Boolean = {
+    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
+  }
+
   //TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
-    * Gather blocks from after `from` that should be added to the chain
-    *
-    * @param from the list of known blocks from which to gather continuation
-    * @param size the number of blocks to return after `from`
-    * @return
-    */
+   * Gather blocks from after `from` that should be added to the chain
+   *
+   * @param from the list of known blocks from which to gather continuation
+   * @param size the number of blocks to return after `from`
+   * @return
+   */
   def continuationIds(from: Seq[(ModifierTypeId, ModifierId)],
                       size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
@@ -463,21 +490,27 @@ class History(val storage: Storage, settings: AppSettings, validators: Seq[Block
     * Ids of modifiers, that node with info should download and apply to synchronize
     */
   override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
+    // case where we are at genesis
     if (isEmpty) {
       info.startingPoints
-    } else if (info.lastBlockIds.isEmpty) {
+
+    // case where the remote is at genesis
+    } else if(info.lastBlockIds.isEmpty) {
       val heightFrom = Math.min(height, size)
       val block = storage.modifierById(storage.idAtHeight(heightFrom)).get
       chainBack(block, _ ⇒ false, size).get
+
+    // case where the remote node is younger or on a recent fork (branchPoint less than size blocks back)
     } else {
       val ids = info.lastBlockIds
       val branchPointOpt: Option[ModifierId] = ids.view.reverse
         .find(m ⇒ storage.modifierById(m).isDefined).orElse(None)
+
       branchPointOpt.toSeq.flatMap { branchPoint ⇒
         val remoteHeight = storage.heightOf(branchPoint).get
         val heightFrom = Math.min(height, remoteHeight + size)
         val startBlock = storage.modifierById(storage.idAtHeight(heightFrom)).get
-        chainBack(startBlock, _.parentId == branchPoint, size).get
+        chainBack(startBlock, _.id == branchPoint, size).get
       }
     }
   }
@@ -535,9 +568,22 @@ object History extends Logging {
   }
 
   def readOrGenerate(dataDir: String, settings: AppSettings): History = {
+
+    /** Setup persistent on-disk storage */
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
+    val storage = new Storage(blockStorage, settings)
+
+    /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
+    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
+
+    val validators = Seq(
+      new consensus.DifficultyBlockValidator(storage, blockProcessor)
+      // fixme: JAA - 2020.07.19 - why are these commented out?
+      //new ParentBlockValidator(storage),
+      //new SemanticBlockValidator(FastCryptographicHash)
+    )
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
@@ -546,15 +592,6 @@ object History extends Logging {
       }
     })
 
-    val storage = new Storage(blockStorage, settings)
-
-    val validators = Seq(
-      new DifficultyBlockValidator(storage)
-      // fixme: JAA - 2020.07.19 - why are these commented out?
-      //new ParentBlockValidator(storage),
-      //new SemanticBlockValidator(FastCryptographicHash)
-    )
-
-    new History(storage, settings, validators)
+    new History(storage, blockProcessor, settings, validators)
   }
 }

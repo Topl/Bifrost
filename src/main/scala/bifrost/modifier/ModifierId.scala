@@ -14,3 +14,8 @@ case class ModifierId(hashBytes: Array[Byte]) {
 
   override def toString: String = Base58.encode(hashBytes)
 }
+
+object ModifierId {
+  implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
+
+}

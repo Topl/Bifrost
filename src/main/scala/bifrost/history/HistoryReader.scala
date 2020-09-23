@@ -47,4 +47,13 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
     */
   def compare(other: SI): HistoryComparisonResult
+
+  /**
+   * Checks whether the modifier can be appended to the canonical chain or a tine
+   * in the chain cache
+   *
+   * @param modifier new block to be tracked in history
+   * @return 'true' if the block extends a known block, false otherwise
+   */
+  def extendsKnownTine(modifier: PM): Boolean
 }
