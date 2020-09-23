@@ -109,22 +109,26 @@ class Requests (settings: AppSettings) {
     ).asJson
   }
 
-  def transaction(method: String, params: Json): ByteString = {
-    var requestBody: ByteString = ByteString.empty
-    method match {
-      case "createAssetsPrototype" => {
-        requestBody = ByteString(
-          s"""
-             |{
-             |   "jsonrpc": "2.0",
-             |   "id": "2",
-             |   "method": "$method",
-             |   "params": [$params]
-             |}
-         """.stripMargin)
-      }
-      case _ =>
+  def remove(key: String)(x: Any): Any =
+    x match {
+      case m: Map[String, _] => m.mapValues(remove(key)) - key
+      case l: List[_] => l.map(remove(key))
+      case v => v
     }
+
+  def transaction(params: Json): ByteString = {
+    val method = (params \\ "method").head.asString.get
+    val innerParams = (params \\ "params").head.asArray.get.head
+    var requestBody: ByteString = ByteString.empty
+    requestBody = ByteString(
+        s"""
+           |{
+           |   "jsonrpc": "2.0",
+           |   "id": "2",
+           |   "method": "$method",
+           |   "params": [$innerParams]
+           |}
+       """.stripMargin)
 
     requestBody
   }

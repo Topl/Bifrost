@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.{Http, HttpExt}
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import crypto.PrivateKey25519Companion
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -13,10 +12,9 @@ import org.scalatest.matchers.should.Matchers
 import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.parser.parse
-import keymanager.{KeyManager, KeyManagerRef}
+import keymanager.{KeyManagerRef}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import settings.AppSettings
 
 class GjallarhornRPCSpec extends AsyncFlatSpec
   with Matchers
@@ -53,14 +51,17 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
-         |   "method": "createAssetsPrototype",
+         |   "method": "createTransaction",
          |   "params": [{
-         |     "issuer": "${Base58.encode(pk1.pubKeyBytes)}",
-         |     "recipient": "${Base58.encode(pk2.pubKeyBytes)}",
-         |     "amount": $amount,
-         |     "assetCode": "etherAssets",
-         |     "fee": 0,
-         |     "data": ""
+         |     "method": "createAssetsPrototype",
+         |     "params": [{
+         |        "issuer": "${Base58.encode(pk1.pubKeyBytes)}",
+         |        "recipient": "${Base58.encode(pk2.pubKeyBytes)}",
+         |        "amount": $amount,
+         |        "assetCode": "etherAssets",
+         |        "fee": 0,
+         |        "data": ""
+         |     }]
          |   }]
          |}
          """.stripMargin)

@@ -1,12 +1,8 @@
 package http
 
 import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
-import akka.util.ByteString
 import requests.{ApiRoute, Requests}
 import io.circe.Json
 import io.circe.syntax._
@@ -56,33 +52,21 @@ case class GjallarhornApiRoute(settings: AppSettings, keyManager: ActorRef)(impl
     */
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "createAssetsPrototype" => createAssetsPrototype(params.head, id)
-      case "signTx" => signTx(params.head, id)
-      case "broadcastTx" => broadcastTx(params.head, id)
-      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
-      case "generateKeyfile" => generateKeyfile(params.head, id)
+        case "createTransaction" => createTransaction(params.head, id)
+        case "signTx" => signTx(params.head, id)
+        case "broadcastTx" => broadcastTx(params.head, id)
+        case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
+        case "generateKeyfile" => generateKeyfile(params.head, id)
     }
 
   /**
-    * Creates assets prototype.
-    * @param params - contains the data for the asset.
+    * Creates a transaction.
+    * @param params - contains the data for the transaction.
     * @param id
-    * @return - a response after creating asset prototype.
+    * @return - a response after creating transaction.
     */
-  private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
-    val issuer = (params \\ "issuer").head.asString.get
-    val recipient = (params \\ "recipient").head.asString.get
-    val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-    val assetCode: String =
-      (params \\ "assetCode").head.asString.getOrElse("")
-    val fee: Long =
-      (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-    val data: String = (params \\ "data").headOption match {
-      case Some(dataStr) => dataStr.asString.getOrElse("")
-      case None          => ""
-    }
-
-    val tx = r.transaction("createAssetsPrototype", params)
+  private def createTransaction(params: Json, id: String): Future[Json] = {
+    val tx = r.transaction(params)
     Future{r.sendRequest(tx, "asset")}
   }
 
