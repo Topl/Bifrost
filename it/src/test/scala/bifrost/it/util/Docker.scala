@@ -102,6 +102,6 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
 
 object Docker {
 
-  val bifrostImage: String = "bifrost:latest"
+  val bifrostImage: String = "toplprotocol/bifrost:latest"
   val networkNamePrefix: String = "bifrost-it"
 }
