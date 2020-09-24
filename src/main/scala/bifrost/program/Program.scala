@@ -2,15 +2,14 @@ package bifrost.program
 
 
 import bifrost.exceptions.{ChainProgramException, JsonParsingException}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
-import scala.language.existentials
 
 /**
   *

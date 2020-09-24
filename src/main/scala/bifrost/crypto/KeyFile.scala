@@ -6,10 +6,9 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import bifrost.crypto.PrivateKey25519Companion
-import io.circe.{Decoder, HCursor, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
@@ -67,7 +66,7 @@ object KeyFile {
   def getAESResult(derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
   (Array[Byte], Array[Byte]) = {
     val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
-    var aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
+    val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
 
     val outputText = Array.fill(32)(1: Byte)
@@ -83,7 +82,7 @@ object KeyFile {
 
     val salt = FastCryptographicHash(uuid)
 
-    var (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
+    val (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
 
@@ -102,11 +101,13 @@ object KeyFile {
   def getPkFromSk(sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
 
   def readFile(filename: String): KeyFile = {
-    val jsonString = scala.io.Source.fromFile(filename).mkString
-    parse(jsonString).right.get.as[KeyFile] match {
+    val jsonString = scala.io.Source.fromFile(filename)
+    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
       case Right(f: KeyFile) => f
       case Left(e) => throw new Exception(s"Could not parse KeyFile: $e")
     }
+    jsonString.close()
+    key
   }
 
   implicit val decodeKeyFile: Decoder[KeyFile] = (c: HCursor) => for {

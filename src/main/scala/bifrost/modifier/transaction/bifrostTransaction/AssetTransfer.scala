@@ -2,16 +2,17 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import Transaction.{Nonce, Value}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{AssetBox, Box}
-import bifrost.modifier.transaction.serialization.AssetTransferCompanion
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
+import bifrost.modifier.transaction.serialization.AssetTransferSerializer
 import bifrost.state.TokenBoxRegistry
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
-import com.google.common.primitives.{Bytes, Ints, Longs}
-import io.circe.{Decoder, HCursor, Json}
+import com.google.common.primitives.{Bytes, Ints}
 import io.circe.syntax._
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -28,7 +29,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
   override type M = AssetTransfer
 
-  override lazy val serializer = AssetTransferCompanion
+  override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
@@ -49,7 +50,7 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
   }
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "AssetTransfer".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,

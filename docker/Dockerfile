@@ -1,9 +1,10 @@
-FROM java:8-jre
+FROM oracle/graalvm-ce:19.2.1
 
-RUN mkdir -p /usr/src/myapp
+RUN mkdir -p /usr/src/bifrost
 
-COPY ./bifrost-assembly-1.1.0.jar /usr/src/myapp
+COPY ./bifrost-1.1.0.jar /usr/src/bifrost
 
-WORKDIR /usr/src/myapp
+WORKDIR /usr/src/bifrost
 
+VOLUME ["/usr/src/bifrost/.bifrost"]
 CMD ["java", "-jar", "bifrost-1.1.0.jar"]

@@ -2,32 +2,36 @@ package bifrost.api
 
 import java.io.File
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import bifrost.api.http.WalletApiRoute
-import bifrost.history.History
-import bifrost.mempool.MemPool
-import bifrost.nodeView.GenericNodeViewHolder.{CurrentView, GetCurrentView}
-import bifrost.state.State
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.wallet.Wallet
 import bifrost.BifrostGenerators
-import bifrost.nodeView.NodeViewHolder
+import bifrost.history.History
+import bifrost.http.api.routes.WalletApiRoute
+import bifrost.mempool.MemPool
+import bifrost.modifier.ModifierId
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.settings.BifrostContext
+import bifrost.state.State
+import bifrost.wallet.Wallet
 import io.circe.parser.parse
-import org.scalatest.{Matchers, WordSpec}
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 
-class WalletRPCSpec extends WordSpec
+class WalletRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
   with BifrostGenerators {
@@ -35,10 +39,16 @@ class WalletRPCSpec extends WordSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val actorSystem = ActorSystem(settings.agentName)
-  val nodeViewHolderRef: ActorRef = actorSystem.actorOf(Props(new NodeViewHolder(settings)))
-  nodeViewHolderRef
-  val route = WalletApiRoute(settings, nodeViewHolderRef).route
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+  // save environment into a variable for reference throughout the application
+  protected val bifrostContext = new BifrostContext(settings, None)
+
+  // Create Bifrost singleton actors
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
+
+  // setup route for testing
+  val route: Route = WalletApiRoute(settings, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -48,10 +58,13 @@ class WalletRPCSpec extends WordSpec
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def view() = Await.result((nodeViewHolderRef ? GetCurrentView)
-    .mapTo[CurrentView[History, State, Wallet, MemPool]], 10.seconds)
+  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    10.seconds)
 
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -111,7 +124,8 @@ class WalletRPCSpec extends WordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }
@@ -162,7 +176,8 @@ class WalletRPCSpec extends WordSpec
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txInstance: Transaction = view().pool.getById(Base58.decode(txHash).get).get
+        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txInstance: Transaction = view().pool.getById(txHashId).get
         view().pool.remove(txInstance)
       }
     }
@@ -239,7 +254,7 @@ class WalletRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "lockKeyfile",
            |   "params": [{
-           |     "publicKey": "${newPubKey}",
+           |     "publicKey": "$newPubKey",
            |     "password": "testpassword"
            |   }]
            |}
@@ -260,7 +275,7 @@ class WalletRPCSpec extends WordSpec
            |   "id": "1",
            |   "method": "unlockKeyfile",
            |   "params": [{
-           |     "publicKey": "${newPubKey}",
+           |     "publicKey": "$newPubKey",
            |     "password": "testpassword"
            |   }]
            |}
@@ -273,7 +288,7 @@ class WalletRPCSpec extends WordSpec
 
         //Manually deleting any newly created keyfiles from test keyfile directory (keyfiles/node1) except for the
         //investor, producer and hub keyfiles
-        var d = new File("keyfiles/node1")
+        val d = new File("keyfiles/node1")
         d.listFiles.foreach(x =>
           if(x.toString != "keyfiles/node1/2018-07-06T15-51-30Z-6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ.json" &&
           x.toString != "keyfiles/node1/2018-07-06T15-51-35Z-F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU.json" &&

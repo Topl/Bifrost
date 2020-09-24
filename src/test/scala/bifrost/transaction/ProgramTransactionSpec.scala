@@ -6,25 +6,25 @@ package bifrost.transaction
 
 import java.util.UUID
 
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderCompanion}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
-import bifrost.{BifrostGenerators, ValidGenerators}
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.program.ExecutionBuilderSerializer
+import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
-import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.crypto.PrivateKey25519Companion
 
 import scala.collection.immutable.Seq
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
 
-class ProgramTransactionSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+class ProgramTransactionSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
@@ -75,7 +75,7 @@ class ProgramTransactionSpec extends PropSpec
     }
 
     val messageToSign = Bytes.concat(
-      ExecutionBuilderCompanion.toBytes(executionBuilder),
+      ExecutionBuilderSerializer.toBytes(executionBuilder),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       keyPair._2.pubKeyBytes,
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
@@ -134,9 +134,6 @@ class ProgramTransactionSpec extends PropSpec
 
     val (priv: PrivateKey25519, sender: PublicKey25519Proposition) = keyPairSetGen.sample.get.head
 
-    val gen: Gen[ExecutionBuilder] = validExecutionBuilderGen(timestamp - effDelta, timestamp + expDelta)
-    val validExecutionBuilder: ExecutionBuilder = sampleUntilNonEmpty(gen)
-
     val state =
       s"""
          |{ "a": "0" }
@@ -148,7 +145,6 @@ class ProgramTransactionSpec extends PropSpec
 
     val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
 
-//    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
     val proposition = sender
 
     val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)), Seq(stateBoxUUID), Seq(codeBox.id))
@@ -163,8 +159,6 @@ class ProgramTransactionSpec extends PropSpec
           case (nonce, value) => (PublicKeyNoncedBox.idFromBox(prop, nonce), prop)
         }
       }
-
-    val senderFeePreBoxes = feePreBoxes(sender)
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -266,16 +260,16 @@ class ProgramTransactionSpec extends PropSpec
   }*/
 
 
-  property(
+  /* property(
     "ProgramTransaction which has preFeeBoxes summing to less than fee amounts " +
       "will error on semantic validation") {
 
-  }
+  } */
 
-  property("ProgramTransaction which has negative timestamp " +
+  /* property("ProgramTransaction which has negative timestamp " +
              "will error on semantic validation") {
 
-  }
+  } */
 
 
 }

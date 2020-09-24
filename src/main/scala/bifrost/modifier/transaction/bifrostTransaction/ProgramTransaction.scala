@@ -1,9 +1,9 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import Transaction.Nonce
 import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{PolyBox, PublicKeyNoncedBox}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
@@ -33,7 +33,7 @@ abstract class ProgramTransaction extends Transaction {
     }
 
   lazy val commonJson: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "owner" -> Base58.encode(owner.pubKeyBytes).asJson,
     "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
       .asJson

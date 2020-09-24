@@ -1,15 +1,11 @@
 package bifrost.modifier.box.proposition
 
 import bifrost.crypto.PrivateKey25519
-import com.google.common.primitives.{Bytes, Ints}
-import bifrost.serialization.Serializer
 import bifrost.modifier.box.proposition.PublicKey25519Proposition._
-import bifrost.modifier.box.proposition._
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
-
-import scala.util.Try
 
 //noinspection ScalaStyle
 case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
@@ -41,7 +37,7 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
 
   override type M = MofNProposition
 
-  override def serializer: Serializer[MofNProposition] = MofNPropositionSerializer
+  override def serializer: BifrostSerializer[MofNProposition] = MofNPropositionSerializer
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: MofNProposition => p.m == m && p.setOfPubKeyBytes == setOfPubKeyBytes
@@ -49,27 +45,4 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(serializer.toBytes(this))) % Int.MaxValue).toInt
-
-}
-
-object MofNPropositionSerializer extends Serializer[MofNProposition] {
-  override def toBytes(obj: MofNProposition): Array[Byte] = Bytes.concat(
-    Ints.toByteArray(obj.m),
-    Ints.toByteArray(obj.setOfPubKeyBytes.size),
-    obj.setOfPubKeyBytes.toList.sortBy(Base58.encode).foldLeft(Array[Byte]())((a: Array[Byte],
-                                                                               b: Array[Byte]) => a ++ b)
-  )
-
-  override def parseBytes(bytes: Array[Byte]): Try[MofNProposition] = Try {
-
-    val m = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val n = Ints.fromByteArray(bytes.slice(Ints.BYTES, 2 * Ints.BYTES))
-
-    val setPubKeys = (0 until n).map { i =>
-      bytes.slice(2 * Ints.BYTES + i * Constants25519.PubKeyLength,
-                  2 * Ints.BYTES + (i + 1) * Constants25519.PubKeyLength)
-    }.foldLeft(Set[Array[Byte]]())((set: Set[Array[Byte]], pubKey: Array[Byte]) => set + pubKey)
-
-    MofNProposition(m, setPubKeys)
-  }
 }
