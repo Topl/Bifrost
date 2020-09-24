@@ -3,21 +3,22 @@ package bifrost.state
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.modifier.block.Block
 import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
-import com.google.common.primitives.{Bytes, Ints}
-import io.iohk.iodb.ByteArrayWrapper
-import io.circe.syntax._
-import org.scalacheck.Gen
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.crypto.PrivateKey25519Companion
-import bifrost.program.ExecutionBuilderCompanion
+import bifrost.modifier.box._
+import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.program.ExecutionBuilderSerializer
+import com.google.common.primitives.{Bytes, Ints}
+import io.circe.syntax._
+import io.iohk.iodb.ByteArrayWrapper
+import org.scalacheck.Gen
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Random}
+import scala.util.Failure
 
 /**
   * Created by Matt Kindy on 6/7/2017.
@@ -37,16 +38,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] =
       (0 until numInvestmentBoxes).map { _ => positiveLongGen.sample.get -> positiveLongGen.sample.get }
 
-    val investmentBoxIds: IndexedSeq[Array[Byte]] =
-      preInvestmentBoxes.map(n => {
-        PublicKeyNoncedBox.idFromBox(owner, n._1)})
-
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(owner -> (0 until numFeeBoxes).map { _ => preFeeBoxGen().sample.get })
-
-    val feePreBoxIds: IndexedSeq[Array[Byte]] = feePreBoxes(owner).map {
-      case (nonce, _) => PublicKeyNoncedBox.idFromBox(owner, nonce)
-    }
 
     val fees = feePreBoxes.map {
       case (prop, preBoxes) =>
@@ -60,10 +53,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         prop -> possibleFeeValue
     }
 
-    val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feePreBoxIds
-
     val messageToSign = Bytes.concat(
-      ExecutionBuilderCompanion.toBytes(executionBuilder),
+      ExecutionBuilderSerializer.toBytes(executionBuilder),
       owner.pubKeyBytes,
       data.getBytes)
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
@@ -105,13 +96,12 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
-          10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
@@ -119,14 +109,15 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
         val codeBox = programCreation.newBoxes.drop(2).head.asInstanceOf[CodeBox]
-        val returnedPolyBoxes: Traversable[PolyBox] = programCreation.newBoxes.tail.drop(2).map {
+        val returnedPolyBox: PolyBox = programCreation.newBoxes.last match {
           case p: PolyBox => p
           case _ => throw new Exception("Was expecting PolyBoxes but found something else")
         }
 
-        val stateBoxBytes = StateBoxSerializer.toBytes(stateBox)
-        val codeBoxBytes = CodeBoxSerializer.toBytes(codeBox)
-        val executionBoxBytes = ExecutionBoxSerializer.toBytes(executionBox)
+        val stateBoxBytes = BoxSerializer.toBytes(stateBox)
+        val codeBoxBytes = BoxSerializer.toBytes(codeBox)
+        val executionBoxBytes = BoxSerializer.toBytes(executionBox)
+        val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
 
         val necessaryBoxesSC = StateChanges(
           Set(),
@@ -135,40 +126,35 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(23))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(23)))
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, Ints.toByteArray(24))
+          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
           .get
 
-        /*require(newState.storage.get(ByteArrayWrapper(box.id))
-                match {
-                  case Some(wrapper) => wrapper.data sameElements boxBytes
+        require(newState.storage.get(ByteArrayWrapper(returnedPolyBox.id)) match {
+                  case Some(wrapper) => wrapper.data sameElements returnedPolyBoxBytes
                   case None => false
-                })*/
+                })
 
-        require(returnedPolyBoxes
-                  .forall(pb => newState.storage.get(ByteArrayWrapper(pb.id)) match {
-                    case Some(wrapper) => wrapper.data sameElements PolyBoxSerializer.toBytes(pb)
-                    case None => false
-                  }))
-
-        //TODO split into separate test
         require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+          case None ⇒ false
         })
 
         require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
           case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+          case None ⇒ false
         })
 
         /* Checks that the total sum of polys returned is total amount submitted minus total fees */
-        returnedPolyBoxes.map(_.value).sum shouldEqual
+        returnedPolyBox.value shouldEqual
           preExistingPolyBoxes
             .map { case pb: PolyBox => pb.value }
             .sum - programCreation.fee
@@ -176,12 +162,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         /* Checks that the amount returned in polys is equal to amount sent in less fees */
         programCreation.fees.foreach { case (prop, fee) =>
-
-          val output = (returnedPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
-
-          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop =>
-            pb.value }).sum
-
+          val output = if (returnedPolyBox.proposition equals prop) returnedPolyBox.value else 0
+          val input = (preExistingPolyBoxes collect { case pb: PolyBox if pb.proposition equals prop => pb.value }).sum
           val investment = 0
 
           output shouldEqual (input - fee - investment)
@@ -219,7 +201,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(25))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(25)))
           .get
 
         val newState = preparedState.validate(invalidPC)
@@ -307,25 +289,24 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
 
         val firstCCAddBlock = Block(
-          Array.fill(Block.SignatureLength)(1: Byte),
+          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
-          10L,
-          settings.version
+          settings.forgingSettings.version
         )
 
         val necessaryState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(29))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
           .get
 
-        val preparedChanges = necessaryState.changes(firstCCAddBlock).get
+        val preparedChanges = StateChanges(firstCCAddBlock).get
         val preparedState = necessaryState
-          .applyChanges(preparedChanges, Ints.toByteArray(30))
+          .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
           .get
-          .applyChanges(necessaryBoxesSC, Ints.toByteArray(31))
+          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(31)))
           .get
 
         val newState = preparedState.validate(cc)

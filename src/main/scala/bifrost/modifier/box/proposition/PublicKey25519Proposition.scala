@@ -2,7 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
-import bifrost.serialization.Serializer
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
@@ -26,7 +26,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   override type M = PublicKey25519Proposition
 
-  override def serializer: Serializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
+  override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
@@ -34,19 +34,15 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
-
-}
-
-object PublicKey25519PropositionSerializer extends Serializer[PublicKey25519Proposition] {
-  override def toBytes(obj: PublicKey25519Proposition): Array[Byte] = obj.pubKeyBytes
-
-  override def parseBytes(bytes: Array[Byte]): Try[PublicKey25519Proposition] = Try(PublicKey25519Proposition(bytes))
 }
 
 object PublicKey25519Proposition {
+
   val AddressVersion: Byte = 1
   val ChecksumLength = 4
   val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
+
+  // TODO: Jing - consider moving these methods into the case class above
 
   def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
 

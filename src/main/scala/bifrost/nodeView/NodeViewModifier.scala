@@ -1,26 +1,31 @@
 package bifrost.nodeView
 
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
-import bifrost.nodeView.NodeViewModifier.ModifierId
+import bifrost.modifier.ModifierId
+import bifrost.modifier.block.{Block, BlockSerializer}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.serialization.TransactionSerializer
+import bifrost.network.message.InvData
 import bifrost.serialization.{BytesSerializable, JsonSerializable}
+import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.{BifrostEncoder, BifrostEncoding}
 import com.typesafe.config.ConfigFactory
-import scorex.crypto.encode.Base58
+import supertagged.TaggedType
 
 import scala.util.Try
 
-trait NodeViewModifier extends BytesSerializable with JsonSerializable {
+trait NodeViewModifier extends BytesSerializable with BifrostEncoding with JsonSerializable {
   self =>
 
-  import NodeViewModifier.{ModifierId, ModifierTypeId}
+  import NodeViewModifier.ModifierTypeId
 
   val modifierTypeId: ModifierTypeId
 
   //todo: check statically or dynamically output size
   def id: ModifierId
 
-  def encodedId: String = Base58.encode(id)
+  def encodedId: String = encoder.encodeId(id)
 
+  def serializedId: Array[Byte]
 }
 
 /**
@@ -31,18 +36,40 @@ object NodeViewModifier {
   val DefaultIdSize = 32 // in bytes
 
   //TODO implement ModifierTypeId as a trait
-  type ModifierTypeId = Byte
-  type ModifierId = Array[Byte]
+  object ModifierTypeId extends TaggedType[Byte]
+  type ModifierTypeId = ModifierTypeId.Type
 
   val ModifierIdSize: Int = Try(ConfigFactory.load().getConfig("app").getInt("modifierIdSize")).getOrElse(DefaultIdSize)
+
+  val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
+    Map(
+      Block.modifierTypeId -> BlockSerializer,
+      Transaction.modifierTypeId -> TransactionSerializer
+    )
+
+  def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
+    List(ids.headOption, ids.lastOption)
+      .flatten
+      .map { case (typeId, id) => s"($typeId,${enc.encodeId(id)})" }
+      .mkString("[", "..", "]")
+  }
+
+  def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId])(implicit encoder: BifrostEncoder): String = {
+    idsToString(ids.map(id => (modifierType, id)))
+  }
+
+  def idsToString(invData: InvData)(implicit encoder: BifrostEncoder): String = idsToString(invData.typeId, invData.ids)
 }
 
 
 
-trait PersistentNodeViewModifier[P <: Proposition, TX <: GenericTransaction[P]] extends NodeViewModifier {
+trait PersistentNodeViewModifier extends NodeViewModifier {
 
   def parentId: ModifierId
+}
 
-  // with Dotty is would be Seq[TX] | Nothing
-  def transactions: Option[Seq[TX]]
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
+  extends PersistentNodeViewModifier {
+
+  def transactions: Seq[TX]
 }

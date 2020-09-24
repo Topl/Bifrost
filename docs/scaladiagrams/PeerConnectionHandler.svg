@@ -15,11 +15,11 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="44.846" cy="-18" rx="44.6926" ry="18"/>
 <text text-anchor="middle" x="44.846" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Buffering</text>
 </g>
-<!-- ScorexLogging -->
+<!-- Logging -->
 <g id="node2" class="node">
-<title>ScorexLogging</title>
+<title>Logging</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="172.846" cy="-18" rx="64.9885" ry="18"/>
-<text text-anchor="middle" x="172.846" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">ScorexLogging</text>
+<text text-anchor="middle" x="172.846" y="-14.3" font-family="Times,serif" font-size="14.00" fill="#000000">Logging</text>
 </g>
 <!-- PeerConnectionHandler -->
 <g id="node3" class="node">
@@ -33,9 +33,9 @@
 <path fill="none" stroke="#000000" d="M142.5118,-72.937C123.7484,-62.3826 99.5881,-48.7924 79.9921,-37.7697"/>
 <polygon fill="#000000" stroke="#000000" points="81.4966,-34.6002 71.0649,-32.7481 78.0647,-40.7013 81.4966,-34.6002"/>
 </g>
-<!-- PeerConnectionHandler&#45;&gt;ScorexLogging -->
+<!-- PeerConnectionHandler&#45;&gt;Logging -->
 <g id="edge3" class="edge">
-<title>PeerConnectionHandler&#45;&gt;ScorexLogging</title>
+<title>PeerConnectionHandler&#45;&gt;Logging</title>
 <path fill="none" stroke="#000000" d="M172.846,-71.8314C172.846,-64.131 172.846,-54.9743 172.846,-46.4166"/>
 <polygon fill="#000000" stroke="#000000" points="176.3461,-46.4132 172.846,-36.4133 169.3461,-46.4133 176.3461,-46.4132"/>
 </g>

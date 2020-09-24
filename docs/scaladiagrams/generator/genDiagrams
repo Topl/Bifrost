@@ -1,7 +1,7 @@
 #!/bin/bash
 # Built from https://github.com/mikeyhu/scaladiagrams
 
-declare -a arr=("BifrostHistory" "BifrostNodeViewHolder" "BifrostLocalInterface" "BifrostApp" "Forger" "ScorexLogging" "DifficultyBlockValidator" "PeerSynchronizer" "SwaggerDocService" "ScorexObserver" "PolyTransferGenerator" "NetworkController" "PeerManager" "PeerConnectionHandler")
+declare -a arr=("BifrostHistory" "BifrostNodeViewHolder" "BifrostLocalInterface" "BifrostApp" "Forger" "Logging" "DifficultyBlockValidator" "PeerSynchronizer" "SwaggerDocService" "ScorexObserver" "PolyTransferGenerator" "NetworkController" "PeerManager" "PeerConnectionHandler")
 
 # Get full diagram
 ./scaladiagrams -l -s ~/git/bifrost/src/main/scala/bifrost/ | dot -Grankdir=LR -Tsvg > ~/git/bifrost/docs/scaladiagrams/projectBifrost.svg
