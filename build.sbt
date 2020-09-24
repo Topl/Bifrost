@@ -103,7 +103,7 @@ libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
   "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.10.8",
-  "com.typesafe" % "config" % "1.3.4",
+  "com.typesafe" % "config" % "1.4.0",
 )
 
 scalacOptions ++= Seq(
