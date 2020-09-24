@@ -4,15 +4,16 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.program.ProgramPreprocessor
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.box.{Box, CodeBox}
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.serialization.CodeBoxCreationCompanion
+import bifrost.modifier.box.{Box, CodeBox}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.transaction.serialization.CodeBoxCreationSerializer
+import bifrost.program.ProgramPreprocessor
+import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.{Json, JsonObject}
 import io.circe.syntax._
+import io.circe.{Json, JsonObject}
 import scorex.crypto.encode.Base58
 
 import scala.util.Try
@@ -26,7 +27,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
   override type M = CodeCreation
 
-  lazy val serializer = CodeBoxCreationCompanion
+  lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationSerializer
 
   override def toString: String = s"CodeCreation(${json.noSpaces})"
 
@@ -56,7 +57,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
   }
 
   override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id).asJson,
+    "txHash" -> id.toString.asJson,
     "txType" -> "CodeCreation".asJson,
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "to" -> Base58.encode(to.pubKeyBytes).asJson,

@@ -1,7 +1,7 @@
 package bifrost.utils
 
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.{Logger, StrictLogging}
 
 trait Logging extends StrictLogging {
-  protected def log = logger
+  protected def log: Logger = logger
 }

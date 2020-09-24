@@ -5,5 +5,4 @@ trait NodeViewComponent {
 
   type NVCT >: self.type <: NodeViewComponent
 
-
 }

@@ -1,21 +1,28 @@
 package bifrost.network.message
 
-import com.google.common.primitives.{Bytes, Ints}
-import bifrost.crypto.FastCryptographicHash._
-import bifrost.network.ConnectedPeer
-import bifrost.serialization.{BytesSerializable, Serializer}
+import akka.actor.DeadLetterSuppression
+import bifrost.network.peer.ConnectedPeer
 
 import scala.util.{Success, Try}
 
 case class Message[Content](spec: MessageSpec[Content],
                             input: Either[Array[Byte], Content],
-                            source: Option[ConnectedPeer]) extends BytesSerializable {
+                            source: Option[ConnectedPeer])
+  extends DeadLetterSuppression {
 
-  lazy val dataBytes = input match {
+  import Message._
+
+  /**
+   * Message data bytes
+   */
+  lazy val dataBytes: Array[Byte] = input match {
     case Left(db) => db
     case Right(d) => spec.toBytes(d)
   }
 
+  /**
+   * Structured message content
+   */
   lazy val data: Try[Content] = input match {
     case Left(db) => spec.parseBytes(db)
     case Right(d) => Success(d)
@@ -23,34 +30,18 @@ case class Message[Content](spec: MessageSpec[Content],
 
   lazy val dataLength: Int = dataBytes.length
 
-  override type M = Message[Content]
-
-  override def serializer: Serializer[Message[Content]] = new MessageSerializer[Content]
-}
-
-class MessageSerializer[Content] extends Serializer[Message[Content]] {
-
-  import Message.{ChecksumLength, MAGIC}
-
-  override def toBytes(obj: Message[Content]): Array[Byte] = {
-    val dataWithChecksum = if (obj.dataLength > 0) {
-      val checksum = hash(obj.dataBytes).take(ChecksumLength)
-      Bytes.concat(checksum, obj.dataBytes)
-    } else obj.dataBytes //empty array
-
-    MAGIC ++ Array(obj.spec.messageCode) ++ Ints.toByteArray(obj.dataLength) ++ dataWithChecksum
+  /**
+   * @return serialized message length in bytes
+   */
+  def messageLength: Int = {
+    if (dataLength > 0) HeaderLength + ChecksumLength + dataLength else HeaderLength
   }
-
-  //TODO move MessageHandler.parseBytes here
-  override def parseBytes(bytes: Array[Byte]): Try[Message[Content]] = ???
 }
 
 object Message {
   type MessageCode = Byte
 
-  val MAGIC = Array(0x12: Byte, 0x34: Byte, 0x56: Byte, 0x78: Byte)
-
-  val MagicLength = MAGIC.length
-
-  val ChecksumLength = 4
+  val MagicLength: Int = 4
+  val ChecksumLength: Int = 4
+  val HeaderLength: Int = MagicLength + 5
 }

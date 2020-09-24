@@ -4,13 +4,13 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.forging.ForgingSettings
-import bifrost.modifier.box.{Box, BoxSerializer, ProgramBox}
+import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.box.{Box, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
@@ -27,14 +27,14 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
       .map(_.data)
 
   def getBox(k: UUID) : Option[Box] =
-    getBoxId(k).flatMap(closedBox(_))
+    getBoxId(k).flatMap(closedBox)
 
 
   //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
   //YT NOTE - Might be better to use transactions as parameters instead of boxes
 
   def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${Base58.encode(newVersion)}${Console.RESET}")
+    log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
     val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
 
@@ -53,8 +53,8 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
         .map(_.value)
 
     pbrStore.update(
-      ByteArrayWrapper(newVersion),
-      uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw(_)),
+      ByteArrayWrapper(newVersion.hashBytes),
+      uuidsToRemove.map(ProgramBoxRegistry.uuidToBaw),
       uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
     )
 
@@ -68,11 +68,11 @@ case class ProgramBoxRegistry(pbrStore: LSMStore, stateStore: LSMStore) extends 
 
 
   def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[ProgramBoxRegistry] = Try {
-    if (pbrStore.lastVersionID.exists(_.data sameElements version)) {
+    if (pbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
-      log.debug(s"Rolling back ProgramBoxRegistry to: ${Base58.encode(version)}")
-      pbrStore.rollback(ByteArrayWrapper(version))
+      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
+      pbrStore.rollback(ByteArrayWrapper(version.hashBytes))
       ProgramBoxRegistry(pbrStore, stateStore)
     }
   }
@@ -96,13 +96,13 @@ object ProgramBoxRegistry extends Logging {
         ByteArrayWrapper.fromLong(v.getLeastSignificantBits).data))
   }
 
-  def readOrGenerate(settings: ForgingSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
-    val pbrDirOpt = settings.pbrDirOpt
-    val logDirOpt = settings.logDirOpt
+  def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
+    val pbrDirOpt = settings.pbrDir
+    val logDirOpt = settings.logDir
     pbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
   }
 
-  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: ForgingSettings, stateStore: LSMStore): ProgramBoxRegistry = {
+  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): ProgramBoxRegistry = {
     val iFile = new File(s"$pbrDir")
     iFile.mkdirs()
     val pbrStore = new LSMStore(iFile)

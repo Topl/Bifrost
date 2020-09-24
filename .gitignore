@@ -7,6 +7,7 @@ scorex.yaml
 .project
 .metals/
 .bloop/
+*.iml
 
 # scala build folders
 target
@@ -23,15 +24,18 @@ classes
 *.data
 .history
 .bifrost/
+keyfiles/
 
 # for temporary experiments
 sheet.scala
 examples/src/main/scala/examples/sigmastate/
 examples/lib/
-keyfiles/
 dumps/
-
-docker/project-bifrost-assembly-0.1.1-alpha.jar
+local/
+local.conf
 
 # monitoring persistent data files
-docker/monitoring_tools/data/
+monit/data/
+
+# docker
+docker/*.jar

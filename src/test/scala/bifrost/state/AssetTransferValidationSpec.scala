@@ -1,18 +1,5 @@
 package bifrost.state
 
-import java.time.Instant
-
-import bifrost.modifier.block.Block
-import bifrost.crypto.Signature25519
-import bifrost.modifier.transaction.bifrostTransaction.AssetTransfer
-import bifrost.modifier.box._
-import com.google.common.primitives.Ints
-import io.iohk.iodb.ByteArrayWrapper
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import scorex.crypto.signatures.Curve25519
-
-import scala.util.Failure
-
 /**
   * Created by Matt Kindy on 6/7/2017.
   */
@@ -22,12 +9,11 @@ class AssetTransferValidationSpec extends StateSpec {
     forAll(validAssetTransferGen) {
       assetTransfer: AssetTransfer =>
         val block = Block(
-          Array.fill(Block.SignatureLength)(-1: Byte),
+          Array.fill(Block.signatureLength)(-1: Byte),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.SignatureLength)(0: Byte)),
+          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetTransfer),
-          10L,
           settings.version
         )
 

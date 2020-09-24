@@ -4,21 +4,18 @@ package bifrost.history
   * Created by cykoz on 7/11/2017.
   */
 
-import bifrost.modifier.block.{Block, Bloom}
-import bifrost.state.StateSpec
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation}
+import bifrost.modifier.block.Bloom
 import bifrost.{BifrostGenerators, ValidGenerators}
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.scalatest.{Matchers, PropSpec}
-import scorex.crypto.encode.Base58
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 
 import scala.collection.BitSet
-import scala.util.Try
 
-class BloomFilterSpec extends PropSpec
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+
+class BloomFilterSpec extends AnyPropSpec
+  with ScalaCheckPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BifrostGenerators
   with ValidGenerators {
@@ -43,7 +40,6 @@ class BloomFilterSpec extends PropSpec
     arbitBoxGen.sample.get,
     signatureGen.sample.get,
     Seq(tx),
-    10L
 
     forAll(validBifrostTransactionSeqGen) { txs =>
       val block = Block(history.bestBlockId,
@@ -51,7 +47,6 @@ class BloomFilterSpec extends PropSpec
                                arbitBoxGen.sample.get,
                                signatureGen.sample.get,
                                txs,
-                               10L,
                                settings.version
       )
 

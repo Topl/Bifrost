@@ -1,12 +1,10 @@
 package bifrost.crypto
 
-import bifrost.serialization.Serializer
+import bifrost.crypto.serialization.MultiSignature25519Serializer
 import bifrost.modifier.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
-import com.google.common.primitives.Ints
+import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
-
-import scala.util.Try
 
 case class MultiSignature25519(signatureSet: Set[Signature25519])
   extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
@@ -31,7 +29,7 @@ case class MultiSignature25519(signatureSet: Set[Signature25519])
 
   override type M = MultiSignature25519
 
-  override def serializer: Serializer[MultiSignature25519] = MultiSignature25519Serializer
+  override def serializer: BifrostSerializer[MultiSignature25519] = MultiSignature25519Serializer
 
   override def toString: String = s"MultiSignature25519(${
     signatureSet.tail.map(s => Base58.encode(s.signature))
@@ -39,25 +37,6 @@ case class MultiSignature25519(signatureSet: Set[Signature25519])
   })"
 }
 
-object MultiSignature25519Serializer extends Serializer[MultiSignature25519] {
-  override def toBytes(obj: MultiSignature25519): Array[Byte] =
-    Ints.toByteArray(obj.signatureSet.size) ++
-      obj
-        .signatureSet
-        .foldLeft(Array[Byte]())((total, sig) => total ++ sig.signature)
-
-  override def parseBytes(bytes: Array[Byte]): Try[MultiSignature25519] = Try {
-    val numSignatures = Ints.fromByteArray(bytes.take(Ints.BYTES))
-    val signatureSet: Set[Signature25519] = (0 until numSignatures).map {
-      i =>
-        Signature25519(bytes.slice(Ints.BYTES + i * MultiSignature25519.SignatureSize,
-                                   Ints.BYTES + (i + 1) * MultiSignature25519.SignatureSize))
-    }.toSet
-
-    MultiSignature25519(signatureSet)
-  }
-}
-
 object MultiSignature25519 {
-  lazy val SignatureSize = Signature25519.SignatureSize
+  lazy val SignatureSize: Int = Signature25519.SignatureSize
 }
