@@ -4,7 +4,7 @@ import bifrost.crypto.serialization.PrivateKey25519Serializer
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.utils.serialization.BifrostSerializer
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, Signature}
 
 case class PrivateKey25519( privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte] ) extends Secret {
 

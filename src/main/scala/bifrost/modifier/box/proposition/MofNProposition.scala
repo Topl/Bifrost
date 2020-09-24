@@ -5,7 +5,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition._
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, Signature}
 
 //noinspection ScalaStyle
 case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])

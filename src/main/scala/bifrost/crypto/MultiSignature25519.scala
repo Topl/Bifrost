@@ -4,7 +4,7 @@ import bifrost.crypto.serialization.MultiSignature25519Serializer
 import bifrost.modifier.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, Signature}
 
 case class MultiSignature25519(signatureSet: Set[Signature25519])
   extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
