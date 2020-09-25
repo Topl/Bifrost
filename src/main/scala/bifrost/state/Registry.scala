@@ -1,11 +1,7 @@
 package bifrost.state
 
-import bifrost.modifier.ModifierId
-import bifrost.modifier.box.Box
-import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 

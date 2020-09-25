@@ -125,7 +125,7 @@ case class State ( override val version: VersionTag,
           s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
         )
 
-      if ( storage.lastVersionID.isDefined ) boxIdsToRemove.foreach(i => require(getBox(i.data).isDefined))
+      if ( storage.lastVersionID.isDefined ) boxIdsToRemove.foreach(id => require(getBox(id.data).isDefined))
 
       //TokenBoxRegistry must be updated before state since it uses the boxes from state that are being removed in the update
       if ( tbrOpt.isDefined ) tbrOpt.get.updateFromState(newVersion, boxIdsToRemove, boxesToAdd)
@@ -230,16 +230,16 @@ object State extends Logging {
 
     val iFile = new File(s"$dataDir/state")
     iFile.mkdirs()
-    val stateStorage = new LSMStore(iFile)
+    val storage = new LSMStore(iFile)
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run ( ): Unit = {
-        stateStorage.close()
+        storage.close()
       }
     })
 
     val version: VersionTag = ModifierId(
-      stateStorage.lastVersionID
+      storage.lastVersionID
         .fold(Array.emptyByteArray)(_.data)
       )
 
@@ -248,8 +248,8 @@ object State extends Logging {
     val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys
       .map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get)))
       .orNull
-    val pbr = ProgramBoxRegistry.readOrGenerate(settings, stateStorage).orNull
-    val tbr = TokenBoxRegistry.readOrGenerate(settings, stateStorage).orNull
+    val pbr = ProgramBoxRegistry.readOrGenerate(settings, storage).orNull
+    val tbr = TokenBoxRegistry.readOrGenerate(settings, storage).orNull
     if ( pbr == null ) log.info("Initializing state without programBoxRegistry")
     else log.info("Initializing state with programBoxRegistry")
     if ( tbr == null ) log.info("Initializing state without tokenBoxRegistry")
@@ -261,6 +261,6 @@ object State extends Logging {
       }")
     else log.info("Initializing state to watch for all public keys")
 
-    State(stateStorage, version, pbr, tbr, nodeKeys)
+    State(version, storage, pbr, tbr, nodeKeys)
   }
 }

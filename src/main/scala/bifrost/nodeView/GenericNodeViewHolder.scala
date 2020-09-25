@@ -398,6 +398,15 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     }
   }
 
+  /**
+    * Attempts to update the local view of state by applying a set of blocks
+    *
+    * @param history the initial view of history prior to updating
+    * @param stateToApply the initial view of state prior to updating
+    * @param suffixTrimmed ???
+    * @param progressInfo class with blocks that need to be applied to state
+    * @return
+    */
   protected def applyState(history: HIS,
                            stateToApply: MS,
                            suffixTrimmed: IndexedSeq[PMOD],

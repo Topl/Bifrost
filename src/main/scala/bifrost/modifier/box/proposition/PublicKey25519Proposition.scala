@@ -16,25 +16,27 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   import PublicKey25519Proposition._
 
-  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
+  override type M = PublicKey25519Proposition
 
   lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
 
-  override def toString: String = address
-
-  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
-
-  override type M = PublicKey25519Proposition
+  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
 
   override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
-  override def equals(obj: scala.Any): Boolean = obj match {
+  override def toString: String = address
+
+  override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
     case _ => false
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
+
+  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
 }
+
+
 
 object PublicKey25519Proposition {
 

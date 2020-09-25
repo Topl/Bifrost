@@ -12,7 +12,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import bifrost.program.Program
 import bifrost.settings.AppSettings
-import bifrost.state.{ProgramBoxRegistry, State, StateReader}
+import bifrost.state.{ProgramBoxRegistry, ProgramId, State, StateReader}
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -55,7 +55,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
   //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => programBoxRegistry.getBox(v).get.asInstanceOf[StateBox])
 
-  val codeBoxes: Seq[Array[Byte]] = executionBox.codeBoxIds
+  val codeBoxes: Seq[ProgramId] = executionBox.codeBoxIds
 
   //lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(state.head._1.id)
 
@@ -71,24 +71,25 @@ case class ProgramMethodExecution(state: Seq[StateBox],
       fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
   )
 
-  override lazy val newBoxes: Traversable[Box] = {
-//    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
+  override lazy val newBoxes: Traversable[StateBox] = {
+    //    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
 
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
-    try {
-      Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
-    } catch {
-      case e: Exception => throw e.getCause
-    }
+    val programResult: Json =
+      try {
+        Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
+      } catch {
+        case e: Exception => throw e.getCause
+      }
 
-    val programResult: Json = Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
+    //val programResult: Json = Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
 
     // enforces that the only editable state box is the first state box
     val updatedStateBox: StateBox = StateBox(owner, nonce, state.head.value, programResult)
 
-    IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
+    IndexedSeq(updatedStateBox) //++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(

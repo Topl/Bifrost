@@ -3,13 +3,14 @@ package bifrost.modifier.box
 import java.util.UUID
 
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.state.{ProgramBoxRegistry, ProgramId}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 class ProgramBox(override val proposition: PublicKey25519Proposition,
                  override val nonce: Long,
-                 override val value: UUID) extends Box(proposition, nonce, value) {
+                 override val value: ProgramId) extends Box(proposition, nonce, value) {
 
   lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
