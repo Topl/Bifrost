@@ -65,7 +65,7 @@ val testingDependencies = Seq(
 )
 
 val cryptoDependencies = Seq(
-  "org.scorexfoundation" %% "scrypto" % "1.2.3",
+  "org.scorexfoundation" %% "scrypto" % "1.3.3",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
   "org.whispersystems" % "curve25519-java" % "0.4.1"
 )
@@ -73,7 +73,7 @@ val cryptoDependencies = Seq(
 val miscDependencies = Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.chuusai" %% "shapeless" % "2.3.3",
-  "com.google.guava" % "guava" % "19.0",
+  "com.google.guava" % "guava" % "29.0-jre",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
   "com.joefkelley" %% "argyle" % "1.0.0",
