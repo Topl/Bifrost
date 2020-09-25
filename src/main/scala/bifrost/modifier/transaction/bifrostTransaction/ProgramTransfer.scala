@@ -51,7 +51,7 @@ case class ProgramTransfer(from: PublicKey25519Proposition,
 
     val uuid = UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(to, nonce))
 
-    Seq(ExecutionBox(to, nonce, uuid, executionBox.stateBoxUUIDs, executionBox.codeBoxIds))
+    Seq(ExecutionBox(to, nonce, uuid, executionBox.stateBoxIds, executionBox.codeBoxIds))
   }
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(

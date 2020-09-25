@@ -85,23 +85,18 @@ case class ProgramMethodExecution(state: Seq[StateBox],
 
     val programResult: Json = Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
 
+    // enforces that the only editable state box is the first state box
     val updatedStateBox: StateBox = StateBox(owner, nonce, state.head.value, programResult)
 
     IndexedSeq(updatedStateBox) ++ deductedFeeBoxes(hashNoNonces)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "state" -> state.map {
-      sb => sb.json
-    }.asJson,
-    "code" -> code.map {
-      cb => cb.json
-    }.asJson,
+    "state" -> state.map {_.json}.asJson,
+    "code" -> code.map {_.json}.asJson,
     "methodName" -> methodName.asJson,
     "methodParams" -> methodParams,
-    "newBoxes" -> newBoxes.map {
-      nb => nb.json
-    }.toSeq.asJson
+    "newBoxes" -> newBoxes.map {_.json}.toSeq.asJson
   )).asJson
 
   override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer

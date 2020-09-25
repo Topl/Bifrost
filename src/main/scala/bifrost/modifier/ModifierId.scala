@@ -9,7 +9,7 @@ case class ModifierId(hashBytes: Array[Byte]) {
 
   override def equals(o: Any): Boolean = {
     o.isInstanceOf[ModifierId] &&
-    java.util.Arrays.equals(hashBytes, o.asInstanceOf[ModifierId].hashBytes)
+      java.util.Arrays.equals(hashBytes, o.asInstanceOf[ModifierId].hashBytes)
   }
 
   override def toString: String = Base58.encode(hashBytes)

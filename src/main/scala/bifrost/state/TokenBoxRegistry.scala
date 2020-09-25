@@ -13,16 +13,12 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Proposition, Array[Byte]] {
+case class TokenBoxRegistry(storage: LSMStore) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
-  type K = PublicKey25519Proposition
-  type V = Array[Byte]
+  import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  // registry key input type -> ByteArrayWrapper (LSMStore input type)
   override def registryInput(key: K): Array[Byte] = key.pubKeyBytes
-
-  // Array[Byte] (LSMStore store output type) -> registry key output type
   override def registryOutput(value: Array[Byte]): V = value
 
   /**
@@ -114,6 +110,9 @@ case class TokenBoxRegistry(storage: LSMStore) extends Registry[PublicKey25519Pr
 }
 
 object TokenBoxRegistry extends Logging {
+
+  type K = PublicKey25519Proposition
+  type V = Array[Byte]
 
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
     val tbrDir = settings.tbrDir

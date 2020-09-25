@@ -11,23 +11,23 @@ import scala.util.Try
 case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
                          override val toAppend: Set[Box],
                        ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
+                                 with TransactionAggregator
 
 object StateChanges {
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block
-  type GSC = GenericStateChanges[Any, P, BX]
 
-  def apply(mod: BPMOD): Try[GSC] =
+  def apply(mod: BPMOD): Try[StateChanges] =
     Try {
 
+      // extract the needed box data from all transactions within a block
       val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] =
         mod.transactions match {
-          case Some(txSeq) =>
-            txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-          case _ => Seq((Set[Array[Byte]](), Set[BX](), 0L))
+          case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
+          case _           => Seq((Set[Array[Byte]](), Set[BX](), 0L))
         }
 
+      // aggregate the transaction data into separate lists for updating state
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
         boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))(
           (aggregate, boxDelta) => {

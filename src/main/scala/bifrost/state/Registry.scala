@@ -11,8 +11,6 @@ import scala.util.Try
 
 trait Registry[K, V] extends StoreInterface with Logging {
 
-  type DB = LSMStore // type of the utxoStore
-
   /** Helper function to transform registry input key to ByteArrayWrapper */
   def registryInput(key: K): Array[Byte]
 
@@ -30,10 +28,9 @@ trait Registry[K, V] extends StoreInterface with Logging {
       .map(_.grouped(storage.keySize).toSeq.map(v => registryOutput(v)))
       .getOrElse(Seq[V]())
 
-  def update( newVersion: VersionTag,
-              utxoStore: DB,
-              boxIdsToRemove: Set[ModifierId],
-              boxesToAdd: Set[Box]): Try[Registry[K, V]]
+def update(newVersion: VersionTag,
+           toRemove: Map[K, Seq[V]],
+           toAppend: Map[K, Seq[V]])
 
   def rollbackTo( version: VersionTag): Try[Registry[K, V]]
 

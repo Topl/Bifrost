@@ -15,20 +15,13 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class ProgramBoxRegistry(storage: LSMStore) extends Registry[UUID, Array[Byte]] {
+case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
-  type K = UUID
-  type V = Array[Byte]
+  import ProgramBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  // registry key input type -> ByteArrayWrapper (LSMStore input type)
-  override def registryInput ( key: K ): Array[Byte] = {
-      FastCryptographicHash(
-        BigInt(key.getMostSignificantBits).toByteArray ++ BigInt(key.getLeastSignificantBits).toByteArray)
-  }
-
-  // Array[Byte] (LSMStore store output type) -> registry key output type
-  override def registryOutput(value: Array[Byte]): V = value
+  override def registryInput (key: K): Array[Byte] = key.hashBytes
+  override def registryOutput (value: Array[Byte]): V = value
 
   /**
    * @param newVersion - block id
@@ -93,6 +86,9 @@ case class ProgramBoxRegistry(storage: LSMStore) extends Registry[UUID, Array[By
 }
 
 object ProgramBoxRegistry extends Logging {
+
+  type K = ProgramId
+  type V = Array[Byte]
 
   def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
     val pbrDirOpt = settings.pbrDir

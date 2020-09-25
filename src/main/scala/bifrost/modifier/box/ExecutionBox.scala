@@ -4,17 +4,18 @@ import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.state.ProgramId
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{ Decoder, HCursor, Json }
 import scorex.crypto.encode.Base58
 
 //TODO change codeBoxIds to codeBoxUUIDs
-case class ExecutionBox(override val proposition: PublicKey25519Proposition,
-                        override val nonce: Long,
-                        override val value: UUID,
-                        stateBoxUUIDs: Seq[UUID], //List of uuids of state boxes from ProgramBoxRegistry
-                        codeBoxIds: Seq[Array[Byte]]
+case class ExecutionBox( override val proposition: PublicKey25519Proposition,
+                         override val nonce      : Long,
+                         override val value      : UUID,
+                         stateBoxIds             : Seq[ProgramId], //List of uuids of state boxes from ProgramBoxRegistry
+                         codeBoxIds              : Seq[ProgramId]
                         ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "ExecutionBox"
@@ -26,10 +27,10 @@ case class ExecutionBox(override val proposition: PublicKey25519Proposition,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "uuid" -> value.asJson,
-    "stateBoxUUIDs" -> stateBoxUUIDs.asJson,
-    "codeBoxIds" -> codeBoxIds.map(cb => Base58.encode(cb)).asJson,
+    "stateBoxUUIDs" -> stateBoxIds.map(_.toString).asJson,
+    "codeBoxIds" -> codeBoxIds.map(_.toString).asJson,
     "nonce" -> nonce.toString.asJson,
-  ).asJson
+    ).asJson
 
 }
 

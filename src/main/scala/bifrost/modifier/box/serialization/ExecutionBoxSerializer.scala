@@ -12,8 +12,8 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
     ProgramBoxSerializer.serialize(obj, w)
 
     /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
-    w.putUInt(obj.stateBoxUUIDs.length)
-    obj.stateBoxUUIDs.foreach { id =>
+    w.putUInt(obj.stateBoxIds.length)
+    obj.stateBoxIds.foreach { id =>
       w.putLong(id.getMostSignificantBits)
       w.putLong(id.getLeastSignificantBits)
     }

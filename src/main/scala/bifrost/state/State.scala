@@ -3,6 +3,7 @@ package bifrost.state
 import java.io.File
 import java.util.UUID
 
+import akka.actor.Status.Success
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
@@ -38,18 +39,13 @@ case class State ( override val version: VersionTag,
                            with Logging {
 
   override type NVCT = State
-
-  type TX = Transaction
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = Box
-  type BPMOD = Block
-  type GSC = GenericStateChanges[Any, P, BX]
   type BSC = StateChanges
 
-  def getBox ( id: Array[Byte] ): Option[BX] =
+  def getBox ( id: Array[Byte] ): Option[Box] =
     getFromStorage(id)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
+
 
   /**
    * Retrieve a sequence of token boxes from the UTXO set based on the given key
@@ -57,47 +53,24 @@ case class State ( override val version: VersionTag,
    * @param key storage key used to identify value(s) in registry
    * @return a sequence of boxes stored beneath the specified key
    */
-  def getTokens(key: PublicKey25519Proposition): Try[Seq[Box]] = {
-    Try(
-      tbrOpt match {
-        case Some(registry) =>
-          registry.lookup(key)
-            .map(getBox)
-            .filter {
-              case _: Some[Box] => true
-              case None         => false
-            }
-            .map(_.get)
-
-        case None => throw new Error("No TokenBoxRegistry available")
+  def registryLookup[K](key: K): Option[Seq[Box]] = {
+      (key match {
+        case k: TokenBoxRegistry.K   if tbrOpt.isDefined => Some(tbrOpt.get.lookup(k))
+        case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k))
+        case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
+      }).map { _.map(getBox).filter {
+          case _: Some[Box] => true
+          case None         => false
+        }.map(_.get)
       }
-    )
   }
 
   /**
-   * Retrieve a sequence of program boxes from the UTXO set based on the given key
+   * Revert version of state to a specific version
    *
-   * @param key storage key used to identify value(s) in registry
-   * @return a sequence of boxes stored beneath the specified key
+   * @param version tag marking a specific state within the store
+   * @return an instance of State at the version given
    */
-  def getProgram(key: UUID): Try[Seq[Box]] = {
-    Try(
-      pbrOpt match {
-        case Some(registry) =>
-          registry.lookup(key)
-            .map(getBox)
-            .filter {
-              case _: Some[Box] => true
-              case None         => false
-            }
-            .map(_.get)
-
-        case None => throw new Error("No ProgramBoxRegistry available")
-      }
-    )
-  }
-
-
   override def rollbackTo ( version: VersionTag ): Try[NVCT] =
     Try {
       if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
@@ -112,22 +85,25 @@ case class State ( override val version: VersionTag,
       }
     }
 
-
-  override def applyModifier ( mod: BPMOD ): Try[State] =
+  /**
+   * Public method used to update an instance of state with a new set of transactions
+   *
+   * @param mod block to be applied to state
+   * @return a new instance of state with the transaction within mod applied
+   */
+  override def applyModifier ( mod: Block ): Try[State] =
     mod match {
       case b: Block ⇒ StateChanges(b).flatMap(sc ⇒ applyChanges(sc, b.id))
       case a: Any   ⇒ Failure(new Exception(s"unknown modifier $a"))
     }
 
   // not private because of tests
-  def applyChanges ( changes: GSC, newVersion: VersionTag ): Try[NVCT] =
+  def applyChanges ( changes: BSC, newVersion: VersionTag ): Try[NVCT] =
     Try {
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => changes.toAppend
-                                  .filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
-
+        case Some(keys) => changes.toAppend.filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
         case None       => changes.toAppend
       }).map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
@@ -165,7 +141,7 @@ case class State ( override val version: VersionTag,
       newSt
     }
 
-  def validate ( transaction: TX ): Try[Unit] = {
+  def validate[TX] ( transaction: TX ): Try[Unit] = {
     transaction match {
       case tx: CoinbaseTransaction    => CoinbaseTransaction.semanticValidate(tx, getReader)
       case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
