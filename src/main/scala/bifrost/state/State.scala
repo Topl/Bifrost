@@ -1,10 +1,8 @@
 package bifrost.state
 
 import java.io.File
-import java.util.UUID
 
-import akka.actor.Status.Success
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
@@ -17,7 +15,7 @@ import bifrost.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.crypto.encode.Base58
 
-import scala.util.{ Failure, Try }
+import scala.util.{ Failure, Success, Try }
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -32,14 +30,13 @@ case class State ( override val version: VersionTag,
                    private val storage : LSMStore,
                    private val tbrOpt  : Option[TokenBoxRegistry] = None,
                    private val pbrOpt  : Option[ProgramBoxRegistry] = None,
-                   nodeKeys            : Option[Set[ByteArrayWrapper]] = None
+                   nodeKeys            : Option[Set[PublicKey25519Proposition]] = None
                  ) extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box, Block, State]
                            with StoreInterface
                            with TransactionValidation[Transaction]
                            with Logging {
 
   override type NVCT = State
-  type BSC = StateChanges
 
   def getBox ( id: Array[Byte] ): Option[Box] =
     getFromStorage(id)
@@ -91,29 +88,64 @@ case class State ( override val version: VersionTag,
    * @param mod block to be applied to state
    * @return a new instance of state with the transaction within mod applied
    */
-  override def applyModifier ( mod: Block ): Try[State] =
+  override def applyModifier ( mod: Block ): Try[State] = {
+
+    // extract the state changes to be made, using option for TBR and PBR
+    // since we can skip if the registries aren't present
     mod match {
-      case b: Block ⇒ StateChanges(b).flatMap(sc ⇒ applyChanges(sc, b.id))
-      case a: Any   ⇒ Failure(new Exception(s"unknown modifier $a"))
+      case b: Block ⇒
+        val stateChanges = StateChanges(b)
+        val tokenChanges = if ( tbrOpt.isDefined ) TokenRegistryChanges(b).toOption else None
+        val programChanges = if ( pbrOpt.isDefined ) ProgramRegistryChanges(b).toOption else None
+
+        // throwing error here since we should stop attempting updates if any part fails
+        val updatedTBR = tokenChanges match {
+          case Some(tc) => tbrOpt.get.updateFromState(b.id, tc, nodeKeys) match {
+            case Success(updates) => Some(updates)
+            case Failure(ex)      => throw new Error(s"Failed to update TBR with error $ex")
+          }
+          case None => None
+        }
+
+        val updatedPBR = programChanges match {
+          case Some(pc) => pbrOpt.get.updateFromState(b.id, pc) match {
+            case Success(updates) => Some(updates)
+            case Failure(ex)      => throw new Error(s"Failed to update PBR with error $ex")
+          }
+          case None => None
+        }
+
+        // if the registries update successfully, attempt to update the utxo storage
+        stateChanges match {
+          case Success(sc) => applyChanges(b.id, sc, updatedTBR, updatedPBR)
+          case Failure(_)  => throw new Error(s"Failed to calculate state changes for block: ${b.id}")
+        }
+
+      case a: Any ⇒ Failure(new Exception(s"unknown modifier $a"))
     }
+  }
 
   // not private because of tests
-  def applyChanges ( changes: BSC, newVersion: VersionTag ): Try[NVCT] =
+  def applyChanges ( newVersion: VersionTag,
+                     stateChanges: StateChanges,
+                     newTBR: Option[TokenBoxRegistry],
+                     newPBR: Option[ProgramBoxRegistry]
+                   ): Try[NVCT] =
     Try {
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => changes.toAppend.filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
-        case None       => changes.toAppend
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
+        case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
-        case Some(keys) => changes.boxIdsToRemove
+        case Some(keys) => stateChanges.boxIdsToRemove
                                   .flatMap(getBox)
                                   .filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
                                   .map(b => b.id)
 
-        case None       => changes.boxIdsToRemove
+        case None       => stateChanges.boxIdsToRemove
       }).map(b => ByteArrayWrapper(b))
 
       // enforce that the input id's must not match any of the output id's
@@ -126,19 +158,15 @@ case class State ( override val version: VersionTag,
         )
 
       if ( storage.lastVersionID.isDefined ) boxIdsToRemove.foreach(id => require(getBox(id.data).isDefined))
-
-      //TokenBoxRegistry must be updated before state since it uses the boxes from state that are being removed in the update
-      if ( tbrOpt.isDefined ) tbrOpt.get.updateFromState(newVersion, boxIdsToRemove, boxesToAdd)
-      if ( pbrOpt.isDefined ) pbrOpt.get.updateFromState(newVersion, boxIdsToRemove, boxesToAdd)
-
       storage.update(ByteArrayWrapper(newVersion.hashBytes), boxIdsToRemove, boxesToAdd)
 
-      val newSt = State(newVersion, storage, tbrOpt, pbrOpt, nodeKeys)
+      // create updated instance of state
+      val newState = State(newVersion, storage, newTBR, newPBR, nodeKeys)
 
       // enforce that a new valid state must have emptied all boxes to remove
-      boxIdsToRemove.foreach(box => require(newSt.getBox(box.data).isEmpty, s"Box $box is still in state"))
+      boxIdsToRemove.foreach(box => require(newState.getBox(box.data).isEmpty, s"Box $box is still in state"))
 
-      newSt
+      newState
     }
 
   def validate[TX] ( transaction: TX ): Try[Unit] = {
@@ -245,19 +273,23 @@ object State extends Logging {
 
     //TODO clean up nulls
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
-    val nodeKeys: Set[ByteArrayWrapper] = settings.nodeKeys
-      .map(x => x.map(y => ByteArrayWrapper(Base58.decode(y).get)))
+    val nodeKeys: Set[PublicKey25519Proposition] = settings.nodeKeys
+      .map(x => x.map(y => PublicKey25519Proposition(Base58.decode(y).get)))
       .orNull
+
     val pbr = ProgramBoxRegistry.readOrGenerate(settings, storage).orNull
     val tbr = TokenBoxRegistry.readOrGenerate(settings, storage).orNull
+
     if ( pbr == null ) log.info("Initializing state without programBoxRegistry")
     else log.info("Initializing state with programBoxRegistry")
+
     if ( tbr == null ) log.info("Initializing state without tokenBoxRegistry")
     else log.info("Initializing state with tokenBoxRegistry")
+
     if ( nodeKeys != null )
       log.info(s"Initializing state to watch for public keys: ${
         nodeKeys
-          .map(x => Base58.encode(x.data))
+          .map(x => Base58.encode(x.bytes))
       }")
     else log.info("Initializing state to watch for all public keys")
 

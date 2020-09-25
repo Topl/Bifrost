@@ -11,7 +11,6 @@ import scala.util.Try
 case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
                          override val toAppend: Set[Box],
                        ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
-                                 with TransactionAggregator
 
 object StateChanges {
   type BX = Box

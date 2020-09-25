@@ -9,7 +9,7 @@ import scala.util.Try
 
 case class ProgramRegistryChanges (toUpdate: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
                                    toAppend: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
-                                  ) extends TransactionAggregator
+                                  )
 
 object ProgramRegistryChanges {
   type BX = Box
