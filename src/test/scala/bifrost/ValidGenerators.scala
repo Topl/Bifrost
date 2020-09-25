@@ -8,7 +8,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.program.{ExecutionBuilderCompanion, _}
+import bifrost.program.{ExecutionBuilderSerializer, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -90,7 +90,7 @@ trait ValidGenerators extends BifrostGenerators {
 
 
       val messageToSign = Bytes.concat(
-        ExecutionBuilderCompanion.toBytes(executionBuilder),
+        ExecutionBuilderSerializer.toBytes(executionBuilder),
         sender.pubKeyBytes,
         //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
         data.getBytes

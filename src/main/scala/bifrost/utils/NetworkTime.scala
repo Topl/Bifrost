@@ -25,6 +25,10 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
   client.setDefaultTimeout(ntpSettings.timeout.toMillis.toInt)
   client.open()
 
+  /**
+   * Check if the NTP offset should be updated and returns current time (milliseconds)
+   * @return the current timestamp in milliseconds
+   */
   override def time(): TimeProvider.Time = {
     checkUpdateRequired()
     NetworkTime.localWithOffset(offset.get())
@@ -38,8 +42,10 @@ class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings)(implicit ec:
 
   private def checkUpdateRequired(): Unit = {
     val time = NetworkTime.localWithOffset(offset.get())
+
     // set lastUpdate to current time so other threads won't start to update it
     val lu = lastUpdate.getAndSet(time)
+
     if (time > lu + ntpSettings.updateEvery.toMillis) {
       // time to update offset
       updateOffset().onComplete {

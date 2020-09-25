@@ -3,7 +3,7 @@ package bifrost.nodeView
 import bifrost.modifier.block.Block
 import io.circe.Encoder
 
-trait BifrostNodeViewModifier extends PersistentNodeViewModifier with NodeViewModifier
+trait BifrostNodeViewModifier extends PersistentNodeViewModifier
 
 object BifrostNodeViewModifier {
   implicit val jsonEncoder: Encoder[BifrostNodeViewModifier] = {

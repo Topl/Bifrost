@@ -16,7 +16,7 @@ class CoinbaseTransactionSpec extends AnyPropSpec
 
   property("Generated Coinbase Tx should be valid") {
     forAll(validCoinbaseTransactionGen) {
-      cb: CoinbaseTransaction => State.semanticValidity(cb).isSuccess shouldBe true
+      cb: CoinbaseTransaction => State.syntacticValidity(cb).isSuccess shouldBe true
     }
 
     // test inflation val stuff works

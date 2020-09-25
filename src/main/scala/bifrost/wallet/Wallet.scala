@@ -8,9 +8,10 @@ import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
-import bifrost.state.State
+import bifrost.state.StateChanges
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
@@ -25,10 +26,13 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   import bifrost.wallet.Wallet._
 
+  override type NVCT = Wallet
   type S = PrivateKey25519
   type PI = ProofOfKnowledgeProposition[S]
 
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
+
+  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
 
   def boxIds: Seq[Array[Byte]] = store
     .get(BoxIdsKey)
@@ -37,11 +41,6 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
            .grouped(store.keySize)
            .toSeq)
     .getOrElse(Seq[Array[Byte]]())
-
-  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
-
-  //not implemented intentionally for now
-  def historyTransactions: Seq[WalletTransaction[PI, Transaction]] = ???
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction
@@ -66,7 +65,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   }
 
   //Only returns asset, arbit and poly boxes by public key
-   def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, Box]] = {
+  def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, Box]] = {
     //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
     boxIds
       .flatMap(id => store.get(ByteArrayWrapper(id)))
@@ -184,7 +183,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   override def scanPersistent(modifier: Block): Wallet = {
     log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
-    val changes = State.changes(modifier).get
+    val changes = StateChanges(modifier).get
 
     val newBoxes = changes
       .toAppend
@@ -233,9 +232,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
       Wallet(secrets, store, defaultKeyDir)
     }
   }
-
-  override type NVCT = this.type
-
+  
 }
 
 object Wallet {

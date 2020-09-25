@@ -327,7 +327,7 @@
 <path fill="none" stroke="#000000" d="M1102.3381,-2214C1197.1242,-2214 1343.2939,-2214 1431.8602,-2214"/>
 <polygon fill="#000000" stroke="#000000" points="1432.1027,-2217.5001 1442.1026,-2214 1432.1026,-2210.5001 1432.1027,-2217.5001"/>
 </g>
-<!-- ApplicationVersionSerializer -->
+<!-- VersionSerializer -->
 <g id="node26" class="node">
 <title>ApplicationVersionSerializer</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-3942" rx="143.7746" ry="18"/>
@@ -339,7 +339,7 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="582.6015" cy="-3159" rx="55.7903" ry="18"/>
 <text text-anchor="middle" x="582.6015" y="-3155.3" font-family="Times,serif" font-size="14.00" fill="#000000">Serializer</text>
 </g>
-<!-- ApplicationVersionSerializer&#45;&gt;Serializer -->
+<!-- VersionSerializer&#45;&gt;Serializer -->
 <g id="edge25" class="edge">
 <title>ApplicationVersionSerializer&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M331.9905,-3940.1164C348.9804,-3934.7812 364.9761,-3926.7583 378.2664,-3915 492.176,-3814.2219 563.0508,-3312.1782 579.1094,-3187.2067"/>
@@ -555,7 +555,7 @@
 <ellipse fill="#ffd700" stroke="#000000" cx="582.6015" cy="-4104" rx="37.0935" ry="18"/>
 <text text-anchor="middle" x="582.6015" y="-4100.3" font-family="Times,serif" font-size="14.00" fill="#000000">Block</text>
 </g>
-<!-- BlockCompanion -->
+<!-- BlockSerializer -->
 <g id="node45" class="node">
 <title>BlockCompanion</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="189.1332" cy="-4158" rx="89.8845" ry="18"/>
@@ -2487,7 +2487,7 @@
 <path fill="none" stroke="#000000" d="M1105.3883,-8093.7217C1154.5154,-8086.9692 1215.4928,-8078.7793 1270.0969,-8072 1307.7049,-8067.3308 1348.6992,-8062.5626 1385.8969,-8058.3582"/>
 <polygon fill="#000000" stroke="#000000" points="1386.7369,-8061.7858 1396.282,-8057.1878 1385.9529,-8054.8298 1386.7369,-8061.7858"/>
 </g>
-<!-- NoncedBoxSerializer -->
+<!-- TokenBoxSerializer -->
 <g id="node250" class="node">
 <title>NoncedBoxSerializer</title>
 <ellipse fill="#5f9ea0" stroke="#000000" cx="189.1332" cy="-11448" rx="109.381" ry="18"/>
@@ -2649,37 +2649,37 @@
 <path fill="none" stroke="#000000" d="M306.1214,-3177.9722C375.3601,-3173.221 460.462,-3167.3813 517.8126,-3163.4459"/>
 <polygon fill="#000000" stroke="#000000" points="518.0963,-3166.9347 527.8332,-3162.7582 517.6171,-3159.9511 518.0963,-3166.9347"/>
 </g>
-<!-- ExecutionBuilderCompanion -->
+<!-- ExecutionBuilderSerializer -->
 <g id="node269" class="node">
 <title>ExecutionBuilderCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-3132" rx="144.0747" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-3128.3" font-family="Times,serif" font-size="14.00" fill="#000000">ExecutionBuilderCompanion</text>
 </g>
-<!-- ExecutionBuilderCompanion&#45;&gt;Serializer -->
+<!-- ExecutionBuilderSerializer&#45;&gt;Serializer -->
 <g id="edge173" class="edge">
 <title>ExecutionBuilderCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M315.7949,-3140.6916C383.0152,-3145.3043 462.7901,-3150.7785 517.4879,-3154.5319"/>
 <polygon fill="#000000" stroke="#000000" points="517.5249,-3158.0425 527.7411,-3155.2354 518.0042,-3151.059 517.5249,-3158.0425"/>
 </g>
-<!-- ArbitTransferCompanion -->
+<!-- ArbitTransferSerializer -->
 <g id="node270" class="node">
 <title>ArbitTransferCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-3078" rx="127.2775" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-3074.3" font-family="Times,serif" font-size="14.00" fill="#000000">ArbitTransferCompanion</text>
 </g>
-<!-- ArbitTransferCompanion&#45;&gt;Serializer -->
+<!-- ArbitTransferSerializer&#45;&gt;Serializer -->
 <g id="edge174" class="edge">
 <title>ArbitTransferCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M286.6953,-3089.7142C316.2359,-3093.8553 348.6852,-3099.0011 378.2664,-3105 431.0886,-3115.7121 490.5666,-3131.9096 531.6718,-3143.771"/>
 <polygon fill="#000000" stroke="#000000" points="530.8714,-3147.1831 541.4508,-3146.611 532.8237,-3140.4608 530.8714,-3147.1831"/>
 </g>
-<!-- AssetCreationCompanion -->
+<!-- AssetCreationSerializer -->
 <g id="node271" class="node">
 <title>AssetCreationCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-3024" rx="129.9769" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-3020.3" font-family="Times,serif" font-size="14.00" fill="#000000">AssetCreationCompanion</text>
 </g>
-<!-- AssetCreationCompanion&#45;&gt;Serializer -->
+<!-- AssetCreationSerializer&#45;&gt;Serializer -->
 <g id="edge175" class="edge">
 <title>AssetCreationCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M300.603,-3033.4178C326.4901,-3037.3809 353.66,-3043.009 378.2664,-3051 442.3917,-3071.8249 510.3683,-3111.8403 549.5145,-3136.8826"/>
@@ -2697,109 +2697,109 @@
 <path fill="none" stroke="#000000" d="M316.5574,-2978.7764C337.6985,-2982.873 358.9934,-2988.7132 378.2664,-2997 453.7867,-3029.4713 524.9779,-3097.3841 559.9853,-3134.1231"/>
 <polygon fill="#000000" stroke="#000000" points="557.4929,-3136.5817 566.8949,-3141.4657 562.5907,-3131.7846 557.4929,-3136.5817"/>
 </g>
-<!-- AssetTransferCompanion -->
+<!-- AssetTransferSerializer -->
 <g id="node273" class="node">
 <title>AssetTransferCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2916" rx="129.1772" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2912.3" font-family="Times,serif" font-size="14.00" fill="#000000">AssetTransferCompanion</text>
 </g>
-<!-- AssetTransferCompanion&#45;&gt;Serializer -->
+<!-- AssetTransferSerializer&#45;&gt;Serializer -->
 <g id="edge177" class="edge">
 <title>AssetTransferCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M312.9116,-2921.5279C335.4997,-2925.872 358.2343,-2932.6354 378.2664,-2943 465.5201,-2988.1451 535.9706,-3085.5414 566.3798,-3132.5512"/>
 <polygon fill="#000000" stroke="#000000" points="563.5967,-3134.6967 571.9209,-3141.2509 569.5008,-3130.9362 563.5967,-3134.6967"/>
 </g>
-<!-- TransactionCompanion -->
+<!-- TransactionSerializer -->
 <g id="node274" class="node">
 <title>BifrostTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2862" rx="150.5735" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2858.3" font-family="Times,serif" font-size="14.00" fill="#000000">BifrostTransactionCompanion</text>
 </g>
-<!-- TransactionCompanion&#45;&gt;Serializer -->
+<!-- TransactionSerializer&#45;&gt;Serializer -->
 <g id="edge178" class="edge">
 <title>BifrostTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M328.2384,-2869.0477C345.818,-2873.5712 362.9772,-2879.9928 378.2664,-2889 477.8895,-2947.6896 545.0502,-3075.5802 570.8223,-3131.689"/>
 <polygon fill="#000000" stroke="#000000" points="567.7141,-3133.3108 575.0149,-3140.9887 574.0956,-3130.4338 567.7141,-3133.3108"/>
 </g>
-<!-- CodeBoxCreationCompanion -->
+<!-- CodeBoxCreationSerializer -->
 <g id="node275" class="node">
 <title>CodeBoxCreationCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2808" rx="145.6742" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2804.3" font-family="Times,serif" font-size="14.00" fill="#000000">CodeBoxCreationCompanion</text>
 </g>
-<!-- CodeBoxCreationCompanion&#45;&gt;Serializer -->
+<!-- CodeBoxCreationSerializer&#45;&gt;Serializer -->
 <g id="edge179" class="edge">
 <title>CodeBoxCreationCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M328.0045,-2813.5791C345.8131,-2818.3012 363.0962,-2825.1697 378.2664,-2835 490.6071,-2907.7965 552.615,-3066.4336 573.9865,-3130.9093"/>
 <polygon fill="#000000" stroke="#000000" points="570.7693,-3132.3354 577.1797,-3140.7709 577.4289,-3130.179 570.7693,-3132.3354"/>
 </g>
-<!-- CoinbaseTransactionCompanion -->
+<!-- CoinbaseTransactionSerializer -->
 <g id="node276" class="node">
 <title>CoinbaseTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2754" rx="161.6714" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2750.3" font-family="Times,serif" font-size="14.00" fill="#000000">CoinbaseTransactionCompanion</text>
 </g>
-<!-- CoinbaseTransactionCompanion&#45;&gt;Serializer -->
+<!-- CoinbaseTransactionSerializer&#45;&gt;Serializer -->
 <g id="edge180" class="edge">
 <title>CoinbaseTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M337.3497,-2761.2456C351.928,-2765.9596 365.8837,-2772.3729 378.2664,-2781 504.0223,-2868.6146 559.537,-3059.0643 576.5569,-3130.8566"/>
 <polygon fill="#000000" stroke="#000000" points="573.2248,-3131.9843 578.878,-3140.9449 580.0466,-3130.4147 573.2248,-3131.9843"/>
 </g>
-<!-- PolyTransferCompanion -->
+<!-- PolyTransferSerializer -->
 <g id="node277" class="node">
 <title>PolyTransferCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2700" rx="122.6784" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2696.3" font-family="Times,serif" font-size="14.00" fill="#000000">PolyTransferCompanion</text>
 </g>
-<!-- PolyTransferCompanion&#45;&gt;Serializer -->
+<!-- PolyTransferSerializer&#45;&gt;Serializer -->
 <g id="edge181" class="edge">
 <title>PolyTransferCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M312.0114,-2699.8282C335.676,-2704.49 359.0458,-2712.8266 378.2664,-2727 517.6153,-2829.7564 565.5594,-3052.0519 578.5218,-3130.7136"/>
 <polygon fill="#000000" stroke="#000000" points="575.1032,-3131.5032 580.1246,-3140.8325 582.017,-3130.408 575.1032,-3131.5032"/>
 </g>
-<!-- ProgramCreationCompanion -->
+<!-- ProgramCreationSerializer -->
 <g id="node278" class="node">
 <title>ProgramCreationCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2646" rx="144.0747" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2642.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramCreationCompanion</text>
 </g>
-<!-- ProgramCreationCompanion&#45;&gt;Serializer -->
+<!-- ProgramCreationSerializer&#45;&gt;Serializer -->
 <g id="edge182" class="edge">
 <title>ProgramCreationCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M330.5685,-2649.6037C347.7819,-2654.6686 364.2185,-2662.1581 378.2664,-2673 531.4852,-2791.2512 570.9995,-3045.7377 580.1116,-3130.7187"/>
 <polygon fill="#000000" stroke="#000000" points="576.6294,-3131.0726 581.1204,-3140.6684 583.5937,-3130.3664 576.6294,-3131.0726"/>
 </g>
-<!-- ProgramMethodExecutionCompanion -->
+<!-- ProgramMethodExecutionSerializer -->
 <g id="node279" class="node">
 <title>ProgramMethodExecutionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2592" rx="186.5669" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2588.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramMethodExecutionCompanion</text>
 </g>
-<!-- ProgramMethodExecutionCompanion&#45;&gt;Serializer -->
+<!-- ProgramMethodExecutionSerializer&#45;&gt;Serializer -->
 <g id="edge183" class="edge">
 <title>ProgramMethodExecutionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M348.3709,-2601.3962C359.0883,-2605.9635 369.2063,-2611.7417 378.2664,-2619 545.5277,-2752.9965 575.9314,-3039.8407 581.4099,-3130.7507"/>
 <polygon fill="#000000" stroke="#000000" points="577.9209,-3131.0487 581.962,-3140.8425 584.9104,-3130.6662 577.9209,-3131.0487"/>
 </g>
-<!-- ProgramTransactionCompanion -->
+<!-- ProgramTransactionSerializer -->
 <g id="node280" class="node">
 <title>ProgramTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2538" rx="159.4721" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2534.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransactionCompanion</text>
 </g>
-<!-- ProgramTransactionCompanion&#45;&gt;Serializer -->
+<!-- ProgramTransactionSerializer&#45;&gt;Serializer -->
 <g id="edge184" class="edge">
 <title>ProgramTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M340.2805,-2543.7542C354.0469,-2548.8044 367.0167,-2555.7031 378.2664,-2565 470.5119,-2641.2325 554.7682,-3023.305 576.9399,-3130.8132"/>
 <polygon fill="#000000" stroke="#000000" points="573.569,-3131.7992 579.0023,-3140.8948 580.427,-3130.3962 573.569,-3131.7992"/>
 </g>
-<!-- ProgramTransferCompanion -->
+<!-- ProgramTransferSerializer -->
 <g id="node281" class="node">
 <title>ProgramTransferCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2484" rx="143.7746" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2480.3" font-family="Times,serif" font-size="14.00" fill="#000000">ProgramTransferCompanion</text>
 </g>
-<!-- ProgramTransferCompanion&#45;&gt;Serializer -->
+<!-- ProgramTransferSerializer&#45;&gt;Serializer -->
 <g id="edge185" class="edge">
 <title>ProgramTransferCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M331.5381,-2486.4058C348.5991,-2491.659 364.735,-2499.5199 378.2664,-2511 477.7136,-2595.3712 557.8111,-3017.4302 577.793,-3130.8841"/>
@@ -2811,13 +2811,13 @@
 <ellipse fill="#5f9ea0" stroke="#000000" cx="189.1332" cy="-11880" rx="95.5831" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-11876.3" font-family="Times,serif" font-size="14.00" fill="#000000">TransferSerializer</text>
 </g>
-<!-- TransferTransactionCompanion -->
+<!-- TransferTransactionSerializer -->
 <g id="node283" class="node">
 <title>TransferTransactionCompanion</title>
 <ellipse fill="#ffd700" stroke="#000000" cx="189.1332" cy="-2430" rx="159.4721" ry="18"/>
 <text text-anchor="middle" x="189.1332" y="-2426.3" font-family="Times,serif" font-size="14.00" fill="#000000">TransferTransactionCompanion</text>
 </g>
-<!-- TransferTransactionCompanion&#45;&gt;Serializer -->
+<!-- TransferTransactionSerializer&#45;&gt;Serializer -->
 <g id="edge186" class="edge">
 <title>TransferTransactionCompanion&#45;&gt;Serializer</title>
 <path fill="none" stroke="#000000" d="M341.2128,-2435.38C354.7134,-2440.5222 367.3686,-2447.5441 378.2664,-2457 484.8345,-2549.4677 560.4077,-3010.7263 578.4532,-3130.5303"/>

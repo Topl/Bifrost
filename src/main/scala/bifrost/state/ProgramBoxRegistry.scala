@@ -4,7 +4,8 @@ import java.io.File
 import java.util.UUID
 
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.box.{Box, BoxSerializer, ProgramBox}
+import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.box.{Box, ProgramBox}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag

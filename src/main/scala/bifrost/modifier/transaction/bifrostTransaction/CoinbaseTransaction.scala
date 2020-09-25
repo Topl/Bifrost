@@ -6,7 +6,7 @@ import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signatur
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ArbitBox, Box}
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.transaction.serialization.CoinbaseTransactionCompanion
+import bifrost.modifier.transaction.serialization.CoinbaseTransactionSerializer
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
@@ -22,7 +22,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
                                 blockID: Array[Byte]) extends Transaction {
   override type M = CoinbaseTransaction
 
-  lazy val serializer: BifrostSerializer[CoinbaseTransaction] = CoinbaseTransactionCompanion
+  lazy val serializer: BifrostSerializer[CoinbaseTransaction] = CoinbaseTransactionSerializer
 
   override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
 

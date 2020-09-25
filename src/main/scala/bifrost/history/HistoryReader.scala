@@ -1,11 +1,9 @@
 package bifrost.history
 
-import bifrost.history.GenericHistory.ModifierIds
-import bifrost.history.GenericHistory.HistoryComparisonResult
-import bifrost.modifier.ContainsModifiers
-import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
-import bifrost.modifier.ModifierId
+import bifrost.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
+import bifrost.modifier.{ContainsModifiers, ModifierId}
 import bifrost.network.message.SyncInfo
+import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 
@@ -49,4 +47,13 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo] extends No
     * @return Equal if nodes have the same history, Younger if another node is behind, Older if a new node is ahead
     */
   def compare(other: SI): HistoryComparisonResult
+
+  /**
+   * Checks whether the modifier can be appended to the canonical chain or a tine
+   * in the chain cache
+   *
+   * @param modifier new block to be tracked in history
+   * @return 'true' if the block extends a known block, false otherwise
+   */
+  def extendsKnownTine(modifier: PM): Boolean
 }

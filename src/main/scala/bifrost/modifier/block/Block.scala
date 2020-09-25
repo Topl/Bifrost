@@ -1,22 +1,24 @@
 package bifrost.modifier.block
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.modifier.block.Block._
-import bifrost.modifier.box.{ArbitBox, BoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.history.History
 import bifrost.modifier.ModifierId
-import bifrost.nodeView.{BifrostNodeViewModifier, NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.nodeView.NodeViewModifier.{bytesToId, ModifierTypeId}
-import io.circe.{Encoder, Json}
+import bifrost.modifier.block.Block._
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
+import bifrost.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-// fixme: JAA - 2020.07.19 - why are we using scorex crypto instead of bifrost.crypto?
+import io.circe.{ Encoder, Json }
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import bifrost.utils.idToBytes
 
 /**
  * A block is an atomic piece of data network participates are agreed on.
@@ -34,14 +36,13 @@ import bifrost.utils.idToBytes
  * - additional data: block structure version no, timestamp etc
  */
 
-case class Block(parentId: BlockId,
-                 timestamp: Timestamp,
-                 forgerBox: ArbitBox,
-                 signature: Signature25519,
-                 txs: Seq[Transaction],
-                 inflation: Long = 0L,
-                 protocolVersion: Version)
-  extends BifrostNodeViewModifier {
+case class Block ( parentId: BlockId,
+                   timestamp: Timestamp,
+                   forgerBox: ArbitBox,
+                   signature: Signature25519,
+                   txs: Seq[Transaction],
+                   version  : Version
+                 ) extends BifrostNodeViewModifier {
 
   type M = Block
 
@@ -49,33 +50,30 @@ case class Block(parentId: BlockId,
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
-  lazy val serializer = BlockCompanion
+  lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
-  lazy val version: Version = protocolVersion
+  lazy val id: BlockId = ModifierId(serializedId)
 
-  lazy val id: BlockId = bytesToId(serializedId)
+  lazy val serializedId: Array[Byte] = {
+    val blockWithoutSig = this.copy(signature = Signature25519(Array.empty))
+    FastCryptographicHash(serializer.toBytes(blockWithoutSig))
+  }
 
-  lazy val serializedId: Array[Byte] = FastCryptographicHash(serializer.messageToSign(this))
-
-  lazy val serializedParentId: Array[Byte] = idToBytes(parentId)
+  lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(idToBytes(id)).asJson,
-    "parentId" -> Base58.encode(idToBytes(parentId)).asJson,
+    "id" -> Base58.encode(serializedId).asJson,
+    "parentId" -> Base58.encode(serializedParentId).asJson,
     "timestamp" -> timestamp.asJson,
     "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
     "signature" -> Base58.encode(signature.signature).asJson,
     "txs" -> txs.map(_.json).asJson,
-    "inflation" -> inflation.asJson,
     "version" -> version.asJson,
     "blockSize" -> serializer.toBytes(this).length.asJson
-  ).asJson
+    ).asJson
 }
 
 object Block {
-  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
-  val modifierTypeId = ModifierTypeId @@ (3: Byte)
-  val signatureLength = 64
 
   type BlockId = ModifierId
   type Timestamp = Long
@@ -83,49 +81,56 @@ object Block {
   type GenerationSignature = Array[Byte]
   type BaseTarget = Long
 
-  def create(parentId: BlockId,
-             timestamp: Block.Timestamp,
-             txs: Seq[Transaction],
-             box: ArbitBox,
-             //attachment: Array[Byte],
-             privateKey: PrivateKey25519,
-             inflation: Long,
-             version: Version): Block = {
+  val blockIdLength: Int = NodeViewModifier.ModifierIdSize
+  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
+  val signatureLength: Int = Curve25519.SignatureLength25519
+
+  def create ( parentId  : BlockId,
+               timestamp : Timestamp,
+               txs       : Seq[Transaction],
+               box       : ArbitBox,
+               //attachment: Array[Byte],
+               privateKey: PrivateKey25519,
+               version   : Version
+             ): Block = {
+
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
-    val unsigned = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, inflation, version)
-    if (parentId.hashBytes sameElements Array.fill(32)(1: Byte)) {
-      // genesis block will skip signature check
-      val genesisSignature = Array.fill(Curve25519.SignatureLength25519)(1: Byte)
-      unsigned.copy(signature = Signature25519(genesisSignature))
+    // generate block message (block with empty signature) to be signed
+    val blockMessage = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
+
+    // generate signature from the block message and private key
+    val signature = if ( parentId.hashBytes sameElements History.GenesisParentId ) {
+      Array.fill(signatureLength)(1: Byte) // genesis block will skip signature check
     } else {
-      val signature = Curve25519.sign(privateKey.privKeyBytes, unsigned.bytes)
-      unsigned.copy(signature = Signature25519(signature))
+      Curve25519.sign(privateKey.privKeyBytes, blockMessage.bytes)
     }
+
+    // return a valid block with the signature attached
+    blockMessage.copy(signature = Signature25519(signature))
   }
 
-  def createBloom(txs: Seq[Transaction]): Array[Byte] = {
+  def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
-      (total, b) =>
+      ( total, b ) =>
         b.bloomTopics match {
           case Some(e) => total ++ Bloom.calcBloom(e.head, e.tail)
-          case None => total
+          case None    => total
         }
-    ).toSeq
+      ).toSeq
     BloomTopics(bloomBitSet).toByteArray
   }
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
-      "id" -> Base58.encode(idToBytes(b.id)).asJson,
-      "parentId" -> Base58.encode(idToBytes(b.parentId)).asJson,
+      "id" -> Base58.encode(b.serializedId).asJson,
+      "parentId" -> Base58.encode(b.serializedParentId).asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
       "txs" -> b.txs.map(_.json).asJson,
-      "inflation" -> b.inflation.asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
-    ).asJson
+      ).asJson
   }
 }

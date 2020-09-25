@@ -1,7 +1,7 @@
 package bifrost.mempool
 
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.modifier.ModifierId
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.utils.Logging
 import io.iohk.iodb.ByteArrayWrapper
 
@@ -85,7 +85,9 @@ case class MemPool(unconfirmed: TrieMap[ByteArrayWrapper, Transaction])
 
   override def size: Int = unconfirmed.size
 
-  override def modifierById(modifierId: ModifierId): Option[Transaction] = ???
+  override def modifierById(modifierId: ModifierId): Option[Transaction] = {
+    unconfirmed.get(ByteArrayWrapper(modifierId.hashBytes))
+  }
 }
 
 

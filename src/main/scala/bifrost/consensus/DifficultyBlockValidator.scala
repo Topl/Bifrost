@@ -1,27 +1,35 @@
 package bifrost.consensus
 
-import bifrost.history.Storage
+import bifrost.history.{BlockProcessor, Storage}
 import bifrost.modifier.block.{Block, BlockValidator}
 
 import scala.util.Try
 
-class DifficultyBlockValidator(storage: Storage) extends BlockValidator[Block] {
+class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
 
   def validate(block: Block): Try[Unit] = checkConsensusRules(block)
 
   //PoS consensus rules checks, throws exception if anything wrong
   private def checkConsensusRules(block: Block): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
-      val parent = storage.modifierById(block.parentId).get
-      val parentDifficulty = storage.parentDifficulty(block)
-      val targetTime = storage.settings.forgingSettings.targetBlockTime
-      val timestamp = block.timestamp
+      // find the source of the parent block (either storage or chain cache)
+      val (parent, parentDifficulty) = blockProcessor.getCacheBlock(block.parentId) match {
+        case Some(cacheParent) =>
+          (cacheParent.block, cacheParent.baseDifficulty)
+        case None =>
+          (storage.modifierById(block.parentId).get, storage.parentDifficulty(block))
+      }
 
+      // calculate the hit value from the forger box included in the new block
       val hit = calcHit(parent)(block.forgerBox)
-      val target = calcAdjustedTarget(parent, parentDifficulty, targetTime, timestamp)
+
+      // calculate the adjusted difficulty the forger would have used to determine eligibility
+      val timestamp = block.timestamp
+      val target = calcAdjustedTarget(parent, parentDifficulty, timestamp)
       val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
 
-      require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty, ")
+      // did the forger create a block with a valid forger box and adjusted difficulty?
+      require( BigInt(hit) < valueTarget, s"$hit < $valueTarget failed, $parentDifficulty ")
     }
   }
 }

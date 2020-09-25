@@ -26,7 +26,6 @@ class AssetCreationValidationSpec extends StateSpec {
           ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L), /////Check Arbit box
           Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
           Seq(assetCreation),
-          10L,
           settings.forgingSettings.version
         )
 
@@ -38,7 +37,7 @@ class AssetCreationValidationSpec extends StateSpec {
           .get
 
         val newState = preparedState
-          .applyChanges(preparedState.changes(block).get, ModifierId(Ints.toByteArray(8)))
+          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(8)))
           .get
 
         assetCreation.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {

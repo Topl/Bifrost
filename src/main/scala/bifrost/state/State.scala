@@ -2,24 +2,15 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.crypto.{
-  FastCryptographicHash,
-  MultiSignature25519,
-  PrivateKey25519,
-  Signature25519
-}
+import bifrost.crypto.{FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519}
 import bifrost.exceptions.TransactionValidationException
 import bifrost.history.History
+import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{
-  ProofOfKnowledgeProposition,
-  PublicKey25519Proposition
-}
+import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.serialization.{BoxSerializer, ExecutionBoxSerializer}
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.modifier.ModifierId
-import bifrost.nodeView.NodeViewModifier.idToBytes
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -28,14 +19,6 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
 import scala.util.{Failure, Success, Try}
-
-case class StateChanges(
-    override val boxIdsToRemove: Set[Array[Byte]],
-    override val toAppend: Set[Box],
-    timestamp: Long
-) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[
-      PrivateKey25519
-    ], Box](boxIdsToRemove, toAppend)
 
 /**
   * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -47,62 +30,58 @@ case class StateChanges(
   * @param timestamp         timestamp of the block that results in this state
   * @param history           Main box storage
   */
-//noinspection ScalaStyle
-case class State(
-    storage: LSMStore,
-    override val version: VersionTag,
-    timestamp: Long,
-    history: History,
-    pbr: ProgramBoxRegistry = null,
-    tbr: TokenBoxRegistry = null,
-    nodeKeys: Set[ByteArrayWrapper] = null
-) extends MinimalState[Block, State]
-    with Logging {
+case class State( storage: LSMStore,
+                  override val version: VersionTag,
+                  timestamp: Long,
+                  history: History,
+                  pbr: ProgramBoxRegistry = null,
+                  tbr: TokenBoxRegistry = null,
+                  nodeKeys: Set[ByteArrayWrapper] = null
+                ) extends MinimalState[Block, State] with Logging {
 
   override type NVCT = State
-  type P = State.P
-  type T = State.T
-  type TX = State.TX
-  type BX = State.BX
-  type BPMOD = State.BPMOD
-  type GSC = State.GSC
-  type BSC = State.BSC
+  type TX = Transaction
+  type P = ProofOfKnowledgeProposition[PrivateKey25519]
+  type BX = Box
+  type BPMOD = Block
+  type GSC = GenericStateChanges[Any, P, BX]
+  type BSC = StateChanges
 
-  override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
-    if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
-      this
-    } else {
-      log.debug(
-        s"Rollback BifrostState to $version from version $lastVersionString"
-      )
-      storage.rollback(ByteArrayWrapper(idToBytes(version)))
-      tbr.rollbackTo(version, storage)
-      pbr.rollbackTo(version, storage)
-      val timestamp: Long = Longs.fromByteArray(
-        storage
-          .get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)))
-          .get
-          .data
-      )
-      State(storage, version, timestamp, history, pbr, tbr)
+  override def rollbackTo(version: VersionTag): Try[NVCT] =
+    Try {
+      if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
+        this
+      } else {
+        log.debug(
+          s"Rollback BifrostState to $version from version $lastVersionString"
+        )
+        storage.rollback(ByteArrayWrapper(version.hashBytes))
+        tbr.rollbackTo(version, storage)
+        pbr.rollbackTo(version, storage)
+        val timestamp: Long = Longs.fromByteArray(
+          storage
+            .get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)))
+            .get
+            .data
+        )
+        State(storage, version, timestamp, history, pbr, tbr)
+      }
     }
-  }
 
-  private def lastVersionString =
+  private def lastVersionString: String =
     storage.lastVersionID.map(v => Base58.encode(v.data)).getOrElse("None")
 
-  //noinspection ScalaStyle
   def validate(transaction: TX): Try[Unit] = {
     transaction match {
-      case poT: PolyTransfer           => validatePolyTransfer(poT)
-      case arT: ArbitTransfer          => validateArbitTransfer(arT)
-      case asT: AssetTransfer          => validateAssetTransfer(asT)
-      case prT: ProgramTransfer        => validateProgramTransfer(prT)
-      case ac: AssetCreation           => validateAssetCreation(ac)
-      case cc: CodeCreation            => validateCodeCreation(cc)
-      case pc: ProgramCreation         => validateProgramCreation(pc)
-      case cme: ProgramMethodExecution => validateProgramMethodExecution(cme)
-      case cb: CoinbaseTransaction     => validateCoinbaseTransaction(cb)
+      case tx: PolyTransfer           => validatePolyTransfer(tx)
+      case tx: ArbitTransfer          => validateArbitTransfer(tx)
+      case tx: AssetTransfer          => validateAssetTransfer(tx)
+      case tx: ProgramTransfer        => validateProgramTransfer(tx)
+      case tx: AssetCreation          => validateAssetCreation(tx)
+      case tx: CodeCreation           => validateCodeCreation(tx)
+      case tx: ProgramCreation        => validateProgramCreation(tx)
+      case tx: ProgramMethodExecution => validateProgramMethodExecution(tx)
+      case tx: CoinbaseTransaction    => validateCoinbaseTransaction(tx)
       case _ =>
         throw new Exception(
           "State validity not implemented for " + transaction.getClass.toGenericString
@@ -110,12 +89,61 @@ case class State(
     }
   }
 
+  private def validateArbitTransfer(arT: ArbitTransfer): Try[Unit] = {
+
+    val unlockers = generateUnlockers(arT.from, arT.signatures)
+
+    val statefulValid: Try[Unit] = {
+      val boxesSumTry: Try[Long] = {
+        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
+          partialRes.flatMap(partialSum =>
+            /* Checks if unlocker is valid and if so adds to current running total */
+            closedBox(unlocker.closedBoxId) match {
+              case Some(box: ArbitBox) =>
+                if (
+                  unlocker.boxKey
+                    .isValid(box.proposition, arT.messageToSign)
+                ) {
+                  Success(partialSum + box.value)
+                } else {
+                  Failure(new Exception("Incorrect unlocker"))
+                }
+              case None =>
+                Failure(
+                  new Exception(
+                    s"Box for unlocker $unlocker is not in the state"
+                  )
+                )
+              case _ =>
+                Failure(new Exception("Invalid Box type for this transaction"))
+            }
+          )
+        )
+      }
+      //Determine enough arbits
+      boxesSumTry flatMap { openSum =>
+        if (
+          arT.newBoxes.map {
+            case p: ArbitBox => p.value
+            case _           => 0L
+          }.sum == openSum - arT.fee
+        ) {
+          Success[Unit](Unit)
+        } else {
+          Failure(new Exception("Negative fee"))
+        }
+      }
+
+    }
+
+    statefulValid.flatMap(_ => State.syntacticValidity(arT))
+  }
+
   /**
-    *
     * @param poT : the PolyTransfer to validate
     * @return
     */
-  def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
+  private def validatePolyTransfer(poT: PolyTransfer): Try[Unit] = {
 
     val unlockers = generateUnlockers(poT.from, poT.signatures)
 
@@ -126,8 +154,10 @@ case class State(
             /* Checks if unlocker is valid and if so adds to current running total */
             closedBox(unlocker.closedBoxId) match {
               case Some(box: PolyBox) =>
-                if (unlocker.boxKey
-                      .isValid(box.proposition, poT.messageToSign)) {
+                if (
+                  unlocker.boxKey
+                    .isValid(box.proposition, poT.messageToSign)
+                ) {
                   Success(partialSum + box.value)
                 } else {
                   Failure(new Exception("Incorrect unlocker"))
@@ -147,72 +177,10 @@ case class State(
       determineEnoughPolys(boxesSumTry: Try[Long], poT)
     }
 
-    statefulValid.flatMap(_ => semanticValidity(poT))
+    statefulValid.flatMap(_ => State.syntacticValidity(poT))
   }
 
-  private def determineEnoughPolys(
-      boxesSumTry: Try[Long],
-      tx: Transaction
-  ): Try[Unit] = {
-    boxesSumTry flatMap { openSum =>
-      if (tx.newBoxes.map {
-            case p: PolyBox => p.value
-            case _          => 0L
-          }.sum == openSum - tx.fee) {
-        Success[Unit](Unit)
-      } else {
-        Failure(new Exception("Negative fee"))
-      }
-    }
-  }
-
-  def validateArbitTransfer(arT: ArbitTransfer): Try[Unit] = {
-
-    val unlockers = generateUnlockers(arT.from, arT.signatures)
-
-    val statefulValid: Try[Unit] = {
-      val boxesSumTry: Try[Long] = {
-        unlockers.foldLeft[Try[Long]](Success(0L))((partialRes, unlocker) =>
-          partialRes.flatMap(partialSum =>
-            /* Checks if unlocker is valid and if so adds to current running total */
-            closedBox(unlocker.closedBoxId) match {
-              case Some(box: ArbitBox) =>
-                if (unlocker.boxKey
-                      .isValid(box.proposition, arT.messageToSign)) {
-                  Success(partialSum + box.value)
-                } else {
-                  Failure(new Exception("Incorrect unlocker"))
-                }
-              case None =>
-                Failure(
-                  new Exception(
-                    s"Box for unlocker $unlocker is not in the state"
-                  )
-                )
-              case _ =>
-                Failure(new Exception("Invalid Box type for this transaction"))
-            }
-          )
-        )
-      }
-      //Determine enough arbits
-      boxesSumTry flatMap { openSum =>
-        if (arT.newBoxes.map {
-              case p: ArbitBox => p.value
-              case _           => 0L
-            }.sum == openSum - arT.fee) {
-          Success[Unit](Unit)
-        } else {
-          Failure(new Exception("Negative fee"))
-        }
-      }
-
-    }
-
-    statefulValid.flatMap(_ => semanticValidity(arT))
-  }
-
-  def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
+  private def validateAssetTransfer(asT: AssetTransfer): Try[Unit] = {
 
     val unlockers = generateUnlockers(asT.from, asT.signatures)
 
@@ -224,10 +192,12 @@ case class State(
               /* Checks if unlocker is valid and if so adds to current running total */
               closedBox(unlocker.closedBoxId) match {
                 case Some(box: AssetBox) =>
-                  if (unlocker.boxKey.isValid(
-                        box.proposition,
-                        asT.messageToSign
-                      ) && (box.issuer equals asT.issuer) && (box.assetCode equals asT.assetCode)) {
+                  if (
+                    unlocker.boxKey.isValid(
+                      box.proposition,
+                      asT.messageToSign
+                    ) && (box.issuer equals asT.issuer) && (box.assetCode equals asT.assetCode)
+                  ) {
                     Success(partialSum + box.value)
                   } else {
                     Failure(new Exception("Incorrect unlocker"))
@@ -249,26 +219,10 @@ case class State(
       determineEnoughAssets(boxesSumTry, asT)
     }
 
-    statefulValid.flatMap(_ => semanticValidity(asT))
+    statefulValid.flatMap(_ => State.syntacticValidity(asT))
   }
 
-  private def determineEnoughAssets(
-      boxesSumTry: Try[Long],
-      tx: Transaction
-  ): Try[Unit] = {
-    boxesSumTry flatMap { openSum =>
-      if (tx.newBoxes.map {
-            case a: AssetBox => a.value
-            case _           => 0L
-          }.sum <= openSum) {
-        Success[Unit](Unit)
-      } else {
-        Failure(new Exception("Not enough assets"))
-      }
-    }
-  }
-
-  def validateProgramTransfer(prT: ProgramTransfer): Try[Unit] = {
+  private def validateProgramTransfer(prT: ProgramTransfer): Try[Unit] = {
     val from = Seq((prT.from, prT.executionBox.nonce))
     val signature = Map(prT.from -> prT.signature)
     val unlocker = generateUnlockers(from, signature).head
@@ -300,41 +254,26 @@ case class State(
       }
     }
 
-    statefulValid.flatMap(_ => semanticValidity(prT))
+    statefulValid.flatMap(_ => State.syntacticValidity(prT))
   }
 
-  def generateUnlockers(
-      from: Seq[(PublicKey25519Proposition, Nonce)],
-      signatures: Map[PublicKey25519Proposition, Signature25519]
-  ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map {
-      case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] =
-            PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.getOrElse(
-            prop,
-            throw new Exception("Signature not provided")
-          )
-        }
-    }
-  }
-
-  def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
+  private def validateAssetCreation(ac: AssetCreation): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       ac.newBoxes.size match {
         //only one box should be created
         case 1 =>
-          if (ac.newBoxes.head
-                .isInstanceOf[AssetBox]) // the new box is an asset box
-            Success[Unit](Unit)
-          else
+          if (
+            ac.newBoxes.head
+              .isInstanceOf[AssetBox]
+          ) // the new box is an asset box
+          Success[Unit](Unit)
+            else
             Failure(new Exception("Incorrect box type"))
 
         case _ => Failure(new Exception("Incorrect number of boxes created"))
       }
     }
-    statefulValid.flatMap(_ => semanticValidity(ac))
+    statefulValid.flatMap(_ => State.syntacticValidity(ac))
   }
 
   /**
@@ -344,7 +283,7 @@ case class State(
     * @param cc : CodeCreation object
     * @return
     */
-  def validateCodeCreation(cc: CodeCreation): Try[Unit] = {
+  private def validateCodeCreation(cc: CodeCreation): Try[Unit] = {
     val statefulValid: Try[Unit] = {
       cc.newBoxes.size match {
         //only one box should be created
@@ -357,7 +296,7 @@ case class State(
         case _ => Failure(new Exception("Incorrect number of boxes created"))
       }
     }
-    statefulValid.flatMap(_ => semanticValidity(cc))
+    statefulValid.flatMap(_ => State.syntacticValidity(cc))
   }
 
   /**
@@ -366,8 +305,7 @@ case class State(
     * @param pc : ProgramCreation object
     * @return
     */
-  //noinspection ScalaStyle
-  def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
+  private def validateProgramCreation(pc: ProgramCreation): Try[Unit] = {
 
     val unlockers = generateUnlockers(pc.boxIdsToOpen, pc.signatures.head._2)
 
@@ -377,8 +315,10 @@ case class State(
           .flatMap { _ =>
             closedBox(unlocker.closedBoxId) match {
               case Some(box) =>
-                if (unlocker.boxKey
-                      .isValid(box.proposition, pc.messageToSign)) {
+                if (
+                  unlocker.boxKey
+                    .isValid(box.proposition, pc.messageToSign)
+                ) {
                   Success(())
                 } else {
                   Failure(
@@ -414,11 +354,10 @@ case class State(
       }
     }
 
-    statefulValid.flatMap(_ => semanticValidity(pc))
+    statefulValid.flatMap(_ => State.syntacticValidity(pc))
   }
 
-  //noinspection ScalaStyle
-  def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
+  private def validateProgramMethodExecution(pme: ProgramMethodExecution): Try[Unit] = {
     //TODO get execution box from box registry using UUID before using its actual id to get it from storage
     val executionBoxBytes = storage.get(ByteArrayWrapper(pme.executionBox.id))
 
@@ -434,8 +373,10 @@ case class State(
     val programProposition: PublicKey25519Proposition = executionBox.proposition
 
     /* This person belongs to program */
-    if (!MultiSignature25519(pme.signatures.values.toSet)
-          .isValid(programProposition, pme.messageToSign)) {
+    if (
+      !MultiSignature25519(pme.signatures.values.toSet)
+        .isValid(programProposition, pme.messageToSign)
+    ) {
       throw new TransactionValidationException(
         s"Signature is invalid for ExecutionBox"
       )
@@ -449,8 +390,10 @@ case class State(
           .flatMap { _ =>
             closedBox(unlocker.closedBoxId) match {
               case Some(box) =>
-                if (unlocker.boxKey
-                      .isValid(box.proposition, pme.messageToSign)) {
+                if (
+                  unlocker.boxKey
+                    .isValid(box.proposition, pme.messageToSign)
+                ) {
                   Success(())
                 } else {
                   Failure(
@@ -487,31 +430,10 @@ case class State(
       }
     }
 
-    statefulValid.flatMap(_ => semanticValidity(pme))
+    statefulValid.flatMap(_ => State.syntacticValidity(pme))
   }
 
-  def semanticValidity(tx: Transaction): Try[Unit] = State.semanticValidity(tx)
-
-  def closedBox(boxId: Array[Byte]): Option[BX] =
-    storage
-      .get(ByteArrayWrapper(boxId))
-      .map(_.data)
-      .map(BoxSerializer.parseBytes)
-      .flatMap(_.toOption)
-
-  def generateUnlockers(
-      boxIds: Seq[Array[Byte]],
-      signature: Signature25519
-  ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    boxIds.map { id =>
-      new BoxUnlocker[PublicKey25519Proposition] {
-        override val closedBoxId: Array[Byte] = id
-        override val boxKey: Signature25519 = signature
-      }
-    }
-  }
-
-  def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
+  private def validateCoinbaseTransaction(cb: CoinbaseTransaction): Try[Unit] = {
     //val t = history.modifierById(cb.blockID).get
     //def helper(m: Block): Boolean = { m.id sameElements t.id }
     val validConstruction: Try[Unit] = {
@@ -529,110 +451,189 @@ case class State(
 
   }
 
-  override def applyModifier(mod: BPMOD): Try[State] = mod match {
-    case b: Block ⇒
-      changes(b).flatMap(cs ⇒ applyChanges(cs, b.id))
-    //case a: Any ⇒
-    // Failure(new Exception(s"unknown modifier $a"))
+  private def determineEnoughAssets(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
+    boxesSumTry flatMap { openSum =>
+      if (
+        tx.newBoxes.map {
+          case a: AssetBox => a.value
+          case _           => 0L
+        }.sum <= openSum
+      ) {
+        Success[Unit](Unit)
+      } else {
+        Failure(new Exception("Not enough assets"))
+      }
+    }
   }
 
-  def changes(mod: BPMOD): Try[GSC] = State.changes(mod)
-
-  def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] = Try {
-
-    //Filtering boxes pertaining to public keys specified in settings file
-    //Note YT - Need to handle MofN Proposition separately
-    val keyFilteredBoxesToAdd =
-      if (nodeKeys != null)
-        changes.toAppend
-          .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
-      else
-        changes.toAppend
-
-    val keyFilteredBoxIdsToRemove =
-      if (nodeKeys != null)
-        changes.boxIdsToRemove
-          .flatMap(closedBox)
-          .filter(b => nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes)))
-          .map(b => b.id)
-      else
-        changes.boxIdsToRemove
-
-    val boxesToAdd = keyFilteredBoxesToAdd
-      .map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
-
-    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove =
-      (keyFilteredBoxIdsToRemove -- boxesToAdd.map(_._1.data))
-        .map(ByteArrayWrapper.apply)
-
-    log.debug(
-      s"Update BifrostState from version $lastVersionString to version $newVersion. " +
-        s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-        s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
-    )
-
-    val timestamp: Long = changes.asInstanceOf[StateChanges].timestamp
-
-    if (storage.lastVersionID.isDefined)
-      boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
-
-    //TokenBoxRegistry must be updated before state since it uses the boxes from state that are being removed in the update
-    if (tbr != null)
-      tbr.updateFromState(
-        newVersion,
-        keyFilteredBoxIdsToRemove,
-        keyFilteredBoxesToAdd
-      )
-    if (pbr != null)
-      pbr.updateFromState(
-        newVersion,
-        keyFilteredBoxIdsToRemove,
-        keyFilteredBoxesToAdd
-      )
-
-    storage.update(
-      ByteArrayWrapper(newVersion.hashBytes),
-      boxIdsToRemove,
-      boxesToAdd + (ByteArrayWrapper(
-        FastCryptographicHash("timestamp".getBytes)
-      ) -> ByteArrayWrapper(Longs.toByteArray(timestamp)))
-    )
-
-    val newSt =
-      State(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
-
-    boxIdsToRemove.foreach(box =>
-      require(newSt.closedBox(box.data).isEmpty, s"Box $box is still in state")
-    )
-    newSt
+  private def determineEnoughPolys(boxesSumTry: Try[Long], tx: Transaction): Try[Unit] = {
+    boxesSumTry flatMap { openSum =>
+      if (
+        tx.newBoxes.map {
+          case p: PolyBox => p.value
+          case _          => 0L
+        }.sum == openSum - tx.fee
+      ) {
+        Success[Unit](Unit)
+      } else {
+        Failure(new Exception("Negative fee"))
+      }
+    }
   }
 
+  def closedBox(boxId: Array[Byte]): Option[BX] =
+    storage
+      .get(ByteArrayWrapper(boxId))
+      .map(_.data)
+      .map(BoxSerializer.parseBytes)
+      .flatMap(_.toOption)
+
+  private def generateUnlockers( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
+                                 signatures: Map[PublicKey25519Proposition, Signature25519]
+                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map {
+      case (prop, nonce) =>
+        new BoxUnlocker[PublicKey25519Proposition] {
+          override val closedBoxId: Array[Byte] =
+            PublicKeyNoncedBox.idFromBox(prop, nonce)
+          override val boxKey: Signature25519 = signatures.getOrElse(
+            prop,
+            throw new Exception("Signature not provided")
+          )
+        }
+    }
+  }
+
+  private def generateUnlockers( boxIds: Seq[Array[Byte]],
+                                 signature: Signature25519
+                               ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    boxIds.map { id =>
+      new BoxUnlocker[PublicKey25519Proposition] {
+        override val closedBoxId: Array[Byte] = id
+        override val boxKey: Signature25519 = signature
+      }
+    }
+  }
+
+  override def applyModifier(mod: BPMOD): Try[State] =
+    mod match {
+      case b: Block ⇒
+        StateChanges(b).flatMap(cs ⇒ applyChanges(cs, b.id))
+      //case a: Any ⇒
+      // Failure(new Exception(s"unknown modifier $a"))
+    }
+
+  // not private because of tests
+  def applyChanges(changes: GSC, newVersion: VersionTag): Try[NVCT] =
+    Try {
+
+      //Filtering boxes pertaining to public keys specified in settings file
+      //Note YT - Need to handle MofN Proposition separately
+      val keyFilteredBoxesToAdd =
+        if (nodeKeys != null)
+          changes.toAppend
+            .filter(b =>
+              nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes))
+            )
+        else
+          changes.toAppend
+
+      val keyFilteredBoxIdsToRemove =
+        if (nodeKeys != null)
+          changes.boxIdsToRemove
+            .flatMap(closedBox)
+            .filter(b =>
+              nodeKeys.contains(ByteArrayWrapper(b.proposition.bytes))
+            )
+            .map(b => b.id)
+        else
+          changes.boxIdsToRemove
+
+      val boxesToAdd = keyFilteredBoxesToAdd
+        .map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+
+      /* This seeks to avoid the scenario where there is remove and then update of the same keys */
+      val boxIdsToRemove =
+        (keyFilteredBoxIdsToRemove -- boxesToAdd.map(_._1.data))
+          .map(ByteArrayWrapper.apply)
+
+      log.debug(
+        s"Update BifrostState from version $lastVersionString to version $newVersion. " +
+          s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
+          s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
+      )
+
+      val timestamp: Long = changes.asInstanceOf[StateChanges].timestamp
+
+      if (storage.lastVersionID.isDefined)
+        boxIdsToRemove.foreach(i => require(closedBox(i.data).isDefined))
+
+      //TokenBoxRegistry must be updated before state since it uses the boxes from state that are being removed in the update
+      if (tbr != null)
+        tbr.updateFromState(
+          newVersion,
+          keyFilteredBoxIdsToRemove,
+          keyFilteredBoxesToAdd
+        )
+      if (pbr != null)
+        pbr.updateFromState(
+          newVersion,
+          keyFilteredBoxIdsToRemove,
+          keyFilteredBoxesToAdd
+        )
+
+      storage.update(
+        ByteArrayWrapper(newVersion.hashBytes),
+        boxIdsToRemove,
+        boxesToAdd + (ByteArrayWrapper(
+          FastCryptographicHash("timestamp".getBytes)
+        ) -> ByteArrayWrapper(Longs.toByteArray(timestamp)))
+      )
+
+      val newSt =
+        State(storage, newVersion, timestamp, history, pbr, tbr, nodeKeys)
+
+      boxIdsToRemove.foreach(box =>
+        require(
+          newSt.closedBox(box.data).isEmpty,
+          s"Box $box is still in state"
+        )
+      )
+      newSt
+    }
+
+  // todo: JAA - shouldn't this be read in from a settings file or is it even needed (can we remove it from the trait?)
   override def maxRollbackDepth: Int = 10
 }
 
 object State extends Logging {
 
-  type T = Any
-  type TX = Transaction
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = Box
-  type BPMOD = Block
-  type GSC = GenericStateChanges[T, P, BX]
-  type BSC = StateChanges
+  def genesisState(settings: AppSettings, initialBlocks: Seq[Block], history: History): State = {
+    initialBlocks
+      .foldLeft(readOrGenerate( settings, callFromGenesis = true, history)) {
+        (state, mod) =>
+          StateChanges(mod)
+            .flatMap(cs => state.applyChanges(cs, mod.id))
+            .get
+      }
+  }
 
-  //noinspection ScalaStyle
-  def semanticValidity(tx: TX): Try[Unit] = {
+  /**
+    * Provides a single interface for syntactically validating transactions
+    *
+    * @param tx transaction to evaluate
+    */
+  def syntacticValidity[TX](tx: TX): Try[Unit] = {
     tx match {
-      case poT: PolyTransfer           => PolyTransfer.validate(poT)
-      case arT: ArbitTransfer          => ArbitTransfer.validate(arT)
-      case asT: AssetTransfer          => AssetTransfer.validate(asT)
-      case prT: ProgramTransfer        => ProgramTransfer.validate(prT)
-      case ac: AssetCreation           => AssetCreation.validate(ac)
-      case cc: CodeCreation            => CodeCreation.validate(cc)
-      case pc: ProgramCreation         => ProgramCreation.validate(pc)
-      case cme: ProgramMethodExecution => ProgramMethodExecution.validate(cme)
-      case cb: CoinbaseTransaction     => CoinbaseTransaction.validate(cb)
+      case tx: PolyTransfer           => PolyTransfer.validate(tx)
+      case tx: ArbitTransfer          => ArbitTransfer.validate(tx)
+      case tx: AssetTransfer          => AssetTransfer.validate(tx)
+      case tx: ProgramTransfer        => ProgramTransfer.validate(tx)
+      case tx: AssetCreation          => AssetCreation.validate(tx)
+      case tx: CodeCreation           => CodeCreation.validate(tx)
+      case tx: ProgramCreation        => ProgramCreation.validate(tx)
+      case tx: ProgramMethodExecution => ProgramMethodExecution.validate(tx)
+      case tx: CoinbaseTransaction    => CoinbaseTransaction.validate(tx)
       case _ =>
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
@@ -640,62 +641,8 @@ object State extends Logging {
     }
   }
 
-  //YT NOTE - byte array set quality is incorrectly overloaded (shallow not deep), consider using ByteArrayWrapper instead
-  //YT NOTE - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
-  def changes(mod: BPMOD): Try[GSC] = Try {
-
-    val gen = mod.forgerBox.proposition
-
-    val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] =
-      mod.transactions match {
-        case Some(txSeq) =>
-          txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-        case _ => Seq((Set[Array[Byte]](), Set[BX](), 0L))
-      }
-
-    val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-      boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))(
-        (aggregate, boxDelta) => {
-          (
-            aggregate._1 ++ boxDelta._1,
-            aggregate._2 ++ boxDelta._2,
-            aggregate._3 + boxDelta._3
-          )
-        }
-      )
-
-    val rewardNonce = Longs.fromByteArray(mod.id.hashBytes.take(Longs.BYTES))
-
-    //TODO Change to immutable val
-    var finalToAdd = toAdd
-    if (reward != 0) finalToAdd += PolyBox(gen, rewardNonce, reward)
-
-    //no reward additional to tx fees
-    StateChanges(toRemove, finalToAdd, mod.timestamp)
-  }
-
-  def genesisState(
-      settings: AppSettings,
-      initialBlocks: Seq[BPMOD],
-      history: History
-  ): State = {
-    initialBlocks
-      .foldLeft(readOrGenerate(settings, callFromGenesis = true, history)) {
-        (state, mod) =>
-          state
-            .changes(mod)
-            .flatMap(cs => state.applyChanges(cs, mod.id))
-            .get
-      }
-  }
-
-  def readOrGenerate(
-      settings: AppSettings,
-      callFromGenesis: Boolean = false,
-      history: History
-  ): State = {
-    val dataDirOpt =
-      settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
+  def readOrGenerate(settings: AppSettings, callFromGenesis: Boolean = false, history: History): State = {
+    val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
     val dataDir = dataDirOpt.get
 
     new File(dataDir).mkdirs()
@@ -709,16 +656,16 @@ object State extends Logging {
         stateStorage.close()
       }
     })
+
     val version: VersionTag = ModifierId(
       stateStorage.lastVersionID
         .fold(Array.emptyByteArray)(_.data)
     )
 
-    var timestamp: Long = 0L
-    if (callFromGenesis) {
-      timestamp = System.currentTimeMillis()
+    val timestamp: Long = if (callFromGenesis) {
+      System.currentTimeMillis()
     } else {
-      timestamp = Longs.fromByteArray(
+      Longs.fromByteArray(
         stateStorage
           .get(ByteArrayWrapper(FastCryptographicHash("timestamp".getBytes)))
           .get

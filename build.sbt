@@ -56,10 +56,12 @@ val loggingDependencies = Seq(
 )
 
 val testingDependencies = Seq(
-  "org.scalactic" %% "scalactic" % "3.2.1" % Test,
-  "org.scalatest" %% "scalatest" % "3.2.1" % Test,
+  "org.scalactic" %% "scalactic" % "3.2.2" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.2" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test,
+  "com.spotify" % "docker-client" % "8.16.0" % Test,
+  "org.asynchttpclient" % "async-http-client" % "2.7.0" % Test
 )
 
 val cryptoDependencies = Seq(
@@ -74,7 +76,13 @@ val miscDependencies = Seq(
   "com.google.guava" % "guava" % "19.0",
   "com.iheart" %% "ficus" % "1.4.7",
   "org.rudogma" %% "supertagged" % "1.4",
-  "com.joefkelley" %% "argyle" % "1.0.0"
+  "com.joefkelley" %% "argyle" % "1.0.0",
+) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
+
+libraryDependencies ++= Seq(
+  "org.scorexfoundation" %% "iodb" % "0.3.2",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
+  "org.whispersystems" % "curve25519-java" % "0.5.0",
 )
 
 libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
@@ -82,9 +90,9 @@ libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependenci
 // monitoring dependencies
 libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-core" % "2.1.4",
-  "io.kamon" %% "kamon-influxdb" % "2.1.4",
-  "io.kamon" %% "kamon-zipkin" % "2.1.4",
+  "io.kamon" %% "kamon-core" % "2.1.6",
+  "io.kamon" %% "kamon-influxdb" % "2.1.6",
+  "io.kamon" %% "kamon-zipkin" % "2.1.6",
   //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
   //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
@@ -101,7 +109,7 @@ libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.1"
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
-  "com.google.protobuf" % "protobuf-java" % "3.12.4",
+  "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.10.8",
   "com.typesafe" % "config" % "1.3.4",
 )
@@ -155,6 +163,8 @@ pomIncludeRepository := { _ => false }
 
 homepage := Some(url("https://github.com/Topl/Bifrost"))
 
+assemblyJarName := s"bifrost-${version.value}.jar"
+
 assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")      => MergeStrategy.discard
     case ps if ps.endsWith(".DSA")     => MergeStrategy.discard
@@ -166,6 +176,13 @@ assemblyMergeStrategy in assembly ~= { old: ((String) => MergeStrategy) => {
     case "META-INF/truffle/instrument" => MergeStrategy.concat
     case "META-INF/truffle/language"   => MergeStrategy.rename
     case x => old(x)
+  }
+}
+
+assemblyExcludedJars in assembly := {
+  val cp = (fullClasspath in assembly).value
+  cp filter { el ⇒
+    (el.data.getName == "ValkyrieInstrument-1.0.jar")
   }
 }
 
@@ -197,3 +214,7 @@ lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
   )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
+lazy val it = Project(id = "it", base = file("it"))
+  .settings(commonSettings: _*)
+  .dependsOn(bifrost % "compile->compile;test->test")
+  .disablePlugins(sbtassembly.AssemblyPlugin)

@@ -4,7 +4,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.nodeView.NodeViewModifier.{ModifierTypeId, bytesToId}
+import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 
 
 /**
@@ -20,7 +20,7 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   val messageToSign: Array[Byte]
 
-  lazy val id: ModifierId = bytesToId(serializedId)
+  lazy val id: ModifierId = ModifierId(serializedId)
 
   lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
 }

@@ -4,12 +4,12 @@ import java.net.InetSocketAddress
 
 import bifrost.network.message._
 import bifrost.network.upnp.Gateway
-import bifrost.network.{NodeViewSynchronizer, peer}
+import bifrost.network.{peer, NodeViewSynchronizer}
 import bifrost.utils.NetworkTimeProvider
 
 import scala.concurrent.ExecutionContext
 
-class BifrostContext(settings: AppSettings, val upnpGateway: Option[Gateway]) (implicit ec: ExecutionContext) {
+class BifrostContext(settings: AppSettings, val upnpGateway: Option[Gateway])(implicit ec: ExecutionContext) {
 
   // save your address for sending to others peers
   val externalNodeAddress: Option[InetSocketAddress] = {

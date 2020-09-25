@@ -7,13 +7,17 @@ import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
+import bifrost.utils.Logging
 import bifrost.utils.serialization.{Reader, Writer}
-import bifrost.utils.{Logging, bytesToId, idToBytes}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 
 case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
 
+case class PeersData(peers: Seq[PeerSpec])
+
+
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `SyncInfo` message requests an `Inv` message that provides modifier ids
   * required be sender to synchronize his blockchain with the recipient.
@@ -24,10 +28,8 @@ case class InvData(typeId: ModifierTypeId, ids: Seq[ModifierId])
   */
 class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
-  import SyncInfoSpec._
-
-  override val messageCode: MessageCode = MessageCode
-  override val messageName: String = MessageName
+  override val messageCode: MessageCode = SyncInfoSpec.MessageCode
+  override val messageName: String = SyncInfoSpec.MessageName
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
@@ -36,7 +38,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def parse(r: Reader): BifrostSyncInfo = {
     val length = r.getUShort()
-    val ids = (1 to length).map(_ ⇒ bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize)))
+    val ids = (1 to length).map(_ ⇒ ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize)))
     BifrostSyncInfo(ids)
   }
 }
@@ -46,6 +48,7 @@ object SyncInfoSpec {
   val MessageName: String = "Sync"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `Inv` message (inventory message) transmits one or more inventories of
   * objects known to the transmitting peer.
@@ -55,10 +58,8 @@ object SyncInfoSpec {
   */
 class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
-  import InvSpec._
-
-  override val messageCode: MessageCode = MessageCode
-  override val messageName: String = MessageName
+  override val messageCode: MessageCode = InvSpec.MessageCode
+  override val messageName: String = InvSpec.MessageName
 
   override def serialize(data: InvData, w: Writer): Unit = {
     val typeId = data.typeId
@@ -68,7 +69,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     w.put(typeId)
     w.putUInt(elems.size)
     elems.foreach { id =>
-      val bytes = idToBytes(id)
+      val bytes = id.hashBytes
       assert(bytes.length == NodeViewModifier.ModifierIdSize)
       w.putBytes(bytes)
     }
@@ -80,7 +81,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
     val elems = (0 until count).map { _ =>
-      bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize))
+      ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize))
     }
 
     InvData(typeId, elems)
@@ -93,6 +94,7 @@ object InvSpec {
   val MessageName: String = "Inv"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `RequestModifier` message requests one or more modifiers from another node.
   * The objects are requested by an inventory, which the requesting node
@@ -107,10 +109,8 @@ object InvSpec {
   */
 class RequestModifierSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
 
-  import RequestModifierSpec._
-
-  override val messageCode: MessageCode = MessageCode
-  override val messageName: String = MessageName
+  override val messageCode: MessageCode = RequestModifierSpec.MessageCode
+  override val messageName: String = RequestModifierSpec.MessageName
 
   private val invSpec = new InvSpec(maxInvObjects)
 
@@ -129,15 +129,14 @@ object RequestModifierSpec {
   val MessageName: String = "RequestModifier"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `Modifier` message is a reply to a `RequestModifier` message which requested these modifiers.
   */
 class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] with Logging {
 
-  import ModifiersSpec._
-
-  override val messageCode: MessageCode = MessageCode
-  override val messageName: String = MessageName
+  override val messageCode: MessageCode = ModifiersSpec.MessageCode
+  override val messageName: String = ModifiersSpec.MessageName
 
   override def serialize(data: ModifiersData, w: Writer): Unit = {
 
@@ -156,7 +155,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(idToBytes(id))
+      w.putBytes(id.hashBytes)
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }
@@ -171,7 +170,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     val typeId = ModifierTypeId @@ r.getByte()
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
-      val id = bytesToId(r.getBytes(NodeViewModifier.ModifierIdSize))
+      val id = ModifierId(r.getBytes(NodeViewModifier.ModifierIdSize))
       val objBytesCnt = r.getUInt().toIntExact
       val obj = r.getBytes(objBytesCnt)
       id -> obj
@@ -185,6 +184,7 @@ object ModifiersSpec {
   val MessageName: String = "Modifier"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `GetPeer` message requests an `Peers` message from the receiving node,
   * preferably one with lots of `PeerSpec` of other receiving nodes.
@@ -192,12 +192,10 @@ object ModifiersSpec {
   * its database of available nodes rather than waiting for unsolicited `Peers`
   * messages to arrive over time.
   */
-class GetPeersSpec extends MessageSpecV1[Unit] with Logging {
+class GetPeersSpec extends MessageSpecV1[Unit] {
 
-  import GetPeersSpec._
-
-  override val messageCode: MessageCode = MessageCode
-  override val messageName: String = MessageName
+  override val messageCode: MessageCode = GetPeersSpec.MessageCode
+  override val messageName: String = GetPeersSpec.MessageName
 
   override def serialize(obj: Unit, w: Writer): Unit = {}
 
@@ -211,28 +209,30 @@ object GetPeersSpec {
   val MessageName: String = "GetPeers message"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `Peers` message is a reply to a `GetPeer` message and relays connection information about peers
   * on the network.
   */
-class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[Seq[PeerSpec]] {
-  private val peerSpecSerializer = new PeerSpecSerializer(featureSerializers)
+class PeersSpec(featureSerializers: PeerFeature.Serializers, peersLimit: Int) extends MessageSpecV1[PeersData] {
 
   override val messageCode: Message.MessageCode = PeersSpec.MessageCode
-
   override val messageName: String = PeersSpec.MessageName
 
-  override def serialize(peers: Seq[PeerSpec], w: Writer): Unit = {
-    w.putUInt(peers.size)
-    peers.foreach(p => peerSpecSerializer.serialize(p, w))
+  private val peerSpecSerializer = new PeerSpecSerializer(featureSerializers)
+
+  override def serialize(data: PeersData, w: Writer): Unit = {
+    w.putUInt(data.peers.size)
+    data.peers.foreach(p => peerSpecSerializer.serialize(p, w))
   }
 
-  override def parse(r: Reader): Seq[PeerSpec] = {
+  override def parse(r: Reader): PeersData = {
     val length = r.getUInt().toIntExact
     require(length <= peersLimit, s"Too many peers. $length exceeds limit $peersLimit")
-    (0 until length).map { _ =>
+    val peers = (0 until length).map { _ =>
       peerSpecSerializer.parse(r)
     }
+    PeersData(peers)
   }
 }
 
@@ -242,6 +242,7 @@ object PeersSpec {
   val MessageName: String = "Peers message"
 }
 
+/** ------------------------------------------------------------------------------------------------------------------ */
 /**
   * The `Handshake` message provides information about the transmitting node
   * to the receiving node at the beginning of a connection. Until both peers

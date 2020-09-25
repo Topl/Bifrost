@@ -11,7 +11,7 @@ trait MessageSpec[Content] extends BifrostSerializer[Content] {
   /**
     * The p2p protocol version in which this message type first appeared
     */
-  val protocolVersion: Version
+  val version: Version
 
   /**
     * Code which identifies what message type is contained in the payload
@@ -31,6 +31,6 @@ trait MessageSpec[Content] extends BifrostSerializer[Content] {
   */
 trait MessageSpecV1[Content] extends MessageSpec[Content] {
 
-  override val protocolVersion: Version = Version.initial
+  override val version: Version = Version.initial
 
 }
