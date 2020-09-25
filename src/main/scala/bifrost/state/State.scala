@@ -38,6 +38,17 @@ case class State ( override val version: VersionTag,
 
   override type NVCT = State
 
+  override def closeStorage(): Unit = {
+    log.info("Attempting to close state storage")
+    super.closeStorage()
+
+    log.info("Attempting to close token box registry storage")
+    tbrOpt.foreach(_.closeStorage())
+
+    log.info("Attempting to close program box registry storage")
+    pbrOpt.foreach(_.closeStorage())
+  }
+
   def getBox ( id: Array[Byte] ): Option[Box] =
     getFromStorage(id)
       .map(BoxSerializer.parseBytes)
@@ -135,14 +146,14 @@ case class State ( override val version: VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) => stateChanges.boxIdsToRemove
                                   .flatMap(getBox)
-                                  .filter(b => keys.contains(ByteArrayWrapper(b.proposition.bytes)))
+                                  .filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
                                   .map(b => b.id)
 
         case None       => stateChanges.boxIdsToRemove
@@ -193,10 +204,7 @@ object State extends Logging {
   def genesisState ( settings: AppSettings, initialBlocks: Seq[Block] ): State = {
     initialBlocks
       .foldLeft(readOrGenerate(settings, callFromGenesis = true)) {
-        ( state, mod ) =>
-          StateChanges(mod)
-            .flatMap(cs => state.applyChanges(cs, mod.id))
-            .get
+        ( state, mod ) => state.applyModifier(mod).get
       }
   }
 
@@ -260,39 +268,34 @@ object State extends Logging {
     iFile.mkdirs()
     val storage = new LSMStore(iFile)
 
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run ( ): Unit = {
-        storage.close()
-      }
-    })
-
     val version: VersionTag = ModifierId(
       storage.lastVersionID
         .fold(Array.emptyByteArray)(_.data)
       )
 
-    //TODO clean up nulls
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
-    val nodeKeys: Set[PublicKey25519Proposition] = settings.nodeKeys
-      .map(x => x.map(y => PublicKey25519Proposition(Base58.decode(y).get)))
-      .orNull
+    val pbr = ProgramBoxRegistry.readOrGenerate(settings, storage)
+    val tbr = TokenBoxRegistry.readOrGenerate(settings, storage)
 
-    val pbr = ProgramBoxRegistry.readOrGenerate(settings, storage).orNull
-    val tbr = TokenBoxRegistry.readOrGenerate(settings, storage).orNull
-
-    if ( pbr == null ) log.info("Initializing state without programBoxRegistry")
+    if ( pbr.isEmpty ) log.info("Initializing state without programBoxRegistry")
     else log.info("Initializing state with programBoxRegistry")
 
-    if ( tbr == null ) log.info("Initializing state without tokenBoxRegistry")
+    if ( tbr.isEmpty ) log.info("Initializing state without tokenBoxRegistry")
     else log.info("Initializing state with tokenBoxRegistry")
 
-    if ( nodeKeys != null )
+    val nodeKeys: Option[Set[PublicKey25519Proposition]] =
+      settings
+        .nodeKeys
+        .map(_.map(key => PublicKey25519Proposition(Base58.decode(key).get)))
+
+    if ( nodeKeys.isDefined )
       log.info(s"Initializing state to watch for public keys: ${
         nodeKeys
+          .get
           .map(x => Base58.encode(x.bytes))
       }")
     else log.info("Initializing state to watch for all public keys")
 
-    State(version, storage, pbr, tbr, nodeKeys)
+    State(version, storage, tbr, pbr, nodeKeys)
   }
 }

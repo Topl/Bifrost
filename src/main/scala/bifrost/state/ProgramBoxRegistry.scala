@@ -101,13 +101,6 @@ object ProgramBoxRegistry extends Logging {
     iFile.mkdirs()
     val pbrStore = new LSMStore(iFile)
 
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        log.info("Closing programBoxRegistry storage...")
-        pbrStore.close()
-      }
-    })
-
     ProgramBoxRegistry(pbrStore)
   }
 

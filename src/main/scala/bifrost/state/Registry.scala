@@ -17,9 +17,10 @@ trait Registry[K, V] extends StoreInterface with Logging {
    * Lookup value stored by key in the registry
    *
    * @param key storage key used to identify value(s) in registry
+   * @param valueSize the number of bytes
    * @return the value associated with the key within the registry
    */
-  def lookup(key: K): Seq[V] =
+  def lookup(key: K, valueSize: Int): Seq[V] =
   getFromStorage(registryInput(key))
       .map(_.grouped(storage.keySize).toSeq.map(v => registryOutput(v)))
       .getOrElse(Seq[V]())
