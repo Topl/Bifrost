@@ -3,7 +3,7 @@ package bifrost.modifier.box.proposition
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
 import bifrost.utils.serialization.BifrostSerializer
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, Signature}
 

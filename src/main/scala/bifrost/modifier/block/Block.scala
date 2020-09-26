@@ -12,7 +12,7 @@ import bifrost.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
 import bifrost.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{ Encoder, Json }
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.signatures.{Curve25519, Signature}
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?

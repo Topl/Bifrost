@@ -7,7 +7,7 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 case class CodeBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,

@@ -7,8 +7,8 @@ import akka.util.Timeout
 import bifrost.settings.AppSettings
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
 import scorex.crypto.hash.{Blake2b256, CryptographicHash}
+import scorex.util.encode.Base58
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}

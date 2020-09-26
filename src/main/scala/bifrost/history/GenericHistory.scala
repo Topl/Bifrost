@@ -5,7 +5,7 @@ import bifrost.network.message.SyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 import bifrost.utils.BifrostEncoder
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

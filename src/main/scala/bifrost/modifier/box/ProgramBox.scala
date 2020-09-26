@@ -5,7 +5,7 @@ import java.util.UUID
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 class ProgramBox(override val proposition: PublicKey25519Proposition,
                  override val nonce: Long,
