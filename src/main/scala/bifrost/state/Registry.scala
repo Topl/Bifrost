@@ -14,20 +14,17 @@ trait Registry[K, V] extends StoreInterface with Logging {
   def registryOutput(value: Array[Byte]): V
 
   /**
-   * Lookup value stored by key in the registry
+   * Lookup boxId stored by key in the registry
    *
    * @param key storage key used to identify value(s) in registry
-   * @param valueSize the number of bytes
    * @return the value associated with the key within the registry
    */
-  def lookup(key: K, valueSize: Int): Seq[V] =
+  def lookup(key: K): Seq[V] =
   getFromStorage(registryInput(key))
-      .map(_.grouped(storage.keySize).toSeq.map(v => registryOutput(v)))
+      .map(_.grouped(BoxId.size).toSeq.map(v => registryOutput(v)))
       .getOrElse(Seq[V]())
 
-def update(newVersion: VersionTag,
-           toRemove: Map[K, Seq[V]],
-           toAppend: Map[K, Seq[V]])
+  def update(newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]] ): Try[Registry[K, V]]
 
   def rollbackTo( version: VersionTag): Try[Registry[K, V]]
 

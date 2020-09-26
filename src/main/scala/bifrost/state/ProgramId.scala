@@ -21,7 +21,6 @@ case class ProgramId (hashBytes: Array[Byte]) {
 
 object ProgramId {
 
-
   def apply (): ProgramId = {
 
     val key = UUID.randomUUID()

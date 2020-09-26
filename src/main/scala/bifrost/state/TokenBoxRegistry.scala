@@ -10,8 +10,15 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
-case class TokenBoxRegistry ( private val storage: LSMStore )
-  extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
+/**
+ * A registry containing mappings from public keys to a sequence of boxIds
+ *
+ * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
+ * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
+ */
+case class TokenBoxRegistry ( protected val storage: LSMStore,
+                              nodeKeys: Option[Set[PublicKey25519Proposition]]
+                            ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{ K, V }
 
@@ -20,13 +27,10 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
 
   override def registryOutput ( value: Array[Byte] ): V = value
 
-  // overload the lookup method by specifying the number of bytes to read
-  def lookup (key: K): Seq[V] = lookup(key, BoxId.size)
-
   /**
    * @param newVersion - block id
-   * @param updates the set of updates to be placed in the Token Box Registry
-   * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
+   * @param toRemove map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend map of public keys to a sequence of boxIds that should be added
    * @return - instance of updated TokenBoxRegistry
    *
    *         Runtime complexity of below function is O(MN) + O(L)
@@ -34,11 +38,10 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
    *         N = Number of boxes owned by a public key
    *         L = Number of boxes to append
    */
-  //noinspection ScalaStyle
-  override def updateFromState ( newVersion: VersionTag,
-                                 updates: TokenRegistryChanges,
-                                 nodeKeys: Option[Set[PublicKey25519Proposition]]
-                               ): Try[TokenBoxRegistry] = {
+  def update ( newVersion: VersionTag,
+               toRemove: Map[K, Seq[V]],
+               toAppend: Map[K, Seq[V]]
+             ): Try[TokenBoxRegistry] = {
 
     Try {
       log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
@@ -48,7 +51,7 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
         case None       => updates
       }
 
-      val (filteredRemove, filteredAppend) = (filterByNodeKeys(updates.toRemove), filterByNodeKeys(updates.toAppend))
+      val (filteredRemove, filteredAppend) = (filterByNodeKeys(toRemove), filterByNodeKeys(toAppend))
 
       // look for addresses that will be empty after the update
       val (deleted: Seq[K], updated: Seq[(K, Set[V])]) = {
@@ -57,12 +60,11 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
           val current = lookup(key)
 
           // case where the account no longer has any boxes
-          if (current.length == filteredRemove(key).length && filteredAppend(key).isEmpty) {
+          if ( current.length == filteredRemove(key).length && filteredAppend(key).isEmpty ) {
             (Some(key), None)
-          }
 
           // case where the account was initially empty and now has boxes
-          else if (current.isEmpty) {
+          } else if (current.isEmpty) {
             (None, Some((key, filteredAppend(key).toSet)))
 
           // case for updating the set of boxes for an account
@@ -78,7 +80,7 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
         updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.flatten.toArray))
         )
 
-      TokenBoxRegistry(storage)
+      TokenBoxRegistry(storage, nodeKeys)
     }
   }
 
@@ -88,7 +90,7 @@ case class TokenBoxRegistry ( private val storage: LSMStore )
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
       storage.rollback(ByteArrayWrapper(version.hashBytes))
-      TokenBoxRegistry(storage)
+      TokenBoxRegistry(storage, nodeKeys)
     }
   }
 
@@ -99,29 +101,15 @@ object TokenBoxRegistry extends Logging {
   type K = PublicKey25519Proposition
   type V = Array[Byte]
 
-  def readOrGenerate ( settings: AppSettings, stateStore: LSMStore ): Option[TokenBoxRegistry] = {
-    val tbrDir = settings.tbrDir
-    val logDir = settings.logDir
-    tbrDir.map(readOrGenerate(_, logDir, settings, stateStore))
+  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
+    if (settings.enableTBR) {
+      val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+
+      val iFile = new File(s"$dataDir/tokenBoxRegistry")
+      iFile.mkdirs()
+      val storage = new LSMStore(iFile)
+
+      Some(new TokenBoxRegistry(storage, nodeKeys))
+    } else None
   }
-
-  def readOrGenerate ( tbrDir   : String,
-                       logDirOpt: Option[String],
-                       settings : AppSettings
-                     ): TokenBoxRegistry = {
-
-    val iFile = new File(s"$tbrDir")
-    iFile.mkdirs()
-    val tbrStore = new LSMStore(iFile)
-
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run ( ): Unit = {
-        log.info("Closing tokenBoxRegistry storage...")
-        tbrStore.close()
-      }
-    })
-
-    TokenBoxRegistry(tbrStore)
-  }
-
 }

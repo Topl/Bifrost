@@ -1,13 +1,7 @@
 package bifrost.state
 
 import java.io.File
-import java.util.UUID
 
-import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.ModifierId
-import bifrost.modifier.box.serialization.BoxSerializer
-import bifrost.modifier.box.{ Box, ProgramBox }
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -15,21 +9,25 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.Try
 
+/**
+ * A registry containing mapping from fixed programId -> changing boxId
+ *
+ * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
+ */
 case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
-  import ProgramBoxRegistry.{K, V}
+  import ProgramBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
   override def registryInput (key: K): Array[Byte] = key.hashBytes
-  override def registryOutput (value: Array[Byte]): V = value
+
+  override def registryOutput (value: Array[Byte]): V = BoxId(value)
 
   /**
    * @param newVersion - block id
-   * @param keyFilteredBoxIdsToRemove
-   * @param keyFilteredBoxesToAdd
-   * - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
-   * @return - instance of updated TokenBoxRegistry
-   * (Note - makes use of vars for local variables since function remains a pure function and helps achieve better runtime)
+   * @param toRemove map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend map of public keys to a sequence of boxIds that should be added
+   * @return - instance of updated ProgramBoxRegistry
    *
    *         Runtime complexity of below function is O(MN) + O(L)
    *         where M = Number of boxes to remove
@@ -37,43 +35,43 @@ case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegi
    *         L = Number of boxes to append
    *
    */
-  //noinspection ScalaStyle
-  //YT NOTE - Using this function signature means boxes being removed from state must contain UUID (key) information
-  //YT NOTE - Might be better to use transactions as parameters instead of boxes
-  def updateFromState( newVersion: VersionTag,
-                       keyFilteredBoxIdsToRemove: Set[Array[Byte]],
-                       keyFilteredBoxesToAdd: Set[Box]): Try[ProgramBoxRegistry] =
+  def update ( newVersion: VersionTag,
+               toRemove: Map[K, Seq[V]],
+               toAppend: Map[K, Seq[V]]
+             ): Try[ProgramBoxRegistry] = {
+
     Try {
       log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
-      val boxIdsToRemove: Set[ByteArrayWrapper] =
-        (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(_.id)).map(ByteArrayWrapper.apply)
+      // look for addresses that will be empty after the update
+      val (deleted: Seq[K], updated: Seq[(K, V)]) = {
+        // make a list of all accounts to consider then loop through them and determine their new state
+        (toRemove.keys ++ toAppend.keys).map(key => {
+          val current = lookup(key).head
 
-      //Getting all uuids being updated
-      val uuidsToAppend: Map[UUID, Array[Byte]] =
-        keyFilteredBoxesToAdd.filter(_.isInstanceOf[ProgramBox]).map(_.asInstanceOf[ProgramBox])
-          .map(box => box.value -> box.id).toMap
+          // case where the program id no longer exists
+          if ( current == toRemove(key).head && toAppend(key).isEmpty ) {
+            (Some(key), None)
 
-      //Getting set of all boxes whose uuids are not being updated and hence should be tombstoned in LSMStore
-      val uuidsToRemove: Set[UUID] =
-        boxIdsToRemove
-          .map(boxId => lookup(boxId.data))
-          .filter(box => box.isInstanceOf[ProgramBox])
-          .map(_.asInstanceOf[ProgramBox])
-          .filterNot(box => uuidsToAppend.contains(box.value))
-          .map(_.value)
+            // case where the boxId must be updated
+          } else {
+            (None, Some((key, toAppend(key).head)))
+          }
+        })
+      }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
-        uuidsToRemove.map(registryInput),
-        uuidsToAppend.map(e => ProgramBoxRegistry.uuidToBaw(e._1) -> ByteArrayWrapper(e._2))
-      )
+        deleted.map(k => ByteArrayWrapper(registryInput(k))),
+        updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.hashBytes))
+        )
 
       ProgramBoxRegistry(storage)
+    }
   }
 
 
-  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[ProgramBoxRegistry] = Try {
+  def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
     if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
       this
     } else {
@@ -88,21 +86,17 @@ case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegi
 object ProgramBoxRegistry extends Logging {
 
   type K = ProgramId
-  type V = Array[Byte]
+  type V = BoxId
 
-  def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[ProgramBoxRegistry] = {
-    val pbrDirOpt = settings.pbrDir
-    val logDirOpt = settings.logDir
-    pbrDirOpt.map(readOrGenerate(_, logDirOpt, settings, stateStore))
+  def readOrGenerate ( settings: AppSettings ): Option[ProgramBoxRegistry] = {
+    if (settings.enablePBR) {
+      val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+
+      val iFile = new File(s"$dataDir/programBoxRegistry")
+      iFile.mkdirs()
+      val storage = new LSMStore(iFile)
+
+      Some(new ProgramBoxRegistry(storage))
+    } else None
   }
-
-  def readOrGenerate(pbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): ProgramBoxRegistry = {
-    val iFile = new File(s"$pbrDir")
-    iFile.mkdirs()
-    val pbrStore = new LSMStore(iFile)
-
-    ProgramBoxRegistry(pbrStore)
-  }
-
 }
-

@@ -27,7 +27,7 @@ import scala.util.{ Failure, Success, Try }
  * //@param timestamp timestamp of the block that results in this state
  */
 case class State ( override val version: VersionTag,
-                   private val storage : LSMStore,
+                   protected val storage : LSMStore,
                    private val tbrOpt  : Option[TokenBoxRegistry] = None,
                    private val pbrOpt  : Option[ProgramBoxRegistry] = None,
                    nodeKeys            : Option[Set[PublicKey25519Proposition]] = None
@@ -64,7 +64,7 @@ case class State ( override val version: VersionTag,
   def registryLookup[K](key: K): Option[Seq[Box]] = {
       (key match {
         case k: TokenBoxRegistry.K   if tbrOpt.isDefined => Some(tbrOpt.get.lookup(k))
-        case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k))
+        case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k).map(_.hashBytes))
         case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
       }).map { _.map(getBox).filter {
           case _: Some[Box] => true
@@ -111,7 +111,7 @@ case class State ( override val version: VersionTag,
 
         // throwing error here since we should stop attempting updates if any part fails
         val updatedTBR = tokenChanges match {
-          case Some(tc) => tbrOpt.get.updateFromState(b.id, tc, nodeKeys) match {
+          case Some(tc) => tbrOpt.get.update(b.id, tc.toRemove, tc.toAppend) match {
             case Success(updates) => Some(updates)
             case Failure(ex)      => throw new Error(s"Failed to update TBR with error $ex")
           }
@@ -119,7 +119,7 @@ case class State ( override val version: VersionTag,
         }
 
         val updatedPBR = programChanges match {
-          case Some(pc) => pbrOpt.get.updateFromState(b.id, pc) match {
+          case Some(pc) => pbrOpt.get.update(b.id, pc.toRemove, pc.toUpdate) match {
             case Success(updates) => Some(updates)
             case Failure(ex)      => throw new Error(s"Failed to update PBR with error $ex")
           }
@@ -180,7 +180,7 @@ case class State ( override val version: VersionTag,
       newState
     }
 
-  def validate[TX] ( transaction: TX ): Try[Unit] = {
+  def validate ( transaction: Transaction ): Try[Unit] = {
     transaction match {
       case tx: CoinbaseTransaction    => CoinbaseTransaction.semanticValidate(tx, getReader)
       case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
@@ -259,8 +259,7 @@ object State extends Logging {
   }
 
   def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
-    val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
-    val dataDir = dataDirOpt.get
+    val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
     new File(dataDir).mkdirs()
 
@@ -273,16 +272,7 @@ object State extends Logging {
         .fold(Array.emptyByteArray)(_.data)
       )
 
-    //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
-    val pbr = ProgramBoxRegistry.readOrGenerate(settings, storage)
-    val tbr = TokenBoxRegistry.readOrGenerate(settings, storage)
-
-    if ( pbr.isEmpty ) log.info("Initializing state without programBoxRegistry")
-    else log.info("Initializing state with programBoxRegistry")
-
-    if ( tbr.isEmpty ) log.info("Initializing state without tokenBoxRegistry")
-    else log.info("Initializing state with tokenBoxRegistry")
-
+    // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[PublicKey25519Proposition]] =
       settings
         .nodeKeys
@@ -295,6 +285,18 @@ object State extends Logging {
           .map(x => Base58.encode(x.bytes))
       }")
     else log.info("Initializing state to watch for all public keys")
+
+    //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
+    val pbr = ProgramBoxRegistry.readOrGenerate(settings)
+    val tbr = TokenBoxRegistry.readOrGenerate(settings, nodeKeys)
+
+    if ( pbr.isEmpty ) log.info("Initializing state without programBoxRegistry")
+    else log.info("Initializing state with programBoxRegistry")
+
+    if ( tbr.isEmpty ) log.info("Initializing state without tokenBoxRegistry")
+    else log.info("Initializing state with tokenBoxRegistry")
+
+
 
     State(version, storage, tbr, pbr, nodeKeys)
   }

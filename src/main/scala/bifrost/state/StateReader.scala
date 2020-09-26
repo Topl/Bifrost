@@ -12,5 +12,6 @@ trait StateReader[BX <: GenericBox[P, T], P <: Proposition, T] extends NodeViewC
 
   def getBox ( id: Array[Byte]): Option[BX]
 
-  def maxRollbackDepth: Int
+  // JAA - commented out 2020.09.25 - I don't think we need this but it might be worth thinking about
+  //def maxRollbackDepth: Int
 }

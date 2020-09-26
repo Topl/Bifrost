@@ -4,7 +4,7 @@ import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 trait StoreInterface {
 
-  val storage: LSMStore
+  protected val storage: LSMStore
 
   /** method to retrieve data from storage */
   protected def getFromStorage( id: Array[Byte]): Option[Array[Byte]] =
