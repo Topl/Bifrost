@@ -7,7 +7,7 @@ import bifrost.modifier.transaction.BoxTransaction
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 trait TransactionSettings
 

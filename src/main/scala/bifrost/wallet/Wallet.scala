@@ -15,7 +15,7 @@ import bifrost.state.StateChanges
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 

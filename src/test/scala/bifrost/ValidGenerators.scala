@@ -12,7 +12,7 @@ import bifrost.program.{ExecutionBuilderSerializer, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 

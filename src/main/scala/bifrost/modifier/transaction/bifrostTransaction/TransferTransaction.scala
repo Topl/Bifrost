@@ -7,7 +7,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 abstract class TransferTransaction ( val from              : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                      val to                : IndexedSeq[(PublicKey25519Proposition, Long)],

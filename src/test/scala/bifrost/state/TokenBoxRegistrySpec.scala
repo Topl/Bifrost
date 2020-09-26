@@ -13,8 +13,8 @@ import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import bifrost.settings.{AppSettings, StartupOpts}
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.Try

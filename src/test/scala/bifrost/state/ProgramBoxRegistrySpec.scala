@@ -12,7 +12,7 @@ import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.syntax._
 import org.scalatest.BeforeAndAfterAll
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.Try

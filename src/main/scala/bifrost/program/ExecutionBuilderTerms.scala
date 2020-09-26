@@ -6,10 +6,10 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.encode.Base64
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scorex.util.encode.Base64
 
 case class ExecutionBuilderTerms(terms: String){
 

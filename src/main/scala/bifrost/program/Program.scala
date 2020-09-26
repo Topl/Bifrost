@@ -7,7 +7,7 @@ import bifrost.modifier.box.{CodeBox, StateBox}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

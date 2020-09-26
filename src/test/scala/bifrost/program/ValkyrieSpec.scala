@@ -14,7 +14,7 @@ import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 

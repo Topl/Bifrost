@@ -25,8 +25,8 @@ import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

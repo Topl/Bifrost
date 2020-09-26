@@ -11,8 +11,8 @@ import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

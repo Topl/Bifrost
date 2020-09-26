@@ -11,8 +11,8 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

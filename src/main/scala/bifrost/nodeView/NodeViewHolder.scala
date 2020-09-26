@@ -17,7 +17,7 @@ import bifrost.state.State
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.utils.{ Logging, TimeProvider }
 import bifrost.wallet.Wallet
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 

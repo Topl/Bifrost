@@ -16,7 +16,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.{Base58, Base64}
+import scorex.util.encode.{Base58, Base64}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

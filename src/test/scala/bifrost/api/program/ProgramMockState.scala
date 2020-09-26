@@ -20,7 +20,7 @@ import bifrost.state.{State, StateChanges}
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
