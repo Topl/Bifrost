@@ -26,7 +26,6 @@ case class ExecutionBuilderTerms(terms: String){
 object ExecutionBuilderTerms {
 
   implicit val system = ActorSystem("QuickStart")
-  implicit val materializer = ActorMaterializer()
 
   def decodeGzip(zipped: String): Future[ByteString] = {
     Gzip.decode(ByteString(Base64.decode(zipped)))

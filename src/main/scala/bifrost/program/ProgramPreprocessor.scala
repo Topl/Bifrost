@@ -321,7 +321,6 @@ object ProgramPreprocessor {
   }
 
   implicit val system = ActorSystem("QuickStart")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 
