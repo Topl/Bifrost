@@ -13,6 +13,7 @@ import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
+import scorex.crypto.hash.Digest32
 import scorex.crypto.signatures.Signature
 
 import scala.util.Try
@@ -31,7 +32,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
 
-  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
+  lazy val hashNoNonces: Digest32 = FastCryptographicHash(
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed
   )
 

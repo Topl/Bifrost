@@ -1,6 +1,6 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{ FastCryptographicHash, Signature25519 }
+import bifrost.crypto.{FastCryptographicHash, Signature25519}
 import bifrost.modifier.box.PublicKeyNoncedBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
@@ -8,6 +8,7 @@ import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
+import scorex.crypto.hash.Digest32
 
 abstract class TransferTransaction ( val from              : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                      val to                : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -21,8 +22,8 @@ abstract class TransferTransaction ( val from              : IndexedSeq[(PublicK
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+  lazy val hashNoNonces: Digest32 = FastCryptographicHash(
       //Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
       data.getBytes
