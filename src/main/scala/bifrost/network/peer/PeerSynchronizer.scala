@@ -51,9 +51,10 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
       )
 
     val msg = Message[Unit](getPeersSpec, Right(Unit), None)
-    context.system.scheduler.schedule(2.seconds, settings.getPeersInterval)(
-      networkControllerRef ! SendToNetwork(msg, SendToRandom)
-      )
+    context.system.scheduler.scheduleWithFixedDelay(2.seconds,
+                                                    settings.getPeersInterval,
+                                                    networkControllerRef,
+                                                    SendToNetwork(msg, SendToRandom))
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
