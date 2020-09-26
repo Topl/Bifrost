@@ -1,10 +1,9 @@
 package bifrost.modifier.box.serialization
 
-import java.util.UUID
-
-import bifrost.modifier.box.{ExecutionBox, ProgramBox}
+import bifrost.modifier.box.{ ExecutionBox, ProgramBox }
+import bifrost.state.ProgramId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 
@@ -14,33 +13,27 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
     /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
     w.putUInt(obj.stateBoxIds.length)
     obj.stateBoxIds.foreach { id =>
-      w.putLong(id.getMostSignificantBits)
-      w.putLong(id.getLeastSignificantBits)
+      ProgramId.serialize(id, w)
     }
 
     /* codeBoxIds: Seq[Array[Byte]] */
     w.putUInt(obj.codeBoxIds.length)
     obj.codeBoxIds.foreach{id =>
-      w.putUInt(id.length)
-      w.putBytes(id)
+      ProgramId.serialize(id, w)
     }
   }
 
   override def parse(r: Reader): ExecutionBox = {
     val programBox: ProgramBox = ProgramBoxSerializer.parse(r)
 
-    /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
-    val stateBoxUUIDsLength: Int = r.getUInt().toIntExact
-    val stateBoxUUIDs: Seq[UUID] = (0 until stateBoxUUIDsLength).map(_ => new UUID(r.getLong(), r.getLong()))
+    /* stateBoxUUIDs: Seq[ProgramId], List of program ids of state boxes from ProgramBoxRegistry */
+    val stateBoxIdsLength: Int = r.getUInt().toIntExact
+    val stateBoxIds: Seq[ProgramId] = (0 until stateBoxIdsLength).map(_ => ProgramId.parse(r))
 
-    /* codeBoxIds: Seq[Array[Byte]] */
+    /* codeBoxIds: Seq[ProgramId] */
     val codeBoxIdsLength: Int = r.getUInt().toIntExact
+    val codeBoxIds: Seq[ProgramId] = (0 until codeBoxIdsLength).map(_ => ProgramId.parse(r))
 
-    val codeBoxIds: Seq[Array[Byte]] = (0 until codeBoxIdsLength).map{_ =>
-      val idLength: Int = r.getUInt().toIntExact
-      r.getBytes(idLength)
-    }
-
-    ExecutionBox(programBox.proposition, programBox.nonce, programBox.value, stateBoxUUIDs, codeBoxIds)
+    ExecutionBox(programBox.proposition, programBox.nonce, programBox.value, stateBoxIds, codeBoxIds)
   }
 }

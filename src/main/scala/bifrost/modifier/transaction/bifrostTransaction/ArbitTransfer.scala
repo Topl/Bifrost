@@ -2,19 +2,18 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{ArbitBox, Box}
-import bifrost.modifier.transaction.Validator
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
 import bifrost.modifier.transaction.serialization.ArbitTransferSerializer
-import bifrost.state.{State, StateReader, TokenBoxRegistry}
+import bifrost.state.{ State, TokenBoxRegistry }
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.Json
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                            override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -53,19 +52,6 @@ case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 //noinspection ScalaStyle
 object ArbitTransfer extends TransferUtil {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
-
-  def create ( tbr      : TokenBoxRegistry,
-               w        : Wallet,
-               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-               sender   : IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
-             ): Try[ArbitTransfer] = Try {
-
-    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "ArbitTransfer")
-    val timestamp = Instant.now.toEpochMilli
-    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-  }
-
   def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
               to       : IndexedSeq[(PublicKey25519Proposition, Value)],
               fee      : Long,
@@ -76,10 +62,24 @@ object ArbitTransfer extends TransferUtil {
     new ArbitTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def createPrototype ( tbr   : TokenBoxRegistry, toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-                        sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
+  def create ( tbr: TokenBoxRegistry,
+               stateReader: SR,
+               w: Wallet,
+               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+               sender: IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
+             ): Try[ArbitTransfer] = Try {
+
+    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "ArbitTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+  }
+
+  def createPrototype ( tbr: TokenBoxRegistry,
+                        stateReader: SR,
+                        toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+                        sender   : IndexedSeq[PublicKey25519Proposition], fee: Long, data: String
                       ): Try[ArbitTransfer] = Try {
-    val params = parametersForCreate(tbr, toReceive, sender, fee, "ArbitTransfer")
+    val params = parametersForCreate(tbr, stateReader, toReceive, sender, fee, "ArbitTransfer")
     val timestamp = Instant.now.toEpochMilli
     ArbitTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }
@@ -104,9 +104,9 @@ object ArbitTransfer extends TransferUtil {
                        state.getBox(unlocker.closedBoxId) match {
                          case Some(box: ArbitBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
                            Success(partialSum + box.value)
-                         case Some(_) => Failure(new Exception("Invalid unlocker"))
-                         case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-                         case _       => Failure(new Exception("Invalid Box type for this transaction"))
+                         case Some(_)                                                                           => Failure(new Exception("Invalid unlocker"))
+                         case None                                                                              => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+                         case _                                                                                 => Failure(new Exception("Invalid Box type for this transaction"))
                        }
                      )
     }) match {

@@ -2,27 +2,29 @@ package bifrost.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import bifrost.history.GenericHistory._
 import bifrost.history.HistoryReader
 import bifrost.mempool.MemPoolReader
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.message._
-import bifrost.network.peer.{ConnectedPeer, PenaltyType}
-import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
-import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.settings.{BifrostContext, NetworkSettings}
+import bifrost.network.peer.{ ConnectedPeer, PenaltyType }
+import bifrost.nodeView.NodeViewModifier.{ ModifierTypeId, idsToString }
+import bifrost.nodeView.{ NodeViewModifier, PersistentNodeViewModifier }
+import bifrost.settings.{ BifrostContext, NetworkSettings }
 import bifrost.state.StateReader
 import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.{BifrostEncoding, Logging, MalformedModifierError}
+import bifrost.utils.{ BifrostEncoding, Logging, MalformedModifierError }
 import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
   * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
@@ -576,6 +578,9 @@ class NodeViewSynchronizer[
 
 object NodeViewSynchronizer {
 
+  type P <: Proposition
+  type BX <: GenericBox[P, Any]
+
   case class RemoteMessageHandler(
     syncInfoSpec: SyncInfoSpec,
     invSpec: InvSpec,
@@ -637,7 +642,7 @@ object NodeViewSynchronizer {
 
     case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader[BX, P, Any]](reader: SR) extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 

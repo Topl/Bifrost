@@ -132,7 +132,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
 
     implicit val materializer: ActorMaterializer = ActorMaterializer()
-    val httpHost = settings.restApi.bindAddress.getAddress
+    val httpHost = settings.restApi.bindAddress.toString.split(":").head
     val httpPort = settings.restApi.bindAddress.getPort
 
     def failedP2P(): Unit = {

@@ -27,7 +27,7 @@ import scala.util.{ Failure, Success, Try }
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History ( storage: Storage,
+class History ( val storage: Storage,
                 fullBlockProcessor: BlockProcessor,
                 settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
@@ -46,7 +46,10 @@ class History ( storage: Storage,
   lazy val bestBlock: Block = storage.bestBlock
 
   /** Public method to close storage */
-  def closeStorage(): Unit = storage.storage.close()
+  def closeStorage(): Unit = {
+    log.info("Attempting to close history storage")
+    storage.storage.close()
+  }
 
   /**
     * Is there's no history, even genesis block

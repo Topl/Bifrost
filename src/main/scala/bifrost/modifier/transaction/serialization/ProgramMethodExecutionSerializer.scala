@@ -14,16 +14,16 @@ import io.circe.{Json, parser}
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 
   override def serialize(obj: ProgramMethodExecution, w: Writer): Unit = {
-    /* state: Seq[StateBox] */
-    w.putUInt(obj.state.length)
-    obj.state.foreach(stateBox => StateBoxSerializer.serialize(stateBox, w))
-
-    /* code: Seq[CodeBox] */
-    w.putUInt(obj.code.length)
-    obj.code.foreach(codeBox => CodeBoxSerializer.serialize(codeBox, w))
-
     /* executionBox: ExecutionBox */
     ExecutionBoxSerializer.serialize(obj.executionBox, w)
+
+    /* state: Seq[StateBox] */
+    w.putUInt(obj.stateBoxes.length)
+    obj.stateBoxes.foreach(stateBox => StateBoxSerializer.serialize(stateBox, w))
+
+    /* code: Seq[CodeBox] */
+    w.putUInt(obj.codeBoxes.length)
+    obj.codeBoxes.foreach(codeBox => CodeBoxSerializer.serialize(codeBox, w))
 
     /* methodName: String */
     w.putByteString(obj.methodName)

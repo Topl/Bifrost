@@ -81,8 +81,6 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
 object AssetTransfer extends TransferUtil {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
-
   def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
             to: IndexedSeq[(PublicKey25519Proposition, Value)],
             issuer: PublicKey25519Proposition,
@@ -95,6 +93,7 @@ object AssetTransfer extends TransferUtil {
   }
 
   def create(tbr:TokenBoxRegistry,
+            stateReader: SR,
              w: Wallet,
              toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
              sender: IndexedSeq[PublicKey25519Proposition],
@@ -104,12 +103,13 @@ object AssetTransfer extends TransferUtil {
              data: String,
              assetId: Option[String] = None): Try[AssetTransfer] = Try {
 
-    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
+    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
 
   def createPrototype(tbr: TokenBoxRegistry,
+                     stateReader: SR,
                       toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                       sender: IndexedSeq[PublicKey25519Proposition],
                       issuer: PublicKey25519Proposition,
@@ -118,7 +118,7 @@ object AssetTransfer extends TransferUtil {
                       data: String,
                       assetId: Option[String] = None): Try[AssetTransfer] = Try
   {
-    val params = parametersForCreate(tbr, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
+    val params = parametersForCreate(tbr, stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }

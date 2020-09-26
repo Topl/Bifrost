@@ -1,30 +1,25 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import java.util.UUID
-
 import bifrost.crypto.{ FastCryptographicHash, MultiSignature25519, PrivateKey25519, Signature25519 }
 import bifrost.exceptions.TransactionValidationException
-import bifrost.history.History
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import bifrost.program.Program
-import bifrost.settings.AppSettings
 import bifrost.state.{ ProgramBoxRegistry, ProgramId, State, StateReader }
 import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Longs }
-import com.typesafe.config.{ Config, ConfigFactory }
 import io.circe.syntax._
 import io.circe.{ Decoder, HCursor, Json }
 import scorex.crypto.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
 
-case class ProgramMethodExecution ( state: Seq[StateBox],
-                                    code: Seq[CodeBox],
-                                    executionBox: ExecutionBox,
-                                    methodName: String,
+case class ProgramMethodExecution ( executionBox: ExecutionBox,
+                                    stateBoxes  : Seq[StateBox],
+                                    codeBoxes   : Seq[CodeBox],
+                                    methodName  : String,
                                     methodParams: Json,
                                     owner       : PublicKey25519Proposition,
                                     signatures  : Map[PublicKey25519Proposition, Signature25519],
@@ -32,42 +27,40 @@ case class ProgramMethodExecution ( state: Seq[StateBox],
                                     fees        : Map[PublicKey25519Proposition, Long],
                                     timestamp   : Long,
                                     data        : String
-                                  )
-  extends ProgramTransaction {
+                                  ) extends ProgramTransaction {
 
   override type M = ProgramMethodExecution
 
   val proposition: PublicKey25519Proposition = executionBox.proposition
 
-
   // TODO Fix instantiation to handle runtime input and/or extract to a better location
-  val config  : Config      = ConfigFactory.load("application")
-  val settings: AppSettings = AppSettings.fromConfig(config)
+//  val config  : Config      = ConfigFactory.load("application")
+//  val settings: AppSettings = AppSettings.fromConfig(config)
 
   //TODO do not readOrGenerate programBoxRegistry here
   //ProgramBoxRegistry should be taken from nodeView at api level and passed as parameter to static function in companion object
   //Static function should extract necessary boxes and use those as methodParams to transaction class
   //See static create function in companion object below
 
-  val history: History            = History.readOrGenerate(settings)
-  val pbr    : ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(settings, history.storage.storage).get
+//  val history: History            = History.readOrGenerate(settings)
+//  val pbr    : ProgramBoxRegistry = ProgramBoxRegistry.readOrGenerate(settings, history.storage.storage).get
 
   //val uuidStateBoxes = executionBox.stateBoxUUIDs.map(v => programBoxRegistry.getBox(v).get.asInstanceOf[StateBox])
 
-  val codeBoxes: Seq[ProgramId] = executionBox.codeBoxIds
+//  val codeBoxes: Seq[ProgramId] = executionBox.codeBoxIds
 
   //lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(state.head._1.id)
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
-  //TODO deprecate timestamp once fee boxes are included in nonce generation
-  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
-    executionBox.id ++
-      methodName.getBytes ++
-      owner.pubKeyBytes ++
-      methodParams.noSpaces.getBytes ++
-      Longs.toByteArray(timestamp) ++
-      fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
+  lazy val hashNoNonces: FastCryptographicHash.Digest =
+    FastCryptographicHash(
+      executionBox.id ++
+        methodName.getBytes ++
+        owner.pubKeyBytes ++
+        methodParams.noSpaces.getBytes ++
+        Longs.toByteArray(timestamp) ++
+        fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
   override lazy val newBoxes: Traversable[StateBox] = {
@@ -77,23 +70,20 @@ case class ProgramMethodExecution ( state: Seq[StateBox],
     val nonce = ProgramTransaction.nonceFromDigest(digest)
 
     val programResult: Json =
-      try {
-        Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
-      } catch {
-        case e: Exception => throw e.getCause
-      }
-
-    //val programResult: Json = Program.execute(state, code, methodName)(owner)(methodParams.asObject.get)
+        Program.execute(stateBoxes, codeBoxes, methodName)(owner)(methodParams.asObject.get) match {
+          case Success(res) => res
+          case Failure(ex)  => throw ex
+        }
 
     // enforces that the only editable state box is the first state box
-    val updatedStateBox: StateBox = StateBox(owner, nonce, state.head.value, programResult)
+    val updatedStateBox: StateBox = StateBox(owner, nonce, stateBoxes.head.value, programResult)
 
-    IndexedSeq(updatedStateBox) //++ deductedFeeBoxes(hashNoNonces)
+    IndexedSeq(updatedStateBox)
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "state" -> state.map { _.json }.asJson,
-    "code" -> code.map { _.json }.asJson,
+    "state" -> stateBoxes.map { _.json }.asJson,
+    "code" -> codeBoxes.map { _.json }.asJson,
     "methodName" -> methodName.asJson,
     "methodParams" -> methodParams,
     "newBoxes" -> newBoxes.map { _.json }.toSeq.asJson
@@ -106,12 +96,12 @@ case class ProgramMethodExecution ( state: Seq[StateBox],
     data.getBytes
     )
 
-  def assetNonce ( prop: PublicKey25519Proposition, hashNoNonces: Array[Byte] ): Nonce = ProgramTransaction
-    .nonceFromDigest(
-      FastCryptographicHash("assetNonce".getBytes
-                              ++ prop.pubKeyBytes
-                              ++ hashNoNonces)
-      )
+//  def assetNonce ( prop: PublicKey25519Proposition, hashNoNonces: Array[Byte] ): Nonce = ProgramTransaction
+//    .nonceFromDigest(
+//      FastCryptographicHash("assetNonce".getBytes
+//                              ++ prop.pubKeyBytes
+//                              ++ hashNoNonces)
+//      )
 
   override def toString: String = s"ProgramMethodExecution(${json.noSpaces})"
 }
@@ -124,8 +114,9 @@ object ProgramMethodExecution {
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
-  def create ( pbr         : ProgramBoxRegistry,
-               uuid        : UUID,
+  def create ( state       : State,
+               pbr         : ProgramBoxRegistry,
+               programId   : ProgramId,
                methodName  : String,
                methodParams: Json,
                owner       : PublicKey25519Proposition,
@@ -135,10 +126,16 @@ object ProgramMethodExecution {
                timestamp   : Long,
                data        : String
              ): Try[ProgramMethodExecution] = Try {
-    val execBox = pbr.getBox(uuid).get.asInstanceOf[ExecutionBox]
-    val state: Seq[StateBox] = execBox.stateBoxUUIDs.map(sb => pbr.getBox(sb).get.asInstanceOf[StateBox])
-    val code: Seq[CodeBox]  = execBox.codeBoxIds.map(cb => pbr.getBox(UUID.nameUUIDFromBytes(cb)).get.asInstanceOf[CodeBox])
-    ProgramMethodExecution(state, code, execBox, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
+
+
+
+    val execBox = pbr.getBox[ExecutionBox](programId, state).get
+
+    val stateBoxes: Seq[StateBox] = execBox.stateBoxIds.map(sb => pbr.getBox[StateBox](sb, state).get)
+
+    val codeBoxes: Seq[CodeBox]  = execBox.codeBoxIds.map(cb => pbr.getBox[CodeBox](cb, state).get)
+
+    ProgramMethodExecution(execBox, stateBoxes, codeBoxes, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 
   def syntacticValidate ( tx: ProgramMethodExecution, withSigs: Boolean = true ): Try[Unit] = Try {
@@ -171,7 +168,7 @@ object ProgramMethodExecution {
 
     // make sure we are not attempting to change an already deployed program
     if ( tx.newBoxes.forall(curBox => state.getBox(curBox.id).isDefined) ) {
-      Failure(new TransactionValidationException("ProgramCreation attempts to overwrite existing program"))
+       throw new TransactionValidationException("ProgramCreation attempts to overwrite existing program")
     }
 
     // check that the provided signatures generate valid unlockers
@@ -193,8 +190,8 @@ object ProgramMethodExecution {
 
   implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] =
     ( c: HCursor ) => for {
-      state <- c.downField("state").as[Seq[StateBox]]
-      code <- c.downField("code").as[Seq[CodeBox]]
+      stateBoxes <- c.downField("state").as[Seq[StateBox]]
+      codeBoxes <- c.downField("code").as[Seq[CodeBox]]
       executionBox <- c.downField("executionBox").as[ExecutionBox]
       methodName <- c.downField("methodName").as[String]
       methodParams <- c.downField("methodParams").as[Json]
@@ -207,9 +204,9 @@ object ProgramMethodExecution {
     } yield {
       val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
       ProgramMethodExecution(
-        state,
-        code,
         executionBox,
+        stateBoxes,
+        codeBoxes,
         methodName,
         methodParams,
         commonArgs._1,

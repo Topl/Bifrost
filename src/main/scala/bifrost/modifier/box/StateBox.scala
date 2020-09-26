@@ -1,13 +1,11 @@
 package bifrost.modifier.box
 
-import java.util.UUID
-
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.state.{ProgramBoxRegistry, ProgramId}
+import bifrost.state.ProgramId
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{ Decoder, HCursor, Json }
 import scorex.crypto.encode.Base58
 
 case class StateBox(override val proposition: PublicKey25519Proposition,

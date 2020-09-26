@@ -1,24 +1,22 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
-import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{Box, CodeBox}
-import bifrost.modifier.transaction.bifrostTransaction.AssetCreation.syntacticValidate
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519 }
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.modifier.box.{ Box, CodeBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CodeBoxCreationSerializer
 import bifrost.program.ProgramPreprocessor
-import bifrost.state.{State, StateReader}
+import bifrost.state.StateReader
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
-import com.google.common.primitives.{Bytes, Longs}
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
-import io.circe.{Json, JsonObject}
+import io.circe.{ Json, JsonObject }
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class CodeCreation(to: PublicKey25519Proposition,
                         signature: Signature25519,

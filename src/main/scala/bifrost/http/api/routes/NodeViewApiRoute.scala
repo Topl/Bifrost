@@ -85,10 +85,12 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
             .txs
             .filter(_.id.hashBytes sameElements id)
             .head
+
           tx.json.asObject.get
             .add("blockNumber", blockNumber.asJson)
             .add("blockId", blockId.toString.asJson)
             .asJson
+
         case Failure(e) ⇒ throw e
       }
     }

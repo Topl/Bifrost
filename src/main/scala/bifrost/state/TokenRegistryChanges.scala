@@ -3,7 +3,7 @@ package bifrost.state
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ Box, PublicKeyNoncedBox, TokenBox }
-import bifrost.modifier.transaction.bifrostTransaction.TransferTransaction
+import bifrost.modifier.transaction.bifrostTransaction.{ AssetCreation, CoinbaseTransaction, TransferTransaction }
 
 import scala.util.Try
 
@@ -24,9 +24,11 @@ object TokenRegistryChanges {
         mod.transactions match {
           case Some(txSeq) =>
             txSeq.map({
-              // fixme: JAA - need to add more case handling here to be sure all token box updates are captured
               case tx: TransferTransaction => (tx.from, tx.newBoxes.toSet)
-            }).foldLeft((Seq[(PK, Long)](), Seq[Box]()))(( acc, txData ) => {
+              case tx: AssetCreation       => ???
+              case tx: CoinbaseTransaction => ???
+              case _                       => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+            }).foldLeft((Seq[(PK, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
         }

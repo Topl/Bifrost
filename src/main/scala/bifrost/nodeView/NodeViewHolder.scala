@@ -48,8 +48,8 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
   }
 
   override def postStop ( ): Unit = {
+    log.info(s"${Console.RED}Application is going down NOW${Console.RESET}")
     super.postStop()
-
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
   }
@@ -60,15 +60,12 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
    */
   override def restoreState ( ): Option[NodeView] = {
     if ( Wallet.exists(settings) ) {
-      val x = History.readOrGenerate(settings)
-      Some(
-        (
-          x,
-          State.readOrGenerate(settings, callFromGenesis = true, x),
-          Wallet.readOrGenerate(settings, 1),
-          MemPool.emptyPool
-        )
-        )
+      Some((
+             History.readOrGenerate(settings),
+             State.readOrGenerate(settings, callFromGenesis = true),
+             Wallet.readOrGenerate(settings, 1),
+             MemPool.emptyPool
+           ))
     } else None
   }
 

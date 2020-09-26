@@ -52,19 +52,6 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
 
 object PolyTransfer extends TransferUtil {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
-
-  def create ( tbr      : TokenBoxRegistry,
-               w        : Wallet,
-               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-               sender   : IndexedSeq[PublicKey25519Proposition],
-               fee      : Long, data: String
-             ): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(tbr, w, toReceive, sender, fee, "PolyTransfer")
-    val timestamp = Instant.now.toEpochMilli
-    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-  }
-
   def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
               to       : IndexedSeq[(PublicKey25519Proposition, Value)],
               fee      : Long,
@@ -75,13 +62,26 @@ object PolyTransfer extends TransferUtil {
     PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
+  def create ( tbr      : TokenBoxRegistry,
+             stateReader: SR,
+               w        : Wallet,
+               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+               sender   : IndexedSeq[PublicKey25519Proposition],
+               fee      : Long, data: String
+             ): Try[PolyTransfer] = Try {
+    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "PolyTransfer")
+    val timestamp = Instant.now.toEpochMilli
+    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+  }
+
   def createPrototype ( tbr      : TokenBoxRegistry,
+                      stateReader: SR,
                         toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                         sender   : IndexedSeq[PublicKey25519Proposition],
                         fee      : Long,
                         data     : String
                       ): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(tbr, toReceive, sender, fee, "PolyTransfer")
+    val params = parametersForCreate(tbr, stateReader, toReceive, sender, fee, "PolyTransfer")
     val timestamp = Instant.now.toEpochMilli
     PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), fee, timestamp, data)
   }

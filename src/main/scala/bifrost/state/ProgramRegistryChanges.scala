@@ -2,7 +2,7 @@ package bifrost.state
 
 import bifrost.modifier.block.Block
 import bifrost.modifier.box.{ Box, ProgramBox }
-import bifrost.modifier.transaction.bifrostTransaction.{ ProgramCreation, ProgramMethodExecution }
+import bifrost.modifier.transaction.bifrostTransaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransfer }
 
 import scala.util.Try
 
@@ -19,7 +19,6 @@ object ProgramRegistryChanges {
   def apply(mod: BPMOD): Try[ProgramRegistryChanges] =
     Try {
 
-      // todo: JAA - handle more cases to generate program changes
       // extract the needed box data from all transactions within a block
       val (removeSeq: Seq[(K, ProgramBox)], updateSeq: Seq[(K, ProgramBox)])  =
         mod.transactions match {
@@ -27,6 +26,8 @@ object ProgramRegistryChanges {
             txSeq.map({
               case tx: ProgramMethodExecution => (None, Some((tx.executionBox.stateBoxIds.head, tx.newBoxes.head)))
               case tx: ProgramCreation        => (None, Some((tx.newStateBoxes.head.value, tx.newStateBoxes.head)))
+              case tx: ProgramTransfer        => ???
+              case _                          => (None, None) // JAA - not sure if this is needed but added to be exhaustive
             }).foldLeft((Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]()))((acc, txData) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })

@@ -1,7 +1,5 @@
 package bifrost.modifier.box
 
-import java.util.UUID
-
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.state.ProgramId
@@ -13,8 +11,8 @@ import scorex.crypto.encode.Base58
 //TODO change codeBoxIds to codeBoxUUIDs
 case class ExecutionBox( override val proposition: PublicKey25519Proposition,
                          override val nonce      : Long,
-                         override val value      : UUID,
-                         stateBoxIds             : Seq[ProgramId], //List of uuids of state boxes from ProgramBoxRegistry
+                         override val value      : ProgramId,
+                         stateBoxIds             : Seq[ProgramId], //List of program ids of state boxes from ProgramBoxRegistry
                          codeBoxIds              : Seq[ProgramId]
                         ) extends ProgramBox(proposition, nonce, value) {
 
@@ -26,32 +24,29 @@ case class ExecutionBox( override val proposition: PublicKey25519Proposition,
     "id" -> Base58.encode(id).asJson,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "uuid" -> value.asJson,
-    "stateBoxUUIDs" -> stateBoxIds.map(_.toString).asJson,
+    "programId" -> value.toString.asJson,
+    "stateBoxIds" -> stateBoxIds.map(_.toString).asJson,
     "codeBoxIds" -> codeBoxIds.map(_.toString).asJson,
     "nonce" -> nonce.toString.asJson,
     ).asJson
-
 }
 
 object ExecutionBox {
 
-  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
+  def idFromBox[P <: PublicKey25519Proposition](prop: P, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "execution".getBytes ++ Longs.toByteArray(nonce))
 
-  // TODO: Jing - Check if this is used anywhere
-  implicit val decodeCodeBox: Decoder[ExecutionBox] = (c: HCursor) => for {
+  implicit val decodeExecBox: Decoder[ExecutionBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    uuid <- c.downField("uuid").as[UUID]
-    stateBoxUUIDs <- c.downField("stateBoxUUIDs").as[Seq[UUID]]
+    value <- c.downField("uuid").as[String]
     nonce <- c.downField("nonce").as[Long]
+    stateBoxIds <- c.downField("stateBoxUUIDs").as[Seq[String]]
     codeBoxIds <- c.downField("codeBoxIds").as[Seq[String]]
   } yield {
-//      val preparedPubKey = proposition.map(t => Base58.decode(t).get).toSet
-//      val prop = MofNProposition(1, preparedPubKey)
-    val preparedPubKey = Base58.decode(proposition).get
-    val prop = PublicKey25519Proposition(preparedPubKey)
-    val codeBoxes: Seq[Array[Byte]] = codeBoxIds.map(cb => Base58.decode(cb).get)
-    ExecutionBox(prop, nonce, uuid, stateBoxUUIDs, codeBoxes)
+    val prop = PublicKey25519Proposition(proposition).get
+    val progId = ProgramId(value).get
+    val stateIds: Seq[ProgramId] = stateBoxIds.map(sb => ProgramId(sb).get)
+    val codeIds: Seq[ProgramId] = codeBoxIds.map(cb => ProgramId(cb).get)
+    ExecutionBox(prop, nonce, progId, stateIds, codeIds)
   }
 }

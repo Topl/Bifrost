@@ -8,7 +8,7 @@ import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.Try
+import scala.util.{ Success, Try }
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds

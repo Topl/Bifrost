@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.crypto.{ PrivateKey25519, PrivateKey25519Companion, Signature25519 }
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.state.TokenBoxRegistry
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.state.{ State, StateReader, TokenBoxRegistry }
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper
@@ -13,6 +13,8 @@ import scorex.crypto.encode.Base58
 import scala.util.Try
 
 trait TransferUtil {
+
+  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
@@ -44,6 +46,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate ( tbr: TokenBoxRegistry,
+                            state: SR,
                             w: Wallet,
                             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                             sender   : IndexedSeq[PublicKey25519Proposition],
@@ -58,8 +61,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
-                                                            tbr.boxesByKey(s))
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s => tbr.lookup(s).map(id => state.getBox(id).get))
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
@@ -126,6 +128,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate ( tbr: TokenBoxRegistry,
+                            state: SR,
                             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                             sender   : IndexedSeq[PublicKey25519Proposition],
                             fee      : Long,
@@ -139,8 +142,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
-                                                            tbr.boxesByKey(s))
+          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s => tbr.lookup(s).map(id => state.getBox(id).get))
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {

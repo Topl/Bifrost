@@ -1,7 +1,7 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
 import bifrost.crypto.{ FastCryptographicHash, Signature25519 }
-import bifrost.modifier.box.PublicKeyNoncedBox
+import bifrost.modifier.box.{ PublicKeyNoncedBox, TokenBox }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import com.google.common.primitives.Longs
@@ -16,6 +16,8 @@ abstract class TransferTransaction ( val from              : IndexedSeq[(PublicK
                                      override val timestamp: Long,
                                      val data              : String
                                    ) extends Transaction {
+
+  override val newBoxes: Traversable[TokenBox]
 
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = from.map { case (prop, nonce) =>
     PublicKeyNoncedBox.idFromBox(prop, nonce)

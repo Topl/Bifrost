@@ -196,9 +196,9 @@ class Storage(private[history] val storage: LSMStore, val settings: AppSettings)
       .get(blockBloomKey(serializedBlockId))
       .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
 
-  def serializedParentIdOf(serializedBlockId: Array[Byte]): Option[Array[Byte]] =
+  def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache
-      .get(blockParentKey(serializedBlockId))
+      .get(blockParentKey(blockId))
       .map(d => d.data)
 
   def blockIdOf(transactionId: Array[Byte]): Option[Array[Byte]] =

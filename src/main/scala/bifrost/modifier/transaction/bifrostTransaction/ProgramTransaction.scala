@@ -14,13 +14,13 @@ import scala.util.Try
 
 abstract class ProgramTransaction extends Transaction {
 
-  def owner: PublicKey25519Proposition
+  def owner: ProgramTransaction.O
 
-  def signatures: Map[PublicKey25519Proposition, Signature25519]
+  def signatures: ProgramTransaction.SIG
 
-  def preFeeBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
+  def preFeeBoxes: ProgramTransaction.FBX
 
-  def fees: Map[PublicKey25519Proposition, Long]
+  def fees: ProgramTransaction.F
 
   override val fee: Long = fees.values.sum
 
@@ -39,12 +39,12 @@ abstract class ProgramTransaction extends Transaction {
       .asJson
     }.asJson,
     "feePreBoxes" -> preFeeBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
-      Base58.encode(prop.pubKeyBytes) -> preBoxes.map(pb =>
-                                                        Map(
-                                                          "nonce" -> pb._1.toString.asJson,
-                                                          "value" -> pb._2.toString.asJson
-                                                        ).asJson
-      )
+      Base58.encode(prop.pubKeyBytes) -> preBoxes.map { pb =>
+        Map(
+          "nonce" -> pb._1.toString.asJson,
+          "value" -> pb._2.toString.asJson
+          ).asJson
+      }
     }.asJson,
     "fees" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
     "timestamp" -> timestamp.asJson
@@ -70,6 +70,9 @@ abstract class ProgramTransaction extends Transaction {
       }
   }
 }
+
+
+
 
 object ProgramTransaction {
   type O = PublicKey25519Proposition

@@ -1,21 +1,18 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import java.util.UUID
-
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import bifrost.exceptions.TransactionValidationException
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramCreationSerializer
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
-import bifrost.state.{State, StateReader}
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
+import bifrost.state.{ ProgramId, State, StateReader }
+import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
-import io.iohk.iodb.ByteArrayWrapper
+import io.circe.{ Decoder, HCursor, Json }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   *
@@ -31,7 +28,7 @@ import scala.util.{Failure, Success, Try}
   * @param timestamp          the timestamp of this transaction
   */
 case class ProgramCreation(executionBuilder: ExecutionBuilder,
-                           readOnlyStateBoxes: Seq[UUID],
+                           readOnlyStateBoxes: Seq[ProgramId],
                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                            owner: PublicKey25519Proposition,
                            signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -57,15 +54,15 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
-  lazy val newStateBoxes: Traversable[StateBox] = {
-      val stateNonce = ProgramTransaction.nonceFromDigest(
+  lazy val newStateBoxes: IndexedSeq[StateBox] = {
+      val nonce = ProgramTransaction.nonceFromDigest(
         FastCryptographicHash("stateBox".getBytes
           ++ executionBuilder.core.variables.noSpaces.getBytes
           ++ hashNoNonces
           ++ Ints.toByteArray(0))
       )
 
-    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)), executionBuilder.core.variables)
+    val stateBox = StateBox(owner, nonce, ProgramId.create(), executionBuilder.core.variables)
 
     IndexedSeq(stateBox)
   }
@@ -89,6 +86,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
+
     val execNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("executionBuilder".getBytes
         ++ hashNoNonces
@@ -96,23 +94,16 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     )
 
 
-    val stateNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("stateBox".getBytes
-        ++ executionBuilder.core.variables.noSpaces.getBytes
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
 
-    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)),executionBuilder.core.variables)
+    val codeBox = CodeBox(owner, codeNonce, ProgramId.create(), executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
 
-    val codeBox = CodeBox(owner, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(owner, codeNonce)),
-      executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
-    val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
-    val executionBox = ExecutionBox(owner, execNonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(owner, execNonce)), stateUUIDs, Seq(codeBox.id))
+    val stateBoxIds: Seq[ProgramId] = newStateBoxes.map(_.value) ++ readOnlyStateBoxes
+
+    val executionBox = ExecutionBox(owner, execNonce, ProgramId.create(), stateBoxIds, Seq(codeBox.value))
 
     val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
 
-    IndexedSeq(executionBox, stateBox, codeBox) :+ investorDeductedBox // nonInvestorDeductedBoxes
+    IndexedSeq(executionBox, codeBox) ++ newStateBoxes :+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
   lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
@@ -133,6 +124,9 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override def toString: String = s"ProgramCreation(${json.noSpaces})"
 }
+
+
+
 
 object ProgramCreation {
 
@@ -181,7 +175,7 @@ object ProgramCreation {
 
   implicit val decodeProgramCreation: Decoder[ProgramCreation] = (c: HCursor) => for {
     executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
-    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[UUID]]
+    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[String]]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawOwner <- c.downField("owner").as[String]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
@@ -191,15 +185,17 @@ object ProgramCreation {
     data <- c.downField("data").as[String]
   } yield {
     val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
+    val readStateBoxIds = readOnlyStateBoxes.map(str => ProgramId(str).get)
+
     ProgramCreation(executionBuilder,
-      readOnlyStateBoxes,
-      preInvestmentBoxes,
-      commonArgs._1,
-      commonArgs._2,
-      commonArgs._3,
-      commonArgs._4,
-      timestamp,
-      data)
+                    readStateBoxIds,
+                    preInvestmentBoxes,
+                    commonArgs._1,
+                    commonArgs._2,
+                    commonArgs._3,
+                    commonArgs._4,
+                    timestamp,
+                    data)
   }
 
 }

@@ -2,19 +2,21 @@ package bifrost.state
 
 import java.io.File
 
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.Try
+import scala.util.{ Success, Try }
 
 /**
  * A registry containing mapping from fixed programId -> changing boxId
  *
  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
  */
-case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
+case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{ K, V }
 
@@ -22,6 +24,17 @@ case class ProgramBoxRegistry(storage: LSMStore) extends Registry[ProgramBoxRegi
   override def registryInput (key: K): Array[Byte] = key.hashBytes
 
   override def registryOutput (value: Array[Byte]): V = BoxId(value)
+
+  def getBox[BX](key: K, state: State): Option[BX] =
+    Try(
+      lookup(key)
+        .map(b => state.getBox(b.hashBytes).get)
+        .head
+        .asInstanceOf[BX]
+      ) match {
+      case Success(bx) => Some(bx)
+      case _           => None
+    }
 
   /**
    * @param newVersion - block id

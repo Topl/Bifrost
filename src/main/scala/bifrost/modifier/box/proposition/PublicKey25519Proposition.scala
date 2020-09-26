@@ -2,12 +2,13 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
+import bifrost.state.ProgramId
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
@@ -44,7 +45,14 @@ object PublicKey25519Proposition {
   val ChecksumLength = 4
   val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
 
-  // TODO: Jing - consider moving these methods into the case class above
+  def apply(id: String): Try[PublicKey25519Proposition] = {
+    Try {
+      Base58.decode(id) match {
+        case Success(id) => new PublicKey25519Proposition(id)
+        case Failure(ex) => throw ex
+      }
+    }
+  }
 
   def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
 
