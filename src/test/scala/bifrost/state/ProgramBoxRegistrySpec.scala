@@ -16,9 +16,10 @@ import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import scorex.crypto.signatures.PublicKey
 
 class ProgramBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -39,7 +40,8 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   var genesisState: MS = gs._2
   var gw: VL = gs._3
 
-  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+  val pubKey: PublicKey25519Proposition =
+    PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
   val stateOne =
     s"""

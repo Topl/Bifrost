@@ -5,11 +5,11 @@ import bifrost.crypto.PrivateKey25519
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, Signature}
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.util.{Failure, Success, Try}
 
-case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
+case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
@@ -22,7 +22,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   override def toString: String = address
 
-  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
+  def verify(message: Array[Byte], signature: Signature): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
 
   override type M = PublicKey25519Proposition
 
@@ -56,7 +56,7 @@ object PublicKey25519Proposition {
         val checkSumGenerated = calcCheckSum(addressBytes.dropRight(ChecksumLength))
 
         if (checkSum.sameElements(checkSumGenerated))
-          Success(PublicKey25519Proposition(addressBytes.dropRight(ChecksumLength).tail))
+          Success(PublicKey25519Proposition(PublicKey @@ addressBytes.dropRight(ChecksumLength).tail))
         else Failure(new Exception("Wrong checksum"))
       }
     }

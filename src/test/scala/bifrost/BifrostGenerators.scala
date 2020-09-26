@@ -23,6 +23,7 @@ import scorex.util.encode.Base58
 
 import scala.util.{Random, Try}
 import bifrost.utils.Logging
+import scorex.crypto.signatures.{PublicKey, Signature}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -330,7 +331,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
+  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map{
+    sig => Signature25519(Signature @@ sig)}
 
   lazy val programGen: Gen[Program] = for {
     producer <- propositionGen

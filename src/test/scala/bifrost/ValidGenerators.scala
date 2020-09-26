@@ -12,6 +12,7 @@ import bifrost.program.{ExecutionBuilderSerializer, _}
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
+import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -258,7 +259,7 @@ trait ValidGenerators extends BifrostGenerators {
   } yield {
     val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
     val to = IndexedSeq((toKeyPairs._2, 4L))
-    val fakeSigs = IndexedSeq(Signature25519(Array()))
+    val fakeSigs = IndexedSeq(Signature25519(Signature @@ Array.emptyByteArray))
     val messageToSign = CoinbaseTransaction(
       to,
       fakeSigs,

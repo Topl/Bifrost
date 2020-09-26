@@ -3,18 +3,18 @@ package bifrost.crypto
 import bifrost.crypto.serialization.Signature25519Serializer
 import bifrost.modifier.box.proposition.{Proposition, PublicKey25519Proposition}
 import bifrost.utils.serialization.BifrostSerializer
-import scorex.crypto.signatures.{Curve25519, Signature}
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 /**
   * @param signature 25519 signature
   */
-case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[PrivateKey25519, PublicKey25519Proposition] {
+case class Signature25519(signature: Signature) extends ProofOfKnowledge[PrivateKey25519, PublicKey25519Proposition] {
   require(signature.isEmpty || signature.length == Curve25519.SignatureLength,
     s"${signature.length} != ${Curve25519.SignatureLength}")
 
   override def isValid(proposition: Proposition, message: Array[Byte]): Boolean =
-    Curve25519.verify(signature, message, proposition.bytes)
+    Curve25519.verify(signature, message, PublicKey @@ proposition.bytes)
 
   override type M = Signature25519
 

@@ -8,6 +8,7 @@ import com.google.common.primitives.Longs
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 case class StateBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
@@ -41,7 +42,7 @@ object StateBox {
     state <- c.downField("state").as[Json]
     nonce <- c.downField("nonce").as[Long]
   } yield {
-    val preparedPubKey = Base58.decode(proposition).get
+    val preparedPubKey = PublicKey @@ Base58.decode(proposition).get
     val prop = PublicKey25519Proposition(preparedPubKey)
     StateBox(prop, nonce, value, state)
   }

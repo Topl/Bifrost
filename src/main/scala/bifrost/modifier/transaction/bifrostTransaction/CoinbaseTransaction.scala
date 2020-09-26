@@ -13,6 +13,7 @@ import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.Signature
 
 import scala.util.Try
 
@@ -101,7 +102,7 @@ object CoinbaseTransaction {
                      blockID: Array[Byte] // the blockID of the parent block. EX: if this is the CB for block 100 the blockID would be the id of block 99
                     ): Try[CoinbaseTransaction] = Try {
     val selectedSecret = w.secretByPublicImage(to.head._1).get // use the receiver's pub-key to generate secret
-    val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
+    val fakeSigs = IndexedSeq(Signature25519(Signature @@ Array.emptyByteArray)) // create an index sequence of empty sigs
     val timestamp = Instant.now.toEpochMilli // generate timestamp
     val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
     val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated

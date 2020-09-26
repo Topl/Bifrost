@@ -11,8 +11,8 @@ import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, Signature}
 
 import scala.util.Try
 
@@ -149,7 +149,7 @@ object AssetCreation {
     val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
     val signatures = rawSignatures.map { case (key, value) =>
         if(value == "") {
-          (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+          (Transaction.stringToPubKey(key), Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1.toByte)))
         } else {
           (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
         }

@@ -17,6 +17,7 @@ import io.circe.Json
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -77,12 +78,12 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
+        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
           .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+            PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
           )
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -153,12 +154,12 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
+        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
           .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+            PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
           )
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -227,12 +228,12 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
       val wallet = view.vault
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
+        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
           .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+            PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
           )
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -304,12 +305,12 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
+        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
       )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
           .map(key =>
-            PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+            PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
           )
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -372,7 +373,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     viewAsync().map { view =>
       val tbr = view.state.tbr
       val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k =>
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
+        PublicKey25519Proposition(PublicKey @@ Base58.decode(k.asString.get).get)
       )
       val boxes: Map[PublicKey25519Proposition, Map[String, Seq[Box]]] =
         publicKeys
@@ -600,7 +601,7 @@ case class WalletApiRoute(override val settings: AppSettings, nodeViewHolderRef:
     viewAsync().map { view =>
       val wallet = view.vault
       val props = (params \\ "signingKeys").head.asArray.get.map(k =>
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
+        PublicKey25519Proposition(PublicKey @@ Base58.decode(k.asString.get).get)
       )
       val tx = (params \\ "protoTx").head
       val txType = (tx \\ "txType").head.asString.get

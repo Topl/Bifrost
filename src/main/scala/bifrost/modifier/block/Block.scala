@@ -55,7 +55,7 @@ case class Block ( parentId: BlockId,
   lazy val id: BlockId = ModifierId(serializedId)
 
   lazy val serializedId: Array[Byte] = {
-    val blockWithoutSig = this.copy(signature = Signature25519(Array.empty))
+    val blockWithoutSig = this.copy(signature = Signature25519(Signature @@ Array.emptyByteArray))
     FastCryptographicHash(serializer.toBytes(blockWithoutSig))
   }
 
@@ -97,7 +97,7 @@ object Block {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
     // generate block message (block with empty signature) to be signed
-    val blockMessage = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
+    val blockMessage = Block(parentId, timestamp, box, Signature25519(Signature @@ Array.emptyByteArray), txs, version)
 
     // generate signature from the block message and private key
     val signature = if ( parentId.hashBytes sameElements History.GenesisParentId ) {
@@ -107,7 +107,7 @@ object Block {
     }
 
     // return a valid block with the signature attached
-    blockMessage.copy(signature = Signature25519(signature))
+    blockMessage.copy(signature = Signature25519(Signature @@ signature))
   }
 
   def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {

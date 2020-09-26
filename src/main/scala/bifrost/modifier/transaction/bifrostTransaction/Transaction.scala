@@ -8,6 +8,7 @@ import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{PublicKey, Signature}
 
 trait TransactionSettings
 
@@ -26,9 +27,9 @@ object Transaction {
   val modifierTypeId = ModifierTypeId @@ (2: Byte)
 
   def stringToPubKey(rawString: String): PublicKey25519Proposition =
-    PublicKey25519Proposition(Base58.decode(rawString).get)
+    PublicKey25519Proposition(PublicKey @@ Base58.decode(rawString).get)
 
-  def stringToSignature(rawString: String): Signature25519 = Signature25519(Base58.decode(rawString).get)
+  def stringToSignature(rawString: String): Signature25519 = Signature25519(Signature @@ Base58.decode(rawString).get)
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 

@@ -7,8 +7,8 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, Signature}
 
 import scala.util.Try
 
@@ -112,7 +112,7 @@ object ProgramTransaction {
     val owner = Transaction.stringToPubKey(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
       if (value == "") {
-        (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+        (Transaction.stringToPubKey(key), Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1.toByte)))
       } else {
         (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
       }

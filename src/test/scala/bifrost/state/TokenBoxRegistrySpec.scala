@@ -13,12 +13,12 @@ import bifrost.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import bifrost.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import bifrost.settings.{AppSettings, StartupOpts}
-import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
@@ -62,8 +62,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
     val tx1 = ArbitTransfer.create(genesisState.tbr,
       gw,
-      IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
-      IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
+      IndexedSeq((PublicKey25519Proposition(PublicKey @@ Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
+      IndexedSeq(PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
       0,
       ""
     ).get
@@ -71,8 +71,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     val block1 = Block(
       ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
-      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx1), settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)
@@ -95,8 +95,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
     val tx2 = ArbitTransfer.create(newState1.tbr,
       newWallet1,
-      IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
-      IndexedSeq(PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)),
+      IndexedSeq((PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
+      IndexedSeq(PublicKey25519Proposition(PublicKey @@ Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)),
       0,
       "",
     ).get
@@ -104,8 +104,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     val block2 = Block(
       ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
-      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx2), settings.forgingSettings.version)
 
     require(newState1.validate(tx2).isSuccess)
@@ -137,8 +137,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
     val tx1 = ArbitTransfer.create(genesisState.tbr,
       gw,
-      IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
-      IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
+      IndexedSeq((PublicKey25519Proposition(PublicKey @@ Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
+      IndexedSeq(PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
       0,
       "",
     ).get
@@ -146,8 +146,8 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     val block1 = Block(
       ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
       Instant.now().toEpochMilli,
-      ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-      Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+      ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+      Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
       Seq(tx1), settings.forgingSettings.version)
 
     require(genesisState.validate(tx1).isSuccess)

@@ -1,23 +1,24 @@
 package bifrost.nodeView
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import bifrost.crypto.{ PrivateKey25519Companion, Signature25519 }
+import akka.actor.{ActorRef, ActorSystem, Props}
+import bifrost.crypto.{PrivateKey25519Companion, Signature25519}
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{ Block, BlockSerializer }
+import bifrost.modifier.block.{Block, BlockSerializer}
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
+import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import bifrost.modifier.transaction.serialization.TransactionSerializer
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.{ AppSettings, BifrostContext }
+import bifrost.settings.{AppSettings, BifrostContext}
 import bifrost.state.State
 import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.{ Logging, TimeProvider }
+import bifrost.utils.{Logging, TimeProvider}
 import bifrost.wallet.Wallet
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{PublicKey, Signature}
 
 import scala.concurrent.ExecutionContext
 
@@ -113,20 +114,22 @@ object NodeViewHolder extends Logging {
         "7focbpSdsNNE4x9h7eyXSkvXE6dtxsoVyZMpTpuThLoH", "CBdnTL6C4A7nsacxCP3VL3TqUokEraFy49ckQ196KU46",
         "CfvbDC8dxGeLXzYhDpNpCF2Ar9Q5LKs8QrfcMYAV59Lt", "GFseSi5squ8GRRkj6RknbGj9Hyz82HxKkcn8NKW1e5CF",
         "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
-        ).map(s => PublicKey25519Proposition(Base58.decode(s).get))
+        ).map(s => PublicKey25519Proposition(PublicKey @@ Base58.decode(s).get))
 
     val genesisAccount = PrivateKey25519Companion.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
 
     val arbTx = ArbitTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
                               icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
+                              Map(genesisAccountPriv.publicImage ->
+                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
                               0L,
                               0L,
                               "")
     val polyTx = PolyTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
                               icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
+                              Map(genesisAccountPriv.publicImage ->
+                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
                               0L,
                               0L,
                               "")

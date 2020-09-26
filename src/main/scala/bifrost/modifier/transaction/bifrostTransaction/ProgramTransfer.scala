@@ -15,6 +15,7 @@ import io.circe.Json
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.Signature
 
 import scala.util.Try
 
@@ -86,7 +87,7 @@ object ProgramTransfer {
                      data: String): Try[ProgramTransfer] = Try {
 
     val selectedSecret = w.secretByPublicImage(from).get
-    val fakeSig = Signature25519(Array())
+    val fakeSig = Signature25519(Signature @@ Array.emptyByteArray)
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
 

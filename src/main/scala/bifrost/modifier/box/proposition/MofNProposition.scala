@@ -5,10 +5,10 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition._
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, Signature}
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 //noinspection ScalaStyle
-case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
+case class MofNProposition(m: Int, setOfPubKeyBytes: Set[PublicKey])
   extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   setOfPubKeyBytes.foreach(pubKeyBytes => {
@@ -23,7 +23,7 @@ case class MofNProposition(m: Int, setOfPubKeyBytes: Set[Array[Byte]])
   override def toString: String = address
 
   // TODO: only works for m == 1
-  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = {
+  def verify(message: Array[Byte], signature: Signature): Boolean = {
     setOfPubKeyBytes
       .map(curKeyBytes => Curve25519.verify(signature, message, curKeyBytes))
       .foldLeft(0)((numSuccess, wasSuccessful) => {

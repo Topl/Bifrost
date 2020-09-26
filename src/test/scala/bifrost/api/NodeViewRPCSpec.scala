@@ -24,8 +24,8 @@ import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -150,8 +150,8 @@ class NodeViewRPCSpec extends AnyWordSpec
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
           settings.forgingSettings.version
         )
