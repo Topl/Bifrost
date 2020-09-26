@@ -573,8 +573,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
         val key = sampleUntilNonEmpty(key25519Gen)
         (key._1, key._2.pubKeyBytes)
       })
-      .foldLeft((Set[PrivateKey25519](), Set[Array[Byte]]())) {
-        case (set: (Set[PrivateKey25519], Set[Array[Byte]]), cur: (PrivateKey25519, Array[Byte])) =>
+      .foldLeft((Set[PrivateKey25519](), Set[PublicKey]())) {
+        case (set: (Set[PrivateKey25519], Set[PublicKey]), cur: (PrivateKey25519, PublicKey)) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
     val prop = MofNProposition(1, setOfKeys._2)
