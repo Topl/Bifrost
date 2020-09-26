@@ -1,28 +1,28 @@
 package bifrost.http.api
 
 import akka.actor.ActorRefFactory
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
-import akka.http.scaladsl.server.{Directive0, Directives, Route}
+import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
+import akka.http.scaladsl.server.{ Directive0, Directives, Route }
 import akka.util.Timeout
-import bifrost.settings.AppSettings
+import bifrost.settings.{ AppSettings, RESTApiSettings }
 import io.circe.Json
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
-import scorex.crypto.hash.{Blake2b256, CryptographicHash}
+import scorex.crypto.hash.{ Blake2b256, CryptographicHash }
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Await, Future }
+import scala.util.{ Failure, Success, Try }
 
 trait ApiRoute extends Directives {
-  val settings: AppSettings
+  val settings: RESTApiSettings
   val context: ActorRefFactory
   val route: Route
 
-  implicit val timeout: Timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout = Timeout(settings.timeout)
 
-  lazy val corsAllowed: Boolean = settings.restApi.corsAllowed
-  lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.restApi.apiKeyHash).toOption
+  lazy val corsAllowed: Boolean = settings.corsAllowed
+  lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
 
   def actorRefFactory: ActorRefFactory = context
 

@@ -1,6 +1,6 @@
 package bifrost.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.PrivateKey25519Companion
 import bifrost.exceptions.JsonParsingException
@@ -8,23 +8,23 @@ import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
-import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
+import bifrost.modifier.box.{ Box, CodeBox, ExecutionBox, StateBox }
+import bifrost.modifier.transaction.bifrostTransaction.{ CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
-import bifrost.settings.AppSettings
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
+import bifrost.settings.{ AppSettings, RESTApiSettings }
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._
-import io.circe.{Decoder, Json, JsonObject}
+import io.circe.{ Decoder, Json, JsonObject }
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
-case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
+case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State

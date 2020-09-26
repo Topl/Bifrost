@@ -27,8 +27,8 @@ import scala.util.{ Failure, Success, Try }
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History ( private val storage: Storage,
-                private val fullBlockProcessor: BlockProcessor,
+class History ( storage: Storage,
+                fullBlockProcessor: BlockProcessor,
                 settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
               ) extends GenericHistory[Block, BifrostSyncInfo, History]

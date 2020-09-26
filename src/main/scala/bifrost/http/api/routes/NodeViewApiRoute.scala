@@ -1,13 +1,13 @@
 package bifrost.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.nodeView.CurrentView
-import bifrost.settings.AppSettings
+import bifrost.settings.{ AppSettings, RESTApiSettings }
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
@@ -16,15 +16,14 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
-case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
+case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
   type VL = Wallet
   type MP = MemPool
-  type CV = CurrentView[History, State, Wallet, MemPool]
   override val route: Route = pathPrefix("nodeView") { basicRoute(handlers) }
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
@@ -71,7 +70,9 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
     */
   private def transactionById(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
+      // parse required arguments
       val transactionId: String = (params \\ "transactionId").head.asString.get
+
       Base58.decode(transactionId) match {
         case Success(id) =>
           val storage = view.history.storage
@@ -86,7 +87,7 @@ case class NodeViewApiRoute(override val settings: AppSettings, nodeViewHolderRe
             .head
           tx.json.asObject.get
             .add("blockNumber", blockNumber.asJson)
-            .add("blockHash", blockId.toString.asJson)
+            .add("blockId", blockId.toString.asJson)
             .asJson
         case Failure(e) ⇒ throw e
       }

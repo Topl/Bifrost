@@ -29,15 +29,8 @@ trait TransferUtil {
     val undersigned = txType match {
       case "PolyTransfer"  => PolyTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
       case "ArbitTransfer" => ArbitTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
-      case "AssetTransfer" => AssetTransfer(fromPub,
-                                            to,
-                                            Map(),
-                                            extraArgs(0).asInstanceOf[PublicKey25519Proposition],
-                                            extraArgs(1).asInstanceOf[String],
-                                            fee,
-                                            timestamp,
-                                            extraArgs(2).asInstanceOf[String]
-                                            )
+      case "AssetTransfer" => AssetTransfer(fromPub, to, Map(), extraArgs(0).asInstanceOf[PublicKey25519Proposition],
+                                            extraArgs(1).asInstanceOf[String], fee, timestamp, extraArgs(2).asInstanceOf[String])
     }
 
     val msg = undersigned.messageToSign

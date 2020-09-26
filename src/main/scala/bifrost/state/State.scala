@@ -28,8 +28,8 @@ import scala.util.{ Failure, Success, Try }
  */
 case class State ( override val version: VersionTag,
                    protected val storage : LSMStore,
-                   private val tbrOpt  : Option[TokenBoxRegistry] = None,
-                   private val pbrOpt  : Option[ProgramBoxRegistry] = None,
+                   tbrOpt  : Option[TokenBoxRegistry] = None,
+                   pbrOpt  : Option[ProgramBoxRegistry] = None,
                    nodeKeys            : Option[Set[PublicKey25519Proposition]] = None
                  ) extends MinimalState[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box, Block, State]
                            with StoreInterface
@@ -49,14 +49,20 @@ case class State ( override val version: VersionTag,
     pbrOpt.foreach(_.closeStorage())
   }
 
+  /**
+   * Accessor method to retrieve box data from the state storage
+   *
+   * @param id unique identifier where the box data is stored
+   * @return
+   */
   def getBox ( id: Array[Byte] ): Option[Box] =
     getFromStorage(id)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 
-
   /**
-   * Retrieve a sequence of token boxes from the UTXO set based on the given key
+   * Lookup a sequence of boxIds from the appropriate registry.
+   * These boxIds can then be used in `getBox` to retrieve the box data.
    *
    * @param key storage key used to identify value(s) in registry
    * @return a sequence of boxes stored beneath the specified key
@@ -231,7 +237,7 @@ object State extends Logging {
     }
   }
 
-  private[transaction] def generateUnlockers ( from      : Seq[(PublicKey25519Proposition, Transaction.Nonce)],
+  def generateUnlockers ( from      : Seq[(PublicKey25519Proposition, Transaction.Nonce)],
                                                signatures: Map[PublicKey25519Proposition, Signature25519]
                                              ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
     from.map {
@@ -247,7 +253,7 @@ object State extends Logging {
     }
   }
 
-  private[transaction] def generateUnlockers ( boxIds   : Seq[Array[Byte]],
+   def generateUnlockers ( boxIds   : Seq[Array[Byte]],
                                                signature: Signature25519
                                              ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
     boxIds.map { id =>

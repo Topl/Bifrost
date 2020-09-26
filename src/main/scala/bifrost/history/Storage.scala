@@ -18,7 +18,7 @@ import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.{Failure, Try}
 
-class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging {
+class Storage(private[history] val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   private val cacheExpire: Int = settings.cacheExpire
   private val cacheSize: Int = settings.cacheSize
