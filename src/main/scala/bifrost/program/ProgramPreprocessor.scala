@@ -2,13 +2,10 @@ package bifrost.program
 
 import java.nio.file.{Files, Path}
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.coding.Gzip
-import akka.stream.ActorMaterializer
-import akka.util.ByteString
 import bifrost.crypto.Signature25519
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.serialization.JsonSerializable
+import bifrost.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
@@ -17,11 +14,10 @@ import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import scorex.util.encode.{Base58, Base64}
+import scorex.crypto.signatures.{PublicKey, Signature}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 import scala.util.matching.Regex
 
 /**
@@ -38,7 +34,7 @@ case class ProgramPreprocessor(name: String,
   lazy val json: Json = Map(
     //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
     "name" -> name.asJson,
-    "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
+    "initjs" -> Base64.encode(Gzip.compress(initjs.getBytes)).asJson,
     "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
     "variables" -> variables.asJson,
     "code" -> code.map(a => a._1 -> a._2).asJson,
@@ -124,7 +120,10 @@ object ProgramPreprocessor {
     val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
       .headOption
       .map(_.as[(String, String)].right.get)
-      .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
+      .map{pair =>
+        val pub = PublicKey25519Proposition(PublicKey @@ Base58.decode(pair._1).get)
+        val sig = Signature25519(Signature @@ Base58.decode(pair._2).get)
+        pub -> sig}
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
@@ -320,8 +319,6 @@ object ProgramPreprocessor {
     functionList(parsed)
   }
 
-  implicit val system = ActorSystem("QuickStart")
-
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
@@ -334,24 +331,24 @@ object ProgramPreprocessor {
     signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
 
-    def decodeGzip(zipped: String): Future[ByteString] = {
-      Gzip.decode(ByteString(Base64.decode(zipped)))
+    def decodeGzip(zippedStr: String): String = {
+      val zipped: Array[Byte] = Base64.decode(zippedStr).get
+      val unzipped: Array[Byte] = Gzip.decompress(zipped)
+      new String(unzipped)
     }
 
-    Await.result({
-      import scala.concurrent.ExecutionContext.Implicits.global
-      for {
-        decodedInitjs <- decodeGzip(initjs)
-        //decodedState <- decodeGzip(state)
-      } yield ProgramPreprocessor(
-        name,
-        new String(decodedInitjs.toArray[Byte]),
-        interface,
-        //parse(new String(decodedState.toArray[Byte])).right.get,
-        variables,
-        code,
-        signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
-      )
-    }, Duration.Inf)
+    ProgramPreprocessor(
+      name,
+      decodeGzip(initjs),
+      interface,
+      //parse(new String(decodedState.toArray[Byte])).right.get,
+      variables,
+      code,
+      signed.map{pair =>
+        val pub = PublicKey25519Proposition(PublicKey @@ Base58.decode(pair._1).get)
+        val sig = Signature25519(Signature @@ Base58.decode(pair._2).get)
+        pub -> sig
+      }
+    )
   }
 }
