@@ -35,7 +35,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces = FastCryptographicHash(
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.flatMap(_._1.pubKeyBytes).toArray ++
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
   )
@@ -75,7 +75,7 @@ case class AssetCreation (to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetCreation".getBytes(),
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.flatMap(_._1.pubKeyBytes).toArray ++
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes),
     issuer.pubKeyBytes,
     assetCode.getBytes,

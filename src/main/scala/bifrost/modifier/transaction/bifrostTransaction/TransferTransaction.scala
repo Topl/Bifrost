@@ -22,8 +22,8 @@ abstract class TransferTransaction ( val from              : IndexedSeq[(PublicK
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
   lazy val hashNoNonces: Digest32 = FastCryptographicHash(
+    to.flatMap(_._1.pubKeyBytes).toArray ++
       //Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
       data.getBytes
@@ -62,7 +62,7 @@ abstract class TransferTransaction ( val from              : IndexedSeq[(PublicK
 
   //YT NOTE - removed timestamp and unlockers since that will be updated after signatures are received
   def commonMessageToSign: Array[Byte] =
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.flatMap(_._1.pubKeyBytes).toArray ++
       newBoxes.foldLeft(Array[Byte]())(( acc, x ) => acc ++ x.bytes)
 
   Longs.toByteArray(fee) ++
