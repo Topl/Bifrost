@@ -86,8 +86,8 @@ class ProgramMethodSpec extends AnyPropSpec
 
         //Pass in JSON objects for each read-only StateBox
         stateBoxes.tail.map{ sb =>
-          val formattedUuid: String = "_" + sb._2.toString.replace("-", "_")
-          jsre.eval("js", s"""var $formattedUuid = JSON.parse(${sb._1.state})""")
+          val formatteId: String = "_" + sb._2.toString.replace("-", "_")
+          jsre.eval("js", s"""var $formatteId = JSON.parse(${sb._1.state})""")
         }
 
         //Inject function to read from read only StateBoxes

@@ -49,8 +49,8 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne)
-  val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo)
+  val sboxOneWithoutId: StateBox = StateBox(pubKey, 0L, null, stateOne)
+  val sboxTwoWithoutId: StateBox = StateBox(pubKey, 1L, null, stateTwo)
 
   val progId: ProgramId = ProgramId.create()
 

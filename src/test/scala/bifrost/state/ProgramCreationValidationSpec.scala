@@ -74,11 +74,11 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val stateBoxTwo = StateBox(owner, 1L, null, stateTwo)
     val stateBoxThree = StateBox(owner, 2L, null, stateThree)
 
-    val readOnlyUUIDs = Seq(ProgramId.create(), ProgramId.create())
+    val readOnlyIds = Seq(ProgramId.create(), ProgramId.create())
 
     ProgramCreation(
       executionBuilder,
-      readOnlyUUIDs,
+      readOnlyIds,
       preInvestmentBoxes,
       owner,
       signature,

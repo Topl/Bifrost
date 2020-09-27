@@ -4,24 +4,25 @@ import java.io.File
 import java.time.Instant
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import bifrost.history.{BlockProcessor, History, Storage}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.history.{ BlockProcessor, History, Storage }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{MofNProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
 import bifrost.network.message.BifrostSyncInfo
-import bifrost.program.{Program, ProgramPreprocessor, _}
-import bifrost.settings.{AppSettings, StartupOpts}
-import io.circe.{Json, JsonObject}
+import bifrost.program.{ Program, ProgramPreprocessor, _ }
+import bifrost.settings.{ AppSettings, StartupOpts }
+import bifrost.state.ProgramId
+import io.circe.{ Json, JsonObject }
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{ Arbitrary, Gen }
 import scorex.crypto.encode.Base58
 
-import scala.util.{Random, Try}
+import scala.util.{ Random, Try }
 import bifrost.utils.Logging
 
 /**
@@ -214,7 +215,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     value <- stringGen
     nonce <- positiveLongGen
   } yield {
-    StateBox(proposition, nonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(proposition, nonce)), value.asJson)
+    StateBox(proposition, nonce, ProgramId.create(), value.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
@@ -229,7 +230,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
     }.toMap
 
-    CodeBox(proposition, nonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(proposition, nonce)), methods, interface)
+    CodeBox(proposition, nonce, ProgramId.create(), methods, interface)
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
@@ -241,9 +242,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     stateBox_2 <- stateBoxGen
   } yield {
 
-    ExecutionBox(proposition, nonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, nonce)),
-      Seq(UUID.nameUUIDFromBytes(stateBox_1.id), UUID.nameUUIDFromBytes(stateBox_2.id)),
-      Seq(codeBox_1.id, codeBox_2.id))
+    ExecutionBox(proposition, nonce, ProgramId.create(), Seq(stateBox_1.value, stateBox_2.value), Seq(codeBox_1.value, codeBox_2.value))
   }
 
   // TODO refactor out partiesGen and replace with proposition
@@ -371,7 +370,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   } yield {
     ProgramCreation(
       executionBuilder,
-      Seq(UUID.nameUUIDFromBytes(readOnlyStateBoxes.id)),
+      Seq(readOnlyStateBoxes.value),
       (0 until numInvestmentBoxes)
         .map { _ => sampleUntilNonEmpty(positiveLongGen) -> sampleUntilNonEmpty(positiveLongGen) },
       owner,
@@ -409,15 +408,15 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
     val parameters = JsonObject.empty.asJson
 
-    val state = StateBox(party, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(party, stateNonce)), Map("a" -> 0).asJson)
+    val state = StateBox(party, stateNonce, ProgramId.create(), Map("a" -> 0).asJson)
 
-    val code = CodeBox(party, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(party, codeNonce)),
+    val code = CodeBox(party, codeNonce, ProgramId.create(),
       Seq("inc = function() { a += 1; }"), Map("inc" -> Seq()))
 
     ProgramMethodExecution(
+      executionBox,
       Seq(state),
       Seq(code),
-      executionBox,
       methodName,
       parameters,
       party,

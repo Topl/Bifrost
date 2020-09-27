@@ -2,19 +2,20 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519Companion, Signature25519 }
+import bifrost.modifier.box.{ PublicKeyNoncedBox, _ }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.program.{ExecutionBuilderSerializer, _}
-import com.google.common.primitives.{Bytes, Longs}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.program.{ ExecutionBuilderSerializer, _ }
+import bifrost.state.ProgramId
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Created by cykoz on 5/11/2017.
@@ -79,7 +80,7 @@ trait ValidGenerators extends BifrostGenerators {
       val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
       val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
-      val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+      val readOnlyUUIDs = Seq(stateBoxTwo.value, stateBoxThree.value)
 
       val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
@@ -146,14 +147,11 @@ trait ValidGenerators extends BifrostGenerators {
 
     val state = Map("a" -> "0").asJson
 
-    val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
-    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
-      Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
+    val stateBox = StateBox(sender, 0L, ProgramId.create(), state)
+    val codeBox = CodeBox(sender, 1L, ProgramId.create(), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
-
-    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
     //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBox = ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(sender, 2L, ProgramId.create(), Seq(stateBox.value), Seq(codeBox.value))
 
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
@@ -205,9 +203,9 @@ trait ValidGenerators extends BifrostGenerators {
     val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
 
     bifrostTransaction.ProgramMethodExecution(
+      executionBox,
       Seq(stateBox),
       Seq(codeBox),
-      executionBox,
       methodName,
       parameters,
       sender,
