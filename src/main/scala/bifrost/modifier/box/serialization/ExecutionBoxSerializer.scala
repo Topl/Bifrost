@@ -10,13 +10,13 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
   override def serialize(obj: ExecutionBox, w: Writer): Unit = {
     ProgramBoxSerializer.serialize(obj, w)
 
-    /* stateBoxUUIDs: Seq[UUID], List of uuids of state boxes from ProgramBoxRegistry */
+    /* stateBoxIds: Seq[ProgramId], List of program ids of state boxes in ProgramBoxRegistry */
     w.putUInt(obj.stateBoxIds.length)
     obj.stateBoxIds.foreach { id =>
       ProgramId.serialize(id, w)
     }
 
-    /* codeBoxIds: Seq[Array[Byte]] */
+    /* codeBoxIds: Seq[ProgramId] */
     w.putUInt(obj.codeBoxIds.length)
     obj.codeBoxIds.foreach{id =>
       ProgramId.serialize(id, w)

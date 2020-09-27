@@ -31,6 +31,8 @@ object TokenRegistryChanges {
             }).foldLeft((Seq[(PK, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
+
+          case None => (Seq[(PK, Long)](), Seq[TokenBox]())
         }
 
       val toRemove: Map[TokenBoxRegistry.K, Seq[TokenBoxRegistry.V]] =

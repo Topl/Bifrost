@@ -108,7 +108,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 
 object ProgramMethodExecution {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   //YT NOTE - example of how to use static function to construct methodParams for PME tx
   //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry

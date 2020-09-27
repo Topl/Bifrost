@@ -75,7 +75,7 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
 
 object ProgramTransfer {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(8))
 

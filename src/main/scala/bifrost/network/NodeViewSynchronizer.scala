@@ -578,9 +578,6 @@ class NodeViewSynchronizer[
 
 object NodeViewSynchronizer {
 
-  type P <: Proposition
-  type BX <: GenericBox[P, Any]
-
   case class RemoteMessageHandler(
     syncInfoSpec: SyncInfoSpec,
     invSpec: InvSpec,
@@ -642,7 +639,7 @@ object NodeViewSynchronizer {
 
     case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader[BX, P, Any]](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 

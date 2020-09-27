@@ -89,7 +89,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
 object AssetCreation {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 

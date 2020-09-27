@@ -105,6 +105,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val tx = PolyTransfer
         .create(
           view.state.tbrOpt.get,
+          view.state,
           wallet,
           IndexedSeq((recipient, amount)),
           sender,
@@ -182,6 +183,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val tx = PolyTransfer
         .createPrototype(
           view.state.tbrOpt.get,
+          view.state,
           IndexedSeq((recipient, amount)),
           sender,
           fee,
@@ -256,6 +258,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val tx = ArbitTransfer
         .create(
           view.state.tbrOpt.get,
+          view.state,
           wallet,
           IndexedSeq((recipient, amount)),
           sender,
@@ -331,6 +334,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val tx = ArbitTransfer
         .createPrototype(
           view.state.tbrOpt.get,
+          view.state,
           IndexedSeq((recipient, amount)),
           sender,
           fee,

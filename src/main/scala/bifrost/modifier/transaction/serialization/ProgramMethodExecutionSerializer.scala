@@ -77,7 +77,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       Map(owner -> sig)
     }
 
-    val preBoxesLength: Int = r.getUInt.toIntExact
+    val preBoxesLength: Int = r.getUInt().toIntExact
     val preBoxes: IndexedSeq[(Nonce, Long)] = (0 until preBoxesLength).map { _ =>
       val nonce: Nonce = r.getLong()
       val value: Long = r.getULong()
@@ -89,7 +89,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 
-    ProgramMethodExecution(state, code, executionBox, methodName, methodParams,
+    ProgramMethodExecution(executionBox, state, code, methodName, methodParams,
                            owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 }

@@ -86,7 +86,7 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
 object CoinbaseTransaction {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
 

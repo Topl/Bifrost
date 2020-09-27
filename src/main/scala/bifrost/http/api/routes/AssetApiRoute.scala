@@ -108,7 +108,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
         )
 
       val tx = AssetTransfer
-        .create(view.state.tbrOpt.get, view.vault, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data)
+        .create(view.state.tbrOpt.get, view.state, view.vault, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data)
         .get
 
       AssetTransfer.semanticValidate(tx, view.state) match {
@@ -188,7 +188,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
 
       // construct the transaction
       val tx = AssetTransfer
-        .createPrototype(view.state.tbrOpt.get, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data)
+        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data)
         .get
 
       // validate and update nodeView with new TX
@@ -258,6 +258,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       val tx = AssetTransfer
         .create(
           view.state.tbrOpt.get,
+          view.state,
           wallet,
           IndexedSeq((recipient, amount)),
           sender,
@@ -335,7 +336,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
 
       val tx =
         AssetTransfer
-          .createPrototype(view.state.tbrOpt.get, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data)
+          .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data)
           .get
 
       AssetTransfer.validatePrototype(tx) match {

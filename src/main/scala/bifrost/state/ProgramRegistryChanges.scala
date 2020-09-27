@@ -31,6 +31,8 @@ object ProgramRegistryChanges {
             }).foldLeft((Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]()))((acc, txData) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
+
+          case None => (Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]())
         }
 
       val toRemove: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]] =

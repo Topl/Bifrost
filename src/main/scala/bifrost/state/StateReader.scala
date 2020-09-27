@@ -5,7 +5,7 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewComponent
 import bifrost.state.MinimalState.VersionTag
 
-trait StateReader[BX <: GenericBox[P, T], P <: Proposition, T] extends NodeViewComponent {
+trait StateReader[BX <: GenericBox[_ <: Proposition, _]] extends NodeViewComponent {
 
   //must be ID of last applied modifier
   def version: VersionTag

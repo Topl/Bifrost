@@ -20,8 +20,7 @@ object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
     /* readOnlyStateBoxes: Seq[UUID] */
     w.putUInt(obj.readOnlyStateBoxes.length)
     obj.readOnlyStateBoxes.foreach { id =>
-      w.putLong(id.getMostSignificantBits)
-      w.putLong(id.getLeastSignificantBits)
+      ProgramId.serialize(id, w)
     }
 
     /* preInvestmentBoxes: IndexedSeq[(Nonce, Long)] */

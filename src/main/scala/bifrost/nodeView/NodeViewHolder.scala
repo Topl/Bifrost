@@ -6,7 +6,7 @@ import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{ Block, BlockSerializer }
-import bifrost.modifier.box.ArbitBox
+import bifrost.modifier.box.{ ArbitBox, Box }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
 import bifrost.modifier.transaction.serialization.TransactionSerializer
@@ -23,21 +23,12 @@ import scala.concurrent.ExecutionContext
 
 class NodeViewHolder ( override val settings: AppSettings, bifrostContext: BifrostContext )
                      ( implicit ec: ExecutionContext )
-  extends GenericNodeViewHolder[Transaction, Block] {
-
-  override type SI = BifrostSyncInfo
-  override type HIS = History
-  override type MS = State
-  override type VL = Wallet
-  override type MP = MemPool
-  type PMOD = Block
+  extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
+                                NodeViewHolder.MS, NodeViewHolder.VL, NodeViewHolder.MP] {
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
         GenericTransaction.modifierTypeId -> TransactionSerializer)
-
-  override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
-    new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
 
   private val timeProvider: TimeProvider = bifrostContext.timeProvider
 
@@ -81,7 +72,9 @@ object NodeViewHolder extends Logging {
   type MS = State
   type VL = Wallet
   type MP = MemPool
-
+  type PMOD = Block
+  type TX = Transaction
+  type BX = Box
   type NodeView = (HIS, MS, VL, MP)
 
   //noinspection ScalaStyle

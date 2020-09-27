@@ -14,7 +14,7 @@ import scala.util.Try
 
 trait TransferUtil {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 

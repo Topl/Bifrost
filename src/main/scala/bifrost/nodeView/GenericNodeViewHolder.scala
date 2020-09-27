@@ -10,7 +10,7 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.SyncInfo
 import bifrost.settings.AppSettings
-import bifrost.state.{ MinimalState, TransactionValidation }
+import bifrost.state.{ MinimalState, StateReader, TransactionValidation }
 import bifrost.utils.{ BifrostEncoding, Logging }
 import bifrost.wallet.Vault
 
@@ -27,23 +27,20 @@ import scala.util.{ Failure, Success, Try }
   * @tparam TX
   * @tparam PMOD
   */
-trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
-  extends Actor with Logging with BifrostEncoding {
+trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
+                              TX   <: Transaction,
+                              PMOD <: PersistentNodeViewModifier,
+                              HIS  <: GenericHistory[PMOD, _ <: SyncInfo, HIS],
+                              MS   <: MinimalState[BX, PMOD, MS],
+                              VL   <: Vault[TX, PMOD, VL],
+                              MP   <: MemoryPool[TX, MP]
+                            ] extends Actor with Logging with BifrostEncoding {
 
   // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-
-
-  type SI <: SyncInfo
-  type P <: Proposition
-  type BX <: GenericBox[P, Any]
-  type HIS <: GenericHistory[PMOD, SI, HIS]
-  type MS <: MinimalState[Any, P, BX, PMOD, MS]
-  type VL <: Vault[TX, PMOD, VL]
-  type MP <: MemoryPool[TX, MP]
 
   type NodeView = (HIS, MS, VL, MP)
 

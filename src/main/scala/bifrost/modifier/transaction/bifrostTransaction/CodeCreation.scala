@@ -8,7 +8,7 @@ import bifrost.modifier.box.{ Box, CodeBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CodeBoxCreationSerializer
 import bifrost.program.ProgramPreprocessor
-import bifrost.state.StateReader
+import bifrost.state.{ ProgramId, StateReader }
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
 import com.google.common.primitives.{ Bytes, Longs }
@@ -49,7 +49,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
         hashNoNonces
     ))
 
-    val uuid = UUID.nameUUIDFromBytes(CodeBox.idFromBox(to, nonce))
+    val uuid = ProgramId.create()
 
     val interface = ProgramPreprocessor("code", code)(JsonObject.empty).interface
 
@@ -80,7 +80,7 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
 object CodeCreation {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 

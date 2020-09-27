@@ -130,7 +130,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
 object ProgramCreation {
 
-  type SR = StateReader[Box, ProofOfKnowledgeProposition[PrivateKey25519], Any]
+  type SR = StateReader[Box]
 
   def syntacticValidate(tx: ProgramCreation, withSigs: Boolean = true): Try[Unit] = Try {
     require(ExecutionBuilder.validate(tx.executionBuilder).isSuccess)
