@@ -232,7 +232,7 @@ class StateSpec extends AnyPropSpec
   }*/
 
   override def afterAll() {
-    StateSpec.history.storage.storage.close()
+    StateSpec.history.closeStorage()
   }
 }
 

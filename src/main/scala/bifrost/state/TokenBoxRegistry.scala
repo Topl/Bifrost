@@ -2,7 +2,8 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.{ Proposition, PublicKey25519Proposition }
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
@@ -23,9 +24,12 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
   import TokenBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
-  override def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
+  override protected def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
 
-  override def registryOutput ( value: Array[Byte] ): V = value
+  override protected def registryOutput ( value: Array[Byte] ): V = BoxId(value)
+
+  /** Helper function to retrieve boxes out of state */
+  def getBox[BX](key: K, stateReader: SR): Option[Seq[BX]] = super.getBox[BX](key, stateReader, (value: V) => value.hashBytes)
 
   /**
    * @param newVersion - block id
@@ -38,10 +42,10 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
    *         N = Number of boxes owned by a public key
    *         L = Number of boxes to append
    */
-  def update ( newVersion: VersionTag,
-               toRemove: Map[K, Seq[V]],
-               toAppend: Map[K, Seq[V]]
-             ): Try[TokenBoxRegistry] = {
+  protected[state] def update ( newVersion: VersionTag,
+                                toRemove: Map[K, Seq[V]],
+                                toAppend: Map[K, Seq[V]]
+                              ): Try[TokenBoxRegistry] = {
 
     Try {
       log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
@@ -77,7 +81,7 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
       storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
-        updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.flatten.toArray))
+        updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.flatMap(_.hashBytes).toArray))
         )
 
       TokenBoxRegistry(storage, nodeKeys)
@@ -93,13 +97,12 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
       TokenBoxRegistry(storage, nodeKeys)
     }
   }
-
 }
 
 object TokenBoxRegistry extends Logging {
 
   type K = PublicKey25519Proposition
-  type V = Array[Byte]
+  type V = BoxId
 
   def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
     if (settings.enableTBR) {

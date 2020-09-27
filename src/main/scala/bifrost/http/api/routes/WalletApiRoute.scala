@@ -6,7 +6,7 @@ import bifrost.crypto.{ Bip39, PrivateKey25519 }
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
-import bifrost.modifier.box.Box
+import bifrost.modifier.box.TokenBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
@@ -324,22 +324,15 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 
       if ( view.state.tbrOpt.isDefined )
         throw new Exception("TokenBoxRegistry not defined for node")
+
       if ( view.state.nodeKeys != null )
-        sender.foreach(key =>
-                         if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
-                           throw new Exception(
-                             "Node not set to watch for specified public key"
-                             )
-                       )
+        sender.foreach(key => {
+          if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
+            throw new Exception("Node not set to watch for specified public key")
+        })
+
       val tx = ArbitTransfer
-        .createPrototype(
-          view.state.tbrOpt.get,
-          view.state,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          data
-          )
+        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, fee, data)
         .get
 
       // Update nodeView with new TX
@@ -380,37 +373,24 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         PublicKey25519Proposition(Base58.decode(k.asString.get).get)
       })
 
-      val tbr = view.state.tbrOpt.get
-
-      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[Box]]] =
+      val boxes: Map[PublicKey25519Proposition, Map[String, Seq[TokenBox]]] =
         publicKeys
-          .map(k => k -> tbr.lookup(k).map(id => view.state.getBox(id).get).groupBy[String](b => b.typeOfBox))
+          .map(k => k -> view.state.getTokenBoxes(k).get.groupBy[String](b => b.typeOfBox))
           .toMap
 
-      val balances: Map[PublicKey25519Proposition, (String, String)] =
+      val balances: Map[PublicKey25519Proposition, Map[String, Long]] =
         boxes.map {
-          case (prop, boxes) =>
-            val sums = (
-              if ( boxes.contains("Poly") )
-                boxes("Poly")
-                  .foldLeft(0L)(( a, b ) => a + b.value.asInstanceOf[Long])
-                  .toString
-              else "0",
-              if ( boxes.contains("Arbit") )
-                boxes("Arbit")
-                  .foldLeft(0L)(( a, b ) => a + b.value.asInstanceOf[Long])
-                  .toString
-              else "0"
-            )
-            prop -> sums
+          case (prop, assets) => prop -> assets.map {
+            case (boxType, boxes) => (boxType, boxes.map(_.value).sum)
+          }
         }
 
       boxes.map {
         case (prop, boxes) =>
           Base58.encode(prop.pubKeyBytes) -> Map(
             "Balances" -> Map(
-              "Polys" -> balances(prop)._1,
-              "Arbits" -> balances(prop)._2
+              "Polys" -> balances(prop).getOrElse("Poly", 0L),
+              "Arbits" -> balances(prop).getOrElse("Arbit", 0L)
               ).asJson,
             "Boxes" -> boxes.map(b => b._1 -> b._2.map(_.json).asJson).asJson
             )
@@ -608,9 +588,10 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def signTx ( params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val props = (params \\ "signingKeys").head.asArray.get.map(k =>
-                                                                   PublicKey25519Proposition(Base58.decode(k.asString.get).get)
-                                                                 )
+      val props = (params \\ "signingKeys").head.asArray.get.map(k => {
+        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
+      })
+
       val tx = (params \\ "protoTx").head
       val txType = (tx \\ "txType").head.asString.get
       val txInstance = txType match {

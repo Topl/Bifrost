@@ -29,19 +29,19 @@ class AssetCreationValidationSpec extends StateSpec {
           settings.forgingSettings.version
         )
 
-        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set())
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(7)))
+          .applyChanges(ModifierId(Ints.toByteArray(7)), necessaryBoxesSC)
           .get
 
         val newState = preparedState
-          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(8)))
+          .applyChanges(ModifierId(Ints.toByteArray(8)), StateChanges(block).get)
           .get
 
-        assetCreation.newBoxes.forall(b => newState.storage.get(ByteArrayWrapper(b.id)) match {
-          case Some(wrapper) => wrapper.data sameElements b.bytes
+        assetCreation.newBoxes.forall(b => newState.getBox(b.id) match {
+          case Some(box) => box.bytes sameElements b.bytes
           case None => false
         })
 
@@ -61,11 +61,11 @@ class AssetCreationValidationSpec extends StateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
-        val necessaryBoxesSC = StateChanges(Set(), Set(), Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), Set())
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(9)))
+          .applyChanges(ModifierId(Ints.toByteArray(9)), necessaryBoxesSC)
           .get
 
         val newState = preparedState.validate(invalidAC)

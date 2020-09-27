@@ -51,9 +51,9 @@ class NodeViewRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = NodeViewApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = NodeViewApiRoute(settings.restApi, nodeViewHolderRef).route
 
-  val routeAsset: Route = AssetApiRoute(settings, nodeViewHolderRef).route
+  val routeAsset: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

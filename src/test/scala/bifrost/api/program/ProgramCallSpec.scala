@@ -16,7 +16,7 @@ class ProgramCallSpec extends AnyWordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
   "programCall" should {
 

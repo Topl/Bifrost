@@ -593,13 +593,6 @@ object History extends Logging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        log.info("Closing block storage...")
-        blockStorage.close()
-      }
-    })
-
     new History(storage, blockProcessor, settings, validators)
   }
 }

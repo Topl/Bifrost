@@ -5,15 +5,21 @@ import bifrost.modifier.box.proposition.Proposition
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 
-import scala.util.Try
+import scala.util.{ Success, Try }
 
 trait Registry[K, V] extends StoreInterface with Logging {
 
-  /** Helper function to transform registry input key to ByteArrayWrapper */
-  def registryInput(key: K): Array[Byte]
+  type SR = StateReader[_ <: GenericBox[_ <: Proposition, _]]
+
+  protected def update(newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]] ): Try[Registry[K, V]]
+
+  protected def rollbackTo( version: VersionTag): Try[Registry[K, V]]
+
+  /** Helper function to transform registry input key to Array[Byte] */
+  protected def registryInput(key: K): Array[Byte]
 
   /** Helper function to transform registry output value from Array[Byte] */
-  def registryOutput(value: Array[Byte]): V
+  protected def registryOutput(value: Array[Byte]): V
 
   /**
    * Lookup boxId stored by key in the registry
@@ -27,8 +33,22 @@ trait Registry[K, V] extends StoreInterface with Logging {
       .getOrElse(Seq[V]())
   }
 
-  def update(newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]] ): Try[Registry[K, V]]
-
-  def rollbackTo( version: VersionTag): Try[Registry[K, V]]
-
+  /**
+   * A convenience method to allow for seamlessly looking up a box in a registry and then querying
+   * for the box data in state
+   *
+   * @param key the registry key used to lookup boxIds in the registry
+   * @param state the state containing the box data to be retrieved
+   * @param f a function converting the value saved in the registry to the key used to identify data in state
+   * @tparam BX type of box expected to be retrieved
+   * @return a sequence of boxes from state using the registry key to look them up
+   */
+  protected def getBox[BX](key: K, state: SR, f: V => Array[Byte]): Option[Seq[BX]] =
+    Try {
+      lookup(key)
+        .map(b => state.getBox(f(b)).get.asInstanceOf[BX])
+    } match {
+      case Success(boxes) => Some(boxes)
+      case _              => None
+    }
 }

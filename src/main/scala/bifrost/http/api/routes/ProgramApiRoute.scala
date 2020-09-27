@@ -94,14 +94,9 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
   def transferProgram(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val pbr = view.state.pbrOpt.get
       val from = PublicKey25519Proposition((params \\ "from").head.asString.get).get
       val to = PublicKey25519Proposition((params \\ "to").head.asString.get).get
-      val executionBox = pbr
-        .lookup(ProgramId((params \\ "programId").head.asString.get).get)
-        .map(b => view.state.getBox(b.hashBytes).get)
-        .head
-        .asInstanceOf[ExecutionBox]
+      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
 
       val data: String = (params \\ "data").headOption match {
@@ -119,18 +114,16 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
   def executeProgramMethod(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val pbr = view.state.pbrOpt.get
       val signingPublicKey = (params \\ "owner").head.asString.get
 
-      val executionBox = pbr
-        .getBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get, view.state).get
+      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
 
       val state = executionBox.stateBoxIds.map { sb =>
-        pbr.getBox[StateBox](sb, view.state).get
+        view.state.getProgramBox[StateBox](sb).get
       }
 
       val code = executionBox.codeBoxIds.map { cb =>
-        pbr.getBox[CodeBox](cb, view.state).get
+        view.state.getProgramBox[CodeBox](cb).get
       }
 
       val programJson: Json =
@@ -162,14 +155,12 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
 
   def programCall(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val pbr = view.state.pbrOpt.get
-
       val programId = ProgramId((params \\ "programId").head.asString.get).get
       val stateVar = (params \\ "stateVar").head.asString.get
 
-      val program = pbr.getBox[ExecutionBox](programId, view.state).get
+      val program = view.state.getProgramBox[ExecutionBox](programId).get
 
-      val programState = pbr.getBox[StateBox](program.stateBoxIds.head, view.state).get
+      val programState = view.state.getProgramBox[StateBox](program.stateBoxIds.head).get
 
       val result: Decoder.Result[Json] =
         programState

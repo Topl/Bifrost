@@ -74,7 +74,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val stateBoxTwo = StateBox(owner, 1L, null, stateTwo)
     val stateBoxThree = StateBox(owner, 2L, null, stateThree)
 
-    val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+    val readOnlyUUIDs = Seq(ProgramId.create(), ProgramId.create())
 
     ProgramCreation(
       executionBuilder,
@@ -119,37 +119,34 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val executionBoxBytes = BoxSerializer.toBytes(executionBox)
         val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
 
-        val necessaryBoxesSC = StateChanges(
-          Set(),
-          preExistingPolyBoxes,
-          Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(23)))
+          .applyChanges(ModifierId(Ints.toByteArray(23)), necessaryBoxesSC)
           .get
 
         val newState = preparedState
-          .applyChanges(StateChanges(block).get, ModifierId(Ints.toByteArray(24)))
+          .applyChanges(ModifierId(Ints.toByteArray(24)), StateChanges(block).get)
           .get
 
-        require(newState.storage.get(ByteArrayWrapper(returnedPolyBox.id)) match {
-                  case Some(wrapper) => wrapper.data sameElements returnedPolyBoxBytes
+        require(newState.getBox(returnedPolyBox.id) match {
+                  case Some(box) => box.bytes sameElements returnedPolyBoxBytes
                   case None => false
                 })
 
-        require(newState.storage.get(ByteArrayWrapper(stateBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements stateBoxBytes
+        require(newState.getBox(stateBox.id) match {
+          case Some(box) => box.bytes sameElements stateBoxBytes
           case None ⇒ false
         })
 
-        require(newState.storage.get(ByteArrayWrapper(codeBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements codeBoxBytes
+        require(newState.getBox(codeBox.id) match {
+          case Some(box) => box.bytes sameElements codeBoxBytes
           case None ⇒ false
         })
 
-        require(newState.storage.get(ByteArrayWrapper(executionBox.id)) match {
-          case Some(wrapper) => wrapper.data sameElements executionBoxBytes
+        require(newState.getBox(executionBox.id) match {
+          case Some(box) => box.bytes sameElements executionBoxBytes
           case None ⇒ false
         })
 
@@ -172,7 +169,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         /* Expect none of the preexisting boxes to still be around */
         preExistingPolyBoxes
-          .foreach(pb => newState.storage.get(ByteArrayWrapper(pb.id)) shouldBe empty)
+          .foreach(pb => newState.getBox(pb.id) shouldBe None)
 
         StateSpec.genesisState = newState
           .rollbackTo(StateSpec.genesisBlockId)
@@ -193,15 +190,11 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val invalidPC = programCreation.copy(signatures = wrongSigs)
 
         val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
-
-        val necessaryBoxesSC = StateChanges(
-          Set(),
-          preExistingPolyBoxes,
-          Instant.now.toEpochMilli)
+        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
         val preparedState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(25)))
+          .applyChanges(ModifierId(Ints.toByteArray(25)), necessaryBoxesSC)
           .get
 
         val newState = preparedState.validate(invalidPC)
@@ -286,7 +279,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
-        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes, cc.timestamp)
+        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
         val firstCCAddBlock = Block(
           ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
@@ -299,14 +292,14 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val necessaryState = StateSpec
           .genesisState
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(29)))
+          .applyChanges( ModifierId(Ints.toByteArray(29)), necessaryBoxesSC)
           .get
 
         val preparedChanges = StateChanges(firstCCAddBlock).get
         val preparedState = necessaryState
-          .applyChanges(preparedChanges, ModifierId(Ints.toByteArray(30)))
+          .applyChanges(ModifierId(Ints.toByteArray(30)), preparedChanges)
           .get
-          .applyChanges(necessaryBoxesSC, ModifierId(Ints.toByteArray(31)))
+          .applyChanges(ModifierId(Ints.toByteArray(31)), necessaryBoxesSC)
           .get
 
         val newState = preparedState.validate(cc)

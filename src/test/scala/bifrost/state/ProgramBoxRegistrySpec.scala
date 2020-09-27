@@ -1,7 +1,5 @@
 package bifrost.state
 
-import java.util.UUID
-
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.StateBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
@@ -54,43 +52,47 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   val sboxOneWithoutUUID: StateBox = StateBox(pubKey, 0L, null, stateOne)
   val sboxTwoWithoutUUID: StateBox = StateBox(pubKey, 1L, null, stateTwo)
 
-  val uuid: UUID = UUID.nameUUIDFromBytes(sboxOneWithoutUUID.id)
+  val progId: ProgramId = ProgramId.create()
 
-  val sboxOne: StateBox = StateBox(pubKey, 0L, uuid, stateOne)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, uuid, stateTwo)
+  val sboxOne: StateBox = StateBox(pubKey, 0L, progId, stateOne)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, progId, stateTwo)
 
   var newState_1: State = null
 
-  assert(sboxOne.value == uuid)
+  assert(sboxOne.value == progId)
 
   property("BifrostState should update programBoxRegistry with state box and rollback correctly") {
 
-    val changes_1: StateChanges = StateChanges(Set(), Set(sboxOne), 0L)
-    newState_1 = genesisState.applyChanges(changes_1, ModifierId(Ints.toByteArray(1))).get
+    val changes_1: StateChanges = StateChanges(Set(), Set(sboxOne))
+    val pbr_1 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(1)), Map(), Map(progId -> Seq(BoxId(sboxOne.id)))).toOption
+    newState_1 = genesisState.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_1).get
 
-    assert(newState_1.pbr.getBoxId(uuid).get sameElements sboxOne.id)
-    assert(newState_1.pbr.getBox(uuid).get.bytes sameElements sboxOne.bytes)
+    assert(newState_1.registryLookup(progId).get.head.hashBytes sameElements sboxOne.id)
+    assert(newState_1.getProgramBox[StateBox](progId).get.bytes sameElements sboxOne.bytes)
 
-    val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set(sboxTwo), 0L)
-    val newState_2 = newState_1.applyChanges(changes_2, ModifierId(Ints.toByteArray(2))).get
+    val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set(sboxTwo))
+    val pbr_2 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(2)), Map(progId -> Seq(BoxId(sboxOne.id))), Map(progId -> Seq(BoxId(sboxTwo.id)))).toOption
+    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(2)), changes_2, None, pbr_2).get
 
-    assert(newState_2.pbr.getBoxId(uuid).get sameElements sboxTwo.id)
-    assert(newState_2.pbr.getBox(uuid).get.bytes sameElements sboxTwo.bytes)
+    assert(newState_2.registryLookup(progId).get.head.hashBytes sameElements sboxTwo.id)
+    assert(newState_2.getProgramBox[StateBox](progId).get.bytes sameElements sboxTwo.bytes)
 
     val oldState = newState_2.rollbackTo(newState_1.version).get
 
-    assert(oldState.pbr.getBoxId(sboxOne.value).get sameElements sboxOne.id)
+    assert(oldState.registryLookup(sboxOne.value).get.head.hashBytes sameElements sboxOne.id)
   }
 
-  property("BifrostState should tombstone uuid in programBoxRegistry correctly") {
+  property("BifrostState should tombstone program id in programBoxRegistry correctly") {
 
-    val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set(), 0L)
-    val newState_2 = newState_1.applyChanges(changes_2, ModifierId(Ints.toByteArray(3))).get
+    val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set())
+    val pbr_2 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(3)), Map(progId -> Seq(BoxId(sboxOne.id))), Map()).toOption
+    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(3)), changes_2, None, pbr_2).get
 
-    assert(newState_2.pbr.getBoxId(sboxOne.value).isEmpty)
+    assert(newState_2.registryLookup(sboxOne.value).isEmpty)
   }
 
   override def afterAll() {
-    history.storage.storage.close
+    history.closeStorage()
+    genesisState.closeStorage()
   }
 }

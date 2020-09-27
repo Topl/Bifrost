@@ -20,7 +20,7 @@ class UtilsRPCSpec extends AnyWordSpec
   with ScalatestRouteTest
   with BifrostGenerators {
 
-  val route = UtilsApiRoute(settings).route
+  val route = UtilsApiRoute(settings.restApi).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

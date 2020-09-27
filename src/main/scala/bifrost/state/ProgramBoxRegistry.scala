@@ -2,14 +2,12 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.{ Success, Try }
+import scala.util.Try
 
 /**
  * A registry containing mapping from fixed programId -> changing boxId
@@ -21,20 +19,12 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
   import ProgramBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
-  override def registryInput (key: K): Array[Byte] = key.hashBytes
+  override protected def registryInput (key: K): Array[Byte] = key.hashBytes
 
-  override def registryOutput (value: Array[Byte]): V = BoxId(value)
+  override protected def registryOutput (value: Array[Byte]): V = BoxId(value)
 
-  def getBox[BX](key: K, state: State): Option[BX] =
-    Try(
-      lookup(key)
-        .map(b => state.getBox(b.hashBytes).get)
-        .head
-        .asInstanceOf[BX]
-      ) match {
-      case Success(bx) => Some(bx)
-      case _           => None
-    }
+  /** Helper function to retrieve boxes out of state */
+  def getBox[BX](key: K, stateReader: SR): Option[BX] = super.getBox[BX](key, stateReader, (value: V) => value.hashBytes).map(_.head)
 
   /**
    * @param newVersion - block id
@@ -48,10 +38,10 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
    *         L = Number of boxes to append
    *
    */
-  def update ( newVersion: VersionTag,
-               toRemove: Map[K, Seq[V]],
-               toAppend: Map[K, Seq[V]]
-             ): Try[ProgramBoxRegistry] = {
+  protected[state] def update ( newVersion: VersionTag,
+                                toRemove: Map[K, Seq[V]],
+                                toAppend: Map[K, Seq[V]]
+                              ): Try[ProgramBoxRegistry] = {
 
     Try {
       log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")

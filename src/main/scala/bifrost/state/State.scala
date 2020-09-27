@@ -2,11 +2,11 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.crypto.{ PrivateKey25519, Signature25519 }
+import bifrost.crypto.Signature25519
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.settings.AppSettings
@@ -26,11 +26,11 @@ import scala.util.{ Failure, Success, Try }
  * @param version blockId used to identify each block. Also used for rollback
  *                //@param timestamp timestamp of the block that results in this state
  */
-case class State ( override val version : VersionTag,
-                   protected val storage: LSMStore,
-                   tbrOpt               : Option[TokenBoxRegistry] = None,
-                   pbrOpt               : Option[ProgramBoxRegistry] = None,
-                   nodeKeys             : Option[Set[PublicKey25519Proposition]] = None
+case class State ( override val version     : VersionTag,
+                   protected val storage    : LSMStore,
+                   tbrOpt: Option[TokenBoxRegistry] = None, // todo: mark as private[state] after modding transactions
+                   pbrOpt: Option[ProgramBoxRegistry] = None,
+                   nodeKeys                 : Option[Set[PublicKey25519Proposition]] = None
                  ) extends MinimalState[Box, Block, State]
                            with StoreInterface
                            with TransactionValidation[Transaction]
@@ -61,22 +61,46 @@ case class State ( override val version : VersionTag,
       .flatMap(_.toOption)
 
   /**
+   * Accessor method to retrieve program box data from state by abstracting the
+   * registry lookup and subsequent state access
+   *
+   * @param key the program id of the program box to retrieve
+   * @tparam PBX the type of box that you are expecting to get back (StateBox, ExecBox, etc.)
+   * @return a program box of the specified type if found at the given program is
+   */
+  def getProgramBox[PBX <: ProgramBox] (key: KP): Option[PBX] = {
+    pbrOpt match {
+      case Some(pbr) => pbr.getBox[PBX](key, getReader)
+      case None      => None
+    }
+  }
+
+  /**
+   * Accessor method to retrieve a set of token boxes from state that are owned by a
+   * certain public key. This works by abstracting the registry lookup and subsequent state access
+   *
+   * @param key the public key to find boxes for
+   * @return a sequence of token boxes held by the public key
+   */
+  def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = {
+    tbrOpt match {
+      case Some(tbr) => tbr.getBox[TokenBox](key, getReader)
+      case None      => None
+    }
+  }
+
+  /**
    * Lookup a sequence of boxIds from the appropriate registry.
    * These boxIds can then be used in `getBox` to retrieve the box data.
    *
    * @param key storage key used to identify value(s) in registry
    * @return a sequence of boxes stored beneath the specified key
    */
-  def registryLookup[K] ( key: K ): Option[Seq[Box]] = {
-    (key match {
+  def registryLookup[K] ( key: K ): Option[Seq[BoxId]] = {
+    key match {
       case k: TokenBoxRegistry.K if tbrOpt.isDefined   => Some(tbrOpt.get.lookup(k))
-      case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k).map(_.hashBytes))
+      case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k))
       case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
-    }).map {
-      _.map(getBox).filter {
-        case _: Some[Box] => true
-        case None         => false
-      }.map(_.get)
     }
   }
 
@@ -138,11 +162,11 @@ case class State ( override val version : VersionTag,
   }
 
   // not private because of tests
-  def applyChanges ( newVersion  : VersionTag,
-                     stateChanges: StateChanges,
-                     newTBR      : Option[TokenBoxRegistry],
-                     newPBR      : Option[ProgramBoxRegistry]
-                   ): Try[NVCT] =
+  private[state] def applyChanges ( newVersion  : VersionTag,
+                                    stateChanges: StateChanges,
+                                    newTBR      : Option[TokenBoxRegistry] = None,
+                                    newPBR      : Option[ProgramBoxRegistry] = None
+                                  ): Try[NVCT] =
     Try {
 
       //Filtering boxes pertaining to public keys specified in settings file

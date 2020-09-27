@@ -36,10 +36,10 @@ object TokenRegistryChanges {
         }
 
       val toRemove: Map[TokenBoxRegistry.K, Seq[TokenBoxRegistry.V]] =
-        fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map(kv => PublicKeyNoncedBox.idFromBox(k, kv._2))) }
+        fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map(kv => BoxId(PublicKeyNoncedBox.idFromBox(k, kv._2)))) }
 
       val toAppend: Map[TokenBoxRegistry.K, Seq[TokenBoxRegistry.V]] =
-        toSeq.groupBy(_.proposition).map { case (k, v) => (k, v.map(_.id)) }
+        toSeq.groupBy(_.proposition).map { case (k, v) => (k, v.map(box => BoxId(box.id))) }
 
       // return the state changes that can be applied
       new TokenRegistryChanges(toRemove, toAppend)

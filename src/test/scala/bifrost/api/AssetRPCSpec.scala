@@ -55,8 +55,8 @@ class AssetRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = AssetApiRoute(settings, nodeViewHolderRef).route
-  val walletRoute: Route = WalletApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = AssetApiRoute(settings.restApi, nodeViewHolderRef).route
+  val walletRoute: Route = WalletApiRoute(settings.restApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

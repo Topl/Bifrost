@@ -41,7 +41,7 @@ class DebugRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = DebugApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = DebugApiRoute(settings.restApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

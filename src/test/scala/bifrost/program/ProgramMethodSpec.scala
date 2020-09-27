@@ -2,8 +2,9 @@ package bifrost.program
 
 import java.util.UUID
 
-import bifrost.modifier.box.{CodeBox, StateBox}
-import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.modifier.box.{ CodeBox, StateBox }
+import bifrost.state.ProgramId
+import bifrost.{ BifrostGenerators, ValidGenerators }
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
@@ -32,15 +33,14 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),
-          Seq("function inc() { a += 1; return a }"), Map("inc" -> Seq()))
+        val stateBox = StateBox(prop, 0L, ProgramId.create(), state)
+        val stateBoxTwo = StateBox(prop, 1L, ProgramId.create(), stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, ProgramId.create(), stateThree)
+        val codeBox = CodeBox(prop, 3L, ProgramId.create(), Seq("function inc() { a += 1; return a }"), Map("inc" -> Seq()))
 
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
-        val result = Program.execute(stateBoxes, Seq(codeBox), "inc")(party)(params)
+        val result = Program.execute(stateBoxes, Seq(codeBox), "inc")(party)(params).get
 
         result.hcursor.get[Int]("a").right.get shouldEqual 1
       }
@@ -58,17 +58,17 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateTwo = s"""{ "b": 4 }""".asJson
         val stateThree = s"""{ "c": 7 }""".asJson
 
-        val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)),stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)),stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)),Seq(
+        val stateBox = StateBox(prop, 0L, ProgramId.create(), state)
+        val stateBoxTwo = StateBox(prop, 1L, ProgramId.create(),stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, ProgramId.create(),stateThree)
+        val codeBox = CodeBox(prop, 3L, ProgramId.create(),Seq(
           "function changeState(uuid, value, state) { state = getFromState(uuid, value) }"
         ), Map("changeState" -> Seq("String", "String", "String")))
 
         val stateBoxes = Seq(
-          (stateBox, UUID.nameUUIDFromBytes(stateBox.id)),
-          (stateBoxTwo, UUID.nameUUIDFromBytes(stateBoxTwo.id)),
-          (stateBoxThree, UUID.nameUUIDFromBytes(stateBoxThree.id))
+          (stateBox, ProgramId.create()),
+          (stateBoxTwo, ProgramId.create()),
+          (stateBoxThree, ProgramId.create())
         )
 
         val args = JsonObject.fromMap(Map(
@@ -129,10 +129,10 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
+        val stateBox = StateBox(prop, 0L, ProgramId.create(), state)
+        val stateBoxTwo = StateBox(prop, 1L, ProgramId.create(), stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, ProgramId.create(), stateThree)
+        val codeBox = CodeBox(prop, 3L, ProgramId.create(), Seq(
           s"""function changeType() {
              |  return a = "wrong"
              |}
@@ -141,7 +141,7 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[ClassCastException] {
-          Program.execute(stateBoxes, Seq(codeBox), "changeType")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "changeType")(party)(params).get
         }
       }
     }
@@ -163,10 +163,10 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
+        val stateBox = StateBox(prop, 0L, ProgramId.create(), state)
+        val stateBoxTwo = StateBox(prop, 1L, ProgramId.create(), stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, ProgramId.create(), stateThree)
+        val codeBox = CodeBox(prop, 3L, ProgramId.create(), Seq(
           s"""function deleteVar() {
              |  delete global.a
              |}
@@ -175,7 +175,7 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[NoSuchElementException] {
-          Program.execute(stateBoxes, Seq(codeBox), "deleteVar")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "deleteVar")(party)(params).get
         }
       }
     }
@@ -196,10 +196,10 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateTwo = s"""{ "b": 0 }""".asJson
         val stateThree = s"""{ "c": 0 }""".asJson
 
-        val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), state)
-        val stateBoxTwo = StateBox(prop, 1L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 1L)), stateTwo)
-        val stateBoxThree = StateBox(prop, 2L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 2L)), stateThree)
-        val codeBox = CodeBox(prop, 3L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 3L)), Seq(
+        val stateBox = StateBox(prop, 0L, ProgramId.create(), state)
+        val stateBoxTwo = StateBox(prop, 1L, ProgramId.create(), stateTwo)
+        val stateBoxThree = StateBox(prop, 2L, ProgramId.create(), stateThree)
+        val codeBox = CodeBox(prop, 3L, ProgramId.create(), Seq(
           s"""add = function(a,b) {
              |  return a + b
              |}
