@@ -11,8 +11,10 @@ import bifrost.BifrostGenerators
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
+import bifrost.modifier.block.Block
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.BifrostContext
@@ -61,12 +63,11 @@ trait ProgramMockState extends BifrostGenerators {
     10.seconds)
 
 
-  def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
+  def manuallyApplyBoxes(tx: Transaction): Unit = {
     // Manually manipulate state
-    val boxSC = StateChanges(Set(), boxes)
-    val versionId = ModifierId(Ints.toByteArray(version))
+    val mod = BlockGen.sample.get.copy(txs = Seq(tx))
 
-    view().state.applyChanges(versionId, boxSC).get
+    view().state.applyModifier(mod).get
   }
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
