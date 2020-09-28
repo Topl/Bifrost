@@ -21,7 +21,7 @@ class ProgramTransferSpec extends AnyWordSpec
 
     val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(boxState, 1)
+    manuallyApplyBoxes(1, boxState)
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 

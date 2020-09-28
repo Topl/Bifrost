@@ -22,7 +22,7 @@ class ProgramCallSpec extends AnyWordSpec
 
     val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(boxState, 1)
+    manuallyApplyBoxes(1, boxState)
 
     view().history.bestBlock.txs.foreach{tx =>
       println(s"${tx.toString}")

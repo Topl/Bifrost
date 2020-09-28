@@ -58,9 +58,11 @@ class TokenBoxRegistrySpec extends AnyPropSpec
       .map(_.box.asInstanceOf[ArbitBox])
     assert(oldArbitBoxes.length == 1)
 
-    assert(genesisState.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    val tx1 = ArbitTransfer.create(genesisState.tbr,
+    val tx1 = ArbitTransfer.create(
+      genesisState.tbrOpt.get,
+      genesisState,
       gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
@@ -78,22 +80,24 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(genesisState.validate(tx1).isSuccess)
 
     val newState1 = genesisState
-      .applyChanges(StateChanges(block1).get, block1.id)
+      .applyChanges(block1.id, StateChanges(block1).get)
       .get
 
     val newWallet1 = gw.scanPersistent(block1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get
       .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
-    val tx2 = ArbitTransfer.create(newState1.tbr,
+    val tx2 = ArbitTransfer.create(
+      newState1.tbrOpt.get,
+      newState1,
       newWallet1,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get), 4L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)),
@@ -111,20 +115,20 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(newState1.validate(tx2).isSuccess)
 
     val newState2 = newState1
-      .applyChanges(StateChanges(block2).get, block2.id)
+      .applyChanges(block2.id, StateChanges(block2).get)
       .get
 
     val newWallet2 = newWallet1.scanPersistent(block2)
 
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 2)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get.count(_.isInstanceOf[ArbitBox]) == 2)
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get
       .filter(_.isInstanceOf[ArbitBox]).forall(i => i.value == 99999995 || i.value == 4))
 
-    assert(newState2.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get
       .filter(_.isInstanceOf[ArbitBox]).head.value == 1)
 
     newState2.rollbackTo(genesisState.version)
@@ -135,7 +139,9 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
   property("Rollback should have worked and recreated above changes exactly") {
 
-    val tx1 = ArbitTransfer.create(genesisState.tbr,
+    val tx1 = ArbitTransfer.create(
+      genesisState.tbrOpt.get,
+      genesisState,
       gw,
       IndexedSeq((PublicKey25519Proposition(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get), 5L)),
       IndexedSeq(PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)),
@@ -153,22 +159,22 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(genesisState.validate(tx1).isSuccess)
 
     val newState1 = genesisState
-      .applyChanges(StateChanges(block1).get, block1.id)
+      .applyChanges(block1.id, StateChanges(block1).get)
       .get
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).count(_.isInstanceOf[ArbitBox]) == 1)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get
       .filter(_.isInstanceOf[ArbitBox]).head.value == 99999995)
 
-    assert(newState1.tbr.boxesByKey(Base58.decode("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get)
+    assert(genesisState.getTokenBoxes(PublicKey25519Proposition("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb").get).get
       .filter(_.isInstanceOf[ArbitBox]).head.value == 5)
 
   }
 
   override def afterAll() {
-    history.storage.storage.close
+    history.closeStorage()
   }
 }

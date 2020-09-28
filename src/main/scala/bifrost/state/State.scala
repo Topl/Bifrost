@@ -161,7 +161,14 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  // not private because of tests
+  /**
+    *
+    * @param newVersion
+    * @param stateChanges
+    * @param newTBR
+    * @param newPBR
+    * @return
+    */
   private[state] def applyChanges ( newVersion  : VersionTag,
                                     stateChanges: StateChanges,
                                     newTBR      : Option[TokenBoxRegistry] = None,

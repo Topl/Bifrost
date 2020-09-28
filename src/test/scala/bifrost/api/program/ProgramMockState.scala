@@ -2,28 +2,28 @@ package bifrost.api.program
 
 import java.util.UUID
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
-import bifrost.BifrostGenerators
+import akka.util.{ByteString, Timeout}
+import bifrost.{BifrostGenerators, state}
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
+import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
 import bifrost.settings.BifrostContext
-import bifrost.state.{ ProgramId, State, StateChanges }
+import bifrost.state.{ProgramId, State, StateChanges, manuallyApplyBoxes}
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext }
+import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -60,13 +60,9 @@ trait ProgramMockState extends BifrostGenerators {
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
     10.seconds)
 
-
-  def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
+  def manuallyApplyBoxes(version: Int, boxes: Set[Box]): Unit = {
     // Manually manipulate state
-    val boxSC = StateChanges(Set(), boxes)
-    val versionId = ModifierId(Ints.toByteArray(version))
-
-    view().state.applyChanges(versionId, boxSC).get
+    state.manuallyApplyBoxes(version, boxes, view().state)
   }
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"

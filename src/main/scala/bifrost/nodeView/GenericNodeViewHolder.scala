@@ -359,22 +359,24 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
                                updatedState: Option[MS] = None,
                                updatedVault: Option[VL] = None,
                                updatedMempool: Option[MP] = None): Unit = {
-    val newNodeView = (updatedHistory.getOrElse(history()),
+    val newNodeView =
+      (updatedHistory.getOrElse(history()),
       updatedState.getOrElse(minimalState()),
       updatedVault.getOrElse(vault()),
       updatedMempool.getOrElse(memoryPool()))
-    if (updatedHistory.nonEmpty) {
+
+    if (updatedHistory.nonEmpty)
       context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
-    }
-    if (updatedState.nonEmpty) {
+
+    if (updatedState.nonEmpty)
       context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
-    }
-    if (updatedVault.nonEmpty) {
+
+    if (updatedVault.nonEmpty)
       context.system.eventStream.publish(ChangedVault(newNodeView._3.getReader))
-    }
-    if (updatedMempool.nonEmpty) {
+
+    if (updatedMempool.nonEmpty)
       context.system.eventStream.publish(ChangedMempool(newNodeView._4.getReader))
-    }
+
     nodeView = newNodeView
   }
 

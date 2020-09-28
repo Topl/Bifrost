@@ -21,7 +21,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
 
     val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(boxState, 1)
+    manuallyApplyBoxes(1, boxState)
 
     "Update mutable state in a Program and return the updated state" in {
 
