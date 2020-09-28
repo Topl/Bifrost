@@ -16,5 +16,5 @@ case class BoxId (hashBytes: Array[Byte]) {
 }
 
 object BoxId {
-  val size = 32 // boxId is a 32 byte identifier
+  val size: Int = 32 // boxId is a 32 byte identifier
 }

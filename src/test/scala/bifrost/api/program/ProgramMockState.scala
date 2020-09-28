@@ -17,7 +17,6 @@ import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, state}
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
@@ -58,7 +57,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   def manuallyApplyBoxes(version: Int, boxes: Set[Box]): Unit = {
     // Manually manipulate state
-    bifrost.state.manuallyApplyBoxes(version, boxes, view().state)
+    state.updateStorage(version, boxes, view().state)
   }
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"

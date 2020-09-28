@@ -12,10 +12,11 @@ import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.reflect.ClassTag
+import scala.util.{Failure, Success, Try}
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -68,10 +69,13 @@ case class State ( override val version     : VersionTag,
    * @tparam PBX the type of box that you are expecting to get back (StateBox, ExecBox, etc.)
    * @return a program box of the specified type if found at the given program is
    */
-  def getProgramBox[PBX <: ProgramBox] (key: KP): Option[PBX] = {
-    pbrOpt match {
+  def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX] = {
+    (pbrOpt match {
       case Some(pbr) => pbr.getBox[PBX](key, getReader)
       case None      => None
+    }) match {
+      case Some(box: PBX) => Some(box)
+      case _              => None
     }
   }
 
@@ -84,7 +88,7 @@ case class State ( override val version     : VersionTag,
    */
   def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = {
     tbrOpt match {
-      case Some(tbr) => tbr.getBox[TokenBox](key, getReader)
+      case Some(tbr) => tbr.getBox(key, getReader)
       case None      => None
     }
   }
@@ -141,7 +145,7 @@ case class State ( override val version     : VersionTag,
     val updatedTBR = tokenChanges match {
       case Some(tc) => tbrOpt.get.update(block.id, tc.toRemove, tc.toAppend) match {
         case Success(updates) => Some(updates)
-        case Failure(ex)      => throw new Error(s"Failed to update TBR with error $ex")
+        case Failure(ex)      => throw new Error(s"Failed to update TBR with error\n$ex")
       }
       case None     => None
     }
@@ -149,7 +153,7 @@ case class State ( override val version     : VersionTag,
     val updatedPBR = programChanges match {
       case Some(pc) => pbrOpt.get.update(block.id, pc.toRemove, pc.toUpdate) match {
         case Success(updates) => Some(updates)
-        case Failure(ex)      => throw new Error(s"Failed to update PBR with error $ex")
+        case Failure(ex)      => throw new Error(s"Failed to update PBR with error\n$ex")
       }
       case None     => None
     }
@@ -321,13 +325,6 @@ object State extends Logging {
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
     val pbr = ProgramBoxRegistry.readOrGenerate(settings)
     val tbr = TokenBoxRegistry.readOrGenerate(settings, nodeKeys)
-
-    if ( pbr.isEmpty ) log.info("Initializing state without programBoxRegistry")
-    else log.info("Initializing state with programBoxRegistry")
-
-    if ( tbr.isEmpty ) log.info("Initializing state without tokenBoxRegistry")
-    else log.info("Initializing state with tokenBoxRegistry")
-
 
     State(version, storage, tbr, pbr, nodeKeys)
   }

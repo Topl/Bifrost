@@ -129,11 +129,11 @@ object ProgramMethodExecution {
 
 
 
-    val execBox = pbr.getBox[ExecutionBox](programId, state).get
+    val execBox = state.getProgramBox[ExecutionBox](programId).get
 
-    val stateBoxes: Seq[StateBox] = execBox.stateBoxIds.map(sb => pbr.getBox[StateBox](sb, state).get)
+    val stateBoxes: Seq[StateBox] = execBox.stateBoxIds.map(sb => state.getProgramBox[StateBox](sb).get)
 
-    val codeBoxes: Seq[CodeBox]  = execBox.codeBoxIds.map(cb => pbr.getBox[CodeBox](cb, state).get)
+    val codeBoxes: Seq[CodeBox]  = execBox.codeBoxIds.map(cb => state.getProgramBox[CodeBox](cb).get)
 
     ProgramMethodExecution(execBox, stateBoxes, codeBoxes, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }

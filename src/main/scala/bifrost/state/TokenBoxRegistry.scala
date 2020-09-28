@@ -2,14 +2,17 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.{ Proposition, PublicKey25519Proposition }
+import bifrost.modifier.box.{Box, GenericBox, TokenBox}
+import bifrost.modifier.box.proposition.{Proposition, PublicKey25519Proposition}
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
+import bifrost.state.State.log
 import bifrost.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import scorex.crypto.encode.Base58
 
-import scala.util.{ Success, Try }
+import scala.reflect.ClassTag
+import scala.util.{Success, Try}
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds
@@ -28,8 +31,10 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
 
   override protected def registryOutput ( value: Array[Byte] ): V = BoxId(value)
 
-  /** Helper function to retrieve boxes out of state */
-  def getBox[BX](key: K, stateReader: SR): Option[Seq[BX]] = super.getBox[BX](key, stateReader, (value: V) => value.hashBytes)
+  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
+
+  protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
+
 
   /**
    * @param newVersion - block id
@@ -64,25 +69,46 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
           val current = lookup(key)
 
           // case where the account no longer has any boxes
-          if ( current.length == filteredRemove(key).length && filteredAppend(key).isEmpty ) {
+          if ( current.length == filteredRemove.getOrElse(key, List()).length && filteredAppend.getOrElse(key, List()).isEmpty ) {
             (Some(key), None)
 
           // case where the account was initially empty and now has boxes
-          } else if (current.isEmpty) {
+          } else if (current.isEmpty && filteredAppend.getOrElse(key, List()).nonEmpty) {
             (None, Some((key, filteredAppend(key).toSet)))
 
           // case for updating the set of boxes for an account
+          } else if (filteredAppend.getOrElse(key, List()).nonEmpty) {
+            val idsToRemove = filteredRemove.getOrElse(key, Seq())
+            val idsToAppend = filteredAppend.getOrElse(key, Seq())
+            val newIds = (current.filterNot(idsToRemove.contains(_)) ++ idsToAppend).toSet
+            (None, Some((key, newIds)))
+
+          // case for genesis account where there are no previous boxes and nothing to remove or append
           } else {
-            (None, Some((key, (current ++ filteredAppend(key)).filterNot(filteredRemove(key).toSet).toSet)))
+            (None, None)
           }
         })
       }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
+
+      println(s"\n>>>>>>>>>>>> \ndeleted: $deleted\nupdated: $updated")
 
       storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.flatMap(_.hashBytes).toArray))
         )
+
+      val one = updated.head._1
+      val raw = getFromStorage(registryInput(one))
+      val raw2 = raw.map(_.grouped(BoxId.size).toVector).getOrElse(Vector())
+
+      println(s">>>>> raw: ${raw.map(Base58.encode).get}")
+      println(s">>>>> raw2: ${raw2.map(Base58.encode)}")
+      raw2.map(v => registryOutput(v)).map(println)
+
+      println(s">>>>>>> update: ${one} -> ${lookup(one)}")
+      println(s">>>>>>> update map: ${updated.map(p => (p._1, lookup(p._1)))}")
+
 
       TokenBoxRegistry(storage, nodeKeys)
     }
@@ -106,6 +132,8 @@ object TokenBoxRegistry extends Logging {
 
   def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
     if (settings.enableTBR) {
+      log.info("Initializing state with Token Box Registry")
+
       val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
       val iFile = new File(s"$dataDir/tokenBoxRegistry")
@@ -113,6 +141,7 @@ object TokenBoxRegistry extends Logging {
       val storage = new LSMStore(iFile)
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
+
     } else None
   }
 }

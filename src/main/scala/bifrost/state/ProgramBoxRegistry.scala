@@ -2,11 +2,14 @@ package bifrost.state
 
 import java.io.File
 
+import bifrost.modifier.box.ProgramBox
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
+import bifrost.state.State.log
 import bifrost.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -23,8 +26,11 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
 
   override protected def registryOutput (value: Array[Byte]): V = BoxId(value)
 
+  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
+
   /** Helper function to retrieve boxes out of state */
-  def getBox[BX](key: K, stateReader: SR): Option[BX] = super.getBox[BX](key, stateReader, (value: V) => value.hashBytes).map(_.head)
+  protected[state] def getBox[BX <: ProgramBox](key: K, stateReader: SR): Option[ProgramBox] =
+    super.getBox[ProgramBox](key, stateReader).map(_.head)
 
   /**
    * @param newVersion - block id
@@ -93,6 +99,8 @@ object ProgramBoxRegistry extends Logging {
 
   def readOrGenerate ( settings: AppSettings ): Option[ProgramBoxRegistry] = {
     if (settings.enablePBR) {
+      log.info("Initializing state with Program Box Registry")
+
       val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
       val iFile = new File(s"$dataDir/programBoxRegistry")
@@ -100,6 +108,7 @@ object ProgramBoxRegistry extends Logging {
       val storage = new LSMStore(iFile)
 
       Some(new ProgramBoxRegistry(storage))
+
     } else None
   }
 }

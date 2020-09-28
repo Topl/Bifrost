@@ -46,6 +46,16 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       case "broadcastTx"             => broadcastTx(params.head, id)
     }
 
+  def checkPublicKey (keys: Seq[PublicKey25519Proposition], view: CV): Unit = {
+    if ( view.state.tbrOpt.isEmpty )
+      throw new Exception("TokenBoxRegistry not defined for node")
+
+    //YT NOTE - if nodeKeys not defined in settings file then node watches for all keys in a state update
+    if ( view.state.nodeKeys.isDefined && !keys.forall(key => view.state.nodeKeys.contains(key)) )
+      throw new Exception("Node not set to watch for specified public key")
+  }
+
+
   /** #### Summary
    * Transfer Polys from an account to a specified recipient.
    *
@@ -81,26 +91,18 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         )
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-               )
+          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+
       // Optional API parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
-      if ( view.state.tbrOpt.isDefined )
-        throw new Exception("TokenBoxRegistry not defined for node")
-      //YT NOTE - if nodeKeys not defined in settings file then node watches for all keys in a state update
-      if ( view.state.nodeKeys != null )
-        sender.foreach(key =>
-                         if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
-                           throw new Exception(
-                             "Node not set to watch for specified public key"
-                             )
-                       )
+
+      checkPublicKey(sender, view)
+
       // Call to BifrostTX to create TX
       val tx = PolyTransfer
         .create(
@@ -170,15 +172,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         case None          => ""
       }
 
-      if ( view.state.tbrOpt.isDefined )
-        throw new Exception("TokenBoxRegistry not defined for node")
-      if ( view.state.nodeKeys != null )
-        sender.foreach(key =>
-                         if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
-                           throw new Exception(
-                             "Node not set to watch for specified public key"
-                             )
-                       )
+      checkPublicKey(sender, view)
 
       val tx = PolyTransfer
         .createPrototype(
@@ -246,15 +240,9 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
-      if ( view.state.tbrOpt.isDefined )
-        throw new Exception("TokenBoxRegistry not defined for node")
-      if ( view.state.nodeKeys != null )
-        sender.foreach(key =>
-                         if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
-                           throw new Exception(
-                             "Node not set to watch for specified public key"
-                             )
-                       )
+
+      checkPublicKey(sender, view)
+
       val tx = ArbitTransfer
         .create(
           view.state.tbrOpt.get,
@@ -322,14 +310,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         case None          => ""
       }
 
-      if ( view.state.tbrOpt.isDefined )
-        throw new Exception("TokenBoxRegistry not defined for node")
-
-      if ( view.state.nodeKeys != null )
-        sender.foreach(key => {
-          if ( !view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)) )
-            throw new Exception("Node not set to watch for specified public key")
-        })
+      checkPublicKey(sender, view)
 
       val tx = ArbitTransfer
         .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, fee, data)
@@ -373,10 +354,18 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
         PublicKey25519Proposition(Base58.decode(k.asString.get).get)
       })
 
+      checkPublicKey(publicKeys, view)
+
       val boxes: Map[PublicKey25519Proposition, Map[String, Seq[TokenBox]]] =
         publicKeys
-          .map(k => k -> view.state.getTokenBoxes(k).get.groupBy[String](b => b.typeOfBox))
-          .toMap
+          .map(k => {
+            val orderedBoxes = view.state.getTokenBoxes(k) match {
+              case Some(boxes) => boxes.groupBy[String](b => b.typeOfBox)
+              case _           => Map[String, Seq[TokenBox]]()
+            }
+            k -> orderedBoxes
+          }).toMap
+
 
       val balances: Map[PublicKey25519Proposition, Map[String, Long]] =
         boxes.map {
@@ -422,9 +411,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       val wallet = view.vault
       val password: String = (params \\ "password").head.asString.get
       val pubKey = wallet.generateNewSecret(password)
-      Map(
-        "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
-        ).asJson
+      Map("publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson).asJson
     }
   }
 
