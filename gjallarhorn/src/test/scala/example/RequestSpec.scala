@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import _root_.requests.Requests
@@ -42,6 +42,7 @@ class RequestSpec extends AsyncFlatSpec
   val keyManager = Keys(Set(), keyFileDir)
   keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
+
   val amount = 10
 
   var transaction: Json = Json.Null
@@ -81,4 +82,6 @@ class RequestSpec extends AsyncFlatSpec
     val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
   }
+
+
 }

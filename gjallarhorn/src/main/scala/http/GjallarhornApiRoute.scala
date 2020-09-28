@@ -8,6 +8,7 @@ import io.circe.Json
 import io.circe.syntax._
 import keymanager.KeyManager._
 import settings.AppSettings
+import wallet.WalletManager._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -95,8 +96,15 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    Future{r.broadcastTx(params)}
+    Future{
+      val returnVal = r.broadcastTx2(params)
+      val add = r.boxesToAdd(params)
+      val remove = r.boxesToRemove(params)
+      walletManager ? UpdateWallet(add, remove)
+      returnVal
+    }
   }
+
 
   /**
     * Returns a list of the open key files.

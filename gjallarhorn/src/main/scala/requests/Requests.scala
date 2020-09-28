@@ -14,8 +14,10 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.collection.mutable.{Map => MMap}
 import scorex.crypto.encode.Base58
 import settings.AppSettings
+import shapeless.ops.product.ToTuple
 
 
 class Requests (settings: AppSettings) {
@@ -109,12 +111,6 @@ class Requests (settings: AppSettings) {
     ).asJson
   }
 
-  def remove(key: String)(x: Any): Any =
-    x match {
-      case m: Map[String, _] => m.mapValues(remove(key)) - key
-      case l: List[_] => l.map(remove(key))
-      case v => v
-    }
 
   def transaction(params: Json): ByteString = {
     val method = (params \\ "method").head.asString.get
@@ -142,6 +138,57 @@ class Requests (settings: AppSettings) {
   def broadcastTx(signedTransaction: Json): Json = {
     val tx = jsonToByteString(signedTransaction)
     sendRequest(tx, "wallet")
+  }
+
+
+  def broadcastTx2(signedTransaction: Json): Json = {
+    val tx = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "2",
+         |   "method": "broadcastTx",
+         |   "params": [$signedTransaction]
+         |}
+       """.stripMargin)
+    sendRequest(tx, "wallet")
+  }
+
+
+ def boxesToAdd(transaction: Json): MMap[String, MMap[String, Json]] = {
+   val toAdd: MMap[String, MMap[String, Json]] = MMap.empty
+   val boxes: MMap[String, Json] = MMap.empty
+   val tx: Json = (transaction \\ "tx").head
+   val newBoxes: List[Json] = tx \\ "newBoxes"
+   if (newBoxes.nonEmpty) {
+     val issuer = (tx \\ "issuer").toString()
+     val to = (tx \\ "to").head.asArray.head
+     val pubKey = to.head.toString().split(",").head.substring(2).trim
+     val publicKey = pubKey.stripPrefix("\"").stripSuffix("\"")
+     newBoxes.map(id => {
+       boxes.put(id.toString(),
+         Map(
+           "typeOfBox" -> "asset",
+           "nonce" -> "0",
+           "value" -> "0",
+           "issuer" -> issuer
+         ).asJson)
+     })
+     toAdd.put(publicKey, boxes)
+   }
+   toAdd
+  }
+
+  def boxesToRemove(transaction: Json): List[(String, List[String])] = {
+    var toRemove: List[(String, List[String])] = List.empty
+    val tx: Json = (transaction \\ "tx").head
+    val boxesToRemove: List[Json] = (tx \\ "boxesToRemove")
+    if (boxesToRemove.nonEmpty) {
+      val removeList: List[String] = boxesToRemove.map(id => id.toString())
+      val pubKey = (tx \\ "to").head.toString()
+      toRemove = toRemove :+ ((pubKey, removeList))
+    }
+    toRemove
   }
 
 }
