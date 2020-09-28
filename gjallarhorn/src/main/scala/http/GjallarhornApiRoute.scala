@@ -34,7 +34,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
   }
 }*/
 
-case class GjallarhornApiRoute(settings: AppSettings, keyManager: ActorRef)(implicit val context: ActorRefFactory) extends ApiRoute {
+case class GjallarhornApiRoute(settings: AppSettings,
+                               keyManager: ActorRef,
+                               walletManager: ActorRef)
+                              (implicit val context: ActorRefFactory) extends ApiRoute {
 //  //Necessary Akka Actor Components
   //implicit val actorsystem = ActorSystem()
   //implicit val materializer: ActorMaterializer = ActorMaterializer()

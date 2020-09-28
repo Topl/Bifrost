@@ -1,10 +1,11 @@
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import http.GjallarhornApiRoute
 import keymanager.KeyManagerRef
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
+import wallet.WalletManager
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success}
@@ -15,6 +16,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val context: ExecutionContextExecutor = system.dispatcher
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
+  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager()))
+
   implicit val settings: AppSettings = AppSettings.read(startupOpts)
 
   val httpPort: Int = settings.rpcPort
