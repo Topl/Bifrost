@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519 }
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.box._
@@ -13,10 +12,9 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.BifrostContext
-import bifrost.state.{ ProgramId, State }
+import bifrost.state.State
 import bifrost.wallet.Wallet
 import bifrost.{ BifrostGenerators, state }
-import com.google.common.primitives.Ints
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
@@ -58,9 +56,9 @@ trait ProgramMockState extends BifrostGenerators {
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
     10.seconds)
 
-  def manuallyApplyBoxes(version: Int, boxes: Set[Box]): Unit = {
+  def directlyAddPBRStorage(version: Int, boxes: Set[ProgramBox]): Unit = {
     // Manually manipulate state
-    state.updateStorage(version, boxes, view().state)
+    state.directlyAddStateStorage(version, boxes, view().state)
   }
 
   val publicKeys = Map(

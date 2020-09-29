@@ -99,10 +99,6 @@ object CodeCreation {
 
     val signature = PrivateKey25519.sign(selectedSecret, unsignedTx.messageToSign)
 
-    println(s">>>>>>>>> tyring to sign with ${Base58.encode(selectedSecret.publicKeyBytes)} ")
-    println(s">>>>>>>>> tyring to sign with ${Base58.encode(unsignedTx.messageToSign)} ")
-    println(s">>>>>>>>> tyring to sign with ${Base58.encode(unsignedTx.copy(signature = signature).messageToSign)} ")
-
     unsignedTx.copy(signature = signature)
   }
 

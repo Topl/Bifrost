@@ -43,8 +43,8 @@ case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Regist
    *
    */
   protected[state] def update ( newVersion: VersionTag,
-                                toRemove  : Map[K, Seq[V]],
-                                toAppend  : Map[K, Seq[V]]
+                                toRemove  : Map[K, V],
+                                toAppend  : Map[K, V]
                               ): Try[ProgramBoxRegistry] = {
 
     Try {
@@ -57,12 +57,12 @@ case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Regist
           val current = lookup(key).head
 
           // case where the program id no longer exists
-          if ( current == toRemove(key).head && toAppend(key).isEmpty ) {
+          if ( current == toRemove.getOrElse(key, None) && !toAppend.contains(key) ) {
             (Some(key), None)
 
             // case where the boxId must be updated
           } else {
-            (None, Some((key, toAppend(key).head)))
+            (None, Some((key, toAppend(key))))
           }
         })
       }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))

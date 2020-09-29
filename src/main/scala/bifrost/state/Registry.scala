@@ -44,27 +44,14 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @param key   the registry key used to lookup boxIds in the registry
     * @param state the state containing the token box data to be retrieved
     * @return a sequence of boxes from state using the registry key to look them up
-    */
+   */
   protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] = {
-    log.info("Looking up boxes")
-    val g =
-      Try {
+    Try {
       lookup(key)
         .map(v => state.getBox(registryOut2StateIn(v)))
-    }.toOption
-
-    println(s">>>>>>> ${g.getOrElse(None)}")
-
-      g.map { _.flatMap {
-      case Some(box: BX) => {
-        log.info("Some boxes")
-        Some(box)
-      }
-      case _             => {
-        log.info("No boxes")
-        None
-      }
-    }
-    }
+    }.toOption.map( _.flatMap {
+      case Some(box: BX) => Some(box)
+      case _             => None
+    })
   }
 }

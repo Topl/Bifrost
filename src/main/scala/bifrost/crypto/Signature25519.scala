@@ -13,12 +13,12 @@ case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[Priva
   require(signature.isEmpty || signature.length == Curve25519.SignatureLength,
     s"${signature.length} != ${Curve25519.SignatureLength}")
 
-  override def isValid(proposition: Proposition, message: Array[Byte]): Boolean =
-    Curve25519.verify(signature, message, proposition.bytes)
-
   override type M = Signature25519
 
   override def serializer: BifrostSerializer[Signature25519] = Signature25519Serializer
+
+  override def isValid(proposition: Proposition, message: Array[Byte]): Boolean =
+    Curve25519.verify(signature, message, proposition.bytes)
 
   override def toString: String = s"Signature25519(${Base58.encode(signature)})"
 }

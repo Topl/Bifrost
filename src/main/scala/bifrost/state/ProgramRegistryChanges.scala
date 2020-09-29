@@ -6,18 +6,22 @@ import bifrost.modifier.transaction.bifrostTransaction.{ ProgramCreation, Progra
 
 import scala.util.Try
 
-case class ProgramRegistryChanges (toRemove: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
-                                   toUpdate: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
+case class ProgramRegistryChanges (toRemove: Map[ProgramBoxRegistry.K, ProgramBoxRegistry.V],
+                                   toUpdate: Map[ProgramBoxRegistry.K, ProgramBoxRegistry.V],
                                   )
 
 object ProgramRegistryChanges {
-  type BX = Box
+  type PBX = ProgramBox
   type BPMOD = Block
   type K = ProgramBoxRegistry.K
   type V = ProgramBoxRegistry.V
 
   def apply(mod: BPMOD): Try[ProgramRegistryChanges] =
     Try {
+
+      def processToMap(boxSeq: Seq[(K, PBX)]): Map[K, V] = {
+        boxSeq.map { case (k,v) => k -> BoxId(v.id) }.toMap
+      }
 
       // extract the needed box data from all transactions within a block
       val (removeSeq: Seq[(K, ProgramBox)], updateSeq: Seq[(K, ProgramBox)])  =
@@ -35,11 +39,8 @@ object ProgramRegistryChanges {
           case None => (Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]())
         }
 
-      val toRemove: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]] =
-        removeSeq.groupBy(_._1).map { case (k,kv) => (k, kv.map(v => BoxId(v._2.id))) }
-
-      val toUpdate: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]] =
-        updateSeq.groupBy(_._1).map { case (k,kv) => (k, kv.map(v => BoxId(v._2.id))) }
+      val toRemove = processToMap(removeSeq)
+      val toUpdate = processToMap(updateSeq)
 
       // return the state changes that can be applied
       new ProgramRegistryChanges(toRemove, toUpdate)

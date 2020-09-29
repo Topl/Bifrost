@@ -79,7 +79,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
   // Unlock Secrets
   val gw: Wallet = view().vault
-  //gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
