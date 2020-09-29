@@ -2,20 +2,20 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
-import bifrost.modifier.box.{ArbitBox, Box}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{ ArbitBox, Box, TokenBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CoinbaseTransactionSerializer
 import bifrost.state.StateReader
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.wallet.Wallet
-import com.google.common.primitives.{Bytes, Longs}
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)],
                                 signatures: IndexedSeq[Signature25519],
@@ -25,8 +25,6 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
 
   lazy val serializer: BifrostSerializer[CoinbaseTransaction] = CoinbaseTransactionSerializer
 
-  override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
-
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
@@ -35,19 +33,13 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     to.head._1.pubKeyBytes ++ Longs.toByteArray(timestamp) ++ Longs.toByteArray(fee) ++ blockID // message that gets hashed
   )
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
-
-  val nonce: Nonce = nonceFromDigest(FastCryptographicHash(
+  val nonce: Nonce = CoinbaseTransaction.nonceFromDigest(FastCryptographicHash(
     "CoinbaseTransaction".getBytes ++ hashNoNonces
   ))
 
-  lazy val newBoxes: Traversable[Box] =
-    if(to.head._2 > 0L) {
-      Traversable(ArbitBox(to.head._1, nonce, to.head._2))
-    }
-    else {
-      Traversable()
-    }
+  lazy val newBoxes: Traversable[TokenBox] =
+    if (to.head._2 > 0L) Traversable(ArbitBox(to.head._1, nonce, to.head._2))
+    else Traversable[TokenBox]()
 
   override lazy val json: Json = Map( // tx in json form
     "txHash" -> id.toString.asJson,
@@ -66,15 +58,6 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     "timestamp" -> timestamp.asJson
   ).asJson
 
-  def commonMessageToSign: Array[Byte] =
-    if(newBoxes.nonEmpty) {
-      newBoxes.head.bytes}
-    else {
-      Array[Byte]()} ++ // is the new box + the timestamp + the fee,
-    Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee) ++
-    blockID
-
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat( // just tac on the byte string "CoinbaseTransaction" to the beginning of the common message
     "CoinbaseTransaction".getBytes(),
@@ -82,6 +65,17 @@ case class CoinbaseTransaction (to: IndexedSeq[(PublicKey25519Proposition, Long)
     Longs.toByteArray(fee),
     blockID
   )
+
+  override def toString: String = s"CoinbaseTransaction(${json.noSpaces})"
+
+  def commonMessageToSign: Array[Byte] =
+    if(newBoxes.nonEmpty) {
+      newBoxes.head.bytes}
+    else {
+      Array[Byte]()} ++ // is the new box + the timestamp + the fee,
+      Longs.toByteArray(timestamp) ++
+      Longs.toByteArray(fee) ++
+      blockID
 }
 
 object CoinbaseTransaction {
@@ -98,7 +92,7 @@ object CoinbaseTransaction {
     val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
     val timestamp = Instant.now.toEpochMilli // generate timestamp
     val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
-    val signatures = IndexedSeq(PrivateKey25519Companion.sign(selectedSecret, messageToSign)) // sign the msg you just generated
+    val signatures = IndexedSeq(PrivateKey25519.sign(selectedSecret, messageToSign)) // sign the msg you just generated
     CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
   }
 

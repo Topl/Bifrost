@@ -24,10 +24,10 @@ object TokenRegistryChanges {
         mod.transactions match {
           case Some(txSeq) =>
             txSeq.map({
-              case tx: TransferTransaction => (tx.from, tx.newBoxes.toSet)
-              case tx: AssetCreation       => ???
-              case tx: CoinbaseTransaction => ???
-              case _                       => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+              case tx: TransferTransaction => (tx.from, tx.newBoxes.toSeq)
+              case tx: AssetCreation       => (Seq[(PK, Long)](), tx.newBoxes.toSeq)
+              case tx: CoinbaseTransaction => (Seq[(PK, Long)](), tx.newBoxes.toSeq)
+              case _                       => (Seq[(PK, Long)](), Seq[TokenBox]()) // JAA - not sure if this is needed but added to be exhaustive
             }).foldLeft((Seq[(PK, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })

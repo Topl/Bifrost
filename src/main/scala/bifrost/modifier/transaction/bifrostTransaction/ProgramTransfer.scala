@@ -2,8 +2,8 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519 }
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ Box, ExecutionBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramTransferSerializer
@@ -92,7 +92,7 @@ object ProgramTransfer {
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
 
-    val signature = PrivateKey25519Companion.sign(selectedSecret, messageToSign)
+    val signature = PrivateKey25519.sign(selectedSecret, messageToSign)
 
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }

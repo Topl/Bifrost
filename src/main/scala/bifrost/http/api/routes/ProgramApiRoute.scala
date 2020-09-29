@@ -2,7 +2,7 @@ package bifrost.http.api.routes
 
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
@@ -50,7 +50,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state
       val tx = createProgramInstance(params, state)
-      val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
+      val signature = PrivateKey25519.sign(selectedSecret, tx.messageToSign)
       Map("signature" -> Base58.encode(signature.signature).asJson,
         "tx" -> tx.json.asJson).asJson
     }
@@ -59,7 +59,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
   def createCode(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val owner = PublicKey25519Proposition(Base58.decode((params \\ "publicKey").head.asString.get).get)
+      val owner = PublicKey25519Proposition((params \\ "publicKey").head.asString.get).get
       val code: String = (params \\ "code").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
@@ -140,7 +140,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
         case Right(p: ProgramMethodExecution) => p
         case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
-      val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
+      val realSignature = PrivateKey25519.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
 
       ProgramMethodExecution.semanticValidate(tx, view.state) match {

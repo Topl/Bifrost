@@ -2,8 +2,8 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519 }
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.{ Box, CodeBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.CodeBoxCreationSerializer
@@ -29,31 +29,31 @@ case class CodeCreation(to: PublicKey25519Proposition,
 
   lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationSerializer
 
-  override def toString: String = s"CodeCreation(${json.noSpaces})"
-
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes ++
-      code.getBytes ++
-      Longs.toByteArray(fee) ++
-      Longs.toByteArray(timestamp)
+    code.getBytes ++
+    Longs.toByteArray(fee) ++
+    Longs.toByteArray(timestamp)
   )
 
   override val newBoxes: Traversable[Box] = {
 
-    val nonce = CodeCreation.nonceFromDigest(FastCryptographicHash(
+    val nonceGen = FastCryptographicHash(
       "CodeCreation".getBytes ++
         to.pubKeyBytes ++
         code.getBytes ++
         hashNoNonces
-    ))
+      )
 
-    val uuid = ProgramId.create()
+    val nonce = CodeCreation.nonceFromDigest(nonceGen)
+
+    val programId = ProgramId.create(nonceGen ++ "programId".getBytes)
 
     val interface = ProgramPreprocessor("code", code)(JsonObject.empty).interface
 
-    Seq(CodeBox(to, nonce, uuid, Seq(code), interface))
+    Seq(CodeBox(to, nonce, programId, Seq(code), interface))
   }
 
   override lazy val json: Json = Map(
@@ -76,6 +76,8 @@ case class CodeCreation(to: PublicKey25519Proposition,
     Longs.toByteArray(fee),
     data.getBytes
   )
+
+  override def toString: String = s"CodeCreation(${json.noSpaces})"
 }
 
 object CodeCreation {
@@ -93,11 +95,15 @@ object CodeCreation {
     val selectedSecret = w.secretByPublicImage(to).get
     val fakeSig = Signature25519(Array())
     val timestamp = Instant.now.toEpochMilli
-    val messageToSign = CodeCreation(to, fakeSig, code, fee, timestamp, data).messageToSign
+    val unsignedTx = CodeCreation(to, fakeSig, code, fee, timestamp, data)
 
-    val signature = PrivateKey25519Companion.sign(selectedSecret, messageToSign)
+    val signature = PrivateKey25519.sign(selectedSecret, unsignedTx.messageToSign)
 
-    CodeCreation(to, signature, code, fee, timestamp, data)
+    println(s">>>>>>>>> tyring to sign with ${Base58.encode(selectedSecret.publicKeyBytes)} ")
+    println(s">>>>>>>>> tyring to sign with ${Base58.encode(unsignedTx.messageToSign)} ")
+    println(s">>>>>>>>> tyring to sign with ${Base58.encode(unsignedTx.copy(signature = signature).messageToSign)} ")
+
+    unsignedTx.copy(signature = signature)
   }
 
   def syntacticValidate(tx: CodeCreation, withSigs: Boolean = true): Try[Unit] = Try {

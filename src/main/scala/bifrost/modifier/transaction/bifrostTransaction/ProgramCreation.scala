@@ -55,14 +55,14 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
   lazy val newStateBoxes: IndexedSeq[StateBox] = {
-      val nonce = ProgramTransaction.nonceFromDigest(
-        FastCryptographicHash("stateBox".getBytes
-          ++ executionBuilder.core.variables.noSpaces.getBytes
-          ++ hashNoNonces
-          ++ Ints.toByteArray(0))
-      )
+    val nonceGen = FastCryptographicHash("stateBox".getBytes
+                                           ++ executionBuilder.core.variables.noSpaces.getBytes
+                                           ++ hashNoNonces
+                                           ++ Ints.toByteArray(0))
 
-    val stateBox = StateBox(owner, nonce, ProgramId.create(), executionBuilder.core.variables)
+    val nonce = ProgramTransaction.nonceFromDigest(nonceGen)
+
+    val stateBox = StateBox(owner, nonce, ProgramId.create(nonceGen ++ "programId".getBytes), executionBuilder.core.variables)
 
     IndexedSeq(stateBox)
   }
@@ -73,6 +73,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     val canSend = availableBoxes.map(_._2).sum
     val leftOver: Long = canSend - fees(owner)
 
+    // generate nonces for the boxes and program ids for the new program
     val investorNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("ProgramCreation".getBytes
         ++ owner.pubKeyBytes
@@ -80,26 +81,25 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
 
-    val codeNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("codeBox".getBytes
-        ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
+    val cbNonceGen = FastCryptographicHash("codeBox".getBytes
+                                             ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+                                             ++ hashNoNonces
+                                             ++ Ints.toByteArray(0))
+    val codeNonce = ProgramTransaction.nonceFromDigest(cbNonceGen)
+    val cbProgramId = ProgramId.create(cbNonceGen ++ "programId".getBytes)
 
-    val execNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("executionBuilder".getBytes
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
+    val execNonceGen = FastCryptographicHash("executionBuilder".getBytes
+                                              ++ hashNoNonces
+                                              ++ Ints.toByteArray(0))
+    val execNonce = ProgramTransaction.nonceFromDigest(execNonceGen)
+    val execProgramId = ProgramId.create(execNonceGen ++ "programId".getBytes)
 
-
-
-    val codeBox = CodeBox(owner, codeNonce, ProgramId.create(), executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
+    // create the new boxes
+    val codeBox = CodeBox(owner, codeNonce, cbProgramId, executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
 
     val stateBoxIds: Seq[ProgramId] = newStateBoxes.map(_.value) ++ readOnlyStateBoxes
 
-    val executionBox = ExecutionBox(owner, execNonce, ProgramId.create(), stateBoxIds, Seq(codeBox.value))
+    val executionBox = ExecutionBox(owner, execNonce, execProgramId, stateBoxIds, Seq(codeBox.value))
 
     val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
 

@@ -52,30 +52,26 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   val sboxOneWithoutId: StateBox = StateBox(pubKey, 0L, null, stateOne)
   val sboxTwoWithoutId: StateBox = StateBox(pubKey, 1L, null, stateTwo)
 
-  val progId: ProgramId = ProgramId.create()
-
-  val sboxOne: StateBox = StateBox(pubKey, 0L, progId, stateOne)
-  val sboxTwo: StateBox = StateBox(pubKey, 1L, progId, stateTwo)
+  val sboxOne: StateBox = StateBox(pubKey, 0L, programIdGen.sample.get, stateOne)
+  val sboxTwo: StateBox = StateBox(pubKey, 1L, programIdGen.sample.get, stateTwo)
 
   var newState_1: State = null
-
-  assert(sboxOne.value == progId)
 
   property("BifrostState should update programBoxRegistry with state box and rollback correctly") {
 
     val changes_1: StateChanges = StateChanges(Set(), Set(sboxOne))
-    val pbr_1 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(1)), Map(), Map(progId -> Seq(BoxId(sboxOne.id)))).toOption
-    newState_1 = genesisState.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_1).get
+    val pbr_changes_1 = Some(ProgramRegistryChanges(Map(), Map(sboxOne.value -> Seq(BoxId(sboxOne.id)))))
+    newState_1 = genesisState.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
 
-    assert(newState_1.registryLookup(progId).get.head.hashBytes sameElements sboxOne.id)
-    assert(newState_1.getProgramBox[StateBox](progId).get.bytes sameElements sboxOne.bytes)
+    assert(newState_1.registryLookup(sboxOne.value).get.head.hashBytes sameElements sboxOne.id)
+    assert(newState_1.getProgramBox[StateBox](sboxTwo.value).get.bytes sameElements sboxOne.bytes)
 
     val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set(sboxTwo))
-    val pbr_2 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(2)), Map(progId -> Seq(BoxId(sboxOne.id))), Map(progId -> Seq(BoxId(sboxTwo.id)))).toOption
-    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(2)), changes_2, None, pbr_2).get
+    val pbr_changes_2 = Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(BoxId(sboxOne.id))), Map(sboxTwo.value -> Seq(BoxId(sboxTwo.id)))))
+    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(2)), changes_2, None, pbr_changes_2).get
 
-    assert(newState_2.registryLookup(progId).get.head.hashBytes sameElements sboxTwo.id)
-    assert(newState_2.getProgramBox[StateBox](progId).get.bytes sameElements sboxTwo.bytes)
+    assert(newState_2.registryLookup(sboxTwo.value).get.head.hashBytes sameElements sboxTwo.id)
+    assert(newState_2.getProgramBox[StateBox](sboxTwo.value).get.bytes sameElements sboxTwo.bytes)
 
     val oldState = newState_2.rollbackTo(newState_1.version).get
 
@@ -85,8 +81,8 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   property("BifrostState should tombstone program id in programBoxRegistry correctly") {
 
     val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set())
-    val pbr_2 = genesisState.pbrOpt.get.update(ModifierId(Ints.toByteArray(3)), Map(progId -> Seq(BoxId(sboxOne.id))), Map()).toOption
-    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(3)), changes_2, None, pbr_2).get
+    val pbr_changes_2 = Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(BoxId(sboxOne.id))), Map()))
+    val newState_2 = newState_1.applyChanges(ModifierId(Ints.toByteArray(3)), changes_2, None, pbr_changes_2).get
 
     assert(newState_2.registryLookup(sboxOne.value).isEmpty)
   }

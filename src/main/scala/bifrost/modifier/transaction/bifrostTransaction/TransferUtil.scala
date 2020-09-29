@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{ PrivateKey25519, PrivateKey25519Companion, Signature25519 }
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
-import bifrost.state.{ State, StateReader, TokenBoxRegistry }
+import bifrost.state.{ StateReader, TokenBoxRegistry }
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper
@@ -36,7 +36,7 @@ trait TransferUtil {
     }
 
     val msg = undersigned.messageToSign
-    val sigs = from.map { case (priv, _) => (priv.publicImage, PrivateKey25519Companion.sign(priv, msg)) }.toMap
+    val sigs = from.map { case (priv, _) => (priv.publicImage, PrivateKey25519.sign(priv, msg)) }.toMap
     (fromPub, sigs)
   }
 
@@ -207,7 +207,7 @@ trait TransferUtil {
   }
 
   def validateTransfer ( tx: TransferTransaction, withSigs: Boolean = true ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))   // amount sent must be greater than 0
+    require(tx.to.forall(_._2 > 0L))   // amount sent must be greater than 0
     require(tx.fee >= 0)                // fee must be non-negative
     require(tx.timestamp >= 0)          // timestamp must be valid
 

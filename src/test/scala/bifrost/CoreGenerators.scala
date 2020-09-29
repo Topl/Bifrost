@@ -1,15 +1,15 @@
 package bifrost
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.PrivateKey25519
+import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.network.message._
 import bifrost.nodeView.NodeViewModifier
-import bifrost.modifier.ModifierId
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.settings.Version
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{ Arbitrary, Gen }
 import scorex.crypto.signatures.Curve25519
 
 //Generators of objects from scorex-core
@@ -50,7 +50,7 @@ trait CoreGenerators {
     port <- Gen.choose(0, MaxPort)
   } yield new InetSocketAddress(InetAddress.getByName(s"$ip1.$ip2.$ip3.$ip4"), port)
   lazy val key25519Gen: Gen[(PrivateKey25519, PublicKey25519Proposition)] = genBytesList(Curve25519.KeyLength)
-    .map(s => PrivateKey25519Companion.generateKeys(s))
+    .map(s => PrivateKey25519.generateKeys(s))
   lazy val propositionGen: Gen[PublicKey25519Proposition] = key25519Gen.map(_._2)
   val MaxVersion: Byte = 999.toByte
   val MaxIp = 255

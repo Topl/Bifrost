@@ -1,7 +1,7 @@
 package bifrost.nodeView
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
-import bifrost.crypto.{ PrivateKey25519Companion, Signature25519 }
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.history.History
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
@@ -112,7 +112,7 @@ object NodeViewHolder extends Logging {
 //        "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
         ).map(s => PublicKey25519Proposition(Base58.decode(s).get))
 
-    val genesisAccount = PrivateKey25519Companion.generateKeys("genesis".getBytes)
+    val genesisAccount = PrivateKey25519.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
 
     val arbTx = ArbitTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),

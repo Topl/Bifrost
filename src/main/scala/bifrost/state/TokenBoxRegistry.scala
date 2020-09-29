@@ -62,8 +62,9 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
 
       val (filteredRemove, filteredAppend) = (filterByNodeKeys(toRemove), filterByNodeKeys(toAppend))
 
-      // look for addresses that will be empty after the update
+      // determine the new state of each account from the changes
       val (deleted: Seq[K], updated: Seq[(K, Set[V])]) = {
+
         // make a list of all accounts to consider then loop through them and determine their new state
         (filteredRemove.keys ++ filteredAppend.keys).map(key => {
           val current = lookup(key)
@@ -84,31 +85,17 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
             (None, Some((key, newIds)))
 
           // case for genesis account where there are no previous boxes and nothing to remove or append
-          } else {
-            (None, None)
-          }
+          } else (None, None)
         })
       }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
-
-      println(s"\n>>>>>>>>>>>> \ndeleted: $deleted\nupdated: $updated")
 
       storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
-        updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.flatMap(_.hashBytes).toArray))
+        updated.map {
+          case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(_.hashBytes).toArray)
+        }
         )
-
-      val one = updated.head._1
-      val raw = getFromStorage(registryInput(one))
-      val raw2 = raw.map(_.grouped(BoxId.size).toVector).getOrElse(Vector())
-
-      println(s">>>>> raw: ${raw.map(Base58.encode).get}")
-      println(s">>>>> raw2: ${raw2.map(Base58.encode)}")
-      raw2.map(v => registryOutput(v)).map(println)
-
-      println(s">>>>>>> update: ${one} -> ${lookup(one)}")
-      println(s">>>>>>> update map: ${updated.map(p => (p._1, lookup(p._1)))}")
-
 
       TokenBoxRegistry(storage, nodeKeys)
     }

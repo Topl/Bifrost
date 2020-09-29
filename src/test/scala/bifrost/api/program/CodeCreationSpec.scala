@@ -3,7 +3,7 @@ package bifrost.api.program
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import bifrost.crypto.Signature25519
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
@@ -33,7 +33,7 @@ class CodeCreationSpec extends AnyWordSpec
            |  "id": "1",
            |  "method": "createCode",
            |  "params": [{
-           |    "publicKey": "$publicKey",
+           |    "publicKey": "${publicKeys("investor")}",
            |    "code": "add = function(a,b) { return a + b }",
            |    "fee": 0,
            |    "data": ""
@@ -54,13 +54,15 @@ class CodeCreationSpec extends AnyWordSpec
         val txInstance: Transaction = view().pool.getById(txHashId).get
 
         val history = view().history
-        val tempBlock = Block(history.bestBlockId,
+        val tempBlock = Block.create(
+          history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
+          ArbitBox(prop, 0L, 10000L),
+          gw.secrets.head,
           settings.forgingSettings.version
         )
+
         view().state.applyModifier(tempBlock)
         view().pool.remove(txInstance)
       }

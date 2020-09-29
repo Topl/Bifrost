@@ -2,9 +2,9 @@ package bifrost.modifier.transaction.bifrostTransaction
 
 import java.time.Instant
 
-import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion, Signature25519 }
-import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
-import bifrost.modifier.box.{ AssetBox, Box }
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.{ AssetBox, Box, TokenBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.AssetCreationSerializer
 import bifrost.state.StateReader
@@ -28,35 +28,35 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override type M = AssetCreation
 
-  lazy val serializer = AssetCreationSerializer
-
-  override def toString: String = s"AssetCreation(${json.noSpaces})"
+  lazy val serializer: AssetCreationSerializer.type = AssetCreationSerializer
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
-  lazy val hashNoNonces = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee)
     )
 
-  override lazy val newBoxes: Traversable[Box] = to
-    .filter(toInstance => toInstance._2 > 0L)
-    .zipWithIndex
-    .map { case ((prop, value), idx) =>
-      val nonce = AssetCreation.nonceFromDigest(
-        FastCryptographicHash(
-          "AssetCreation".getBytes ++
-            prop.pubKeyBytes ++
-            issuer.pubKeyBytes ++
-            assetCode.getBytes ++
-            hashNoNonces ++
-            Ints.toByteArray(idx)
+  override lazy val newBoxes: Traversable[TokenBox] = {
+    to
+      .filter(toInstance => toInstance._2 > 0L)
+      .zipWithIndex
+      .map { case ((prop, value), idx) =>
+        val nonce = AssetCreation.nonceFromDigest(
+          FastCryptographicHash(
+            "AssetCreation".getBytes ++
+              prop.pubKeyBytes ++
+              issuer.pubKeyBytes ++
+              assetCode.getBytes ++
+              hashNoNonces ++
+              Ints.toByteArray(idx)
+            )
           )
-        )
-      AssetBox(prop, nonce, value, assetCode, issuer, data)
-    }
+        AssetBox(prop, nonce, value, assetCode, issuer, data)
+      }
+  }
 
   override lazy val json: Json = Map(
     "txHash" -> Base58.encode(id.hashBytes).asJson,
@@ -85,6 +85,8 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
     data.getBytes
     )
 
+  override def toString: String = s"AssetCreation(${json.noSpaces})"
+
 }
 
 object AssetCreation {
@@ -99,8 +101,7 @@ object AssetCreation {
    * Takes WalletTrait from current view, and generates signature from issuer's public key
    * Forms corresponding AssetCreation transaction
    */
-  def createAndApply (
-                       w        : Wallet,
+  def createAndApply ( w        : Wallet,
                        to       : IndexedSeq[(PublicKey25519Proposition, Long)],
                        fee      : Long,
                        issuer   : PublicKey25519Proposition,
@@ -112,13 +113,12 @@ object AssetCreation {
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
 
-    val signatures = Map(issuer -> PrivateKey25519Companion.sign(selectedSecret, messageToSign))
+    val signatures = Map(issuer -> PrivateKey25519.sign(selectedSecret, messageToSign))
 
     AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
   }
 
-  def createPrototype (
-                        to       : IndexedSeq[(PublicKey25519Proposition, Long)],
+  def createPrototype ( to       : IndexedSeq[(PublicKey25519Proposition, Long)],
                         fee      : Long,
                         issuer   : PublicKey25519Proposition,
                         assetCode: String,
@@ -131,7 +131,7 @@ object AssetCreation {
   }
 
   def syntacticValidate ( tx: AssetCreation, withSigs: Boolean = true ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
+    require(tx.to.forall(_._2 > 0L))
     require(tx.fee >= 0)
     require(tx.timestamp >= 0)
 

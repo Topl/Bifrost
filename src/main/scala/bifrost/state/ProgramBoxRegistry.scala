@@ -5,11 +5,9 @@ import java.io.File
 import bifrost.modifier.box.ProgramBox
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
-import bifrost.state.State.log
 import bifrost.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -17,25 +15,25 @@ import scala.util.Try
  *
  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
  */
-case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
+case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
-  override protected def registryInput (key: K): Array[Byte] = key.hashBytes
+  override protected def registryInput ( key: K ): Array[Byte] = key.hashBytes
 
-  override protected def registryOutput (value: Array[Byte]): V = BoxId(value)
+  override protected def registryOutput ( value: Array[Byte] ): V = BoxId(value)
 
-  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
+  override protected def registryOut2StateIn ( value: V ): Array[Byte] = value.hashBytes
 
   /** Helper function to retrieve boxes out of state */
-  protected[state] def getBox[BX <: ProgramBox](key: K, stateReader: SR): Option[ProgramBox] =
+  protected[state] def getBox[BX <: ProgramBox] ( key: K, stateReader: SR ): Option[ProgramBox] =
     super.getBox[ProgramBox](key, stateReader).map(_.head)
 
   /**
    * @param newVersion - block id
-   * @param toRemove map of public keys to a sequence of boxIds that should be removed
-   * @param toAppend map of public keys to a sequence of boxIds that should be added
+   * @param toRemove   map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend   map of public keys to a sequence of boxIds that should be added
    * @return - instance of updated ProgramBoxRegistry
    *
    *         Runtime complexity of below function is O(MN) + O(L)
@@ -45,8 +43,8 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
    *
    */
   protected[state] def update ( newVersion: VersionTag,
-                                toRemove: Map[K, Seq[V]],
-                                toAppend: Map[K, Seq[V]]
+                                toRemove  : Map[K, Seq[V]],
+                                toAppend  : Map[K, Seq[V]]
                               ): Try[ProgramBoxRegistry] = {
 
     Try {
@@ -72,7 +70,9 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
       storage.update(
         ByteArrayWrapper(newVersion.hashBytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
-        updated.map(elem => ByteArrayWrapper(registryInput(elem._1)) -> ByteArrayWrapper(elem._2.hashBytes))
+        updated.map {
+          case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)
+        }
         )
 
       ProgramBoxRegistry(storage)
@@ -80,8 +80,8 @@ case class ProgramBoxRegistry(protected val storage: LSMStore) extends Registry[
   }
 
 
-  def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.lastVersionID.exists(_.data sameElements version.hashBytes)) {
+  def rollbackTo ( version: VersionTag ): Try[ProgramBoxRegistry] = Try {
+    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
@@ -98,7 +98,7 @@ object ProgramBoxRegistry extends Logging {
   type V = BoxId
 
   def readOrGenerate ( settings: AppSettings ): Option[ProgramBoxRegistry] = {
-    if (settings.enablePBR) {
+    if ( settings.enablePBR ) {
       log.info("Initializing state with Program Box Registry")
 
       val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get

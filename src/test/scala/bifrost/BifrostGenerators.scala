@@ -212,10 +212,11 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val stateBoxGen: Gen[StateBox] = for {
     proposition <- propositionGen
-    value <- stringGen
+    state <- stringGen
     nonce <- positiveLongGen
+    programId <- programIdGen
   } yield {
-    StateBox(proposition, nonce, ProgramId.create(), value.asJson)
+    StateBox(proposition, nonce, programId, state.asJson)
   }
 
   lazy val codeBoxGen: Gen[CodeBox] = for {
@@ -224,13 +225,14 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     methodLen <- positiveTinyIntGen
     methods <- Gen.containerOfN[Seq, String](methodLen, stringGen)
     paramLen <- positiveTinyIntGen
+    programId <- programIdGen
   } yield {
 
     val interface: Map[String, Seq[String]] = methods.map {
       _ -> Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)).sample.get
     }.toMap
 
-    CodeBox(proposition, nonce, ProgramId.create(), methods, interface)
+    CodeBox(proposition, nonce, programId, methods, interface)
   }
 
   lazy val executionBoxGen: Gen[ExecutionBox] = for {
@@ -240,9 +242,10 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     nonce <- positiveLongGen
     stateBox_1 <- stateBoxGen
     stateBox_2 <- stateBoxGen
+    programId <- programIdGen
   } yield {
 
-    ExecutionBox(proposition, nonce, ProgramId.create(), Seq(stateBox_1.value, stateBox_2.value), Seq(codeBox_1.value, codeBox_2.value))
+    ExecutionBox(proposition, nonce, programId, Seq(stateBox_1.value, stateBox_2.value), Seq(codeBox_1.value, codeBox_2.value))
   }
 
   // TODO refactor out partiesGen and replace with proposition
@@ -331,6 +334,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
+  lazy val programIdGen: Gen[ProgramId] = ProgramId.create(specificLengthBytesGen(32).sample.get)
+
   lazy val programGen: Gen[Program] = for {
     producer <- propositionGen
     investor <- propositionGen
@@ -394,6 +399,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     timestamp <- positiveLongGen
     party <- propositionGen
     data <- stringGen
+    sbProgramId <- programIdGen
+    cbProgramId <- programIdGen
   } yield {
 
     /*val state = (0 until stateBoxes).map { _ =>
@@ -408,9 +415,9 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
     val parameters = JsonObject.empty.asJson
 
-    val state = StateBox(party, stateNonce, ProgramId.create(), Map("a" -> 0).asJson)
+    val state = StateBox(party, stateNonce, sbProgramId, Map("a" -> 0).asJson)
 
-    val code = CodeBox(party, codeNonce, ProgramId.create(),
+    val code = CodeBox(party, codeNonce, cbProgramId,
       Seq("inc = function() { a += 1; }"), Map("inc" -> Seq()))
 
     ProgramMethodExecution(

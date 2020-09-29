@@ -1,20 +1,18 @@
 package bifrost.state
 
 import java.time.Instant
-import java.util.UUID
 
-import bifrost.crypto.{PrivateKey25519, PrivateKey25519Companion, Signature25519}
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box._
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.program.ExecutionBuilderSerializer
-import com.google.common.primitives.{Bytes, Ints}
+import com.google.common.primitives.{ Bytes, Ints }
 import io.circe.syntax._
-import io.iohk.iodb.ByteArrayWrapper
 import org.scalacheck.Gen
 import scorex.crypto.signatures.Curve25519
 
@@ -59,7 +57,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
       data.getBytes)
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _))
 
-    val signature = Map(owner -> PrivateKey25519Companion.sign(priv, messageToSign))
+    val signature = Map(owner -> PrivateKey25519.sign(priv, messageToSign))
 
     val stateTwo =
       s"""
@@ -74,7 +72,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     val stateBoxTwo = StateBox(owner, 1L, null, stateTwo)
     val stateBoxThree = StateBox(owner, 2L, null, stateThree)
 
-    val readOnlyIds = Seq(ProgramId.create(), ProgramId.create())
+    val readOnlyIds = Seq(programIdGen.sample.get, programIdGen.sample.get)
 
     ProgramCreation(
       executionBuilder,

@@ -135,49 +135,33 @@ case class State ( override val version     : VersionTag,
    * @return a new instance of state with the transaction within mod applied
    */
   override def applyModifier ( block: Block ): Try[State] = {
-    // extract the state changes to be made, using option for TBR and PBR
-    // since we can skip if the registries aren't present
+    // extract the state changes to be made
+    // using option for TBR and PBR since we can skip if the registries aren't present
     val stateChanges = StateChanges(block)
     val tokenChanges = if ( tbrOpt.isDefined ) TokenRegistryChanges(block).toOption else None
     val programChanges = if ( pbrOpt.isDefined ) ProgramRegistryChanges(block).toOption else None
 
-    // throwing error here since we should stop attempting updates if any part fails
-    val updatedTBR = tokenChanges match {
-      case Some(tc) => tbrOpt.get.update(block.id, tc.toRemove, tc.toAppend) match {
-        case Success(updates) => Some(updates)
-        case Failure(ex)      => throw new Error(s"Failed to update TBR with error\n$ex")
-      }
-      case None     => None
-    }
-
-    val updatedPBR = programChanges match {
-      case Some(pc) => pbrOpt.get.update(block.id, pc.toRemove, pc.toUpdate) match {
-        case Success(updates) => Some(updates)
-        case Failure(ex)      => throw new Error(s"Failed to update PBR with error\n$ex")
-      }
-      case None     => None
-    }
-
     // if the registries update successfully, attempt to update the utxo storage
     stateChanges match {
-      case Success(sc) => applyChanges(block.id, sc, updatedTBR, updatedPBR)
+      case Success(sc) => applyChanges(block.id, sc, tokenChanges, programChanges)
       case Failure(_)  => throw new Error(s"Failed to calculate state changes for block: ${block.id}")
     }
   }
 
   /**
-    *
-    * @param newVersion
-    * @param stateChanges
-    * @param newTBR
-    * @param newPBR
-    * @return
-    */
-  private[state] def applyChanges ( newVersion  : VersionTag,
-                                    stateChanges: StateChanges,
-                                    newTBR      : Option[TokenBoxRegistry] = None,
-                                    newPBR      : Option[ProgramBoxRegistry] = None
-                                  ): Try[NVCT] =
+   * Apply a series of changes to the internal stores of the state objects
+   *
+   * @param newVersion version id of this update
+   * @param stateChanges changes to be made to state storage
+   * @param tokenChanges changes to be made to the token box registry
+   * @param programChanges changes to be made to the program box registry
+   * @return an updated version of state
+   */
+  private[state] def applyChanges ( newVersion    : VersionTag,
+                                    stateChanges  : StateChanges,
+                                    tokenChanges  : Option[TokenRegistryChanges] = None,
+                                    programChanges: Option[ProgramRegistryChanges] = None
+                                  ): Try[NVCT] = {
     Try {
 
       //Filtering boxes pertaining to public keys specified in settings file
@@ -204,17 +188,35 @@ case class State ( override val version     : VersionTag,
           s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
         )
 
+      // throwing error here since we should stop attempting updates if any part fails
+      val updatedTBR = tokenChanges match {
+        case Some(tc) => tbrOpt.get.update(newVersion, tc.toRemove, tc.toAppend) match {
+          case Success(updates) => Some(updates)
+          case Failure(ex)      => throw new Error(s"Failed to update TBR with error\n$ex")
+        }
+        case _ => None
+      }
+
+      val updatedPBR = programChanges match {
+        case Some(pc) => pbrOpt.get.update(newVersion, pc.toRemove, pc.toUpdate) match {
+          case Success(updates) => Some(updates)
+          case Failure(ex)      => throw new Error(s"Failed to update PBR with error\n$ex")
+        }
+        case _ => None
+      }
+
       if ( storage.lastVersionID.isDefined ) boxIdsToRemove.foreach(id => require(getBox(id.data).isDefined))
       storage.update(ByteArrayWrapper(newVersion.hashBytes), boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
-      val newState = State(newVersion, storage, newTBR, newPBR, nodeKeys)
+      val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
 
       // enforce that a new valid state must have emptied all boxes to remove
       boxIdsToRemove.foreach(box => require(newState.getBox(box.data).isEmpty, s"Box $box is still in state"))
 
       newState
     }
+  }
 
   def validate ( transaction: Transaction ): Try[Unit] = {
     transaction match {

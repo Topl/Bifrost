@@ -38,12 +38,8 @@ object ProgramId extends BifrostSerializer[ProgramId] {
     }
   }
 
-  def create(): ProgramId = {
-    val key = UUID.randomUUID()
-    val keyBytes = BigInt(key.getMostSignificantBits).toByteArray ++ BigInt(key.getLeastSignificantBits).toByteArray
-
-    new ProgramId(FastCryptographicHash(keyBytes))
-
+  def create (seed: Array[Byte]): ProgramId = {
+    new ProgramId(FastCryptographicHash(seed))
   }
 
   override def serialize(obj: ProgramId, w: Writer): Unit = {
