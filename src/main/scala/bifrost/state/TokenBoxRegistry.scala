@@ -20,16 +20,16 @@ import scala.util.{Success, Try}
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-case class TokenBoxRegistry ( protected val storage: LSMStore,
-                              nodeKeys: Option[Set[PublicKey25519Proposition]]
-                            ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
+class TokenBoxRegistry ( protected val storage: LSMStore,
+                         nodeKeys: Option[Set[PublicKey25519Proposition]]
+                       ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
   override protected def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
 
-  override protected def registryOutput ( value: Array[Byte] ): V = BoxId(value)
+  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = value.grouped(BoxId.size).toSeq.map(v => BoxId(v))
 
   override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
 
@@ -97,7 +97,7 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
         }
         )
 
-      TokenBoxRegistry(storage, nodeKeys)
+      new TokenBoxRegistry(storage, nodeKeys)
     }
   }
 
@@ -107,7 +107,7 @@ case class TokenBoxRegistry ( protected val storage: LSMStore,
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
       storage.rollback(ByteArrayWrapper(version.hashBytes))
-      TokenBoxRegistry(storage, nodeKeys)
+      new TokenBoxRegistry(storage, nodeKeys)
     }
   }
 }

@@ -20,7 +20,7 @@ trait Registry[K, V] extends StoreInterface with Logging {
   protected def registryInput (key: K): Array[Byte]
 
   /** Helper function to transform registry output value from Array[Byte] */
-  protected def registryOutput (value: Array[Byte]): V
+  protected def registryOutput (value: Array[Byte]): Seq[V]
 
   /** Helper function to transform registry output value to input for state */
   protected def registryOut2StateIn (value: V): Array[Byte]
@@ -33,7 +33,7 @@ trait Registry[K, V] extends StoreInterface with Logging {
     */
   def lookup (key: K): Seq[V] = {
     getFromStorage(registryInput(key))
-      .map(_.grouped(BoxId.size).toSeq.map(v => registryOutput(v)))
+      .map(registryOutput)
       .getOrElse(Seq[V]())
   }
 
@@ -48,7 +48,8 @@ trait Registry[K, V] extends StoreInterface with Logging {
   protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] = {
     Try {
       lookup(key)
-        .map(v => state.getBox(registryOut2StateIn(v)))
+        .map(registryOut2StateIn)
+        .map(state.getBox)
     }.toOption.map( _.flatMap {
       case Some(box: BX) => Some(box)
       case _             => None

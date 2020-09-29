@@ -9,9 +9,9 @@ import scala.util.{ Failure, Success, Try }
 package object state {
   /** This function will modify the state storage directly without returning a new instance of state
    * USE WITH EXTREME CAUTION!! */
-  def directlyAddStateStorage( version: Int, boxes: Set[Box], state: State): Unit = {
+  def directlyAddStateStorage( version: Int, boxes: Seq[Box], state: State): Unit = {
     // Manually manipulate state
-    val boxSC = StateChanges(Set(), boxes)
+    val boxSC = StateChanges(Set(), boxes.toSet)
     val versionId = ModifierId(Ints.toByteArray(version))
 
     // this works by updating the underlying storage object directly and ignoring the updated state instance
@@ -23,7 +23,7 @@ package object state {
 
   /** This function will modify the PBR storage directly without returning a new instance of the registry
    * USE WITH EXTREME CAUTION!! */
-  def directlyAddPBRStorage[BX: ProgramBox] ( version: Int, boxes: Set[BX], state: State): Unit = {
+  def directlyAddPBRStorage ( version: Int, boxes: Seq[ProgramBox], state: State): Unit = {
     // Manually manipulate state
     val versionId = ModifierId(Ints.toByteArray(version))
 

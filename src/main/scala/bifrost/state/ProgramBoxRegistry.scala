@@ -15,14 +15,14 @@ import scala.util.Try
  *
  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
  */
-case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
+class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
   override protected def registryInput ( key: K ): Array[Byte] = key.hashBytes
 
-  override protected def registryOutput ( value: Array[Byte] ): V = BoxId(value)
+  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = Seq(BoxId(value))
 
   override protected def registryOut2StateIn ( value: V ): Array[Byte] = value.hashBytes
 
@@ -42,6 +42,15 @@ case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Regist
    *         L = Number of boxes to append
    *
    */
+  protected[state] def update ( newVersion: VersionTag,
+                                toRemove  : Map[K, Seq[V]],
+                                toAppend  : Map[K, Seq[V]]
+                              ): Try[ProgramBoxRegistry] = {
+
+    update(newVersion, toRemove.map(el => el._1 -> el._2.head), toAppend.map(el => el._1 -> el._2.head))
+  }
+
+
   protected[state] def update ( newVersion: VersionTag,
                                 toRemove  : Map[K, V],
                                 toAppend  : Map[K, V]
@@ -75,7 +84,7 @@ case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Regist
         }
         )
 
-      ProgramBoxRegistry(storage)
+      new ProgramBoxRegistry(storage)
     }
   }
 
@@ -86,7 +95,7 @@ case class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Regist
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
       storage.rollback(ByteArrayWrapper(version.hashBytes))
-      ProgramBoxRegistry(storage)
+      new ProgramBoxRegistry(storage)
     }
   }
 
