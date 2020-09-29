@@ -97,10 +97,10 @@ case class GjallarhornApiRoute(settings: AppSettings,
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
     Future{
-      val returnVal = r.broadcastTx2(params)
-      val add = r.boxesToAdd(params)
+      val returnVal = r.broadcastTx(params)
+      /*val add = r.boxesToAdd(params)
       val remove = r.boxesToRemove(params)
-      walletManager ? UpdateWallet(add, remove)
+      walletManager ? UpdateWallet(add, remove)*/
       returnVal
     }
   }

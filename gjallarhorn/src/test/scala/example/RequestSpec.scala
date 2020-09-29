@@ -1,10 +1,11 @@
 package example
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
 import _root_.requests.Requests
-import akka.util.ByteString
+import akka.util.{ByteString, Timeout}
 import crypto.PrivateKey25519Companion
 import io.circe.Json
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -12,9 +13,15 @@ import org.scalatest.matchers.should.Matchers
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import keymanager.{KeyFile, Keys}
+import wallet.WalletManager
+import wallet.WalletManager._
 
 import scala.reflect.io.Path
 import scala.util.Try
+import scala.concurrent.Await
+import scala.collection.mutable.{Map => MMap}
+import scala.concurrent.duration._
+
 
 class RequestSpec extends AsyncFlatSpec
   with Matchers
@@ -22,6 +29,7 @@ class RequestSpec extends AsyncFlatSpec
 
   implicit val actorSystem: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val timeout: Timeout = 10.seconds
 
   val http: HttpExt = Http(actorSystem)
 
@@ -42,6 +50,9 @@ class RequestSpec extends AsyncFlatSpec
   val keyManager = Keys(Set(), keyFileDir)
   keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
+  val publicKeys: Set[String] = Set(Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes))
+
+  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)))
 
   val amount = 10
 
@@ -67,6 +78,8 @@ class RequestSpec extends AsyncFlatSpec
          """.stripMargin)
     transaction = requests.sendRequest(createAssetRequest, "asset")
     assert(transaction.isInstanceOf[Json])
+    (transaction \\ "error").isEmpty shouldBe true
+    (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
   it should "receive JSON from sign transaction" in {
@@ -81,6 +94,31 @@ class RequestSpec extends AsyncFlatSpec
   it should "receive JSON from broadcast transaction" in {
     val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
+    (response \\ "error").isEmpty shouldBe true
+    (response \\ "result").head.asObject.isDefined shouldBe true
+  }
+
+  var balanceResponse: Json = Json.Null
+
+  it should "receive JSON from getBalances" in {
+    var pubKeys: Set[String] = Set.empty
+    pubKeys += Base58.encode(pk1.pubKeyBytes)
+    pubKeys += Base58.encode(pk2.pubKeyBytes)
+    balanceResponse = requests.getBalances(pubKeys)
+    assert(balanceResponse.isInstanceOf[Json])
+    (balanceResponse \\ "error").isEmpty shouldBe true
+    (balanceResponse \\ "result").head.asObject.isDefined shouldBe true
+  }
+
+  it should "update boxes correctly with balance response" in {
+    val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
+      .mapTo[MMap[String, MMap[String, Json]]]
+      , 10.seconds)
+    val pubKeyBoxes: Option[MMap[String, Json]] = walletBoxes.get(Base58.encode(pk1.pubKeyBytes))
+    pubKeyBoxes match {
+      case Some(map) => assert(map.keySet.isEmpty)
+      case None => sys.error("something wrong")
+    }
   }
 
 

@@ -18,7 +18,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(Set(), keyFileDir)
-  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.publicKeys)))
+
+  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
 
   implicit val settings: AppSettings = AppSettings.read(startupOpts)
 

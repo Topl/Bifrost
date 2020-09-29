@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
 import keymanager.Keys
-import crypto.{PrivateKey25519Companion, PublicKey25519Proposition, _}
+import crypto._
 import io.circe.{Json, parser}
 import io.circe.syntax._
 
@@ -140,7 +140,33 @@ class Requests (settings: AppSettings) {
     sendRequest(tx, "wallet")
   }
 
+  def getBalances (publicKeys: Set[String]): Json = {
+    var keysWithQuotes: Set[String] = Set.empty
+    publicKeys.foreach(pk =>
+      keysWithQuotes += s""""$pk""""
+    )
+    val keys: String = keysWithQuotes.mkString(", \n")
+    val json = (
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "balances",
+         |   "params": [
+         |      {
+         |        "publicKeys": [
+         |            $keys
+         |        ]
+         |      }
+         |   ]
+         |}
+       """
+    )
+    val requestBody = ByteString(json.stripMargin)
+    sendRequest(requestBody, "wallet")
+  }
 
+/*
   def broadcastTx2(signedTransaction: Json): Json = {
     val tx = ByteString(
       s"""
@@ -154,6 +180,25 @@ class Requests (settings: AppSettings) {
     sendRequest(tx, "wallet")
   }
 
+  def parseTo(jsons: List[Json]): MMap[PublicKey25519Proposition, Long] = {
+    val mapping: MMap[PublicKey25519Proposition, Long] = MMap.empty
+    val toList: Array[String] = jsons.head.toString().stripPrefix("[").stripSuffix("]").split(",")
+    val updatedList: Array[String] = new Array[String](toList.length)
+    for(index <- 0 to toList.length-1) {
+      if (index % 2 == 0) {
+        System.out.println(toList(index).substring(2).trim)
+        val pubKey = toList(index).substring(2).trim.stripPrefix("\"").stripSuffix("\"")
+        updatedList(index) = pubKey
+        System.out.println("pub key: " + pubKey)
+      }else{
+        val amount = toList(index).substring(2, toList(index).length-2).trim.stripPrefix("\"").stripSuffix("\"")
+        updatedList(index) = amount
+        System.out.println("amount: " + amount)
+      }
+    }
+    mapping
+  }
+
 
  def boxesToAdd(transaction: Json): MMap[String, MMap[String, Json]] = {
    val toAdd: MMap[String, MMap[String, Json]] = MMap.empty
@@ -161,16 +206,20 @@ class Requests (settings: AppSettings) {
    val tx: Json = (transaction \\ "tx").head
    val newBoxes: List[Json] = tx \\ "newBoxes"
    if (newBoxes.nonEmpty) {
-     val issuer = (tx \\ "issuer").toString()
-     val to = (tx \\ "to").head.asArray.head
-     val pubKey = to.head.toString().split(",").head.substring(2).trim
+     val issuer = (tx \\ "issuer").head.toString().stripPrefix("\"").stripSuffix("\"")
+     val toMap = parseTo(tx\\"to")
+     System.out.println(toMap)
+     val to = (tx \\ "to").head.asArray.head.head.toString().split(",")
+     val pubKey = to.head.substring(2).trim
+     val amount = to.tail.head
+     val amountString = amount.substring(2, amount.length-2).trim.stripPrefix("\"").stripSuffix("\"")
      val publicKey = pubKey.stripPrefix("\"").stripSuffix("\"")
      newBoxes.map(id => {
        boxes.put(id.toString(),
          Map(
            "typeOfBox" -> "asset",
            "nonce" -> "0",
-           "value" -> "0",
+           "value" -> amountString,
            "issuer" -> issuer
          ).asJson)
      })
@@ -189,7 +238,7 @@ class Requests (settings: AppSettings) {
       toRemove = toRemove :+ ((pubKey, removeList))
     }
     toRemove
-  }
+  }*/
 
 }
 

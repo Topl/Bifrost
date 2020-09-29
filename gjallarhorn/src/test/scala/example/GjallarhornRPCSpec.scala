@@ -18,7 +18,6 @@ import keymanager.{KeyManagerRef, Keys}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import wallet.WalletManager
-import wallet.WalletManager.GetWalletBoxes
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -45,9 +44,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(Set(), keyFileDir)
-  val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.publicKeys)))
+  val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
 
-  val testPubKey = keyManager.publicKeys.head.toString
+  /*val testPubKey = keyManager.publicKeys.head.toString
+  val testPubKey2 = keyManager.publicKeys.tail.head.toString*/
 
   val route: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef).route
 
@@ -87,7 +87,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
-  it should "add boxes now that transaction was broadcasted" in {
+
+  /*
+  it should "add 1 box after transaction was broadcasted" in {
     val broadcastTransaction = ByteString(
       s"""
          |{
@@ -128,5 +130,64 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       10.seconds)
     assert(walletBoxes.get(testPubKey).size == 1)
   }
+
+  it should "add and remove correct boxes from wallet" in {
+    val transaction = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "broadcastTx",
+         |   "params": [{
+         |      "tx" : {
+         |          "txType" : "AssetTransfer",
+         |          "txHash" : "91rmGL6KdsgZ16pu3Hbc3RRuPqiTBs48imnhQnjTTtfP",
+         |          "timestamp" : 1601392939391,
+         |          "signatures" : {
+         |              "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU" : "2UpYvWSwXdVs6MqXUd9neULTrvwTANH3ZRL3rJBg1JR22EmaZRZxyC8wqvEUVDuyXbU7BvJxZFr4XTmw7vg78dQq"
+         |          },
+         |          "newBoxes" : [
+         |              "2d4r8oRBq4xdwCaBBeF7pZnfV672crivXpDJ9wY31CaN",
+         |              "3x7daFS1DsC2EENw8T3R6CBzQqS9qDyQxstxvoyJLCUs"
+         |          ],
+         |          "data" : "",
+         |          "issuer" : "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU",
+         |          "to" : [
+         |            [
+         |              "$testPubKey",
+         |              "9"
+         |            ],
+         |            [
+         |              "$testPubKey2",
+         |              "1"
+         |              ]
+         |          ],
+         |          "assetCode" : "etherAssets",
+         |          "from" : [
+         |            [
+         |              "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |              "6917471470825143755"
+         |            ]
+         |          ],
+         |          "boxesToRemove" : [
+         |            "5kSiDeEJLHSk52NxM5he5MzFyTSPKHwonuPsyXrnRYRw"
+         |          ],
+         |          "fee" : 0
+         |        }
+         |     }]
+         |}
+         """.stripMargin)
+
+    httpPOST(transaction) ~> route ~> check {
+      val res = parse(responseAs[String]).right.get
+      (res \\ "error").isEmpty shouldBe false
+      (res \\ "result").head.asObject.isDefined shouldBe true
+    }
+    val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWalletBoxes()).mapTo[MMap[String, MMap[String, Json]]],
+      10.seconds)
+    System.out.println(walletBoxes)
+    assert(walletBoxes.get(testPubKey).size == 1)
+    assert(walletBoxes.get(testPubKey2).size == 1)
+  }*/
 
 }
