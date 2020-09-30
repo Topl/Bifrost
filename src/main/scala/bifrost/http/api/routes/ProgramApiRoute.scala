@@ -82,12 +82,13 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
     viewAsync().map { view =>
       val state = view.state
       val tx = createProgramInstance(params, state)
-//      ProgramCreation.validate(tx) match {
-//        case Success(_) => log.info("Program creation validated successfully")
-//        case Failure(e) => throw e
-//      }
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramCreation](tx)
-      tx.json
+
+      ProgramCreation.semanticValidate(tx, view.state) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramCreation](tx)
+          tx.json
+        case Failure(e) => throw new Error("Failed to validate the program creation")
+      }
     }
   }
 
@@ -183,11 +184,6 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
       val res = history.bloomFilter(queryBloomTopics)
       res.map(_.json).asJson
     }
-  }
-
-  //TODO Return ProgramBox instead of Box
-  private def programBoxId2Box(state: State, boxId: String): Box = {
-    state.getBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle

@@ -31,10 +31,9 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @param key storage key used to identify value(s) in registry
     * @return the value associated with the key within the registry
     */
-  def lookup (key: K): Seq[V] = {
+  def lookup (key: K): Option[Seq[V]] = {
     getFromStorage(registryInput(key))
       .map(registryOutput)
-      .getOrElse(Seq[V]())
   }
 
   /**
@@ -45,14 +44,14 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @param state the state containing the token box data to be retrieved
     * @return a sequence of boxes from state using the registry key to look them up
    */
-  protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] = {
-    Try {
+  protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] =
       lookup(key)
-        .map(registryOut2StateIn)
-        .map(state.getBox)
-    }.toOption.map( _.flatMap {
-      case Some(box: BX) => Some(box)
-      case _             => None
-    })
-  }
+        .map {
+          _.map(registryOut2StateIn)
+            .map(state.getBox)
+            .flatMap {
+              case Some(box: BX) => Some(box)
+              case _             => None
+            }
+        }
 }

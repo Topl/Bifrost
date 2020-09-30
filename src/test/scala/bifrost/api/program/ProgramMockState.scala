@@ -56,9 +56,9 @@ trait ProgramMockState extends BifrostGenerators {
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
     10.seconds)
 
-  def directlyAddPBRStorage(version: Int, boxes: Set[ProgramBox]): Unit = {
+  def directlyAddPBRStorage(version: Int, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state
-    state.directlyAddStateStorage(version, boxes, view().state)
+    state.directlyAddPBRStorage(version, boxes, view().state)
   }
 
   val publicKeys = Map(

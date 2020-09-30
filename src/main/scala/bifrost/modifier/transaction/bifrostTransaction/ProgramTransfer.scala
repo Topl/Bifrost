@@ -4,7 +4,7 @@ import java.time.Instant
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ Box, ExecutionBox }
+import bifrost.modifier.box.{ Box, ExecutionBox, ProgramBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramTransferSerializer
 import bifrost.state.{ State, StateReader }
@@ -39,7 +39,7 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
 
   override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
 
-  override lazy val newBoxes: Traversable[Box] = {
+  override lazy val newBoxes: Traversable[ProgramBox] = {
 
     val nonce = ProgramTransfer.nonceFromDigest(
       FastCryptographicHash("ProgramTransfer".getBytes

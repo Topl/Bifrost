@@ -6,37 +6,36 @@ import bifrost.modifier.transaction.bifrostTransaction.{ ProgramCreation, Progra
 
 import scala.util.Try
 
-case class ProgramRegistryChanges (toRemove: Map[ProgramBoxRegistry.K, ProgramBoxRegistry.V],
-                                   toUpdate: Map[ProgramBoxRegistry.K, ProgramBoxRegistry.V],
+case class ProgramRegistryChanges (toRemove: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
+                                   toUpdate: Map[ProgramBoxRegistry.K, Seq[ProgramBoxRegistry.V]],
                                   )
 
 object ProgramRegistryChanges {
-  type PBX = ProgramBox
-  type BPMOD = Block
   type K = ProgramBoxRegistry.K
   type V = ProgramBoxRegistry.V
 
-  def apply(mod: BPMOD): Try[ProgramRegistryChanges] =
+  def apply(mod: Block): Try[ProgramRegistryChanges] =
     Try {
 
-      def processToMap(boxSeq: Seq[(K, PBX)]): Map[K, V] = {
-        boxSeq.map { case (k,v) => k -> BoxId(v.id) }.toMap
+      def processToMap(boxSeq: Seq[ProgramBox]): Map[K, Seq[V]] = {
+        boxSeq.groupBy(_.value).map { case (k,box) => (k, box.map(b => BoxId(b.id))) }
       }
 
       // extract the needed box data from all transactions within a block
-      val (removeSeq: Seq[(K, ProgramBox)], updateSeq: Seq[(K, ProgramBox)])  =
+      val (removeSeq: Seq[ProgramBox], updateSeq: Seq[ProgramBox])  =
         mod.transactions match {
           case Some(txSeq) =>
             txSeq.map({
-              case tx: ProgramMethodExecution => (None, Some((tx.executionBox.stateBoxIds.head, tx.newBoxes.head)))
-              case tx: ProgramCreation        => (None, Some((tx.newStateBoxes.head.value, tx.newStateBoxes.head)))
-              case tx: ProgramTransfer        => ???
-              case _                          => (None, None) // JAA - not sure if this is needed but added to be exhaustive
-            }).foldLeft((Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]()))((acc, txData) => {
+              case tx: ProgramMethodExecution => (Seq(), tx.newBoxes.toSeq)
+              case tx: ProgramCreation        => (Seq(), tx.newBoxes.toSeq)
+              case tx: ProgramTransfer        => (Seq(), tx.newBoxes.toSeq)
+              // case tx: ProgramDeletion     => (Some(???),None) // <-- this is the only case that should result in removing a program id
+              case _                          => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+            }).foldLeft((Seq[ProgramBox](), Seq[ProgramBox]()))((acc, txData) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
 
-          case None => (Seq[(K, ProgramBox)](), Seq[(K, ProgramBox)]())
+          case None => (Seq[ProgramBox](), Seq[ProgramBox]())
         }
 
       val toRemove = processToMap(removeSeq)

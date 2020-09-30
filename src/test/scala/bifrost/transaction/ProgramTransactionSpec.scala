@@ -96,11 +96,11 @@ class ProgramTransactionSpec extends AnyPropSpec
     val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
     val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
-    val readOnlyUUIDs = Seq(stateBoxTwo.value, stateBoxThree.value)
+    val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
     ProgramCreation(
       executionBuilder,
-      readOnlyUUIDs,
+      readOnlyIds,
       preInvestmentBoxes,
       sender,
       signatures,

@@ -80,7 +80,7 @@ trait ValidGenerators extends BifrostGenerators {
       val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
       val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
-      val readOnlyUUIDs = Seq(stateBoxTwo.value, stateBoxThree.value)
+      val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
       val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
@@ -101,7 +101,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       ProgramCreation(
         executionBuilder,
-        readOnlyUUIDs,
+        readOnlyIds,
         preInvestmentBoxes,
         sender,
         signature,

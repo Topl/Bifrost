@@ -67,14 +67,14 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 
         // make a list of all accounts to consider then loop through them and determine their new state
         (filteredRemove.keys ++ filteredAppend.keys).map(key => {
-          val current = lookup(key)
+          val current = lookup(key).getOrElse(Seq())
 
           // case where the account no longer has any boxes
-          if ( current.length == filteredRemove.getOrElse(key, List()).length && filteredAppend.getOrElse(key, List()).isEmpty ) {
+          if ( current.forall(filteredRemove.getOrElse(key, Seq()).contains) && filteredAppend.getOrElse(key, Seq()).isEmpty ) {
             (Some(key), None)
 
           // case where the account was initially empty and now has boxes
-          } else if (current.isEmpty && filteredAppend.getOrElse(key, List()).nonEmpty) {
+          } else if (current.isEmpty && filteredAppend.getOrElse(key, Seq()).nonEmpty) {
             (None, Some((key, filteredAppend(key).toSet)))
 
           // case for updating the set of boxes for an account

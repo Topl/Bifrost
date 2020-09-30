@@ -20,9 +20,9 @@ class ProgramCallSpec extends AnyWordSpec
 
   "programCall" should {
 
-    val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
+    val boxState = Seq(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(1, boxState)
+    directlyAddPBRStorage(1, boxState)
 
     view().history.bestBlock.txs.foreach{tx =>
       println(s"${tx.toString}")
@@ -37,7 +37,7 @@ class ProgramCallSpec extends AnyWordSpec
           "id": "1",
           "method": "programCall",
           "params": [{
-            "programId": "${Base58.encode(executionBox.id)}",
+            "programId": "${executionBox.value}",
             "stateVar": "a",
             "fees": ${fees.asJson},
             "timestamp": ${System.currentTimeMillis},

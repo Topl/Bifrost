@@ -334,7 +334,12 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
 
-  lazy val programIdGen: Gen[ProgramId] = ProgramId.create(specificLengthBytesGen(32).sample.get)
+  lazy val programIdGen: Gen[ProgramId] = for {
+    seed <- specificLengthBytesGen(ProgramId.size)
+  } yield {
+    ProgramId.create(seed)
+  }
+
 
   lazy val programGen: Gen[Program] = for {
     producer <- propositionGen

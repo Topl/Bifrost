@@ -67,7 +67,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     IndexedSeq(stateBox)
   }
 
-  override lazy val newBoxes: Traversable[Box] = {
+  override lazy val newBoxes: Traversable[ProgramBox] = {
 
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(owner) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
@@ -101,17 +101,19 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
     val executionBox = ExecutionBox(owner, execNonce, execProgramId, stateBoxIds, Seq(codeBox.value))
 
-    val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
+    //val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
 
-    IndexedSeq(executionBox, codeBox) ++ newStateBoxes :+ investorDeductedBox // nonInvestorDeductedBoxes
+    IndexedSeq(executionBox, codeBox) ++ newStateBoxes //:+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
-  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-    "executionBuilder" -> executionBuilder.json,
-    "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
-    "data" -> data.asJson
-  )).asJson
+  lazy val json: Json = (
+    commonJson.asObject.get.toMap ++
+      Map(
+        "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
+        "executionBuilder" -> executionBuilder.json,
+        "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
+        "data" -> data.asJson
+        )).asJson
 
   override lazy val serializer = ProgramCreationSerializer
 

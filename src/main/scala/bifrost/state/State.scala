@@ -56,7 +56,7 @@ case class State ( override val version     : VersionTag,
    * @param id unique identifier where the box data is stored
    * @return
    */
-  def getBox ( id: Array[Byte] ): Option[Box] =
+  override def getBox ( id: Array[Byte] ): Option[Box] =
     getFromStorage(id)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
@@ -69,9 +69,9 @@ case class State ( override val version     : VersionTag,
    * @tparam PBX the type of box that you are expecting to get back (StateBox, ExecBox, etc.)
    * @return a program box of the specified type if found at the given program is
    */
-  def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX] = {
+  override def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX] = {
     (pbrOpt match {
-      case Some(pbr) => pbr.getBox[PBX](key, getReader)
+      case Some(pbr) => pbr.getBox(key, getReader)
       case None      => None
     }) match {
       case Some(box: PBX) => Some(box)
@@ -86,7 +86,7 @@ case class State ( override val version     : VersionTag,
    * @param key the public key to find boxes for
    * @return a sequence of token boxes held by the public key
    */
-  def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = {
+  override def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = {
     tbrOpt match {
       case Some(tbr) => tbr.getBox(key, getReader)
       case None      => None
@@ -102,8 +102,8 @@ case class State ( override val version     : VersionTag,
    */
   def registryLookup[K] ( key: K ): Option[Seq[BoxId]] = {
     key match {
-      case k: TokenBoxRegistry.K if tbrOpt.isDefined   => Some(tbrOpt.get.lookup(k))
-      case k: ProgramBoxRegistry.K if pbrOpt.isDefined => Some(pbrOpt.get.lookup(k))
+      case k: TokenBoxRegistry.K if tbrOpt.isDefined   => tbrOpt.get.lookup(k)
+      case k: ProgramBoxRegistry.K if pbrOpt.isDefined => pbrOpt.get.lookup(k)
       case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
     }
   }
@@ -218,7 +218,7 @@ case class State ( override val version     : VersionTag,
     }
   }
 
-  def validate ( transaction: Transaction ): Try[Unit] = {
+  override def validate ( transaction: Transaction ): Try[Unit] = {
     transaction match {
       case tx: CoinbaseTransaction    => CoinbaseTransaction.semanticValidate(tx, getReader)
       case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)

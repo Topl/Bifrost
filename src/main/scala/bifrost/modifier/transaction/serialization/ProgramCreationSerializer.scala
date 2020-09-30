@@ -17,7 +17,7 @@ object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
     /* executionBuilder: ExecutionBuilder */
     ExecutionBuilderSerializer.serialize(obj.executionBuilder, w)
 
-    /* readOnlyStateBoxes: Seq[UUID] */
+    /* readOnlyStateBoxes: Seq[ProgramId] */
     w.putUInt(obj.readOnlyStateBoxes.length)
     obj.readOnlyStateBoxes.foreach { id =>
       ProgramId.serialize(id, w)

@@ -7,11 +7,11 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
-import bifrost.BifrostGenerators
+import bifrost.{ BifrostGenerators, state }
 import bifrost.history.History
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
-import bifrost.modifier.{ModifierId, block}
+import bifrost.modifier.{ ModifierId, block }
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
@@ -27,7 +27,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.Await
+import scala.concurrent.{ Await, blocking }
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
@@ -106,14 +106,14 @@ class ProgramRPCSpec extends AnyWordSpec
       val txHashId = ModifierId(Base58.decode(txHash).get)
       val txInstance: Transaction = view().pool.getById(txHashId).get
 
-      txInstance.newBoxes.foreach {
-        case b: ExecutionBox => executionBox = Some(b)
-        case _ =>
+      val programBoxes = txInstance.newBoxes.foldLeft(Seq[ProgramBox]()) { ( acc, box ) => box match {
+        case b: ProgramBox => b +: acc
+        case _             => Seq()
+      }
       }
 
-      val mod = BlockGen.sample.get.copy(txs = Seq(txInstance))
+      state.directlyAddPBRStorage(version, programBoxes, view().state)
 
-      view().state.applyModifier(mod).get
       view().pool.remove(txInstance)
     }
 

@@ -37,7 +37,7 @@ object CodeBox {
 
   implicit val decodeCodeBox: Decoder[CodeBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    value <- c.downField("uuid").as[String]
+    value <- c.downField("programId").as[String]
     code <- c.downField("code").as[Seq[String]]
     interface <- c.downField("interface").as[Map[String, Seq[String]]]
     nonce <- c.downField("nonce").as[Long]

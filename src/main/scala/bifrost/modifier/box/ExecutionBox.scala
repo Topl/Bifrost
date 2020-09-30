@@ -8,7 +8,6 @@ import io.circe.syntax._
 import io.circe.{ Decoder, HCursor, Json }
 import scorex.crypto.encode.Base58
 
-//TODO change codeBoxIds to codeBoxUUIDs
 case class ExecutionBox( override val proposition: PublicKey25519Proposition,
                          override val nonce      : Long,
                          override val value      : ProgramId,
@@ -38,9 +37,9 @@ object ExecutionBox {
 
   implicit val decodeExecBox: Decoder[ExecutionBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    value <- c.downField("uuid").as[String]
+    value <- c.downField("programId").as[String]
     nonce <- c.downField("nonce").as[Long]
-    stateBoxIds <- c.downField("stateBoxUUIDs").as[Seq[String]]
+    stateBoxIds <- c.downField("stateBoxIds").as[Seq[String]]
     codeBoxIds <- c.downField("codeBoxIds").as[Seq[String]]
   } yield {
     val prop = PublicKey25519Proposition(proposition).get

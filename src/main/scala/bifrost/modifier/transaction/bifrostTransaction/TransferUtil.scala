@@ -63,9 +63,6 @@ trait TransferUtil {
           // Restrict box search to specified public keys if provided
           val keyFilteredBoxes = sender.flatMap(s => state.getTokenBoxes(s)).flatten
 
-          println(s"\n>>>>>>>>>>> senders: $sender")
-          println(s">>>>>>>>>>> box set: $keyFilteredBoxes\n")
-
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
             case "PolyTransfer"  =>
@@ -146,9 +143,6 @@ trait TransferUtil {
 
           // Restrict box search to specified public keys if provided
           val keyFilteredBoxes = sender.flatMap(s => state.getTokenBoxes(s)).flatten
-
-          println(s"\n>>>>>>>>>>> senders: $sender")
-          println(s">>>>>>>>>>> box set: $keyFilteredBoxes\n")
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {

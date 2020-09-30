@@ -27,7 +27,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
   override protected def registryOut2StateIn ( value: V ): Array[Byte] = value.hashBytes
 
   /** Helper function to retrieve boxes out of state */
-  protected[state] def getBox[BX <: ProgramBox] ( key: K, stateReader: SR ): Option[ProgramBox] =
+  protected[state] def getBox( key: K, stateReader: SR ): Option[ProgramBox] =
     super.getBox[ProgramBox](key, stateReader).map(_.head)
 
   /**
@@ -47,15 +47,6 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
                                 toAppend  : Map[K, Seq[V]]
                               ): Try[ProgramBoxRegistry] = {
 
-    update(newVersion, toRemove.map(el => el._1 -> el._2.head), toAppend.map(el => el._1 -> el._2.head))
-  }
-
-
-  protected[state] def update ( newVersion: VersionTag,
-                                toRemove  : Map[K, V],
-                                toAppend  : Map[K, V]
-                              ): Try[ProgramBoxRegistry] = {
-
     Try {
       log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
 
@@ -63,15 +54,15 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
       val (deleted: Seq[K], updated: Seq[(K, V)]) = {
         // make a list of all accounts to consider then loop through them and determine their new state
         (toRemove.keys ++ toAppend.keys).map(key => {
-          val current = lookup(key).head
+          val current = lookup(key).getOrElse(Seq())
 
           // case where the program id no longer exists
-          if ( current == toRemove.getOrElse(key, None) && !toAppend.contains(key) ) {
+          if ( current.forall(toRemove.getOrElse(key, Seq()).contains) && !toAppend.contains(key) ) {
             (Some(key), None)
 
             // case where the boxId must be updated
           } else {
-            (None, Some((key, toAppend(key))))
+            (None, Some((key, toAppend(key).head)))
           }
         })
       }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))

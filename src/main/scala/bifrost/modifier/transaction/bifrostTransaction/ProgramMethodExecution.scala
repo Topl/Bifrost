@@ -63,7 +63,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
-  override lazy val newBoxes: Traversable[StateBox] = {
+  override lazy val newBoxes: Traversable[ProgramBox] = {
     //    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
 
@@ -111,7 +111,6 @@ object ProgramMethodExecution {
   type SR = StateReader[Box]
 
   //YT NOTE - example of how to use static function to construct methodParams for PME tx
-  //YT NOTE - codeBoxIds in execution box should be changed to UUIDs given their inclusion in Program Registry
 
   //noinspection ScalaStyle
   def create ( state       : State,
