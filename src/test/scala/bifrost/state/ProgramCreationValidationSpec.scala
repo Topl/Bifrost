@@ -102,7 +102,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.forgingSettings.version
         )
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
+        //val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
 
         val executionBox = programCreation.newBoxes.head.asInstanceOf[ExecutionBox]
         val stateBox = programCreation.newBoxes.drop(1).head.asInstanceOf[StateBox]
@@ -117,15 +117,16 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val executionBoxBytes = BoxSerializer.toBytes(executionBox)
         //val returnedPolyBoxBytes = BoxSerializer.toBytes(returnedPolyBox)
 
-        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
+        //val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
-        val preparedState = StateSpec
+//        val preparedState = StateSpec
+//          .genesisState
+//          .applyChanges(ModifierId(Ints.toByteArray(23)), necessaryBoxesSC)
+//          .get
+
+        val newState = StateSpec
           .genesisState
-          .applyChanges(ModifierId(Ints.toByteArray(23)), necessaryBoxesSC)
-          .get
-
-        val newState = preparedState
-          .applyChanges(ModifierId(Ints.toByteArray(24)), StateChanges(block).get)
+          .applyModifier(block)
           .get
 
 //        require(newState.getBox(returnedPolyBox.id) match {
@@ -166,8 +167,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
 
         /* Expect none of the preexisting boxes to still be around */
-        preExistingPolyBoxes
-          .foreach(pb => newState.getBox(pb.id) shouldBe None)
+//        preExistingPolyBoxes
+//          .foreach(pb => newState.getBox(pb.id) shouldBe None)
 
         StateSpec.genesisState = newState
           .rollbackTo(StateSpec.genesisBlockId)
@@ -187,19 +188,20 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
         val invalidPC = programCreation.copy(signatures = wrongSigs)
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
-        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
+//        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(programCreation)
+//        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
-        val preparedState = StateSpec
-          .genesisState
-          .applyChanges(ModifierId(Ints.toByteArray(25)), necessaryBoxesSC)
-          .get
+//        val preparedState = StateSpec
+//          .genesisState
+//          .applyChanges(ModifierId(Ints.toByteArray(25)), necessaryBoxesSC)
+//          .get
 
-        val newState = preparedState.validate(invalidPC)
+        val newState = StateSpec
+          .genesisState.validate(invalidPC)
 
-        StateSpec.genesisState = preparedState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
+//        StateSpec.genesisState = preparedState
+//          .rollbackTo(StateSpec.genesisBlockId)
+//          .get
 
         newState shouldBe a[Failure[_]]
 
@@ -275,9 +277,9 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
+//        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
 
-        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
+//        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
         val firstCCAddBlock = Block(
           ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
@@ -288,17 +290,18 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.forgingSettings.version
         )
 
-        val necessaryState = StateSpec
-          .genesisState
-          .applyChanges( ModifierId(Ints.toByteArray(29)), necessaryBoxesSC)
-          .get
+//        val necessaryState = StateSpec
+//          .genesisState
+//          .applyChanges( ModifierId(Ints.toByteArray(29)), necessaryBoxesSC)
+//          .get
 
         val preparedChanges = StateChanges(firstCCAddBlock).get
-        val preparedState = necessaryState
+        val preparedState = StateSpec
+          .genesisState
           .applyChanges(ModifierId(Ints.toByteArray(30)), preparedChanges)
           .get
-          .applyChanges(ModifierId(Ints.toByteArray(31)), necessaryBoxesSC)
-          .get
+//          .applyChanges(ModifierId(Ints.toByteArray(31)), necessaryBoxesSC)
+//          .get
 
         val newState = preparedState.validate(cc)
 

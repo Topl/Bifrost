@@ -31,13 +31,14 @@ class AssetCreationValidationSpec extends StateSpec {
 
         val necessaryBoxesSC = StateChanges(Set(), Set())
 
-        val preparedState = StateSpec
-          .genesisState
-          .applyChanges(ModifierId(Ints.toByteArray(7)), necessaryBoxesSC)
-          .get
+//        val preparedState = StateSpec
+//          .genesisState
+//          .applyChanges(ModifierId(Ints.toByteArray(7)), necessaryBoxesSC)
+//          .get
 
-        val newState = preparedState
-          .applyChanges(ModifierId(Ints.toByteArray(8)), StateChanges(block).get)
+        val newState = StateSpec
+          .genesisState
+          .applyModifier(block)
           .get
 
         assetCreation.newBoxes.forall(b => newState.getBox(b.id) match {

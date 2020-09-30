@@ -42,8 +42,8 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 object PublicKey25519Proposition {
 
   val AddressVersion: Byte = 1
-  val ChecksumLength = 4
-  val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
+  val ChecksumLength: Int = 4
+  val AddressLength: Int = 1 + Constants25519.PubKeyLength + ChecksumLength
 
   def apply(id: String): Try[PublicKey25519Proposition] = {
     Try {

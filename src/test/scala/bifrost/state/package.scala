@@ -1,7 +1,7 @@
 package bifrost
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.{ Box, ProgramBox }
+import bifrost.modifier.box.{ Box, ProgramBox, TokenBox }
 import com.google.common.primitives.Ints
 
 import scala.util.{ Failure, Success, Try }
@@ -34,6 +34,24 @@ package object state {
     // this works by updating the underlying storage object directly and ignoring the updated state instance
     directlyAddStateStorage(version, boxes, state)
     state.pbrOpt.get.update(versionId, pbrSC.toRemove, pbrSC.toUpdate) match {
+      case Success(_) => Unit
+      case Failure(ex)  => throw ex
+    }
+  }
+
+  /** This function will modify the PBR storage directly without returning a new instance of the registry
+   * USE WITH EXTREME CAUTION!! */
+  def directlyAddTBRStorage ( version: Int, boxes: Seq[TokenBox], state: State): Unit = {
+    // Manually manipulate state
+    val versionId = ModifierId(Ints.toByteArray(version))
+
+    val updates = boxes.map(bx => bx.proposition -> Seq(BoxId(bx.id))).toMap
+
+    val tbrSC = TokenRegistryChanges(Map(), updates)
+
+    // this works by updating the underlying storage object directly and ignoring the updated state instance
+    directlyAddStateStorage(version, boxes, state)
+    state.tbrOpt.get.update(versionId, tbrSC.toRemove, tbrSC.toAppend) match {
       case Success(_) => Unit
       case Failure(ex)  => throw ex
     }

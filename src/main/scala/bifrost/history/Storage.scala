@@ -2,14 +2,16 @@ package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockSerializer}
+import bifrost.modifier.block.{ Block, BlockSerializer }
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.settings.AppSettings
 import bifrost.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.crypto.hash.Sha256
+
+import scala.util.Success
 
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
@@ -62,16 +64,16 @@ class Storage(private[history] val storage: LSMStore, val settings: AppSettings)
     blockCache
       .get(ByteArrayWrapper(blockId.hashBytes))
       .flatMap { bw =>
-        val bytes = bw.data
-        bytes.head match {
+        println(s"${bw.data.head}")
+        bw.data.head match {
           case Block.modifierTypeId =>
-            val parsed = BlockSerializer.parseBytes(bytes.tail)
-            parsed match {
-              case Failure(e) =>
+            BlockSerializer.parseBytes(bw.data.tail) match {
+              case Failure(e)     =>
                 log.warn("Failed to parse bytes from db", e)
-              case _ =>
+                None
+              case Success(block) => Some(block)
             }
-            parsed.toOption
+
           case _ => None
         }
       }

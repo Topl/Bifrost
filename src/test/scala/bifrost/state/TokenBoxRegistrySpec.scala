@@ -80,7 +80,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(genesisState.validate(tx1).isSuccess)
 
     val newState1 = genesisState
-      .applyChanges(block1.id, StateChanges(block1).get)
+      .applyModifier(block1)
       .get
 
     val newWallet1 = gw.scanPersistent(block1)
@@ -115,7 +115,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(newState1.validate(tx2).isSuccess)
 
     val newState2 = newState1
-      .applyChanges(block2.id, StateChanges(block2).get)
+      .applyModifier(block2)
       .get
 
     val newWallet2 = newWallet1.scanPersistent(block2)
@@ -159,7 +159,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
     require(genesisState.validate(tx1).isSuccess)
 
     val newState1 = genesisState
-      .applyChanges(block1.id, StateChanges(block1).get)
+      .applyModifier(block1)
       .get
 
     assert(genesisState.getTokenBoxes(PublicKey25519Proposition("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get).get.count(_.isInstanceOf[ArbitBox]) == 1)
