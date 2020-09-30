@@ -50,7 +50,7 @@ class RequestSpec extends AsyncFlatSpec
   val keyManager = Keys(Set(), keyFileDir)
   keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
 
-  val publicKeys: Set[String] = Set(Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes))
+  val publicKeys: Set[String] = Set(Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
 
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)))
 
@@ -67,8 +67,8 @@ class RequestSpec extends AsyncFlatSpec
          |   "id": "2",
          |   "method": "createAssetsPrototype",
          |   "params": [{
-         |     "issuer": "${Base58.encode(pk1.pubKeyBytes)}",
-         |     "recipient": "${Base58.encode(pk2.pubKeyBytes)}",
+         |     "issuer": "${publicKeys.head}",
+         |     "recipient": "${publicKeys.tail.head}",
          |     "amount": $amount,
          |     "assetCode": "etherAssets",
          |     "fee": 0,
@@ -82,8 +82,9 @@ class RequestSpec extends AsyncFlatSpec
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
+
   it should "receive JSON from sign transaction" in {
-    val issuer: List[String] = List(Base58.encode(pk1.pubKeyBytes))
+    val issuer: List[String] = List(publicKeys.head)
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
     val sigs = (signedTransaction \\ "signatures").head.asObject.get
     issuer.foreach(key => assert(sigs.contains(key)))
@@ -98,28 +99,86 @@ class RequestSpec extends AsyncFlatSpec
     (response \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  var balanceResponse: Json = Json.Null
+  it should "receive a successful response from Bifrost upon transfering a poly" in {
+    val transferPolysRequest: ByteString = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "transferPolys",
+         |   "params": [{
+         |     "recipient": "${publicKeys.tail.head}",
+         |     "sender": ["6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"],
+         |     "amount": $amount,
+         |     "fee": 0,
+         |     "data": ""
+         |   }]
+         |}
+         """.stripMargin)
+    val tx = requests.sendRequest(transferPolysRequest, "wallet")
+    assert(tx.isInstanceOf[Json])
+    (transaction \\ "error").isEmpty shouldBe true
+    (transaction \\ "result").head.asObject.isDefined shouldBe true
+  }
 
-  it should "receive JSON from getBalances" in {
-    var pubKeys: Set[String] = Set.empty
-    pubKeys += Base58.encode(pk1.pubKeyBytes)
-    pubKeys += Base58.encode(pk2.pubKeyBytes)
-    balanceResponse = requests.getBalances(pubKeys)
+  var balanceResponse: Json = Json.Null
+  var newBoxId: String = ""
+
+  def parseForBoxId(json: Json): String = {
+    val result = (json \\ "result").head
+    val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
+    newBoxes
+  }
+
+  it should "receive a successful and correct response from Bifrost upon requesting balances" in {
+    val createAssetRequest: ByteString = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "createAssets",
+         |   "params": [{
+         |     "issuer": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |     "recipient": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |     "amount": $amount,
+         |     "assetCode": "test",
+         |     "fee": 0,
+         |     "data": ""
+         |   }]
+         |}
+         """.stripMargin)
+    transaction = requests.sendRequest(createAssetRequest, "asset")
+    newBoxId = parseForBoxId(transaction)
+    Thread.sleep(10000)
+    balanceResponse = requests.getBalances(publicKeys)
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
-    (balanceResponse \\ "result").head.asObject.isDefined shouldBe true
+    val result: Json = (balanceResponse \\ "result").head
+    result.asObject.isDefined shouldBe true
+    (((result \\ "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").head \\ "Boxes").head \\ "Asset").
+      head.toString().contains(newBoxId) shouldBe true
   }
 
   it should "update boxes correctly with balance response" in {
     val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]]
       , 10.seconds)
-    val pubKeyBoxes: Option[MMap[String, Json]] = walletBoxes.get(Base58.encode(pk1.pubKeyBytes))
-    pubKeyBoxes match {
+    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(publicKeys.head)
+    pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)
-      case None => sys.error("something wrong")
+      case None => sys.error(s"no mapping for given public key: ${publicKeys.head}")
+    }
+   val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+    pubKeyWithBoxes match {
+      case Some(map) => {
+        val firstBox: Option[Json] = map.get(newBoxId)
+        firstBox match {
+          case Some(json) => assert ((json \\ "value").head.toString() == "\"10\"")
+          case None => sys.error("no keys in mapping")
+        }
+      }
+      case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     }
   }
-
 
 }

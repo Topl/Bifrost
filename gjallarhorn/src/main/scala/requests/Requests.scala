@@ -14,10 +14,8 @@ import io.circe.syntax._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.collection.mutable.{Map => MMap}
 import scorex.crypto.encode.Base58
 import settings.AppSettings
-import shapeless.ops.product.ToTuple
 
 
 class Requests (settings: AppSettings) {
@@ -165,81 +163,6 @@ class Requests (settings: AppSettings) {
     val requestBody = ByteString(json.stripMargin)
     sendRequest(requestBody, "wallet")
   }
-
-/*
-  def broadcastTx2(signedTransaction: Json): Json = {
-    val tx = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "2",
-         |   "method": "broadcastTx",
-         |   "params": [$signedTransaction]
-         |}
-       """.stripMargin)
-    sendRequest(tx, "wallet")
-  }
-
-  def parseTo(jsons: List[Json]): MMap[PublicKey25519Proposition, Long] = {
-    val mapping: MMap[PublicKey25519Proposition, Long] = MMap.empty
-    val toList: Array[String] = jsons.head.toString().stripPrefix("[").stripSuffix("]").split(",")
-    val updatedList: Array[String] = new Array[String](toList.length)
-    for(index <- 0 to toList.length-1) {
-      if (index % 2 == 0) {
-        System.out.println(toList(index).substring(2).trim)
-        val pubKey = toList(index).substring(2).trim.stripPrefix("\"").stripSuffix("\"")
-        updatedList(index) = pubKey
-        System.out.println("pub key: " + pubKey)
-      }else{
-        val amount = toList(index).substring(2, toList(index).length-2).trim.stripPrefix("\"").stripSuffix("\"")
-        updatedList(index) = amount
-        System.out.println("amount: " + amount)
-      }
-    }
-    mapping
-  }
-
-
- def boxesToAdd(transaction: Json): MMap[String, MMap[String, Json]] = {
-   val toAdd: MMap[String, MMap[String, Json]] = MMap.empty
-   val boxes: MMap[String, Json] = MMap.empty
-   val tx: Json = (transaction \\ "tx").head
-   val newBoxes: List[Json] = tx \\ "newBoxes"
-   if (newBoxes.nonEmpty) {
-     val issuer = (tx \\ "issuer").head.toString().stripPrefix("\"").stripSuffix("\"")
-     val toMap = parseTo(tx\\"to")
-     System.out.println(toMap)
-     val to = (tx \\ "to").head.asArray.head.head.toString().split(",")
-     val pubKey = to.head.substring(2).trim
-     val amount = to.tail.head
-     val amountString = amount.substring(2, amount.length-2).trim.stripPrefix("\"").stripSuffix("\"")
-     val publicKey = pubKey.stripPrefix("\"").stripSuffix("\"")
-     newBoxes.map(id => {
-       boxes.put(id.toString(),
-         Map(
-           "typeOfBox" -> "asset",
-           "nonce" -> "0",
-           "value" -> amountString,
-           "issuer" -> issuer
-         ).asJson)
-     })
-     toAdd.put(publicKey, boxes)
-   }
-   toAdd
-  }
-
-  def boxesToRemove(transaction: Json): List[(String, List[String])] = {
-    var toRemove: List[(String, List[String])] = List.empty
-    val tx: Json = (transaction \\ "tx").head
-    val boxesToRemove: List[Json] = (tx \\ "boxesToRemove")
-    if (boxesToRemove.nonEmpty) {
-      val removeList: List[String] = boxesToRemove.map(id => id.toString())
-      val pubKey = (tx \\ "to").head.toString()
-      toRemove = toRemove :+ ((pubKey, removeList))
-    }
-    toRemove
-  }*/
-
 }
 
 
