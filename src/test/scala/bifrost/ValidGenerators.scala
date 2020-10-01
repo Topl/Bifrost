@@ -77,8 +77,8 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
-      val stateBoxThree = StateBox(sender, 2L, null, stateThree)
+      val stateBoxTwo = StateBox(sender, 1L, programIdGen.sample.get, stateTwo)
+      val stateBoxThree = StateBox(sender, 2L, programIdGen.sample.get, stateThree)
 
       val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
@@ -89,27 +89,11 @@ trait ValidGenerators extends BifrostGenerators {
         prop -> preBoxes.map(_._2).sum
       }
 
+      val falseSig = Map(sender -> Signature25519(Array()))
+      val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
+      val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, pc.messageToSign))
 
-      val messageToSign = Bytes.concat(
-        ExecutionBuilderSerializer.toBytes(executionBuilder),
-        sender.pubKeyBytes,
-        //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
-        data.getBytes
-      )
-
-      val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, messageToSign))
-
-      ProgramCreation(
-        executionBuilder,
-        readOnlyIds,
-        preInvestmentBoxes,
-        sender,
-        signature,
-        feePreBoxes,
-        fees,
-        timestamp,
-        data
-      )
+      pc.copy(signatures = signature)
     } match {
       case Success(s) => s
       case Failure(e) => throw e.getCause

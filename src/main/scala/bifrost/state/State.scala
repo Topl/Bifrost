@@ -183,10 +183,18 @@ case class State ( override val version     : VersionTag,
       require(!boxesToAdd.forall(b => boxIdsToRemove.contains(b._1)), s"Attempted application of invalid state")
 
       log.debug(
-        s"Update BifrostState from version ${version.toString} to version $newVersion. " +
+        s"Attempting update to State from version ${version.toString} to version $newVersion. " +
           s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
           s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
         )
+
+      if ( storage.lastVersionID.isDefined ) {
+        boxIdsToRemove.foreach(id => {
+          require(getBox(id.data).isDefined,
+                  s"Box id: ${Base58.encode(id.data)} not found in state version: " +
+                    s"${Base58.encode(storage.lastVersionID.get.data)}. Aborting state update")
+        })
+      }
 
       // throwing error here since we should stop attempting updates if any part fails
       val updatedTBR = tokenChanges match {
@@ -205,7 +213,6 @@ case class State ( override val version     : VersionTag,
         case _ => None
       }
 
-      if ( storage.lastVersionID.isDefined ) boxIdsToRemove.foreach(id => require(getBox(id.data).isDefined))
       storage.update(ByteArrayWrapper(newVersion.hashBytes), boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
