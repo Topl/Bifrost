@@ -8,6 +8,7 @@ import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramCreationSerializer
 import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
 import bifrost.state.{ ProgramId, State, StateReader }
+import bifrost.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, HCursor, Json }
@@ -39,6 +40,8 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   extends ProgramTransaction {
 
   override type M = ProgramCreation
+
+  override lazy val serializer: BifrostSerializer[M] = ProgramCreationSerializer
 
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
@@ -107,15 +110,12 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   }
 
   lazy val json: Json = (
-    commonJson.asObject.get.toMap ++
-      Map(
-        "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-        "executionBuilder" -> executionBuilder.json,
-        "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
-        "data" -> data.asJson
-        )).asJson
-
-  override lazy val serializer = ProgramCreationSerializer
+    commonJson.asObject.get.toMap ++ Map(
+      "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
+      "executionBuilder" -> executionBuilder.json,
+      "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
+      "data" -> data.asJson
+      )).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderSerializer.toBytes(executionBuilder),

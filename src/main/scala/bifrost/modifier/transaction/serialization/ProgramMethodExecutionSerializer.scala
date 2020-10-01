@@ -58,11 +58,14 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
   }
 
   override def parse(r: Reader): ProgramMethodExecution = {
+    val executionBox: ExecutionBox = ExecutionBoxSerializer.parse(r)
+
     val stateLength: Int = r.getUInt().toIntExact
     val state: Seq[StateBox] = (0 until stateLength).map(_ => StateBoxSerializer.parse(r))
+
     val codeLength: Int = r.getUInt().toIntExact
     val code: Seq[CodeBox] = (0 until codeLength).map(_ => CodeBoxSerializer.parse(r))
-    val executionBox: ExecutionBox = ExecutionBoxSerializer.parse(r)
+
     val methodName: String = r.getByteString()
 
     val methodParams: Json = parser.parse(r.getIntString()) match {

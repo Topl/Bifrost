@@ -9,6 +9,7 @@ import bifrost.utils.Logging
 import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 
 import scala.util.Success
@@ -64,12 +65,11 @@ class Storage(private[history] val storage: LSMStore, val settings: AppSettings)
     blockCache
       .get(ByteArrayWrapper(blockId.hashBytes))
       .flatMap { bw =>
-        println(s"${bw.data.head}")
         bw.data.head match {
           case Block.modifierTypeId =>
             BlockSerializer.parseBytes(bw.data.tail) match {
-              case Failure(e)     =>
-                log.warn("Failed to parse bytes from db", e)
+              case Failure(e) =>
+                log.warn(s"Failed to parse block bytes from storage", e)
                 None
               case Success(block) => Some(block)
             }

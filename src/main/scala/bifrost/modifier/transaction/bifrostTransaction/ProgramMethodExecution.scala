@@ -81,13 +81,14 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
     IndexedSeq(updatedStateBox)
   }
 
-  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "state" -> stateBoxes.map { _.json }.asJson,
-    "code" -> codeBoxes.map { _.json }.asJson,
-    "methodName" -> methodName.asJson,
-    "methodParams" -> methodParams,
-    "newBoxes" -> newBoxes.map { _.json }.toSeq.asJson
-    )).asJson
+  lazy val json: Json = (
+    commonJson.asObject.get.toMap ++ Map(
+      "state" -> stateBoxes.map { _.json }.asJson,
+      "code" -> codeBoxes.map { _.json }.asJson,
+      "methodName" -> methodName.asJson,
+      "methodParams" -> methodParams,
+      "newBoxes" -> newBoxes.map { _.json }.toSeq.asJson
+      )).asJson
 
   override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer
 
@@ -125,8 +126,6 @@ object ProgramMethodExecution {
                timestamp   : Long,
                data        : String
              ): Try[ProgramMethodExecution] = Try {
-
-
 
     val execBox = state.getProgramBox[ExecutionBox](programId).get
 

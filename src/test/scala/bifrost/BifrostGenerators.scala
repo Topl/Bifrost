@@ -599,8 +599,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   //TODO Add programCreationGen after fixing serialization
   val transactionTypes: Seq[Gen[Transaction]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen,
-      assetCreationGen, programCreationGen, programMethodExecutionGen, programTransferGen)
+    Seq(polyTransferGen, arbitTransferGen, assetTransferGen, assetCreationGen,
+        programMethodExecutionGen, programCreationGen, programTransferGen)
 
   lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen
