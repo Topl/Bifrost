@@ -232,7 +232,7 @@ class StateSpec extends AnyPropSpec
   }*/
 
   override def afterAll() {
-    StateSpec.history.closeStorage()
+    StateSpec._history.closeStorage()
   }
 }
 
@@ -248,13 +248,15 @@ object StateSpec {
   Try(path.deleteRecursively())
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
-  val history: HIS = gs._1
-  var genesisState: MS = gs._2
-  var gw: VL = gs._3
+  private val _history: HIS = gs._1
+  private val _genesisState: MS = gs._2
+  private val _gw: VL = gs._3
+
+  def genesisState(): MS = gs._2.copy()
 
   // Unlock Secrets
-  gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
-  gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
-  gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
-  val genesisBlockId: VersionTag = genesisState.version
+  _gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
+  _gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
+  _gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+  val genesisBlockId: VersionTag = gs._2.version
 }

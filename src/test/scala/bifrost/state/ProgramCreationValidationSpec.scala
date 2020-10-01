@@ -273,9 +273,6 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       cc: ProgramCreation =>
 
-//        val preExistingPolyBoxes: Set[Box] = getPreExistingPolyBoxes(cc)
-
-//        val necessaryBoxesSC = StateChanges(Set(), preExistingPolyBoxes)
 
         val firstCCAddBlock = Block(
           ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
@@ -286,28 +283,15 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           settings.forgingSettings.version
         )
 
-        cc.boxIdsToOpen
-
         val necessaryState = StateSpec
-          .genesisState
+          .genesisState()
           .applyModifier(firstCCAddBlock)
           .get
 
-//        val preparedState =
-//          necessaryState
-//          .applyModifier(secondBlock)
-//          .get
-//          .applyChanges(ModifierId(Ints.toByteArray(31)), necessaryBoxesSC)
-//          .get
-
         val newState = necessaryState.validate(cc)
 
-//        StateSpec.genesisState = necessaryState
-//          .rollbackTo(StateSpec.genesisBlockId)
-//          .get
-
         newState shouldBe a[Failure[_]]
-        //newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"
+        newState.failed.get.getMessage shouldBe "ProgramCreation attempts to overwrite existing program"
     }
   }
 }

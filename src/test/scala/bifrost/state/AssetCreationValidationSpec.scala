@@ -29,15 +29,8 @@ class AssetCreationValidationSpec extends StateSpec {
           settings.forgingSettings.version
         )
 
-        val necessaryBoxesSC = StateChanges(Set(), Set())
-
-//        val preparedState = StateSpec
-//          .genesisState
-//          .applyChanges(ModifierId(Ints.toByteArray(7)), necessaryBoxesSC)
-//          .get
-
         val newState = StateSpec
-          .genesisState
+          .genesisState()
           .applyModifier(block)
           .get
 
@@ -45,10 +38,6 @@ class AssetCreationValidationSpec extends StateSpec {
           case Some(box) => box.bytes sameElements b.bytes
           case None => false
         })
-
-        StateSpec.genesisState = newState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
 
     }
   }
@@ -62,18 +51,32 @@ class AssetCreationValidationSpec extends StateSpec {
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = assetCreation.signatures + (headSig._1 -> Signature25519(wrongSig))
         val invalidAC = assetCreation.copy(signatures = wrongSigs)
 
-        val necessaryBoxesSC = StateChanges(Set(), Set())
+//        val necessaryBoxesSC = StateChanges(Set(), Set())
+//
+//        val preparedState = StateSpec
+//          .genesisState()
+//          .applyChanges(ModifierId(Ints.toByteArray(9)), necessaryBoxesSC)
+//          .get
+//
+//        val newState = preparedState.validate(invalidAC)
+//
+//        val firstCCAddBlock = Block(
+//          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
+//          Instant.now.toEpochMilli,
+//          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
+//          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+//          Seq(assetCreation),
+//          settings.forgingSettings.version
+//          )
+//
+//        val necessaryState = StateSpec
+//          .genesisState()
+//          .applyModifier(firstCCAddBlock)
+//          .get
 
-        val preparedState = StateSpec
-          .genesisState
-          .applyChanges(ModifierId(Ints.toByteArray(9)), necessaryBoxesSC)
-          .get
-
-        val newState = preparedState.validate(invalidAC)
-
-        StateSpec.genesisState = preparedState
-          .rollbackTo(StateSpec.genesisBlockId)
-          .get
+        val newState = StateSpec
+          .genesisState()
+          .validate(invalidAC)
 
         newState shouldBe a[Failure[_]]
         newState.failed.get.getMessage shouldBe "requirement failed: Invalid signatures"
