@@ -12,6 +12,8 @@ import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheck
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
+import scala.util.Failure
+
 class ProgramMethodSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
@@ -208,7 +210,7 @@ class ProgramMethodSpec extends AnyPropSpec
         val stateBoxes = Seq(stateBox, stateBoxTwo, stateBoxThree)
 
         intercept[Exception] {
-          Program.execute(stateBoxes, Seq(codeBox), "add")(party)(params)
+          Program.execute(stateBoxes, Seq(codeBox), "add")(party)(params).get
         }
       }
     }
