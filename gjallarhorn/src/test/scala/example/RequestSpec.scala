@@ -83,16 +83,17 @@ class RequestSpec extends AsyncFlatSpec
   }
 
 
-  it should "receive JSON from sign transaction" in {
+  it should "receive successful JSON response from sign transaction" in {
     val issuer: List[String] = List(publicKeys.head)
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
     val sigs = (signedTransaction \\ "signatures").head.asObject.get
     issuer.foreach(key => assert(sigs.contains(key)))
-
     assert((signedTransaction \\ "signatures").head.asObject.isDefined)
+    (signedTransaction \\ "error").isEmpty shouldBe true
+    (signedTransaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  it should "receive JSON from broadcast transaction" in {
+  it should "receive successful JSON response from broadcast transaction" in {
     val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
@@ -161,13 +162,14 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "update boxes correctly with balance response" in {
     val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
-      .mapTo[MMap[String, MMap[String, Json]]]
-      , 10.seconds)
+      .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+
     val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(publicKeys.head)
     pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)
       case None => sys.error(s"no mapping for given public key: ${publicKeys.head}")
     }
+
    val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     pubKeyWithBoxes match {
       case Some(map) => {
