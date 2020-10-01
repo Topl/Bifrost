@@ -19,46 +19,56 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
     returnVal
   }
 
-  def parseUpdate(json: Json): MMap[String, MMap[String, Json]] = {
+  /**
+    * Parses the list of boxes for a specific type (asset, poly, or arbit)
+    * @param sameTypeBoxes - list of boxes all of the same box type
+    * @return a map of the box id mapped to the box info (as json)
+    */
+  def parseBoxType (sameTypeBoxes: Json): MMap[String, Json] = {
+    val boxesMap: MMap[String, Json] = MMap.empty
+    var boxesArray: Array[String] = sameTypeBoxes.toString().trim.stripPrefix("[").stripSuffix("]").
+      split("},")
+    boxesArray = boxesArray.map(asset => {
+      if (boxesArray.indexOf(asset) != boxesArray.size-1) {
+        asset.concat("}")
+      } else asset
+    })
+    boxesArray.foreach(asset => {
+      val assetJson: Either[ParsingFailure, Json] = parse(asset)
+      assetJson match {
+        case Right(json) => {
+          val id = (json \\ "id").head.toString()
+          boxesMap.put(id, json)
+        }
+        case Left(e) => sys.error(s"Could not parse json: $e")
+      }
+    })
+    boxesMap
+  }
+
+  /**
+    * Given the balance response from Bifrost, parse the json and update wallet box
+    * @param json - the balance response from Bifrost
+    * @return - the updated walletBoxes
+    */
+  def parseAndUpdate(json: Json): MMap[String, MMap[String, Json]] = {
     val pubKeys: scala.collection.Set[String] = walletBoxes.keySet
     pubKeys.foreach(key => {
       val info: Json = (json \\ key).head
-      val boxesMap: MMap[String, Json] = MMap.empty
-      val boxes = (info \\ "Boxes")
+      var boxesMap: MMap[String, Json] = MMap.empty
+      val boxes = info \\ "Boxes"
       if (boxes.nonEmpty) {
-        val boxesJson: Json = boxes.head
-        val assets: List[Json] = boxesJson \\ "Asset"
-        val poly: List[Json] = boxesJson \\ "Poly"
-        val arbit: List[Json] = boxesJson \\ "Arbit"
+        val assets: List[Json] = boxes.head \\ "Asset"
+        val poly: List[Json] = boxes.head \\ "Poly"
+        val arbit: List[Json] = boxes.head \\ "Arbit"
         if (assets.nonEmpty) {
-          val assetsJson: Json = assets.head
-          var assetsArray: Array[String] = assetsJson.toString().trim.stripPrefix("[").stripSuffix("]").
-            split("},")
-          assetsArray = assetsArray.map(asset => {
-            if (assetsArray.indexOf(asset) != assetsArray.size-1) {
-              asset.concat("}")
-            } else asset
-          })
-          assetsArray.foreach(asset => {
-            val assetJson: Either[ParsingFailure, Json] = parse(asset)
-            assetJson match {
-              case Right(json) => {
-                val id = (json \\ "id").head.toString()
-                boxesMap.put(id, json)
-              }
-              case Left(e) => sys.error(s"Could not parse json: $e")
-            }
-          })
+          boxesMap = parseBoxType(assets.head)
         }
         if (poly.nonEmpty) {
-          val polyBox: Json = poly.head
-          val id = (polyBox \\ "id").head.toString()
-          boxesMap.put(id, polyBox)
+          boxesMap = boxesMap ++ parseBoxType(poly.head)
         }
         if (arbit.nonEmpty) {
-          val arbitBox: Json = arbit.head
-          val id = (arbitBox \\ "id").head.toString()
-          boxesMap.put(id, arbitBox)
+          boxesMap = boxesMap ++ parseBoxType(arbit.head)
         }
         walletBoxes(key) = boxesMap}
     })
@@ -67,7 +77,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
 
   override def receive: Receive = {
 
-    case UpdateWallet(updatedBoxes) => sender ! parseUpdate(updatedBoxes)
+    case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
 
     /*case UpdateWallet(add, remove) => {
       remove.foreach { case (publicKey, ids) =>
@@ -83,6 +93,10 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
 
 object WalletManager {
 
+  /**
+    * Given the updated boxes, updates the walletboxes and returns the updated walletboxes
+    * @param updatedBoxes - the current balances from Bifrost
+    */
   case class UpdateWallet(updatedBoxes: Json)
   //case class UpdateWallet(add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])])
 
