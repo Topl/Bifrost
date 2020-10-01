@@ -191,7 +191,10 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     val errorOpt: Option[Throwable] = minimalState() match {
       case txValidator: TransactionValidation[TX] =>
         txValidator.validate(tx) match {
-          case Success(_) => None
+          case Success(_) => history().modifierById(tx.id) match {
+            case Some(_) => throw new Error("tx already in history")
+            case _ | None => None
+          }
           case Failure(e) => Some(e)
         }
       case _ => None
