@@ -1,0 +1,146 @@
+package co.topl.nodeView.history
+
+import co.topl.modifier.ModifierId
+import co.topl.network.message.SyncInfo
+import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
+import co.topl.utils.BifrostEncoder
+import co.topl.modifier.ModifierId
+import co.topl.network.message.SyncInfo
+import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
+import scorex.crypto.encode.Base58
+
+import scala.util.Try
+
+/**
+  * History of a blockchain system is some blocktree in fact
+  * (like this: http://image.slidesharecdn.com/sfbitcoindev-chepurnoy-2015-150322043044-conversion-gate01/95/proofofstake-its-improvements-san-francisco-bitcoin-devs-hackathon-12-638.jpg),
+  * where longest chain is being considered as canonical one, containing right kind of history.
+  *
+  * In cryptocurrencies of today blocktree view is usually implicit, means code supports only linear history,
+  * but other options are possible.
+  *
+  * To say "longest chain" is the canonical one is simplification, usually some kind of "cumulative difficulty"
+  * function has been used instead, even in PoW systems.
+  */
+
+trait GenericHistory[
+  PM <: PersistentNodeViewModifier,
+  SI <: SyncInfo,
+  HT <: GenericHistory[PM, SI, HT]
+] extends NodeViewComponent with HistoryReader[PM, SI] {
+
+  import GenericHistory._
+
+  /**
+    * Is there's no history, even genesis block
+    */
+  def isEmpty: Boolean
+
+  /**
+    * Whether the history contains the given modifier
+    *
+    * @param persistentModifier - modifier
+    * @return
+    */
+  override def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
+
+  /**
+    * Whether the history contains a modifier with the given id
+    *
+    * @param id - modifier's id
+    * @return
+    */
+  override def contains(id: ModifierId): Boolean = modifierById(id).isDefined
+
+  /**
+    * Whether a modifier could be applied to the history
+    *
+    * @param modifier - modifier to apply
+    * @return
+    */
+  def applicable(modifier: PM): Boolean = openSurfaceIds().exists(_.hashBytes sameElements modifier.parentId.hashBytes)
+
+  def modifierById(modifierId: ModifierId): Option[PM]
+
+  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
+
+  def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
+
+  def drop(modifierId: ModifierId): HT
+
+  //todo: output should be ID | Seq[ID]
+  def openSurfaceIds(): Seq[ModifierId]
+
+  //todo: argument should be ID | Seq[ID]
+  def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
+
+  def syncInfo: SI
+
+  /**
+    * Report that modifier is valid from point of view of the state component
+    *
+    * @param modifier - valid modifier
+    * @return modified history
+    */
+  def reportModifierIsValid(modifier: PM): HT
+
+  /**
+    * Report that modifier is invalid from other nodeViewHolder components point of view
+    *
+    * @param modifier     - invalid modifier
+    * @param progressInfo - what suffix failed to be applied because of an invalid modifier
+    * @return modified history and new progress info
+    */
+  def reportModifierIsInvalid(modifier: PM, progressInfo: ProgressInfo[PM]): (HT, ProgressInfo[PM])
+
+  /**
+    * @return read-only copy of this history
+    */
+  def getReader: HistoryReader[PM, SI] = this
+}
+
+object GenericHistory {
+
+  type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
+
+  sealed trait HistoryComparisonResult
+
+  case object Equal extends HistoryComparisonResult
+
+  case object Younger extends HistoryComparisonResult
+
+  case object Fork extends HistoryComparisonResult
+
+  case object Older extends HistoryComparisonResult
+
+  case object Nonsense extends HistoryComparisonResult
+
+  case object Unknown extends HistoryComparisonResult
+
+  /**
+    * Info returned by history to nodeViewHolder after modifier application
+    *
+    * @param branchPoint - branch point in case of rollback
+    * @param toRemove    - modifiers to remove from current node view
+    * @param toApply     - modifiers to apply to current node view
+    * @param toDownload  - modifiers to download from other nodes
+    * @tparam PM - type of used modifier
+    */
+  case class ProgressInfo[PM <: PersistentNodeViewModifier](branchPoint: Option[ModifierId],
+                                                            toRemove: Seq[PM],
+                                                            toApply: Seq[PM],
+                                                            toDownload: Seq[(ModifierTypeId, ModifierId)])
+                                                           (implicit encoder: BifrostEncoder) {
+
+    if (toRemove.nonEmpty)
+      require(branchPoint.isDefined, s"Branch point should be defined for non-empty `toRemove`")
+
+    lazy val chainSwitchingNeeded: Boolean = toRemove.nonEmpty
+
+    override def toString: String = {
+      s"ProgressInfo(BranchPoint: ${branchPoint.map(encoder.encodeId)}, " +
+        s" to remove: ${toRemove.map(_.encodedId)}, to apply: ${toApply.map(_.encodedId)})"
+    }
+  }
+}
