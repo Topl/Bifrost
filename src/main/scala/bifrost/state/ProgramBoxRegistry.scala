@@ -8,7 +8,7 @@ import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 /**
  * A registry containing mapping from fixed programId -> changing boxId
@@ -46,14 +46,11 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
                                 toRemove  : Map[K, Seq[V]],
                                 toAppend  : Map[K, Seq[V]]
                               ): Try[ProgramBoxRegistry] = {
-
     Try {
-      log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
-
       // look for addresses that will be empty after the update
       val (deleted: Seq[K], updated: Seq[(K, V)]) = {
         // make a list of all accounts to consider then loop through them and determine their new state
-        (toRemove.keys ++ toAppend.keys).map(key => {
+        (toRemove.keys ++ toAppend.keys).map { key =>
           val current = lookup(key).getOrElse(Seq())
 
           // case where the program id no longer exists
@@ -64,7 +61,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
           } else {
             (None, Some((key, toAppend(key).head)))
           }
-        })
+        }
       }.foldLeft((Seq[K](), Seq[(K, V)]()))(( acc, progId ) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
@@ -72,15 +69,19 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map {
           case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.hashBytes)
-        }
-        )
+        })
 
-      new ProgramBoxRegistry(storage)
+    } match {
+      case Success(_) =>
+        log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+        Success(new ProgramBoxRegistry(storage))
+
+      case Failure(ex) => Failure(ex)
     }
   }
 
 
-  def rollbackTo ( version: VersionTag ): Try[ProgramBoxRegistry] = Try {
+  override def rollbackTo ( version: VersionTag ): Try[ProgramBoxRegistry] = Try {
     if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
       this
     } else {
@@ -89,7 +90,6 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
       new ProgramBoxRegistry(storage)
     }
   }
-
 }
 
 object ProgramBoxRegistry extends Logging {

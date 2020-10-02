@@ -17,8 +17,8 @@ case class ProgramId (hashBytes: Array[Byte]) {
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
   override def equals(o: Any): Boolean = {
-    o.isInstanceOf[ModifierId] &&
-      java.util.Arrays.equals(hashBytes, o.asInstanceOf[ModifierId].hashBytes)
+    o.isInstanceOf[ProgramId] &&
+      java.util.Arrays.equals(hashBytes, o.asInstanceOf[ProgramId].hashBytes)
   }
 
   override def toString: String = Base58.encode(hashBytes)

@@ -2,17 +2,14 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.modifier.box.{Box, GenericBox, TokenBox}
-import bifrost.modifier.box.proposition.{Proposition, PublicKey25519Proposition}
+import bifrost.modifier.box.TokenBox
+import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
-import bifrost.state.State.log
 import bifrost.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.reflect.ClassTag
-import scala.util.{Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds
@@ -53,8 +50,6 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
                               ): Try[TokenBoxRegistry] = {
 
     Try {
-      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
-
       def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {
         case Some(keys) => updates.filter(b => keys.contains(b._1))
         case None       => updates
@@ -94,10 +89,14 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map {
           case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(_.hashBytes).toArray)
-        }
-        )
+        })
 
-      new TokenBoxRegistry(storage, nodeKeys)
+    } match {
+      case Success(_) =>
+        log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+        Success(new TokenBoxRegistry(storage, nodeKeys))
+
+      case Failure(ex) => Failure(ex)
     }
   }
 

@@ -114,19 +114,36 @@ case class State ( override val version     : VersionTag,
    * @param version tag marking a specific state within the store
    * @return an instance of State at the version given
    */
-  override def rollbackTo ( version: VersionTag ): Try[NVCT] =
-    Try {
-      if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
-        this
-      } else {
-        log.debug(s"Rollback BifrostState to $version from version ${this.version.toString}")
-        storage.rollback(ByteArrayWrapper(version.hashBytes))
-        if ( tbrOpt.isDefined ) tbrOpt.get.rollbackTo(version)
-        if ( pbrOpt.isDefined ) pbrOpt.get.rollbackTo(version)
+  override def rollbackTo ( version: VersionTag ): Try[NVCT] = Try {
 
-        State(version, storage, tbrOpt, pbrOpt, nodeKeys)
+    // throwing error here since we should stop attempting updates if any part fails
+    val updatedTBR = if ( tbrOpt.isDefined ) {
+      tbrOpt.get.rollbackTo(version) match {
+        case Success(updates) => Some(updates)
+        case Failure(ex)      => throw new Error(s"Failed to rollback TBR with error\n$ex")
       }
+    } else {
+      None
     }
+
+    val updatedPBR = if ( pbrOpt.isDefined ) {
+      pbrOpt.get.rollbackTo(version) match {
+        case Success(updates) => Some(updates)
+        case Failure(ex)      => throw new Error(s"Failed to rollback PBR with error\n$ex")
+      }
+    } else {
+      None
+    }
+
+    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
+      this
+    } else {
+      log.debug(s"Rollback State to $version from version ${this.version.toString}")
+      storage.rollback(ByteArrayWrapper(version.hashBytes))
+
+      State(version, storage, updatedTBR, updatedPBR, nodeKeys)
+    }
+  }
 
   /**
    * Public method used to update an instance of state with a new set of transactions
@@ -179,13 +196,14 @@ case class State ( override val version     : VersionTag,
         case None => stateChanges.boxIdsToRemove
       }).map(b => ByteArrayWrapper(b))
 
-      // enforce that the input id's must not match any of the output id's
-      require(!boxesToAdd.forall(b => boxIdsToRemove.contains(b._1)), s"Attempted application of invalid state")
+      // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
+      require(!boxesToAdd.map(_._1).forall(boxIdsToRemove.contains) || (boxesToAdd.isEmpty || boxIdsToRemove.isEmpty),
+              s"Attempted application of invalid state")
 
       log.debug(
         s"Attempting update to State from version ${version.toString} to version $newVersion. " +
-          s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}, " +
-          s"adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}"
+          s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b.data))}. " +
+          s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1.data))}."
         )
 
       if ( storage.lastVersionID.isDefined ) {
@@ -222,6 +240,14 @@ case class State ( override val version     : VersionTag,
       boxIdsToRemove.foreach(box => require(newState.getBox(box.data).isEmpty, s"Box $box is still in state"))
 
       newState
+    } match {
+      case Success(newState) =>
+        log.debug(s"${Console.GREEN} Update State to version: $newVersion ${Console.RESET}")
+        Success(newState)
+
+      case Failure(ex) =>
+        log.debug(s"${Console.RED} Failed to update State to version: $newVersion. ${Console.RESET} $ex")
+        Failure(ex)
     }
   }
 

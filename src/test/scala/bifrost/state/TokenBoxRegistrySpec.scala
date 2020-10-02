@@ -176,5 +176,6 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
   override def afterAll() {
     history.closeStorage()
+    genesisState.closeStorage()
   }
 }

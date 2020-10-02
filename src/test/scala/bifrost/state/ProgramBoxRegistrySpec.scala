@@ -34,8 +34,8 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
 
   val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
   val history: HIS = gs._1
-  var genesisState: MS = gs._2
-  var gw: VL = gs._3
+  val genesisState: MS = gs._2
+  val gw: VL = gs._3
 
   val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
@@ -49,9 +49,6 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
        |{"b": "1" }
      """.stripMargin.asJson
 
-  val sboxOneWithoutId: StateBox = StateBox(pubKey, 0L, null, stateOne)
-  val sboxTwoWithoutId: StateBox = StateBox(pubKey, 1L, null, stateTwo)
-
   val sboxOne: StateBox = StateBox(pubKey, 0L, programIdGen.sample.get, stateOne)
   val sboxTwo: StateBox = StateBox(pubKey, 1L, programIdGen.sample.get, stateTwo)
 
@@ -64,7 +61,7 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
     newState_1 = genesisState.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
 
     assert(newState_1.registryLookup(sboxOne.value).get.head.hashBytes sameElements sboxOne.id)
-    assert(newState_1.getProgramBox[StateBox](sboxTwo.value).get.bytes sameElements sboxOne.bytes)
+    assert(newState_1.getProgramBox[StateBox](sboxOne.value).get.bytes sameElements sboxOne.bytes)
 
     val changes_2: StateChanges = StateChanges(Set(sboxOne.id), Set(sboxTwo))
     val pbr_changes_2 = Some(ProgramRegistryChanges(Map(sboxOne.value -> Seq(BoxId(sboxOne.id))), Map(sboxTwo.value -> Seq(BoxId(sboxTwo.id)))))
