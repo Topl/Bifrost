@@ -5,7 +5,7 @@ import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfe
 import bifrost.nodeView.box._
 import bifrost.nodeView.box.proposition.{ MofNProposition, MofNPropositionSerializer }
 import bifrost.nodeView.box.serialization.BoxSerializer
-import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction._
 import bifrost.modifier.transaction.serialization._
 import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
 import bifrost.{ BifrostGenerators, ValidGenerators }

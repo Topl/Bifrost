@@ -7,19 +7,19 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
-import bifrost.{ BifrostGenerators, state }
-import bifrost.nodeView.history.History
+import bifrost.BifrostGenerators
 import bifrost.http.api.routes.ProgramApiRoute
-import bifrost.nodeView.mempool.MemPool
+import bifrost.modifier.ModifierId
 import bifrost.modifier.transaction.Transaction
-import bifrost.modifier.{ ModifierId, block }
-import bifrost.nodeView.box._
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import bifrost.nodeView.box._
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state
+import bifrost.nodeView.state.State
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.AppContext
-import bifrost.nodeView.state.{ State, StateChanges }
 import bifrost.wallet.Wallet
-import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
@@ -27,7 +27,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.encode.Base58
 
-import scala.concurrent.{ Await, blocking }
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
@@ -46,10 +46,10 @@ class ProgramRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing

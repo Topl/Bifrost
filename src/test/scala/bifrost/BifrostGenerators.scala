@@ -11,7 +11,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer, Transaction }
 import bifrost.nodeView.box._
 import bifrost.nodeView.box.proposition.{ MofNProposition, PublicKey25519Proposition }
-import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction._
 import bifrost.modifier.transaction.Transaction.{ Nonce, Value }
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.program.{ Program, ProgramPreprocessor, _ }

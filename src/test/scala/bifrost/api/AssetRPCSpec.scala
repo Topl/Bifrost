@@ -17,7 +17,7 @@ import bifrost.modifier.block.Block
 import bifrost.modifier.transaction.{ AssetCreation, Transaction }
 import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.box.{ ArbitBox, AssetBox }
-import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
+import bifrost.modifier.transaction.AssetCreation
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.AppContext
@@ -49,10 +49,10 @@ class AssetRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing

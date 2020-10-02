@@ -1,10 +1,10 @@
-package bifrost
+package bifrost.nodeView
 
 import bifrost.modifier.ModifierId
 import bifrost.nodeView.box.{ Box, ProgramBox, TokenBox }
 import com.google.common.primitives.Ints
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{ Failure, Success }
 
 package object state {
   /** This function will modify the state storage directly without returning a new instance of state

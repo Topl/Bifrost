@@ -9,7 +9,7 @@ import bifrost.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, P
 import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.box.{ CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
 import bifrost.modifier.transaction.Transaction.Nonce
-import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction._
 import bifrost.program.ExecutionBuilderSerializer
 import bifrost.nodeView.state.ProgramId
 import bifrost.{ BifrostGenerators, ValidGenerators }

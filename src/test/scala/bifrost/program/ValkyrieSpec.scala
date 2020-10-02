@@ -8,7 +8,7 @@ import InstrumentClasses.TokenClasses._
 import bifrost.crypto.FastCryptographicHash
 import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.box.{ArbitBox, AssetBox}
-import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
+import bifrost.modifier.transaction.{AssetCreation, ArbitTransfer}
 import bifrost.nodeView.state.StateSpec
 import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, ValidGenerators}
