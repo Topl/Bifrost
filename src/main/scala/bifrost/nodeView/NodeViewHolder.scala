@@ -79,7 +79,7 @@ object NodeViewHolder extends Logging {
 
   //noinspection ScalaStyle
   def initializeGenesis ( settings: AppSettings ): NodeView = {
-    val GenesisAccountsNum = 2
+    val GenesisAccountsNum = 50
     val GenesisBalance = 100000000L
 
     //propositions with wallet seed genesisoo, genesiso1, ..., genesis48, genesis49
