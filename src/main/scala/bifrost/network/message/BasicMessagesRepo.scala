@@ -3,12 +3,12 @@ package bifrost.network.message
 import bifrost.modifier.ModifierId
 import bifrost.network.message
 import bifrost.network.message.Message.MessageCode
-import bifrost.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
+import bifrost.network.peer.{ PeerFeature, PeerSpec, PeerSpecSerializer }
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
 import bifrost.utils.Extensions._
 import bifrost.utils.Logging
-import bifrost.utils.serialization.{Reader, Writer}
+import bifrost.utils.serialization.{ Reader, Writer }
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 

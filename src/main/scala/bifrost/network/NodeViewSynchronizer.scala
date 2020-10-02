@@ -2,21 +2,21 @@ package bifrost.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
-import bifrost.history.GenericHistory._
-import bifrost.history.HistoryReader
-import bifrost.mempool.MemPoolReader
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.message._
 import bifrost.network.peer.{ ConnectedPeer, PenaltyType }
 import bifrost.nodeView.NodeViewModifier.{ ModifierTypeId, idsToString }
+import bifrost.nodeView.box.GenericBox
+import bifrost.nodeView.box.proposition.Proposition
+import bifrost.nodeView.history.GenericHistory._
+import bifrost.nodeView.history.HistoryReader
+import bifrost.nodeView.mempool.MemPoolReader
+import bifrost.nodeView.state.StateReader
 import bifrost.nodeView.{ NodeViewModifier, PersistentNodeViewModifier }
-import bifrost.settings.{ BifrostContext, NetworkSettings }
-import bifrost.state.StateReader
+import bifrost.settings.{ AppContext, NetworkSettings }
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.utils.{ BifrostEncoding, Logging, MalformedModifierError }
 import bifrost.wallet.VaultReader
@@ -43,20 +43,16 @@ class NodeViewSynchronizer[
   networkControllerRef: ActorRef,
   viewHolderRef: ActorRef,
   networkSettings: NetworkSettings,
-  bifrostContext: BifrostContext
+  appContext: AppContext
 )(implicit ec: ExecutionContext)
     extends Synchronizer
     with Logging
     with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
-  import bifrost.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+  import bifrost.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{
-    GetNodeViewChanges,
-    ModifiersFromRemote,
-    TransactionsFromRemote
-  }
+  import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote }
 
   // the maximum number of inventory modifiers to compare with remote peers
   protected val desiredInvObjects: Int = networkSettings.desiredInvObjects
@@ -66,10 +62,10 @@ class NodeViewSynchronizer[
     NodeViewModifier.modifierSerializers
 
   // convenience variables for accessing the messages specs
-  protected val invSpec: InvSpec = bifrostContext.nodeViewSyncRemoteMessages.invSpec
-  protected val requestModifierSpec: RequestModifierSpec = bifrostContext.nodeViewSyncRemoteMessages.requestModifierSpec
-  protected val modifiersSpec: ModifiersSpec = bifrostContext.nodeViewSyncRemoteMessages.modifiersSpec
-  protected val syncInfoSpec: SyncInfoSpec = bifrostContext.nodeViewSyncRemoteMessages.syncInfoSpec
+  protected val invSpec: InvSpec = appContext.nodeViewSyncRemoteMessages.invSpec
+  protected val requestModifierSpec: RequestModifierSpec = appContext.nodeViewSyncRemoteMessages.requestModifierSpec
+  protected val modifiersSpec: ModifiersSpec = appContext.nodeViewSyncRemoteMessages.modifiersSpec
+  protected val syncInfoSpec: SyncInfoSpec = appContext.nodeViewSyncRemoteMessages.syncInfoSpec
 
   // partial functions for identifying local method handlers for the messages above
   protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
@@ -80,14 +76,14 @@ class NodeViewSynchronizer[
   }
 
   protected val deliveryTracker = new DeliveryTracker(self, context, networkSettings)
-  protected val statusTracker = new SyncTracker(self, context, networkSettings, bifrostContext.timeProvider)
+  protected val statusTracker = new SyncTracker(self, context, networkSettings, appContext.timeProvider)
 
   protected var historyReaderOpt: Option[HR] = None
   protected var mempoolReaderOpt: Option[MR] = None
 
   override def preStart(): Unit = {
     //register as a handler for synchronization-specific types of messages
-    networkControllerRef ! RegisterMessageSpecs(bifrostContext.nodeViewSyncRemoteMessages.toSeq, self)
+    networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
 
     //register as a listener for peers got connected (handshaked) or disconnected
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
@@ -697,9 +693,9 @@ object NodeViewSynchronizerRef {
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
     networkSettings: NetworkSettings,
-    bifrostContext: BifrostContext
+    appContext: AppContext
   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext))
 
   def props[
     TX <: Transaction,
@@ -711,9 +707,9 @@ object NodeViewSynchronizerRef {
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
     networkSettings: NetworkSettings,
-    bifrostContext: BifrostContext
+    appContext: AppContext
   )(implicit ec: ExecutionContext): Props =
-    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext))
+    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext))
 
   def apply[
     TX <: Transaction,
@@ -726,7 +722,7 @@ object NodeViewSynchronizerRef {
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
     networkSettings: NetworkSettings,
-    bifrostContext: BifrostContext
+    appContext: AppContext
   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, bifrostContext), name)
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext), name)
 }

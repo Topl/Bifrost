@@ -2,15 +2,15 @@ package bifrost.consensus
 
 import akka.actor._
 import bifrost.crypto.PrivateKey25519
-import bifrost.history.History
-import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ CoinbaseTransaction, Transaction }
+import bifrost.modifier.transaction.{ CoinbaseTransaction, Transaction }
 import bifrost.nodeView.CurrentView
-import bifrost.settings.{ BifrostContext, ForgingSettings }
-import bifrost.state.State
+import bifrost.nodeView.box.ArbitBox
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
+import bifrost.settings.{ AppContext, ForgingSettings }
 import bifrost.utils.Logging
 import bifrost.wallet.Wallet
 
@@ -21,7 +21,7 @@ import scala.util.{ Failure, Success, Try }
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
  * Must be singleton
  */
-class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
+class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
   type CV = CurrentView[History, State, Wallet, MemPool]
@@ -155,7 +155,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext:
                 txsToInclude: Seq[Transaction],
                 version: Block.Version): Option[Block] = {
 
-    val timestamp = bifrostContext.timeProvider.time()
+    val timestamp = appContext.timeProvider.time()
     val target = calcAdjustedTarget(parent, difficulty, timestamp)
 
     val successfulHits = boxKeys.map { boxKey =>
@@ -190,15 +190,15 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
+  def props(nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext)
            (implicit ec: ExecutionContext): Props =
-    Props(new Forger(nodeViewHolderRef, settings, bifrostContext))
+    Props(new Forger(nodeViewHolderRef, settings, appContext))
 
-  def apply(nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
+  def apply(nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, bifrostContext))
+    system.actorOf(props(nodeViewHolderRef, settings, appContext))
 
-  def apply(name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, bifrostContext: BifrostContext)
+  def apply(name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, bifrostContext), name)
+    system.actorOf(props(nodeViewHolderRef, settings, appContext), name)
 }

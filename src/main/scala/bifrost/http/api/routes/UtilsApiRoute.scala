@@ -5,11 +5,11 @@ import java.security.SecureRandom
 import akka.actor.ActorRefFactory
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.FastCryptographicHash
-import bifrost.history.History
 import bifrost.http.api.ApiRoute
-import bifrost.mempool.MemPool
-import bifrost.settings.{ AppSettings, RESTApiSettings }
-import bifrost.state.State
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
+import bifrost.settings.RESTApiSettings
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._

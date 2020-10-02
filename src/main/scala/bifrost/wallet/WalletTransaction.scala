@@ -1,10 +1,10 @@
 package bifrost.wallet
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
+import bifrost.modifier.transaction.GenericTransaction
 import bifrost.nodeView.NodeViewModifier
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.nodeView.box.proposition.Proposition
+import com.google.common.primitives.{ Bytes, Ints, Longs }
 
 import scala.util.Try
 

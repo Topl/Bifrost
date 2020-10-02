@@ -1,26 +1,27 @@
 package bifrost.api
 
-import akka.actor.{ActorRef, PoisonPill}
+import akka.actor.{ ActorRef, PoisonPill }
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.{ ByteString, Timeout }
 import bifrost.BifrostGenerators
-import bifrost.crypto.{PrivateKey25519, Signature25519}
-import bifrost.history.History
-import bifrost.http.api.routes.{AssetApiRoute, WalletApiRoute}
-import bifrost.mempool.MemPool
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
+import bifrost.nodeView.history.History
+import bifrost.http.api.routes.{ AssetApiRoute, WalletApiRoute }
+import bifrost.nodeView.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ArbitBox, AssetBox}
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer, Transaction}
+import bifrost.modifier.transaction.{ AssetCreation, Transaction }
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ ArbitBox, AssetBox }
+import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
-import bifrost.settings.BifrostContext
-import bifrost.state.State
+import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
+import bifrost.settings.AppContext
+import bifrost.nodeView.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
@@ -48,7 +49,7 @@ class AssetRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, None)
+  protected val bifrostContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)

@@ -2,8 +2,8 @@ package bifrost.program
 
 import java.util.UUID
 
-import bifrost.modifier.box.{ CodeBox, StateBox }
-import bifrost.state.ProgramId
+import bifrost.nodeView.box.{ CodeBox, StateBox }
+import bifrost.nodeView.state.ProgramId
 import bifrost.{ BifrostGenerators, ValidGenerators }
 import io.circe.JsonObject
 import io.circe.syntax._

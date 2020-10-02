@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.Message
 import bifrost.network.peer._
-import bifrost.settings.{ BifrostContext, NetworkSettings, Version }
+import bifrost.settings.{ AppContext, NetworkSettings, Version }
 import bifrost.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
@@ -22,7 +22,7 @@ import scala.util.{ Failure, Success, Try }
  */
 class NetworkController ( settings      : NetworkSettings,
                           peerManagerRef: ActorRef,
-                          bifrostContext: BifrostContext,
+                          appContext: AppContext,
                           tcpManager    : ActorRef
                         )( implicit ec: ExecutionContext )
   extends Actor with Logging {
@@ -57,7 +57,7 @@ class NetworkController ( settings      : NetworkSettings,
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
   override def preStart ( ): Unit = {
-    log.info(s"Declared address: ${bifrostContext.externalNodeAddress}")
+    log.info(s"Declared address: ${appContext.externalNodeAddress}")
     context become initialization
   }
 
@@ -266,13 +266,13 @@ class NetworkController ( settings      : NetworkSettings,
 
     val peerFeatures =
       if ( isLocal )
-        bifrostContext.features :+ LocalAddressPeerFeature(
+        appContext.features :+ LocalAddressPeerFeature(
           new InetSocketAddress(
             connectionId.localAddress.getAddress,
             settings.bindAddress.getPort
             )
           )
-      else bifrostContext.features
+      else appContext.features
 
     val selfAddressOpt = getNodeAddressForPeer(connectionId.localAddress)
 
@@ -281,7 +281,7 @@ class NetworkController ( settings      : NetworkSettings,
 
     val connectionDescription = ConnectionDescription(connection, connectionId, selfAddressOpt, peerFeatures)
 
-    val handler: ActorRef = peer.PeerConnectionHandlerRef(settings, self, bifrostContext, connectionDescription)
+    val handler: ActorRef = PeerConnectionHandlerRef(settings, self, appContext, connectionDescription)
 
     context.watch(handler)
 
@@ -374,7 +374,7 @@ class NetworkController ( settings      : NetworkSettings,
     NetworkUtils.isSelf(
       peerAddress,
       bindAddress,
-      bifrostContext.externalNodeAddress
+      appContext.externalNodeAddress
       )
   }
 
@@ -390,8 +390,8 @@ class NetworkController ( settings      : NetworkSettings,
       case (Some(localAddr), _) =>
         Some(localAddr)
 
-      case (None, Some(declaredAddress)) if bifrostContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
-        bifrostContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
+      case (None, Some(declaredAddress)) if appContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
+        appContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
       case _ => peer.peerSpec.declaredAddress
     }
@@ -405,7 +405,7 @@ class NetworkController ( settings      : NetworkSettings,
    */
   private def getNodeAddressForPeer ( localSocketAddress: InetSocketAddress ): Option[InetSocketAddress] = {
     val localAddr = localSocketAddress.getAddress
-    bifrostContext.externalNodeAddress match {
+    appContext.externalNodeAddress match {
       case Some(extAddr) =>
         Some(extAddr)
 
@@ -440,7 +440,7 @@ class NetworkController ( settings      : NetworkSettings,
           val listenAddresses = NetworkUtils.getListenAddresses(bindAddress)
 
           // this is a list of your external address as determined by the upnp gateway
-          val upnpAddress = bifrostContext.upnpGateway.map(_.externalAddress)
+          val upnpAddress = appContext.upnpGateway.map(_.externalAddress)
 
           val valid =
             listenAddresses.exists(myAddress.contains) || upnpAddress.exists(
@@ -528,34 +528,34 @@ object NetworkController {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NetworkControllerRef {
-  def apply ( settings: NetworkSettings, peerManagerRef: ActorRef, bifrostContext: BifrostContext
+  def apply ( settings: NetworkSettings, peerManagerRef: ActorRef, appContext: AppContext
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, bifrostContext, IO(Tcp))
+      props(settings, peerManagerRef, appContext, IO(Tcp))
       )
   }
 
   def props (
               settings      : NetworkSettings,
               peerManagerRef: ActorRef,
-              bifrostContext: BifrostContext,
+              appContext: AppContext,
               tcpManager    : ActorRef
             )( implicit ec: ExecutionContext ): Props = {
     Props(
       new NetworkController(
         settings,
         peerManagerRef,
-        bifrostContext,
+        appContext,
         tcpManager
         )
       )
   }
 
-  def apply ( name      : String, settings: NetworkSettings, peerManagerRef: ActorRef, bifrostContext: BifrostContext,
+  def apply ( name      : String, settings: NetworkSettings, peerManagerRef: ActorRef, appContext: AppContext,
               tcpManager: ActorRef
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, bifrostContext, tcpManager),
+      props(settings, peerManagerRef, appContext, tcpManager),
       name
       )
   }
@@ -564,10 +564,10 @@ object NetworkControllerRef {
               name          : String,
               settings      : NetworkSettings,
               peerManagerRef: ActorRef,
-              bifrostContext: BifrostContext
+              appContext: AppContext
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef = {
     system.actorOf(
-      props(settings, peerManagerRef, bifrostContext, IO(Tcp)),
+      props(settings, peerManagerRef, appContext, IO(Tcp)),
       name
       )
   }

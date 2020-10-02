@@ -1,10 +1,10 @@
 package bifrost.wallet
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.Proposition
 import bifrost.nodeView.NodeViewModifier
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.nodeView.box.GenericBox
+import bifrost.nodeView.box.proposition.Proposition
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: BifrostSerializer[B])
   extends BifrostSerializer[WalletBox[T, P, B]] {

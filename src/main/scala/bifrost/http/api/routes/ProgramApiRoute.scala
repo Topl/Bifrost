@@ -3,17 +3,17 @@ package bifrost.http.api.routes
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.PrivateKey25519
-import bifrost.exceptions.JsonParsingException
-import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
-import bifrost.mempool.MemPool
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ Box, CodeBox, ExecutionBox, StateBox }
-import bifrost.modifier.transaction.bifrostTransaction.{ CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
+import bifrost.modifier.transaction.{ CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ CodeBox, ExecutionBox, StateBox }
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.{ ProgramId, State }
 import bifrost.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
-import bifrost.settings.{ AppSettings, RESTApiSettings }
-import bifrost.state.{ ProgramId, State }
+import bifrost.settings.RESTApiSettings
+import bifrost.utils.exceptions.JsonParsingException
 import bifrost.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._

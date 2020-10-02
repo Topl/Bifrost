@@ -2,7 +2,7 @@ package bifrost.transaction.proposition
 
 import bifrost.BifrostGenerators
 import bifrost.crypto.{ MultiSignature25519, PrivateKey25519 }
-import bifrost.modifier.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import bifrost.nodeView.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }

@@ -3,19 +3,18 @@ package bifrost.http.api.routes
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.crypto.{ Bip39, PrivateKey25519 }
-import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
-import bifrost.mempool.MemPool
-import bifrost.modifier.box.TokenBox
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction._
+import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, PolyTransfer, Transaction }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
+import bifrost.nodeView.box.TokenBox
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
 import bifrost.settings.RESTApiSettings
-import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
-import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global

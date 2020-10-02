@@ -1,10 +1,9 @@
 package bifrost.wallet
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.serialization.BytesSerializable
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.nodeView.box.GenericBox
+import bifrost.nodeView.box.proposition.Proposition
+import bifrost.utils.serialization.{ BifrostSerializer, BytesSerializable }
 
 case class WalletBox[T, P <: Proposition, B <: GenericBox[P, T]]
   (box: B, transactionId: ModifierId, createdAt: Long)(subclassDeser: BifrostSerializer[B])

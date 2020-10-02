@@ -6,10 +6,10 @@ import java.util
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import bifrost.crypto.FastCryptographicHash
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ArbitBox, AssetBox}
-import bifrost.modifier.transaction.bifrostTransaction.{ArbitTransfer, AssetCreation}
-import bifrost.state.StateSpec
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ArbitBox, AssetBox}
+import bifrost.modifier.transaction.bifrostTransaction.AssetCreation
+import bifrost.nodeView.state.StateSpec
 import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}

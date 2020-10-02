@@ -1,7 +1,7 @@
 package bifrost.nodeView
 
-import bifrost.history.HistoryReader
-import bifrost.modifier.{ContainsModifiers, ModifierId}
+import bifrost.modifier.{ ContainsModifiers, ModifierId }
+import bifrost.nodeView.history.HistoryReader
 import bifrost.utils.Logging
 
 import scala.annotation.tailrec

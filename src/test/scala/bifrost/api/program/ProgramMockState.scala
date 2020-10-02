@@ -5,16 +5,16 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
-import bifrost.history.History
-import bifrost.mempool.MemPool
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
-import bifrost.settings.BifrostContext
-import bifrost.state.State
+import bifrost.settings.AppContext
+import bifrost.nodeView.state.State
 import bifrost.wallet.Wallet
-import bifrost.{ BifrostGenerators, state }
+import bifrost.{ BifrostGenerators, bifrost.nodeView.state }
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 
@@ -34,7 +34,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, None)
+  protected val bifrostContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)

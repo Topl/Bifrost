@@ -2,11 +2,11 @@ package bifrost.http.api
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import bifrost.history.History
-import bifrost.mempool.MemPool
 import bifrost.nodeView.CurrentView
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.state.State
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
 import bifrost.wallet.Wallet
 
 import scala.concurrent.Future

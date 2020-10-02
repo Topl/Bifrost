@@ -2,7 +2,7 @@ package bifrost.program
 
 import java.time.Instant
 
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen

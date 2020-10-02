@@ -1,7 +1,6 @@
 package bifrost.settings
 
-import bifrost.serialization.BytesSerializable
-import bifrost.utils.serialization._
+import bifrost.utils.serialization.{ BytesSerializable, _ }
 
 /**
   * Version of p2p protocol. Node can only process messages of it's version or lower.

@@ -1,9 +1,9 @@
 package bifrost.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object LocalAddressPeerFeatureSerializer extends BifrostSerializer[LocalAddressPeerFeature] {
 

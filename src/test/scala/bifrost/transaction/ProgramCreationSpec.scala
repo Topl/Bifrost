@@ -4,10 +4,10 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
-import bifrost.state.State
-import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.modifier.transaction.ProgramCreation
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.state.State
+import bifrost.{ BifrostGenerators, ValidGenerators }
 
 import scala.util.Success
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }

@@ -2,18 +2,17 @@ package bifrost.nodeView
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import bifrost.crypto.{ PrivateKey25519, Signature25519 }
-import bifrost.history.History
-import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.{ Block, BlockSerializer }
-import bifrost.modifier.box.{ ArbitBox, Box }
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
 import bifrost.modifier.transaction.serialization.TransactionSerializer
-import bifrost.network.message.BifrostSyncInfo
+import bifrost.modifier.transaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.{ AppSettings, BifrostContext }
-import bifrost.state.State
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ ArbitBox, Box }
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
+import bifrost.settings.{ AppSettings, AppContext }
 import bifrost.utils.serialization.BifrostSerializer
 import bifrost.utils.{ Logging, TimeProvider }
 import bifrost.wallet.Wallet
@@ -21,7 +20,7 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolder ( override val settings: AppSettings, bifrostContext: BifrostContext )
+class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext )
                      ( implicit ec: ExecutionContext )
   extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
                                 NodeViewHolder.MS, NodeViewHolder.VL, NodeViewHolder.MP] {
@@ -30,7 +29,7 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
     Map(Block.modifierTypeId -> BlockSerializer,
         GenericTransaction.modifierTypeId -> TransactionSerializer)
 
-  private val timeProvider: TimeProvider = bifrostContext.timeProvider
+  private val timeProvider: TimeProvider = appContext.timeProvider
 
   override def preRestart ( reason: Throwable, message: Option[Any] ): Unit = {
     super.preRestart(reason, message)
@@ -156,15 +155,15 @@ object NodeViewHolder extends Logging {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, bifrostContext: BifrostContext )
+  def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext))
+    system.actorOf(props(settings, appContext))
 
-  def apply ( name: String, settings: AppSettings, bifrostContext: BifrostContext )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext), name)
+    system.actorOf(props(settings, appContext), name)
 
-  def props ( settings: AppSettings, bifrostContext: BifrostContext )
+  def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, bifrostContext))
+    Props(new NodeViewHolder(settings, appContext))
 }

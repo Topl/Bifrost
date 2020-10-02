@@ -1,6 +1,6 @@
 package bifrost.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
 trait PeerDatabase {
 

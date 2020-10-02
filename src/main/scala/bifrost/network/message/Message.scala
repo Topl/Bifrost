@@ -3,7 +3,7 @@ package bifrost.network.message
 import akka.actor.DeadLetterSuppression
 import bifrost.network.peer.ConnectedPeer
 
-import scala.util.{Success, Try}
+import scala.util.{ Success, Try }
 
 case class Message[Content](spec: MessageSpec[Content],
                             input: Either[Array[Byte], Content],

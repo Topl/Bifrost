@@ -1,9 +1,9 @@
 package bifrost.program
 
 
-import bifrost.exceptions.{ ChainProgramException, JsonParsingException }
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ CodeBox, StateBox }
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ CodeBox, StateBox }
+import bifrost.utils.exceptions.{ ChainProgramException, JsonParsingException }
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{ Context, Value }

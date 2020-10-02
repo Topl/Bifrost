@@ -1,16 +1,16 @@
 package bifrost.nodeView
 
 import akka.actor.Actor
-import bifrost.history.GenericHistory
-import bifrost.history.GenericHistory.ProgressInfo
-import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.GenericBox
-import bifrost.modifier.box.proposition.Proposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
 import bifrost.network.message.SyncInfo
+import bifrost.nodeView.box.GenericBox
+import bifrost.nodeView.box.proposition.Proposition
+import bifrost.nodeView.history.GenericHistory
+import bifrost.nodeView.history.GenericHistory.ProgressInfo
+import bifrost.nodeView.mempool.MemoryPool
+import bifrost.nodeView.state.{ MinimalState, TransactionValidation }
 import bifrost.settings.AppSettings
-import bifrost.state.{ MinimalState, StateReader, TransactionValidation }
 import bifrost.utils.{ BifrostEncoding, Logging }
 import bifrost.wallet.Vault
 

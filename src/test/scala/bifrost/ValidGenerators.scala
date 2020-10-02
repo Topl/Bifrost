@@ -3,13 +3,13 @@ package bifrost
 import java.util.UUID
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import bifrost.modifier.box.{ PublicKeyNoncedBox, _ }
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction
+import bifrost.nodeView.box.{ PublicKeyNoncedBox, _ }
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CoinbaseTransaction, PolyTransfer, ProgramCreation, ProgramMethodExecution, Transaction, bifrostTransaction }
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.modifier.transaction.Transaction.{ Nonce, Value }
 import bifrost.program.{ ExecutionBuilderSerializer, _ }
-import bifrost.state.ProgramId
+import bifrost.nodeView.state.ProgramId
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
@@ -189,7 +189,7 @@ trait ValidGenerators extends BifrostGenerators {
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
     val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, messageToSign))
 
-    bifrostTransaction.ProgramMethodExecution(
+    ProgramMethodExecution(
       executionBox,
       Seq(stateBox),
       Seq(codeBox),

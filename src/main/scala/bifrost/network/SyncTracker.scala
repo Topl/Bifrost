@@ -2,17 +2,17 @@ package bifrost.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorContext, ActorRef, Cancellable}
-import bifrost.history.GenericHistory.{Fork, HistoryComparisonResult, Older, Unknown}
-import bifrost.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
+import akka.actor.{ ActorContext, ActorRef, Cancellable }
+import bifrost.network.NodeViewSynchronizer.Events.{ BetterNeighbourAppeared, NoBetterNeighbour }
 import bifrost.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import bifrost.network.peer.ConnectedPeer
+import bifrost.nodeView.history.GenericHistory.{ Fork, HistoryComparisonResult, Older, Unknown }
 import bifrost.settings.NetworkSettings
-import bifrost.utils.{Logging, TimeProvider}
+import bifrost.utils.{ Logging, TimeProvider }
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration.{ FiniteDuration, _ }
 
 /**
   * SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)

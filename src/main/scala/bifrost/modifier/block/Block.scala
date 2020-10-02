@@ -1,13 +1,13 @@
 package bifrost.modifier.block
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import bifrost.history.History
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block._
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.serialization.BoxSerializer
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId
+import bifrost.nodeView.box.ArbitBox
+import bifrost.nodeView.box.serialization.BoxSerializer
+import bifrost.nodeView.history.History
 import bifrost.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
 import bifrost.utils.serialization.BifrostSerializer
 import io.circe.syntax._

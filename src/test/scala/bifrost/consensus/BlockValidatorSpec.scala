@@ -1,7 +1,7 @@
 package bifrost.consensus
 
 import bifrost.BifrostGenerators
-import bifrost.history.{BlockProcessor, History}
+import bifrost.nodeView.history.{BlockProcessor, History}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec

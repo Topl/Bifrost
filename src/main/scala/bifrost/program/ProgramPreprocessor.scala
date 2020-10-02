@@ -1,14 +1,14 @@
 package bifrost.program
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{ Files, Path }
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.coding.Gzip
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import bifrost.crypto.Signature25519
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.serialization.JsonSerializable
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.utils.serialization.JsonSerializable
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
@@ -16,12 +16,12 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.{Base58, Base64}
+import scorex.crypto.encode.{ Base58, Base64 }
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.util.matching.Regex
 
 /**

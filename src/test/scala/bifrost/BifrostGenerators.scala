@@ -5,17 +5,18 @@ import java.time.Instant
 import java.util.UUID
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import bifrost.history.{ BlockProcessor, History, Storage }
+import bifrost.nodeView.history.{ BlockProcessor, History, Storage }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer, Transaction }
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.modifier.transaction.Transaction.{ Nonce, Value }
 import bifrost.network.message.BifrostSyncInfo
 import bifrost.program.{ Program, ProgramPreprocessor, _ }
 import bifrost.settings.{ AppSettings, StartupOpts }
-import bifrost.state.ProgramId
+import bifrost.nodeView.state.ProgramId
 import io.circe.{ Json, JsonObject }
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore

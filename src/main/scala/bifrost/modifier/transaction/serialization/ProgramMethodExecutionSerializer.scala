@@ -2,14 +2,14 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.crypto.serialization.Signature25519Serializer
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import bifrost.modifier.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.ProgramMethodExecution
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.transaction.ProgramMethodExecution
+import bifrost.modifier.transaction.Transaction.Nonce
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import bifrost.nodeView.box.serialization.{ CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer }
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
-import io.circe.{Json, parser}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import io.circe.{ Json, parser }
 
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 

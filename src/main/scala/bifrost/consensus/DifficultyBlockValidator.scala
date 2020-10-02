@@ -1,7 +1,7 @@
 package bifrost.consensus
 
-import bifrost.history.{BlockProcessor, Storage}
-import bifrost.modifier.block.{Block, BlockValidator}
+import bifrost.modifier.block.{ Block, BlockValidator }
+import bifrost.nodeView.history.{ BlockProcessor, Storage }
 
 import scala.util.Try
 

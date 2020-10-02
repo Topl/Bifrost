@@ -2,15 +2,15 @@ package bifrost.http.api.routes
 
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
-import bifrost.mempool.MemPool
-import bifrost.modifier.box.AssetBox
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ AssetCreation, AssetTransfer }
+import bifrost.modifier.transaction.{ AssetCreation, AssetTransfer }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
+import bifrost.nodeView.box.AssetBox
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.state.State
 import bifrost.settings.RESTApiSettings
-import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._

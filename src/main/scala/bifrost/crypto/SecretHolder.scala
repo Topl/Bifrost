@@ -1,8 +1,8 @@
 package bifrost.crypto
 
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.serialization.BytesSerializable
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.ProofOfKnowledgeProposition
+import bifrost.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {
   self =>

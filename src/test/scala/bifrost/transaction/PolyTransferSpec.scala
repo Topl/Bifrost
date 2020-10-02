@@ -1,8 +1,8 @@
 package bifrost.transaction
 
-import bifrost.modifier.transaction.bifrostTransaction.PolyTransfer
-import bifrost.state.State
-import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.modifier.transaction.PolyTransfer
+import bifrost.nodeView.state.State
+import bifrost.{ BifrostGenerators, ValidGenerators }
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec

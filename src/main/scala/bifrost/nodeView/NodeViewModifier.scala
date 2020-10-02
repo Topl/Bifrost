@@ -1,13 +1,12 @@
 package bifrost.nodeView
 
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.block.{ Block, BlockSerializer }
+import bifrost.modifier.transaction.Transaction
 import bifrost.modifier.transaction.serialization.TransactionSerializer
 import bifrost.network.message.InvData
-import bifrost.serialization.{BytesSerializable, JsonSerializable}
-import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.{BifrostEncoder, BifrostEncoding}
+import bifrost.utils.serialization.{ BifrostSerializer, BytesSerializable, JsonSerializable }
+import bifrost.utils.{ BifrostEncoder, BifrostEncoding }
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 

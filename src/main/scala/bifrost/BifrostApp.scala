@@ -2,7 +2,7 @@ package bifrost
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
@@ -10,27 +10,27 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import bifrost.consensus.ForgerRef
 import bifrost.crypto.PrivateKey25519
-import bifrost.history.History
 import bifrost.http.HttpService
 import bifrost.http.api.ApiRoute
 import bifrost.http.api.routes._
-import bifrost.mempool.MemPool
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.Box
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
 import bifrost.network._
 import bifrost.network.message._
-import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
-import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
+import bifrost.nodeView.box.Box
+import bifrost.nodeView.box.proposition.ProofOfKnowledgeProposition
+import bifrost.nodeView.history.History
+import bifrost.nodeView.mempool.MemPool
+import bifrost.nodeView.{ NodeViewHolder, NodeViewHolderRef }
+import bifrost.settings.{ AppSettings, AppContext, NetworkType, StartupOpts }
 import bifrost.utils.Logging
-import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
+import com.typesafe.config.{ Config, ConfigFactory }
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
@@ -60,22 +60,22 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, upnpGateway)
+  protected val appContext = new AppContext(settings, upnpGateway)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings.network, bifrostContext)
+  private val peerManagerRef: ActorRef = network.PeerManagerRef("peerManager", settings.network, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
 
-  private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
+  private val peerSynchronizer: ActorRef = network.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
-  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, bifrostContext)
+  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, Block, History, MemPool](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, bifrostContext)
+      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(

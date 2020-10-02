@@ -2,9 +2,9 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.crypto.serialization.Signature25519Serializer
-import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import bifrost.modifier.transaction.bifrostTransaction.CodeCreation
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.modifier.transaction.CodeCreation
+import bifrost.nodeView.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object CodeBoxCreationSerializer extends BifrostSerializer[CodeCreation]{
 

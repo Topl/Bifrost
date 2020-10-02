@@ -1,7 +1,7 @@
 package bifrost.crypto.serialization
 
 import bifrost.crypto.PrivateKey25519
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import scorex.crypto.signatures.Curve25519
 
 object PrivateKey25519Serializer extends BifrostSerializer[PrivateKey25519] {

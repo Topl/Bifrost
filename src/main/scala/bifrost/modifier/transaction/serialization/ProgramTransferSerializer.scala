@@ -2,11 +2,11 @@ package bifrost.modifier.transaction.serialization
 
 import bifrost.crypto.Signature25519
 import bifrost.crypto.serialization.Signature25519Serializer
-import bifrost.modifier.box.ExecutionBox
-import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import bifrost.modifier.box.serialization.ExecutionBoxSerializer
-import bifrost.modifier.transaction.bifrostTransaction.ProgramTransfer
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.modifier.transaction.ProgramTransfer
+import bifrost.nodeView.box.ExecutionBox
+import bifrost.nodeView.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import bifrost.nodeView.box.serialization.ExecutionBoxSerializer
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object ProgramTransferSerializer extends BifrostSerializer[ProgramTransfer]{
 

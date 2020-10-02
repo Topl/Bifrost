@@ -1,10 +1,10 @@
 package bifrost.network.upnp
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
 import bifrost.settings.NetworkSettings
 import bifrost.utils.Logging
-import org.bitlet.weupnp.{GatewayDevice, GatewayDiscover, PortMappingEntry}
+import org.bitlet.weupnp.{ GatewayDevice, GatewayDiscover, PortMappingEntry }
 
 import scala.collection.JavaConverters._
 

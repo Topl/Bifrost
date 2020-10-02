@@ -4,7 +4,7 @@ import java.net.{ InetAddress, InetSocketAddress }
 
 import bifrost.crypto.PrivateKey25519
 import bifrost.modifier.ModifierId
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
 import bifrost.network.message._
 import bifrost.nodeView.NodeViewModifier
 import bifrost.nodeView.NodeViewModifier.ModifierTypeId

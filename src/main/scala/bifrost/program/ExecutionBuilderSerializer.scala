@@ -1,6 +1,6 @@
 package bifrost.program
 
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import io.circe.parser
 
 object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {

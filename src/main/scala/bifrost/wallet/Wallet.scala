@@ -6,12 +6,12 @@ import java.security.SecureRandom
 import bifrost.crypto.{ FastCryptographicHash, KeyFile, PrivateKey25519 }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
-import bifrost.modifier.box.serialization.BoxSerializer
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import bifrost.nodeView.box.serialization.BoxSerializer
+import bifrost.nodeView.state.StateChanges
 import bifrost.settings.AppSettings
-import bifrost.state.StateChanges
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }

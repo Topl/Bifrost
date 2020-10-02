@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import bifrost.modifier.ModifierId
 import org.openjdk.jmh.annotations._
 import bifrost.BifrostGenerators
-import bifrost.history._
+import bifrost.nodeView.history._
 import bifrost.modifier.block.{Block, BlockSerializer}
 import io.iohk.iodb.ByteArrayWrapper
 
@@ -88,7 +88,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
-import bifrost.history._
+import bifrost.nodeView.history._
 import io.circe.Json
 import io.iohk.iodb.LSMStore
 

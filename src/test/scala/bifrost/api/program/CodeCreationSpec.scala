@@ -7,9 +7,9 @@ import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.modifier.transaction.Transaction
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.ArbitBox
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

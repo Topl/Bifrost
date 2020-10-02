@@ -8,13 +8,13 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import bifrost.BifrostGenerators
-import bifrost.history.History
+import bifrost.nodeView.history.History
 import bifrost.http.api.routes.DebugApiRoute
-import bifrost.mempool.MemPool
+import bifrost.nodeView.mempool.MemPool
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
-import bifrost.settings.BifrostContext
-import bifrost.state.State
+import bifrost.settings.AppContext
+import bifrost.nodeView.state.State
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
 import scala.concurrent.Await
@@ -34,7 +34,7 @@ class DebugRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, None)
+  protected val bifrostContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)

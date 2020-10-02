@@ -1,18 +1,19 @@
 package bifrost.serialization
 
-import bifrost.modifier.block.{Block, BlockSerializer}
-import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{MofNProposition, MofNPropositionSerializer}
-import bifrost.modifier.box.serialization.BoxSerializer
+import bifrost.modifier.block.{ Block, BlockSerializer }
+import bifrost.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
+import bifrost.nodeView.box._
+import bifrost.nodeView.box.proposition.{ MofNProposition, MofNPropositionSerializer }
+import bifrost.nodeView.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.modifier.transaction.serialization._
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
-import bifrost.{BifrostGenerators, ValidGenerators}
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
+import bifrost.{ BifrostGenerators, ValidGenerators }
 import serializer.BloomTopics
 
 import scala.collection.BitSet
-import scala.util.{Failure, Success}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scala.util.{ Failure, Success }
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 

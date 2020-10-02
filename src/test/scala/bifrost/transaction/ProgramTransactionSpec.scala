@@ -5,12 +5,13 @@ package bifrost.transaction
   */
 
 import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519 }
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{ CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
+import bifrost.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
+import bifrost.nodeView.box.proposition.PublicKey25519Proposition
+import bifrost.nodeView.box.{ CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
+import bifrost.modifier.transaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.program.ExecutionBuilderSerializer
-import bifrost.state.ProgramId
+import bifrost.nodeView.state.ProgramId
 import bifrost.{ BifrostGenerators, ValidGenerators }
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._

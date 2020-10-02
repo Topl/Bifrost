@@ -1,6 +1,6 @@
 package bifrost.settings
 
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object VersionSerializer extends BifrostSerializer[Version] {
   val SerializedVersionLength: Int = 3

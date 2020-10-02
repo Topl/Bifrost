@@ -8,16 +8,16 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import bifrost.{ BifrostGenerators, state }
-import bifrost.history.History
+import bifrost.nodeView.history.History
 import bifrost.http.api.routes.ProgramApiRoute
-import bifrost.mempool.MemPool
+import bifrost.nodeView.mempool.MemPool
+import bifrost.modifier.transaction.Transaction
 import bifrost.modifier.{ ModifierId, block }
-import bifrost.modifier.box._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
+import bifrost.nodeView.box._
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
-import bifrost.settings.BifrostContext
-import bifrost.state.{ State, StateChanges }
+import bifrost.settings.AppContext
+import bifrost.nodeView.state.{ State, StateChanges }
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
@@ -46,7 +46,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, None)
+  protected val bifrostContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)

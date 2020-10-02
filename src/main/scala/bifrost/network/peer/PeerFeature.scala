@@ -1,7 +1,6 @@
 package bifrost.network.peer
 
-import bifrost.serialization.BytesSerializable
-import bifrost.utils.serialization.BifrostSerializer
+import bifrost.utils.serialization.{ BifrostSerializer, BytesSerializable }
 
 /**
   * An abstract trait to describe peer capabilities.
