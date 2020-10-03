@@ -51,21 +51,26 @@ class History ( val storage: Storage,
     storage.storage.close()
   }
 
-  /**
-    * Is there's no history, even genesis block
-    *
-    * @return
-    */
+  /** If there's no history, even genesis block */
   override def isEmpty: Boolean = height <= 0
 
-  override def applicable(block: Block): Boolean = {
-    modifierById(block.parentId).isDefined
-  }
+  override def applicable(block: Block): Boolean = modifierById(block.parentId).isDefined
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
     (id.hashBytes sameElements History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
+
+  private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
+
+  def blockForger(m: Block): PublicKey25519Proposition = m.forgerBox.proposition
+
+  def count(f: Block => Boolean): Int = filter(f).length
+
+  def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
+
+  //todo: try to paginate this response (should take in an offset and a limit number)
+  override def toString: String = chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
 
   /**
     * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
@@ -196,11 +201,9 @@ class History ( val storage: Storage,
     * @return the blocks that are "exposed" for use
     */
   override def openSurfaceIds(): Seq[ModifierId] =
-    if (isEmpty) {
-      Seq(ModifierId(History.GenesisParentId))
-    } else {
-      Seq(bestBlockId)
-    } // TODO return sequence of exposed endpoints?
+    if (isEmpty) Seq(ModifierId(History.GenesisParentId))
+    else Seq(bestBlockId)
+    // TODO return sequence of exposed endpoints?
 
   /**
     * Return specified number of Bifrost blocks, ordered back from last one
@@ -223,6 +226,52 @@ class History ( val storage: Storage,
   }
 
   /**
+   * Retrieve a sequence of blocks until the given filter is satisifed
+   *
+   * @param f filter function to be applied for retrieving blocks
+   * @return a sequence of blocks starting from the tip of the chain
+   */
+  def filter(f: Block => Boolean): Seq[Block] = {
+    @tailrec
+    def loop(m: Block, acc: Seq[Block]): Seq[Block] = parentBlock(m) match {
+      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
+      case None         => if (f(m)) m +: acc else acc
+    }
+
+    loop(bestBlock, Seq())
+  }
+
+  /**
+   * Go back through chain and get block ids until condition `until` is satisfied
+   *
+   * @param m     the modifier to start at
+   * @param until the condition that indicates (when true) that recursion should stop
+   * @param limit the maximum number of blocks to recurse back
+   * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
+   *         (None only if the parent for a block was not found) starting from the original `m`
+   */
+  final def chainBack(m: Block,
+                      until: Block => Boolean,
+                      limit: Int = Int.MaxValue): Option[Seq[(ModifierTypeId, ModifierId)]] = {
+
+    @tailrec
+    def loop(block: Block, acc: Seq[Block]): Seq[Block] = {
+      if(acc.lengthCompare(limit) == 0 || until(block)) {
+        acc
+      } else {
+        parentBlock(block) match {
+          case Some(parent: Block)         ⇒ loop(parent, acc :+ parent)
+          case None if acc.contains(block) ⇒ acc
+          case _                           ⇒ acc :+ block
+        }
+      }
+    }
+
+    if (limit == 0) None
+    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
+  }
+
+  /**
     * Whether another node's syncinfo shows that another node is ahead or behind ours
     *
     * @param info other's node sync info
@@ -230,17 +279,18 @@ class History ( val storage: Storage,
     */
   override def compare(info: BifrostSyncInfo): HistoryComparisonResult = {
     Option(bestBlockId) match {
-      case Some(id) if info.lastBlockIds.lastOption.contains(id) =>
-        //Our best header is the same as other node best header
-        Equal
-      case Some(id) if info.lastBlockIds.contains(id) =>
-        //Our best header is in other node best chain, but not at the last position
-        Older
-      case Some(_) if info.lastBlockIds.isEmpty =>
-        //Other history is empty, our contain some headers
-        Younger
+
+      //Our best header is the same as other node best header
+      case Some(id) if info.lastBlockIds.lastOption.contains(id) => Equal
+
+      //Our best header is in other node best chain, but not at the last position
+      case Some(id) if info.lastBlockIds.contains(id) => Older
+
+      //Other history is empty, our contain some headers
+      case Some(_) if info.lastBlockIds.isEmpty => Younger
+
+      //We are on different forks now.
       case Some(_) =>
-        //We are on different forks now.
         if (info.lastBlockIds.view.reverse.exists(id => contains(id))) {
           //Return Younger, because we can send blocks from our fork that other node can download.
           Fork
@@ -250,18 +300,14 @@ class History ( val storage: Storage,
           //Assume it is older and far ahead from us
           Older
         }
-      case None if info.lastBlockIds.isEmpty =>
-        //Both nodes do not keep any blocks
-        Equal
-      case None =>
-        //Our history is empty, other contain some headers
-        Older
+
+      //Both nodes do not keep any blocks
+      case None if info.lastBlockIds.isEmpty => Equal
+
+      //Our history is empty, other contain some headers
+      case None => Older
     }
   }
-
-  private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
-
-  def blockForger(m: Block): PublicKey25519Proposition = m.forgerBox.proposition
 
   /**
     * Calculates the distribution of blocks to forgers
@@ -288,18 +334,6 @@ class History ( val storage: Storage,
 
     loopBackAndIncrementForger(bestBlock)
     map.toMap
-  }
-
-  def count(f: Block => Boolean): Int = filter(f).length
-
-  def filter(f: Block => Boolean): Seq[Block] = {
-    @tailrec
-    def loop(m: Block, acc: Seq[Block]): Seq[Block] = parentBlock(m) match {
-      case Some(parent) => if (f(m)) loop(parent, m +: acc) else loop(parent, acc)
-      case None => if (f(m)) m +: acc else acc
-    }
-
-    loop(bestBlock, Seq())
   }
 
   /**
@@ -347,38 +381,6 @@ class History ( val storage: Storage,
     ))
   }
 
-  def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
-
-  /**
-    * Go back through chain and get block ids until condition `until` is satisfied
-    *
-    * @param m     the modifier to start at
-    * @param until the condition that indicates (when true) that recursion should stop
-    * @param limit the maximum number of blocks to recurse back
-    * @return the sequence of block information (TypeId, Id) that were collected until `until` was satisfied
-    *         (None only if the parent for a block was not found) starting from the original `m`
-    */
-  final def chainBack(m: Block,
-                      until: Block => Boolean,
-                      limit: Int = Int.MaxValue): Option[Seq[(ModifierTypeId, ModifierId)]] = {
-
-    @tailrec
-    def loop(block: Block, acc: Seq[Block]): Seq[Block] = {
-      if(acc.lengthCompare(limit) == 0 || until(block)) {
-        acc
-      } else {
-        parentBlock(block) match {
-          case Some(parent: Block) ⇒ loop(parent, acc :+ parent)
-          case None if acc.contains(block) ⇒ acc
-          case _ ⇒ acc :+ block
-        }
-      }
-    }
-
-    if (limit == 0) None
-    else Option(loop(m, Seq(m)).map(b ⇒ (b.modifierTypeId, b.id)).reverse)
-  }
-
   /**
     * Find common suffixes for two chains starting from forkBlock
     *
@@ -413,11 +415,6 @@ class History ( val storage: Storage,
     val block = modifierById(id).get
     val c = chainBack(block, isGenesis, blockNum).get.map(_._2)
     (block.timestamp - modifierById(c.head).get.timestamp) / c.length
-  }
-
-  //chain without brothers
-  override def toString: String = {
-    chainBack(bestBlock, isGenesis).get.map(_._2).mkString(",")
   }
 
   /**
@@ -544,9 +541,7 @@ class History ( val storage: Storage,
       }
     }
 
-  /**
-    * Return last count headers from best headers chain if exist or chain up to genesis otherwise
-    */
+  /**Return last count headers from best headers chain if exist or chain up to genesis otherwise */
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
     lastBlocks(count, bestBlock).map(block => block.id).toIndexedSeq
 

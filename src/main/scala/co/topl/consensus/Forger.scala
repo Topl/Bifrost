@@ -4,10 +4,11 @@ import akka.actor._
 import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ CoinbaseTransaction, Transaction }
+import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.box.ArbitBox
 import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.history.History
+import co.topl.nodeView.history.{ History, HistoryReader }
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{ AppContext, ForgingSettings }
@@ -24,6 +25,7 @@ import scala.util.{ Failure, Success, Try }
 class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext)
             (implicit ec: ExecutionContext) extends Actor with Logging {
 
+  type HR = HistoryReader[Block, BifrostSyncInfo]
   type CV = CurrentView[History, State, Wallet, MemPool]
 
   // Import the types of messages this actor RECEIVES
@@ -95,7 +97,7 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, appContext: App
    */
   def actOnCurrentView(view: CV): CV = view
 
-  private def tryForging(h: History, s: State, w: Wallet, m: MemPool): Unit = {
+  private def tryForging(h: HR, s: State, w: Wallet, m: MemPool): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
     log.info("chain difficulty: " + h.difficulty)
 

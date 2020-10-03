@@ -32,9 +32,7 @@ trait GenericHistory[
 
   import GenericHistory._
 
-  /**
-    * Is there's no history, even genesis block
-    */
+  /** Is there's no history, even genesis block */
   def isEmpty: Boolean
 
   /**
