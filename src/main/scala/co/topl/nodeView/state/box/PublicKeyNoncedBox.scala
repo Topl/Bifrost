@@ -1,7 +1,7 @@
-package co.topl.nodeView.box
+package co.topl.nodeView.state.box
 
 import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 
 trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PKP, Long] {

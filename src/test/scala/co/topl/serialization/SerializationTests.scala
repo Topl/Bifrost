@@ -2,9 +2,9 @@ package co.topl.serialization
 
 import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.{ MofNProposition, MofNPropositionSerializer }
-import co.topl.nodeView.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, MofNPropositionSerializer }
+import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }

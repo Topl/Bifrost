@@ -1,7 +1,7 @@
-package co.topl.nodeView.box
+package co.topl.nodeView.state.box
 
 import co.topl.crypto.Proof
-import co.topl.nodeView.box.proposition.Proposition
+import co.topl.nodeView.state.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 trait BoxUnlocker[+P <: Proposition] {

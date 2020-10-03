@@ -6,9 +6,9 @@ import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.serialization.BoxSerializer
 import com.google.common.primitives.Ints
 import scorex.crypto.signatures.Curve25519
 

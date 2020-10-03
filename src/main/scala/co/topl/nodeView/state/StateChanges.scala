@@ -2,8 +2,8 @@ package co.topl.nodeView.state
 
 import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.block.Block
-import co.topl.nodeView.box.proposition.ProofOfKnowledgeProposition
-import co.topl.nodeView.box.{ Box, PolyBox }
+import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
+import co.topl.nodeView.state.box.{ Box, PolyBox }
 import com.google.common.primitives.Longs
 
 import scala.util.Try

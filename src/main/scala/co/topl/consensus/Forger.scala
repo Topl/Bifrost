@@ -5,8 +5,8 @@ import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ CoinbaseTransaction, Transaction }
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.box.ArbitBox
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.ArbitBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State

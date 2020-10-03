@@ -2,8 +2,8 @@ package co.topl.modifier.transaction
 
 import co.topl.crypto.{ PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ ArbitBox, AssetBox, Box, PolyBox, TokenBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, AssetBox, Box, PolyBox, TokenBox }
 import co.topl.nodeView.state.{ StateReader, TokenBoxRegistry }
 import co.topl.wallet.Wallet
 import com.google.common.primitives.Longs

@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.transaction.ProgramCreation
-import co.topl.nodeView.box.{ Box, PolyBox }
+import co.topl.nodeView.state.box.{ Box, PolyBox }
 import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers

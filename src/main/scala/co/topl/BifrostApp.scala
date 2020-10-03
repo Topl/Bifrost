@@ -17,8 +17,8 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network._
 import co.topl.network.message._
-import co.topl.nodeView.box.Box
-import co.topl.nodeView.box.proposition.ProofOfKnowledgeProposition
+import co.topl.nodeView.state.box.Box
+import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.{ NodeViewHolder, NodeViewHolderRef }
@@ -32,8 +32,8 @@ import co.topl.network.NetworkController.ReceivableMessages.{ BecomeOperational,
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
 import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.box.Box
-import co.topl.nodeView.box.proposition.ProofOfKnowledgeProposition
+import co.topl.nodeView.state.box.Box
+import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.settings.{ AppSettings, StartupOpts }

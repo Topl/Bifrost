@@ -1,6 +1,6 @@
-package co.topl.nodeView.box
+package co.topl.nodeView.state.box
 
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58

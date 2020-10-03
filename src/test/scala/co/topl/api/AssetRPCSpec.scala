@@ -15,8 +15,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ AssetCreation, Transaction }
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ ArbitBox, AssetBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
 import co.topl.modifier.transaction.AssetCreation
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }

@@ -1,6 +1,6 @@
-package co.topl.nodeView.box.serialization
+package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.box._
+import co.topl.nodeView.state.box._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object BoxSerializer extends BifrostSerializer[Box] {

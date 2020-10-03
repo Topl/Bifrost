@@ -9,8 +9,8 @@ import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer, Transaction }
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.network.message.BifrostSyncInfo
@@ -25,7 +25,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{ Random, Try }
 import co.topl.utils.Logging
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 
 /**
   * Created by cykoz on 4/12/17.

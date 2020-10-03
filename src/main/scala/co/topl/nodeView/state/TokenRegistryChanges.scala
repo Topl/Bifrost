@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ AssetCreation, CoinbaseTransaction, TransferTransaction }
-import co.topl.nodeView.box.{ PublicKeyNoncedBox, TokenBox }
+import co.topl.nodeView.state.box.{ BoxId, PublicKeyNoncedBox, TokenBox }
 
 import scala.util.Try
 

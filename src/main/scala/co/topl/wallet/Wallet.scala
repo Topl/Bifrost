@@ -7,9 +7,9 @@ import co.topl.crypto.{ FastCryptographicHash, KeyFile, PrivateKey25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
-import co.topl.nodeView.box.serialization.BoxSerializer
-import co.topl.nodeView.box.{ ArbitBox, AssetBox, Box, PolyBox }
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box.{ ArbitBox, AssetBox, Box, PolyBox }
 import co.topl.nodeView.state.StateChanges
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging

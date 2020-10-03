@@ -6,8 +6,8 @@ import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.AssetCreation
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Ints
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.signatures.Curve25519

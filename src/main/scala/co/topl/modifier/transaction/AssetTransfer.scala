@@ -6,8 +6,8 @@ import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction.serialization.AssetTransferSerializer
-import co.topl.nodeView.box.AssetBox
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.AssetBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.{ State, TokenBoxRegistry }
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
