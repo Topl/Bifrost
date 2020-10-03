@@ -562,7 +562,7 @@ class History ( val storage: Storage,
 
 object History extends Logging {
 
-  val GenesisParentId: Array[Byte] = Array.fill(32)(1: Byte)
+  val GenesisParentId: Block.BlockId = ModifierId(Array.fill(32)(1: Byte))
 
   def readOrGenerate(settings: AppSettings): History = {
     val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")

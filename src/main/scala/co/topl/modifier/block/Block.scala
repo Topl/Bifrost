@@ -13,7 +13,6 @@ import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{ Encoder, Json }
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
@@ -46,18 +45,20 @@ case class Block ( parentId: BlockId,
 
   type M = Block
 
+  lazy val id: BlockId = ModifierId(serializedId)
+
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
   lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
-  lazy val id: BlockId = ModifierId(serializedId)
-
-  lazy val serializedId: Array[Byte] = {
-    val blockWithoutSig = this.copy(signature = Signature25519(Array.empty))
-    FastCryptographicHash(serializer.toBytes(blockWithoutSig))
+  lazy val messageToSign: Array[Byte] = {
+    val noSigCopy = this.copy(signature = Signature25519(Array.empty))
+    serializer.toBytes(noSigCopy)
   }
+
+  lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
 
   lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
@@ -80,12 +81,10 @@ object Block {
   type BlockId = ModifierId
   type Timestamp = Long
   type Version = Byte
-  type GenerationSignature = Array[Byte]
-  type BaseTarget = Long
 
   val blockIdLength: Int = NodeViewModifier.ModifierIdSize
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
-  val signatureLength: Int = Curve25519.SignatureLength25519
+  val signatureLength: Int = Signature25519.SignatureSize
 
   def create ( parentId  : BlockId,
                timestamp : Timestamp,
@@ -96,20 +95,18 @@ object Block {
                version   : Version
              ): Block = {
 
-    assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
+    assert(box.proposition == privateKey.publicImage)
 
     // generate block message (block with empty signature) to be signed
-    val blockMessage = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
+    val block = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
 
     // generate signature from the block message and private key
-    val signature = if ( parentId.hashBytes sameElements History.GenesisParentId ) {
-      Array.fill(signatureLength)(1: Byte) // genesis block will skip signature check
-    } else {
-      Curve25519.sign(privateKey.privKeyBytes, blockMessage.bytes)
-    }
+    val signature =
+      if (parentId == History.GenesisParentId) Signature25519(Array.empty) // genesis block will skip signature check
+      else privateKey.sign(block.messageToSign)
 
     // return a valid block with the signature attached
-    blockMessage.copy(signature = Signature25519(signature))
+    block.copy(signature = signature)
   }
 
   def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {

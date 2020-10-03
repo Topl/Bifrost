@@ -8,7 +8,6 @@ import com.google.common.primitives.{ Ints, Longs }
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
 
 import scala.util.Try
 
@@ -114,11 +113,8 @@ object ProgramTransaction {
                    rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
     val owner = Transaction.stringToPubKey(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
-      if (value == "") {
-        (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
-      } else {
-        (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
-      }
+      if (value == "") (Transaction.stringToPubKey(key), Signature25519(Array.empty))
+      else (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
     }
     val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
     val fees = rawFees.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
