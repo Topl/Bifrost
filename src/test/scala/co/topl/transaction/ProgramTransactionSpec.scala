@@ -81,7 +81,7 @@ class ProgramTransactionSpec extends AnyPropSpec
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
       data.getBytes)
 
-    val signatures = Map(sender -> PrivateKey25519.sign(keyPair._1, messageToSign))
+    val signatures = Map(sender -> keyPair._1.sign(messageToSign))
 
 
     val stateTwo =
@@ -176,7 +176,7 @@ class ProgramTransactionSpec extends AnyPropSpec
     val messageToSign = Bytes.concat(
       FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
         data.getBytes)
-    val signature = PrivateKey25519.sign(priv, messageToSign)
+    val signature = priv.sign(messageToSign)
 
     ProgramMethodExecution(
       executionBox,

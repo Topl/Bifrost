@@ -36,7 +36,7 @@ trait TransferUtil {
     }
 
     val msg = undersigned.messageToSign
-    val sigs = from.map { case (priv, _) => (priv.publicImage, PrivateKey25519.sign(priv, msg)) }.toMap
+    val sigs = from.map { case (priv, _) => (priv.publicImage, priv.sign(msg)) }.toMap
     (fromPub, sigs)
   }
 

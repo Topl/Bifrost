@@ -92,7 +92,7 @@ object ProgramTransfer {
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
 
-    val signature = PrivateKey25519.sign(selectedSecret, messageToSign)
+    val signature = selectedSecret.sign(messageToSign)
 
     ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
   }

@@ -191,7 +191,7 @@ class AssetRPCSpec extends AnyWordSpec
       val secret = view().vault.secretByPublicImage(
         PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
       val tempTx = tx.as[AssetCreation].right.get
-      val sig = PrivateKey25519.sign(secret, tempTx.messageToSign)
+      val sig = secret.sign(tempTx.messageToSign)
       val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
 
       val requestBody = ByteString(

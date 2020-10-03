@@ -97,7 +97,7 @@ object CodeCreation {
     val timestamp = Instant.now.toEpochMilli
     val unsignedTx = CodeCreation(to, fakeSig, code, fee, timestamp, data)
 
-    val signature = PrivateKey25519.sign(selectedSecret, unsignedTx.messageToSign)
+    val signature = selectedSecret.sign(unsignedTx.messageToSign)
 
     unsignedTx.copy(signature = signature)
   }

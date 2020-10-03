@@ -113,7 +113,7 @@ object AssetCreation {
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
 
-    val signatures = Map(issuer -> PrivateKey25519.sign(selectedSecret, messageToSign))
+    val signatures = Map(issuer -> selectedSecret.sign(messageToSign))
 
     AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
   }

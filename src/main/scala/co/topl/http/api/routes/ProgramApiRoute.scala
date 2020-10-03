@@ -50,7 +50,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
       val state = view.state
       val tx = createProgramInstance(params, state)
-      val signature = PrivateKey25519.sign(selectedSecret, tx.messageToSign)
+      val signature = selectedSecret.sign(tx.messageToSign)
       Map("signature" -> Base58.encode(signature.signature).asJson,
         "tx" -> tx.json.asJson).asJson
     }
@@ -141,7 +141,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
         case Right(p: ProgramMethodExecution) => p
         case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
-      val realSignature = PrivateKey25519.sign(selectedSecret, tempTx.messageToSign)
+      val realSignature = selectedSecret.sign(tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
 
       ProgramMethodExecution.semanticValidate(tx, view.state) match {

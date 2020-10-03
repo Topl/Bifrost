@@ -20,7 +20,7 @@ class MultiSignature25519Spec extends AnyPropSpec
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
         val message = nonEmptyBytesGen.sample.get
-        val signatures = s.map(keyPair => PrivateKey25519.sign(keyPair._1, message))
+        val signatures = s.map(_._1.sign(message))
         val oneOfNProposition = MofNProposition(1, s.map(keyPair => keyPair._2.pubKeyBytes))
 
         require(signatures.map(s => MultiSignature25519(Set(s))).forall(ms => ms.isValid(oneOfNProposition, message)))
@@ -33,7 +33,7 @@ class MultiSignature25519Spec extends AnyPropSpec
     forAll(keyPairSetGen) {
       s: Set[(PrivateKey25519, PublicKey25519Proposition)] =>
         val message = nonEmptyBytesGen.sample.get
-        val signatures = s.map(keyPair => PrivateKey25519.sign(keyPair._1, message))
+        val signatures = s.map(_._1.sign(message))
 
         val oneOfNProposition = MofNProposition(2, s.map(keyPair => keyPair._2.pubKeyBytes))
 

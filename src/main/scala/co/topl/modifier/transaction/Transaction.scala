@@ -35,7 +35,7 @@ object Transaction {
   def signTx ( w: Wallet, props: IndexedSeq[PublicKey25519Proposition], message: Array[Byte] ):
   Map[PublicKey25519Proposition, Signature25519] = props.map { prop =>
     val secret = w.secretByPublicImage(prop).get
-    val signature = PrivateKey25519.sign(secret, message)
+    val signature = secret.sign(message)
     prop -> signature
   }.toMap
 }

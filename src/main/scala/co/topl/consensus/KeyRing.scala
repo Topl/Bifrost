@@ -19,12 +19,12 @@ class KeyRing (private var secrets: Set[PrivateKey25519],
   type S = PrivateKey25519
   type PI = ProofOfKnowledgeProposition[S]
 
-  def getKeys[A] (f: KeyFile => A): List[A] =
+  private def getKeys[A] (f: KeyFile => A): List[A] =
     getListOfFiles(defaultKeyDir)
       .map(file => f(KeyFile.readFile(file.getPath)))
 
   /**
-    * Retrieves the public keys.
+    * Retrieves the public keys of the keys available in your keyfile directory
     *
     * @return - the public keys as ProofOfKnowledgePropositions
     */

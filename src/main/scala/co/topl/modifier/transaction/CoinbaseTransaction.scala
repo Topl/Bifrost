@@ -92,7 +92,7 @@ object CoinbaseTransaction {
     val fakeSigs = IndexedSeq(Signature25519(Array())) // create an index sequence of empty sigs
     val timestamp = Instant.now.toEpochMilli // generate timestamp
     val messageToSign = CoinbaseTransaction(to, fakeSigs, timestamp, blockID).messageToSign // using your fake sigs generate a CB tx and get its msg to sign
-    val signatures = IndexedSeq(PrivateKey25519.sign(selectedSecret, messageToSign)) // sign the msg you just generated
+    val signatures = IndexedSeq(selectedSecret.sign(messageToSign)) // sign the msg you just generated
     CoinbaseTransaction(to, signatures, timestamp, blockID) // use the sigs you just generated to make the real CB tx
   }
 

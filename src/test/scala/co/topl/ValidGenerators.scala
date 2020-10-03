@@ -89,7 +89,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val falseSig = Map(sender -> Signature25519(Array()))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
-      val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, pc.messageToSign))
+      val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
 
       pc.copy(signatures = signature)
     } match {
@@ -185,7 +185,7 @@ trait ValidGenerators extends BifrostGenerators {
     )
 
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
-    val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, messageToSign))
+    val signature = Map(sender -> senderKeyPair._1.sign(messageToSign))
 
     ProgramMethodExecution(
       executionBox,
@@ -248,7 +248,7 @@ trait ValidGenerators extends BifrostGenerators {
       timestamp,
       id.hashBytes).messageToSign
     // sign with own key because coinbase is literally giving yourself money
-    val signatures = IndexedSeq(PrivateKey25519.sign(toKeyPairs._1, messageToSign))
+    val signatures = IndexedSeq(toKeyPairs._1.sign(messageToSign))
     CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
   }
 
@@ -284,7 +284,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
 
-    val signatures = Map(oneHub._2 -> PrivateKey25519.sign(oneHub._1, messageToSign))
+    val signatures = Map(oneHub._2 -> oneHub._1.sign(messageToSign))
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
