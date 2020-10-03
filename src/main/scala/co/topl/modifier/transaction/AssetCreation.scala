@@ -170,24 +170,15 @@ object AssetCreation {
       data <- c.downField("data").as[String]
     } yield {
       val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
+
       val signatures = rawSignatures.map { case (key, value) =>
-        if ( value == "" ) {
-          (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
-        } else {
-          (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
-        }
+        if ( value == "" ) (Transaction.stringToPubKey(key), Signature25519(Array.fill(Curve25519.SignatureLength)(1.toByte)))
+        else (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
       }
+
       val issuer = Transaction.stringToPubKey(rawIssuer)
 
-      AssetCreation(
-        to,
-        signatures,
-        assetCode,
-        issuer,
-        fee,
-        timestamp,
-        data
-        )
+      AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
     }
 
 

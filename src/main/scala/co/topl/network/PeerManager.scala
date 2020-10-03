@@ -53,6 +53,8 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
       // We have connected to a peer and got his peerInfo from him
       if (!isSelf(peerInfo.peerSpec)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
 
+    case PeerSeen(peerInfo) => peerDatabase.peerSeen(peerInfo)
+
     case Penalize(peer, penaltyType) =>
       log.info(s"$peer penalized, penalty: $penaltyType")
       if (peerDatabase.penalize(peer, penaltyType)) {
@@ -112,6 +114,8 @@ object PeerManager {
 
     // peerListOperations messages
     case class AddOrUpdatePeer(data: PeerInfo)
+
+    case class PeerSeen(peerInfo: PeerInfo)
 
     case class AddPeerIfEmpty(data: PeerSpec)
 

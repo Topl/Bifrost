@@ -102,6 +102,7 @@ class NetworkController ( settings      : NetworkSettings,
     case BecomeOperational =>
       log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
       scheduleConnectionToPeer()
+      dropDeadConnections()
       context become operational
   }
 
@@ -115,11 +116,16 @@ class NetworkController ( settings      : NetworkSettings,
 
   private def businessLogic: Receive = {
     // a message was RECEIVED from a remote peer
-    case msg@Message(spec, _, Some(remote)) =>
+    case msg @ Message(spec, _, Some(remote)) =>
+      // send message to handler for processing
       messageHandlers.get(spec.messageCode) match {
         case Some(handler) => handler ! msg // forward the message to the appropriate handler for processing
         case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
       }
+
+      // update last seen time for the peer sending us this message
+      remote.peerInfo.foreach(pi => peerManagerRef ! PeerSeen(pi))
+
 
     // a message to be SENT to a remote peer
     case SendToNetwork(msg: Message[_], sendingStrategy) =>
@@ -197,10 +203,8 @@ class NetworkController ( settings      : NetworkSettings,
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  /**
-   * Schedule a periodic connection to a random known peer
-   */
-  private def scheduleConnectionToPeer ( ): Unit = {
+  /** Schedule a periodic connection to a random known peer */
+  private def scheduleConnectionToPeer (): Unit = {
     context.system.scheduler.schedule(5.seconds, 5.seconds) {
 
       // only attempt connections if we are connected or attempting to connect to less than max connection
@@ -213,6 +217,19 @@ class NetworkController ( settings      : NetworkSettings,
         randomPeerF.mapTo[Option[PeerInfo]].foreach { peerInfoOpt =>
           peerInfoOpt.foreach(peerInfo => self ! ConnectTo(peerInfo))
         }
+      }
+    }
+  }
+
+  /** Schedule a task to drop inactive connections */
+  private def dropDeadConnections(): Unit = {
+    context.system.scheduler.schedule(5.seconds, 15.seconds) {
+      connections.values.filter { cp =>
+        val now = appContext.timeProvider.time()
+        val lastSeen = cp.peerInfo.map(_.lastSeen).getOrElse(now)
+        (now - lastSeen) > 60 * 1000 * 15 // 15 minute timeout
+      }.foreach { cp =>
+        cp.handlerRef ! CloseConnection
       }
     }
   }
