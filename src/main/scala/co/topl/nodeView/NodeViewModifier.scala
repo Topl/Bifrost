@@ -67,8 +67,7 @@ trait PersistentNodeViewModifier extends NodeViewModifier {
   def parentId: ModifierId
 }
 
-trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction]
-  extends PersistentNodeViewModifier {
+trait TransactionsCarryingPersistentNodeViewModifier[TX <: Transaction] extends PersistentNodeViewModifier {
 
   def transactions: Seq[TX]
 }

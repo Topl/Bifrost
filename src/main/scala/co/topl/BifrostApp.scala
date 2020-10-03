@@ -9,34 +9,19 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import co.topl.consensus.ForgerRef
-import co.topl.crypto.PrivateKey25519
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network._
-import co.topl.network.message._
-import co.topl.nodeView.box.Box
-import co.topl.nodeView.box.proposition.ProofOfKnowledgeProposition
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.{ NodeViewHolder, NodeViewHolderRef }
-import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
-import co.topl.utils.Logging
-import co.topl.crypto.PrivateKey25519
-import co.topl.http.api.ApiRoute
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.{ BecomeOperational, BindP2P }
+import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
-import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.box.Box
-import co.topl.nodeView.box.proposition.ProofOfKnowledgeProposition
+import co.topl.nodeView.NodeViewHolderRef
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{ AppSettings, StartupOpts }
+import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
 import co.topl.utils.Logging
 import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
 import com.typesafe.config.{ Config, ConfigFactory }
@@ -48,13 +33,11 @@ import scala.util.{ Failure, Success }
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
-  // todo: JAA - 2020.08.27 - We aren't using these anywhere currently. We could use an dependency injection pattern
-  // todo:       and try to have this be where we define concrete type for the application, or we could remove.
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = Box
+  type BSI = BifrostSyncInfo
   type TX = Transaction
   type PMOD = Block
-  type NVHT = NodeViewHolder
+  type HIS = History
+  type MP = MemPool
 
   // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
@@ -78,17 +61,17 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = network.PeerManagerRef("peerManager", settings.network, appContext)
+  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
 
   private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
 
-  private val peerSynchronizer: ActorRef = network.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
 
-  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, Block, History, MemPool](
+  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
 
   // Sequence of actors for cleanly shutting now the application
@@ -159,7 +142,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       case Success(bindResponse: Future[Any]) =>
         bindResponse.onComplete({
           case Success(Tcp.Bound(addr)) =>
-            log.info(s"${Console.YELLOW}P2P protocol bound to ${addr}${Console.RESET}")
+            log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
             networkControllerRef ! BecomeOperational
 
           case Success(_) | Failure(_) => failedP2P()

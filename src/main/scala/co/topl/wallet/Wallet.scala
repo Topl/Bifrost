@@ -32,7 +32,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   private val BoxIdsKey: ByteArrayWrapper = ByteArrayWrapper(Array.fill(store.keySize)(1: Byte))
 
-  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
+//  private lazy val walletBoxSerializer = new WalletBoxSerializer[Any, PI, Box](BoxSerializer)
 
   def boxIds: Seq[Array[Byte]] = store
     .get(BoxIdsKey)
@@ -44,49 +44,49 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   // Removed filtering of 0 value boxes since they should no longer be created based on changes to newBoxes for each
   // transaction
-  def boxes(): Seq[WalletBox[Any, PI, Box]] = {
-    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
-    boxIds
-      .flatMap(id => store.get(ByteArrayWrapper(id)))
-      .map(_.data)
-      .map(ba => walletBoxSerializer.parseBytes(ba))
-      .filter {
-        case s: Success[WalletBox[Any, PI, Box]] => true
-//          s.value.box match {
-//          case pb: PolyBox => pb.value > 0
-//          case cb: ContractBox => true
-//          case ab: ArbitBox => ab.value > 0
-//          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
-//          case assetB: AssetBox => assetB.amount > 0
+//  def boxes(): Seq[WalletBox[Any, PI, Box]] = {
+//    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+//    boxIds
+//      .flatMap(id => store.get(ByteArrayWrapper(id)))
+//      .map(_.data)
+//      .map(ba => walletBoxSerializer.parseBytes(ba))
+//      .filter {
+//        case s: Success[WalletBox[Any, PI, Box]] => true
+////          s.value.box match {
+////          case pb: PolyBox => pb.value > 0
+////          case cb: ContractBox => true
+////          case ab: ArbitBox => ab.value > 0
+////          case profB: ProfileBox => ProfileBox.acceptableKeys.contains(profB.key)
+////          case assetB: AssetBox => assetB.amount > 0
+////        }
+//        case _ => false
+//      }
+//      .map(_.get)
+//  }
+//
+//  //Only returns asset, arbit and poly boxes by public key
+//  def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, Box]] = {
+//    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
+//    boxIds
+//      .flatMap(id => store.get(ByteArrayWrapper(id)))
+//      .map(_.data)
+//      .map(ba => walletBoxSerializer.parseBytes(ba))
+//      .filter {
+//        case s: Success[WalletBox[Any, PI, Box]] => s.value.box match {
+//          case pb: PolyBox =>
+////            pb.value > 0 &&
+//            publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
+//          case ab: ArbitBox =>
+////            ab.value > 0 &&
+//              publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
+//          case assetB: AssetBox =>
+////            assetB.amount > 0 &&
+//              publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
 //        }
-        case _ => false
-      }
-      .map(_.get)
-  }
-
-  //Only returns asset, arbit and poly boxes by public key
-  def boxesByKey(publicKeyString: String): Seq[WalletBox[Any, PI, Box]] = {
-    //log.debug(s"${Console.GREEN}Accessing boxes: ${boxIds.toList.map(Base58.encode)}${Console.RESET}")
-    boxIds
-      .flatMap(id => store.get(ByteArrayWrapper(id)))
-      .map(_.data)
-      .map(ba => walletBoxSerializer.parseBytes(ba))
-      .filter {
-        case s: Success[WalletBox[Any, PI, Box]] => s.value.box match {
-          case pb: PolyBox =>
-//            pb.value > 0 &&
-            publicKeyString == Base58.encode(pb.proposition.pubKeyBytes)
-          case ab: ArbitBox =>
-//            ab.value > 0 &&
-              publicKeyString == Base58.encode(ab.proposition.pubKeyBytes)
-          case assetB: AssetBox =>
-//            assetB.amount > 0 &&
-              publicKeyString == Base58.encode(assetB.proposition.pubKeyBytes)
-        }
-        case _ => false
-      }
-      .map(_.get)
-  }
+//        case _ => false
+//      }
+//      .map(_.get)
+//  }
 
   def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
@@ -177,51 +177,51 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
   }
 
   //we do not process offchain (e.g. by adding them to the wallet)
-  override def scanOffchain(tx: Transaction): Wallet = this
-
-  override def scanOffchain(txs: Seq[Transaction]): Wallet = this
-
-  override def scanPersistent(modifier: Block): Wallet = {
-    log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
-    val changes = StateChanges(modifier).get
-
-    val newBoxes = changes
-      .toAppend
-      .filter(s => inWallet(s.proposition))
-      .map { box =>
-        val boxTransaction = modifier
-          .transactions
-          .getOrElse(Seq())
-          .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
-
-        val txId = boxTransaction
-          .map(_.id)
-          .getOrElse(ModifierId(Array.fill(32)(0: Byte)))
-
-        val ts = boxTransaction
-          .map(_.timestamp)
-          .getOrElse(modifier.timestamp)
-
-        val wb = WalletBox[Any, PI, Box](box, txId, ts)(BoxSerializer)
-        ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
-      }
-
-    val boxIdsToRemove = (changes.boxIdsToRemove -- newBoxes.map(_._1.data)).map(ByteArrayWrapper.apply)
-    val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(
-      newBoxes
-        .filter(b => !boxIds.exists(b._1.data sameElements _))
-        .toArray
-        .flatMap(_._1.data) ++
-        boxIds.filter(bi => {
-          !boxIdsToRemove.exists(_.data sameElements bi)
-        }).flatten
-    )
-//    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
-
-    store.update(ByteArrayWrapper(modifier.id.hashBytes), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
-
-    Wallet(secrets, store, defaultKeyDir)
-  }
+//  override def scanOffchain(tx: Transaction): Wallet = this
+//
+//  override def scanOffchain(txs: Seq[Transaction]): Wallet = this
+//
+//  override def scanPersistent(modifier: Block): Wallet = {
+//    log.debug(s"Applying modifier to wallet: ${modifier.id.toString}")
+//    val changes = StateChanges(modifier).get
+//
+//    val newBoxes = changes
+//      .toAppend
+//      .filter(s => inWallet(s.proposition))
+//      .map { box =>
+//        val boxTransaction = modifier
+//          .transactions
+//          .getOrElse(Seq())
+//          .find(t => t.newBoxes.exists(tb => tb.id sameElements box.id))
+//
+//        val txId = boxTransaction
+//          .map(_.id)
+//          .getOrElse(ModifierId(Array.fill(32)(0: Byte)))
+//
+//        val ts = boxTransaction
+//          .map(_.timestamp)
+//          .getOrElse(modifier.timestamp)
+//
+//        val wb = WalletBox[Any, PI, Box](box, txId, ts)(BoxSerializer)
+//        ByteArrayWrapper(box.id) -> ByteArrayWrapper(wb.bytes)
+//      }
+//
+//    val boxIdsToRemove = (changes.boxIdsToRemove -- newBoxes.map(_._1.data)).map(ByteArrayWrapper.apply)
+//    val newBoxIds: ByteArrayWrapper = ByteArrayWrapper(
+//      newBoxes
+//        .filter(b => !boxIds.exists(b._1.data sameElements _))
+//        .toArray
+//        .flatMap(_._1.data) ++
+//        boxIds.filter(bi => {
+//          !boxIdsToRemove.exists(_.data sameElements bi)
+//        }).flatten
+//    )
+////    log.debug(s"${Console.RED} Number of boxes in wallet ${boxIds.length}${Console.RESET}")
+//
+//    store.update(ByteArrayWrapper(modifier.id.hashBytes), boxIdsToRemove, Seq(BoxIdsKey -> newBoxIds) ++ newBoxes)
+//
+//    Wallet(secrets, store, defaultKeyDir)
+//  }
 
   override def rollback(to: VersionTag): Try[Wallet] = Try {
     if (store.lastVersionID.exists(_.data sameElements to.hashBytes)) {
