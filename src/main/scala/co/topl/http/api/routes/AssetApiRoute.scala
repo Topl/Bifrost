@@ -24,7 +24,7 @@ import scala.util.{ Failure, Success }
 /** Class route for managing assets using JSON-RPC requests
   *
   * @param nodeViewHolderRef actor reference to inform of new transactions
-  * @param settings the
+  * @param settings the settings for HTTP REST API
   * @param context reference to the actor system used to create new actors for handling requests
   */
 case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
