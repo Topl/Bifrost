@@ -53,7 +53,6 @@ class NodeViewHolder ( override val settings: AppSettings, appContext: AppContex
       Some((
              History.readOrGenerate(settings),
              State.readOrGenerate(settings),
-             Wallet.readOrGenerate(settings, 1),
              MemPool.emptyPool
            ))
     } else None

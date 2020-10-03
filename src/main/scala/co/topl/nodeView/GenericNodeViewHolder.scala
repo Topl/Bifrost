@@ -103,7 +103,7 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
 
   protected def getCurrentInfo: Receive = {
     case GetDataFromCurrentView(f) =>
-      sender() ! f(CurrentView(history(), minimalState(), vault(), memoryPool()))
+      sender() ! f(CurrentView(history(), minimalState(), memoryPool()))
   }
 
   protected def getNodeViewChanges: Receive = {
@@ -441,7 +441,8 @@ object GenericNodeViewHolder {
     // Explicit request of NodeViewChange events of certain types.
     case class GetNodeViewChanges(history: Boolean, state: Boolean, vault: Boolean, mempool: Boolean)
 
-    case class GetDataFromCurrentView[HIS, MS, VL, MP, A](f: CurrentView[HIS, MS, VL, MP] => A)
+    // Retrieve data from current view with an optional callback function to modify the view
+    case class GetDataFromCurrentView[HIS, MS, MP, A](f: CurrentView[HIS, MS, MP] => A = _)
 
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])

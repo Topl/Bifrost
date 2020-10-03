@@ -234,7 +234,7 @@ trait ValidGenerators extends BifrostGenerators {
     ArbitTransfer(from, to, fee, timestamp, data)
   }
 
-  lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
+  lazy val validCoinbaseTransactionGen: Gen[Coinbase] = for {
     _ <- toSeqGen
     timestamp <- positiveLongGen
     id <- modifierIdGen

@@ -13,7 +13,6 @@ abstract class BoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] exten
 
   override lazy val messageToSign: Array[Byte] =
     newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
-      //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
 }

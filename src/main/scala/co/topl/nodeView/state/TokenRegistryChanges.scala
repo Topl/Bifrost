@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ AssetCreation, CoinbaseTransaction, TransferTransaction }
+import co.topl.modifier.transaction.{ AssetCreation, Coinbase, TransferTransaction }
 import co.topl.nodeView.box.{ PublicKeyNoncedBox, TokenBox }
 
 import scala.util.Try
@@ -23,9 +23,9 @@ object TokenRegistryChanges {
           case Some(txSeq) =>
             txSeq.map({
               case tx: TransferTransaction => (tx.from, tx.newBoxes.toSeq)
-              case tx: AssetCreation       => (Seq(), tx.newBoxes.toSeq)
-              case tx: CoinbaseTransaction => (Seq(), tx.newBoxes.toSeq)
-              case _                       => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+              case tx: AssetCreation => (Seq(), tx.newBoxes.toSeq)
+              case tx: Coinbase      => (Seq(), tx.newBoxes.toSeq)
+              case _                 => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
             }).foldLeft((Seq[(K, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })

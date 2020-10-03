@@ -2,16 +2,15 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ CoinbaseTransaction, Transaction }
+import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.box.ArbitBox
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.{ AppContext, ForgingSettings }
 import co.topl.utils.Logging
-import co.topl.wallet.Wallet
+import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success, Try }
@@ -24,26 +23,29 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
-  type CV = CurrentView[History, State, Wallet, MemPool]
 
   // Import the types of messages this actor RECEIVES
-
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
   import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 
+  // holder of private keys that are used to forge
   private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
 
-  val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
+  // a timestamp updated on each forging attempt
+ private var forgeTime: Time = appContext.timeProvider.time()
+
+  // setting to limit the size of blocks
+  val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
 
   override def preStart ( ): Unit = {
     targetBlockTime = settings.targetBlockTime
 
     if ( settings.tryForging ) {
-      context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(self ! StartForging)
       context become readyToForge
+      self ! StartForging
     }
   }
 
@@ -51,21 +53,16 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
-  override def receive: Receive = {
-    case StartForging =>
-      log.info(s"Forger: Received a START signal while forging disabled")
-
-    case _ => nonsense
-  }
+  override def receive: Receive = nonsense
 
   private def readyToForge: Receive = {
     case StartForging =>
-      log.info("No Better Neighbor. Forger starts forging now.")
-      viewHolderRef ! GetDataFromCurrentView(actOnCurrentView)
+      log.info("Received a START signal, forging will commence shortly.")
+      scheduleForgingAttempt() // schedule the next forging attempt
       context become activeForging
 
     case StopForging =>
-      log.warn(s"Forger: Received a STOP signal while not forging. Signal ignored")
+      log.warn(s"Received a STOP signal while not forging. Signal ignored")
 
     case _ => nonsense
   }
@@ -76,10 +73,12 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     case StopForging =>
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
-      context become readyToForge
+      context become receive
 
-    case CurrentView(h: History, s: State, w: Wallet, m: MemPool) =>
-      tryForging(h, s, w, m)
+    case CurrentView(h: History, s: State, m: MemPool) =>
+      updateForgeTime() // update the forge timestamp
+      tryForging(h, s, m) // initiate forging attempt
+      scheduleForgingAttempt() // schedule the next forging attempt
 
     case _ => nonsense
   }
@@ -91,82 +90,138 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  /** Schedule a forging attempt */
+  private def scheduleForgingAttempt ( ): Unit =
+    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView())
+
+  /** Updates the forging actors timestamp */
+  private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
+
   /**
-   * wrapper function to encapsulate the returned CurrentView
+   * Primary method for attempting to forge a new block and publish it to the network
    *
-   * @param view the view returned from NodeViewHolder
-   * @return
+   * @param history history instance for gathering chain parameters
+   * @param state   state instance for semantic validity tests of transactions
+   * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  def actOnCurrentView ( view: CV ): CV = view
+  private def tryForging ( history: History, state: State, memPool: MemPool ): Unit = {
+    log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
+    log.info("chain difficulty: " + history.difficulty)
 
-  private def tryForging ( h: History, s: State, w: Wallet, m: MemPool ): Unit = {
-    log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${h.height}${Console.RESET}")
-    log.info("chain difficulty: " + h.difficulty)
+    // get the set of boxes to use for testing
+    val boxes = getArbitBoxes(state)
 
-    val boxes: Set[ArbitBox] =
-      keyRing.publicKeys.flatMap { pk =>
-        s.getTokenBoxes(pk).getOrElse(Seq()).collect {
-          case box: ArbitBox => box
-        }
-      }
-
-    log.debug(s"Trying to generate block on top of ${h.bestBlock.id} with balance " +
+    log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
                 s"${boxes.map(_.value).sum}")
 
+    // create the coinbase reward transaction
+    val coinbase = createCoinbase(history.bestBlock.id) match {
+      case Success(cb) => cb
+      case Failure(ex) => throw ex
+    }
+
     // pick the transactions from the mempool for inclusion in the block (if successful)
-    val transactions = pickTransactions(m, s, w, h.bestBlock).get
+    val transactions = pickTransactions(memPool, state) match {
+      case Success(txs) => txs
+      case Failure(ex)  => throw ex
+    }
 
     // check forging eligibility
-    leaderElection(h.bestBlock, h.difficulty, boxes, transactions, settings.version) match {
+    leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
       case Some(block) =>
         log.debug(s"Locally generated block: $block")
         viewHolderRef ! LocallyGeneratedModifier[Block](block)
-      case None        =>
-        log.debug(s"Failed to generate block")
+
+      case None => log.debug(s"Failed to generate block")
+    }
+  }
+
+  /**
+   * Get the set of Arbit boxes owned by all unlocked keys in the key ring
+   *
+   * @param state state instance used to lookup the balance for all unlocked keys
+   * @return a set of arbit boxes to use for testing leadership eligibility
+   */
+  private def getArbitBoxes ( state: State ): Set[ArbitBox] = {
+    val publicKeys = keyRing.publicKeys
+
+    if ( publicKeys.nonEmpty ) {
+      publicKeys.flatMap {
+        state.getTokenBoxes(_)
+          .getOrElse(Seq())
+          .collect { case box: ArbitBox => box }
+      }
+    } else {
+      throw new Error("Attempted to forge but no keyfiles are unlocked!")
+    }
+  }
+
+
+  /**
+   * Attempt to create an unsigned coinbase transaction that will distribute the block reward
+   * if forging is successful
+   *
+   * @param parentId block id of the current head of the chain
+   * @return an unsigned coinbase transaction
+   */
+  private def createCoinbase ( parentId: Block.BlockId ): Try[Coinbase] = Try {
+    //todo: JAA - we may want to reconsider how to specify the reward address
+    val rewardAddr = keyRing.publicKeys.headOption match {
+      case Some(pk) => pk
+      case _        => throw new Error("Attempted to forge but no keyfiles are unlocked!")
     }
 
-    // schedule the next forging attempt
-    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView(actOnCurrentView))
+    Coinbase.createRaw(rewardAddr, inflation, forgeTime, parentId)
   }
 
+  /**
+   * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
+   *
+   * @param memPool the set of pending transactions
+   * @param state   state to use for semantic validity checking
+   * @return a sequence of valid transactions
+   */
   private def pickTransactions ( memPool: MemPool,
-                                 state : State,
-                                 wallet: Wallet,
-                                 parent: Block
+                                 state  : State
                                ): Try[Seq[Transaction]] = Try {
 
-    lazy val to: PublicKey25519Proposition = PublicKey25519Proposition(wallet.secrets.head.publicImage.pubKeyBytes)
+    memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
+      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
-    val infVal = 0 //Await.result(infQ ? view._1.height, Duration.Inf).asInstanceOf[Long]
+      if ( validBoxes ) memPool.remove(tx)
 
-    // build the list of transactions to possibly be included in a block
-    CoinbaseTransaction.createAndApply(wallet, IndexedSeq((to, infVal)), parent.id.hashBytes).get +:
-      memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
-        val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-        val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
-
-        if ( validBoxes ) memPool.remove(tx)
-
-        state.validate(tx) match {
-          case Success(_) if txNotIncluded => txAcc :+ tx
-          case Success(_)                  => txAcc
-          case Failure(ex)                 =>
-            log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
-            txAcc
-        }
+      state.validate(tx) match {
+        case Success(_) if txNotIncluded => txAcc :+ tx
+        case Success(_)                  => txAcc
+        case Failure(ex)                 =>
+          log.debug(s"${Console.RED}Invalid Unconfirmed transaction $tx. Removing transaction${Console.RESET}. Failure: $ex")
+          txAcc
       }
+    }
   }
 
+  /**
+   * Performs the leader election procedure and returns a block if successful
+   *
+   * @param parent       block to forge on top of
+   * @param difficulty   base difficulty of the parent block
+   * @param boxes        set of Arbit boxes to attempt to forge with
+   * @param txsToInclude sequence of transactions for inclusion in the block body
+   * @param version      version tag for inclusion in the block
+   * @return a block if the leader election is successful (none if test failed)
+   */
   private def leaderElection ( parent: Block,
                                difficulty: Long,
                                boxes: Set[ArbitBox],
+                               coinbase: Coinbase,
                                txsToInclude: Seq[Transaction],
                                version: Block.Version
                              ): Option[Block] = {
 
-    val timestamp = appContext.timeProvider.time()
-    val target = calcAdjustedTarget(parent, difficulty, timestamp)
+    val target = calcAdjustedTarget(parent, difficulty, forgeTime)
 
+    // test procedure to determine eligibility
     val successfulHits = boxes.map { box =>
       (box, calcHit(parent)(box))
     }.filter { test =>
@@ -177,8 +232,14 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     successfulHits.headOption.flatMap { case (box, _) =>
       keyRing.secretByPublicImage(box.proposition) match {
-        case Some(sk) => Some(Block.create(parent.id, timestamp, txsToInclude, box, sk, version))
-        case _        =>
+        case Some(sk) =>
+          // use the secret key that owns the successful box to sign the coinbase transaction
+          val signedCb = coinbase.copy(signatures = Map(sk.publicImage -> sk.sign(coinbase.messageToSign)))
+
+          // add the signed coinbase transaction to the block and return
+          Some(Block.create(parent.id, forgeTime, signedCb +: txsToInclude, box, sk, version))
+
+        case _ =>
           log.warn(s"Could not find the secret for public image ${box.proposition}. Failed to forge block")
           None
       }

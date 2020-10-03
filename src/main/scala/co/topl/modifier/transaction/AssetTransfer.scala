@@ -10,7 +10,6 @@ import co.topl.nodeView.box.AssetBox
 import co.topl.nodeView.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.{ State, TokenBoxRegistry }
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.wallet.Wallet
 import com.google.common.primitives.{ Bytes, Ints }
 import io.circe.syntax._
 import io.circe.{ Decoder, HCursor, Json }
@@ -18,14 +17,15 @@ import scorex.crypto.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
 
-case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                         override val to: IndexedSeq[(PublicKey25519Proposition, Long)],
-                         override val signatures: Map[PublicKey25519Proposition, Signature25519],
-                         issuer: PublicKey25519Proposition,
-                         assetCode: String,
-                         override val fee: Long,
-                         override val timestamp: Long,
-                         override val data: String)
+case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
+                           override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
+                           override val signatures: Map[PublicKey25519Proposition, Signature25519],
+                           issuer                 : PublicKey25519Proposition,
+                           assetCode              : String,
+                           override val fee       : Long,
+                           override val timestamp : Long,
+                           override val data      : String
+                         )
   extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override type M = AssetTransfer
@@ -37,23 +37,23 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     super.commonMessageToSign,
     issuer.pubKeyBytes,
     assetCode.getBytes,
-  )
+    )
 
   override lazy val newBoxes: Traversable[AssetBox] = to
     .filter(toInstance => toInstance._2 > 0L)
     .zipWithIndex
     .map {
-    case ((prop, value), idx) =>
-      val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
-        "AssetTransfer".getBytes ++
-          prop.pubKeyBytes ++
-          issuer.pubKeyBytes ++
-          assetCode.getBytes ++
-          hashNoNonces ++
-          Ints.toByteArray(idx)
-      ))
-      AssetBox(prop, nonce, value, assetCode, issuer, data)
-  }
+      case ((prop, value), idx) =>
+        val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
+          "AssetTransfer".getBytes ++
+            prop.pubKeyBytes ++
+            issuer.pubKeyBytes ++
+            assetCode.getBytes ++
+            hashNoNonces ++
+            Ints.toByteArray(idx)
+          ))
+        AssetBox(prop, nonce, value, assetCode, issuer, data)
+    }
 
   override lazy val json: Json = Map(
     "txHash" -> id.toString.asJson,
@@ -61,20 +61,20 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
     "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
     "boxesToRemove" -> boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
     "from" -> from.map { s =>
-        Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
+      Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
     }.asJson,
     "to" -> to.map { s =>
-        Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
+      Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson
     }.asJson,
     "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
     "assetCode" -> assetCode.asJson,
     "signatures" -> signatures.map { s =>
-          Base58.encode(s._1.pubKeyBytes) -> Base58.encode(s._2.signature)
-      }.asJson,
+      Base58.encode(s._1.pubKeyBytes) -> Base58.encode(s._2.signature)
+    }.asJson,
     "fee" -> fee.asJson,
     "timestamp" -> timestamp.asJson,
     "data" -> data.asJson
-  ).asJson
+    ).asJson
 
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 
@@ -82,58 +82,60 @@ case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Propositio
 
 object AssetTransfer extends TransferUtil {
 
-  def apply(from: IndexedSeq[(PrivateKey25519, Nonce)],
-            to: IndexedSeq[(PublicKey25519Proposition, Value)],
-            issuer: PublicKey25519Proposition,
-            assetCode: String,
-            fee: Long,
-            timestamp: Long,
-            data: String): AssetTransfer = {
+  def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
+              to       : IndexedSeq[(PublicKey25519Proposition, Value)],
+              issuer   : PublicKey25519Proposition,
+              assetCode: String,
+              fee      : Long,
+              timestamp: Long,
+              data     : String
+            ): AssetTransfer = {
     val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", issuer, assetCode, data).get
     transaction.AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-  def create(tbr:TokenBoxRegistry,
-            stateReader: SR,
-             w: Wallet,
-             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-             sender: IndexedSeq[PublicKey25519Proposition],
-             fee: Long,
-             issuer: PublicKey25519Proposition,
-             assetCode: String,
-             data: String,
-             assetId: Option[String] = None): Try[AssetTransfer] = Try {
+  def create ( tbr        : TokenBoxRegistry,
+               stateReader: SR,
+               w          : Wallet,
+               toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
+               sender     : IndexedSeq[PublicKey25519Proposition],
+               fee        : Long,
+               issuer     : PublicKey25519Proposition,
+               assetCode  : String,
+               data       : String,
+               assetId    : Option[String] = None
+             ): Try[AssetTransfer] = Try {
 
     val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-  def createPrototype(tbr: TokenBoxRegistry,
-                     stateReader: SR,
-                      toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-                      sender: IndexedSeq[PublicKey25519Proposition],
-                      issuer: PublicKey25519Proposition,
-                      assetCode: String,
-                      fee: Long,
-                      data: String,
-                      assetId: Option[String] = None): Try[AssetTransfer] = Try
-  {
+  def createPrototype ( tbr        : TokenBoxRegistry,
+                        stateReader: SR,
+                        toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
+                        sender     : IndexedSeq[PublicKey25519Proposition],
+                        issuer     : PublicKey25519Proposition,
+                        assetCode  : String,
+                        fee        : Long,
+                        data       : String,
+                        assetId    : Option[String] = None
+                      ): Try[AssetTransfer] = Try {
     val params = parametersForCreate(tbr, stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }
 
-  def validatePrototype(tx: AssetTransfer): Try[Unit] = validateTransfer(tx, withSigs = false)
+  def validatePrototype ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
 
-  def syntacticValidate(tx: AssetTransfer): Try[Unit] = validateTransfer(tx)
+  def syntacticValidate ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx)
 
-  def semanticValidate(tx: AssetTransfer, state: SR): Try[Unit] = {
+  def semanticValidate ( tx: AssetTransfer, state: SR ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {
       case Failure(e) => throw e
-      case _ => // continue processing
+      case _          => // continue processing
     }
 
     // compute transaction values used for validation
@@ -141,53 +143,53 @@ object AssetTransfer extends TransferUtil {
     val unlockers = State.generateUnlockers(tx.from, tx.signatures)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
-    unlockers.foldLeft[Try[Long]](Success(0L))((trySum, unlocker) => {
+    unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {
       trySum.flatMap(partialSum =>
-        state.getBox(unlocker.closedBoxId) match {
-          case Some(box: AssetBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
-            Success(partialSum + box.value)
-          case Some(_) => Failure(new Exception("Invalid unlocker"))
-          case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-          case _       => Failure(new Exception("Invalid Box type for this transaction"))
-        }
-      )
+                       state.getBox(unlocker.closedBoxId) match {
+                         case Some(box: AssetBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) =>
+                           Success(partialSum + box.value)
+                         case Some(_)                                                                           => Failure(new Exception("Invalid unlocker"))
+                         case None                                                                              => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+                         case _                                                                                 => Failure(new Exception("Invalid Box type for this transaction"))
+                       }
+                     )
     }) match {
       case Success(sum: Long) if txOutput == sum - tx.fee => Success(Unit)
-      case Success(sum: Long) => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
-      case Failure(e)         => throw e
+      case Success(sum: Long)                             => Failure(new Exception(s"Tx output value not equal to input value. $txOutput != ${sum - tx.fee}"))
+      case Failure(e)                                     => throw e
     }
   }
 
-  implicit val decodeAssetTransfer: Decoder[AssetTransfer] = (c: HCursor) => for {
+  implicit val decodeAssetTransfer: Decoder[AssetTransfer] = ( c: HCursor ) => for {
     rawFrom <- c.downField("from").as[IndexedSeq[(String, String)]]
     rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
     rawIssuer <- c.downField("issuer").as[String]
     assetCode <- c.downField("assetCode").as[String]
     fee <- c.downField("fee").as[Long]
-    timestamp<- c.downField("timestamp").as[Long]
+    timestamp <- c.downField("timestamp").as[Long]
     data <- c.downField("data").as[String]
   } yield {
     val from = rawFrom.map { case (prop, nonce) =>
-        Transaction.stringToPubKey(prop) -> nonce.toLong
+      Transaction.stringToPubKey(prop) -> nonce.toLong
     }
     val to = rawTo.map { case (prop, value) =>
-        Transaction.stringToPubKey(prop) -> value.toLong
+      Transaction.stringToPubKey(prop) -> value.toLong
     }
     val signatures = rawSignatures.map { case (prop, sig) =>
-        Transaction.stringToPubKey(prop) -> Transaction.stringToSignature(sig)
+      Transaction.stringToPubKey(prop) -> Transaction.stringToSignature(sig)
     }
     val issuer = Transaction.stringToPubKey(rawIssuer)
 
-      AssetTransfer(
-        from,
-        to,
-        signatures,
-        issuer,
-        assetCode,
-        fee,
-        timestamp,
-        data
+    AssetTransfer(
+      from,
+      to,
+      signatures,
+      issuer,
+      assetCode,
+      fee,
+      timestamp,
+      data
       )
   }
 }

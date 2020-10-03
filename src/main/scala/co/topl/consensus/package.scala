@@ -16,16 +16,18 @@ package object consensus {
   // these variables are left as vars since they need to be determined at runtime from the network config
   // todo: JAA - figure out a better way to do this
   private var _maxStake: Long = 5000000000L
+  private var _inflation: Long = 0L
   private var _targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
 
   // setters
   def maxStake_= (value: Long): Unit = _maxStake = value
+  def inflation_= (value: Long): Unit = _inflation = value
   def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
 
   // getters
-  def targetBlockTime: FiniteDuration = _targetBlockTime
   def maxStake: Long = _maxStake
-
+  def inflation: Long = _inflation
+  def targetBlockTime: FiniteDuration = _targetBlockTime
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge

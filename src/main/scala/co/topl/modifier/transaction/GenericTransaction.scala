@@ -12,6 +12,7 @@ import co.topl.nodeView.box.proposition.Proposition
   */
 
 abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
+
   override val modifierTypeId: ModifierTypeId = GenericTransaction.modifierTypeId
 
   val fee: Long

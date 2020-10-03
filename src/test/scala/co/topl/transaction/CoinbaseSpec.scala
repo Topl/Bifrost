@@ -1,22 +1,22 @@
 package co.topl.transaction
 
-import co.topl.modifier.transaction.CoinbaseTransaction
+import co.topl.modifier.transaction.Coinbase
 import co.topl.nodeView.state.State
 import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class CoinbaseTransactionSpec extends AnyPropSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers
-  with BifrostGenerators
-  with ValidGenerators {
+class CoinbaseSpec extends AnyPropSpec
+                           with ScalaCheckPropertyChecks
+                           with ScalaCheckDrivenPropertyChecks
+                           with Matchers
+                           with BifrostGenerators
+                           with ValidGenerators {
 
   property("Generated Coinbase Tx should be valid") {
     forAll(validCoinbaseTransactionGen) {
-      cb: CoinbaseTransaction => State.syntacticValidity(cb).isSuccess shouldBe true
+      cb: Coinbase => State.syntacticValidity(cb).isSuccess shouldBe true
     }
 
     // test inflation val stuff works

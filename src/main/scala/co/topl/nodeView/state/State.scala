@@ -253,8 +253,8 @@ case class State ( override val version     : VersionTag,
 
   override def validate ( transaction: Transaction ): Try[Unit] = {
     transaction match {
-      case tx: CoinbaseTransaction    => CoinbaseTransaction.semanticValidate(tx, getReader)
-      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
+      case tx: Coinbase      => Coinbase.semanticValidate(tx, getReader)
+      case tx: ArbitTransfer => ArbitTransfer.semanticValidate(tx, getReader)
       case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
       case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
       case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
@@ -294,7 +294,7 @@ object State extends Logging {
       case tx: CodeCreation           => CodeCreation.syntacticValidate(tx)
       case tx: ProgramCreation        => ProgramCreation.syntacticValidate(tx)
       case tx: ProgramMethodExecution => ProgramMethodExecution.syntacticValidate(tx)
-      case tx: CoinbaseTransaction    => CoinbaseTransaction.syntacticValidate(tx)
+      case tx: Coinbase               => Coinbase.syntacticValidate(tx)
       case _                          =>
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
@@ -329,14 +329,16 @@ object State extends Logging {
     }
   }
 
-  def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+  def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
+  def stateFile(settings: AppSettings): File = {
+    val dataDir = settings.dataDir.ensuring(_.isDefined, "Data directory must be specified").get
     new File(dataDir).mkdirs()
+    new File(s"$dataDir/state")
+  }
 
-    val iFile = new File(s"$dataDir/state")
-    iFile.mkdirs()
-    val storage = new LSMStore(iFile)
+  def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
+    val storage = new LSMStore(stateFile(settings))
 
     val version: VersionTag = ModifierId(
       storage.lastVersionID
