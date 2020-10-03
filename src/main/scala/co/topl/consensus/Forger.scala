@@ -34,7 +34,12 @@ class Forger(viewHolderRef: ActorRef, settings: ForgingSettings, appContext: App
   // Import the types of messages this actor SENDS
   import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 
+  val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "data dir must be specified").get
+  val keyRing =
+
   val TransactionsInBlock = 100 //should be a part of consensus, but for our app is okay
+
+
 
   override def preStart(): Unit = {
     targetBlockTime = settings.targetBlockTime
