@@ -20,6 +20,11 @@ case class PrivateKey25519( privKeyBytes: Array[Byte], publicKeyBytes: Array[Byt
   override lazy val publicImage: PublicKey25519Proposition = PublicKey25519Proposition(publicKeyBytes)
 
   override def serializer: BifrostSerializer[PrivateKey25519] = PrivateKey25519Serializer
+
+  override def equals(o: Any): Boolean = {
+    o.isInstanceOf[PrivateKey25519] &&
+      java.util.Arrays.equals(privKeyBytes, o.asInstanceOf[PrivateKey25519].privKeyBytes)
+  }
 }
 
 

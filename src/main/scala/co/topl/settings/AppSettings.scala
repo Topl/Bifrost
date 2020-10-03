@@ -60,11 +60,11 @@ case class ForgingSettings ( MinimumDifficulty   : Long,
                              targetBlockTime     : FiniteDuration,
                              blockGenerationDelay: FiniteDuration,
                              version             : Byte,
-                             forkHeight          : Long
+                             forkHeight          : Long,
+                             keyFileDir          : Option[String]
                            )
 
 case class AppSettings ( walletSeed     : String,
-                         keyFileDir     : Option[String],
                          walletDir      : Option[String],
                          dataDir        : Option[String],
                          logDir         : Option[String],

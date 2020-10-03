@@ -223,15 +223,15 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 //    Wallet(secrets, store, defaultKeyDir)
 //  }
 
-  override def rollback(to: VersionTag): Try[Wallet] = Try {
-    if (store.lastVersionID.exists(_.data sameElements to.hashBytes)) {
-      this
-    } else {
-      log.debug(s"Rolling back wallet to: ${to.toString}")
-      store.rollback(ByteArrayWrapper(to.hashBytes))
-      Wallet(secrets, store, defaultKeyDir)
-    }
-  }
+//  override def rollback(to: VersionTag): Try[Wallet] = Try {
+//    if (store.lastVersionID.exists(_.data sameElements to.hashBytes)) {
+//      this
+//    } else {
+//      log.debug(s"Rolling back wallet to: ${to.toString}")
+//      store.rollback(ByteArrayWrapper(to.hashBytes))
+//      Wallet(secrets, store, defaultKeyDir)
+//    }
+//  }
   
 }
 
@@ -282,6 +282,7 @@ object Wallet {
 
   def readOrGenerate(settings: AppSettings): Wallet = {
     val gw = readOrGenerate(settings, settings.walletSeed)
+
     if (settings.walletSeed.startsWith("genesis")) {
       val seeds = (0 to 2).map(c => FastCryptographicHash(Base58.decode(settings.walletSeed).get ++ Ints.toByteArray(c)))
       val pubKeys = seeds.map { seed =>
