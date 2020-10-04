@@ -22,6 +22,7 @@ trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PK
 object PublicKeyNoncedBox {
 
   def idFromBox[PKP <: PublicKey25519Proposition](prop: PKP, nonce: Long): BoxId = {
-    BoxId(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
+    val hashBytes = FastCryptographicHash(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
+    BoxId(hashBytes)
   }
 }

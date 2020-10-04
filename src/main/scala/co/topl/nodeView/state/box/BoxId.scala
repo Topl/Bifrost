@@ -4,6 +4,8 @@ import co.topl.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 
+import scala.util.{ Failure, Success }
+
 case class BoxId (hashBytes: Array[Byte]) {
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
@@ -18,5 +20,10 @@ case class BoxId (hashBytes: Array[Byte]) {
 object BoxId {
   val size: Int = 32 // boxId is a 32 byte identifier
 
-  def apply(seed: Array[Byte]): BoxId = BoxId(FastCryptographicHash(seed))
+  def apply(id: String): BoxId = {
+    Base58.decode(id) match {
+      case Success(id) => new BoxId(id)
+      case Failure(ex) => throw ex
+    }
+  }
 }

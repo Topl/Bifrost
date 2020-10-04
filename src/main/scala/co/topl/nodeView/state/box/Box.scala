@@ -22,7 +22,7 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
   override def serializer: BifrostSerializer[Box] = BoxSerializer
 
   override def equals(obj: Any): Boolean = obj match {
-    case acc: Box => (acc.id sameElements this.id) && acc.value == this.value
+    case acc: Box => (acc.id == this.id) && acc.value == this.value
     case _ => false
   }
 

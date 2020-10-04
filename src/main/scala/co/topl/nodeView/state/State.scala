@@ -56,8 +56,8 @@ case class State ( override val version     : VersionTag,
    * @param id unique identifier where the box data is stored
    * @return
    */
-  override def getBox ( id: Array[Byte] ): Option[Box] =
-    getFromStorage(id)
+  override def getBox( id: BoxId ): Option[Box] =
+    getFromStorage(id.hashBytes)
       .map(BoxSerializer.parseBytes)
       .flatMap(_.toOption)
 

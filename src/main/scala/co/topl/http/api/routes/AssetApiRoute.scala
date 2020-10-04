@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction.{ AssetCreation, AssetTransfer }
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import co.topl.nodeView.state.box.AssetBox
+import co.topl.nodeView.state.box.{ AssetBox, BoxId }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -241,7 +241,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
-      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val assetId: BoxId = BoxId((params \\ "assetId").head.asString.getOrElse(""))
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val fee: Long =
         (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
@@ -251,7 +251,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       }
 
       val asset = view.state
-        .getBox(Base58.decode(assetId).get)
+        .getBox(BoxId(assetId))
         .get
         .asInstanceOf[AssetBox]
 
@@ -319,7 +319,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         Base58.decode((params \\ "recipient").head.asString.get).get
       )
-      val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
+      val assetId: BoxId = BoxId((params \\ "assetId").head.asString.getOrElse(""))
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
 
@@ -330,9 +330,10 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       }
 
       val asset = view.state
-        .getBox(Base58.decode(assetId).get)
-        .get
-        .asInstanceOf[AssetBox]
+        .getBox(assetId) match {
+        case Some(b: AssetBox) => b
+        case _ => throw new Error(s"Failed to find specified bow with id: $asset")
+      }
 
       val tx =
         AssetTransfer

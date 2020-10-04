@@ -11,14 +11,14 @@ class ProgramBox(override val proposition: PublicKey25519Proposition,
                  override val value: ProgramId
                 ) extends Box(proposition, nonce, value) {
 
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   lazy val typeOfBox: String = "ProgramBox"
 
   lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
+    "id" -> id.toString.asJson,
     "type" -> typeOfBox.asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
+    "proposition" -> proposition.toString.asJson,
     "value" -> value.toString.asJson,
     "nonce" -> nonce.toString.asJson
   ).asJson

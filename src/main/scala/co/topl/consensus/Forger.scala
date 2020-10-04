@@ -187,7 +187,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
+      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id.hashBytes).isEmpty)
 
       if ( validBoxes ) memPool.remove(tx)
 
