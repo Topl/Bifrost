@@ -5,10 +5,11 @@ import java.time.Instant
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.AssetCreation
+import co.topl.modifier.transaction.{AssetCreation, AssetTransfer}
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Ints
+import io.circe.syntax.EncoderOps
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.signatures.Curve25519
 
@@ -39,6 +40,8 @@ class AssetCreationValidationSpec extends StateSpec {
           case None => false
         })
 
+        val g = validAssetTransferGen.sample.get.asJson
+        val h = g.as[AssetTransfer].
     }
   }
 

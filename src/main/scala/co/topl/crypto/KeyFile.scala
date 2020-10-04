@@ -39,7 +39,7 @@ case class KeyFile (pubKeyBytes: Array[Byte],
     val (decrypted, _) = getAESResult(derivedKey, iv, cipherText, encrypt = false)
     require(pubKeyBytes sameElements getPkFromSk(decrypted), "PublicKey in file is invalid")
 
-    PrivateKey25519(decrypted, pubKeyBytes)
+    new PrivateKey25519(decrypted, pubKeyBytes)
   }
 }
 
@@ -97,28 +97,28 @@ object KeyFile {
     key
   }
 
-  implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) => for {
-    pubKeyString <- c.downField("publicKeyId").as[String]
-    cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
-    macString <- c.downField("crypto").downField("mac").as[String]
-    saltString <- c.downField("crypto").downField("kdfSalt").as[String]
-    ivString <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
-  } yield {
-    val pubKey = Base58.decode(pubKeyString).get
-    val cipherText = Base58.decode(cipherTextString).get
-    val mac = Base58.decode(macString).get
-    val salt = Base58.decode(saltString).get
-    val iv = Base58.decode(ivString).get
-    new KeyFile(pubKey, cipherText, mac, salt, iv)
-  }
+  implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) =>
+    for {
+      pubKeyString <- c.downField("publicKeyId").as[String]
+      cipherTextString <- c.downField("crypto").downField("cipherText").as[String]
+      macString <- c.downField("crypto").downField("mac").as[String]
+      saltString <- c.downField("crypto").downField("kdfSalt").as[String]
+      ivString <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
+    } yield {
+      val pubKey = Base58.decode(pubKeyString).get
+      val cipherText = Base58.decode(cipherTextString).get
+      val mac = Base58.decode(macString).get
+      val salt = Base58.decode(saltString).get
+      val iv = Base58.decode(ivString).get
+
+      new KeyFile(pubKey, cipherText, mac, salt, iv)
+    }
 
   implicit val jsonEncoder: Encoder[KeyFile] = { kf: KeyFile ⇒
     Map(
       "crypto" -> Map(
         "cipher" -> "aes-128-ctr".asJson,
-        "cipherParams" -> Map(
-          "iv" -> Base58.encode(kf.iv).asJson
-        ).asJson,
+        "cipherParams" -> Map("iv" -> Base58.encode(kf.iv).asJson ).asJson,
         "cipherText" -> Base58.encode(kf.cipherText).asJson,
         "kdf" -> "scrypt".asJson,
         "kdfSalt" -> Base58.encode(kf.salt).asJson,

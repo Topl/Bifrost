@@ -7,8 +7,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.CoinbaseSerializer
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ ArbitBox, Box, TokenBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
 import co.topl.nodeView.state.StateReader
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Longs }
@@ -95,7 +95,7 @@ object Coinbase {
                   parentId: Block.BlockId
                 ): Coinbase = {
     val to = IndexedSeq((rewardAddr, amount))
-    val sig = Map(rewardAddr ->  Signature25519(Array.empty))
+    val sig = Map(rewardAddr ->  Signature25519(Array.empty[Byte]))
     Coinbase(to, sig, timestamp, parentId)
   }
 

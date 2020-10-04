@@ -253,8 +253,8 @@ case class State ( override val version     : VersionTag,
 
   override def validate ( transaction: Transaction ): Try[Unit] = {
     transaction match {
-      case tx: Coinbase      => Coinbase.semanticValidate(tx, getReader)
-      case tx: ArbitTransfer => ArbitTransfer.semanticValidate(tx, getReader)
+      case tx: Coinbase               => Coinbase.semanticValidate(tx, getReader)
+      case tx: ArbitTransfer          => ArbitTransfer.semanticValidate(tx, getReader)
       case tx: PolyTransfer           => PolyTransfer.semanticValidate(tx, getReader)
       case tx: AssetTransfer          => AssetTransfer.semanticValidate(tx, getReader)
       case tx: ProgramTransfer        => ProgramTransfer.semanticValidate(tx, getReader)
@@ -262,10 +262,7 @@ case class State ( override val version     : VersionTag,
       case tx: CodeCreation           => CodeCreation.semanticValidate(tx, getReader)
       case tx: ProgramCreation        => ProgramCreation.semanticValidate(tx, getReader)
       case tx: ProgramMethodExecution => ProgramMethodExecution.semanticValidate(tx, getReader)
-      case _                          =>
-        throw new Exception(
-          "State validity not implemented for " + transaction.getClass.toGenericString
-          )
+      case _                          => throw new Exception("State validity not implemented for " + transaction.getClass.toGenericString)
     }
   }
 }

@@ -1,6 +1,6 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
@@ -8,10 +8,10 @@ import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.nodeView.history.History
-import co.topl.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
+import co.topl.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{ Encoder, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -54,26 +54,15 @@ case class Block ( parentId: BlockId,
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = Signature25519(Array.empty))
+    val noSigCopy = this.copy(signature = Signature25519(Array.empty[Byte]))
     serializer.toBytes(noSigCopy)
   }
+
+  lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
 
   lazy val serializedParentId: Array[Byte] = parentId.hashBytes
-
-//  lazy val json: Json = Map(
-//    "id" -> Base58.encode(serializedId).asJson,
-//    "parentId" -> Base58.encode(serializedParentId).asJson,
-//    "timestamp" -> timestamp.asJson,
-//    "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
-//    "signature" -> Base58.encode(signature.signature).asJson,
-//    "txs" -> txs.map(_.json).asJson,
-//    "version" -> version.asJson,
-//    "blockSize" -> serializer.toBytes(this).length.asJson
-//    ).asJson
-
-  lazy val json: Json = Block.jsonEncoder(this)
 }
 
 object Block {
@@ -98,11 +87,11 @@ object Block {
     assert(box.proposition == privateKey.publicImage)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
+    val block = Block(parentId, timestamp, box, Signature25519(Array.empty[Byte]), txs, version)
 
     // generate signature from the block message and private key
     val signature =
-      if (parentId == History.GenesisParentId) Signature25519(Array.empty) // genesis block will skip signature check
+      if (parentId == History.GenesisParentId) Signature25519(Array.empty[Byte]) // genesis block will skip signature check
       else privateKey.sign(block.messageToSign)
 
     // return a valid block with the signature attached
@@ -120,16 +109,32 @@ object Block {
     BloomTopics(bloomBitSet).toByteArray
   }
 
-  val jsonEncoder: Encoder[Block] = { b: Block ⇒
+  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
       "id" -> Base58.encode(b.serializedId).asJson,
       "parentId" -> Base58.encode(b.serializedParentId).asJson,
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
-      "txs" -> b.txs.map(_.json).asJson,
+      "txs" -> b.txs.map(_.asJson).asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
-      ).asJson
+    ).asJson
   }
+
+  // fixme: JAA - not lear to me how to do the decoder so skipping for the moment
+//  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
+//    for {
+//      parentId <- c.downField("parentId").as[String]
+//      timestamp <- c.downField("timestamp").as[Timestamp]
+//      generatorBox <- c.downField("generatorBox").as[ArbitBox]
+//      signature <- c.downField("signature").as[String]
+//      txs <- c.downField("txs").as[Seq[Transaction]]
+//      version <- c.downField("version").as[Byte]
+//    } yield {
+//      val parent = ModifierId(parentId)
+//      val sig = Signature25519(signature)
+//
+//      Block(parent, timestamp, generatorBox, sig, txs, version)
+//    }
 }

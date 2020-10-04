@@ -3,7 +3,7 @@ package co.topl.consensus
 import java.io.File
 
 import co.topl.crypto.{ KeyFile, PrivateKey25519 }
-import co.topl.nodeView.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import co.topl.utils.Logging
 import scorex.crypto.encode.Base58
 

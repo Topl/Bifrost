@@ -149,7 +149,7 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
           view.history
             .modifierById(blockId)
             .get
-            .json
+            .asJson
             .asObject
             .get
             .add("blockNumber", blockNumber.asJson)

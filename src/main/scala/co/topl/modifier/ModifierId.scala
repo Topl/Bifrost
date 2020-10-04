@@ -3,6 +3,8 @@ package co.topl.modifier
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 
+import scala.util.{Failure, Success}
+
 case class ModifierId(hashBytes: Array[Byte]) {
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
@@ -17,5 +19,11 @@ case class ModifierId(hashBytes: Array[Byte]) {
 
 object ModifierId {
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
+
+  def apply(encodedSig: String): ModifierId =
+    Base58.decode(encodedSig) match {
+      case Success(sig) => new ModifierId(sig)
+      case Failure(ex)  => throw ex
+    }
 
 }

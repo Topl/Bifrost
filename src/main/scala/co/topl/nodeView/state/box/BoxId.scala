@@ -1,5 +1,6 @@
 package co.topl.nodeView.state.box
 
+import co.topl.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 
@@ -16,4 +17,6 @@ case class BoxId (hashBytes: Array[Byte]) {
 
 object BoxId {
   val size: Int = 32 // boxId is a 32 byte identifier
+
+  def apply(seed: Array[Byte]): BoxId = BoxId(FastCryptographicHash(seed))
 }

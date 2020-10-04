@@ -1,10 +1,13 @@
 package co.topl.crypto
 
 import co.topl.crypto.serialization.Signature25519Serializer
-import co.topl.nodeView.state.box.proposition.{ Proposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.proposition.{Proposition, PublicKey25519Proposition}
 import co.topl.utils.serialization.BifrostSerializer
+import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * @param signature 25519 signature
@@ -25,4 +28,10 @@ case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[Priva
 
 object Signature25519 {
   lazy val SignatureSize: Int = Curve25519.SignatureLength
+
+  def apply(encodedSig: String): Signature25519 =
+      Base58.decode(encodedSig) match {
+        case Success(sig) => new Signature25519(sig)
+        case Failure(ex)  => throw ex
+    }
 }

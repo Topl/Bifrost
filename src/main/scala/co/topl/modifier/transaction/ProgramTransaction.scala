@@ -113,7 +113,7 @@ object ProgramTransaction {
                    rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
     val owner = Transaction.stringToPubKey(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
-      if (value == "") (Transaction.stringToPubKey(key), Signature25519(Array.empty))
+      if (value == "") (Transaction.stringToPubKey(key), Signature25519(Array.empty[Byte]))
       else (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
     }
     val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (Transaction.stringToPubKey(key), value) }

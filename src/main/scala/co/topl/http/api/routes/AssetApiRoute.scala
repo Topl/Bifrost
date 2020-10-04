@@ -188,7 +188,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
 
       // construct the transaction
       val tx = AssetTransfer
-        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data)
+        .createRaw(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data)
         .get
 
       // validate and update nodeView with new TX
@@ -336,7 +336,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
 
       val tx =
         AssetTransfer
-          .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data)
+          .createRaw(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data)
           .get
 
       AssetTransfer.validatePrototype(tx) match {

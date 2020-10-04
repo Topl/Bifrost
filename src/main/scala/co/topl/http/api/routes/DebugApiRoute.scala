@@ -56,7 +56,7 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
         "height" -> view.history.height.toString.asJson,
         "score" -> view.history.score.asJson,
         "bestBlockId" -> view.history.bestBlockId.toString.asJson,
-        "bestBlock" -> view.history.bestBlock.json,
+        "bestBlock" -> view.history.bestBlock.asJson,
         "stateVersion" -> view.state.version.toString.asJson
       ).asJson
     }

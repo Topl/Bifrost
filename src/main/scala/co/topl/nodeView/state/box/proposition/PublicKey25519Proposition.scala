@@ -44,12 +44,10 @@ object PublicKey25519Proposition {
   val ChecksumLength: Int = 4
   val AddressLength: Int = 1 + Constants25519.PubKeyLength + ChecksumLength
 
-  def apply(id: String): Try[PublicKey25519Proposition] = {
-    Try {
-      Base58.decode(id) match {
-        case Success(id) => new PublicKey25519Proposition(id)
-        case Failure(ex) => throw ex
-      }
+  def apply(id: String): PublicKey25519Proposition = {
+    Base58.decode(id) match {
+      case Success(id) => new PublicKey25519Proposition(id)
+      case Failure(ex) => throw ex
     }
   }
 

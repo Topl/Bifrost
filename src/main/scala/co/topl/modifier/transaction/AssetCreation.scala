@@ -171,7 +171,7 @@ object AssetCreation {
     } yield {
       val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
       val signatures = rawSignatures.map { case (key, value) =>
-        if ( value == "" ) (Transaction.stringToPubKey(key), Signature25519(Array.empty))
+        if ( value == "" ) (Transaction.stringToPubKey(key), Signature25519(Array.empty[Byte]))
         else (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
       }
       val issuer = Transaction.stringToPubKey(rawIssuer)

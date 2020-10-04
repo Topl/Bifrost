@@ -1,7 +1,7 @@
 package co.topl.crypto
 
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.{ ProofOfKnowledgeProposition, Proposition }
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.{ ProofOfKnowledgeProposition, Proposition }
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {

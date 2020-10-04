@@ -15,15 +15,11 @@ abstract class Box(proposition: ProofOfKnowledgeProposition[PrivateKey25519],
 
   override type M = Box
 
-  override def serializer: BifrostSerializer[Box] = BoxSerializer
-
-  // lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  val typeOfBox: String
 
   lazy val publicKey: ProofOfKnowledgeProposition[PrivateKey25519] = proposition
 
-  val typeOfBox: String
-
-  val json: Json
+  override def serializer: BifrostSerializer[Box] = BoxSerializer
 
   override def equals(obj: Any): Boolean = obj match {
     case acc: Box => (acc.id sameElements this.id) && acc.value == this.value
