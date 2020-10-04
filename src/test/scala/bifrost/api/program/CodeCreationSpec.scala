@@ -11,8 +11,8 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.box.ArbitBox
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -56,8 +56,8 @@ class CodeCreationSpec extends AnyWordSpec
         val history = view().history
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
           settings.forgingSettings.version
         )

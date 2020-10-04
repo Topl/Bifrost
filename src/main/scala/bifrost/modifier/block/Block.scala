@@ -12,8 +12,8 @@ import bifrost.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
 import bifrost.utils.serialization.BifrostSerializer
 import io.circe.syntax._
 import io.circe.{ Encoder, Json }
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, Signature}
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
@@ -55,7 +55,7 @@ case class Block ( parentId: BlockId,
   lazy val id: BlockId = ModifierId(serializedId)
 
   lazy val serializedId: Array[Byte] = {
-    val blockWithoutSig = this.copy(signature = Signature25519(Array.empty))
+    val blockWithoutSig = this.copy(signature = Signature25519(Signature @@ Array.emptyByteArray))
     FastCryptographicHash(serializer.toBytes(blockWithoutSig))
   }
 
@@ -97,7 +97,7 @@ object Block {
     assert(box.proposition.pubKeyBytes sameElements privateKey.publicKeyBytes)
 
     // generate block message (block with empty signature) to be signed
-    val blockMessage = Block(parentId, timestamp, box, Signature25519(Array.empty), txs, version)
+    val blockMessage = Block(parentId, timestamp, box, Signature25519(Signature @@ Array.emptyByteArray), txs, version)
 
     // generate signature from the block message and private key
     val signature = if ( parentId.hashBytes sameElements History.GenesisParentId ) {
@@ -107,7 +107,7 @@ object Block {
     }
 
     // return a valid block with the signature attached
-    blockMessage.copy(signature = Signature25519(signature))
+    blockMessage.copy(signature = Signature25519(Signature @@ signature))
   }
 
   def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {

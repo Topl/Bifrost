@@ -15,7 +15,8 @@ import bifrost.state.StateChanges
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.util.{Failure, Success, Try}
 
@@ -90,7 +91,7 @@ case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKey
 
   def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
-    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(PublicKey @@ KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
   }
 

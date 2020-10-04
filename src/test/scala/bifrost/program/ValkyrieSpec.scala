@@ -14,9 +14,10 @@ import bifrost.wallet.Wallet
 import bifrost.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import scorex.crypto.signatures.PublicKey
 
 class ValkyrieSpec extends AnyPropSpec
   with Matchers
@@ -80,10 +81,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(assetInstance.publicKey).get)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.issuer).get)
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(assetInstance.issuer).get)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -134,10 +135,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(assetInstance.publicKey).get)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.issuer).get)
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(assetInstance.issuer).get)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -206,7 +207,7 @@ class ValkyrieSpec extends AnyPropSpec
     //Parsing the new arbit instance as an arbit box
     val newArbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(newArbitInstance1.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(newArbitInstance1.publicKey).get)
     val amount: Long = newArbitInstance1.amount
 
     val timestamp = Instant.now.toEpochMilli

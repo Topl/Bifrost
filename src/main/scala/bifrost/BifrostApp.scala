@@ -131,7 +131,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
     log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
 
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
     val httpHost = "0.0.0.0"
     val httpPort = settings.rpcPort
 
@@ -154,7 +153,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     }
 
     // trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure
-    Http().bindAndHandle(httpService.compositeRoute, httpHost, httpPort).onComplete {
+    Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 

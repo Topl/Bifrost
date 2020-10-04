@@ -1,7 +1,7 @@
 package bifrost.modifier
 
 import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 case class ModifierId(hashBytes: Array[Byte]) {
 

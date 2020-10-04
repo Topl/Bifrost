@@ -20,7 +20,8 @@ import bifrost.state.{State, StateChanges}
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -72,7 +73,7 @@ trait ProgramMockState extends BifrostGenerators {
   }
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(publicKey).get)
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKey).get)
 
   val polyBoxes = view()
     .vault

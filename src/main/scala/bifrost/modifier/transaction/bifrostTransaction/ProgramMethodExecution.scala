@@ -16,6 +16,7 @@ import com.google.common.primitives.{Bytes, Longs}
 import com.typesafe.config.{Config, ConfigFactory}
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
+import scorex.crypto.hash.Digest32
 
 import scala.util.Try
 
@@ -58,7 +59,7 @@ case class ProgramMethodExecution(state: Seq[StateBox],
   lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
-  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
+  lazy val hashNoNonces: Digest32 = FastCryptographicHash(
     executionBox.id ++
       methodName.getBytes ++
       owner.pubKeyBytes ++

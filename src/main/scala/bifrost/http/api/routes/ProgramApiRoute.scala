@@ -18,7 +18,8 @@ import bifrost.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._
 import io.circe.{Decoder, Json, JsonObject}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -47,7 +48,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
     viewAsync().map { view =>
       val wallet = view.vault
       val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
       val state = view.state
       val tx = createProgramInstance(params, state)
       val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
@@ -59,7 +60,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
   def createCode(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val owner = PublicKey25519Proposition(Base58.decode((params \\ "publicKey").head.asString.get).get)
+      val owner = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "publicKey").head.asString.get).get)
       val code: String = (params \\ "code").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
@@ -95,8 +96,8 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
     viewAsync().map { view =>
       val wallet = view.vault
       val tbr = view.state.tbr
-      val from = PublicKey25519Proposition(Base58.decode((params \\ "from").head.asString.get).get)
-      val to = PublicKey25519Proposition(Base58.decode((params \\ "to").head.asString.get).get)
+      val from = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "from").head.asString.get).get)
+      val to = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "to").head.asString.get).get)
       val executionBox = tbr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
@@ -135,13 +136,13 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
       val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
 
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
       val tempTx = modifiedParams.as[ProgramMethodExecution] match {
         case Right(p: ProgramMethodExecution) => p
         case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
       val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
-      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
+      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get) -> realSignature))
 //      ProgramMethodExecution.validate(tx) match {
 //        case Success(_) => log.info("Program method execution successfully validated")
 //        case Failure(e) => throw e.getCause

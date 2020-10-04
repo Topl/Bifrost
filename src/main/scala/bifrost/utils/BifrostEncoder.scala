@@ -3,7 +3,7 @@ package bifrost.utils
 import bifrost.modifier.ModifierId
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.encode.BytesEncoder
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.Try
 
