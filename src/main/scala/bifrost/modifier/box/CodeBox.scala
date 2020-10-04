@@ -7,7 +7,8 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 import io.circe.syntax._
 import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 case class CodeBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,
@@ -44,7 +45,7 @@ object CodeBox {
     interface <- c.downField("interface").as[Map[String, Seq[String]]]
     nonce <- c.downField("nonce").as[Long]
   } yield {
-    val preparedPubKey = Base58.decode(proposition).get
+    val preparedPubKey = PublicKey @@ Base58.decode(proposition).get
     val prop = PublicKey25519Proposition(preparedPubKey)
     CodeBox(prop, nonce, uuid, code, interface)
   }

@@ -1,6 +1,7 @@
 package bifrost.modifier.box.proposition
 
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import scorex.crypto.signatures.PublicKey
 
 object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {
 
@@ -9,6 +10,6 @@ object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25
   }
 
   override def parse(r: Reader): PublicKey25519Proposition = {
-    PublicKey25519Proposition(r.getBytes(Constants25519.PubKeyLength))
+    PublicKey25519Proposition(PublicKey @@ r.getBytes(Constants25519.PubKeyLength))
   }
 }

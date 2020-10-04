@@ -6,7 +6,7 @@ import akka.util.ByteString
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.modifier.box.Box
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
