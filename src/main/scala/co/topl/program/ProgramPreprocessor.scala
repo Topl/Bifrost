@@ -33,18 +33,9 @@ case class ProgramPreprocessor(name: String,
                                //state: Json,
                                variables: Json,
                                code: Map[String, String],
-                               signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
+                               signed: Option[(PublicKey25519Proposition, Signature25519)])
 
-  lazy val json: Json = Map(
-    //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
-    "name" -> name.asJson,
-    "initjs" -> Base64.encode(Gzip.encode(ByteString(initjs.getBytes)).toArray[Byte]).asJson,
-    "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
-    "variables" -> variables.asJson,
-    "code" -> code.map(a => a._1 -> a._2).asJson,
-    "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
-  ).asJson
-}
+
 
 object ProgramPreprocessor {
 
@@ -323,7 +314,16 @@ object ProgramPreprocessor {
   implicit val system = ActorSystem("QuickStart")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
+  implicit val encodeTerms: Encoder[ProgramPreprocessor] = (p: ProgramPreprocessor) =>
+    Map(
+      //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
+      "name" -> p.name.asJson,
+      "initjs" -> Base64.encode(Gzip.encode(ByteString(p.initjs.getBytes)).toArray[Byte]).asJson,
+      "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
+      "variables" -> p.variables.asJson,
+      "code" -> p.code.map(a => a._1 -> a._2).asJson,
+      "signed" -> p.signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
+    ).asJson
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
     //state <- c.downField("state").as[String]

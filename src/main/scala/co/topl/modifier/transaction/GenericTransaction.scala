@@ -5,6 +5,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.proposition.Proposition
+import supertagged.@@
 
 
 /**
@@ -21,13 +22,14 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   val messageToSign: Array[Byte]
 
-  lazy val id: ModifierId = ModifierId(serializedId)
-
-  lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
+  lazy val id: ModifierId = ModifierId(FastCryptographicHash(messageToSign))
+  
 }
 
 
 object GenericTransaction {
-  val modifierTypeId = NodeViewModifier.ModifierTypeId @@ (2: Byte)
+
   type TransactionId = ModifierId
+
+  val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = NodeViewModifier.ModifierTypeId @@ (2: Byte)
 }

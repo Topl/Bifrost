@@ -134,8 +134,8 @@ object NodeViewHolder extends Logging {
 
     val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
 
-    assert(genesisBlock.encodedId == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${genesisBlock.encodedId} does not match the required block for the chosen network mode.${Console.RESET}")
+    assert(genesisBlock.id.toString == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+      s"with id ${genesisBlock.id} does not match the required block for the chosen network mode.${Console.RESET}")
 
     val history = History.readOrGenerate(settings).append(genesisBlock).get._1
     val state = State.genesisState(settings, Seq(genesisBlock))

@@ -15,7 +15,7 @@ case class ExecutionBuilder(terms: ExecutionBuilderTerms, assetCode: String, cor
   lazy val json: Json = Map(
     "terms" -> terms.json,
     "assetCode" -> assetCode.asJson,
-    "core" -> core.json,
+    "core" -> core.asJson,
     "state" -> core.variables.asJson,
     "code" -> core.code.asJson
   ).asJson

@@ -138,7 +138,7 @@ object GenericHistory {
 
     override def toString: String = {
       s"ProgressInfo(BranchPoint: ${branchPoint.map(encoder.encodeId)}, " +
-        s" to remove: ${toRemove.map(_.encodedId)}, to apply: ${toApply.map(_.encodedId)})"
+        s" to remove: ${toRemove.map(_.id)}, to apply: ${toApply.map(_.id)})"
     }
   }
 }

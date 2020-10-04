@@ -5,6 +5,7 @@ import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.Box
 import co.topl.nodeView.state.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import com.google.common.primitives.Longs
+import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 import scorex.crypto.encode.Base58
 import supertagged.@@
@@ -30,7 +31,7 @@ object Transaction {
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  implicit val jsonEncoder: Encoder[Transaction] = { tx: Transaction => tx.asJson }
+  //implicit val jsonEncoder: Encoder[Transaction] = { tx: Transaction => tx.asJson }
 
   // fixme: JAA - not lear to me how to do the decoder so skipping for the moment
 //  implicit val jsonDecoder: Decoder[_ <: Transaction] = { c: HCursor =>

@@ -5,13 +5,12 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.nodeView.history.History
+import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{Encoder, Json}
 import scorex.crypto.encode.Base58
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -45,7 +44,7 @@ case class Block ( parentId: BlockId,
 
   type M = Block
 
-  lazy val id: BlockId = ModifierId(serializedId)
+  lazy val id: BlockId = ModifierId(FastCryptographicHash(messageToSign))
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
 
@@ -58,12 +57,14 @@ case class Block ( parentId: BlockId,
     serializer.toBytes(noSigCopy)
   }
 
-  lazy val json: Json = Block.jsonEncoder(this)
-
   lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
 
   lazy val serializedParentId: Array[Byte] = parentId.hashBytes
+
+  override def json: Json = Block.jsonEncoder(this)
 }
+
+
 
 object Block {
 
@@ -111,29 +112,29 @@ object Block {
 
   implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
-      "id" -> Base58.encode(b.serializedId).asJson,
-      "parentId" -> Base58.encode(b.serializedParentId).asJson,
+      "id" -> b.id.toString.asJson,
+      "parentId" -> b.id.toString.asJson,
       "timestamp" -> b.timestamp.asJson,
-      "generatorBox" -> Base58.encode(BoxSerializer.toBytes(b.forgerBox)).asJson,
+      "generatorBox" -> b.forgerBox.asJson,
       "signature" -> Base58.encode(b.signature.signature).asJson,
-      "txs" -> b.txs.map(_.asJson).asJson,
+      "txs" -> b.txs.map(_.json).asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
     ).asJson
   }
 
-  // fixme: JAA - not lear to me how to do the decoder so skipping for the moment
 //  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
 //    for {
 //      parentId <- c.downField("parentId").as[String]
 //      timestamp <- c.downField("timestamp").as[Timestamp]
 //      generatorBox <- c.downField("generatorBox").as[ArbitBox]
 //      signature <- c.downField("signature").as[String]
-//      txs <- c.downField("txs").as[Seq[Transaction]]
+//      txsSeq <- c.downField("txs").as[Seq[Json]]
 //      version <- c.downField("version").as[Byte]
 //    } yield {
 //      val parent = ModifierId(parentId)
 //      val sig = Signature25519(signature)
+//      val txs = txsSeq.map(_.fromJson)
 //
 //      Block(parent, timestamp, generatorBox, sig, txs, version)
 //    }

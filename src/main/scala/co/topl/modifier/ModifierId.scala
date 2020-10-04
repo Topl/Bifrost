@@ -2,10 +2,13 @@ package co.topl.modifier
 
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
+import co.topl.crypto.FastCryptographicHash
 
 import scala.util.{Failure, Success}
 
 case class ModifierId(hashBytes: Array[Byte]) {
+
+  require(hashBytes.length == FastCryptographicHash.DigestSize, s"Invalid size for ModifierId")
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
