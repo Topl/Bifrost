@@ -1,8 +1,8 @@
 package co.topl.crypto
 
 import co.topl.crypto.serialization.PrivateKey25519Serializer
-import co.topl.nodeView.box.GenericBox
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.Curve25519
 

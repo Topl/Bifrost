@@ -1,7 +1,7 @@
 package co.topl.program
 
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ CodeBox, StateBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ CodeBox, StateBox }
 import co.topl.utils.exceptions.{ ChainProgramException, JsonParsingException }
 import io.circe._
 import io.circe.syntax._

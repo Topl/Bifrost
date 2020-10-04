@@ -1,7 +1,7 @@
-package co.topl.nodeView.box
+package co.topl.nodeView.state.box
 
 import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.ProgramId
 import com.google.common.primitives.Longs
 import io.circe.syntax._

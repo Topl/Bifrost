@@ -1,6 +1,6 @@
-package co.topl.nodeView.box.serialization
+package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.box.{ CodeBox, ProgramBox }
+import co.topl.nodeView.state.box.{ CodeBox, ProgramBox }
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 

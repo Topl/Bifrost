@@ -2,8 +2,8 @@ package co.topl.modifier.transaction
 
 import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ PublicKeyNoncedBox, TokenBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, TokenBox }
 import com.google.common.primitives.Longs
 import io.circe.Json
 import io.circe.syntax._

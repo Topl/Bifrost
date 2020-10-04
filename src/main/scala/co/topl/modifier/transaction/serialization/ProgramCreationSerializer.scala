@@ -4,7 +4,7 @@ import co.topl.crypto.Signature25519
 import co.topl.crypto.serialization.Signature25519Serializer
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import co.topl.nodeView.state.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
 import co.topl.nodeView.state.ProgramId
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
 import co.topl.utils.Extensions._

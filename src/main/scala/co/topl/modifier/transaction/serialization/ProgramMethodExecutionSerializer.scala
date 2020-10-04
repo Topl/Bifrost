@@ -4,9 +4,9 @@ import co.topl.crypto.Signature25519
 import co.topl.crypto.serialization.Signature25519Serializer
 import co.topl.modifier.transaction.ProgramMethodExecution
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
-import co.topl.nodeView.box.serialization.{ CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer }
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import co.topl.nodeView.state.box.serialization.{ CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer }
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import io.circe.{ Json, parser }

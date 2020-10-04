@@ -6,8 +6,8 @@ import java.util
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ArbitBox, AssetBox}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.modifier.transaction.{AssetCreation, ArbitTransfer}
 import co.topl.nodeView.state.StateSpec
 import co.topl.wallet.Wallet

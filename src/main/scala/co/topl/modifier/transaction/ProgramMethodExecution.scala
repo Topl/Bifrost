@@ -4,8 +4,8 @@ import co.topl.crypto.{ FastCryptographicHash, MultiSignature25519, Signature255
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.ProgramMethodExecutionSerializer
-import co.topl.nodeView.box._
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.{ ProgramBoxRegistry, ProgramId, State, StateReader }
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException

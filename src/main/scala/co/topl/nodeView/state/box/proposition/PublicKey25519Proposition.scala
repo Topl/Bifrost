@@ -1,4 +1,4 @@
-package co.topl.nodeView.box.proposition
+package co.topl.nodeView.state.box.proposition
 
 import co.topl.crypto.FastCryptographicHash._
 import co.topl.crypto.PrivateKey25519

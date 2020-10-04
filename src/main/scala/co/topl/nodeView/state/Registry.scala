@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
-import co.topl.nodeView.box.GenericBox
-import co.topl.nodeView.box.proposition.Proposition
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.utils.Logging
 

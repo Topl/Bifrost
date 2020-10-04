@@ -5,8 +5,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.box.ArbitBox
-import co.topl.nodeView.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box.ArbitBox
+import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.nodeView.history.History
 import co.topl.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
 import co.topl.utils.serialization.BifrostSerializer

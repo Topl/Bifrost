@@ -4,7 +4,7 @@ import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.box.proposition.Proposition
+import co.topl.nodeView.state.box.proposition.Proposition
 
 
 /**

@@ -2,7 +2,7 @@ package co.topl.program
 
 import java.util.UUID
 
-import co.topl.nodeView.box.{ CodeBox, StateBox }
+import co.topl.nodeView.state.box.{ CodeBox, StateBox }
 import co.topl.nodeView.state.ProgramId
 import co.topl.{ BifrostGenerators, ValidGenerators }
 import io.circe.JsonObject

@@ -6,8 +6,8 @@ import co.topl.crypto.{ Bip39, PrivateKey25519 }
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, PolyTransfer, Transaction }
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import co.topl.nodeView.box.TokenBox
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.TokenBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State

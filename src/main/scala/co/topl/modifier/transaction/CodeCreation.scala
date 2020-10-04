@@ -5,8 +5,8 @@ import java.time.Instant
 import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.CodeBoxCreationSerializer
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.{ Box, CodeBox }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ Box, CodeBox }
 import co.topl.nodeView.state.{ ProgramId, StateReader }
 import co.topl.program.ProgramPreprocessor
 import co.topl.utils.serialization.BifrostSerializer

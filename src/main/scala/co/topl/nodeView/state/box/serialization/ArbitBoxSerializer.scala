@@ -1,6 +1,6 @@
-package co.topl.nodeView.box.serialization
+package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.box.{ ArbitBox, TokenBox }
+import co.topl.nodeView.state.box.{ ArbitBox, TokenBox }
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {

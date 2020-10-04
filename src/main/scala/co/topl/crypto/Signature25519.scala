@@ -1,7 +1,7 @@
 package co.topl.crypto
 
 import co.topl.crypto.serialization.Signature25519Serializer
-import co.topl.nodeView.box.proposition.{ Proposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.proposition.{ Proposition, PublicKey25519Proposition }
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

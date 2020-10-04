@@ -1,6 +1,6 @@
-package co.topl.nodeView.box
+package co.topl.nodeView.state.box
 
-import co.topl.nodeView.box.proposition.Proposition
+import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.utils.serialization.BytesSerializable
 
 /**

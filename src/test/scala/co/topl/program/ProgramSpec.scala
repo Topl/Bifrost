@@ -2,7 +2,7 @@ package co.topl.program
 
 import java.time.Instant
 
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen

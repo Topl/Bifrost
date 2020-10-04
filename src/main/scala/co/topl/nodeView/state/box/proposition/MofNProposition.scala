@@ -1,7 +1,7 @@
-package co.topl.nodeView.box.proposition
+package co.topl.nodeView.state.box.proposition
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition._
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256

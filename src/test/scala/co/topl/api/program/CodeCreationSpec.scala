@@ -8,8 +8,8 @@ import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.box.ArbitBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.ArbitBox
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.Curve25519

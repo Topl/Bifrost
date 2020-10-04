@@ -4,8 +4,8 @@ import akka.actor.Actor
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.SyncInfo
-import co.topl.nodeView.box.GenericBox
-import co.topl.nodeView.box.proposition.Proposition
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.mempool.MemoryPool

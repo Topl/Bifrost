@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.nodeView.box.ProgramBox
+import co.topl.nodeView.state.box.{ BoxId, ProgramBox }
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging

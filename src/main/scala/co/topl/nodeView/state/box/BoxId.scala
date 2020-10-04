@@ -1,4 +1,4 @@
-package co.topl.nodeView.state
+package co.topl.nodeView.state.box
 
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
