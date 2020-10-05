@@ -1,18 +1,17 @@
 package co.topl.modifier.transaction
 
 import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
-import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.ProgramCreationSerializer
-import co.topl.nodeView.state.box.{ Box, _ }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ Box, _ }
 import co.topl.nodeView.state.{ ProgramId, State, StateReader }
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
 import co.topl.utils.exceptions.TransactionValidationException
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 import scala.util.{ Failure, Success, Try }
 
@@ -46,11 +45,11 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
-  lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
+  lazy val investmentBoxIds: IndexedSeq[BoxId] =
     preInvestmentBoxes.map(n => {
       PublicKeyNoncedBox.idFromBox(owner, n._1)})
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]() //investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+  lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq() //investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     ExecutionBuilderSerializer.toBytes(executionBuilder) ++
@@ -64,7 +63,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
                                            ++ hashNoNonces
                                            ++ Ints.toByteArray(0))
 
-    val nonce = ProgramTransaction.nonceFromDigest(nonceGen)
+    val nonce = Transaction.nonceFromDigest(nonceGen)
 
     val stateBox = StateBox(owner, nonce, ProgramId.create(nonceGen ++ "programId".getBytes), executionBuilder.core.variables)
 
@@ -78,7 +77,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     val leftOver: Long = canSend - fees(owner)
 
     // generate nonces for the boxes and program ids for the new program
-    val investorNonce = ProgramTransaction.nonceFromDigest(
+    val investorNonce = Transaction.nonceFromDigest(
       FastCryptographicHash("ProgramCreation".getBytes
         ++ owner.pubKeyBytes
         ++ hashNoNonces
@@ -89,13 +88,13 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
                                              ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
                                              ++ hashNoNonces
                                              ++ Ints.toByteArray(0))
-    val codeNonce = ProgramTransaction.nonceFromDigest(cbNonceGen)
+    val codeNonce = Transaction.nonceFromDigest(cbNonceGen)
     val cbProgramId = ProgramId.create(cbNonceGen ++ "programId".getBytes)
 
     val execNonceGen = FastCryptographicHash("executionBuilder".getBytes
                                               ++ hashNoNonces
                                               ++ Ints.toByteArray(0))
-    val execNonce = ProgramTransaction.nonceFromDigest(execNonceGen)
+    val execNonce = Transaction.nonceFromDigest(execNonceGen)
     val execProgramId = ProgramId.create(execNonceGen ++ "programId".getBytes)
 
     // create the new boxes
@@ -110,13 +109,7 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     IndexedSeq(executionBox, codeBox) ++ newStateBoxes //:+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
-  lazy val json: Json = (
-    commonJson.asObject.get.toMap ++ Map(
-      "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-      "executionBuilder" -> executionBuilder.json,
-      "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
-      "data" -> data.asJson
-      )).asJson
+  lazy val json: Json = ???
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderSerializer.toBytes(executionBuilder),
@@ -135,11 +128,50 @@ object ProgramCreation {
 
   type SR = StateReader[Box]
 
+  implicit val jsonEncoder: Encoder[ProgramCreation] = (tx: ProgramCreation) =>
+    Map(
+      "txHash" -> tx.id.asJson,
+      "owner" -> tx.owner.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "feePreBoxes" -> tx.preFeeBoxes.asJson,
+      "fees" -> tx.fees.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "preInvestmentBoxes" -> tx.preInvestmentBoxes.asJson,
+      "executionBuilder" -> tx.executionBuilder.json,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
+
+  implicit val jsonDecoder: Decoder[ProgramCreation] = (c: HCursor) => for {
+    executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
+    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[ProgramId]]
+    preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
+    owner <- c.downField("owner").as[PublicKey25519Proposition]
+    signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+    preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKey25519Proposition, IndexedSeq[(Long, Long)]]]
+    fees <- c.downField("fees").as[Map[PublicKey25519Proposition, Long]]
+    timestamp <- c.downField("timestamp").as[Long]
+    data <- c.downField("data").as[String]
+  } yield {
+    ProgramCreation(executionBuilder, readOnlyStateBoxes, preInvestmentBoxes, owner, signatures, preFeeBoxes, fees, timestamp, data)
+  }
+
+  /**
+   *
+   * @param tx
+   * @param withSigs
+   * @return
+   */
   def syntacticValidate(tx: ProgramCreation, withSigs: Boolean = true): Try[Unit] = Try {
     require(ExecutionBuilder.validate(tx.executionBuilder).isSuccess)
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign), "Not all signatures were valid")
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   def validatePrototype(tx: ProgramCreation): Try[Unit] = syntacticValidate(tx, withSigs = false)
 
   /**
@@ -177,30 +209,4 @@ object ProgramCreation {
         })
     }
   }
-
-  implicit val decodeProgramCreation: Decoder[ProgramCreation] = (c: HCursor) => for {
-    executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
-    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[String]]
-    preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
-    rawOwner <- c.downField("owner").as[String]
-    rawSignatures <- c.downField("signatures").as[Map[String, String]]
-    rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
-    rawFees <- c.downField("fees").as[Map[String, Long]]
-    timestamp <- c.downField("timestamp").as[Long]
-    data <- c.downField("data").as[String]
-  } yield {
-    val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
-    val readStateBoxIds = readOnlyStateBoxes.map(str => ProgramId(str).get)
-
-    transaction.ProgramCreation(executionBuilder,
-                                readStateBoxIds,
-                                preInvestmentBoxes,
-                                commonArgs._1,
-                                commonArgs._2,
-                                commonArgs._3,
-                                commonArgs._4,
-                                timestamp,
-                                data)
-  }
-
 }

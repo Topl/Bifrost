@@ -93,7 +93,7 @@ class ValkyrieSpec extends AnyPropSpec
       //Longs.toByteArray(fee)
     )
 
-    val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++
@@ -147,7 +147,7 @@ class ValkyrieSpec extends AnyPropSpec
       //Longs.toByteArray(fee)
     )
 
-    val nonce = AssetCreation.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++

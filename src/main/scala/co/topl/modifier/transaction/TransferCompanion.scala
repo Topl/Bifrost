@@ -12,7 +12,7 @@ import scorex.crypto.encode.Base58
 
 import scala.util.Try
 
-trait TransferUtil {
+trait TransferCompanion {
 
   type SR = StateReader[Box]
 
@@ -242,25 +242,9 @@ trait TransferUtil {
       "txType" -> txType.asJson,
       "newBoxes" -> tx.newBoxes.map(b => b.id.toString.asJson).toSeq.asJson,
       "boxesToRemove" -> tx.boxIdsToOpen.map(id => id.toString.asJson).asJson,
-      "from" -> tx.from.map { case (prop, nonce) =>
-        Map(
-          "proposition" -> prop.toString.asJson,
-          "nonce" -> nonce.toString.asJson
-        ).asJson
-      }.asJson,
-      "to" -> tx.to.map { case (prop, value) =>
-        Map(
-          "proposition" -> prop.toString.asJson,
-          "value" -> value.toString.asJson
-        ).asJson
-      }.asJson,
-      "signatures" -> tx.signatures
-        .map { case (prop, sig) =>
-          Map(
-            "proposition" -> prop.toString.asJson,
-            "signature" -> sig.toString.asJson
-          ).asJson
-        }.asJson,
+      "from" -> tx.from.asJson,
+      "to" -> tx.to.asJson,
+      "signatures" -> tx.signatures.asJson,
       "fee" -> tx.fee.asJson,
       "timestamp" -> tx.timestamp.asJson,
       "data" -> tx.data.asJson

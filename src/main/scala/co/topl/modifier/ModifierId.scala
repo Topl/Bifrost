@@ -3,12 +3,14 @@ package co.topl.modifier
 import com.google.common.primitives.Ints
 import scorex.crypto.encode.Base58
 import co.topl.crypto.FastCryptographicHash
+import io.circe.syntax.EncoderOps
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success, Try }
 
 case class ModifierId(hashBytes: Array[Byte]) {
 
-  require(hashBytes.length == FastCryptographicHash.DigestSize, s"Invalid size for ModifierId")
+  require(hashBytes.length == ModifierId.size, s"Invalid size for ModifierId")
 
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 
@@ -21,6 +23,8 @@ case class ModifierId(hashBytes: Array[Byte]) {
 }
 
 object ModifierId {
+  val size: Int = FastCryptographicHash.DigestSize // boxId is a 32 byte identifier
+
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 
   def apply(encodedSig: String): ModifierId =
@@ -29,4 +33,15 @@ object ModifierId {
       case Failure(ex)  => throw ex
     }
 
+  implicit val jsonEncoder: Encoder[ModifierId] =
+    (id: ModifierId) => id.toString.asJson
+
+  implicit val jsonDecoder: Decoder[ModifierId] =
+    Decoder.decodeString.emapTry { id => Try(ModifierId(id)) }
+
+  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] =
+    ( id: ModifierId ) => id.toString
+
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
+    ( id: String ) => Some(ModifierId(id))
 }

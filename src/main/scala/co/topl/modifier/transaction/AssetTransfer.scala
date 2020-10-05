@@ -25,14 +25,13 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
                            override val fee       : Long,
                            override val timestamp : Long,
                            override val data      : String
-                         )
-  extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
+                         ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override type M = AssetTransfer
 
   override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
 
-  override val json: Json = AssetTransfer.jsonEncoder(this)
+  override lazy val json: Json = AssetTransfer.jsonEncoder(this)
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
@@ -60,8 +59,50 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
   override def toString: String = s"AssetTransfer(${json.noSpaces})"
 }
 
-object AssetTransfer extends TransferUtil {
+object AssetTransfer extends TransferCompanion {
 
+  implicit val jsonEncoder: Encoder[AssetTransfer] = { tx: AssetTransfer =>
+    Map(
+      "txHash" -> tx.id.toString.asJson,
+      "txType" -> "AssetTransfer".asJson,
+      "newBoxes" -> tx.newBoxes.map(_.id.toString).toSeq.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.map(id => id.toString).asJson,
+      "from" -> tx.from.map { s => s._1.toString -> s._2.toString }.asJson,
+      "to" -> tx.to.map { s => s._1.toString -> s._2.toString }.asJson,
+      "issuer" -> tx.issuer.toString.asJson,
+      "assetCode" -> tx.assetCode.asJson,
+      "signatures" -> tx.signatures.map { s => s._1.toString -> Base58.encode(s._2.signature) }.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
+  }
+
+  implicit val jsonDecoder: Decoder[AssetTransfer] = ( c: HCursor ) =>
+    for {
+      from <- c.downField("from").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
+      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      fee <- c.downField("fee").as[Long]
+      timestamp <- c.downField("timestamp").as[Long]
+      data <- c.downField("data").as[String]
+      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      assetCode <- c.downField("assetCode").as[String]
+    } yield {
+      AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data)
+    }
+
+  /**
+   *
+   * @param from
+   * @param to
+   * @param issuer
+   * @param assetCode
+   * @param fee
+   * @param timestamp
+   * @param data
+   * @return
+   */
   def apply ( from     : IndexedSeq[(PrivateKey25519, Nonce)],
               to       : IndexedSeq[(PublicKey25519Proposition, Value)],
               issuer   : PublicKey25519Proposition,
@@ -70,26 +111,23 @@ object AssetTransfer extends TransferUtil {
               timestamp: Long,
               data     : String
             ): AssetTransfer = {
+
     val params = parametersForApply(from, to, fee, timestamp, "AssetTransfer", issuer, assetCode, data).get
     transaction.AssetTransfer(params._1, to, params._2, issuer, assetCode, fee, timestamp, data)
   }
 
-//  def create ( tbr        : TokenBoxRegistry,
-//               stateReader: SR,
-//               toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
-//               sender     : IndexedSeq[PublicKey25519Proposition],
-//               fee        : Long,
-//               issuer     : PublicKey25519Proposition,
-//               assetCode  : String,
-//               data       : String,
-//               assetId    : Option[String] = None
-//             ): Try[AssetTransfer] = Try {
-//
-//    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
-//    val timestamp = Instant.now.toEpochMilli
-//    AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, issuer, assetCode, fee, timestamp, data)
-//  }
-
+  /**
+   *
+   * @param stateReader
+   * @param toReceive
+   * @param sender
+   * @param issuer
+   * @param assetCode
+   * @param fee
+   * @param data
+   * @param assetId
+   * @return
+   */
   def createRaw (stateReader: SR,
                  toReceive  : IndexedSeq[(PublicKey25519Proposition, Long)],
                  sender     : IndexedSeq[PublicKey25519Proposition],
@@ -99,15 +137,31 @@ object AssetTransfer extends TransferUtil {
                  data       : String,
                  assetId    : Option[String] = None
                  ): Try[AssetTransfer] = Try {
-    val params = parametersForCreate(tbr, stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
+    val params = parametersForCreate(stateReader, toReceive, sender, fee, "AssetTransfer", issuer, assetCode, assetId)
     val timestamp = Instant.now.toEpochMilli
     AssetTransfer(params._1.map(t => t._1 -> t._2), params._2, Map(), issuer, assetCode, fee, timestamp, data)
   }
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   def validatePrototype ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx, withSigs = false)
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   def syntacticValidate ( tx: AssetTransfer ): Try[Unit] = validateTransfer(tx)
 
+  /**
+   *
+   * @param tx
+   * @param state
+   * @return
+   */
   def semanticValidate ( tx: AssetTransfer, state: SR ): Try[Unit] = {
 
     // check that the transaction is correctly formed before checking state
@@ -136,40 +190,4 @@ object AssetTransfer extends TransferUtil {
       case Failure(e)         => throw e
     }
   }
-
-  implicit val jsonEncoder: Encoder[AssetTransfer] = { tx: AssetTransfer =>
-    Map(
-      "txHash" -> tx.id.toString.asJson,
-      "txType" -> "AssetTransfer".asJson,
-      "newBoxes" -> tx.newBoxes.map(_.id.toString).toSeq.asJson,
-      "boxesToRemove" -> tx.boxIdsToOpen.map(id => id.toString).asJson,
-      "from" -> tx.from.map { s => s._1.toString -> s._2.toString }.asJson,
-      "to" -> tx.to.map { s => s._1.toString -> s._2.toString }.asJson,
-      "issuer" -> tx.issuer.toString.asJson,
-      "assetCode" -> tx.assetCode.asJson,
-      "signatures" -> tx.signatures.map { s => s._1.toString -> Base58.encode(s._2.signature) }.asJson,
-      "fee" -> tx.fee.asJson,
-      "timestamp" -> tx.timestamp.asJson,
-      "data" -> tx.data.asJson
-    ).asJson
-  }
-
-  implicit val jsonDecoder: Decoder[AssetTransfer] = ( c: HCursor ) =>
-    for {
-      rawFrom <- c.downField("from").as[IndexedSeq[(String, String)]]
-      rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
-      rawSignatures <- c.downField("signatures").as[Map[String, String]]
-      rawIssuer <- c.downField("issuer").as[String]
-      assetCode <- c.downField("assetCode").as[String]
-      fee <- c.downField("fee").as[Long]
-      timestamp <- c.downField("timestamp").as[Long]
-      data <- c.downField("data").as[String]
-    } yield {
-      val from = rawFrom.map { case (prop, nonce) => PublicKey25519Proposition(prop) -> nonce.toLong }
-      val to = rawTo.map { case (prop, value) => PublicKey25519Proposition(prop) -> value.toLong }
-      val signatures = rawSignatures.map { case (prop, sig) => PublicKey25519Proposition(prop) -> Signature25519(sig) }
-      val issuer = PublicKey25519Proposition(rawIssuer)
-
-      AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data)
-    }
 }

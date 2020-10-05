@@ -455,7 +455,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       }
       val tx =
         AssetCreation
-          .createPrototype(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
+          .createRaw(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
           .get
 
       AssetCreation.validatePrototype(tx) match {

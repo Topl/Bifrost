@@ -1,10 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.utils.serialization.JsonSerializable
-import io.circe.{Decoder, Encoder, HCursor, Json}
-import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import io.circe.Json
 
 /**
   * Created by cykoz on 5/15/2017.
@@ -16,6 +13,8 @@ import scorex.crypto.encode.Base58
                         ) extends Box(proposition, nonce, value) {
 
   lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+
+  val json: Json
 
   val typeOfBox: String
 }

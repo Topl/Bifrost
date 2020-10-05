@@ -1,20 +1,17 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.CoinbaseSerializer
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
 import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, Box, BoxId, TokenBox }
 import co.topl.utils.serialization.BifrostSerializer
-import com.google.common.primitives.{ Bytes, Longs }
-import io.circe.Json
+import com.google.common.primitives.Longs
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 import scala.util.Try
 
@@ -29,7 +26,7 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
 
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
 
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
+  override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
   lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
     to.head._1.pubKeyBytes ++
@@ -38,7 +35,7 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
       parentId.hashBytes
     )
 
-  val nonce: Nonce = Coinbase.nonceFromDigest(FastCryptographicHash(
+  val nonce: Nonce = Transaction.nonceFromDigest(FastCryptographicHash(
     "Coinbase".getBytes ++ hashNoNonces
   ))
 
@@ -46,29 +43,13 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
     if (to.head._2 > 0L) Traversable(ArbitBox(to.head._1, nonce, to.head._2))
     else Traversable[TokenBox]()
 
-  override lazy val json: Json = Map( // tx in json form
-    "txHash" -> id.toString.asJson,
-    "txType" -> "Coinbase".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
-    "to" -> to.map { s =>
-      Map(
-        "proposition" -> Base58.encode(to.head._1.pubKeyBytes).asJson,
-        "value" -> to.head._2.asJson
-      ).asJson
-    }.asJson,
-     "fee" -> fee.asJson,
-    "signatures" -> signatures
-      .map(s => Base58.encode(s.signature).asJson)
-      .asJson,
-    "timestamp" -> timestamp.asJson
-  ).asJson
-
+  override lazy val json: Json = Coinbase.jsonEncoder(this)
 
   // just tac on the byte string "Coinbase" to the beginning of the common message
   override lazy val messageToSign: Array[Byte] =
       "Coinbase".getBytes() ++
       super.messageToSign ++
-      blockId.hashBytes
+      parentId.hashBytes
 
   override def toString: String = s"Coinbase(${json.noSpaces})"
 
@@ -78,7 +59,27 @@ object Coinbase {
 
   type SR = StateReader[Box]
 
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES)) // take in a byte array and return a nonce (long)
+  implicit val jsonEncoder: Encoder[Coinbase] = (tx: Coinbase) =>
+    Map(
+      "txHash" -> tx.id.asJson,
+      "txType" -> "Coinbase".asJson,
+      "parentId" -> tx.parentId.asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "to" -> tx.to.asJson,
+      "fee" -> tx.fee.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "timestamp" -> tx.timestamp.asJson
+      ).asJson
+
+  implicit val jsonDecoder: Decoder[Coinbase] = (c: HCursor) =>
+    for {
+      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      timestamp <- c.downField("timestamp").as[Long]
+      parentId <- c.downField("parentId").as[ModifierId]
+    } yield {
+      Coinbase (to, signatures, timestamp, parentId)
+    }
 
   /**
    * Create a raw (unsigned) coinbase transaction
@@ -99,17 +100,34 @@ object Coinbase {
     Coinbase(to, sig, timestamp, parentId)
   }
 
+  /**
+   *
+   * @param tx
+   * @param withSigs
+   * @return
+   */
   def syntacticValidate( tx: Coinbase, withSigs: Boolean = true): Try[Unit] = Try {
     require(tx.to.head._2 >= 0L) // can't make negative Arbits. anti-Arbits?!?!
     require(tx.fee == 0)
     require(tx.timestamp >= 0)
-    require(tx.signatures.forall({ signature => // should be only one sig
-      signature.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
-    }), "Invalid signature")
+    require(tx.signatures.forall { signature => // should be only one sig
+      signature._2.isValid(tx.to.head._1, tx.messageToSign) // because this is set to self the signer is also the reciever
+    }, "Invalid signature")
   }
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   def validatePrototype(tx: Coinbase): Try[Unit] = syntacticValidate(tx, withSigs = false)
 
+  /**
+   *
+   * @param tx
+   * @param state
+   * @return
+   */
   def semanticValidate( tx: Coinbase, state: SR): Try[Unit] = {
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx)

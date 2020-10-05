@@ -31,24 +31,6 @@ abstract class ProgramTransaction extends Transaction {
         }
     }
 
-  lazy val commonJson: Json = Map(
-    "txHash" -> id.toString.asJson,
-    "owner" -> Base58.encode(owner.pubKeyBytes).asJson,
-    "signatures" -> signatures.map { case (prop, sig) => Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.bytes)
-      .asJson
-    }.asJson,
-    "feePreBoxes" -> preFeeBoxes.map { case (prop: PublicKey25519Proposition, preBoxes: IndexedSeq[(Nonce, Long)]) =>
-      Base58.encode(prop.pubKeyBytes) -> preBoxes.map { pb =>
-        Map(
-          "nonce" -> pb._1.toString.asJson,
-          "value" -> pb._2.toString.asJson
-          ).asJson
-      }
-    }.asJson,
-    "fees" -> fees.map { case (prop, amount) => Base58.encode(prop.pubKeyBytes) -> amount.asJson }.asJson,
-    "timestamp" -> timestamp.asJson
-  ).asJson
-
   def deductedFeeBoxes(hashNoNonces: Array[Byte]): IndexedSeq[PolyBox] = {
     val canSend = preFeeBoxes.mapValues(_.map(_._2).sum)
     val preboxesLessFees: IndexedSeq[(PublicKey25519Proposition, Long)] = canSend
@@ -58,7 +40,7 @@ abstract class ProgramTransaction extends Transaction {
     preboxesLessFees.zipWithIndex
       .map {
         case ((prop, value), idx) =>
-          val nonce = ProgramTransaction
+          val nonce = Transaction
             .nonceFromDigest(
               FastCryptographicHash("ProgramCreation".getBytes
                 ++ prop.pubKeyBytes
@@ -79,8 +61,6 @@ object ProgramTransaction {
   type FBX = Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]]
   type F = Map[PublicKey25519Proposition, Long]
   type RP = Map[String, String]
-
-  def nonceFromDigest(digest: Array[Byte]): Nonce = Longs.fromByteArray(digest.take(8))
 
   def commonValidation(tx: ProgramTransaction): Try[Unit] = Try {
 
@@ -105,19 +85,5 @@ object ProgramTransaction {
     )
 
     require(tx.timestamp >= 0, "The timestamp was invalid")
-  }
-
-  def commonDecode(rawOwner: String,
-                   rawSignatures: RP,
-                   rawFeeBoxes: Map[String, IndexedSeq[(Long, Long)]],
-                   rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
-    val owner = PublicKey25519Proposition(rawOwner)
-    val signatures = rawSignatures.map { case (key, value) =>
-      if (value.isEmpty) (PublicKey25519Proposition(key), Signature25519(Array.empty[Byte]))
-      else (PublicKey25519Proposition(key), Signature25519(value))
-    }
-    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (PublicKey25519Proposition(key), value) }
-    val fees = rawFees.map { case (key, value) => (PublicKey25519Proposition(key), value) }
-    (owner, signatures, preFeeBoxes, fees)
   }
 }

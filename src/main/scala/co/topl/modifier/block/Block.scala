@@ -34,11 +34,11 @@ import scala.collection.BitSet
  * - additional data: block structure version no, timestamp etc
  */
 
-case class Block ( parentId: BlockId,
+case class Block ( parentId : BlockId,
                    timestamp: Timestamp,
                    forgerBox: ArbitBox,
                    signature: Signature25519,
-                   txs: Seq[Transaction],
+                   txs      : Seq[Transaction],
                    version  : Version
                  ) extends BifrostNodeViewModifier {
 
@@ -52,16 +52,12 @@ case class Block ( parentId: BlockId,
 
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
+  lazy val json: Json = Block.jsonEncoder(this)
+
   lazy val messageToSign: Array[Byte] = {
     val noSigCopy = this.copy(signature = Signature25519(Array.empty[Byte]))
     serializer.toBytes(noSigCopy)
   }
-
-  lazy val serializedId: Array[Byte] = FastCryptographicHash(messageToSign)
-
-  lazy val serializedParentId: Array[Byte] = parentId.hashBytes
-
-  override def json: Json = Block.jsonEncoder(this)
 }
 
 
@@ -76,11 +72,45 @@ object Block {
   val modifierTypeId: Byte @@ NodeViewModifier.ModifierTypeId.Tag = ModifierTypeId @@ (3: Byte)
   val signatureLength: Int = Signature25519.SignatureSize
 
+  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+    Map(
+      "id" -> b.id.toString.asJson,
+      "parentId" -> b.id.toString.asJson,
+      "timestamp" -> b.timestamp.asJson,
+      "generatorBox" -> b.forgerBox.asJson,
+      "signature" -> b.signature.asJson,
+      "txs" -> b.txs.map(_.json).asJson,
+      "version" -> b.version.asJson,
+      "blockSize" -> b.serializer.toBytes(b).length.asJson
+      ).asJson
+  }
+
+  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
+    for {
+      parentId <- c.downField("parentId").as[ModifierId]
+      timestamp <- c.downField("timestamp").as[Timestamp]
+      generatorBox <- c.downField("generatorBox").as[ArbitBox]
+      signature <- c.downField("signature").as[Signature25519]
+      txsSeq <- c.downField("txs").as[Seq[Transaction]]
+      version <- c.downField("version").as[Byte]
+    } yield {
+      Block(parentId, timestamp, generatorBox, signature, txsSeq, version)
+    }
+
+  /**
+   *
+   * @param parentId
+   * @param timestamp
+   * @param txs
+   * @param box
+   * @param privateKey
+   * @param version
+   * @return
+   */
   def create ( parentId  : BlockId,
                timestamp : Timestamp,
                txs       : Seq[Transaction],
                box       : ArbitBox,
-               //attachment: Array[Byte],
                privateKey: PrivateKey25519,
                version   : Version
              ): Block = {
@@ -99,6 +129,11 @@ object Block {
     block.copy(signature = signature)
   }
 
+  /**
+   *
+   * @param txs
+   * @return
+   */
   def createBloom ( txs: Seq[Transaction] ): Array[Byte] = {
     val bloomBitSet = txs.foldLeft(BitSet.empty)(
       ( total, b ) =>
@@ -109,32 +144,4 @@ object Block {
       ).toSeq
     BloomTopics(bloomBitSet).toByteArray
   }
-
-  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
-    Map(
-      "id" -> b.id.toString.asJson,
-      "parentId" -> b.id.toString.asJson,
-      "timestamp" -> b.timestamp.asJson,
-      "generatorBox" -> b.forgerBox.asJson,
-      "signature" -> Base58.encode(b.signature.signature).asJson,
-      "txs" -> b.txs.map(_.json).asJson,
-      "version" -> b.version.asJson,
-      "blockSize" -> b.serializer.toBytes(b).length.asJson
-    ).asJson
-  }
-
-  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
-    for {
-      parentId <- c.downField("parentId").as[String]
-      timestamp <- c.downField("timestamp").as[Timestamp]
-      generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      signature <- c.downField("signature").as[String]
-      txsSeq <- c.downField("txs").as[Seq[Transaction]]
-      version <- c.downField("version").as[Byte]
-    } yield {
-      val parent = ModifierId(parentId)
-      val sig = Signature25519(signature)
-
-      Block(parent, timestamp, generatorBox, sig, txsSeq, version)
-    }
 }

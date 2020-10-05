@@ -185,16 +185,17 @@ case class State ( override val version     : VersionTag,
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
         case None       => stateChanges.toAppend
-      }).map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
+      }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
-        case Some(keys) => stateChanges.boxIdsToRemove
+        case Some(keys) => stateChanges
+          .boxIdsToRemove
           .flatMap(getBox)
           .filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
-      }).map(b => ByteArrayWrapper(b))
+      }).map(b => ByteArrayWrapper(b.hashBytes))
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(!boxesToAdd.map(_._1).forall(boxIdsToRemove.contains) || (boxesToAdd.isEmpty || boxIdsToRemove.isEmpty),
@@ -207,11 +208,13 @@ case class State ( override val version     : VersionTag,
         )
 
       if ( storage.lastVersionID.isDefined ) {
-        boxIdsToRemove.foreach(id => {
-          require(getBox(id.data).isDefined,
-                  s"Box id: ${Base58.encode(id.data)} not found in state version: " +
-                    s"${Base58.encode(storage.lastVersionID.get.data)}. Aborting state update")
-        })
+        stateChanges
+          .boxIdsToRemove
+          .foreach(id => {
+            require(getBox(id).isDefined,
+                    s"Box id: $id not found in state version: " +
+                      s"${Base58.encode(storage.lastVersionID.get.data)}. Aborting state update")
+          })
       }
 
       // throwing error here since we should stop attempting updates if any part fails
@@ -237,7 +240,7 @@ case class State ( override val version     : VersionTag,
       val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
 
       // enforce that a new valid state must have emptied all boxes to remove
-      boxIdsToRemove.foreach(box => require(newState.getBox(box.data).isEmpty, s"Box $box is still in state"))
+      // boxIdsToRemove.foreach(box => require(newState.getBox(box).isEmpty, s"Box $box is still in state"))
 
       newState
     } match {
@@ -299,30 +302,29 @@ object State extends Logging {
     }
   }
 
+  /**
+   * Generate a series of unlockers for a transactions that is used to validate the transaction
+   *
+   * @param from
+   * @param signatures
+   * @return
+   */
   def generateUnlockers ( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
                           signatures: Map[PublicKey25519Proposition, Signature25519]
                         ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
     from.map {
       case (prop, nonce) =>
-        new BoxUnlocker[PublicKey25519Proposition] {
-          override val closedBoxId: Array[Byte] =
-            PublicKeyNoncedBox.idFromBox(prop, nonce)
-          override val boxKey: Signature25519 = signatures.getOrElse(
-            prop,
-            throw new Exception("Signature not provided")
-            )
-        }
+        val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
+        val boxKey = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
+        new BoxUnlocker(boxId, boxKey)
     }
   }
 
-  def generateUnlockers ( boxIds   : Seq[Array[Byte]],
+  def generateUnlockers ( boxIds   : Seq[BoxId],
                           signature: Signature25519
                         ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
     boxIds.map { id =>
-      new BoxUnlocker[PublicKey25519Proposition] {
-        override val closedBoxId: Array[Byte] = id
-        override val boxKey: Signature25519 = signature
-      }
+      new BoxUnlocker(id, signature)
     }
   }
 

@@ -3,6 +3,8 @@ package co.topl.nodeView.state.box.proposition
 import co.topl.crypto.FastCryptographicHash._
 import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
+import io.circe.{ Decoder, Encoder, HCursor, KeyDecoder, KeyEncoder }
+import io.circe.syntax.EncoderOps
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
@@ -67,6 +69,21 @@ object PublicKey25519Proposition {
         else Failure(new Exception("Wrong checksum"))
       }
     }
+
+
+  // see circe documentation for custom encoder / decoders
+  // https://circe.github.io/circe/codecs/custom-codecs.html
+  implicit val jsonEncoder: Encoder[PublicKey25519Proposition] =
+    (prop: PublicKey25519Proposition) => prop.toString.asJson
+
+  implicit val jsonDecoder: Decoder[PublicKey25519Proposition] =
+    Decoder.decodeString.emapTry { prop => Try(PublicKey25519Proposition(prop)) }
+
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKey25519Proposition] =
+    ( prop: PublicKey25519Proposition ) => prop.toString
+
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKey25519Proposition] =
+    ( prop: String ) => Some(PublicKey25519Proposition(prop))
 }
 
 object Constants25519 {
