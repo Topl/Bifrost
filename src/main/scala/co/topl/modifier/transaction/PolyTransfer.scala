@@ -5,13 +5,12 @@ import java.time.Instant
 import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.modifier.transaction.serialization.PolyTransferSerializer
+import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.PolyBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.{ State, TokenBoxRegistry }
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.syntax.EncoderOps
+import io.circe.{ Decoder, Encoder, HCursor }
 
 import scala.util.{ Failure, Success, Try }
 
@@ -21,16 +20,11 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
                           override val fee       : Long,
                           override val timestamp : Long,
                           override val data      : String
-                        )
-  extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
+                        ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
   override type M = PolyTransfer
 
-  override lazy val serializer: BifrostSerializer[M] = PolyTransferSerializer
-
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
-
-  override lazy val json: Json = PolyTransfer.jsonEncoder(this)
 
   override lazy val newBoxes: Traversable[PolyBox] =
     to.filter(toInstance => toInstance._2 > 0L)
@@ -56,7 +50,18 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
 object PolyTransfer extends TransferCompanion {
 
   implicit val jsonEncoder: Encoder[PolyTransfer] = { tx: PolyTransfer =>
-    super.jsonEncoder("PolyTransfer", tx)
+    Map(
+      "txHash" -> tx.id.asJson,
+      "txType" -> "PolyTransfer".asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.asJson,
+      "from" -> tx.from.asJson,
+      "to" -> tx.to.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
   }
 
   implicit val jsonDecoder: Decoder[PolyTransfer] = (c: HCursor) =>

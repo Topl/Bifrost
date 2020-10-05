@@ -23,10 +23,6 @@ case class ProgramTransfer (from        : PublicKey25519Proposition,
 
   override type M = ProgramTransfer
 
-  override lazy val serializer: BifrostSerializer[ProgramTransfer] = ProgramTransferSerializer
-
-  override lazy val json: Json = ProgramTransfer.jsonEncoder(this)
-
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes
       ++ Longs.toByteArray(fee)

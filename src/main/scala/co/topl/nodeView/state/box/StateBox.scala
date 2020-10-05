@@ -1,12 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.ProgramId
-import com.google.common.primitives.Longs
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.syntax._
-import io.circe.{ Encoder, Decoder, HCursor, Json }
-import scorex.crypto.encode.Base58
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 case class StateBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
@@ -15,18 +12,9 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
                     ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "StateBox"
-
-  override lazy val id: BoxId = StateBox.idFromBox(proposition, nonce)
-
-  override lazy val json: Json = StateBox.jsonEncoder(this)
 }
 
 object StateBox {
-
-  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): BoxId =
-    BoxId(
-      FastCryptographicHash(prop.pubKeyBytes ++ "state".getBytes ++ Longs.toByteArray(nonce))
-    )
 
   implicit val jsonEncoder: Encoder[StateBox] = (box: StateBox) =>
     Map(
@@ -38,7 +26,7 @@ object StateBox {
       "nonce" -> box.nonce.asJson,
       ).asJson
 
-  implicit val decodeStateBox: Decoder[StateBox] = (c: HCursor) =>
+  implicit val jsonDecoder: Decoder[StateBox] = (c: HCursor) =>
     for {
       proposition <- c.downField("proposition").as[PublicKey25519Proposition]
       value <- c.downField("programId").as[ProgramId]

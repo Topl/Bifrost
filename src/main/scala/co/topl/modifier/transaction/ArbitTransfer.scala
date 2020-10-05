@@ -10,6 +10,7 @@ import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
+import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 import scala.util.{ Failure, Success, Try }
@@ -24,11 +25,7 @@ case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 
   override type M = ArbitTransfer
 
-  override lazy val serializer: BifrostSerializer[M] = ArbitTransferSerializer
-
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.commonMessageToSign
-
-  override lazy val json: Json = ArbitTransfer.jsonEncoder(this)
 
   override lazy val newBoxes: Traversable[ArbitBox] =
     to.filter(toInstance => toInstance._2 > 0L)
@@ -52,7 +49,18 @@ case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 object ArbitTransfer extends TransferCompanion {
 
   implicit val jsonEncoder: Encoder[ArbitTransfer] = { tx: ArbitTransfer =>
-    super.jsonEncoder("ArbitTransfer", tx)
+    Map(
+      "txHash" -> tx.id.asJson,
+      "txType" -> "ArbitTransfer".asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.asJson,
+      "from" -> tx.from.asJson,
+      "to" -> tx.to.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
   }
 
   implicit val jsonDecoder: Decoder[ArbitTransfer] = ( c: HCursor ) =>
@@ -88,7 +96,6 @@ object ArbitTransfer extends TransferCompanion {
 
   /**
    *
-   * @param tbr
    * @param stateReader
    * @param toReceive
    * @param sender

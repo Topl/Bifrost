@@ -3,19 +3,18 @@ package co.topl.modifier.transaction
 import java.time.Instant
 
 import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
-import co.topl.modifier.transaction.serialization.AssetCreationSerializer
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ AssetBox, Box, BoxId, TokenBox }
 import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{ Decoder, Encoder, HCursor }
 
 import scala.util.{ Failure, Success, Try }
 
 case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            signatures: Map[PublicKey25519Proposition, Signature25519],
-                           assetCode: String,
+                           assetCode : String,
                            issuer    : PublicKey25519Proposition,
                            fee       : Long,
                            timestamp : Long,
@@ -23,10 +22,6 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                          ) extends Transaction {
 
   override type M = AssetCreation
-
-  lazy val serializer: AssetCreationSerializer.type = AssetCreationSerializer
-
-  override lazy val json: Json = AssetCreation.jsonEncoder(this)
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 

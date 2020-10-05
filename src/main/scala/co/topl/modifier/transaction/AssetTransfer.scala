@@ -29,10 +29,6 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 
   override type M = AssetTransfer
 
-  override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
-
-  override lazy val json: Json = AssetTransfer.jsonEncoder(this)
-
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,
@@ -63,18 +59,18 @@ object AssetTransfer extends TransferCompanion {
 
   implicit val jsonEncoder: Encoder[AssetTransfer] = { tx: AssetTransfer =>
     Map(
-      "txHash" -> tx.id.toString.asJson,
+      "txHash" -> tx.id.asJson,
       "txType" -> "AssetTransfer".asJson,
-      "newBoxes" -> tx.newBoxes.map(_.id.toString).toSeq.asJson,
-      "boxesToRemove" -> tx.boxIdsToOpen.map(id => id.toString).asJson,
-      "from" -> tx.from.map { s => s._1.toString -> s._2.toString }.asJson,
-      "to" -> tx.to.map { s => s._1.toString -> s._2.toString }.asJson,
-      "issuer" -> tx.issuer.toString.asJson,
-      "assetCode" -> tx.assetCode.asJson,
-      "signatures" -> tx.signatures.map { s => s._1.toString -> Base58.encode(s._2.signature) }.asJson,
+      "newBoxes" -> tx.newBoxes.map(_.json).toSeq.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.asJson,
+      "from" -> tx.from.asJson,
+      "to" -> tx.to.asJson,
+      "signatures" -> tx.signatures.asJson,
       "fee" -> tx.fee.asJson,
       "timestamp" -> tx.timestamp.asJson,
-      "data" -> tx.data.asJson
+      "data" -> tx.data.asJson,
+      "issuer" -> tx.issuer.toString.asJson,
+      "assetCode" -> tx.assetCode.asJson,
       ).asJson
   }
 

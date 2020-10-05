@@ -41,8 +41,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override type M = ProgramCreation
 
-  override lazy val serializer: BifrostSerializer[M] = ProgramCreationSerializer
-
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
   lazy val investmentBoxIds: IndexedSeq[BoxId] =
@@ -109,8 +107,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
     IndexedSeq(executionBox, codeBox) ++ newStateBoxes //:+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
-  lazy val json: Json = ???
-
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderSerializer.toBytes(executionBuilder),
     owner.pubKeyBytes,
@@ -131,6 +127,7 @@ object ProgramCreation {
   implicit val jsonEncoder: Encoder[ProgramCreation] = (tx: ProgramCreation) =>
     Map(
       "txHash" -> tx.id.asJson,
+      "txType" -> "ProgramCreation".asJson,
       "owner" -> tx.owner.asJson,
       "signatures" -> tx.signatures.asJson,
       "feePreBoxes" -> tx.preFeeBoxes.asJson,

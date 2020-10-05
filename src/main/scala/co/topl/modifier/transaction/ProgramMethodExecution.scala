@@ -2,13 +2,11 @@ package co.topl.modifier.transaction
 
 import co.topl.crypto.{ FastCryptographicHash, MultiSignature25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.{ ProgramId, State, StateReader }
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor, Json }
@@ -80,10 +78,6 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
     IndexedSeq(updatedStateBox)
   }
 
-  lazy val json: Json = ProgramMethodExecution.jsonEncoder(this)
-
-  override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer
-
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
     data.getBytes
@@ -97,6 +91,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 //      )
 
   override def toString: String = s"ProgramMethodExecution(${json.noSpaces})"
+
 }
 
 
@@ -110,6 +105,7 @@ object ProgramMethodExecution {
   implicit val jsonEncoder: Encoder[ProgramMethodExecution] = (tx: ProgramMethodExecution) =>
     Map(
       "txHash" -> tx.id.asJson,
+      "txType" -> "ProgramMethodExecution".asJson,
       "owner" -> tx.owner.asJson,
       "signatures" -> tx.signatures.asJson,
       "feePreBoxes" -> tx.preFeeBoxes.asJson,

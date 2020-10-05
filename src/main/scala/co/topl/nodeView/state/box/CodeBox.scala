@@ -1,9 +1,7 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import com.google.common.primitives.Longs
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor, Json }
 
@@ -15,19 +13,9 @@ case class CodeBox ( override val proposition: PublicKey25519Proposition,
                    ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "CodeBox"
-
-  override lazy val id: BoxId = CodeBox.idFromBox(proposition, nonce)
-
-  override lazy val json: Json = CodeBox.jsonEncoder(this)
 }
 
 object CodeBox {
-
-  def idFromBox[proposition <: PublicKey25519Proposition] ( prop: proposition, nonce: Long ): BoxId =
-    BoxId(
-      FastCryptographicHash(prop.pubKeyBytes ++ "code".getBytes ++ Longs.toByteArray(nonce))
-      )
-
 
   implicit val jsonEncoder: Encoder[CodeBox] = (box: CodeBox) =>
     Map(

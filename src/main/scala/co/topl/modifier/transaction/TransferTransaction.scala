@@ -36,3 +36,6 @@ abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Pr
     boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _.hashBytes) ++
     data.getBytes
 }
+
+
+

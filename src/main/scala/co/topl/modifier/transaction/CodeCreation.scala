@@ -1,15 +1,13 @@
 package co.topl.modifier.transaction
 
 import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
-import co.topl.modifier.transaction.serialization.CodeBoxCreationSerializer
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox }
 import co.topl.nodeView.state.{ ProgramId, StateReader }
 import co.topl.program.ProgramPreprocessor
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json, JsonObject }
+import io.circe.{ Decoder, Encoder, HCursor, JsonObject }
 
 import scala.util.{ Failure, Success, Try }
 
@@ -23,11 +21,7 @@ case class CodeCreation ( to       : PublicKey25519Proposition,
 
   override type M = CodeCreation
 
-  lazy val serializer: BifrostSerializer[CodeCreation] = CodeBoxCreationSerializer
-
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
-
-  lazy val json: Json = CodeCreation.jsonEncoder(this)
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes ++

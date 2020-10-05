@@ -1,7 +1,10 @@
 package co.topl.nodeView.state.box
 
+import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import io.circe.Json
+import com.google.common.primitives.Longs
+import io.circe.syntax.EncoderOps
+import io.circe.{ HCursor, Json }
 
 /**
   * Created by cykoz on 5/15/2017.
@@ -11,10 +14,20 @@ import io.circe.Json
                          override val nonce: Long,
                          override val value: Long
                         ) extends Box(proposition, nonce, value) {
+  self =>
 
-  lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  lazy val id: BoxId = TokenBox.idFromBox(self)
 
-  val json: Json
+}
 
-  val typeOfBox: String
+
+object TokenBox {
+  def idFromBox[PKP <: PublicKey25519Proposition] (box: TokenBox ): BoxId = {
+    val hashBytes = FastCryptographicHash(
+      box.proposition.pubKeyBytes ++
+        box.typeOfBox.getBytes ++
+        Longs.toByteArray(box.nonce))
+
+    BoxId(hashBytes)
+  }
 }

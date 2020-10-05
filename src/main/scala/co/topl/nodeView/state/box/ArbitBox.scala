@@ -25,12 +25,10 @@ object ArbitBox {
 
   implicit val jsonDecoder: Decoder[ArbitBox] = ( c: HCursor ) =>
     for {
-      propRaw <- c.downField("proposition").as[String]
+      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
       value <- c.downField("value").as[Long]
       nonce <- c.downField("issuer").as[Long]
     } yield {
-      val proposition = PublicKey25519Proposition(propRaw)
-
       ArbitBox(proposition, nonce, value)
     }
 }
