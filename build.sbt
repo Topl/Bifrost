@@ -82,9 +82,9 @@ libraryDependencies ++= Seq(
 // monitoring dependencies
 libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-core" % "2.1.6",
-  "io.kamon" %% "kamon-influxdb" % "2.1.6",
-  "io.kamon" %% "kamon-zipkin" % "2.1.6",
+  "io.kamon" %% "kamon-core" % "2.1.7",
+  "io.kamon" %% "kamon-influxdb" % "2.1.7",
+  "io.kamon" %% "kamon-zipkin" % "2.1.7",
   //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
   //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
