@@ -4,8 +4,8 @@ import co.topl.modifier.ModifierId
 import co.topl.network.message
 import co.topl.network.message.Message.MessageCode
 import co.topl.network.peer.{ PeerFeature, PeerSpec, PeerSpecSerializer }
-import co.topl.nodeView.NodeViewModifier
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.utils.Extensions._
 import co.topl.utils.Logging
 import co.topl.utils.serialization.{ Reader, Writer }

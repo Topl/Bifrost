@@ -1,7 +1,7 @@
 //package co.topl.wallet
 //
 //import co.topl.modifier.ModifierId
-//import co.topl.nodeView.NodeViewModifier
+//import co.topl.modifier.NodeViewModifier
 //import co.topl.nodeView.state.box.GenericBox
 //import co.topl.nodeView.state.box.proposition.Proposition
 //import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }

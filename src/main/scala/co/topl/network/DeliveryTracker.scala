@@ -5,8 +5,8 @@ import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.network.ModifiersStatus._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import co.topl.network.peer.ConnectedPeer
-import co.topl.nodeView.NodeViewModifier
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.settings.NetworkSettings
 import co.topl.utils.{ BifrostEncoding, Logging }
 

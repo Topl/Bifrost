@@ -8,7 +8,7 @@ import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
-import co.topl.modifier.transaction.{AssetCreation, ArbitTransfer}
+import co.topl.modifier.transaction.{ArbitTransfer, AssetCreation, Transaction}
 import co.topl.nodeView.state.StateSpec
 import co.topl.wallet.Wallet
 import co.topl.{BifrostGenerators, ValidGenerators}
@@ -217,7 +217,7 @@ class ValkyrieSpec extends AnyPropSpec
       Longs.toByteArray(timestamp)
     //Longs.toByteArray(fee)
 
-    val nonce = ArbitTransfer
+    val nonce = Transaction
       .nonceFromDigest(FastCryptographicHash("ArbitTransfer".getBytes
         ++ proposition.pubKeyBytes
         ++ hashNoNonces

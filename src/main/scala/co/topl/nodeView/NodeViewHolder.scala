@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ ArbitBox, Box }
 import co.topl.nodeView.history.History

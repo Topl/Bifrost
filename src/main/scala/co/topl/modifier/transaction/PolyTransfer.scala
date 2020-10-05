@@ -2,19 +2,19 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction.serialization.PolyTransferSerializer
 import co.topl.nodeView.state.box.PolyBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.{ State, TokenBoxRegistry }
+import co.topl.nodeView.state.{State, TokenBoxRegistry}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
 import com.google.common.primitives.Ints
-import io.circe.Json
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                           override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -31,18 +31,19 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
 
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
 
-  override lazy val json: Json = super.json("PolyTransfer")
+  override lazy val json: Json = PolyTransfer.jsonEncoder(this)
 
   override lazy val newBoxes: Traversable[PolyBox] =
     to.filter(toInstance => toInstance._2 > 0L)
       .zipWithIndex
-      .map {
-        case ((prop, value), idx) =>
-          val nonce = PolyTransfer
-            .nonceFromDigest(FastCryptographicHash("PolyTransfer".getBytes
-                                                     ++ prop.pubKeyBytes
-                                                     ++ hashNoNonces
-                                                     ++ Ints.toByteArray(idx)))
+      .map { case ((prop, value), idx) =>
+        val nonce = Transaction
+          .nonceFromDigest(
+            FastCryptographicHash(
+              "PolyTransfer".getBytes
+                ++ prop.pubKeyBytes
+                ++ hashNoNonces
+                ++ Ints.toByteArray(idx)))
 
           PolyBox(prop, nonce, value)
       }
@@ -63,17 +64,17 @@ object PolyTransfer extends TransferUtil {
     transaction.PolyTransfer(params._1, to, params._2, fee, timestamp, data)
   }
 
-  def create ( tbr      : TokenBoxRegistry,
-             stateReader: SR,
-               w        : Wallet,
-               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
-               sender   : IndexedSeq[PublicKey25519Proposition],
-               fee      : Long, data: String
-             ): Try[PolyTransfer] = Try {
-    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "PolyTransfer")
-    val timestamp = Instant.now.toEpochMilli
-    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
-  }
+//  def create ( tbr      : TokenBoxRegistry,
+//             stateReader: SR,
+//               w        : Wallet,
+//               toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
+//               sender   : IndexedSeq[PublicKey25519Proposition],
+//               fee      : Long, data: String
+//             ): Try[PolyTransfer] = Try {
+//    val params = parametersForCreate(tbr, stateReader, w, toReceive, sender, fee, "PolyTransfer")
+//    val timestamp = Instant.now.toEpochMilli
+//    PolyTransfer(params._1.map(t => t._1 -> t._2), params._2, fee, timestamp, data)
+//  }
 
   def createPrototype ( tbr      : TokenBoxRegistry,
                       stateReader: SR,
@@ -120,5 +121,25 @@ object PolyTransfer extends TransferUtil {
       case Failure(e)         => throw e
     }
   }
+
+  implicit val jsonEncoder: Encoder[PolyTransfer] = { tx: ArbitTransfer =>
+    super.jsonEncoder("PolyTransfer", tx)
+  }
+
+  implicit val jsonDecoder: Decoder[PolyTransfer] = (c: HCursor) =>
+    for {
+      rawFrom <- c.downField("from").as[IndexedSeq[(String, String)]]
+      rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
+      rawSignatures <- c.downField("signatures").as[Map[String, String]]
+      fee <- c.downField("fee").as[Long]
+      timestamp <- c.downField("timestamp").as[Long]
+      data <- c.downField("data").as[String]
+    } yield {
+      val from = rawFrom.map { case (prop, nonce) => PublicKey25519Proposition(prop) -> nonce.toLong }
+      val to = rawTo.map { case (prop, value) => PublicKey25519Proposition(prop) -> value.toLong }
+      val signatures = rawSignatures.map { case (prop, sig) => PublicKey25519Proposition(prop) -> Signature25519(sig) }
+
+      PolyTransfer(from, to, signatures, fee, timestamp, data)
+    }
 
 }

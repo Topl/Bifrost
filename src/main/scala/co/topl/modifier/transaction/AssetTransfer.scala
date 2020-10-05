@@ -32,6 +32,8 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 
   override lazy val serializer: BifrostSerializer[AssetTransfer] = AssetTransferSerializer
 
+  override val json: Json = AssetTransfer.jsonEncoder(this)
+
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,
@@ -44,7 +46,7 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
     .zipWithIndex
     .map {
       case ((prop, value), idx) =>
-        val nonce = AssetTransfer.nonceFromDigest(FastCryptographicHash(
+        val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
           "AssetTransfer".getBytes ++
             prop.pubKeyBytes ++
             issuer.pubKeyBytes ++
@@ -55,9 +57,7 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
         AssetBox(prop, nonce, value, assetCode, issuer, data)
     }
 
-  override def toJson: Json = "tmp".asJson
-  override def toString: String = s"AssetTransfer(${AssetTransfer.jsonEncoder(this).noSpaces})"
-
+  override def toString: String = s"AssetTransfer(${json.noSpaces})"
 }
 
 object AssetTransfer extends TransferUtil {
@@ -141,13 +141,13 @@ object AssetTransfer extends TransferUtil {
     Map(
       "txHash" -> tx.id.toString.asJson,
       "txType" -> "AssetTransfer".asJson,
-      "newBoxes" -> tx.newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
-      "boxesToRemove" -> tx.boxIdsToOpen.map(id => Base58.encode(id).asJson).asJson,
-      "from" -> tx.from.map { s => Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson }.asJson,
-      "to" -> tx.to.map { s => Base58.encode(s._1.pubKeyBytes) -> s._2.toString.asJson }.asJson,
-      "issuer" -> Base58.encode(tx.issuer.pubKeyBytes).asJson,
+      "newBoxes" -> tx.newBoxes.map(_.id.toString).toSeq.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.map(id => id.toString).asJson,
+      "from" -> tx.from.map { s => s._1.toString -> s._2.toString }.asJson,
+      "to" -> tx.to.map { s => s._1.toString -> s._2.toString }.asJson,
+      "issuer" -> tx.issuer.toString.asJson,
       "assetCode" -> tx.assetCode.asJson,
-      "signatures" -> tx.signatures.map { s => Base58.encode(s._1.pubKeyBytes) -> Base58.encode(s._2.signature) }.asJson,
+      "signatures" -> tx.signatures.map { s => s._1.toString -> Base58.encode(s._2.signature) }.asJson,
       "fee" -> tx.fee.asJson,
       "timestamp" -> tx.timestamp.asJson,
       "data" -> tx.data.asJson
@@ -165,10 +165,10 @@ object AssetTransfer extends TransferUtil {
       timestamp <- c.downField("timestamp").as[Long]
       data <- c.downField("data").as[String]
     } yield {
-      val from = rawFrom.map { case (prop, nonce) => Transaction.stringToPubKey(prop) -> nonce.toLong }
-      val to = rawTo.map { case (prop, value) => Transaction.stringToPubKey(prop) -> value.toLong }
-      val signatures = rawSignatures.map { case (prop, sig) => Transaction.stringToPubKey(prop) -> Transaction.stringToSignature(sig) }
-      val issuer = Transaction.stringToPubKey(rawIssuer)
+      val from = rawFrom.map { case (prop, nonce) => PublicKey25519Proposition(prop) -> nonce.toLong }
+      val to = rawTo.map { case (prop, value) => PublicKey25519Proposition(prop) -> value.toLong }
+      val signatures = rawSignatures.map { case (prop, sig) => PublicKey25519Proposition(prop) -> Signature25519(sig) }
+      val issuer = PublicKey25519Proposition(rawIssuer)
 
       AssetTransfer(from, to, signatures, issuer, assetCode, fee, timestamp, data)
     }

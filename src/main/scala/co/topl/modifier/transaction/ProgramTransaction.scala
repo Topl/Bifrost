@@ -1,10 +1,10 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ PolyBox, PublicKeyNoncedBox }
-import com.google.common.primitives.{ Ints, Longs }
+import co.topl.nodeView.state.box.{BoxId, PolyBox, PublicKeyNoncedBox}
+import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -23,7 +23,7 @@ abstract class ProgramTransaction extends Transaction {
 
   override val fee: Long = fees.values.sum
 
-  lazy val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = preFeeBoxes.toIndexedSeq
+  lazy val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = preFeeBoxes.toIndexedSeq
     .flatMap {
       case (prop, v) =>
         v.map {
@@ -111,13 +111,13 @@ object ProgramTransaction {
                    rawSignatures: RP,
                    rawFeeBoxes: Map[String, IndexedSeq[(Long, Long)]],
                    rawFees: Map[String, Long]): (O, SIG, FBX, F) = {
-    val owner = Transaction.stringToPubKey(rawOwner)
+    val owner = PublicKey25519Proposition(rawOwner)
     val signatures = rawSignatures.map { case (key, value) =>
-      if (value == "") (Transaction.stringToPubKey(key), Signature25519(Array.empty[Byte]))
-      else (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
+      if (value.isEmpty) (PublicKey25519Proposition(key), Signature25519(Array.empty[Byte]))
+      else (PublicKey25519Proposition(key), Signature25519(value))
     }
-    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
-    val fees = rawFees.map { case (key, value) => (Transaction.stringToPubKey(key), value) }
+    val preFeeBoxes = rawFeeBoxes.map { case (key, value) => (PublicKey25519Proposition(key), value) }
+    val fees = rawFees.map { case (key, value) => (PublicKey25519Proposition(key), value) }
     (owner, signatures, preFeeBoxes, fees)
   }
 }

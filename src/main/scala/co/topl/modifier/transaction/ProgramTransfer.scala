@@ -2,29 +2,29 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.ProgramTransferSerializer
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ Box, ExecutionBox, ProgramBox }
-import co.topl.nodeView.state.{ State, StateReader }
+import co.topl.nodeView.state.box.{Box, BoxId, ExecutionBox, ProgramBox}
+import co.topl.nodeView.state.{ProgramId, State, StateReader}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
-import com.google.common.primitives.{ Bytes, Longs }
-import io.circe.Json
+import com.google.common.primitives.{Bytes, Longs}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax._
 import io.iohk.iodb.ByteArrayWrapper
 import scorex.crypto.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
-case class ProgramTransfer ( from        : PublicKey25519Proposition,
-                             to          : PublicKey25519Proposition,
-                             signature   : Signature25519,
-                             executionBox: ExecutionBox,
-                             fee         : Long,
-                             timestamp   : Long,
-                             data        : String
+case class ProgramTransfer (from        : PublicKey25519Proposition,
+                            to          : PublicKey25519Proposition,
+                            signature   : Signature25519,
+                            executionBox: ProgramId,
+                            fee         : Long,
+                            timestamp   : Long,
+                            data        : String
                            ) extends Transaction {
 
   override type M = ProgramTransfer
@@ -37,7 +37,7 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
       ++ data.getBytes
     )
 
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
+  override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq(executionBox.id)
 
   override lazy val newBoxes: Traversable[ProgramBox] = {
 
@@ -57,18 +57,7 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
       ++ Longs.toByteArray(fee)
     )
 
-  override lazy val json: Json = Map(
-    "txHash" -> id.toString.asJson,
-    "txType" -> "ProgramTransfer".asJson,
-    "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
-    "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,
-    "from" -> Base58.encode(from.pubKeyBytes).asJson,
-    "to" -> Base58.encode(to.pubKeyBytes).asJson,
-    "signature" -> Base58.encode(signature.signature).asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-    ).asJson
+  override lazy val json: Json =
 
   override def toString: String = s"ProgramTransfer(${json.noSpaces})"
 }
@@ -149,4 +138,27 @@ object ProgramTransfer {
       case _                                                                                     => Failure(new Exception("Invalid Box type for this transaction"))
     }
   }
+
+  implicit val jsonEncoder: Encoder[ProgramTransfer] = { tx: ProgramTransfer =>
+    Map(
+      "txHash" -> tx.id.toString.asJson,
+      "txType" -> "ProgramTransfer".asJson,
+      "newBoxes" -> tx.newBoxes.head.id.toString.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.head.toString.asJson,
+      "from" -> tx.from.toString.asJson,
+      "to" -> tx.to.toString.asJson,
+      "signature" -> tx.signature.toString.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+    ).asJson
+  }
+
+  implicit val jsonDecoder: Decoder[ProgramTransfer] = (c: HCursor) =>
+    for {
+
+    } yield {
+
+      ProgramTransfer ( from, to, signature, executionBox, fee, timestamp, data)
+    }
 }

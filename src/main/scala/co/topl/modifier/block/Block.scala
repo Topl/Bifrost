@@ -1,16 +1,16 @@
 package co.topl.modifier.block
 
 import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.nodeView.BifrostNodeViewModifier
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{Encoder, Json}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import scorex.crypto.encode.Base58
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
@@ -123,19 +123,18 @@ object Block {
     ).asJson
   }
 
-//  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
-//    for {
-//      parentId <- c.downField("parentId").as[String]
-//      timestamp <- c.downField("timestamp").as[Timestamp]
-//      generatorBox <- c.downField("generatorBox").as[ArbitBox]
-//      signature <- c.downField("signature").as[String]
-//      txsSeq <- c.downField("txs").as[Seq[Json]]
-//      version <- c.downField("version").as[Byte]
-//    } yield {
-//      val parent = ModifierId(parentId)
-//      val sig = Signature25519(signature)
-//      val txs = txsSeq.map(_.fromJson)
-//
-//      Block(parent, timestamp, generatorBox, sig, txs, version)
-//    }
+  implicit val jsonDecoder: Decoder[Block] = (c: HCursor) =>
+    for {
+      parentId <- c.downField("parentId").as[String]
+      timestamp <- c.downField("timestamp").as[Timestamp]
+      generatorBox <- c.downField("generatorBox").as[ArbitBox]
+      signature <- c.downField("signature").as[String]
+      txsSeq <- c.downField("txs").as[Seq[Transaction]]
+      version <- c.downField("version").as[Byte]
+    } yield {
+      val parent = ModifierId(parentId)
+      val sig = Signature25519(signature)
+
+      Block(parent, timestamp, generatorBox, sig, txsSeq, version)
+    }
 }

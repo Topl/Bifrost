@@ -8,7 +8,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.message.{ InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _ }
 import co.topl.network.peer.{ ConnectedPeer, PenaltyType }
-import co.topl.nodeView.NodeViewModifier.{ ModifierTypeId, idsToString }
+import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.history.GenericHistory._

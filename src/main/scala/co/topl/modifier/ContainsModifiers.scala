@@ -1,6 +1,6 @@
 package co.topl.modifier
 
-import co.topl.nodeView.NodeViewModifier
+import co.topl.modifier.NodeViewModifier
 
 /**
   * Object that contains modifiers of type `MOD`

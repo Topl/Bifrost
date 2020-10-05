@@ -7,8 +7,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{ Block, BlockValidator, Bloom }
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.NodeViewModifier
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId

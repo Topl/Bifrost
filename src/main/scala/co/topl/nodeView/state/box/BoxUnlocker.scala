@@ -5,8 +5,8 @@ import co.topl.nodeView.state.box.proposition.Proposition
 import scorex.crypto.encode.Base58
 
 trait BoxUnlocker[+P <: Proposition] {
-  val closedBoxId: Array[Byte]
+  val closedBoxId: BoxId
   val boxKey: Proof[P]
 
-  override def toString: String = s"BoxUnlocker(id: ${Base58.encode(closedBoxId)}, boxKey: $boxKey)"
+  override def toString: String = s"BoxUnlocker(id: $closedBoxId, boxKey: $boxKey)"
 }
