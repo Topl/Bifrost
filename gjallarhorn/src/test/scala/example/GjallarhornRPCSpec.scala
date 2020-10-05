@@ -13,6 +13,7 @@ import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.parser.parse
 import keymanager.{KeyManagerRef, Keys}
+import requests.Requests
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import wallet.WalletManager
@@ -41,9 +42,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(Set(), keyFileDir)
   val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
+  val requests: Requests = new Requests(settings)
 
-
-  val route: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef).route
+  val route: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(

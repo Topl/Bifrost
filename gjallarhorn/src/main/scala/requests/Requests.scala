@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
 import keymanager.Keys
 import crypto._
@@ -18,9 +17,8 @@ import scorex.crypto.encode.Base58
 import settings.AppSettings
 
 
-class Requests (settings: AppSettings) {
-  implicit val actorSystem: ActorSystem = ActorSystem()
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+class Requests (settings: AppSettings)
+               (implicit val actorSystem: ActorSystem) {
 
   val http: HttpExt = Http(actorSystem)
 
@@ -139,10 +137,7 @@ class Requests (settings: AppSettings) {
   }
 
   def getBalances (publicKeys: Set[String]): Json = {
-    var keysWithQuotes: Set[String] = Set.empty
-    publicKeys.foreach(pk =>
-      keysWithQuotes += s""""$pk""""
-    )
+    val keysWithQuotes: Set[String] = publicKeys.map(pk => s""""$pk"""")
     val keys: String = keysWithQuotes.mkString(", \n")
     val json = (
       s"""

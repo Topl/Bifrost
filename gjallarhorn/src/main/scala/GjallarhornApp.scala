@@ -3,6 +3,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import http.GjallarhornApiRoute
 import keymanager.{KeyManagerRef, Keys}
+import requests.Requests
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.WalletManager
@@ -16,16 +17,16 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val context: ExecutionContextExecutor = system.dispatcher
 
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
-  val keyFileDir = "keyfiles/keyManagerTest"
+  val keyFileDir = settings.keyFileDir
   val keyManager = Keys(Set(), keyFileDir)
 
   private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
 
   implicit val settings: AppSettings = AppSettings.read(startupOpts)
-
+  val requests: Requests = new Requests(settings)
   val httpPort: Int = settings.rpcPort
 
-  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef).route
+  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
   Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
     case Success(serverBinding) =>
       log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")

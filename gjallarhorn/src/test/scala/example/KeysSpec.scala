@@ -14,7 +14,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   val randomBytes1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val randomBytes2 = Blake2b256(java.util.UUID.randomUUID.toString)
 
-  // Four keypairs for full test range, use library keygen method
+  // Three keypairs for full test range, use library keygen method
   val (sk1, pk1) = PrivateKey25519Companion.generateKeys(randomBytes1)
   val (sk2, pk2) =  PrivateKey25519Companion.generateKeys(Blake2b256("sameEntropic")) //Hash of this string was taken as input instead of entropy
   val (sk3, pk3) =  PrivateKey25519Companion.generateKeys(randomBytes1)

@@ -12,39 +12,14 @@ import settings.AppSettings
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/*object GjallarhornApiRoute {
-  val r = new Requests
-
-  /**
-    * Calls an HTTP request and eventually returns a response.
-    * @param request - an HTTP request
-    * @return - returns a response of type Future.
-    */
-  def requestResponseByteString(request: HttpRequest): Future[ByteString] = {
-    r.requestResponseByteString(request)
-  }
-
-  /**
-    * Converts data into JSON.
-    * @param data
-    * @return the data in Json form.
-    */
-  def byteStringToJSON(data: Future[ByteString]): Json = {
-    r.byteStringToJSON(data)
-  }
-}*/
-
 case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
-                               walletManager: ActorRef)
-                              (implicit val context: ActorRefFactory) extends ApiRoute {
-//  //Necessary Akka Actor Components
-  //implicit val actorsystem = ActorSystem()
-  //implicit val materializer: ActorMaterializer = ActorMaterializer()
+                               walletManager: ActorRef,
+                               requests: Requests)
+                              (implicit val context: ActorRefFactory,
+                               implicit val actorSystem: ActorSystem) extends ApiRoute {
 
-  val r = new Requests(settings)
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
-
 
   /**
     * Handles the different methods that are called.
@@ -69,8 +44,8 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    val tx = r.transaction(params)
-    Future{r.sendRequest(tx, "asset")}
+    val tx = requests.transaction(params)
+    Future{requests.sendRequest(tx, "asset")}
   }
 
   /**
@@ -95,7 +70,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    Future{r.broadcastTx(params)}
+    Future{requests.broadcastTx(params)}
   }
 
 
