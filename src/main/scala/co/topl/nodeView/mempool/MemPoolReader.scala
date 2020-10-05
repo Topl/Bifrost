@@ -17,9 +17,6 @@ trait MemPoolReader[TX <: GenericTransaction[_]] extends NodeViewComponent with 
   //getters
   override def modifierById(modifierId: ModifierId): Option[TX]
 
-  @deprecated("use modifierById instead", "2018-08-14")
-  def getById(id: ModifierId): Option[TX] = modifierById(id)
-
   def contains(id: ModifierId): Boolean
 
   //get ids from Seq, not presenting in mempool

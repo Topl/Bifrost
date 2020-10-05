@@ -4,10 +4,10 @@ import akka.actor._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.ArbitBox
 import co.topl.settings.{ AppContext, ForgingSettings }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
@@ -25,6 +25,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   //type HR = HistoryReader[Block, BifrostSyncInfo]
 
   // Import the types of messages this actor RECEIVES
+
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
@@ -35,7 +36,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   private val keyRing = KeyRing(keyFileDir)
 
   // a timestamp updated on each forging attempt
- private var forgeTime: Time = appContext.timeProvider.time()
+  private var forgeTime: Time = appContext.timeProvider.time()
 
   // setting to limit the size of blocks
   val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
@@ -52,10 +53,21 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
+  // ----------- CONTEXT
   override def receive: Receive = nonsense
 
-  private def readyToForge: Receive = {
+  private def readyToForge: Receive =
+    readyHandlers orElse
+      keyManagement orElse
+      nonsense
+
+  private def activeForging: Receive =
+    activeHandlers orElse
+      keyManagement orElse
+      nonsense
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def readyHandlers: Receive = {
     case StartForging =>
       log.info("Received a START signal, forging will commence shortly.")
       scheduleForgingAttempt() // schedule the next forging attempt
@@ -63,11 +75,9 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     case StopForging =>
       log.warn(s"Received a STOP signal while not forging. Signal ignored")
-
-    case _ => nonsense
   }
 
-  private def activeForging: Receive = {
+  private def activeHandlers: Receive = {
     case StartForging =>
       log.warn(s"Forger: Received a START signal while forging. Signal ignored")
 
@@ -79,8 +89,14 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       updateForgeTime() // update the forge timestamp
       tryForging(h, s, m) // initiate forging attempt
       scheduleForgingAttempt() // schedule the next forging attempt
+  }
 
-    case _ => nonsense
+  private def keyManagement: Receive = {
+    case UnlockKey(addr, password)     => sender() ! keyRing.unlockKeyFile(addr, password)
+    case LockKey(addr, password)       => sender() ! keyRing.lockKeyFile(addr, password)
+    case ListKeys                      => sender() ! keyRing.publicKeys
+    case CreateKey(password)           => sender() ! keyRing.generateKeyFile(password)
+    case ImportKey(password, mnemonic) => ???
   }
 
   private def nonsense: Receive = {
@@ -186,8 +202,8 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
                                ): Try[Seq[Transaction]] = Try {
 
     memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
-      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).exists(_ sameElements id))
-      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id.hashBytes).isEmpty)
+      val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
+      val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
       if ( validBoxes ) memPool.remove(tx)
 
@@ -213,10 +229,10 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    */
   private def leaderElection ( parent: Block,
                                difficulty: Long,
-                               boxes: Set[ArbitBox],
-                               coinbase: Coinbase,
+                               boxes     : Set[ArbitBox],
+                               coinbase  : Coinbase,
                                txsToInclude: Seq[Transaction],
-                               version: Block.Version
+                               version     : Block.Version
                              ): Option[Block] = {
 
     val target = calcAdjustedTarget(parent, difficulty, forgeTime)
@@ -257,6 +273,16 @@ object Forger {
     case object StartForging
 
     case object StopForging
+
+    case class UnlockKey ( addr: String, password: String )
+
+    case class LockKey ( addr: String, password: String )
+
+    case object ListKeys
+
+    case class CreateKey ( password: String )
+
+    case class ImportKey ( password: String, mnemonic: String )
 
   }
 

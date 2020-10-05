@@ -14,7 +14,6 @@ import co.topl.nodeView.state.{ ProgramId, State }
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
 import co.topl.settings.RESTApiSettings
 import co.topl.utils.exceptions.JsonParsingException
-import co.topl.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._
 import io.circe.{ Decoder, Json, JsonObject }
@@ -28,7 +27,6 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("program") { basicRoute(handlers) }
 

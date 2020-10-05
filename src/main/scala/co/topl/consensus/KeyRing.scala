@@ -3,11 +3,10 @@ package co.topl.consensus
 import java.io.File
 
 import co.topl.crypto.{ KeyFile, PrivateKey25519 }
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import co.topl.utils.Logging
-import scorex.crypto.encode.Base58
 
-import scala.util.{ Failure, Success }
+import scala.util.{ Failure, Success, Try }
 
 class KeyRing ( private var secrets: Set[PrivateKey25519],
                 defaultKeyDir      : File
@@ -60,6 +59,27 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
     else secrets -= (secrets find (p => p == privKey)).get
   }
 
+  /**
+   *
+   * @param password
+   */
+  def generateKeyFile (password: String): Try[PublicKey25519Proposition] =
+    Try{
+      KeyFile(password, defaultKeyDir.toString).getPrivateKey(password) match {
+        case Success(sk) =>
+          secrets += sk
+          sk.publicImage
+
+        case Failure(ex) => throw ex
+      }
+    }
+
+  /**
+   *
+   * @param password
+   */
+  def importKeyFile (password: String, ): Unit = KeyFile(password, defaultKeyDir.toString)
+
   /** Return a list of KeuFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KeyFile] =
     getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath))
@@ -72,9 +92,8 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @return the relevant PrivateKey25519 to be processed
    */
   private def checkValid ( publicKeyString: String, password: String ): PrivateKey25519 = {
-    val keyfile = PublicKey25519Proposition(publicKeyString) match {
-      case Success(queryKey) => listKeyFiles.filter(_.pubKeyBytes sameElements queryKey.pubKeyBytes)
-      case Failure(ex)       => throw ex
+    val keyfile = listKeyFiles.filter {
+      _.pubKeyBytes sameElements PublicKey25519Proposition(publicKeyString).pubKeyBytes
     }
 
     assert(keyfile.size == 1, "Cannot find a unique publicKey in key files")

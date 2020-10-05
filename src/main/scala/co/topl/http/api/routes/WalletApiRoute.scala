@@ -12,7 +12,6 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.RESTApiSettings
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
@@ -25,14 +24,13 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
                           ( implicit val context: ActorRefFactory ) extends ApiRouteWithView {
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("wallet") { basicRoute(handlers) }
 
   def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
     method match {
-      case "transferPolys"           => transferPolys(params.head, id)
-      case "transferArbits"          => transferArbits(params.head, id)
+//      case "transferPolys"           => transferPolys(params.head, id)
+//      case "transferArbits"          => transferArbits(params.head, id)
       case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
       case "transferPolysPrototype"  => transferPolysPrototype(params.head, id)
       case "balances"                => balances(params.head, id)
@@ -41,7 +39,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       case "generateKeyfile"         => generateKeyfile(params.head, id)
       case "listOpenKeyfiles"        => listOpenKeyfiles(params.head, id)
       case "importSeedPhrase"        => importKeyfile(params.head, id)
-      case "signTx"                  => signTx(params.head, id)
+//      case "signTx"                  => signTx(params.head, id)
       case "broadcastTx"             => broadcastTx(params.head, id)
     }
 
@@ -77,54 +75,54 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | fee                     	| Number     	| Optional            	| Default to 0                                                          	  |
    *      | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def transferPolys ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-        )
-      val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
-
-      checkPublicKey(sender, view)
-
-      // Call to BifrostTX to create TX
-      val tx = PolyTransfer
-        .create(
-          view.state.tbrOpt.get,
-          view.state,
-          wallet,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          data
-          )
-        .get
-
-      // Update nodeView with new TX
-      PolyTransfer.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[PolyTransfer](tx)
-          tx.json
-        case Failure(e) =>
-          throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def transferPolys ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+//        Base58.decode((params \\ "recipient").head.asString.get).get
+//        )
+//      val sender: IndexedSeq[PublicKey25519Proposition] =
+//        (params \\ "sender").head.asArray.get
+//          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
+//      val fee: Long =
+//        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//
+//      // Optional API parameters
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None          => ""
+//      }
+//
+//      checkPublicKey(sender, view)
+//
+//      // Call to BifrostTX to create TX
+//      val tx = PolyTransfer
+//        .create(
+//          view.state.tbrOpt.get,
+//          view.state,
+//          wallet,
+//          IndexedSeq((recipient, amount)),
+//          sender,
+//          fee,
+//          data
+//          )
+//        .get
+//
+//      // Update nodeView with new TX
+//      PolyTransfer.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[PolyTransfer](tx)
+//          tx.json
+//        case Failure(e) =>
+//          throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   /** #### Summary
    * Transfer Polys from an account to a specified recipient.
@@ -175,7 +173,6 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 
       val tx = PolyTransfer
         .createPrototype(
-          view.state.tbrOpt.get,
           view.state,
           IndexedSeq((recipient, amount)),
           sender,
@@ -216,53 +213,53 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | fee                     	| Number     	| Optional            	| Default to 0                                                          	  |
    *      | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def transferArbits ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-        )
-      val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
-
-      checkPublicKey(sender, view)
-
-      val tx = ArbitTransfer
-        .create(
-          view.state.tbrOpt.get,
-          view.state,
-          wallet,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          data
-          )
-        .get
-      // Update nodeView with new TX
-      ArbitTransfer.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ArbitTransfer](tx)
-          tx.json
-        case Failure(e) =>
-          throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def transferArbits ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+//        Base58.decode((params \\ "recipient").head.asString.get).get
+//        )
+//      val sender: IndexedSeq[PublicKey25519Proposition] =
+//        (params \\ "sender").head.asArray.get
+//          .map(key =>
+//                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+//               )
+//      val fee: Long =
+//        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      // Optional API parameters
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None          => ""
+//      }
+//
+//      checkPublicKey(sender, view)
+//
+//      val tx = ArbitTransfer
+//        .create(
+//          view.state.tbrOpt.get,
+//          view.state,
+//          wallet,
+//          IndexedSeq((recipient, amount)),
+//          sender,
+//          fee,
+//          data
+//          )
+//        .get
+//      // Update nodeView with new TX
+//      ArbitTransfer.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[ArbitTransfer](tx)
+//          tx.json
+//        case Failure(e) =>
+//          throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   /** #### Summary
    * Transfer Polys from an account to a specified recipient.
@@ -312,7 +309,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
       checkPublicKey(sender, view)
 
       val tx = ArbitTransfer
-        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, fee, data)
+        .createPrototype(view.state, IndexedSeq((recipient, amount)), sender, fee, data)
         .get
 
       // Update nodeView with new TX

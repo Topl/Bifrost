@@ -45,58 +45,6 @@ case class KeyFile (pubKeyBytes: Array[Byte],
 
 object KeyFile {
 
-  def uuid: String = java.util.UUID.randomUUID.toString
-
-  def apply (password: String, seed: Array[Byte] = FastCryptographicHash(uuid), defaultKeyDir: String): KeyFile = {
-
-    val salt = FastCryptographicHash(uuid)
-
-    val (sk, pk) = PrivateKey25519.generateKeys(seed)
-
-    val ivData = FastCryptographicHash(uuid).slice(0, 16)
-
-    val derivedKey = getDerivedKey(password, salt)
-    val (cipherText, mac) = getAESResult(derivedKey, ivData, sk.privKeyBytes, encrypt = true)
-
-    val tempFile = new KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
-
-    val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"$defaultKeyDir/$dateString-${Base58.encode(pk.pubKeyBytes)}.json"))
-    w.write(tempFile.asJson.toString())
-    w.close()
-    tempFile
-  }
-
-  def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
-  }
-
-  def getAESResult (derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
-  (Array[Byte], Array[Byte]) = {
-    val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
-    val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
-    aesCtr.init(encrypt, cipherParams)
-
-    val outputText = Array.fill(32)(1: Byte)
-    aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
-    aesCtr.doFinal(outputText, 0)
-
-    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
-  }
-
-
-  def getPkFromSk (sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
-
-  def readFile (filename: String): KeyFile = {
-    val jsonString = scala.io.Source.fromFile(filename)
-    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
-      case Right(f: KeyFile) => f
-      case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
-    }
-    jsonString.close()
-    key
-  }
-
   implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) =>
     for {
       pubKeyString <- c.downField("publicKeyId").as[String]
@@ -123,9 +71,9 @@ object KeyFile {
         "kdf" -> "scrypt".asJson,
         "kdfSalt" -> Base58.encode(kf.salt).asJson,
         "mac" -> Base58.encode(kf.mac).asJson
-      ).asJson,
+        ).asJson,
       "publicKeyId" -> Base58.encode(kf.pubKeyBytes).asJson
-    ).asJson
+      ).asJson
   }
 
   private val provider: OpportunisticCurve25519Provider = {
@@ -136,4 +84,58 @@ object KeyFile {
     constructor.setAccessible(true)
     constructor.newInstance()
   }
+
+  def apply (password: String, defaultKeyDir: String): KeyFile = apply(password, FastCryptographicHash(uuid), defaultKeyDir)
+
+  def apply (password: String, seed: Array[Byte], defaultKeyDir: String): KeyFile = {
+
+    val salt = FastCryptographicHash(uuid)
+
+    val (sk, pk) = PrivateKey25519.generateKeys(seed)
+
+    val ivData = FastCryptographicHash(uuid).slice(0, 16)
+
+    val derivedKey = getDerivedKey(password, salt)
+    val (cipherText, mac) = getAESResult(derivedKey, ivData, sk.privKeyBytes, encrypt = true)
+
+    val tempFile = new KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
+
+    val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
+    val w = new BufferedWriter(new FileWriter(s"$defaultKeyDir/$dateString-${Base58.encode(pk.pubKeyBytes)}.json"))
+    w.write(tempFile.asJson.toString())
+    w.close()
+    tempFile
+  }
+
+  def readFile (filename: String): KeyFile = {
+    val jsonString = scala.io.Source.fromFile(filename)
+    val key = parse(jsonString.mkString).right.get.as[KeyFile] match {
+      case Right(f: KeyFile) => f
+      case Left(e)           => throw new Exception(s"Could not parse KeyFile: $e")
+    }
+    jsonString.close()
+    key
+  }
+
+  private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
+    SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
+  }
+
+  private def getAESResult (derivedKey: Array[Byte], ivData: Array[Byte], inputText: Array[Byte], encrypt: Boolean):
+  (Array[Byte], Array[Byte]) = {
+    val cipherParams = new ParametersWithIV(new KeyParameter(derivedKey), ivData)
+    val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
+    aesCtr.init(encrypt, cipherParams)
+
+    val outputText = Array.fill(32)(1: Byte)
+    aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
+    aesCtr.doFinal(outputText, 0)
+
+    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
+  }
+
+  private def getPkFromSk (sk: Array[Byte]): Array[Byte] = provider.generatePublicKey(sk)
+
+  private def uuid: String = java.util.UUID.randomUUID.toString
+
 }
