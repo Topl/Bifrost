@@ -143,7 +143,7 @@ class NodeViewRPCSpec extends AnyWordSpec
         txHash shouldEqual assetTxHash
         assert(txHashesArray.size <= 100)
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        assetTxInstance = view().pool.getById(txHashId).get
+        assetTxInstance = view().pool.modifierById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,

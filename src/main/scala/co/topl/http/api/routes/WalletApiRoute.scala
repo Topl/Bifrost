@@ -396,38 +396,38 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | signingKeys             	| String[]   	| Required            	| List of keys that signatures will be created for                       	  |
    *      | protoTx             	    | object     	| Required            	| A prototype transaction JSON object                                     	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def signTx ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val props = (params \\ "signingKeys").head.asArray.get.map(k => {
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
-      })
-
-      val tx = (params \\ "protoTx").head
-      val txType = (tx \\ "txType").head.asString.get
-      val txInstance = txType match {
-        case "AssetCreation" => tx.as[AssetCreation].right.get
-        case "AssetTransfer" => tx.as[AssetTransfer].right.get
-        case _               =>
-          throw new Exception(s"Could not find valid transaction type $txType")
-      }
-      val signatures: Json = Map(
-        "signatures" -> Transaction
-          .signTx(wallet, props, txInstance.messageToSign)
-          .map(sig => {
-            Base58.encode(sig._1.pubKeyBytes) -> Base58
-              .encode(sig._2.signature)
-              .asJson
-          })
-        ).asJson
-
-      tx.deepMerge(signatures)
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def signTx ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val props = (params \\ "signingKeys").head.asArray.get.map(k => {
+//        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
+//      })
+//
+//      val tx = (params \\ "protoTx").head
+//      val txType = (tx \\ "txType").head.asString.get
+//      val txInstance = txType match {
+//        case "AssetCreation" => tx.as[AssetCreation].right.get
+//        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+//        case _               =>
+//          throw new Exception(s"Could not find valid transaction type $txType")
+//      }
+//      val signatures: Json = Map(
+//        "signatures" -> Transaction
+//          .signTx(wallet, props, txInstance.messageToSign)
+//          .map(sig => {
+//            Base58.encode(sig._1.pubKeyBytes) -> Base58
+//              .encode(sig._2.signature)
+//              .asJson
+//          })
+//        ).asJson
+//
+//      tx.deepMerge(signatures)
+//    }
+//  }
 
   /** #### Summary
    * Broadcast transaction

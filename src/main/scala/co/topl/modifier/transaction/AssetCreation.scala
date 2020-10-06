@@ -21,8 +21,6 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            data      : String
                          ) extends Transaction {
 
-  override type M = AssetCreation
-
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation

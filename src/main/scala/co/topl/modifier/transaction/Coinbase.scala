@@ -19,8 +19,6 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
                       parentId  : ModifierId
                     ) extends Transaction {
 
-  override type M = Coinbase
-
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()

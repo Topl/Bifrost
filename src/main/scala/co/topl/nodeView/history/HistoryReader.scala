@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent

@@ -21,8 +21,6 @@ case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
                            override val data      : String
                          ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
-  override type M = ArbitTransfer
-
   override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.commonMessageToSign
 
   override lazy val newBoxes: Traversable[ArbitBox] =

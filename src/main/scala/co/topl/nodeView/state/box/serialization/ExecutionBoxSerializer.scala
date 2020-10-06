@@ -24,7 +24,7 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
   }
 
   override def parse(r: Reader): ExecutionBox = {
-    val programBox: ProgramBox = ProgramBoxSerializer.parse(r)
+    val (proposition, nonce, programId) = ProgramBoxSerializer.parse(r)
 
     /* stateBoxIds: Seq[ProgramId], List of program ids of state boxes from ProgramBoxRegistry */
     val stateBoxIdsLength: Int = r.getUInt().toIntExact
@@ -34,6 +34,6 @@ object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
     val codeBoxIdsLength: Int = r.getUInt().toIntExact
     val codeBoxIds: Seq[ProgramId] = (0 until codeBoxIdsLength).map(_ => ProgramId.parse(r))
 
-    ExecutionBox(programBox.proposition, programBox.nonce, programBox.value, stateBoxIds, codeBoxIds)
+    ExecutionBox(proposition, nonce, programId, stateBoxIds, codeBoxIds)
   }
 }

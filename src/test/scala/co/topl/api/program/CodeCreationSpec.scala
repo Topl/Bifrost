@@ -48,7 +48,7 @@ class CodeCreationSpec extends AnyWordSpec
 
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
         val history = view().history
         val tempBlock = Block.create(

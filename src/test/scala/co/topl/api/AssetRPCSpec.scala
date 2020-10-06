@@ -13,6 +13,7 @@ import co.topl.http.api.routes.{ AssetApiRoute, WalletApiRoute }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ AssetCreation, Transaction }
+import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -74,10 +75,9 @@ class AssetRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
 
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    (nodeViewHolderRef ? GetDataFromCurrentView.mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   val publicKeys = Map(
@@ -86,7 +86,6 @@ class AssetRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
   // Unlock Secrets
-  val gw: Wallet = view().vault
   gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
@@ -119,7 +118,7 @@ class AssetRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
         asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
 
         val history = view().history
@@ -314,7 +313,7 @@ class AssetRPCSpec extends AnyWordSpec
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
         view().pool.remove(txInstance)
       }
     }

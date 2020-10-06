@@ -18,9 +18,9 @@ abstract class GenericTransaction[P <: Proposition] extends NodeViewModifier {
 
   val timestamp: Long
 
-  val messageToSign: Array[Byte]
+  val id: ModifierId = ModifierId(FastCryptographicHash(messageToSign))
 
-  lazy val id: ModifierId = ModifierId(FastCryptographicHash(messageToSign))
+  def messageToSign: Array[Byte]
 
 }
 

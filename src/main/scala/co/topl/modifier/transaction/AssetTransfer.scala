@@ -24,8 +24,6 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
                            override val data      : String
                          ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
-  override type M = AssetTransfer
-
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
     super.commonMessageToSign,

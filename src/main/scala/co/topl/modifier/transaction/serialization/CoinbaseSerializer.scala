@@ -30,7 +30,7 @@ object CoinbaseSerializer extends BifrostSerializer[Coinbase] {
     w.putULong(obj.timestamp)
 
     /* blockID: ModifierId */
-    w.putBytes(obj.blockId.hashBytes)
+    w.putBytes(obj.parentId.hashBytes)
   }
 
   override def parse(r: Reader): Coinbase = {

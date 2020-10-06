@@ -37,8 +37,6 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
                            data: String)
   extends ProgramTransaction {
 
-  override type M = ProgramCreation
-
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
   lazy val investmentBoxIds: IndexedSeq[BoxId] =

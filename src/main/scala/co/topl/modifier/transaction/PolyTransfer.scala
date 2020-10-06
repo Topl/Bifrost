@@ -22,8 +22,6 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
                           override val data      : String
                         ) extends TransferTransaction(from, to, signatures, fee, timestamp, data) {
 
-  override type M = PolyTransfer
-
   override lazy val messageToSign: Array[Byte] = "PolyTransfer".getBytes() ++ super.commonMessageToSign
 
   override lazy val newBoxes: Traversable[PolyBox] =

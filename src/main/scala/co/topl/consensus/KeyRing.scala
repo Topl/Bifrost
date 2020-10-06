@@ -25,9 +25,9 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
   def publicKeys: Set[PI] = secrets.map(_.publicImage).toSet
 
   /**Find a secret given it's public image */
-  private[consnesus] def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
+  private[consensus] def secretByPublicImage(publicImage: PI): Option[S] = publicImage match {
     case p: PublicKey25519Proposition => secrets.find(s => s.publicImage == p)
-    case mn: MofNProposition          => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
+    //case mn: MofNProposition          => secrets.find(s => mn.setOfPubKeyBytes.exists(s.publicImage == PublicKey25519Proposition(_)))
     case _ => None
   }
 

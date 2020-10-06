@@ -51,7 +51,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
     .map(d => ModifierId(d.data))
-    .getOrElse(ModifierId(History.GenesisParentId))
+    .getOrElse(History.GenesisParentId)
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
@@ -184,7 +184,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
   }
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId.hashBytes sameElements History.GenesisParentId) {
+    if (blockId == History.GenesisParentId) {
       Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
@@ -213,5 +213,5 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
 
   def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: Block): Boolean = b.parentId.hashBytes sameElements History.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 }

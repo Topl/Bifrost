@@ -31,49 +31,49 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
 
   def handlers(method: String, params: Vector[Json], id: String): Future[Json] =
     method match {
-      case "getProgramSignature" => getProgramSignature(params.head, id)
-      case "createCode" => createCode(params.head, id)
+//      case "getProgramSignature" => getProgramSignature(params.head, id)
+//      case "createCode" => createCode(params.head, id)
       case "createProgram" => createProgram(params.head, id)
-      case "transferProgram" => transferProgram(params.head, id)
-      case "executeProgramMethod" => executeProgramMethod(params.head, id)
+//      case "transferProgram" => transferProgram(params.head, id)
+//      case "executeProgramMethod" => executeProgramMethod(params.head, id)
       case "programCall" => programCall(params.head, id)
       case "filter" => bloomFilter(params, id)
     }
 
-  def getProgramSignature(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-      val state = view.state
-      val tx = createProgramInstance(params, state)
-      val signature = selectedSecret.sign(tx.messageToSign)
-      Map("signature" -> Base58.encode(signature.signature).asJson,
-        "tx" -> tx.json.asJson).asJson
-    }
-  }
+//  def getProgramSignature(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
+//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+//      val state = view.state
+//      val tx = createProgramInstance(params, state)
+//      val signature = selectedSecret.sign(tx.messageToSign)
+//      Map("signature" -> Base58.encode(signature.signature).asJson,
+//        "tx" -> tx.json.asJson).asJson
+//    }
+//  }
 
-  def createCode(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val owner = PublicKey25519Proposition((params \\ "publicKey").head.asString.get).get
-      val code: String = (params \\ "code").head.asString.get
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
-      }
-
-      val tx = CodeCreation.createAndApply(wallet, owner, code, fee, data).get
-
-      CodeCreation.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[CodeCreation](tx)
-          tx.json
-        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//  def createCode(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val owner = PublicKey25519Proposition((params \\ "publicKey").head.asString.get).get
+//      val code: String = (params \\ "code").head.asString.get
+//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None => ""
+//      }
+//
+//      val tx = CodeCreation.createAndApply(wallet, owner, code, fee, data).get
+//
+//      CodeCreation.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[CodeCreation](tx)
+//          tx.json
+//        case Failure(e) => throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   def createProgram(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
@@ -89,71 +89,71 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
     }
   }
 
-  def transferProgram(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val from = PublicKey25519Proposition((params \\ "from").head.asString.get).get
-      val to = PublicKey25519Proposition((params \\ "to").head.asString.get).get
-      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
-      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//  def transferProgram(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val from = PublicKey25519Proposition((params \\ "from").head.asString.get).get
+//      val to = PublicKey25519Proposition((params \\ "to").head.asString.get).get
+//      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
+//      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None => ""
+//      }
+//
+//      val tx = ProgramTransfer.createAndApply(wallet, from, to, executionBox, fee, data).get
+//
+//      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramTransfer](tx)
+//      tx.json
+//    }
+//  }
 
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None => ""
-      }
-
-      val tx = ProgramTransfer.createAndApply(wallet, from, to, executionBox, fee, data).get
-
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramTransfer](tx)
-      tx.json
-    }
-  }
-
-  def executeProgramMethod(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val signingPublicKey = (params \\ "owner").head.asString.get
-
-      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
-
-      val state = executionBox.stateBoxIds.map { sb =>
-        view.state.getProgramBox[StateBox](sb).get
-      }
-
-      val code = executionBox.codeBoxIds.map { cb =>
-        view.state.getProgramBox[CodeBox](cb).get
-      }
-
-      val programJson: Json =
-        json"""{
-            "executionBox": ${executionBox.json},
-            "state": ${state.map(sb => sb.json).asJson},
-            "code": ${code.map(cb => cb.json).asJson}
-            }"""
-
-      val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
-
-      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
-      val tempTx = modifiedParams.as[ProgramMethodExecution] match {
-        case Right(p: ProgramMethodExecution) => p
-        case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
-      }
-      val realSignature = selectedSecret.sign(tempTx.messageToSign)
-      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
-
-      ProgramMethodExecution.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramMethodExecution](tx)
-          tx.json
-
-        case Failure(e) => throw e.getCause
-      }
-    }
-  }
+//  def executeProgramMethod(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val signingPublicKey = (params \\ "owner").head.asString.get
+//
+//      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
+//
+//      val state = executionBox.stateBoxIds.map { sb =>
+//        view.state.getProgramBox[StateBox](sb).get
+//      }
+//
+//      val code = executionBox.codeBoxIds.map { cb =>
+//        view.state.getProgramBox[CodeBox](cb).get
+//      }
+//
+//      val programJson: Json =
+//        json"""{
+//            "executionBox": ${executionBox.json},
+//            "state": ${state.map(sb => sb.json).asJson},
+//            "code": ${code.map(cb => cb.json).asJson}
+//            }"""
+//
+//      val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
+//
+//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+//      val tempTx = modifiedParams.as[ProgramMethodExecution] match {
+//        case Right(p: ProgramMethodExecution) => p
+//        case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
+//      }
+//      val realSignature = selectedSecret.sign(tempTx.messageToSign)
+//      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
+//
+//      ProgramMethodExecution.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramMethodExecution](tx)
+//          tx.json
+//
+//        case Failure(e) => throw e.getCause
+//      }
+//    }
+//  }
 
   def programCall(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val programId = ProgramId((params \\ "programId").head.asString.get).get
+      val programId = ProgramId((params \\ "programId").head.asString.get)
       val stateVar = (params \\ "stateVar").head.asString.get
 
       val program = view.state.getProgramBox[ExecutionBox](programId).get

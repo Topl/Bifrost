@@ -43,6 +43,9 @@ case class KeyFile (pubKeyBytes: Array[Byte],
   }
 }
 
+
+
+
 object KeyFile {
 
   implicit val jsonDecoder: Decoder[KeyFile] = (c: HCursor) =>

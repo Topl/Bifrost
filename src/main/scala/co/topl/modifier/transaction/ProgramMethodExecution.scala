@@ -26,8 +26,6 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
                                     data        : String
                                   ) extends ProgramTransaction {
 
-  override type M = ProgramMethodExecution
-
   val proposition: PublicKey25519Proposition = executionBox.proposition
 
   // TODO Fix instantiation to handle runtime input and/or extract to a better location

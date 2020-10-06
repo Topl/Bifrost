@@ -19,8 +19,6 @@ case class ProgramTransfer (from        : PublicKey25519Proposition,
                             data        : String
                            ) extends Transaction {
 
-  override type M = ProgramTransfer
-
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes
       ++ Longs.toByteArray(fee)

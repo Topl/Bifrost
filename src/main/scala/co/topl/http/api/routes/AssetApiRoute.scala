@@ -329,7 +329,7 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       val asset = view.state
         .getBox(assetId) match {
         case Some(b: AssetBox) => b
-        case _ => throw new Error(s"Failed to find specified bow with id: $asset")
+        case _ => throw new Error(s"Failed to find specified bow with id: $assetId")
       }
 
       val tx =

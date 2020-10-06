@@ -111,13 +111,13 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
     viewAsync().map { view =>
       val transactionId: String = (params \\ "transactionId").head.asString.get
       val tx = Base58.decode(transactionId) match {
-        case Success(txId) => view.pool.getById(ModifierId(txId))
+        case Success(txId) => view.pool.modifierById(ModifierId(txId))
         case Failure(_) => throw new Error("Unable to parse the provided transaction id")
       }
 
       tx match {
         case Some(tx) => tx.json
-        case None => throw new Error("Unable to retrieve transaction")
+        case None     => throw new Error("Unable to retrieve transaction")
       }
     }
   }

@@ -58,7 +58,7 @@ class History ( val storage: Storage,
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
 
   override def contains(id: ModifierId): Boolean =
-    (id.hashBytes sameElements History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
+    (id == History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)
 
   private def isGenesis(b: Block): Boolean = storage.isGenesis(b)
 
@@ -200,7 +200,7 @@ class History ( val storage: Storage,
     * @return the blocks that are "exposed" for use
     */
   override def openSurfaceIds(): Seq[ModifierId] =
-    if (isEmpty) Seq(ModifierId(History.GenesisParentId))
+    if (isEmpty) Seq(History.GenesisParentId)
     else Seq(bestBlockId)
     // TODO return sequence of exposed endpoints?
 
@@ -533,7 +533,7 @@ class History ( val storage: Storage,
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
       if(startingPoints.headOption.exists(x ⇒ isGenesis(modifierById(x).get))) {
-        BifrostSyncInfo(ModifierId(GenesisParentId) +: startingPoints)
+        BifrostSyncInfo(GenesisParentId +: startingPoints)
 
       } else {
         BifrostSyncInfo(startingPoints)

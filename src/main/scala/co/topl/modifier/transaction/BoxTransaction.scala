@@ -9,10 +9,12 @@ import com.google.common.primitives.Longs
   */
 abstract class BoxTransaction[P <: Proposition, T, BX <: GenericBox[P, T]] extends GenericTransaction[P] {
 
+  self =>
+
   val newBoxes: Traversable[BX]
 
-  override lazy val messageToSign: Array[Byte] =
-    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
-    Longs.toByteArray(timestamp) ++
-    Longs.toByteArray(fee)
+  override def messageToSign: Array[Byte] =
+    self.newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
+    Longs.toByteArray(self.timestamp) ++
+    Longs.toByteArray(self.fee)
 }

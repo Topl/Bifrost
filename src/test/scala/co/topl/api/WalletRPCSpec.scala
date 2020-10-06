@@ -123,7 +123,7 @@ class WalletRPCSpec extends AnyWordSpec
         //Removing transaction from mempool so as not to affect ProgramRPC tests
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
         view().pool.remove(txInstance)
       }
     }
@@ -175,7 +175,7 @@ class WalletRPCSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
         val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
         view().pool.remove(txInstance)
       }
     }

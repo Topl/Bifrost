@@ -2,6 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.BifrostEncoder

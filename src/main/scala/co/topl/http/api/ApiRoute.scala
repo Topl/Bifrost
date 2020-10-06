@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
 import akka.http.scaladsl.server.{ Directive0, Directives, Route }
 import akka.util.Timeout
 import co.topl.settings.RESTApiSettings
-import io.circe.Json
+import io.circe.{ Decoder, Json }
 import io.circe.parser.parse
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.{ Blake2b256, CryptographicHash }
@@ -72,11 +72,12 @@ trait ApiRoute extends Directives {
    * @tparam A type of the value expected to be retrieved
    * @return the provided value or the default
    */
-  def parseOptional[A](key: String, default: A)(implicit params: Json): A =
-    (params \\ key).headOption match {
-      case Some(value: A) => value
-      case None           => default
+  def parseOptional[A](key: String, default: A)(implicit params: Json, decode: Decoder[A]): A = {
+    params.hcursor.downField(key).as[A] match {
+      case Right(value) => value
+      case Left(_)      => default
     }
+  }
 
   /**
    *

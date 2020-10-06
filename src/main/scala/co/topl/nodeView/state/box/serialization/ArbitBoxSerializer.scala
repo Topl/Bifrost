@@ -10,7 +10,7 @@ object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {
   }
 
   override def parse(r: Reader): ArbitBox = {
-    val tokenBox: TokenBox = TokenBoxSerializer.parse(r)
-    ArbitBox(tokenBox.proposition, tokenBox.nonce, tokenBox.value)
+    val (proposition, nonce, value) = TokenBoxSerializer.parse(r)
+    ArbitBox(proposition, nonce, value)
   }
 }

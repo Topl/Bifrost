@@ -10,7 +10,7 @@ import co.topl.crypto.Signature25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
-import com.oracle.js.parser.{ ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => _ }
+import com.oracle.js.parser.{ ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser }
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
@@ -238,7 +238,7 @@ object ProgramPreprocessor {
 
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
-    val parser: com.oracle.js.parser.Parser = new Parser(scriptEnv, src, errManager)
+    val parser: GraalParser = new GraalParser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
     def varList(node: FunctionNode): Json = {
@@ -289,7 +289,7 @@ object ProgramPreprocessor {
 
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
-    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parser: GraalParser = new GraalParser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
     def functionList(node: FunctionNode): Map[String, String] = {

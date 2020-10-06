@@ -6,8 +6,8 @@ import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.Curve25519
 
-case class PrivateKey25519( private[consensus] val privKeyBytes: Array[Byte],
-                            private val publicKeyBytes: Array[Byte]
+case class PrivateKey25519( private[crypto] val privKeyBytes: Array[Byte],
+                            private[crypto] val publicKeyBytes: Array[Byte]
                           ) extends Secret {
 
   require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")

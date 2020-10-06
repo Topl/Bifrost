@@ -101,7 +101,7 @@ class ProgramRPCSpec extends AnyWordSpec
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
       val txHashId = ModifierId(Base58.decode(txHash).get)
-      val txInstance: Transaction = view().pool.getById(txHashId).get
+      val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
       val programBoxes = txInstance.newBoxes.foldLeft(Seq[ProgramBox]()) { ( acc, box ) => box match {
         case b: ProgramBox => b +: acc

@@ -19,8 +19,6 @@ case class CodeCreation ( to       : PublicKey25519Proposition,
                           data     : String
                         ) extends Transaction {
 
-  override type M = CodeCreation
-
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
