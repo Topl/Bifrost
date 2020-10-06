@@ -7,8 +7,8 @@ import akka.util.Timeout
 import bifrost.settings.AppSettings
 import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
-import scorex.crypto.hash.{Blake2b256, CryptographicHash}
+import scorex.util.encode.Base58
+import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -42,7 +42,7 @@ trait ApiRoute extends Directives {
   }
 
   private def isValid(keyOpt: Option[String]): Boolean = {
-    lazy val keyHash: Option[CryptographicHash#Digest] = keyOpt.map(Blake2b256(_))
+    lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
       case (None, _) => true
       case (Some(expected), Some(passed)) => expected sameElements passed

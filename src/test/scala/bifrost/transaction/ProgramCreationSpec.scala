@@ -10,9 +10,10 @@ import bifrost.state.State
 import bifrost.{BifrostGenerators, ValidGenerators}
 
 import scala.util.Success
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import scorex.crypto.signatures.Signature
 
 class ProgramCreationSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -38,7 +39,7 @@ class ProgramCreationSpec extends AnyPropSpec
 
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
           programCreation.signatures +
-            (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+            (programCreation.signatures.head._1 -> Signature25519(Signature @@ wrongSig))
 
         State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }

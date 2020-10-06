@@ -2,7 +2,7 @@ package bifrost.modifier.box
 
 import bifrost.crypto.Proof
 import bifrost.modifier.box.proposition.Proposition
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 trait BoxUnlocker[+P <: Proposition] {
   val closedBoxId: Array[Byte]

@@ -6,10 +6,10 @@ import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.{BifrostGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
 import scala.util.{Failure, Random, Success, Try}
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
@@ -70,7 +70,7 @@ class ProgramSpec extends AnyPropSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKey25519Proposition = {
-    PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(fillByte));
+    PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
   }
 
   property("Can create program") {
