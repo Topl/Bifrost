@@ -17,13 +17,13 @@ trait Registry[K, V] extends StoreInterface with Logging {
   protected def rollbackTo (version: VersionTag): Try[Registry[K, V]]
 
   /** Helper function to transform registry input key to Array[Byte] */
-  protected def registryInput (key: K): Array[Byte]
+  protected val registryInput: K => Array[Byte]
 
   /** Helper function to transform registry output value from Array[Byte] */
-  protected def registryOutput (value: Array[Byte]): Seq[V]
+  protected val registryOutput: Array[Byte] => Seq[V]
 
   /** Helper function to transform registry output value to input for state */
-  protected def registryOut2StateIn (value: V): BoxId
+  protected val registryOut2StateIn: (K, V) => BoxId
 
   /**
     * Lookup boxId stored by key in the registry
@@ -45,13 +45,13 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @return a sequence of boxes from state using the registry key to look them up
    */
   protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] =
-      lookup(key)
-        .map {
-          _.map(registryOut2StateIn)
-            .map(state.getBox)
-            .flatMap {
-              case Some(box: BX) => Some(box)
-              case _             => None
-            }
-        }
+    lookup(key)
+      .map {
+        _.map(regVal => registryOut2StateIn(key, regVal))
+          .map(state.getBox)
+          .flatMap {
+            case Some(box: BX) => Some(box)
+            case _             => None
+          }
+      }
 }

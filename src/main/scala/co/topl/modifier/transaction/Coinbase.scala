@@ -4,14 +4,12 @@ import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.serialization.CoinbaseSerializer
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ ArbitBox, Box, BoxId, TokenBox }
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{ Decoder, Encoder, HCursor }
 
 import scala.util.Try
 
@@ -20,9 +18,8 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
                       timestamp : Long,
                       parentId  : ModifierId
                     ) extends Transaction {
-  override type M = Coinbase
 
-  lazy val serializer: BifrostSerializer[Coinbase] = CoinbaseSerializer
+  override type M = Coinbase
 
   lazy val fee = 0L // you don't ever pay for a Coinbase TX since you'd be paying yourself so fee must equal 0
 
@@ -42,8 +39,6 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
   lazy val newBoxes: Traversable[TokenBox] =
     if (to.head._2 > 0L) Traversable(ArbitBox(to.head._1, nonce, to.head._2))
     else Traversable[TokenBox]()
-
-  override lazy val json: Json = Coinbase.jsonEncoder(this)
 
   // just tac on the byte string "Coinbase" to the beginning of the common message
   override lazy val messageToSign: Array[Byte] =

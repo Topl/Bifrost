@@ -1,6 +1,6 @@
 package co.topl
 
-import co.topl.crypto.FastCryptographicHash
+import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
@@ -85,7 +85,7 @@ trait ValidGenerators extends BifrostGenerators {
         prop -> preBoxes.map(_._2).sum
       }
 
-      val falseSig = Map(sender -> Signature25519(Array()))
+      val falseSig = Map(sender -> Signature25519(Array.empty[Byte]))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
       val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
 
@@ -173,7 +173,7 @@ trait ValidGenerators extends BifrostGenerators {
     val parameters = {}.asJson
 
     val hashNoNonces = FastCryptographicHash(
-      executionBox.id ++
+      executionBox.id.hashBytes ++
         methodName.getBytes ++
         sender.pubKeyBytes ++
         parameters.noSpaces.getBytes ++

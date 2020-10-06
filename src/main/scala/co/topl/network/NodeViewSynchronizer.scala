@@ -3,8 +3,9 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
+import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.message.{ InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _ }
@@ -95,7 +96,7 @@ class NodeViewSynchronizer[
     context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[PMOD]])
 
     // instantiate the internal NodeViewSynchronizer state for History and Mempool
-    viewHolderRef ! GetNodeViewChanges(history = true, state = false, vault = false, mempool = true)
+    viewHolderRef ! GetNodeViewChanges(history = true, state = false, mempool = true)
 
     // schedules a SendLocalSyncInfo message to be sent at a fixed interval
     statusTracker.scheduleSendSyncInfo()
@@ -630,8 +631,6 @@ object NodeViewSynchronizer {
         extends NodeViewChange
 
     case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
-
-    case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
     case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
 

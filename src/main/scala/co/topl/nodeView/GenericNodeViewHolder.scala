@@ -106,7 +106,7 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
   }
 
   protected def getNodeViewChanges: Receive = {
-    case GetNodeViewChanges(history, state, vault, mempool) =>
+    case GetNodeViewChanges(history, state, mempool) =>
       if (history) sender() ! ChangedHistory(nodeView._1.getReader)
       if (state) sender() ! ChangedState(nodeView._2.getReader)
       if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)
@@ -420,7 +420,7 @@ object GenericNodeViewHolder {
   object ReceivableMessages {
 
     // Explicit request of NodeViewChange events of certain types.
-    case class GetNodeViewChanges(history: Boolean, state: Boolean, vault: Boolean, mempool: Boolean)
+    case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
 
     // Retrieve data from current view with an optional callback function to modify the view
     case class GetDataFromCurrentView[HIS, MS, MP]()

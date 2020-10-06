@@ -24,11 +24,12 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
   import TokenBoxRegistry.{ K, V }
 
   //----- input and output transformation functions
-  override protected def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.pubKeyBytes
 
-  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = value.grouped(BoxId.size).toSeq.map(v => BoxId(v))
+  override protected val registryOutput: Array[Byte] => Seq[V] =
+    (value: Array[Byte]) => value.grouped(BoxId.size).toSeq.map(v => BoxId(v))
 
-  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
+  override protected val registryOut2StateIn: (K, V) => V = ( key: K, value: V) => value
 
   protected[state] def getBox ( key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
 

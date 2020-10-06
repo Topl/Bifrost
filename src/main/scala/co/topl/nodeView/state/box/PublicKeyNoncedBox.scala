@@ -7,7 +7,7 @@ import com.google.common.primitives.Longs
 trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PKP, Long] {
   val nonce: Long
 
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   lazy val publicKey = proposition
 

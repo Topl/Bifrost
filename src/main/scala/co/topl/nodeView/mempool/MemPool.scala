@@ -25,6 +25,8 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction])
 
   override def getAll(ids: Seq[ModifierId]): Seq[Transaction] = ids.flatMap(modifierById)
 
+  override def size: Int = unconfirmed.size
+
   //modifiers
   override def put(tx: Transaction): Try[MemPool] = Try {
     unconfirmed.put(tx.id, tx)
@@ -33,6 +35,11 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction])
     this
   }
 
+  /**
+   *
+   * @param txs
+   * @return
+   */
   override def put(txs: Iterable[Transaction]): Try[MemPool] = Try {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.foreach {
@@ -44,6 +51,11 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction])
     this
   }
 
+  /**
+   *
+   * @param txs
+   * @return
+   */
   override def putWithoutCheck(txs: Iterable[Transaction]): MemPool = {
     txs.foreach(tx => unconfirmed.put(tx.id, tx))
     txs.foreach(tx => tx.boxIdsToOpen.map {
@@ -52,14 +64,29 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction])
     this
   }
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   override def remove(tx: Transaction): MemPool = {
     unconfirmed.remove(tx.id)
     this
   }
 
+  /**
+   *
+   * @param limit
+   * @return
+   */
   override def take(limit: Int): Iterable[Transaction] =
     unconfirmed.values.toSeq.sortBy(-_.fee).take(limit)
 
+  /**
+   *
+   * @param condition
+   * @return
+   */
   override def filter(condition: Transaction => Boolean): MemPool = {
     unconfirmed.retain { (_, v) =>
       if (condition(v)) {
@@ -72,12 +99,6 @@ case class MemPool(unconfirmed: TrieMap[ModifierId, Transaction])
       }
     }
     this
-  }
-
-  override def size: Int = unconfirmed.size
-
-  override def modifierById(modifierId: ModifierId): Option[Transaction] = {
-    unconfirmed.get(modifierId)
   }
 }
 

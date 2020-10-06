@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ AssetCreation, Coinbase, TransferTransaction }
-import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, TokenBox }
+import co.topl.nodeView.state.box.{ BoxId, PublicKeyNoncedBox, TokenBox }
 
 import scala.util.Try
 
@@ -34,10 +34,10 @@ object TokenRegistryChanges {
         }
 
       val toRemove: Map[K, Seq[V]] =
-        fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map(kv => BoxId(PublicKeyNoncedBox.idFromBox(k, kv._2)))) }
+        fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map(kv => PublicKeyNoncedBox.idFromBox(k, kv._2))) }
 
       val toAppend: Map[K, Seq[V]] =
-        toSeq.groupBy(_.proposition).map { case (k, v) => (k, v.map(box => BoxId(box.id))) }
+        toSeq.groupBy(_.proposition).map { case (k, v) => (k, v.map(_.id)) }
 
       // return the state changes that can be applied
       new TokenRegistryChanges(toRemove, toAppend)

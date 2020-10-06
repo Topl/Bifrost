@@ -10,9 +10,8 @@ import co.topl.crypto.Signature25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
-import com.oracle.js.parser.{ Parser => _, _ }
+import com.oracle.js.parser.{ ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => _ }
 import io.circe._
-import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
 import scorex.crypto.encode.{ Base58, Base64 }
@@ -76,7 +75,7 @@ object ProgramPreprocessor {
   def apply(modulePath: Path)(args: JsonObject): ProgramPreprocessor = {
 
     /* Read file from path, expect JSON */
-    val parsed = parse(new String(Files.readAllBytes(modulePath)))
+    val parsed = io.circe.parser.parse(new String(Files.readAllBytes(modulePath)))
 
     parsed match {
       case Left(f) => throw f
@@ -239,7 +238,7 @@ object ProgramPreprocessor {
 
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
-    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parser: com.oracle.js.parser.Parser = new Parser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
     def varList(node: FunctionNode): Json = {
