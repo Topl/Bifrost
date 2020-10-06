@@ -1,8 +1,8 @@
 package co.topl.nodeView.state.box
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import io.circe.{ Decoder, Encoder, HCursor }
 import io.circe.syntax._
+import io.circe.{ Decoder, Encoder, HCursor }
 
 case class AssetBox ( override val proposition: PublicKey25519Proposition,
                       override val nonce      : Long,

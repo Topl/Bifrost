@@ -7,8 +7,6 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.utils.{ BifrostEncoding, Logging }
-import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
 import io.iohk.iodb.ByteArrayWrapper
 
 import scala.annotation.tailrec

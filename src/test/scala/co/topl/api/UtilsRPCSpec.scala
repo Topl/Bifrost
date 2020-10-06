@@ -1,18 +1,18 @@
 package co.topl.api
 
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.BifrostGenerators
 import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
-
-import scala.util.{Failure, Success}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scorex.crypto.encode.Base58
+
+import scala.util.{ Failure, Success }
 
 
 class UtilsRPCSpec extends AnyWordSpec

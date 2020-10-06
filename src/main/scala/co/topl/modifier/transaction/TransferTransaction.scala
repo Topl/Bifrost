@@ -1,9 +1,9 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{BoxId, PublicKeyNoncedBox, TokenBox}
+import co.topl.nodeView.state.box.{ BoxId, PublicKeyNoncedBox, TokenBox }
 import com.google.common.primitives.Longs
 
 abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],

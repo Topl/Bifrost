@@ -2,13 +2,11 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.nodeView.state.box.{ BoxId, TokenBox }
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.settings.AppSettings
-import co.topl.utils.Logging
-import co.topl.nodeView.state.box.TokenBox
+import co.topl.nodeView.state.box.{ BoxId, TokenBox }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
+import co.topl.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.util.{ Failure, Success, Try }

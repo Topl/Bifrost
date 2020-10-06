@@ -5,8 +5,6 @@ import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import io.circe.Json
-import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 

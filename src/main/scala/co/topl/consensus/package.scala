@@ -3,8 +3,6 @@ package co.topl
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.ArbitBox
 import com.google.common.primitives.Longs
 
 import scala.concurrent.duration._

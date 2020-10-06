@@ -2,17 +2,17 @@ package co.topl.nodeView
 
 import akka.actor.Actor
 import co.topl.modifier.ModifierId
+import co.topl.modifier.block.{ PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.SyncInfo
-import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.mempool.MemoryPool
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.state.{ MinimalState, TransactionValidation }
 import co.topl.settings.AppSettings
 import co.topl.utils.{ BifrostEncoding, Logging }
-import co.topl.wallet.Vault
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
@@ -32,7 +32,6 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
                               PMOD <: PersistentNodeViewModifier,
                               HIS  <: GenericHistory[PMOD, _ <: SyncInfo, HIS],
                               MS   <: MinimalState[BX, PMOD, MS],
-                              VL   <: Vault[TX, PMOD, VL],
                               MP   <: MemoryPool[TX, MP]
                             ] extends Actor with Logging with BifrostEncoding {
 
@@ -42,7 +41,7 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
   // Import the types of messages this actor can SEND
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 
-  type NodeView = (HIS, MS, VL, MP)
+  type NodeView = (HIS, MS, MP)
 
   case class UpdateInformation(history: HIS,
                                state: MS,
@@ -102,16 +101,15 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
   }
 
   protected def getCurrentInfo: Receive = {
-    case GetDataFromCurrentView(f) =>
-      sender() ! f(CurrentView(history(), minimalState(), memoryPool()))
+    case GetDataFromCurrentView =>
+      sender() ! CurrentView(history(), minimalState(), memoryPool())
   }
 
   protected def getNodeViewChanges: Receive = {
     case GetNodeViewChanges(history, state, vault, mempool) =>
       if (history) sender() ! ChangedHistory(nodeView._1.getReader)
       if (state) sender() ! ChangedState(nodeView._2.getReader)
-      if (vault) sender() ! ChangedVault(nodeView._3.getReader)
-      if (mempool) sender() ! ChangedMempool(nodeView._4.getReader)
+      if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)
   }
 
   protected def nonsense: Receive = {
@@ -138,9 +136,7 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
 
   protected def minimalState(): MS = nodeView._2
 
-  protected def vault(): VL = nodeView._3
-
-  protected def memoryPool(): MP = nodeView._4
+  protected def memoryPool(): MP = nodeView._3
 
   /**
    * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
@@ -203,8 +199,6 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
         memoryPool().put(tx) match {
           case Success(newPool) =>
             log.debug(s"Unconfirmed transaction $tx added to the memory pool")
-            val newVault = vault().scanOffchain(tx)
-            updateNodeView(updatedVault = Some(newVault), updatedMempool = Some(newPool))
             context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
 
           case Failure(e) =>
@@ -237,15 +231,8 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
               case Success(newMinState) =>
                 val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, memoryPool(), newMinState)
 
-                //we consider that vault always able to perform a rollback needed
-                @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-                val newVault = if (progressInfo.chainSwitchingNeeded) {
-                  vault().rollback(progressInfo.branchPoint.get).get
-                } else vault()
-                blocksApplied.foreach(newVault.scanPersistent)
-
                 log.info(s"Persistent modifier ${pmod.id} applied successfully")
-                updateNodeView(Some(newHistory), Some(newMinState), Some(newVault), Some(newMemPool))
+                updateNodeView(Some(newHistory), Some(newMinState), Some(newMemPool))
 
 
               case Failure(e) =>
@@ -352,17 +339,14 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
    *
    * @param updatedHistory
    * @param updatedState
-   * @param updatedVault
    * @param updatedMempool
    */
   protected def updateNodeView(updatedHistory: Option[HIS] = None,
                                updatedState: Option[MS] = None,
-                               updatedVault: Option[VL] = None,
                                updatedMempool: Option[MP] = None): Unit = {
     val newNodeView =
       (updatedHistory.getOrElse(history()),
       updatedState.getOrElse(minimalState()),
-      updatedVault.getOrElse(vault()),
       updatedMempool.getOrElse(memoryPool()))
 
     if (updatedHistory.nonEmpty)
@@ -371,11 +355,8 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
     if (updatedState.nonEmpty)
       context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
 
-    if (updatedVault.nonEmpty)
-      context.system.eventStream.publish(ChangedVault(newNodeView._3.getReader))
-
     if (updatedMempool.nonEmpty)
-      context.system.eventStream.publish(ChangedMempool(newNodeView._4.getReader))
+      context.system.eventStream.publish(ChangedMempool(newNodeView._3.getReader))
 
     nodeView = newNodeView
   }
@@ -442,7 +423,7 @@ object GenericNodeViewHolder {
     case class GetNodeViewChanges(history: Boolean, state: Boolean, vault: Boolean, mempool: Boolean)
 
     // Retrieve data from current view with an optional callback function to modify the view
-    case class GetDataFromCurrentView[HIS, MS, MP, A](f: CurrentView[HIS, MS, MP] => A = _)
+    case class GetDataFromCurrentView[HIS, MS, MP]()
 
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])

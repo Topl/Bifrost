@@ -1,6 +1,6 @@
 package co.topl.nodeView
 
-import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
+import co.topl.modifier.block.{ Block, PersistentNodeViewModifier }
 import io.circe.Encoder
 
 trait BifrostNodeViewModifier extends PersistentNodeViewModifier

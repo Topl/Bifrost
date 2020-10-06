@@ -9,34 +9,19 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import co.topl.consensus.ForgerRef
-import co.topl.crypto.PrivateKey25519
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network._
-import co.topl.network.message._
-import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
-import co.topl.nodeView.history.History
-import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.{ NodeViewHolder, NodeViewHolderRef }
-import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
-import co.topl.utils.Logging
-import co.topl.crypto.PrivateKey25519
-import co.topl.http.api.ApiRoute
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction
 import co.topl.network.NetworkController.ReceivableMessages.{ BecomeOperational, BindP2P }
+import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
-import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
+import co.topl.nodeView.NodeViewHolderRef
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{ AppSettings, StartupOpts }
+import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
 import co.topl.utils.Logging
 import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
 import com.typesafe.config.{ Config, ConfigFactory }

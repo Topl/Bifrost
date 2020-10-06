@@ -1,10 +1,10 @@
 package co.topl.modifier
 
-import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
 import co.topl.crypto.FastCryptographicHash
+import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import scorex.crypto.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
 

@@ -2,9 +2,6 @@ package co.topl.nodeView.mempool
 
 import co.topl.modifier.transaction.GenericTransaction
 import co.topl.nodeView.NodeViewComponent
-import co.topl.modifier.ModifierId
-import co.topl.modifier.transaction.GenericTransaction
-import co.topl.nodeView.NodeViewComponent
 
 import scala.util.Try
 

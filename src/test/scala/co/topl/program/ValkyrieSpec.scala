@@ -6,17 +6,16 @@ import java.util
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
-import co.topl.modifier.transaction.{ArbitTransfer, AssetCreation, Transaction}
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateSpec
-import co.topl.wallet.Wallet
-import co.topl.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
+import co.topl.{ BifrostGenerators, ValidGenerators }
+import com.google.common.primitives.{ Ints, Longs }
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import scorex.crypto.encode.Base58
 
 class ValkyrieSpec extends AnyPropSpec
   with Matchers

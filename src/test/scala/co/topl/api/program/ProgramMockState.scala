@@ -6,15 +6,13 @@ import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTyp
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import io.circe.syntax._
 import scorex.crypto.encode.Base58
 

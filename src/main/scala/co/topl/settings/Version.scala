@@ -10,13 +10,14 @@ case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extend
 
   override def serializer: BifrostSerializer[Version] = VersionSerializer
 
-  override def compare(that: Version): Int = if (this.firstDigit != that.firstDigit) {
-    this.firstDigit - that.firstDigit
-  } else if (this.secondDigit != that.secondDigit) {
-    this.secondDigit - that.secondDigit
-  } else {
-    this.thirdDigit - that.thirdDigit
-  }
+  override def compare(that: Version): Int =
+    if (this.firstDigit != that.firstDigit) {
+      this.firstDigit - that.firstDigit
+    } else if (this.secondDigit != that.secondDigit) {
+      this.secondDigit - that.secondDigit
+    } else {
+      this.thirdDigit - that.thirdDigit
+    }
 }
 
 object Version {

@@ -1,12 +1,11 @@
 package co.topl.network
 
 import akka.actor.{ ActorContext, ActorRef, Cancellable }
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.{ ContainsModifiers, ModifierId, NodeViewModifier }
 import co.topl.network.ModifiersStatus._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import co.topl.network.peer.ConnectedPeer
-import co.topl.modifier.NodeViewModifier
-import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.settings.NetworkSettings
 import co.topl.utils.{ BifrostEncoding, Logging }
 

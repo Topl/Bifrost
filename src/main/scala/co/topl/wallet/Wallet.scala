@@ -235,82 +235,82 @@
 //
 //}
 //
-object Wallet {
-
-  def getListOfFiles(dir: String): List[File] = {
-    val d = new File(dir)
-    if (d.exists && d.isDirectory) {
-      d.listFiles.filter(_.isFile).toList
-    } else {
-      List[File]()
-    }
-  }
-
-  def walletFile(settings: AppSettings): File = {
-    val walletDirOpt = settings.walletDir.ensuring(_.isDefined, "wallet dir must be specified")
-    val walletDir = walletDirOpt.get
-    new File(walletDir).mkdirs()
-
-    new File(s"$walletDir/wallet.dat")
-  }
-
-  def exists(settings: AppSettings): Boolean = walletFile(settings).exists()
-
-  private def directoryEnsuring(dirPath: String): Boolean = {
-    val f = new java.io.File(dirPath)
-    f.mkdirs()
-    f.exists()
-  }
-
-  def readOrGenerate(settings: AppSettings, seed: String): Wallet = {
-    val wFile = walletFile(settings)
-    wFile.mkdirs()
-    val boxesStorage = new LSMStore(wFile)
-
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        boxesStorage.close()
-      }
-    })
-    // Create directory for key files
-    val keyFileDir = settings
-      .keyFileDir
-      .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
-
-    Wallet(Set(), boxesStorage, keyFileDir.get)
-  }
-
-  def readOrGenerate(settings: AppSettings): Wallet = {
-    val gw = readOrGenerate(settings, settings.walletSeed)
-
-    if (settings.walletSeed.startsWith("genesis")) {
-      val seeds = (0 to 2).map(c => FastCryptographicHash(Base58.decode(settings.walletSeed).get ++ Ints.toByteArray(c)))
-      val pubKeys = seeds.map { seed =>
-        val (priv, pub) = PrivateKey25519.generateKeys(seed)
-        if (!gw.publicKeys.contains(pub)) {
-          KeyFile("genesis", seed = seed, gw.defaultKeyDir)
-        }
-        pub
-      }
-      gw.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), "genesis")
-    }
-    gw
-  }
-
-  def readOrGenerate(settings: AppSettings, seed: String, accounts: Int): Wallet =
-    (1 to accounts).foldLeft(readOrGenerate(settings, seed)) { case (w, _) =>
-      w.generateNewSecret()
-    }
-
-  def readOrGenerate(settings: AppSettings, accounts: Int): Wallet =
-    (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
-      w
-    }
-
-  //wallet with applied initialBlocks
-  def genesisWallet(settings: AppSettings, initialBlocks: Seq[Block]): Wallet = {
-    initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
-      a.scanPersistent(b)
-    }
-  }
-}
+//object Wallet {
+//
+//  def getListOfFiles(dir: String): List[File] = {
+//    val d = new File(dir)
+//    if (d.exists && d.isDirectory) {
+//      d.listFiles.filter(_.isFile).toList
+//    } else {
+//      List[File]()
+//    }
+//  }
+//
+//  def walletFile(settings: AppSettings): File = {
+//    val walletDirOpt = settings.walletDir.ensuring(_.isDefined, "wallet dir must be specified")
+//    val walletDir = walletDirOpt.get
+//    new File(walletDir).mkdirs()
+//
+//    new File(s"$walletDir/wallet.dat")
+//  }
+//
+//  def exists(settings: AppSettings): Boolean = walletFile(settings).exists()
+//
+//  private def directoryEnsuring(dirPath: String): Boolean = {
+//    val f = new java.io.File(dirPath)
+//    f.mkdirs()
+//    f.exists()
+//  }
+//
+//  def readOrGenerate(settings: AppSettings, seed: String): Wallet = {
+//    val wFile = walletFile(settings)
+//    wFile.mkdirs()
+//    val boxesStorage = new LSMStore(wFile)
+//
+//    Runtime.getRuntime.addShutdownHook(new Thread() {
+//      override def run(): Unit = {
+//        boxesStorage.close()
+//      }
+//    })
+//    // Create directory for key files
+//    val keyFileDir = settings
+//      .keyFileDir
+//      .ensuring(pathOpt => pathOpt.forall(directoryEnsuring))
+//
+//    Wallet(Set(), boxesStorage, keyFileDir.get)
+//  }
+//
+//  def readOrGenerate(settings: AppSettings): Wallet = {
+//    val gw = readOrGenerate(settings, settings.walletSeed)
+//
+//    if (settings.walletSeed.startsWith("genesis")) {
+//      val seeds = (0 to 2).map(c => FastCryptographicHash(Base58.decode(settings.walletSeed).get ++ Ints.toByteArray(c)))
+//      val pubKeys = seeds.map { seed =>
+//        val (priv, pub) = PrivateKey25519.generateKeys(seed)
+//        if (!gw.publicKeys.contains(pub)) {
+//          KeyFile("genesis", seed = seed, gw.defaultKeyDir)
+//        }
+//        pub
+//      }
+//      gw.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), "genesis")
+//    }
+//    gw
+//  }
+//
+//  def readOrGenerate(settings: AppSettings, seed: String, accounts: Int): Wallet =
+//    (1 to accounts).foldLeft(readOrGenerate(settings, seed)) { case (w, _) =>
+//      w.generateNewSecret()
+//    }
+//
+//  def readOrGenerate(settings: AppSettings, accounts: Int): Wallet =
+//    (1 to accounts).foldLeft(readOrGenerate(settings)) { case (w, _) =>
+//      w
+//    }
+//
+//  //wallet with applied initialBlocks
+//  def genesisWallet(settings: AppSettings, initialBlocks: Seq[Block]): Wallet = {
+//    initialBlocks.foldLeft(readOrGenerate(settings)) { (a, b) =>
+//      a.scanPersistent(b)
+//    }
+//  }
+//}

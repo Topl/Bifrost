@@ -1,15 +1,15 @@
 package co.topl.nodeView.state
 
 import co.topl.nodeView.NodeViewHolder
-import co.topl.settings.{AppSettings, StartupOpts}
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.settings.{ AppSettings, StartupOpts }
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
 
 class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -240,7 +240,7 @@ class StateSpec extends AnyPropSpec
 object StateSpec {
 
   import MinimalState.VersionTag
-  import co.topl.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
+  import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS, VL }
 
   private val settingsFilename = "src/test/resources/test.conf"
   lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))

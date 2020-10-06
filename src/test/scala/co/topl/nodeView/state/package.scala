@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{ Box, BoxId, ProgramBox, TokenBox }
+import co.topl.nodeView.state.box.{ Box, ProgramBox, TokenBox }
 import com.google.common.primitives.Ints
 
 import scala.util.{ Failure, Success }

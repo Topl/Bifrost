@@ -3,8 +3,6 @@ package co.topl.nodeView.state.box
 import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
-import io.circe.syntax.EncoderOps
-import io.circe.{ HCursor, Json }
 
 /**
   * Created by cykoz on 5/15/2017.

@@ -2,7 +2,6 @@ package co.topl.nodeView.state.box
 
 import co.topl.crypto.Proof
 import co.topl.nodeView.state.box.proposition.Proposition
-import scorex.crypto.encode.Base58
 
 sealed abstract class Unlocker[+P <: Proposition]
 

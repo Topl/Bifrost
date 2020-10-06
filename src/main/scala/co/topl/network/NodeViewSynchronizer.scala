@@ -4,22 +4,20 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.message.{ InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _ }
 import co.topl.network.peer.{ ConnectedPeer, PenaltyType }
-import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
-import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{ NodeViewModifier, PersistentNodeViewModifier }
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.settings.{ AppContext, NetworkSettings }
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{ BifrostEncoding, Logging, MalformedModifierError }
-import co.topl.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext

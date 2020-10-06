@@ -11,15 +11,12 @@ import co.topl.BifrostGenerators
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.state.box._
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
+import co.topl.nodeView.state.box._
+import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._

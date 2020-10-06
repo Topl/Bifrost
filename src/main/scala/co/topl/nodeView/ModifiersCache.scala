@@ -3,7 +3,6 @@ package co.topl.nodeView
 import co.topl.modifier.{ ContainsModifiers, ModifierId }
 import co.topl.nodeView.history.HistoryReader
 import co.topl.utils.Logging
-import co.topl.modifier.ModifierId
 
 import scala.annotation.tailrec
 import scala.collection.mutable

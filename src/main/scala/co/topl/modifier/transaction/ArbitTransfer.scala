@@ -4,14 +4,12 @@ import java.time.Instant
 
 import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.modifier.transaction.serialization.ArbitTransferSerializer
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{ Decoder, Encoder, HCursor }
 
 import scala.util.{ Failure, Success, Try }
 

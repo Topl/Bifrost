@@ -16,6 +16,6 @@ trait ApiRouteWithView extends ApiRoute {
 
   type CV = CurrentView[History, State, MemPool]
 
-  protected def viewAsync(): Future[CV] = (nodeViewHolderRef ? GetDataFromCurrentView()).mapTo[CV]
+  protected def viewAsync(): Future[CV] = (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CV]
 
 }

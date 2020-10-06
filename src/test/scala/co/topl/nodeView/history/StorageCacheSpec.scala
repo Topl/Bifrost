@@ -2,12 +2,10 @@ package co.topl.nodeView.history
 
 import co.topl.BifrostGenerators
 import co.topl.modifier.block.Block
-import co.topl.settings.{AppSettings, StartupOpts}
-import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.iodb.ByteArrayWrapper
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class StorageCacheSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

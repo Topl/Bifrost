@@ -1,13 +1,10 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{BoxId, PolyBox, PublicKeyNoncedBox}
-import com.google.common.primitives.{Ints, Longs}
-import io.circe.Json
-import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import co.topl.nodeView.state.box.{ BoxId, PolyBox, PublicKeyNoncedBox }
+import com.google.common.primitives.Ints
 
 import scala.util.Try
 

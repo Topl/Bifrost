@@ -108,7 +108,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt ( ): Unit =
-    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView())
+    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView)
 
   /** Updates the forging actors timestamp */
   private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()

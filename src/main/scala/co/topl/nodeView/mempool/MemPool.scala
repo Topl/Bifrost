@@ -2,11 +2,8 @@ package co.topl.nodeView.mempool
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.Logging
-import co.topl.modifier.ModifierId
-import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.BoxId
-import io.iohk.iodb.ByteArrayWrapper
+import co.topl.utils.Logging
 
 import scala.collection.concurrent.TrieMap
 import scala.util.Try

@@ -3,7 +3,7 @@ package co.topl.nodeView.state.box
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{ Decoder, Encoder, HCursor }
 
 case class ExecutionBox( override val proposition: PublicKey25519Proposition,
                          override val nonce      : Long,

@@ -8,10 +8,9 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import co.topl.crypto.Signature25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.utils.serialization.JsonSerializable
 import com.oracle.js.parser.ir.visitor.NodeVisitor
-import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
+import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
+import com.oracle.js.parser.{ Parser => _, _ }
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._

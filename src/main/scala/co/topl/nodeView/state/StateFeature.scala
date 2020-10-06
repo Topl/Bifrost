@@ -1,7 +1,6 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.transaction.Transaction
 
 import scala.util.Try
 

@@ -2,30 +2,27 @@ package co.topl
 
 import java.io.File
 import java.time.Instant
-import java.util.UUID
 
 import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
-import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, CodeCreation, PolyTransfer, ProgramCreation, ProgramMethodExecution, ProgramTransfer, Transaction }
+import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction._
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
+import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.modifier.transaction._
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.network.message.BifrostSyncInfo
 import co.topl.program.{ Program, ProgramPreprocessor, _ }
 import co.topl.settings.{ AppSettings, StartupOpts }
-import co.topl.nodeView.state.ProgramId
-import io.circe.{ Json, JsonObject }
+import co.topl.utils.Logging
 import io.circe.syntax._
+import io.circe.{ Json, JsonObject }
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{ Arbitrary, Gen }
 import scorex.crypto.encode.Base58
 
 import scala.util.{ Random, Try }
-import co.topl.utils.Logging
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 
 /**
   * Created by cykoz on 4/12/17.

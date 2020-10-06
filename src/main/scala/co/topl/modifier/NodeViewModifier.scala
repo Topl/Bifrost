@@ -1,11 +1,11 @@
 package co.topl.modifier
 
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.network.message.InvData
-import co.topl.utils.{BifrostEncoder, BifrostEncoding}
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, JsonEncodable}
+import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable, JsonEncodable }
+import co.topl.utils.{ BifrostEncoder, BifrostEncoding }
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 

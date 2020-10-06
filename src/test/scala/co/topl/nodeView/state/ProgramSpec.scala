@@ -1,11 +1,9 @@
 package co.topl.nodeView.state
 
-import co.topl.modifier.transaction.ProgramCreation
-import co.topl.nodeView.state.box.{ Box, PolyBox }
 import co.topl.{ BifrostGenerators, ValidGenerators }
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

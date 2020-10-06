@@ -6,10 +6,10 @@ import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
+import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }

@@ -1,22 +1,22 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{ BoxId, StateBox }
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS, VL }
+import co.topl.nodeView.state.box.StateBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.{ AppSettings, StartupOpts }
 import co.topl.{ BifrostGenerators, ValidGenerators }
 import com.google.common.primitives.Ints
 import io.circe.syntax._
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import scorex.crypto.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
 
 class ProgramBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
