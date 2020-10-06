@@ -92,11 +92,11 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   }
 
   private def keyManagement: Receive = {
-    case UnlockKey(addr, password)     => sender() ! keyRing.unlockKeyFile(addr, password)
-    case LockKey(addr, password)       => sender() ! keyRing.lockKeyFile(addr, password)
-    case ListKeys                      => sender() ! keyRing.publicKeys
-    case CreateKey(password)           => sender() ! keyRing.generateKeyFile(password)
-    case ImportKey(password, mnemonic) => ???
+    case UnlockKey(addr, password)           => sender() ! keyRing.unlockKeyFile(addr, password)
+    case LockKey(addr, password)             => sender() ! keyRing.lockKeyFile(addr, password)
+    case CreateKey(password)                 => sender() ! keyRing.generateKeyFile(password)
+    case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
+    case ListKeys                            => sender() ! keyRing.publicKeys
   }
 
   private def nonsense: Receive = {
@@ -282,7 +282,7 @@ object Forger {
 
     case class CreateKey ( password: String )
 
-    case class ImportKey ( password: String, mnemonic: String )
+    case class ImportKey ( password: String, mnemonic: String, lang: String)
 
   }
 

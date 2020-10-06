@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.crypto.{ KeyFile, PrivateKey25519 }
+import co.topl.crypto.{ Bip39, FastCryptographicHash, KeyFile, PrivateKey25519 }
 import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
 import co.topl.utils.Logging
 
@@ -37,7 +37,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @param publicKeyString Base58 encoded public key to unlock
    * @param password        - password for the given public key.
    */
-  def unlockKeyFile ( publicKeyString: String, password: String ): Unit = {
+  def unlockKeyFile ( publicKeyString: String, password: String ): Try[Unit] = Try{
     val privKey = checkValid(publicKeyString: String, password: String)
 
     // ensure no duplicate by comparing privKey strings
@@ -51,7 +51,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @param publicKeyString Base58 encoded public key to lock
    * @param password        - password associated with public key.
    */
-  def lockKeyFile ( publicKeyString: String, password: String ): Unit = {
+  def lockKeyFile ( publicKeyString: String, password: String ): Try[Unit] = Try{
     val privKey = checkValid(publicKeyString: String, password: String)
 
     // ensure no duplicate by comparing privKey strings
@@ -63,22 +63,40 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    *
    * @param password
    */
-  def generateKeyFile (password: String): Try[PublicKey25519Proposition] =
-    Try{
-      KeyFile(password, defaultKeyDir.toString).getPrivateKey(password) match {
-        case Success(sk) =>
-          secrets += sk
-          sk.publicImage
+  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = Try{
+    KeyFile(password, defaultKeyDir.toString).getPrivateKey(password) match {
+      case Success(sk) =>
+        secrets += sk
+        sk.publicImage
 
-        case Failure(ex) => throw ex
-      }
+      case Failure(ex) => throw ex
     }
+  }
 
   /**
    *
    * @param password
+   * @param mnemonic
+   * @param lang
+   * @return
    */
-  def importKeyFile (password: String, ): Unit = KeyFile(password, defaultKeyDir.toString)
+  def importPhrase (password: String, mnemonic: String, lang: String): Try[PublicKey25519Proposition] = Try {
+    // create the BIP object used to verify the chosen language
+    val bip = Bip39(lang)
+
+    // ensure the phrase is valid
+    if (!bip.phraseCheckSum(mnemonic)) throw new Error("Not a valid input phrase!")
+
+    // calculate the new keyfile and return
+    val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
+    KeyFile(password, FastCryptographicHash(seed), defaultKeyDir.toString).getPrivateKey(password) match {
+      case Success(sk) =>
+        secrets += sk
+        sk.publicImage
+
+      case Failure(ex) => throw ex
+    }
+  }
 
   /** Return a list of KeuFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KeyFile] =

@@ -27,12 +27,23 @@ trait ApiRoute extends Directives {
 
   def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
+  /**
+   *
+   * @param fn
+   * @param method
+   * @return
+   */
   private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
     complete(
       HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
     )
   }
 
+  /**
+   *
+   * @param route
+   * @return
+   */
   def withAuth(route: => Route): Route = {
     optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
@@ -40,6 +51,11 @@ trait ApiRoute extends Directives {
     }
   }
 
+  /**
+   *
+   * @param keyOpt
+   * @return
+   */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[CryptographicHash#Digest] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
@@ -49,7 +65,24 @@ trait ApiRoute extends Directives {
     }
   }
 
+  /**
+   * Helper function to parse optional parameters from the request
+   * @param key optional key to be looked for
+   * @param default default return value
+   * @tparam A type of the value expected to be retrieved
+   * @return the provided value or the default
+   */
+  def parseOptional[A](key: String, default: A)(implicit params: Json): A =
+    (params \\ key).headOption match {
+      case Some(value: A) => value
+      case None           => default
+    }
 
+  /**
+   *
+   * @param handler
+   * @return
+   */
   protected final def basicRoute( handler: (String, Vector[Json], String) => Future[Json]): Route = path("") {
     entity(as[String]) { body =>
       withAuth {
