@@ -16,15 +16,15 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
   implicit val context: ExecutionContextExecutor = system.dispatcher
 
+  private val settings: AppSettings = AppSettings.read(startupOpts)
+  val requests: Requests = new Requests(settings)
+  val httpPort: Int = settings.rpcPort
+
   private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
   val keyFileDir = settings.keyFileDir
   val keyManager = Keys(Set(), keyFileDir)
 
   private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
-
-  implicit val settings: AppSettings = AppSettings.read(startupOpts)
-  val requests: Requests = new Requests(settings)
-  val httpPort: Int = settings.rpcPort
 
   private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
   Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
