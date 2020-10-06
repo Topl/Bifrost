@@ -19,10 +19,11 @@ import io.circe.{Json, JsonObject}
 import io.circe.syntax._
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{Random, Try}
 import bifrost.utils.Logging
+import scorex.crypto.signatures.{PublicKey, Signature}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -330,7 +331,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
+  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map{
+    sig => Signature25519(Signature @@ sig)}
 
   lazy val programGen: Gen[Program] = for {
     producer <- propositionGen
@@ -571,8 +573,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
         val key = sampleUntilNonEmpty(key25519Gen)
         (key._1, key._2.pubKeyBytes)
       })
-      .foldLeft((Set[PrivateKey25519](), Set[Array[Byte]]())) {
-        case (set: (Set[PrivateKey25519], Set[Array[Byte]]), cur: (PrivateKey25519, Array[Byte])) =>
+      .foldLeft((Set[PrivateKey25519](), Set[PublicKey]())) {
+        case (set: (Set[PrivateKey25519], Set[PublicKey]), cur: (PrivateKey25519, PublicKey)) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
     val prop = MofNProposition(1, setOfKeys._2)

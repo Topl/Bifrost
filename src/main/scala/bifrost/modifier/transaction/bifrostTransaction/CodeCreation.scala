@@ -14,7 +14,8 @@ import bifrost.wallet.Wallet
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.Signature
 
 import scala.util.Try
 
@@ -95,7 +96,7 @@ object CodeCreation {
                      data: String): Try[CodeCreation] = Try {
 
     val selectedSecret = w.secretByPublicImage(to).get
-    val fakeSig = Signature25519(Array())
+    val fakeSig = Signature25519(Signature @@ Array.emptyByteArray)
     val timestamp = Instant.now.toEpochMilli
     val messageToSign = CodeCreation(to, fakeSig, code, fee, timestamp, data).messageToSign
 

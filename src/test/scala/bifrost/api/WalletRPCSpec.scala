@@ -21,7 +21,7 @@ import bifrost.settings.BifrostContext
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

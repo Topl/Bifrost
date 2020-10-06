@@ -4,9 +4,9 @@ import bifrost.crypto.serialization.PrivateKey25519Serializer
 import bifrost.modifier.box.GenericBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.utils.serialization.BifrostSerializer
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey, Signature}
 
-case class PrivateKey25519( privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte] ) extends Secret {
+case class PrivateKey25519( privKeyBytes: PrivateKey, publicKeyBytes: PublicKey ) extends Secret {
 
   require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")
   require(publicKeyBytes.length == Curve25519.KeyLength, s"${publicKeyBytes.length} == ${Curve25519.KeyLength}")
@@ -40,7 +40,7 @@ object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
   }
 
   override def verify(message: Array[Byte], publicImage: PublicKey25519Proposition, proof: Signature25519): Boolean =
-    Curve25519.verify(proof.signature, message, publicImage.bytes)
+    Curve25519.verify(proof.signature, message, publicImage.pubKeyBytes)
 
   override def generateKeys(randomSeed: Array[Byte]): (PrivateKey25519, PublicKey25519Proposition) = {
     val pair = Curve25519.createKeyPair(randomSeed)
