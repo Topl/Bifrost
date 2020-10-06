@@ -2,6 +2,7 @@ package bifrost.modifier.box.proposition
 
 import bifrost.utils.Extensions._
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import scorex.crypto.signatures.PublicKey
 
 object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
 
@@ -17,7 +18,7 @@ object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
   override def parse(r: Reader): MofNProposition = {
     val m: Int = r.getUInt().toIntExact
     val n: Int = r.getUInt().toIntExact
-    val setOfPubKeyBytes: Set[Array[Byte]] = (0 until n).map(_ => r.getBytes(Constants25519.PubKeyLength)).toSet
+    val setOfPubKeyBytes: Set[PublicKey] = (0 until n).map(_ => PublicKey @@ r.getBytes(Constants25519.PubKeyLength)).toSet
 
     MofNProposition(m, setOfPubKeyBytes)
   }

@@ -3,7 +3,7 @@ package bifrost.modifier.box
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 case class AssetBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,

@@ -200,17 +200,19 @@ class NetworkController ( settings      : NetworkSettings,
   /**
    * Schedule a periodic connection to a random known peer
    */
-  private def scheduleConnectionToPeer ( ): Unit = {
-    context.system.scheduler.schedule(5.seconds, 5.seconds) {
-      if ( connections.size < settings.maxConnections ) {
-        val randomPeerF = peerManagerRef ? RandomPeerExcluding(
-          connections.values.flatMap(_.peerInfo).toSeq
+  private def scheduleConnectionToPeer (): Unit = {
+    context.system.scheduler.scheduleWithFixedDelay(5.seconds, 5.seconds) (new Runnable() {
+      override def run(): Unit = {
+        if ( connections.size < settings.maxConnections ) {
+          val randomPeerF = peerManagerRef ? RandomPeerExcluding(
+            connections.values.flatMap(_.peerInfo).toSeq
           )
-        randomPeerF.mapTo[Option[PeerInfo]].foreach { peerInfoOpt =>
-          peerInfoOpt.foreach(peerInfo => self ! ConnectTo(peerInfo))
+          randomPeerF.mapTo[Option[PeerInfo]].foreach { peerInfoOpt =>
+            peerInfoOpt.foreach(peerInfo => self ! ConnectTo(peerInfo))
+          }
         }
       }
-    }
+    })
   }
 
   /**

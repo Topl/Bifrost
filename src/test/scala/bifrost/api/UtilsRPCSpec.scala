@@ -8,7 +8,7 @@ import bifrost.BifrostGenerators
 import bifrost.crypto.FastCryptographicHash
 import bifrost.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
 import org.scalatest.matchers.should.Matchers

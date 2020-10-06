@@ -25,8 +25,8 @@ import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -127,8 +127,8 @@ class AssetRPCSpec extends AnyWordSpec
         val history = view().history
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(txInstance),
           settings.forgingSettings.version
         )
@@ -188,10 +188,10 @@ class AssetRPCSpec extends AnyWordSpec
 
     "Broadcast createAssetsPrototype transaction" in {
       val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+        PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get)).get
       val tempTx = tx.as[AssetCreation].right.get
       val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
-      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 
       val requestBody = ByteString(
         s"""
@@ -241,10 +241,10 @@ class AssetRPCSpec extends AnyWordSpec
     "Broadcast transferTargetAssetsPrototype" in {
       val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
       val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(prop).get)).get
+        PublicKey25519Proposition(PublicKey @@ Base58.decode(prop).get)).get
       val tempTx = tx.as[AssetTransfer].right.get
       val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
-      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 
       val requestBody = ByteString(
         s"""
