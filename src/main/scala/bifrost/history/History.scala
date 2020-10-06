@@ -18,7 +18,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -31,7 +31,10 @@ class History ( val storage: Storage,
                 val fullBlockProcessor: BlockProcessor,
                 settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
-              ) extends GenericHistory[Block, BifrostSyncInfo, History] with Logging with BifrostEncoding {
+              )
+  extends GenericHistory[Block, BifrostSyncInfo, History]
+    with Logging
+    with BifrostEncoding {
 
   override type NVCT = History
 
@@ -554,6 +557,14 @@ class History ( val storage: Storage,
     storage.getIndex(heightIdsKey(height: Int))
       .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
    */
+
+  override def txById(txId: ModifierId): Option[Transaction] = {
+    storage.blockIdOf(txId.hashBytes) match {
+      case Some(block) ⇒ storage.modifierById(ModifierId(block.tail))
+        .get.txs.find(_.id == txId)
+      case None ⇒ None
+    }
+  }
 }
 
 
