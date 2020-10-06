@@ -175,13 +175,13 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
       }
 
       // check that the transaction can be constructed
-      if (view.state.tbrOpt.isEmpty)
+      if ( !view.state.hasTBR )
         throw new Exception("TokenBoxRegistry not defined for node")
-      if (view.state.nodeKeys.isDefined)
-        sender.foreach(key =>
-                         if (!view.state.nodeKeys.get.contains(key))
-                           throw new Exception("Node not set to watch for specified public key")
-                       )
+
+      //YT NOTE - if nodeKeys not defined in settings file then node watches for all keys in a state update
+      if ( view.state.nodeKeys.isDefined && !sender.forall(view.state.nodeKeys.contains(_)) )
+        throw new Exception("Node not set to watch for specified public key")
+
 
       // construct the transaction
       val tx = AssetTransfer

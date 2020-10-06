@@ -44,7 +44,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
     }
 
   def checkPublicKey (keys: Seq[PublicKey25519Proposition], view: CV): Unit = {
-    if ( view.state.tbrOpt.isEmpty )
+    if ( !view.state.hasTBR )
       throw new Exception("TokenBoxRegistry not defined for node")
 
     //YT NOTE - if nodeKeys not defined in settings file then node watches for all keys in a state update

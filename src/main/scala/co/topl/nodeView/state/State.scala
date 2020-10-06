@@ -29,8 +29,8 @@ import scala.util.{ Failure, Success, Try }
  */
 case class State ( override val version     : VersionTag,
                    protected val storage    : LSMStore,
-                   tbrOpt: Option[TokenBoxRegistry] = None, // todo: mark as private[state] after modding transactions
-                   pbrOpt: Option[ProgramBoxRegistry] = None,
+                   private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
+                   private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
                    nodeKeys                 : Option[Set[PublicKey25519Proposition]] = None
                  ) extends MinimalState[Box, Block, State]
                            with StoreInterface
@@ -38,6 +38,9 @@ case class State ( override val version     : VersionTag,
                            with Logging {
 
   override type NVCT = State
+
+  lazy val hasTBR: Boolean = tbrOpt.isDefined
+  lazy val hasPBR: Boolean = pbrOpt.isDefined
 
   override def closeStorage ( ): Unit = {
     log.info("Attempting to close state storage")

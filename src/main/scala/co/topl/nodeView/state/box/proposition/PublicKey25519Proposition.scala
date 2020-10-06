@@ -3,13 +3,13 @@ package co.topl.nodeView.state.box.proposition
 import co.topl.crypto.FastCryptographicHash._
 import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
-import io.circe.{ Decoder, Encoder, HCursor, KeyDecoder, KeyEncoder }
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 

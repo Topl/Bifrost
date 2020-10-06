@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.{BoxId, GenericBox}
 import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.utils.Logging
@@ -23,7 +23,7 @@ trait Registry[K, V] extends StoreInterface with Logging {
   protected def registryOutput (value: Array[Byte]): Seq[V]
 
   /** Helper function to transform registry output value to input for state */
-  protected def registryOut2StateIn (value: V): Array[Byte]
+  protected def registryOut2StateIn (value: V): BoxId
 
   /**
     * Lookup boxId stored by key in the registry

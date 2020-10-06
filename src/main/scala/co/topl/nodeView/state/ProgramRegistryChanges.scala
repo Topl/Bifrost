@@ -20,7 +20,7 @@ object ProgramRegistryChanges {
     Try {
 
       def processToMap(boxSeq: Seq[ProgramBox]): Map[K, Seq[V]] = {
-        boxSeq.groupBy(_.value).map { case (k,box) => (k, box.map(b => BoxId(b.id))) }
+        boxSeq.groupBy(_.value).map { case (k,box) => (k, box.map(_.id)) }
       }
 
       // extract the needed box data from all transactions within a block
