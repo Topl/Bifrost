@@ -37,7 +37,7 @@ case class State( storage: LSMStore,
                   pbr: ProgramBoxRegistry = null,
                   tbr: TokenBoxRegistry = null,
                   nodeKeys: Set[ByteArrayWrapper] = null
-                ) extends MinimalState[Block, State] with Logging {
+                ) extends MinimalState[Block, State] with TransactionValidation[Transaction] with Logging {
 
   override type NVCT = State
   type TX = Transaction
