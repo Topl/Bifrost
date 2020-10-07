@@ -2,8 +2,8 @@ package co.topl.it.util
 
 import java.util.UUID
 
-import bifrost.settings.AppSettings
-import bifrost.utils.Logging
+import co.topl.settings.AppSettings
+import co.topl.utils.Logging
 import co.topl.settings.AppSettings
 import com.spotify.docker.client.DefaultDockerClient
 import com.spotify.docker.client.messages.{ Container, ContainerConfig }

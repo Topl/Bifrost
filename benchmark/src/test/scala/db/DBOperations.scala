@@ -2,11 +2,11 @@ package db
 
 import java.util.concurrent.TimeUnit
 
-import bifrost.modifier.ModifierId
+import co.topl.modifier.ModifierId
 import org.openjdk.jmh.annotations._
-import bifrost.BifrostGenerators
-import bifrost.nodeView.history._
-import bifrost.modifier.block.{Block, BlockSerializer}
+import co.topl.BifrostGenerators
+import co.topl.nodeView.history._
+import co.topl.modifier.block.{Block, BlockSerializer}
 import io.iohk.iodb.ByteArrayWrapper
 
 
@@ -88,7 +88,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
-import bifrost.nodeView.history._
+import co.topl.nodeView.history._
 import io.circe.Json
 import io.iohk.iodb.LSMStore
 

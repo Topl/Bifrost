@@ -2,8 +2,8 @@ package co.topl.it
 
 import java.util.concurrent.Executors
 
-import bifrost.it.util.Docker
-import bifrost.utils.Logging
+import co.topl.it.util.Docker
+import co.topl.utils.Logging
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import scala.concurrent.ExecutionContext
