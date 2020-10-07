@@ -90,7 +90,7 @@ trait ValidGenerators extends BifrostGenerators {
         prop -> preBoxes.map(_._2).sum
       }
 
-      val falseSig = Map(sender -> Signature25519(Array()))
+      val falseSig = Map(sender -> Signature25519(Signature @@ Array.emptyByteArray))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
       val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, pc.messageToSign))
 

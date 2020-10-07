@@ -6,7 +6,7 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
 import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
 

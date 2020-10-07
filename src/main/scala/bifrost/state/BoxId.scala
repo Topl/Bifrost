@@ -2,7 +2,7 @@ package bifrost.state
 
 import bifrost.modifier.ModifierId
 import com.google.common.primitives.Ints
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 case class BoxId (hashBytes: Array[Byte]) {
   override def hashCode: Int = Ints.fromByteArray(hashBytes)

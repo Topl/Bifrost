@@ -13,6 +13,7 @@ import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.ClassTag
@@ -183,14 +184,14 @@ case class State ( override val version     : VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id) -> ByteArrayWrapper(b.bytes))
 
       val boxIdsToRemove = (nodeKeys match {
         case Some(keys) => stateChanges.boxIdsToRemove
           .flatMap(getBox)
-          .filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
+          .filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove
@@ -347,7 +348,7 @@ object State extends Logging {
     val nodeKeys: Option[Set[PublicKey25519Proposition]] =
       settings
         .nodeKeys
-        .map(_.map(key => PublicKey25519Proposition(Base58.decode(key).get)))
+        .map(_.map(key => PublicKey25519Proposition(PublicKey @@ Base58.decode(key).get)))
 
     if ( nodeKeys.isDefined )
       log.info(s"Initializing state to watch for public keys: ${

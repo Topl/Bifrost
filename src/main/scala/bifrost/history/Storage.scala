@@ -9,7 +9,6 @@ import bifrost.utils.Logging
 import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
-import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
 
 import scala.util.Success

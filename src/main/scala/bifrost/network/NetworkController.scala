@@ -201,10 +201,10 @@ class NetworkController ( settings      : NetworkSettings,
    * Schedule a periodic connection to a random known peer
    */
   private def scheduleConnectionToPeer ( ): Unit = {
-    context.system.scheduler.schedule(5.seconds, 5.seconds) {
+    context.system.scheduler.scheduleWithFixedDelay(5.seconds, 5.seconds) { () =>
 
       // only attempt connections if we are connected or attempting to connect to less than max connection
-      if ( connections.size + unconfirmedConnections.size < settings.maxConnections ) { () =>
+      if ( connections.size + unconfirmedConnections.size < settings.maxConnections ) {
 
         // get a set of random peers from the database (excluding connected peers)
         val randomPeerF = peerManagerRef ? RandomPeerExcluding(connections.values.flatMap(_.peerInfo).toSeq)

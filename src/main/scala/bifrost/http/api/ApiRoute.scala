@@ -1,18 +1,18 @@
 package bifrost.http.api
 
 import akka.actor.ActorRefFactory
-import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
-import akka.http.scaladsl.server.{ Directive0, Directives, Route }
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
+import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
-import bifrost.settings.{ AppSettings, RESTApiSettings }
+import bifrost.settings.{AppSettings, RESTApiSettings}
 import io.circe.Json
 import io.circe.parser.parse
 import scorex.util.encode.Base58
-import scorex.crypto.hash.{ Blake2b256, CryptographicHash }
+import scorex.crypto.hash.{Blake2b256, CryptographicHash, Digest32}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, Future }
-import scala.util.{ Failure, Success, Try }
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success, Try}
 
 trait ApiRoute extends Directives {
   val settings: RESTApiSettings

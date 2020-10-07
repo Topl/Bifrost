@@ -48,7 +48,7 @@ object PublicKey25519Proposition {
   def apply(id: String): Try[PublicKey25519Proposition] = {
     Try {
       Base58.decode(id) match {
-        case Success(id) => new PublicKey25519Proposition(id)
+        case Success(id) => new PublicKey25519Proposition(PublicKey @@ id)
         case Failure(ex) => throw ex
       }
     }

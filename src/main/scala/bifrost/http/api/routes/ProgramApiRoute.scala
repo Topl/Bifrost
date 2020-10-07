@@ -18,7 +18,7 @@ import bifrost.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._
 import io.circe.{ Decoder, Json, JsonObject }
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
