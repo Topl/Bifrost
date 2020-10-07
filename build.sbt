@@ -4,7 +4,7 @@ import sbtassembly.MergeStrategy
 name := "bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.11",
+  scalaVersion := "2.12.12",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
@@ -12,7 +12,7 @@ lazy val commonSettings = Seq(
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.12"
 organization := "co.topl"
 version := "1.1.0"
 
@@ -85,8 +85,6 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-core" % "2.1.7",
   "io.kamon" %% "kamon-influxdb" % "2.1.7",
   "io.kamon" %% "kamon-zipkin" % "2.1.7",
-  //"io.kamon" %% "kamon-apm-reporter" % "2.1.0",
-  //"de.aktey.akka.visualmailbox" %% "collector" % "1.1.0"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
