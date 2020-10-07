@@ -56,7 +56,7 @@ class CodeCreationSpec extends AnyWordSpec
           System.currentTimeMillis(),
           Seq(txInstance),
           ArbitBox(prop, 0L, 10000L),
-          gw.secrets.head,
+          signSk,
           settings.forgingSettings.version
         )
 

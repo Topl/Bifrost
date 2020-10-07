@@ -2,7 +2,6 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -302,32 +301,6 @@ object State extends Logging {
         throw new UnsupportedOperationException(
           "Semantic validity not implemented for " + tx.getClass.toGenericString
           )
-    }
-  }
-
-  /**
-   * Generate a series of unlockers for a transactions that is used to validate the transaction
-   *
-   * @param from
-   * @param signatures
-   * @return
-   */
-  def generateUnlockers ( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
-                          signatures: Map[PublicKey25519Proposition, Signature25519]
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map {
-      case (prop, nonce) =>
-        val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
-        val boxKey = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
-        new BoxUnlocker(boxId, boxKey)
-    }
-  }
-
-  def generateUnlockers ( boxIds   : Seq[BoxId],
-                          signature: Signature25519
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    boxIds.map { id =>
-      new BoxUnlocker(id, signature)
     }
   }
 

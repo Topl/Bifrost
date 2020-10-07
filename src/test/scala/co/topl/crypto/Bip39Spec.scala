@@ -17,15 +17,13 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   val path: Path = Path(keyFileDir)
 
   // sample uuid string
-  val uuidString = uuid
+  val uuidString = java.util.UUID.randomUUID.toString
+
   // language for phrase words
   val lang = "en"
-  //phrase translator
-  val pt = Bip39.apply(lang)
 
-  "The wordlists" should "pass checksum" in {
-    assert(pt.verifyPhraseList)
-  }
+  //phrase translator
+  val pt = Bip39(lang)
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)

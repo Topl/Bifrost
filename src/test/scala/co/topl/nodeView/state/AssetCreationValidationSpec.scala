@@ -39,7 +39,7 @@ class AssetCreationValidationSpec extends StateSpec {
         })
 
         val g = validAssetTransferGen.sample.get.asJson
-        val h = g.as[AssetTransfer].
+        val h = g.as[AssetTransfer]
     }
   }
 

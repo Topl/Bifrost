@@ -9,6 +9,7 @@ import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
 import co.topl.http.api.routes.DebugApiRoute
+import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -52,10 +53,8 @@ class DebugRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
-
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   "Debug RPC" should {

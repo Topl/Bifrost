@@ -651,7 +651,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     keyPair ← key25519Gen
   } yield {
     Block.create(
-      ModifierId(History.GenesisParentId),
+      History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),

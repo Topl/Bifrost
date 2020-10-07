@@ -423,7 +423,7 @@ object GenericNodeViewHolder {
     case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
 
     // Retrieve data from current view with an optional callback function to modify the view
-    case class GetDataFromCurrentView[HIS, MS, MP]()
+    case object GetDataFromCurrentView
 
     // Modifiers received from the remote peer with new elements in it
     case class ModifiersFromRemote[PM <: PersistentNodeViewModifier](modifiers: Iterable[PM])
