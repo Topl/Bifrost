@@ -12,7 +12,7 @@ class WalletActorManager extends Actor {
     case msg: String => {
       if (msg == "Remote wallet actor initialized") {
         remoteWalletActor = Some(sender())
-        sender ! s"received the wallet actor reference: ${sender().path.name}"
+        sender ! s"received new wallet from: ${Some(sender())}"
       }
     }
 

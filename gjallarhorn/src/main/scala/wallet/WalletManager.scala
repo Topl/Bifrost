@@ -1,15 +1,21 @@
 package wallet
 
 import akka.actor.{Actor, ActorRef, ActorSelection}
+import akka.pattern.ask
+import akka.util.Timeout
 import io.circe.{Json, ParsingFailure}
 import io.circe.parser.parse
 
 import scala.collection.mutable.{Map => MMap}
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 
 class WalletManager(publicKeys: Set[String]) extends Actor {
 
   import WalletManager._
+
+  implicit val timeout: Timeout = 10.seconds
 
   var walletBoxes: MMap[String, MMap[String, Json]] = {
     val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
@@ -19,7 +25,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
     returnVal
   }
 
-  val bifrostActorRef: ActorSelection = context.actorSelection("akka.tcp://bifrost-client@192.168.1.27:2552/user/walletActorManager")
+  val bifrostActorRef: ActorSelection = context.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager")
 
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
@@ -79,7 +85,9 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
 
   override def receive: Receive = {
 
-    case UpdateWallet(updatedBoxes) => sender ! parseAndUpdate(updatedBoxes)
+    case UpdateWallet(updatedBoxes) => {
+      sender ! parseAndUpdate(updatedBoxes)
+    }
 
     /*case UpdateWallet(add, remove) => {
       remove.foreach { case (publicKey, ids) =>
@@ -90,9 +98,17 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
       }
     }*/
 
-    case msg: String => println(s"Wallet Manager received block: $msg")
+    case msg: String => {
+      if (msg.contains("new block added:")) {
+        println(s"Wallet Manager received block: ${msg.substring(17)}")
+      }
 
-    case GjallarhornStarted() => bifrostActorRef ! "Remote wallet actor initialized"
+    }
+
+    case GjallarhornStarted() => {
+      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
+      sender ! response
+    }
   }
 }
 

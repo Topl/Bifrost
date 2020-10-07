@@ -52,7 +52,7 @@ class RequestSpec extends AsyncFlatSpec
 
   val publicKeys: Set[String] = Set(Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
 
-  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)))
+  val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
   val amount = 10
 
@@ -181,6 +181,11 @@ class RequestSpec extends AsyncFlatSpec
       }
       case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     }
+  }
+
+  it should "connect to bifrost actor when the gjallarhorn app starts" in {
+    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStarted()).mapTo[String], 100.seconds)
+    assert(bifrostResponse.contains("received new wallet from: Some(Actor[akka.tcp://requestTest@127.0.0.1"))
   }
 
 }

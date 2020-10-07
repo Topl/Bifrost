@@ -71,7 +71,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
 
-  private val walletActorManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletActorManager))
+  private val walletActorManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletActorManager), name = "walletActorManager")
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext, walletActorManagerRef)
 
