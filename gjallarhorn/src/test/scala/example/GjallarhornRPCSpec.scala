@@ -25,11 +25,12 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   with ScalatestRouteTest
   with GjallarhornGenerators {
 
-  implicit val actorSystem: ActorSystem = ActorSystem()
 //  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   implicit val timeout: Timeout = Timeout(10.seconds)
-  val http: HttpExt = Http(actorSystem)
+
+  override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
+  val http: HttpExt = Http(system)
 
   val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)

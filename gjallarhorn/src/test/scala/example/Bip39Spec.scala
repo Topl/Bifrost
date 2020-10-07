@@ -29,8 +29,6 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
-    println("seed hex: "+seedHex)
-    println("seed phrase: "+phrase)
   }
   //------------------------------------------------------------------------------------
 
@@ -64,17 +62,6 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
       }
       outString
     }
-
-    println(checkPT(phraseGood))
-    println(checkPT(phraseBad))
-    println(checkPT(phraseShort))
-    println(checkPT(phraseMixed))
-
-    println(checkPT(phraseGood15))
-    println(checkPT(phraseGood18))
-    println(checkPT(phraseGood21))
-    println(checkPT(phraseGood24))
-
 
     assert(pt.phraseToHex(phraseColeman) == hexColeman)
 

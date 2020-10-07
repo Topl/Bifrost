@@ -27,13 +27,13 @@ class RequestSpec extends AsyncFlatSpec
   with Matchers
   with GjallarhornGenerators {
 
-  implicit val actorSystem: ActorSystem = ActorSystem()
+  implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val timeout: Timeout = 10.seconds
 
   val http: HttpExt = Http(actorSystem)
 
-  val requests = new Requests(settings)
+  val requests = new Requests(requestSettings)
 
   val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)

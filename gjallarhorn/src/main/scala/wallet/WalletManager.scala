@@ -1,6 +1,6 @@
 package wallet
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef, ActorSelection}
 import io.circe.{Json, ParsingFailure}
 import io.circe.parser.parse
 
@@ -18,6 +18,8 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
     )
     returnVal
   }
+
+  val bifrostActorRef: ActorSelection = context.actorSelection("akka.tcp://bifrost-client@192.168.1.27:2552/user/walletActorManager")
 
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
@@ -88,6 +90,9 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
       }
     }*/
 
+    case msg: String => println(s"Wallet Manager received block: $msg")
+
+    case GjallarhornStarted() => bifrostActorRef ! "Remote wallet actor initialized"
   }
 }
 
@@ -100,4 +105,5 @@ object WalletManager {
   case class UpdateWallet(updatedBoxes: Json)
   //case class UpdateWallet(add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])])
 
+  case class GjallarhornStarted()
 }

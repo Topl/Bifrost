@@ -21,7 +21,8 @@ import scorex.crypto.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolder ( override val settings: AppSettings, bifrostContext: BifrostContext )
+class NodeViewHolder ( override val settings: AppSettings, bifrostContext: BifrostContext,
+                       override val walletActorManagerRef: ActorRef)
                      ( implicit ec: ExecutionContext )
   extends GenericNodeViewHolder[Transaction, Block] {
 
@@ -159,15 +160,15 @@ object NodeViewHolder extends Logging {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, bifrostContext: BifrostContext )
+  def apply ( settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext))
+    system.actorOf(props(settings, bifrostContext, walletActorManagerRef))
 
-  def apply ( name: String, settings: AppSettings, bifrostContext: BifrostContext )
+  def apply ( name: String, settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext), name)
+    system.actorOf(props(settings, bifrostContext, walletActorManagerRef), name)
 
-  def props ( settings: AppSettings, bifrostContext: BifrostContext )
+  def props ( settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, bifrostContext))
+    Props(new NodeViewHolder(settings, bifrostContext, walletActorManagerRef))
 }

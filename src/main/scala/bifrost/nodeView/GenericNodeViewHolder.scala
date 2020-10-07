@@ -1,6 +1,8 @@
 package bifrost.nodeView
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
+import akka.pattern.ask
+import akka.util.Timeout
 import bifrost.history.GenericHistory
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
@@ -11,8 +13,11 @@ import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
 import bifrost.wallet.Vault
+import bifrost.wallet.WalletActorManager.GetRemoteWalletRef
 
+import scala.concurrent.duration._
 import scala.annotation.tailrec
+import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -50,6 +55,8 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
                                suffix: IndexedSeq[PMOD])
 
   val settings: AppSettings
+  val walletActorManagerRef: ActorRef
+  implicit val timeout: Timeout = 10.seconds
 
   /**
     * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
@@ -215,6 +222,14 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     }
   }
 
+  protected def updateRemoteWallet(pmod: PMOD): Unit = {
+    val remoteWalletRef: Option[ActorRef] = Await.result((walletActorManagerRef ? GetRemoteWalletRef).mapTo[Option[ActorRef]], 10.seconds)
+    remoteWalletRef match {
+      case Some(walletRef) => walletRef ! s"new block added: $pmod"
+      case None => log.warn("no remote wallets running.")
+    }
+  }
+
   //todo: update state in async way?
   protected def pmodModify(pmod: PMOD): Unit =
     if (!history().contains(pmod.id)) {
@@ -245,7 +260,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
 
                 log.info(s"Persistent modifier ${pmod.encodedId} applied successfully")
                 updateNodeView(Some(newHistory), Some(newMinState), Some(newVault), Some(newMemPool))
-
+                updateRemoteWallet(pmod)
 
               case Failure(e) =>
                 log.warn(s"Can`t apply persistent modifier (id: ${pmod.encodedId}, contents: $pmod) to minimal state", e)

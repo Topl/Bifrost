@@ -7,6 +7,7 @@ import requests.Requests
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.WalletManager
+import wallet.WalletManager.GjallarhornStarted
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success}
@@ -24,7 +25,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val keyFileDir = settings.keyFileDir
   val keyManager = Keys(Set(), keyFileDir)
 
-  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
+  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
 
   private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
   Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
@@ -37,7 +38,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
 
   def run(): Unit = {
-
+    walletManagerRef ! GjallarhornStarted
   }
 }
 

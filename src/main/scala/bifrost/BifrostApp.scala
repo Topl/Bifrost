@@ -2,7 +2,7 @@ package bifrost
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
@@ -24,6 +24,7 @@ import bifrost.network.message._
 import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
 import bifrost.utils.Logging
+import bifrost.wallet.WalletActorManager
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
@@ -70,7 +71,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext)
+  private val walletActorManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletActorManager))
+
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext, walletActorManagerRef)
 
   private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, bifrostContext)
 
