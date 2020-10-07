@@ -1,30 +1,26 @@
 package bifrost.api.program
 
-import java.util.UUID
-
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import bifrost.BifrostGenerators
+import akka.util.{ ByteString, Timeout }
 import bifrost.history.History
 import bifrost.mempool.MemPool
-import bifrost.modifier.ModifierId
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.BifrostContext
-import bifrost.state.{State, StateChanges}
+import bifrost.state.State
 import bifrost.wallet.Wallet
-import com.google.common.primitives.Ints
+import bifrost.{ BifrostGenerators, state }
 import io.circe.syntax._
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{ Await, ExecutionContext }
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -61,19 +57,24 @@ trait ProgramMockState extends BifrostGenerators {
     (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
     10.seconds)
 
-
-  def manuallyApplyBoxes(boxes: Set[Box], version: Int): Unit = {
+  def directlyAddPBRStorage(version: Int, boxes: Seq[ProgramBox]): Unit = {
     // Manually manipulate state
-    val boxSC = StateChanges(Set(),
-      boxes,
-      System.currentTimeMillis())
-    val versionId = ModifierId(Ints.toByteArray(version))
-
-    view().state.applyChanges(boxSC, versionId).get
+    state.directlyAddPBRStorage(version, boxes, view().state)
   }
 
+  val publicKeys = Map(
+    "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+    "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
+    "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
+    )
+  // Unlock Secrets
+  val gw: Wallet = view().vault
+  gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  gw.unlockKeyFile(publicKeys("producer"), "genesis")
+  gw.unlockKeyFile(publicKeys("hub"), "genesis")
+
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKey).get)
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("investor")).get)
 
   val polyBoxes = view()
     .vault
@@ -93,8 +94,7 @@ trait ProgramMockState extends BifrostGenerators {
        |}
        |""".stripMargin
 
-  val stateBox = StateBox(prop, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(prop, 0L)), Map("a" -> 0, "b" -> 1).asJson)
-  val codeBox = CodeBox(prop, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(prop, 1L)),
-    Seq("add = function(x,y) { a = x + y; return a }"), Map("add" -> Seq("Number", "Number")))
-  val executionBox = ExecutionBox(prop, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(prop, 2L)), Seq(stateBox.value), Seq(codeBox.id))
+  val stateBox: StateBox = StateBox(prop, 0L, programIdGen.sample.get, Map("a" -> 0, "b" -> 1).asJson)
+  val codeBox: CodeBox = CodeBox(prop, 1L, programIdGen.sample.get, Seq("add = function(x,y) { a = x + y; return a }"), Map("add" -> Seq("Number", "Number")))
+  val executionBox: ExecutionBox = ExecutionBox(prop, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
 }

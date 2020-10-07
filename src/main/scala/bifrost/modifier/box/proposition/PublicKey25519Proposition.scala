@@ -2,12 +2,13 @@ package bifrost.modifier.box.proposition
 
 import bifrost.crypto.FastCryptographicHash._
 import bifrost.crypto.PrivateKey25519
+import bifrost.state.ProgramId
 import bifrost.utils.serialization.BifrostSerializer
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
@@ -16,33 +17,42 @@ case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnow
 
   import PublicKey25519Proposition._
 
-  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
+  override type M = PublicKey25519Proposition
 
   lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
 
-  override def toString: String = address
-
-  def verify(message: Array[Byte], signature: Signature): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
-
-  override type M = PublicKey25519Proposition
+  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
 
   override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
-  override def equals(obj: scala.Any): Boolean = obj match {
+  override def toString: String = address
+
+  override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
     case _ => false
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
+
+  def verify(message: Array[Byte], signature: Signature): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
 }
+
+
 
 object PublicKey25519Proposition {
 
   val AddressVersion: Byte = 1
-  val ChecksumLength = 4
-  val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
+  val ChecksumLength: Int = 4
+  val AddressLength: Int = 1 + Constants25519.PubKeyLength + ChecksumLength
 
-  // TODO: Jing - consider moving these methods into the case class above
+  def apply(id: String): Try[PublicKey25519Proposition] = {
+    Try {
+      Base58.decode(id) match {
+        case Success(id) => new PublicKey25519Proposition(id)
+        case Failure(ex) => throw ex
+      }
+    }
+  }
 
   def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
 

@@ -1,13 +1,13 @@
 package bifrost.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.ModifierId
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.settings.AppSettings
+import bifrost.settings.{ AppSettings, RESTApiSettings }
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
@@ -17,7 +17,7 @@ import scorex.util.encode.Base58
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-case class DebugApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
+case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
 
   type HIS = History

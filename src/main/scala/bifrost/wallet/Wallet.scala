@@ -3,22 +3,22 @@ package bifrost.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import bifrost.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.{ FastCryptographicHash, KeyFile, PrivateKey25519 }
 import bifrost.modifier.ModifierId
 import bifrost.modifier.block.Block
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import bifrost.modifier.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.settings.AppSettings
 import bifrost.state.StateChanges
 import bifrost.utils.Logging
 import com.google.common.primitives.Ints
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 
 case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)
@@ -286,7 +286,7 @@ object Wallet {
     if (settings.walletSeed.startsWith("genesis")) {
       val seeds = (0 to 2).map(c => FastCryptographicHash(Base58.decode(settings.walletSeed).get ++ Ints.toByteArray(c)))
       val pubKeys = seeds.map { seed =>
-        val (priv, pub) = PrivateKey25519Companion.generateKeys(seed)
+        val (priv, pub) = PrivateKey25519.generateKeys(seed)
         if (!gw.publicKeys.contains(pub)) {
           KeyFile("genesis", seed = seed, gw.defaultKeyDir)
         }

@@ -15,13 +15,13 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
   "executeProgramMethod" should {
 
-    val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
+    val boxState = Seq(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(boxState, 1)
+    directlyAddPBRStorage(1, boxState)
 
     "Update mutable state in a Program and return the updated state" in {
 
@@ -40,7 +40,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
            |      "x": 2,
            |      "y": 2
            |    },
-           |    "programId": "${Base58.encode(executionBox.id)}",
+           |    "programId": "${executionBox.value}",
            |    "preFeeBoxes": {
            |      "$publicKey": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]]
            |     },

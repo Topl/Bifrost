@@ -1,18 +1,17 @@
 package bifrost.modifier.box
 
-import java.util.UUID
-
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.state.ProgramId
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{ Decoder, HCursor, Json }
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
 
 case class CodeBox(override val proposition: PublicKey25519Proposition,
                    override val nonce: Long,
-                   override val value: UUID,
+                   override val value: ProgramId,
                    code: Seq[String], // List of strings of JS functions
                    interface: Map[String, Seq[String]]
                    ) extends ProgramBox(proposition, nonce, value) {
@@ -26,7 +25,7 @@ case class CodeBox(override val proposition: PublicKey25519Proposition,
     "type" -> typeOfBox.asJson,
     "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
     "nonce" -> nonce.toString.asJson,
-    "uuid" -> value.asJson,
+    "programId" -> value.toString.asJson,
     "code" -> code.asJson,
     "interface" -> interface.map(ci => ci._1 -> ci._2.asJson).asJson
   ).asJson
@@ -37,16 +36,15 @@ object CodeBox {
   def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
     FastCryptographicHash(prop.pubKeyBytes ++ "code".getBytes ++ Longs.toByteArray(nonce))
 
-  // TODO: Jing - Check if this is used anywhere
   implicit val decodeCodeBox: Decoder[CodeBox] = (c: HCursor) => for {
     proposition <- c.downField("proposition").as[String]
-    uuid <- c.downField("uuid").as[UUID]
+    value <- c.downField("programId").as[String]
     code <- c.downField("code").as[Seq[String]]
     interface <- c.downField("interface").as[Map[String, Seq[String]]]
     nonce <- c.downField("nonce").as[Long]
   } yield {
-    val preparedPubKey = PublicKey @@ Base58.decode(proposition).get
-    val prop = PublicKey25519Proposition(preparedPubKey)
-    CodeBox(prop, nonce, uuid, code, interface)
+    val prop = PublicKey25519Proposition(proposition).get
+    val progId = ProgramId(value).get
+    CodeBox(prop, nonce, progId, code, interface)
   }
 }

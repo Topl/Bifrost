@@ -93,12 +93,12 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
-    UtilsApiRoute(settings),
-    AssetApiRoute(settings, nodeViewHolderRef),
-    DebugApiRoute(settings, nodeViewHolderRef),
-    WalletApiRoute(settings, nodeViewHolderRef),
-    ProgramApiRoute(settings, nodeViewHolderRef),
-    NodeViewApiRoute(settings, nodeViewHolderRef)
+    UtilsApiRoute(settings.restApi),
+    AssetApiRoute(settings.restApi, nodeViewHolderRef),
+    DebugApiRoute(settings.restApi, nodeViewHolderRef),
+    WalletApiRoute(settings.restApi, nodeViewHolderRef),
+    ProgramApiRoute(settings.restApi, nodeViewHolderRef),
+    NodeViewApiRoute(settings.restApi, nodeViewHolderRef)
   )
 
   private val httpService = HttpService(apiRoutes)
@@ -129,10 +129,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
-    log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
+    log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
 
-    val httpHost = "0.0.0.0"
-    val httpPort = settings.rpcPort
+    val httpHost = settings.restApi.bindAddress.toString.split(":").head
+    val httpPort = settings.restApi.bindAddress.getPort
 
     def failedP2P(): Unit = {
       log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")

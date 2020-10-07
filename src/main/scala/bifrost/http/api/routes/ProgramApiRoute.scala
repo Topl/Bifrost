@@ -1,31 +1,31 @@
 package bifrost.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import bifrost.crypto.PrivateKey25519Companion
+import bifrost.crypto.PrivateKey25519
 import bifrost.exceptions.JsonParsingException
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{Box, CodeBox, ExecutionBox, StateBox}
-import bifrost.modifier.transaction.bifrostTransaction.{CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer}
+import bifrost.modifier.box.{ Box, CodeBox, ExecutionBox, StateBox }
+import bifrost.modifier.transaction.bifrostTransaction.{ CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
-import bifrost.settings.AppSettings
-import bifrost.state.State
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
+import bifrost.settings.{ AppSettings, RESTApiSettings }
+import bifrost.state.{ ProgramId, State }
 import bifrost.wallet.Wallet
 import io.circe.literal._
 import io.circe.syntax._
-import io.circe.{Decoder, Json, JsonObject}
-import scorex.util.encode.Base58
+import io.circe.{ Decoder, Json, JsonObject }
+import scorex.crypto.encode.Base58
 import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
-case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
+case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
@@ -51,7 +51,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
       val state = view.state
       val tx = createProgramInstance(params, state)
-      val signature = PrivateKey25519Companion.sign(selectedSecret, tx.messageToSign)
+      val signature = PrivateKey25519.sign(selectedSecret, tx.messageToSign)
       Map("signature" -> Base58.encode(signature.signature).asJson,
         "tx" -> tx.json.asJson).asJson
     }
@@ -60,7 +60,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
   def createCode(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val owner = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "publicKey").head.asString.get).get)
+      val owner = PublicKey25519Proposition((params \\ "publicKey").head.asString.get).get
       val code: String = (params \\ "code").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
       val data: String = (params \\ "data").headOption match {
@@ -70,7 +70,7 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
 
       val tx = CodeCreation.createAndApply(wallet, owner, code, fee, data).get
 
-      CodeCreation.validate(tx) match {
+      CodeCreation.semanticValidate(tx, view.state) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[CodeCreation](tx)
           tx.json
@@ -83,23 +83,24 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
     viewAsync().map { view =>
       val state = view.state
       val tx = createProgramInstance(params, state)
-//      ProgramCreation.validate(tx) match {
-//        case Success(_) => log.info("Program creation validated successfully")
-//        case Failure(e) => throw e
-//      }
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramCreation](tx)
-      tx.json
+
+      ProgramCreation.semanticValidate(tx, view.state) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramCreation](tx)
+          tx.json
+        case Failure(e) => throw new Error("Failed to validate the program creation")
+      }
     }
   }
 
   def transferProgram(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       val wallet = view.vault
-      val tbr = view.state.tbr
-      val from = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "from").head.asString.get).get)
-      val to = PublicKey25519Proposition(PublicKey @@ Base58.decode((params \\ "to").head.asString.get).get)
-      val executionBox = tbr.closedBox(Base58.decode((params \\ "programId").head.asString.get).get).get.asInstanceOf[ExecutionBox]
+      val from = PublicKey25519Proposition((params \\ "from").head.asString.get).get
+      val to = PublicKey25519Proposition((params \\ "to").head.asString.get).get
+      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None => ""
@@ -117,14 +118,14 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val wallet = view.vault
       val signingPublicKey = (params \\ "owner").head.asString.get
 
-      //TODO Replace with method to return all boxes from program box registry
-      val executionBox = programBoxId2Box(view.state, (params \\ "programId").head.asString.get).asInstanceOf[ExecutionBox]
-      val state: Seq[StateBox] = executionBox.stateBoxUUIDs.map { sb =>
-        view.state.pbr.getBox(sb).get.asInstanceOf[StateBox]
+      val executionBox = view.state.getProgramBox[ExecutionBox](ProgramId((params \\ "programId").head.asString.get).get).get
+
+      val state = executionBox.stateBoxIds.map { sb =>
+        view.state.getProgramBox[StateBox](sb).get
       }
-      val code: Seq[CodeBox] = executionBox.codeBoxIds.map { cb =>
-        //programBoxId2Box(view.state, Base58.encode(cb)).asInstanceOf[CodeBox]
-        view.state.closedBox(cb).get.asInstanceOf[CodeBox]
+
+      val code = executionBox.codeBoxIds.map { cb =>
+        view.state.getProgramBox[CodeBox](cb).get
       }
 
       val programJson: Json =
@@ -141,28 +142,34 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
         case Right(p: ProgramMethodExecution) => p
         case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
       }
-      val realSignature = PrivateKey25519Companion.sign(selectedSecret, tempTx.messageToSign)
+      val realSignature = PrivateKey25519.sign(selectedSecret, tempTx.messageToSign)
       val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get) -> realSignature))
-//      ProgramMethodExecution.validate(tx) match {
-//        case Success(_) => log.info("Program method execution successfully validated")
-//        case Failure(e) => throw e.getCause
-//      }
 
-      tx.newBoxes.toSet
-      nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramMethodExecution](tx)
-      tx.json
+      ProgramMethodExecution.semanticValidate(tx, view.state) match {
+        case Success(_) =>
+          nodeViewHolderRef ! LocallyGeneratedTransaction[ProgramMethodExecution](tx)
+          tx.json
+
+        case Failure(e) => throw e.getCause
+      }
     }
   }
 
   def programCall(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val pbr = view.state.pbr
-      val tbr = view.state.tbr
-      val programId = (params \\ "programId").head.asString.get
+      val programId = ProgramId((params \\ "programId").head.asString.get).get
       val stateVar = (params \\ "stateVar").head.asString.get
-      val program: ExecutionBox = tbr.closedBox(Base58.decode(programId).get).get.asInstanceOf[ExecutionBox]
-      val programState: StateBox = pbr.getBox(program.stateBoxUUIDs.head).get.asInstanceOf[StateBox]
-      val result: Decoder.Result[Json] = programState.state.hcursor.downField(stateVar).as[Json]
+
+      val program = view.state.getProgramBox[ExecutionBox](programId).get
+
+      val programState = view.state.getProgramBox[StateBox](program.stateBoxIds.head).get
+
+      val result: Decoder.Result[Json] =
+        programState
+          .state
+          .hcursor
+          .downField(stateVar)
+          .as[Json]
 
       result match {
         case Right(value) => value
@@ -178,11 +185,6 @@ case class ProgramApiRoute(override val settings: AppSettings, nodeViewHolderRef
       val res = history.bloomFilter(queryBloomTopics)
       res.map(_.json).asJson
     }
-  }
-
-  //TODO Return ProgramBox instead of Box
-  private def programBoxId2Box(state: State, boxId: String): Box = {
-    state.closedBox(Base58.decode(boxId).get).get
   }
 
   //noinspection ScalaStyle

@@ -14,16 +14,16 @@ import io.circe.{Json, parser}
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 
   override def serialize(obj: ProgramMethodExecution, w: Writer): Unit = {
-    /* state: Seq[StateBox] */
-    w.putUInt(obj.state.length)
-    obj.state.foreach(stateBox => StateBoxSerializer.serialize(stateBox, w))
-
-    /* code: Seq[CodeBox] */
-    w.putUInt(obj.code.length)
-    obj.code.foreach(codeBox => CodeBoxSerializer.serialize(codeBox, w))
-
     /* executionBox: ExecutionBox */
     ExecutionBoxSerializer.serialize(obj.executionBox, w)
+
+    /* state: Seq[StateBox] */
+    w.putUInt(obj.stateBoxes.length)
+    obj.stateBoxes.foreach(stateBox => StateBoxSerializer.serialize(stateBox, w))
+
+    /* code: Seq[CodeBox] */
+    w.putUInt(obj.codeBoxes.length)
+    obj.codeBoxes.foreach(codeBox => CodeBoxSerializer.serialize(codeBox, w))
 
     /* methodName: String */
     w.putByteString(obj.methodName)
@@ -58,11 +58,14 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
   }
 
   override def parse(r: Reader): ProgramMethodExecution = {
+    val executionBox: ExecutionBox = ExecutionBoxSerializer.parse(r)
+
     val stateLength: Int = r.getUInt().toIntExact
     val state: Seq[StateBox] = (0 until stateLength).map(_ => StateBoxSerializer.parse(r))
+
     val codeLength: Int = r.getUInt().toIntExact
     val code: Seq[CodeBox] = (0 until codeLength).map(_ => CodeBoxSerializer.parse(r))
-    val executionBox: ExecutionBox = ExecutionBoxSerializer.parse(r)
+
     val methodName: String = r.getByteString()
 
     val methodParams: Json = parser.parse(r.getIntString()) match {
@@ -77,7 +80,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
       Map(owner -> sig)
     }
 
-    val preBoxesLength: Int = r.getUInt.toIntExact
+    val preBoxesLength: Int = r.getUInt().toIntExact
     val preBoxes: IndexedSeq[(Nonce, Long)] = (0 until preBoxesLength).map { _ =>
       val nonce: Nonce = r.getLong()
       val value: Long = r.getULong()
@@ -89,7 +92,7 @@ object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodE
     val timestamp: Long = r.getULong()
     val data: String = r.getIntString()
 
-    ProgramMethodExecution(state, code, executionBox, methodName, methodParams,
+    ProgramMethodExecution(executionBox, state, code, methodName, methodParams,
                            owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 }

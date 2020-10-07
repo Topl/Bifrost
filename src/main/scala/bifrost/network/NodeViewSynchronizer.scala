@@ -2,27 +2,29 @@ package bifrost.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import bifrost.history.GenericHistory._
 import bifrost.history.HistoryReader
 import bifrost.mempool.MemPoolReader
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.ModifiersStatus.Requested
 import bifrost.network.message._
-import bifrost.network.peer.{ConnectedPeer, PenaltyType}
-import bifrost.nodeView.NodeViewModifier.{idsToString, ModifierTypeId}
-import bifrost.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
-import bifrost.settings.{BifrostContext, NetworkSettings}
+import bifrost.network.peer.{ ConnectedPeer, PenaltyType }
+import bifrost.nodeView.NodeViewModifier.{ ModifierTypeId, idsToString }
+import bifrost.nodeView.{ NodeViewModifier, PersistentNodeViewModifier }
+import bifrost.settings.{ BifrostContext, NetworkSettings }
 import bifrost.state.StateReader
 import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.{BifrostEncoding, Logging, MalformedModifierError}
+import bifrost.utils.{ BifrostEncoding, Logging, MalformedModifierError }
 import bifrost.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
   * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
@@ -43,8 +45,7 @@ class NodeViewSynchronizer[
   networkSettings: NetworkSettings,
   bifrostContext: BifrostContext
 )(implicit ec: ExecutionContext)
-    extends Actor
-    with Synchronizer
+    extends Synchronizer
     with Logging
     with BifrostEncoding {
 
@@ -110,19 +111,16 @@ class NodeViewSynchronizer[
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive =
+  override def receive: Receive = {
     processDataFromPeer orElse
-    processSyncStatus orElse
-    manageModifiers orElse
-    viewHolderEvents orElse
-    peerManagerEvents orElse
-    nonsense
-
-  // ----------- MESSAGE PROCESSING FUNCTIONS
-  protected def processDataFromPeer: Receive = { case Message(spec, Left(msgBytes), Some(source)) =>
-    parseAndHandle(spec, msgBytes, source)
+      processSyncStatus orElse
+      manageModifiers orElse
+      viewHolderEvents orElse
+      peerManagerEvents orElse
+      nonsense
   }
 
+  // ----------- MESSAGE PROCESSING FUNCTIONS
   protected def processSyncStatus: Receive = {
     // send local sync status to a peer
     case SendLocalSyncInfo =>
@@ -641,7 +639,7 @@ object NodeViewSynchronizer {
 
     case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
-    case class ChangedState[SR <: StateReader](reader: SR) extends NodeViewChange
+    case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
 
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends NodeViewHolderEvent
 

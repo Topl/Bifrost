@@ -2,20 +2,21 @@ package bifrost
 
 import java.util.UUID
 
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519Companion, Signature25519}
-import bifrost.modifier.box.{PublicKeyNoncedBox, _}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.modifier.box.{ PublicKeyNoncedBox, _ }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction
 import bifrost.modifier.transaction.bifrostTransaction._
-import bifrost.modifier.transaction.bifrostTransaction.Transaction.{Nonce, Value}
-import bifrost.program.{ExecutionBuilderSerializer, _}
-import com.google.common.primitives.{Bytes, Longs}
+import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
+import bifrost.program.{ ExecutionBuilderSerializer, _ }
+import bifrost.state.ProgramId
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Created by cykoz on 5/11/2017.
@@ -77,10 +78,10 @@ trait ValidGenerators extends BifrostGenerators {
            |{ "c": 0 }
          """.stripMargin.asJson
 
-      val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
-      val stateBoxThree = StateBox(sender, 2L, null, stateThree)
+      val stateBoxTwo = StateBox(sender, 1L, programIdGen.sample.get, stateTwo)
+      val stateBoxThree = StateBox(sender, 2L, programIdGen.sample.get, stateThree)
 
-      val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+      val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
       val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
         Map(sender -> IndexedSeq(preFeeBoxGen(0L, maxFee).sample.get))
@@ -89,27 +90,11 @@ trait ValidGenerators extends BifrostGenerators {
         prop -> preBoxes.map(_._2).sum
       }
 
+      val falseSig = Map(sender -> Signature25519(Array()))
+      val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
+      val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, pc.messageToSign))
 
-      val messageToSign = Bytes.concat(
-        ExecutionBuilderSerializer.toBytes(executionBuilder),
-        sender.pubKeyBytes,
-        //(investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
-        data.getBytes
-      )
-
-      val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
-
-      ProgramCreation(
-        executionBuilder,
-        readOnlyUUIDs,
-        preInvestmentBoxes,
-        sender,
-        signature,
-        feePreBoxes,
-        fees,
-        timestamp,
-        data
-      )
+      pc.copy(signatures = signature)
     } match {
       case Success(s) => s
       case Failure(e) => throw e.getCause
@@ -135,6 +120,9 @@ trait ValidGenerators extends BifrostGenerators {
   lazy val semanticallyValidProgramMethodExecutionGen: Gen[ProgramMethodExecution] = for {
     timestamp <- positiveLongGen.map(_ / 3)
     data <- stringGen
+    sbProgramId <- programIdGen
+    cbProgramId <- programIdGen
+    exProgramId <- programIdGen
   } yield {
     val senderKeyPair = keyPairSetGen.sample.get.head
     val sender = senderKeyPair._2
@@ -147,14 +135,11 @@ trait ValidGenerators extends BifrostGenerators {
 
     val state = Map("a" -> "0").asJson
 
-    val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
-    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)),
-      Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
+    val stateBox = StateBox(sender, 0L, sbProgramId, state)
+    val codeBox = CodeBox(sender, 1L, cbProgramId, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number", "Number")))
 
-
-    val stateUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
     //    val proposition = MofNProposition(1, parties.map(_.pubKeyBytes).toSet)
-    val executionBox = ExecutionBox(sender, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(sender, 2L)), Seq(stateUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(sender, 2L, exProgramId, Seq(stateBox.value), Seq(codeBox.value))
 
 
     val boxAmounts: Seq[Long] = splitAmongN(sampleUntilNonEmpty(positiveLongGen),
@@ -203,12 +188,12 @@ trait ValidGenerators extends BifrostGenerators {
     )
 
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
-    val signature = Map(sender -> PrivateKey25519Companion.sign(senderKeyPair._1, messageToSign))
+    val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, messageToSign))
 
     bifrostTransaction.ProgramMethodExecution(
+      executionBox,
       Seq(stateBox),
       Seq(codeBox),
-      executionBox,
       methodName,
       parameters,
       sender,
@@ -266,7 +251,7 @@ trait ValidGenerators extends BifrostGenerators {
       timestamp,
       id.hashBytes).messageToSign
     // sign with own key because coinbase is literally giving yourself money
-    val signatures = IndexedSeq(PrivateKey25519Companion.sign(toKeyPairs._1, messageToSign))
+    val signatures = IndexedSeq(PrivateKey25519.sign(toKeyPairs._1, messageToSign))
     CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
   }
 
@@ -302,7 +287,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
 
-    val signatures = Map(oneHub._2 -> PrivateKey25519Companion.sign(oneHub._1, messageToSign))
+    val signatures = Map(oneHub._2 -> PrivateKey25519.sign(oneHub._1, messageToSign))
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }

@@ -2,36 +2,35 @@ package bifrost.api
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
+import akka.http.scaladsl.model.{ HttpEntity, HttpRequest, _ }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import bifrost.BifrostGenerators
+import akka.util.{ ByteString, Timeout }
+import bifrost.{ BifrostGenerators, state }
 import bifrost.history.History
 import bifrost.http.api.routes.ProgramApiRoute
 import bifrost.mempool.MemPool
-import bifrost.modifier.ModifierId
+import bifrost.modifier.{ ModifierId, block }
 import bifrost.modifier.box._
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import bifrost.nodeView.{CurrentView, NodeViewHolderRef}
+import bifrost.nodeView.{ CurrentView, NodeViewHolderRef }
 import bifrost.settings.BifrostContext
-import bifrost.state.{State, StateChanges}
-import bifrost.utils.NetworkTimeProvider
+import bifrost.state.{ State, StateChanges }
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
-import scala.concurrent.Await
+import scala.concurrent.{ Await, blocking }
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 /**
   * Created by cykoz on 6/13/2017.
@@ -54,7 +53,7 @@ class ProgramRPCSpec extends AnyWordSpec
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -80,7 +79,7 @@ class ProgramRPCSpec extends AnyWordSpec
 
   // Unlock Secrets
   val gw: Wallet = view().vault
-  //gw.unlockKeyFile(publicKeys("investor"), "genesis")
+  gw.unlockKeyFile(publicKeys("investor"), "genesis")
   gw.unlockKeyFile(publicKeys("producer"), "genesis")
   gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
@@ -106,17 +105,15 @@ class ProgramRPCSpec extends AnyWordSpec
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
       val txHashId = ModifierId(Base58.decode(txHash).get)
       val txInstance: Transaction = view().pool.getById(txHashId).get
-      txInstance.newBoxes.foreach {
-        case b: ExecutionBox =>
-          executionBox = Some(b)
-        case _ =>
-      }
-      val boxSC = StateChanges(txInstance.boxIdsToOpen.toSet,
-        txInstance.newBoxes.toSet,
-        System.currentTimeMillis())
-      val versionId = ModifierId(Ints.toByteArray(version))
 
-      view().state.applyChanges(boxSC, versionId).get
+      val programBoxes = txInstance.newBoxes.foldLeft(Seq[ProgramBox]()) { ( acc, box ) => box match {
+        case b: ProgramBox => b +: acc
+        case _             => Seq()
+      }
+      }
+
+      state.directlyAddPBRStorage(version, programBoxes, view().state)
+
       view().pool.remove(txInstance)
     }
 

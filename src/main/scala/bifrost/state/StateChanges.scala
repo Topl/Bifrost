@@ -10,28 +10,23 @@ import scala.util.Try
 
 case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
                          override val toAppend: Set[Box],
-                         timestamp: Long
                        ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
 object StateChanges {
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
   type BX = Box
   type BPMOD = Block
-  type GSC = GenericStateChanges[Any, P, BX]
 
-
-  //todo - byte array set quality is incorrectly overloaded (shallow not deep), consider using ByteArrayWrapper instead
-  //todo - LSMStore will throw error if given duplicate keys in toRemove or toAppend so this needs to be fixed
-  def apply(mod: BPMOD): Try[GSC] =
+  def apply(mod: BPMOD): Try[StateChanges] =
     Try {
 
+      // extract the needed box data from all transactions within a block
       val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] =
         mod.transactions match {
-          case Some(txSeq) =>
-            txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-          case _ => Seq((Set[Array[Byte]](), Set[BX](), 0L))
+          case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
+          case _           => Seq((Set[Array[Byte]](), Set[BX](), 0L))
         }
 
+      // aggregate the transaction data into separate lists for updating state
       val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
         boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))(
           (aggregate, boxDelta) => {
@@ -53,6 +48,6 @@ object StateChanges {
         else toAdd
 
       // return the state changes that can be applied
-      new StateChanges(toRemove, finalToAdd, mod.timestamp)
+      new StateChanges(toRemove, finalToAdd)
     }
 }

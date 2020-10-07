@@ -11,6 +11,7 @@ case class AssetBox(override val proposition: PublicKey25519Proposition,
                     assetCode: String,
                     issuer: PublicKey25519Proposition,
                     data: String) extends TokenBox(proposition, nonce, amount) {
+
   override lazy val typeOfBox: String = "Asset"
 
   override lazy val json: Json = Map(

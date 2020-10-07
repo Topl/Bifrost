@@ -1,14 +1,20 @@
 package bifrost.network
 
-import bifrost.network.message.MessageSpec
+import akka.actor.Actor
+import bifrost.network.message.{ Message, MessageSpec }
 import bifrost.network.peer.ConnectedPeer
 import bifrost.utils.Logging
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
-trait Synchronizer extends Logging {
+trait Synchronizer extends Actor with Logging {
 
-  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] // these are the case statements for identifying the message handlers
+  // these are the case statements for identifying the message handlers
+  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit]
+
+  protected def processDataFromPeer: Receive = {
+    case Message(spec, Left(msgBytes), Some(source)) => parseAndHandle(spec, msgBytes, source)
+  }
 
   /**
    * This method will attempt to parse a message from a remote peer into it class representation and use

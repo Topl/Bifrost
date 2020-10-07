@@ -5,15 +5,17 @@ import bifrost.history.GenericHistory
 import bifrost.history.GenericHistory.ProgressInfo
 import bifrost.mempool.MemoryPool
 import bifrost.modifier.ModifierId
+import bifrost.modifier.box.GenericBox
+import bifrost.modifier.box.proposition.Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction
 import bifrost.network.message.SyncInfo
 import bifrost.settings.AppSettings
-import bifrost.state.{MinimalState, TransactionValidation}
-import bifrost.utils.{BifrostEncoding, Logging}
+import bifrost.state.{ MinimalState, StateReader, TransactionValidation }
+import bifrost.utils.{ BifrostEncoding, Logging }
 import bifrost.wallet.Vault
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Composite local view of the node
@@ -25,21 +27,20 @@ import scala.util.{Failure, Success, Try}
   * @tparam TX
   * @tparam PMOD
   */
-trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifier]
-  extends Actor with Logging with BifrostEncoding {
+trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
+                              TX   <: Transaction,
+                              PMOD <: PersistentNodeViewModifier,
+                              HIS  <: GenericHistory[PMOD, _ <: SyncInfo, HIS],
+                              MS   <: MinimalState[BX, PMOD, MS],
+                              VL   <: Vault[TX, PMOD, VL],
+                              MP   <: MemoryPool[TX, MP]
+                            ] extends Actor with Logging with BifrostEncoding {
 
   // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
   import bifrost.network.NodeViewSynchronizer.ReceivableMessages._
-
-
-  type SI <: SyncInfo
-  type HIS <: GenericHistory[PMOD, SI, HIS]
-  type MS <: MinimalState[PMOD, MS]
-  type VL <: Vault[TX, PMOD, VL]
-  type MP <: MemoryPool[TX, MP]
 
   type NodeView = (HIS, MS, VL, MP)
 
@@ -63,7 +64,7 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     * state (result of log's modifiers application to pre-historical(genesis) state,
     * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
     */
-  private var nodeView: NodeView = restoreState().getOrElse(genesisState)
+  protected var nodeView: NodeView = restoreState().getOrElse(genesisState)
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -358,22 +359,24 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
                                updatedState: Option[MS] = None,
                                updatedVault: Option[VL] = None,
                                updatedMempool: Option[MP] = None): Unit = {
-    val newNodeView = (updatedHistory.getOrElse(history()),
+    val newNodeView =
+      (updatedHistory.getOrElse(history()),
       updatedState.getOrElse(minimalState()),
       updatedVault.getOrElse(vault()),
       updatedMempool.getOrElse(memoryPool()))
-    if (updatedHistory.nonEmpty) {
+
+    if (updatedHistory.nonEmpty)
       context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
-    }
-    if (updatedState.nonEmpty) {
+
+    if (updatedState.nonEmpty)
       context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
-    }
-    if (updatedVault.nonEmpty) {
+
+    if (updatedVault.nonEmpty)
       context.system.eventStream.publish(ChangedVault(newNodeView._3.getReader))
-    }
-    if (updatedMempool.nonEmpty) {
+
+    if (updatedMempool.nonEmpty)
       context.system.eventStream.publish(ChangedMempool(newNodeView._4.getReader))
-    }
+
     nodeView = newNodeView
   }
 
@@ -394,6 +397,15 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     }
   }
 
+  /**
+    * Attempts to update the local view of state by applying a set of blocks
+    *
+    * @param history the initial view of history prior to updating
+    * @param stateToApply the initial view of state prior to updating
+    * @param suffixTrimmed ???
+    * @param progressInfo class with blocks that need to be applied to state
+    * @return
+    */
   protected def applyState(history: HIS,
                            stateToApply: MS,
                            suffixTrimmed: IndexedSeq[PMOD],

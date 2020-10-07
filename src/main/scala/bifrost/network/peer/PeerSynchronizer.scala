@@ -1,6 +1,6 @@
 package bifrost.network.peer
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.network.message.{ GetPeersSpec, Message, MessageSpec, PeersData, PeersSpec }
@@ -22,8 +22,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
                          bifrostContext      : BifrostContext
                        )( implicit
                           ec: ExecutionContext
-                       ) extends Actor
-                                 with Synchronizer
+                       ) extends Synchronizer
                                  with Logging {
 
   // Import the types of messages this actor can SEND
@@ -38,8 +37,7 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
   protected val getPeersSpec: GetPeersSpec = bifrostContext.peerSyncRemoteMessages.getPeersSpec
 
   // partial functions for identifying local method handlers for the messages above
-  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] =
-  {
+  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit] = {
     case (_: PeersSpec, data: PeersData, _) => addNewPeers(data.peers)
     case (_: GetPeersSpec, _, remote)       => gossipPeers(remote)
   }
@@ -62,17 +60,8 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 
   // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
   override def receive: Receive = {
-
-    // data received from a remote peer
-    case Message(spec, Left(msgBytes), Some(source)) =>
-      parseAndHandle(spec, msgBytes, source)
-
-    // fall-through method for reporting unhandled messages
-    case nonsense: Any => log.warn(s"PeerSynchronizer: got unexpected input $nonsense from ${sender()}")
-  }
-
-  override protected def penalizeMaliciousPeer ( peer: ConnectedPeer ): Unit = {
-    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+    processDataFromPeer orElse
+      nonsense
   }
 
   /**
@@ -98,6 +87,14 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
         val msg = Message(peersSpec, Right(PeersData(peers.map(_.peerSpec))), None)
         networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
       }
+
+  override protected def penalizeMaliciousPeer ( peer: ConnectedPeer ): Unit = {
+    networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+  }
+
+  protected def nonsense: Receive = { case nonsense: Any =>
+    log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

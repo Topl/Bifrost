@@ -15,9 +15,11 @@ trait ApiRouteWithView extends ApiRoute {
 
   val nodeViewHolderRef: ActorRef
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+  type CV = CurrentView[History, State, Wallet, MemPool]
 
-  protected def viewAsync(): Future[CurrentView[History, State, Wallet, MemPool]] =
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]]
+  private def actOnCurrentView(v: CV): CV = v
+
+  protected def viewAsync(): Future[CV] =
+    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CV]
 
 }

@@ -2,14 +2,17 @@ package bifrost.history
 
 import bifrost.crypto.FastCryptographicHash
 import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{Block, BlockSerializer}
+import bifrost.modifier.block.{ Block, BlockSerializer }
 import bifrost.modifier.transaction.bifrostTransaction.GenericTransaction
 import bifrost.settings.AppSettings
 import bifrost.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Sha256
+
+import scala.util.Success
 
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
@@ -18,7 +21,7 @@ import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
 import scala.util.{Failure, Try}
 
-class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging {
+class Storage(private[history] val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
   private val cacheExpire: Int = settings.cacheExpire
   private val cacheSize: Int = settings.cacheSize
@@ -62,16 +65,15 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
     blockCache
       .get(ByteArrayWrapper(blockId.hashBytes))
       .flatMap { bw =>
-        val bytes = bw.data
-        bytes.head match {
+        bw.data.head match {
           case Block.modifierTypeId =>
-            val parsed = BlockSerializer.parseBytes(bytes.tail)
-            parsed match {
+            BlockSerializer.parseBytes(bw.data.tail) match {
               case Failure(e) =>
-                log.warn("Failed to parse bytes from db", e)
-              case _ =>
+                log.warn(s"Failed to parse block bytes from storage", e)
+                None
+              case Success(block) => Some(block)
             }
-            parsed.toOption
+
           case _ => None
         }
       }
@@ -196,9 +198,9 @@ class Storage(val storage: LSMStore, val settings: AppSettings) extends Logging 
       .get(blockBloomKey(serializedBlockId))
       .map(b => {BitSet() ++ BloomTopics.parseFrom(b.data).topics})
 
-  def serializedParentIdOf(serializedBlockId: Array[Byte]): Option[Array[Byte]] =
+  def serializedParentIdOf(blockId: Array[Byte]): Option[Array[Byte]] =
     blockCache
-      .get(blockParentKey(serializedBlockId))
+      .get(blockParentKey(blockId))
       .map(d => d.data)
 
   def blockIdOf(transactionId: Array[Byte]): Option[Array[Byte]] =

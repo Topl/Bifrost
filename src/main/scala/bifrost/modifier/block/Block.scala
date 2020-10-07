@@ -61,16 +61,18 @@ case class Block ( parentId: BlockId,
 
   lazy val serializedParentId: Array[Byte] = parentId.hashBytes
 
-  lazy val json: Json = Map(
-    "id" -> Base58.encode(serializedId).asJson,
-    "parentId" -> Base58.encode(serializedParentId).asJson,
-    "timestamp" -> timestamp.asJson,
-    "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
-    "signature" -> Base58.encode(signature.signature).asJson,
-    "txs" -> txs.map(_.json).asJson,
-    "version" -> version.asJson,
-    "blockSize" -> serializer.toBytes(this).length.asJson
-    ).asJson
+//  lazy val json: Json = Map(
+//    "id" -> Base58.encode(serializedId).asJson,
+//    "parentId" -> Base58.encode(serializedParentId).asJson,
+//    "timestamp" -> timestamp.asJson,
+//    "generatorBox" -> Base58.encode(BoxSerializer.toBytes(forgerBox)).asJson,
+//    "signature" -> Base58.encode(signature.signature).asJson,
+//    "txs" -> txs.map(_.json).asJson,
+//    "version" -> version.asJson,
+//    "blockSize" -> serializer.toBytes(this).length.asJson
+//    ).asJson
+
+  lazy val json: Json = Block.jsonEncoder(this)
 }
 
 object Block {
@@ -121,7 +123,7 @@ object Block {
     BloomTopics(bloomBitSet).toByteArray
   }
 
-  implicit val jsonEncoder: Encoder[Block] = { b: Block ⇒
+  val jsonEncoder: Encoder[Block] = { b: Block ⇒
     Map(
       "id" -> Base58.encode(b.serializedId).asJson,
       "parentId" -> Base58.encode(b.serializedParentId).asJson,

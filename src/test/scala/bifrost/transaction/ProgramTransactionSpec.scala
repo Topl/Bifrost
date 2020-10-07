@@ -4,23 +4,22 @@ package bifrost.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import java.util.UUID
-
-import bifrost.crypto.{FastCryptographicHash, PrivateKey25519, PrivateKey25519Companion}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519 }
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
+import bifrost.modifier.box.{ CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.bifrostTransaction._
 import bifrost.program.ExecutionBuilderSerializer
-import bifrost.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Bytes, Longs}
+import bifrost.state.ProgramId
+import bifrost.{ BifrostGenerators, ValidGenerators }
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
-
-import scala.collection.immutable.Seq
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+
+import scala.collection.immutable.Seq
 
 class ProgramTransactionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -81,7 +80,7 @@ class ProgramTransactionSpec extends AnyPropSpec
       (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
       data.getBytes)
 
-    val signatures = Map(sender -> PrivateKey25519Companion.sign(keyPair._1, messageToSign))
+    val signatures = Map(sender -> PrivateKey25519.sign(keyPair._1, messageToSign))
 
 
     val stateTwo =
@@ -97,11 +96,11 @@ class ProgramTransactionSpec extends AnyPropSpec
     val stateBoxTwo = StateBox(sender, 1L, null, stateTwo)
     val stateBoxThree = StateBox(sender, 2L, null, stateThree)
 
-    val readOnlyUUIDs = Seq(UUID.nameUUIDFromBytes(stateBoxTwo.id), UUID.nameUUIDFromBytes(stateBoxThree.id))
+    val readOnlyIds = Seq(stateBoxTwo.value, stateBoxThree.value)
 
     ProgramCreation(
       executionBuilder,
-      readOnlyUUIDs,
+      readOnlyIds,
       preInvestmentBoxes,
       sender,
       signatures,
@@ -139,15 +138,13 @@ class ProgramTransactionSpec extends AnyPropSpec
          |{ "a": "0" }
        """.stripMargin.asJson
 
-    val stateBox = StateBox(sender, 0L, UUID.nameUUIDFromBytes(StateBox.idFromBox(sender, 0L)), state)
+    val stateBox = StateBox(sender, 0L, programIdGen.sample.get, state)
 
-    val codeBox = CodeBox(sender, 1L, UUID.nameUUIDFromBytes(CodeBox.idFromBox(sender, 1L)), Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
-
-    val stateBoxUUID: UUID = UUID.nameUUIDFromBytes(stateBox.id)
+    val codeBox = CodeBox(sender, 1L, programIdGen.sample.get, Seq("add = function() { a = 2 + 2 }"), Map("add" -> Seq("Number, Number")))
 
     val proposition = sender
 
-    val executionBox = ExecutionBox(proposition, 2L, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(proposition, 2L)), Seq(stateBoxUUID), Seq(codeBox.id))
+    val executionBox = ExecutionBox(proposition, 2L, programIdGen.sample.get, Seq(stateBox.value), Seq(codeBox.value))
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
@@ -178,12 +175,12 @@ class ProgramTransactionSpec extends AnyPropSpec
     val messageToSign = Bytes.concat(
       FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
         data.getBytes)
-    val signature = PrivateKey25519Companion.sign(priv, messageToSign)
+    val signature = PrivateKey25519.sign(priv, messageToSign)
 
     ProgramMethodExecution(
+      executionBox,
       Seq(stateBox),
       Seq(codeBox),
-      executionBox,
       methodName,
       parameters,
       sender,

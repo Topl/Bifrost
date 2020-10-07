@@ -2,157 +2,132 @@ package bifrost.state
 
 import java.io.File
 
-import bifrost.modifier.box._
+import bifrost.modifier.box.TokenBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.box.serialization.BoxSerializer
 import bifrost.settings.AppSettings
 import bifrost.state.MinimalState.VersionTag
 import bifrost.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
-case class TokenBoxRegistry(tbrStore: LSMStore, stateStore: LSMStore) extends Logging {
+/**
+ * A registry containing mappings from public keys to a sequence of boxIds
+ *
+ * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
+ * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
+ */
+class TokenBoxRegistry ( protected val storage: LSMStore,
+                         nodeKeys: Option[Set[PublicKey25519Proposition]]
+                       ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
-  def closedBox(boxId: Array[Byte]): Option[Box] =
-    stateStore.get(ByteArrayWrapper(boxId))
-      .map(_.data)
-      .map(BoxSerializer.parseBytes)
-      .flatMap(_.toOption)
+  import TokenBoxRegistry.{ K, V }
 
-  def boxIdsByKey(publicKey: PublicKey25519Proposition): Seq[Array[Byte]] =
-    boxIdsByKey(publicKey.pubKeyBytes)
+  //----- input and output transformation functions
+  override protected def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
 
-  //Assumes that boxIds are fixed length equal to store's keySize (32 bytes)
-  def boxIdsByKey(pubKeyBytes: Array[Byte]): Seq[Array[Byte]] =
-    tbrStore
-    .get(ByteArrayWrapper(pubKeyBytes))
-    .map(_
-      .data
-      .grouped(stateStore.keySize)
-      .toSeq)
-    .getOrElse(Seq[Array[Byte]]())
+  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = value.grouped(BoxId.size).toSeq.map(v => BoxId(v))
 
-    def boxesByKey(publicKey: PublicKey25519Proposition): Seq[Box] =
-    boxesByKey(publicKey.pubKeyBytes)
+  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
 
-  def boxesByKey(pubKeyBytes: Array[Byte]): Seq[Box] = {
-    boxIdsByKey(pubKeyBytes)
-      .map(id => closedBox(id))
-      .filter {
-        case box: Some[Box] => true
-        case None => false
-      }
-      .map(_.get)
-  }
+  protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
+
 
   /**
-    * @param newVersion - block id
-    * @param keyFilteredBoxIdsToRemove
-    * @param keyFilteredBoxesToAdd
-    * - key filtered boxIdsToRemove and boxesToAppend extracted from block (in BifrostState)
-    * @return - instance of updated TokenBoxRegistry
-    * (Note - makes use of vars for local variables since function remains a pure function and helps achieve better runtime)
-    *
-    *         Runtime complexity of below function is O(MN) + O(L)
-    *         where M = Number of boxes to remove
-    *         N = Number of boxes owned by a public key
-    *         L = Number of boxes to append
-    *
-    */
-  //noinspection ScalaStyle
-  def updateFromState(newVersion: VersionTag, keyFilteredBoxIdsToRemove: Set[Array[Byte]], keyFilteredBoxesToAdd: Set[Box]): Try[TokenBoxRegistry] = Try {
-    log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+   * @param newVersion - block id
+   * @param toRemove map of public keys to a sequence of boxIds that should be removed
+   * @param toAppend map of public keys to a sequence of boxIds that should be added
+   * @return - instance of updated TokenBoxRegistry
+   *
+   *         Runtime complexity of below function is O(MN) + O(L)
+   *         where M = Number of boxes to remove
+   *         N = Number of boxes owned by a public key
+   *         L = Number of boxes to append
+   */
+  protected[state] def update ( newVersion: VersionTag,
+                                toRemove: Map[K, Seq[V]],
+                                toAppend: Map[K, Seq[V]]
+                              ): Try[TokenBoxRegistry] = {
 
-    /* This seeks to avoid the scenario where there is remove and then update of the same keys */
-    val boxIdsToRemove: Set[ByteArrayWrapper] = (keyFilteredBoxIdsToRemove -- keyFilteredBoxesToAdd.map(b => b.id)).map(ByteArrayWrapper.apply)
+    Try {
+      def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {
+        case Some(keys) => updates.filter(b => keys.contains(b._1))
+        case None       => updates
+      }
 
-    var boxesToRemove: Map[Array[Byte], Array[Byte]] = Map()
-    var boxesToAppend: Map[Array[Byte], Array[Byte]] = Map()
-    //Getting set of public keys for boxes being removed and appended
-    //Using ByteArrayWrapper for sets since equality method uses a deep compare unlike a set of byte arrays
-    val keysSet: Set[ByteArrayWrapper] = {
-      boxIdsToRemove
-        .flatMap(boxId => closedBox(boxId.data))
-        .foreach {
-          case box: TokenBox =>
-            boxesToRemove += (box.id -> box.proposition.pubKeyBytes)
-          //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
-          case _ =>
-        }
+      val (filteredRemove, filteredAppend) = (filterByNodeKeys(toRemove), filterByNodeKeys(toAppend))
 
-      keyFilteredBoxesToAdd
-        .foreach({
-          case box: TokenBox =>
-            boxesToAppend += (box.id -> box.proposition.pubKeyBytes)
-          //For boxes that do not follow the BifrostPublicKey25519NoncedBox (are not token boxes) - do nothing
-          case _ =>
+      // determine the new state of each account from the changes
+      val (deleted: Seq[K], updated: Seq[(K, Set[V])]) = {
+
+        // make a list of all accounts to consider then loop through them and determine their new state
+        (filteredRemove.keys ++ filteredAppend.keys).map(key => {
+          val current = lookup(key).getOrElse(Seq())
+
+          // case where the account no longer has any boxes
+          if ( current.forall(filteredRemove.getOrElse(key, Seq()).contains) && filteredAppend.getOrElse(key, Seq()).isEmpty ) {
+            (Some(key), None)
+
+          // case where the account was initially empty and now has boxes
+          } else if (current.isEmpty && filteredAppend.getOrElse(key, Seq()).nonEmpty) {
+            (None, Some((key, filteredAppend(key).toSet)))
+
+          // case for updating the set of boxes for an account
+          } else if (filteredAppend.getOrElse(key, List()).nonEmpty) {
+            val idsToRemove = filteredRemove.getOrElse(key, Seq())
+            val idsToAppend = filteredAppend.getOrElse(key, Seq())
+            val newIds = (current.filterNot(idsToRemove.contains(_)) ++ idsToAppend).toSet
+            (None, Some((key, newIds)))
+
+          // case for genesis account where there are no previous boxes and nothing to remove or append
+          } else (None, None)
+        })
+      }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
+
+      storage.update(
+        ByteArrayWrapper(newVersion.hashBytes),
+        deleted.map(k => ByteArrayWrapper(registryInput(k))),
+        updated.map {
+          case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(_.hashBytes).toArray)
         })
 
-      (boxesToRemove.map(boxToKey => ByteArrayWrapper(boxToKey._2)) ++ boxesToAppend.map(boxToKey => ByteArrayWrapper(boxToKey._2))).toSet
+    } match {
+      case Success(_) =>
+        log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+        Success(new TokenBoxRegistry(storage, nodeKeys))
+
+      case Failure(ex) => Failure(ex)
     }
-
-    //Get old boxIds list for each of the above public keys
-    var keysToBoxIds: Map[ByteArrayWrapper, Seq[Array[Byte]]] = keysSet.map(
-      publicKey => publicKey -> boxIdsByKey(publicKey.data)
-    ).toMap
-
-    //For each box in temporary map match against public key and remove/append to boxIdsList in original keysToBoxIds map
-    for((boxId, publicKey) <- boxesToRemove) {
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> keysToBoxIds(ByteArrayWrapper(publicKey)).filterNot(_ sameElements boxId))
-    }
-    for((boxId, publicKey) <- boxesToAppend) {
-      //Prepending to list is O(1) while appending is O(n)
-      keysToBoxIds += (ByteArrayWrapper(publicKey) -> (boxId +: keysToBoxIds(ByteArrayWrapper(publicKey))))
-    }
-
-    tbrStore.update(
-      ByteArrayWrapper(newVersion.hashBytes),
-      Seq(),
-      keysToBoxIds.map(element =>
-        element._1 -> ByteArrayWrapper(element._2.flatten.toArray))
-    )
-
-    TokenBoxRegistry(tbrStore, stateStore)
   }
 
-  def rollbackTo(version: VersionTag, stateStore: LSMStore): Try[TokenBoxRegistry] = Try {
-    if (tbrStore.lastVersionID.exists(_.data sameElements version.hashBytes)) {
+  override def rollbackTo ( version: VersionTag ): Try[TokenBoxRegistry] = Try {
+    if ( storage.lastVersionID.exists(_.data sameElements version.hashBytes) ) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      tbrStore.rollback(ByteArrayWrapper(version.hashBytes))
-      TokenBoxRegistry(tbrStore, stateStore)
+      storage.rollback(ByteArrayWrapper(version.hashBytes))
+      new TokenBoxRegistry(storage, nodeKeys)
     }
   }
-
 }
 
 object TokenBoxRegistry extends Logging {
 
-  def apply(s1: LSMStore, s2: LSMStore) : TokenBoxRegistry = {
-    new TokenBoxRegistry (s1, s2)
+  type K = PublicKey25519Proposition
+  type V = BoxId
+
+  def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
+    if (settings.enableTBR) {
+      log.info("Initializing state with Token Box Registry")
+
+      val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+
+      val iFile = new File(s"$dataDir/tokenBoxRegistry")
+      iFile.mkdirs()
+      val storage = new LSMStore(iFile)
+
+      Some(new TokenBoxRegistry(storage, nodeKeys))
+
+    } else None
   }
-
-  def readOrGenerate(settings: AppSettings, stateStore: LSMStore): Option[TokenBoxRegistry] = {
-    val tbrDir = settings.tbrDir
-    val logDir = settings.logDir
-    tbrDir.map(readOrGenerate(_, logDir, settings, stateStore))
-  }
-
-  def readOrGenerate(tbrDir: String, logDirOpt: Option[String], settings: AppSettings, stateStore: LSMStore): TokenBoxRegistry = {
-    val iFile = new File(s"$tbrDir")
-    iFile.mkdirs()
-    val tbrStore = new LSMStore(iFile)
-
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
-        log.info("Closing tokenBoxRegistry storage...")
-        tbrStore.close()
-      }
-    })
-
-    TokenBoxRegistry(tbrStore, stateStore)
-  }
-
 }

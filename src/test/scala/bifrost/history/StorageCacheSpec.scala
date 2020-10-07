@@ -99,6 +99,6 @@ class StorageCacheSpec extends AnyPropSpec
     val tempHistory = history.append(block).get._1
 
     tempHistory.storage.blockCache.invalidateAll()
-    tempHistory.storage.modifierById(block.id) should not be empty
+    tempHistory.modifierById(block.id).get should not be None
   }
 }

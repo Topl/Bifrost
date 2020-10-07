@@ -15,13 +15,13 @@ class ProgramTransferSpec extends AnyWordSpec
   with ScalatestRouteTest
   with ProgramMockState {
 
-  val route: Route = ProgramApiRoute(settings, nodeViewHolderRef).route
+  val route: Route = ProgramApiRoute(settings.restApi, nodeViewHolderRef).route
 
   "ProgramTransfer" should {
 
-    val boxState: Set[Box] = Set(stateBox, codeBox, executionBox)
+    val boxState = Seq(stateBox, codeBox, executionBox)
 
-    manuallyApplyBoxes(boxState, 1)
+    directlyAddPBRStorage(1, boxState)
 
     "Transfer a program and create a new ExecutionBox with the updated owner" in {
 
@@ -33,7 +33,7 @@ class ProgramTransferSpec extends AnyWordSpec
            |  "params": [{
            |    "from": "$publicKey",
            |    "to": "$publicKey",
-           |    "programId": "${Base58.encode(executionBox.id)}",
+           |    "programId": "${executionBox.value}",
            |    "fee": 0,
            |    "data": ""
            |  }]

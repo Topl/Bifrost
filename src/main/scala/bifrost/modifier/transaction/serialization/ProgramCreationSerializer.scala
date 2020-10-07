@@ -1,15 +1,14 @@
 package bifrost.modifier.transaction.serialization
 
-import java.util.UUID
-
 import bifrost.crypto.Signature25519
 import bifrost.crypto.serialization.Signature25519Serializer
-import bifrost.modifier.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
+import bifrost.modifier.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
 import bifrost.modifier.transaction.bifrostTransaction.ProgramCreation
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
+import bifrost.state.ProgramId
 import bifrost.utils.Extensions._
-import bifrost.utils.serialization.{BifrostSerializer, Reader, Writer}
+import bifrost.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 //noinspection ScalaStyle
 object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
@@ -18,11 +17,10 @@ object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
     /* executionBuilder: ExecutionBuilder */
     ExecutionBuilderSerializer.serialize(obj.executionBuilder, w)
 
-    /* readOnlyStateBoxes: Seq[UUID] */
+    /* readOnlyStateBoxes: Seq[ProgramId] */
     w.putUInt(obj.readOnlyStateBoxes.length)
     obj.readOnlyStateBoxes.foreach { id =>
-      w.putLong(id.getMostSignificantBits)
-      w.putLong(id.getLeastSignificantBits)
+      ProgramId.serialize(id, w)
     }
 
     /* preInvestmentBoxes: IndexedSeq[(Nonce, Long)] */
@@ -60,10 +58,11 @@ object ProgramCreationSerializer extends BifrostSerializer[ProgramCreation] {
 
   override def parse(r: Reader): ProgramCreation = {
     val executionBuilder: ExecutionBuilder = ExecutionBuilderSerializer.parse(r)
-    val readOnlyStateBoxesLength: Int = r.getUInt().toIntExact
-    val readOnlyStateBoxes: Seq[UUID] = (0 until readOnlyStateBoxesLength).map(_ => new UUID(r.getLong(), r.getLong()))
-    val preInvestmentBoxesLength: Int = r.getUInt().toIntExact
 
+    val readOnlyStateBoxesLength: Int = r.getUInt().toIntExact
+    val readOnlyStateBoxes: Seq[ProgramId] = (0 until readOnlyStateBoxesLength).map(_ => ProgramId.parse(r))
+
+    val preInvestmentBoxesLength: Int = r.getUInt().toIntExact
     val preInvestmentBoxes: IndexedSeq[(Nonce, Long)] = (0 until preInvestmentBoxesLength).map { _ =>
       val nonce: Nonce = r.getLong()
       val value: Long = r.getULong()

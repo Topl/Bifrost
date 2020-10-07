@@ -1,10 +1,10 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import bifrost.crypto.{ PrivateKey25519, PrivateKey25519Companion, Signature25519 }
+import bifrost.crypto.{ PrivateKey25519, Signature25519 }
 import bifrost.modifier.box._
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.{ Nonce, Value }
-import bifrost.state.TokenBoxRegistry
+import bifrost.state.{ StateReader, TokenBoxRegistry }
 import bifrost.wallet.Wallet
 import com.google.common.primitives.Longs
 import io.iohk.iodb.ByteArrayWrapper
@@ -13,6 +13,8 @@ import scorex.util.encode.Base58
 import scala.util.Try
 
 trait TransferUtil {
+
+  type SR = StateReader[Box]
 
   def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
@@ -29,19 +31,12 @@ trait TransferUtil {
     val undersigned = txType match {
       case "PolyTransfer"  => PolyTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
       case "ArbitTransfer" => ArbitTransfer(fromPub, to, Map(), fee, timestamp, extraArgs(0).asInstanceOf[String])
-      case "AssetTransfer" => AssetTransfer(fromPub,
-                                            to,
-                                            Map(),
-                                            extraArgs(0).asInstanceOf[PublicKey25519Proposition],
-                                            extraArgs(1).asInstanceOf[String],
-                                            fee,
-                                            timestamp,
-                                            extraArgs(2).asInstanceOf[String]
-                                            )
+      case "AssetTransfer" => AssetTransfer(fromPub, to, Map(), extraArgs(0).asInstanceOf[PublicKey25519Proposition],
+                                            extraArgs(1).asInstanceOf[String], fee, timestamp, extraArgs(2).asInstanceOf[String])
     }
 
     val msg = undersigned.messageToSign
-    val sigs = from.map { case (priv, _) => (priv.publicImage, PrivateKey25519Companion.sign(priv, msg)) }.toMap
+    val sigs = from.map { case (priv, _) => (priv.publicImage, PrivateKey25519.sign(priv, msg)) }.toMap
     (fromPub, sigs)
   }
 
@@ -51,6 +46,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate ( tbr: TokenBoxRegistry,
+                            state: SR,
                             w: Wallet,
                             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                             sender   : IndexedSeq[PublicKey25519Proposition],
@@ -65,8 +61,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
-                                                            tbr.boxesByKey(s))
+          val keyFilteredBoxes = sender.flatMap(s => state.getTokenBoxes(s)).flatten
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
@@ -133,6 +128,7 @@ trait TransferUtil {
 
   //noinspection ScalaStyle
   def parametersForCreate ( tbr: TokenBoxRegistry,
+                            state: SR,
                             toReceive: IndexedSeq[(PublicKey25519Proposition, Long)],
                             sender   : IndexedSeq[PublicKey25519Proposition],
                             fee      : Long,
@@ -146,8 +142,7 @@ trait TransferUtil {
         case (a, (recipient, amount)) =>
 
           // Restrict box search to specified public keys if provided
-          val keyFilteredBoxes: Seq[Box] = sender.flatMap(s =>
-                                                            tbr.boxesByKey(s))
+          val keyFilteredBoxes = sender.flatMap(s => state.getTokenBoxes(s)).flatten
 
           // Match only the type of boxes specified by txType
           val keyAndTypeFilteredBoxes: Seq[TokenBox] = txType match {
@@ -205,24 +200,22 @@ trait TransferUtil {
       }
   }
 
-  def validateTx ( tx: TransferTransaction ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
-    require(tx.signatures.forall {
-      case (prop, sign) => sign.isValid(prop, tx.messageToSign)
-    })
-    require(tx.from.forall {
-      case (prop, nonce) => tx.signatures.contains(prop)
-    })
-    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
-    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
-  }
+  def validateTransfer ( tx: TransferTransaction, withSigs: Boolean = true ): Try[Unit] = Try {
+    require(tx.to.forall(_._2 > 0L))   // amount sent must be greater than 0
+    require(tx.fee >= 0)                // fee must be non-negative
+    require(tx.timestamp >= 0)          // timestamp must be valid
 
-  def validateTxWithoutSignatures ( tx: TransferTransaction ): Try[Unit] = Try {
-    require(tx.to.forall(_._2 >= 0L))
-    require(tx.fee >= 0)
-    require(tx.timestamp >= 0)
+    // prototype transactions do not contain signatures at creation
+    if (withSigs) {
+      require(tx.signatures.forall {
+        case (prop, sign) => sign.isValid(prop, tx.messageToSign)
+      })
+      require(tx.from.forall {
+        case (prop, nonce) => tx.signatures.contains(prop)
+      })
+    }
+
+    // ensure that the input and output lists of box ids are unique
     val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
     require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
   }

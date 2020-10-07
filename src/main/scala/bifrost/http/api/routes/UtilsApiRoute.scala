@@ -8,16 +8,16 @@ import bifrost.crypto.FastCryptographicHash
 import bifrost.history.History
 import bifrost.http.api.ApiRoute
 import bifrost.mempool.MemPool
-import bifrost.settings.AppSettings
+import bifrost.settings.{ AppSettings, RESTApiSettings }
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
-case class UtilsApiRoute(override val settings: AppSettings)
+case class UtilsApiRoute(override val settings: RESTApiSettings)
                         (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
   type HIS = History
   type MS = State

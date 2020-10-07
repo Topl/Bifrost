@@ -84,7 +84,7 @@ object KeyFile {
 
     val salt = FastCryptographicHash(uuid)
 
-    val (sk, pk) = PrivateKey25519Companion.generateKeys(seed)
+    val (sk, pk) = PrivateKey25519.generateKeys(seed)
 
     val ivData = FastCryptographicHash(uuid).slice(0, 16)
 

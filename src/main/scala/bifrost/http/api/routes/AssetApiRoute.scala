@@ -1,35 +1,34 @@
 package bifrost.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import bifrost.history.History
 import bifrost.http.api.ApiRouteWithView
 import bifrost.mempool.MemPool
 import bifrost.modifier.box.AssetBox
 import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{AssetCreation, AssetTransfer}
+import bifrost.modifier.transaction.bifrostTransaction.{ AssetCreation, AssetTransfer }
 import bifrost.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import bifrost.settings.AppSettings
+import bifrost.settings.RESTApiSettings
 import bifrost.state.State
 import bifrost.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
-import io.iohk.iodb.ByteArrayWrapper
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 
 /** Class route for managing assets using JSON-RPC requests
   *
-  * @param settings
-  * @param nodeViewHolderRef
-  * @param context
+  * @param nodeViewHolderRef actor reference to inform of new transactions
+  * @param settings the settings for HTTP REST API
+  * @param context reference to the actor system used to create new actors for handling requests
   */
-case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: ActorRef)
+case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                         (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
@@ -77,7 +76,8 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
     */
   private def transferAssets(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val wallet = view.vault
+
+      // parse required arguments from the request
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
@@ -91,34 +91,28 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       val issuer = PublicKey25519Proposition(
         PublicKey @@ Base58.decode((params \\ "issuer").head.asString.get).get
       )
-      val assetCode: String =
-        (params \\ "assetCode").head.asString.getOrElse("")
+      val assetCode: String = (params \\ "assetCode").head.asString.getOrElse("")
+
+      // parse optional arguments from the request
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
-      if (view.state.tbr == null)
+
+      // check that the transaction can be constructed
+      if (view.state.tbrOpt.isEmpty)
         throw new Exception("TokenBoxRegistry not defined for node")
-      if (view.state.nodeKeys != null)
+      if (view.state.nodeKeys.isDefined)
         sender.foreach(key =>
-          if (!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)))
-            throw new Exception(
-              "Node not set to watch for specified public key"
-            )
+          if (!view.state.nodeKeys.get.contains(key))
+            throw new Exception("Node not set to watch for specified public key")
         )
+
       val tx = AssetTransfer
-        .create(
-          view.state.tbr,
-          wallet,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          issuer,
-          assetCode,
-          data
-        )
+        .create(view.state.tbrOpt.get, view.state, view.vault, IndexedSeq((recipient, amount)), sender, fee, issuer, assetCode, data)
         .get
-      AssetTransfer.validate(tx) match {
+
+      AssetTransfer.semanticValidate(tx, view.state) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
@@ -161,6 +155,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       id: String
   ): Future[Json] = {
     viewAsync().map { view =>
+      // parse required arguments from the request
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
         PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
@@ -176,33 +171,28 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       )
       val assetCode: String =
         (params \\ "assetCode").head.asString.getOrElse("")
-      // Optional API parameters
+
+      // parse optional arguments from the request
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
 
-      if (view.state.tbr == null)
+      // check that the transaction can be constructed
+      if (view.state.tbrOpt.isEmpty)
         throw new Exception("TokenBoxRegistry not defined for node")
-      if (view.state.nodeKeys != null)
+      if (view.state.nodeKeys.isDefined)
         sender.foreach(key =>
-          if (!view.state.nodeKeys.contains(ByteArrayWrapper(key.pubKeyBytes)))
-            throw new Exception(
-              "Node not set to watch for specified public key"
-            )
-        )
+                         if (!view.state.nodeKeys.get.contains(key))
+                           throw new Exception("Node not set to watch for specified public key")
+                       )
+
+      // construct the transaction
       val tx = AssetTransfer
-        .createPrototype(
-          view.state.tbr,
-          IndexedSeq((recipient, amount)),
-          sender,
-          issuer,
-          assetCode,
-          fee,
-          data
-        )
+        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, issuer, assetCode, fee, data)
         .get
-      // Update nodeView with new TX
+
+      // validate and update nodeView with new TX
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
           Map(
@@ -262,13 +252,14 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       }
 
       val asset = view.state
-        .closedBox(Base58.decode(assetId).get)
+        .getBox(Base58.decode(assetId).get)
         .get
         .asInstanceOf[AssetBox]
 
       val tx = AssetTransfer
         .create(
-          view.state.tbr,
+          view.state.tbrOpt.get,
+          view.state,
           wallet,
           IndexedSeq((recipient, amount)),
           sender,
@@ -278,7 +269,8 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
           data
         )
         .get
-      AssetTransfer.validate(tx) match {
+
+      AssetTransfer.semanticValidate(tx, view.state) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[AssetTransfer](tx)
           tx.json
@@ -320,6 +312,7 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       id: String
   ): Future[Json] = {
     viewAsync().map { view =>
+      // parse required arguments from the request
       val sender: IndexedSeq[PublicKey25519Proposition] =
         (params \\ "sender").head.asArray.get.map(key =>
           PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
@@ -329,29 +322,24 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
       )
       val assetId: String = (params \\ "assetId").head.asString.getOrElse("")
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+
+      // parse optional parameters
       val data: String = (params \\ "data").headOption match {
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
 
       val asset = view.state
-        .closedBox(Base58.decode(assetId).get)
+        .getBox(Base58.decode(assetId).get)
         .get
         .asInstanceOf[AssetBox]
 
-      val tx = AssetTransfer
-        .createPrototype(
-          view.state.tbr,
-          IndexedSeq((recipient, amount)),
-          sender,
-          asset.issuer,
-          asset.assetCode,
-          fee,
-          data
-        )
-        .get
+      val tx =
+        AssetTransfer
+          .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, asset.issuer, asset.assetCode, fee, data)
+          .get
+
       AssetTransfer.validatePrototype(tx) match {
         case Success(_) =>
           Map(
@@ -407,18 +395,13 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
-      val tx = AssetCreation
-        .createAndApply(
-          wallet,
-          IndexedSeq((recipient, amount)),
-          fee,
-          issuer,
-          assetCode,
-          data
-        )
-        .get
 
-      AssetCreation.validate(tx) match {
+      val tx =
+        AssetCreation
+          .createAndApply(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
+          .get
+
+      AssetCreation.semanticValidate(tx, view.state) match {
         case Success(_) =>
           nodeViewHolderRef ! LocallyGeneratedTransaction[AssetCreation](tx)
           tx.json
@@ -470,15 +453,10 @@ case class AssetApiRoute(override val settings: AppSettings, nodeViewHolderRef: 
         case Some(dataStr) => dataStr.asString.getOrElse("")
         case None          => ""
       }
-      val tx = AssetCreation
-        .createPrototype(
-          IndexedSeq((recipient, amount)),
-          fee,
-          issuer,
-          assetCode,
-          data
-        )
-        .get
+      val tx =
+        AssetCreation
+          .createPrototype(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
+          .get
 
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>

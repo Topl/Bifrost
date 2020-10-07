@@ -15,7 +15,7 @@ case class PrivateKey25519( privKeyBytes: PrivateKey, publicKeyBytes: PublicKey 
   override type PK = PublicKey25519Proposition
   override type M = PrivateKey25519
 
-  override lazy val companion: SecretCompanion[PrivateKey25519] = PrivateKey25519Companion
+  override lazy val companion: SecretCompanion[PrivateKey25519] = PrivateKey25519
 
   override lazy val publicImage: PublicKey25519Proposition = PublicKey25519Proposition(publicKeyBytes)
 
@@ -24,7 +24,7 @@ case class PrivateKey25519( privKeyBytes: PrivateKey, publicKeyBytes: PublicKey 
 
 
 
-object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
+object PrivateKey25519 extends SecretCompanion[PrivateKey25519] {
 
   override type PR = Signature25519
 

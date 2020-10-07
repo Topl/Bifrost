@@ -1,18 +1,19 @@
 package bifrost.modifier.transaction.bifrostTransaction
 
-import java.util.UUID
-
-import bifrost.crypto.{FastCryptographicHash, Signature25519}
+import bifrost.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import bifrost.exceptions.TransactionValidationException
 import bifrost.modifier.box._
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
+import bifrost.modifier.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
 import bifrost.modifier.transaction.bifrostTransaction.Transaction.Nonce
 import bifrost.modifier.transaction.serialization.ProgramCreationSerializer
-import bifrost.program.{ExecutionBuilder, ExecutionBuilderSerializer}
-import com.google.common.primitives.{Bytes, Ints, Longs}
+import bifrost.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
+import bifrost.state.{ ProgramId, State, StateReader }
+import bifrost.utils.serialization.BifrostSerializer
+import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{ Decoder, HCursor, Json }
 
-import scala.util.Try
+import scala.util.{ Failure, Success, Try }
 
 /**
   *
@@ -28,7 +29,7 @@ import scala.util.Try
   * @param timestamp          the timestamp of this transaction
   */
 case class ProgramCreation(executionBuilder: ExecutionBuilder,
-                           readOnlyStateBoxes: Seq[UUID],
+                           readOnlyStateBoxes: Seq[ProgramId],
                            preInvestmentBoxes: IndexedSeq[(Nonce, Long)],
                            owner: PublicKey25519Proposition,
                            signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -40,39 +41,42 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   override type M = ProgramCreation
 
+  override lazy val serializer: BifrostSerializer[M] = ProgramCreationSerializer
+
 //  lazy val proposition = MofNProposition(1, parties.map(_._1.pubKeyBytes).toSet)
 
   lazy val investmentBoxIds: IndexedSeq[Array[Byte]] =
     preInvestmentBoxes.map(n => {
       PublicKeyNoncedBox.idFromBox(owner, n._1)})
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
+  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq[Array[Byte]]() //investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
-  lazy val hashNoNonces = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     ExecutionBuilderSerializer.toBytes(executionBuilder) ++
       owner.pubKeyBytes ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
-  lazy val newStateBoxes: Traversable[StateBox] = {
-      val stateNonce = ProgramTransaction.nonceFromDigest(
-        FastCryptographicHash("stateBox".getBytes
-          ++ executionBuilder.core.variables.noSpaces.getBytes
-          ++ hashNoNonces
-          ++ Ints.toByteArray(0))
-      )
+  lazy val newStateBoxes: IndexedSeq[StateBox] = {
+    val nonceGen = FastCryptographicHash("stateBox".getBytes
+                                           ++ executionBuilder.core.variables.noSpaces.getBytes
+                                           ++ hashNoNonces
+                                           ++ Ints.toByteArray(0))
 
-    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)), executionBuilder.core.variables)
+    val nonce = ProgramTransaction.nonceFromDigest(nonceGen)
+
+    val stateBox = StateBox(owner, nonce, ProgramId.create(nonceGen ++ "programId".getBytes), executionBuilder.core.variables)
 
     IndexedSeq(stateBox)
   }
 
-  override lazy val newBoxes: Traversable[Box] = {
+  override lazy val newBoxes: Traversable[ProgramBox] = {
 
     val availableBoxes: Set[(Nonce, Long)] = (preFeeBoxes(owner) ++ preInvestmentBoxes).toSet
     val canSend = availableBoxes.map(_._2).sum
     val leftOver: Long = canSend - fees(owner)
 
+    // generate nonces for the boxes and program ids for the new program
     val investorNonce = ProgramTransaction.nonceFromDigest(
       FastCryptographicHash("ProgramCreation".getBytes
         ++ owner.pubKeyBytes
@@ -80,46 +84,38 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
         ++ Ints.toByteArray(0))
     )
 
-    val codeNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("codeBox".getBytes
-        ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
-    val execNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("executionBuilder".getBytes
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
+    val cbNonceGen = FastCryptographicHash("codeBox".getBytes
+                                             ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
+                                             ++ hashNoNonces
+                                             ++ Ints.toByteArray(0))
+    val codeNonce = ProgramTransaction.nonceFromDigest(cbNonceGen)
+    val cbProgramId = ProgramId.create(cbNonceGen ++ "programId".getBytes)
 
+    val execNonceGen = FastCryptographicHash("executionBuilder".getBytes
+                                              ++ hashNoNonces
+                                              ++ Ints.toByteArray(0))
+    val execNonce = ProgramTransaction.nonceFromDigest(execNonceGen)
+    val execProgramId = ProgramId.create(execNonceGen ++ "programId".getBytes)
 
-    val stateNonce = ProgramTransaction.nonceFromDigest(
-      FastCryptographicHash("stateBox".getBytes
-        ++ executionBuilder.core.variables.noSpaces.getBytes
-        ++ hashNoNonces
-        ++ Ints.toByteArray(0))
-    )
+    // create the new boxes
+    val codeBox = CodeBox(owner, codeNonce, cbProgramId, executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
 
-    val stateBox = StateBox(owner, stateNonce, UUID.nameUUIDFromBytes(StateBox.idFromBox(owner, stateNonce)),executionBuilder.core.variables)
+    val stateBoxIds: Seq[ProgramId] = newStateBoxes.map(_.value) ++ readOnlyStateBoxes
 
-    val codeBox = CodeBox(owner, codeNonce, UUID.nameUUIDFromBytes(CodeBox.idFromBox(owner, codeNonce)),
-      executionBuilder.core.code.values.toSeq, executionBuilder.core.interface)
-    val stateUUIDs: Seq[UUID] = Seq(UUID.nameUUIDFromBytes(stateBox.id)) ++ readOnlyStateBoxes
-    val executionBox = ExecutionBox(owner, execNonce, UUID.nameUUIDFromBytes(ExecutionBox.idFromBox(owner, execNonce)), stateUUIDs, Seq(codeBox.id))
+    val executionBox = ExecutionBox(owner, execNonce, execProgramId, stateBoxIds, Seq(codeBox.value))
 
-    val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
+    //val investorDeductedBox: PolyBox = PolyBox(owner, investorNonce, leftOver)
 
-    IndexedSeq(executionBox, stateBox, codeBox) :+ investorDeductedBox // nonInvestorDeductedBoxes
+    IndexedSeq(executionBox, codeBox) ++ newStateBoxes //:+ investorDeductedBox // nonInvestorDeductedBoxes
   }
 
-  lazy val json: Json = (commonJson.asObject.get.toMap ++ Map(
-    "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
-    "executionBuilder" -> executionBuilder.json,
-    "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
-    "data" -> data.asJson
-  )).asJson
-
-  override lazy val serializer = ProgramCreationSerializer
+  lazy val json: Json = (
+    commonJson.asObject.get.toMap ++ Map(
+      "preInvestmentBoxes" -> preInvestmentBoxes.map(_.asJson).asJson,
+      "executionBuilder" -> executionBuilder.json,
+      "newBoxes" -> newBoxes.map(_.json).toSeq.asJson,
+      "data" -> data.asJson
+      )).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     ExecutionBuilderSerializer.toBytes(executionBuilder),
@@ -131,20 +127,59 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
   override def toString: String = s"ProgramCreation(${json.noSpaces})"
 }
 
+
+
+
 object ProgramCreation {
 
-  def validate(tx: ProgramCreation): Try[Unit] = Try {
+  type SR = StateReader[Box]
 
-    val outcome = ExecutionBuilder.validate(tx.executionBuilder)
-    require(outcome.isSuccess)
-
+  def syntacticValidate(tx: ProgramCreation, withSigs: Boolean = true): Try[Unit] = Try {
+    require(ExecutionBuilder.validate(tx.executionBuilder).isSuccess)
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign), "Not all signatures were valid")
-
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
+
+  def validatePrototype(tx: ProgramCreation): Try[Unit] = syntacticValidate(tx, withSigs = false)
+
+  /**
+    * Validates ProgramCreation instance on its unlockers && timestamp of the program
+    *
+    * @param tx : ProgramCreation transaction
+    * @return
+    */
+  def semanticValidate(tx: ProgramCreation, state: SR): Try[Unit] = {
+    Try{
+
+      // check that the transaction is correctly formed before checking state
+      syntacticValidate(tx) match {
+        case Failure(e) => throw e
+        case _ => // continue processing
+      }
+
+      // make sure we are not attempting to change an already deployed program
+      if (tx.newBoxes.forall(curBox => state.getBox(curBox.id).isDefined)) {
+        throw new TransactionValidationException("ProgramCreation attempts to overwrite existing program")
+      }
+
+      // validate the unlockers generated by the signatures
+      val unlockers = State.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
+
+      unlockers
+        .foldLeft[Try[Unit]](Success(Unit))((tryUnlock, unlocker) => {
+          tryUnlock
+            .flatMap { _ =>
+              state.getBox(unlocker.closedBoxId) match {
+                case Some(box) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
+                case _ => throw new TransactionValidationException(s"Box for unlocker $unlocker is not in the state")
+              }
+            }
+        })
+    }
+  }
 
   implicit val decodeProgramCreation: Decoder[ProgramCreation] = (c: HCursor) => for {
     executionBuilder <- c.downField("executionBuilder").as[ExecutionBuilder]
-    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[UUID]]
+    readOnlyStateBoxes <- c.downField("readOnlyStateBoxes").as[Seq[String]]
     preInvestmentBoxes <- c.downField("preInvestmentBoxes").as[IndexedSeq[(Nonce, Long)]]
     rawOwner <- c.downField("owner").as[String]
     rawSignatures <- c.downField("signatures").as[Map[String, String]]
@@ -154,15 +189,17 @@ object ProgramCreation {
     data <- c.downField("data").as[String]
   } yield {
     val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
+    val readStateBoxIds = readOnlyStateBoxes.map(str => ProgramId(str).get)
+
     ProgramCreation(executionBuilder,
-      readOnlyStateBoxes,
-      preInvestmentBoxes,
-      commonArgs._1,
-      commonArgs._2,
-      commonArgs._3,
-      commonArgs._4,
-      timestamp,
-      data)
+                    readStateBoxIds,
+                    preInvestmentBoxes,
+                    commonArgs._1,
+                    commonArgs._2,
+                    commonArgs._3,
+                    commonArgs._4,
+                    timestamp,
+                    data)
   }
 
 }

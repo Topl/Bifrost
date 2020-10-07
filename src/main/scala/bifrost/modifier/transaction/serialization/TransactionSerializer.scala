@@ -7,6 +7,9 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
 
   override def serialize(obj: Transaction, w: Writer): Unit = {
     obj match {
+      case obj: CodeCreation =>
+        w.putByteString("CodeCreation")
+        CodeBoxCreationSerializer.serialize(obj, w)
       case obj: ProgramCreation =>
         w.putByteString("ProgramCreation")
         ProgramCreationSerializer.serialize(obj, w)
@@ -39,6 +42,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
 
   override def parse(r: Reader): Transaction = {
     r.getByteString() match {
+      case "CodeCreation" => CodeBoxCreationSerializer.parse(r)
       case "ProgramCreation" => ProgramCreationSerializer.parse(r)
       case "ProgramMethodExecution" => ProgramMethodExecutionSerializer.parse(r)
 
