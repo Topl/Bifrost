@@ -4,10 +4,8 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
-import co.topl.nodeView.state.box.Box
 import io.circe.parser.parse
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

@@ -1,11 +1,11 @@
 package co.topl.crypto
 
 import co.topl.crypto.KeyFile.uuid
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 /*
  * Test class for verifying BIP39 phrase translator class

@@ -1,10 +1,10 @@
 package co.topl.nodeView
 
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{ Box, BoxId, ProgramBox, TokenBox }
+import co.topl.nodeView.state.box.{Box, BoxId, ProgramBox, TokenBox}
 import com.google.common.primitives.Ints
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 package object state {
   /** This function will modify the state storage directly without returning a new instance of state

@@ -4,12 +4,12 @@ import co.topl.nodeView.NodeViewHolder
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
 
 class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

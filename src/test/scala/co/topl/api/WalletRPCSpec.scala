@@ -4,31 +4,31 @@ import java.io.File
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.nodeView.history.History
 import co.topl.http.api.routes.WalletApiRoute
-import co.topl.nodeView.mempool.MemPool
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
-import co.topl.settings.AppContext
+import co.topl.nodeView.history.History
+import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
+import co.topl.settings.AppContext
 import co.topl.wallet.Wallet
 import io.circe.parser.parse
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 
 
 class WalletRPCSpec extends AnyWordSpec

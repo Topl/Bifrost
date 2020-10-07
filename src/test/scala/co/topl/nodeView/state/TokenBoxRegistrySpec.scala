@@ -6,21 +6,21 @@ import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ArbitTransfer
+import co.topl.nodeView.NodeViewHolder
+import co.topl.nodeView.NodeViewHolder.{HIS, MP, MS, VL}
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS, VL }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
-import co.topl.settings.{ AppSettings, StartupOpts }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 import scorex.util.encode.Base58
-import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
 
 import scala.reflect.io.Path
 import scala.util.Try
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
 
 class TokenBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

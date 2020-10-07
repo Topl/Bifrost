@@ -5,15 +5,15 @@ package co.topl.transaction
   */
 import co.topl.crypto.Signature25519
 import co.topl.modifier.transaction.ProgramCreation
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.State
-import co.topl.{ BifrostGenerators, ValidGenerators }
-
-import scala.util.Success
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.Signature
+
+import scala.util.Success
 
 class ProgramCreationSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

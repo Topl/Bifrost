@@ -1,11 +1,11 @@
 package co.topl.transaction.proposition
 
 import co.topl.BifrostGenerators
-import co.topl.crypto.{ MultiSignature25519, PrivateKey25519 }
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.crypto.{MultiSignature25519, PrivateKey25519}
+import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class MultiSignature25519Spec extends AnyPropSpec
   with ScalaCheckPropertyChecks

@@ -4,21 +4,19 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519 }
-import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction._
+import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
 import co.topl.program.ExecutionBuilderSerializer
-import co.topl.nodeView.state.ProgramId
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import com.google.common.primitives.{ Bytes, Longs }
+import co.topl.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.collection.immutable.Seq
 
