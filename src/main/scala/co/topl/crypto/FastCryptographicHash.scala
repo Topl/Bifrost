@@ -1,6 +1,6 @@
 package co.topl.crypto
 
-import scorex.crypto.hash.{ Blake2b256, CryptographicHash32, Digest32 }
+import scorex.crypto.hash.{Blake2b256, CryptographicHash32, Digest32}
 
 /**
  * Interface for fast and secure Blake2b hash function

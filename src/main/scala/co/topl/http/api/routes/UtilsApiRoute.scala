@@ -15,7 +15,7 @@ import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 case class UtilsApiRoute(override val settings: RESTApiSettings)
                         (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {

@@ -1,11 +1,11 @@
 package co.topl.network
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.network.message.{ GetPeersSpec, Message, MessageSpec, PeersData, PeersSpec }
-import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, NetworkSettings }
+import co.topl.network.message._
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.settings.{AppContext, NetworkSettings}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
@@ -27,8 +27,8 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 
   // Import the types of messages this actor can SEND
 
-  import PeerManager.ReceivableMessages.{ AddPeerIfEmpty, RecentlySeenPeers }
-  import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
+  import PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
+  import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
 
   private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
 

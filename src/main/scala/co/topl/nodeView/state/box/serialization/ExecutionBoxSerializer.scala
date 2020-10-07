@@ -1,9 +1,9 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.state.box.{ ExecutionBox, ProgramBox }
 import co.topl.nodeView.state.ProgramId
+import co.topl.nodeView.state.box.{ExecutionBox, ProgramBox}
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object ExecutionBoxSerializer extends BifrostSerializer[ExecutionBox] {
 

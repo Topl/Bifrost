@@ -1,11 +1,11 @@
 package co.topl.network
 
-import java.net.{ InetAddress, InetSocketAddress }
+import java.net.{InetAddress, InetSocketAddress}
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
-import co.topl.network.peer.{ InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, NetworkSettings }
-import co.topl.utils.{ Logging, NetworkUtils }
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.settings.{AppContext, NetworkSettings}
+import co.topl.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random

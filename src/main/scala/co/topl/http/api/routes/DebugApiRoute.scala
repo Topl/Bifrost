@@ -1,13 +1,13 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import co.topl.wallet.Wallet
 import io.circe.Json

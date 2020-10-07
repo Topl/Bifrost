@@ -3,22 +3,22 @@ package co.topl.wallet
 import java.io.File
 import java.security.SecureRandom
 
-import co.topl.crypto.{ FastCryptographicHash, KeyFile, PrivateKey25519 }
+import co.topl.crypto.{FastCryptographicHash, KeyFile, PrivateKey25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition }
-import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.nodeView.state.box.{ ArbitBox, AssetBox, Box, PolyBox }
 import co.topl.nodeView.state.StateChanges
+import co.topl.nodeView.state.box.proposition.{MofNProposition, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import co.topl.nodeView.state.box.serialization.BoxSerializer
+import co.topl.nodeView.state.box.{ArbitBox, AssetBox, Box, PolyBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Ints
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
-import scorex.util.encode.Base58
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 
 case class Wallet(var secrets: Set[PrivateKey25519], store: LSMStore, defaultKeyDir: String)

@@ -1,19 +1,19 @@
 package co.topl.network
 
-import akka.actor.{ ActorContext, ActorRef, Cancellable }
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import akka.actor.{ActorContext, ActorRef, Cancellable}
+import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.ModifiersStatus._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import co.topl.network.peer.ConnectedPeer
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.settings.NetworkSettings
-import co.topl.utils.{ BifrostEncoding, Logging }
+import co.topl.utils.{BifrostEncoding, Logging}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{ Failure, Try }
+import scala.util.{Failure, Try}
 
 /**
   * This class tracks modifier statuses.

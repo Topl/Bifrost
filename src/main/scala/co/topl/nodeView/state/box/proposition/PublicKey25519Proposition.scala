@@ -3,11 +3,11 @@ package co.topl.nodeView.state.box.proposition
 import co.topl.crypto.FastCryptographicHash._
 import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 

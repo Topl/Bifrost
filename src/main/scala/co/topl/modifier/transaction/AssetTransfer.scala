@@ -2,21 +2,21 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction.serialization.AssetTransferSerializer
 import co.topl.nodeView.state.box.AssetBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.{ State, TokenBoxRegistry }
+import co.topl.nodeView.state.{State, TokenBoxRegistry}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
-import com.google.common.primitives.{ Bytes, Ints }
+import com.google.common.primitives.{Bytes, Ints}
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
+import io.circe.{Decoder, HCursor, Json}
 import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class AssetTransfer(override val from: IndexedSeq[(PublicKey25519Proposition, Nonce)],
                          override val to: IndexedSeq[(PublicKey25519Proposition, Long)],

@@ -2,11 +2,8 @@ package co.topl.program
 
 import co.topl.utils.Gzip
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
+import io.circe.{Decoder, HCursor, Json}
 import scorex.util.encode.Base64
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
 
 case class ExecutionBuilderTerms(terms: String){
   /*  */

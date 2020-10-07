@@ -1,14 +1,14 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ PolyBox, PublicKeyNoncedBox }
-import com.google.common.primitives.{ Ints, Longs }
+import co.topl.nodeView.state.box.{PolyBox, PublicKeyNoncedBox}
+import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.{Curve25519, Signature}
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

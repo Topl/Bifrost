@@ -2,22 +2,22 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.CodeBoxCreationSerializer
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ Box, CodeBox }
-import co.topl.nodeView.state.{ ProgramId, StateReader }
+import co.topl.nodeView.state.box.{Box, CodeBox}
+import co.topl.nodeView.state.{ProgramId, StateReader}
 import co.topl.program.ProgramPreprocessor
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
-import com.google.common.primitives.{ Bytes, Longs }
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
-import io.circe.{ Json, JsonObject }
-import scorex.util.encode.Base58
+import io.circe.{Json, JsonObject}
 import scorex.crypto.signatures.Signature
+import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class CodeCreation(to: PublicKey25519Proposition,
                         signature: Signature25519,

@@ -4,7 +4,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.GenericTransaction
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.state.box.proposition.Proposition
-import com.google.common.primitives.{ Bytes, Ints, Longs }
+import com.google.common.primitives.{Bytes, Ints, Longs}
 
 import scala.util.Try
 

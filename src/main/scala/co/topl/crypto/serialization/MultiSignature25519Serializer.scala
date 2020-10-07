@@ -1,8 +1,8 @@
 package co.topl.crypto.serialization
 
-import co.topl.crypto.{ MultiSignature25519, Signature25519 }
+import co.topl.crypto.{MultiSignature25519, Signature25519}
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 
 object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature25519] {

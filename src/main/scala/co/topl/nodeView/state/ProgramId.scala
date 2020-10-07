@@ -1,11 +1,11 @@
 package co.topl.nodeView.state
 
 import co.topl.crypto.FastCryptographicHash
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import com.google.common.primitives.Ints
 import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class ProgramId (hashBytes: Array[Byte]) {
 

@@ -4,7 +4,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 class WalletBoxSerializer[T, P <: Proposition, B <: GenericBox[P, T]](subclassDeser: BifrostSerializer[B])
   extends BifrostSerializer[WalletBox[T, P, B]] {

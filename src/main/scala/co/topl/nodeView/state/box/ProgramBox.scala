@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.ProgramId
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58

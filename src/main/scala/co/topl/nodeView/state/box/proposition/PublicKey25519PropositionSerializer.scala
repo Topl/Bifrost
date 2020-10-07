@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box.proposition
 
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import scorex.crypto.signatures.PublicKey
 
 object PublicKey25519PropositionSerializer extends BifrostSerializer[PublicKey25519Proposition] {

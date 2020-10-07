@@ -2,20 +2,20 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.AssetCreationSerializer
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ AssetBox, Box, TokenBox }
 import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{AssetBox, Box, TokenBox}
 import co.topl.wallet.Wallet
-import com.google.common.primitives.{ Bytes, Ints, Longs }
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
-import scorex.util.encode.Base58
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.signatures.{Curve25519, Signature}
+import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            signatures: Map[PublicKey25519Proposition, Signature25519],

@@ -1,22 +1,22 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, MultiSignature25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, MultiSignature25519, Signature25519}
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.{ ProgramBoxRegistry, ProgramId, State, StateReader }
+import co.topl.nodeView.state.{ProgramBoxRegistry, ProgramId, State, StateReader}
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException
 import co.topl.utils.serialization.BifrostSerializer
-import com.google.common.primitives.{ Bytes, Longs }
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
-import scorex.util.encode.Base58
+import io.circe.{Decoder, HCursor, Json}
 import scorex.crypto.hash.Digest32
+import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class ProgramMethodExecution ( executionBox: ExecutionBox,
                                     stateBoxes  : Seq[StateBox],

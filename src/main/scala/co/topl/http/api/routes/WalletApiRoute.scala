@@ -1,26 +1,26 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import co.topl.crypto.{ Bip39, PrivateKey25519 }
+import co.topl.crypto.{Bip39, PrivateKey25519}
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, PolyTransfer, Transaction }
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
-import co.topl.nodeView.state.box.TokenBox
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.TokenBox
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef )
                           ( implicit val context: ActorRefFactory ) extends ApiRouteWithView {

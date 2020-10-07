@@ -2,29 +2,29 @@ package co.topl.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
+import akka.actor.{ActorRef, ActorSystem, Props}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.ModifiersStatus.Requested
-import co.topl.network.message.{ InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _ }
-import co.topl.network.peer.{ ConnectedPeer, PenaltyType }
-import co.topl.nodeView.NodeViewModifier.{ ModifierTypeId, idsToString }
-import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
+import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
+import co.topl.network.peer.{ConnectedPeer, PenaltyType}
+import co.topl.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{ NodeViewModifier, PersistentNodeViewModifier }
-import co.topl.settings.{ AppContext, NetworkSettings }
+import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.proposition.Proposition
+import co.topl.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
+import co.topl.settings.{AppContext, NetworkSettings}
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{ BifrostEncoding, Logging, MalformedModifierError }
+import co.topl.utils.{BifrostEncoding, Logging, MalformedModifierError}
 import co.topl.wallet.VaultReader
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 /**
   * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
@@ -50,9 +50,9 @@ class NodeViewSynchronizer[
     with BifrostEncoding {
 
   // Import the types of messages this actor may SEND or RECEIVES
-  import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
+  import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote }
+  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 
   // the maximum number of inventory modifiers to compare with remote peers
   protected val desiredInvObjects: Int = networkSettings.desiredInvObjects

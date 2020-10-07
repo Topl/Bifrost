@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import io.circe.parser
 
 object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {

@@ -1,13 +1,13 @@
 package co.topl.program
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ CodeBox, StateBox }
-import co.topl.utils.exceptions.{ ChainProgramException, JsonParsingException }
+import co.topl.nodeView.state.box.{CodeBox, StateBox}
+import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

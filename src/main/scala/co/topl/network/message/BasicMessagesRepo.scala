@@ -3,12 +3,12 @@ package co.topl.network.message
 import co.topl.modifier.ModifierId
 import co.topl.network.message
 import co.topl.network.message.Message.MessageCode
-import co.topl.network.peer.{ PeerFeature, PeerSpec, PeerSpecSerializer }
+import co.topl.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import co.topl.nodeView.NodeViewModifier
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.utils.Extensions._
 import co.topl.utils.Logging
-import co.topl.utils.serialization.{ Reader, Writer }
+import co.topl.utils.serialization.{Reader, Writer}
 
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
 

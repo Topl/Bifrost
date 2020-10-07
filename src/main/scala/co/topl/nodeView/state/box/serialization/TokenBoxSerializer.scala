@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box.serialization
 
 import co.topl.nodeView.state.box.TokenBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519PropositionSerializer
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object TokenBoxSerializer extends BifrostSerializer[TokenBox] {
 

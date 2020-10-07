@@ -1,19 +1,19 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
+import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.nodeView.history.History
-import co.topl.nodeView.{ BifrostNodeViewModifier, NodeViewModifier }
+import co.topl.nodeView.{BifrostNodeViewModifier, NodeViewModifier}
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{ Encoder, Json }
-import scorex.util.encode.Base58
+import io.circe.{Encoder, Json}
 import scorex.crypto.signatures.{Curve25519, Signature}
+import scorex.util.encode.Base58
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics

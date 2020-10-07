@@ -2,20 +2,20 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.serialization.CoinbaseTransactionSerializer
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
 import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.wallet.Wallet
-import com.google.common.primitives.{ Bytes, Longs }
+import com.google.common.primitives.{Bytes, Longs}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Digest32
 import scorex.crypto.signatures.Signature
+import scorex.util.encode.Base58
 
 import scala.util.Try
 

@@ -2,7 +2,7 @@ package co.topl.wallet
 
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.GenericTransaction
-import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
+import co.topl.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 

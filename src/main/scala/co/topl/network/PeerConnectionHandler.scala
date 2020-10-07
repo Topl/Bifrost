@@ -1,19 +1,19 @@
 package co.topl.network
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy }
+import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
-import akka.util.{ ByteString, CompactByteString }
-import co.topl.network.message.{ Handshake, HandshakeSpec, MessageSerializer }
+import akka.util.{ByteString, CompactByteString}
+import co.topl.network.message.{Handshake, HandshakeSpec, MessageSerializer}
 import co.topl.network.peer.PenaltyType.PermanentPenalty
-import co.topl.network.peer.{ ConnectedPeer, PeerFeature, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, NetworkSettings, Version }
+import co.topl.network.peer._
+import co.topl.settings.{AppContext, NetworkSettings, Version}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 class PeerConnectionHandler( val settings: NetworkSettings,
                              networkControllerRef: ActorRef,
@@ -27,7 +27,7 @@ class PeerConnectionHandler( val settings: NetworkSettings,
   import co.topl.network.message.Message
 
   // Import the types of messages this actor can SEND
-  import co.topl.network.NetworkController.ReceivableMessages.{ Handshaked, PenalizePeer }
+  import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 
   private val connection = connectionDescription.connection
   private val connectionId = connectionDescription.connectionId

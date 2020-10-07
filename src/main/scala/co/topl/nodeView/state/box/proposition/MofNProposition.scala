@@ -3,9 +3,9 @@ package co.topl.nodeView.state.box.proposition
 import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition._
 import co.topl.utils.serialization.BifrostSerializer
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import scorex.util.encode.Base58
 
 //noinspection ScalaStyle
 case class MofNProposition(m: Int, setOfPubKeyBytes: Set[PublicKey])

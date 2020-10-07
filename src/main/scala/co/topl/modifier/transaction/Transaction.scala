@@ -1,13 +1,13 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ PrivateKey25519, Signature25519 }
+import co.topl.crypto.{PrivateKey25519, Signature25519}
 import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.box.proposition.{ ProofOfKnowledgeProposition, PublicKey25519Proposition }
+import co.topl.nodeView.state.box.proposition.{ProofOfKnowledgeProposition, PublicKey25519Proposition}
 import co.topl.wallet.Wallet
 import com.google.common.primitives.Longs
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.{PublicKey, Signature}
+import scorex.util.encode.Base58
 import supertagged.@@
 
 trait TransactionSettings
