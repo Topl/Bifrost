@@ -16,7 +16,7 @@ scalaVersion := "2.12.12"
 organization := "co.topl"
 version := "1.1.0"
 
-mainClass in assembly := Some("bifrost.BifrostApp")
+mainClass in assembly := Some("co.topl.BifrostApp")
 test in assembly := {}
 
 // The Typesafe repository
