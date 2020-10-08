@@ -54,7 +54,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
 
     (keyHolderRef ? UnlockKey(publicKey, password)).mapTo[Try[Unit]].map {
       case Success(_)  => Map( publicKey -> "unlocked".asJson).asJson
-      case Failure(ex) => Map( "error" -> s"An error occurred while trying to unlock the keyfile. $ex".asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while trying to unlock the keyfile. $ex")
     }
   }
 
@@ -83,7 +83,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
 
     (keyHolderRef ? LockKey(publicKey, password)).mapTo[Try[Unit]].map {
       case Success(_)  => Map( publicKey -> "locked".asJson).asJson
-      case Failure(ex) => Map( "error" -> s"An error occurred while trying to lock the keyfile. $ex".asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while trying to lock the keyfile. $ex")
     }
   }
 
@@ -110,7 +110,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
 
     (keyHolderRef ? CreateKey(password)).mapTo[Try[PublicKey25519Proposition]].map {
       case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
-      case Failure(ex) => Map( "error" -> s"An error occurred while creating a new keyfile. $ex".asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
     }
   }
 
@@ -141,7 +141,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
 
     (keyHolderRef ? ImportKey(password, seedPhrase, seedPhraseLang)).mapTo[Try[PublicKey25519Proposition]].map {
       case Success(pk: PublicKey25519Proposition) => Map( "publicKey" -> pk.asJson).asJson
-      case Failure(ex) => Map( "error" -> s"An error occurred while importing the seed phrase. $ex".asJson).asJson
+      case Failure(ex) => throw new Error(s"An error occurred while importing the seed phrase. $ex")
     }
   }
 
@@ -156,7 +156,7 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
    * ---
    * #### Params
    * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
+   * | ------------------------	| ----------	| --------------------	| -----------------------------------------------------------------------	  |
    * | --None specified--       |           	|                     	|                                                                         |
    *
    * @param params input parameters as specified above
