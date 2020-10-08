@@ -76,8 +76,8 @@ class AssetRPCSpec extends AnyWordSpec
   implicit val timeout: Timeout = Timeout(10.seconds)
 
 
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView.mapTo[CurrentView[History, State, MemPool]],
+  private def view(): CurrentView[History, State, MemPool] = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   val publicKeys = Map(
@@ -86,9 +86,9 @@ class AssetRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
   // Unlock Secrets
-  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-  gw.unlockKeyFile(publicKeys("hub"), "genesis")
+//  gw.unlockKeyFile(publicKeys("investor"), "genesis")
+//  gw.unlockKeyFile(publicKeys("producer"), "genesis")
+//  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var asset: Option[AssetBox] = None
   var tx: Json = "".asJson
@@ -183,31 +183,31 @@ class AssetRPCSpec extends AnyWordSpec
       }
     }
 
-    "Broadcast createAssetsPrototype transaction" in {
-      val secret = view().vault.secretByPublicImage(
-        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
-      val tempTx = tx.as[AssetCreation].right.get
-      val sig = secret.sign(tempTx.messageToSign)
-      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
-
-      val requestBody = ByteString(
-        s"""
-           |{
-           |  "jsonrpc": "2.0",
-           |  "id": "1",
-           |  "method": "broadcastTx",
-           |  "params": [{
-           |    "tx": ${signedTx.json}
-           |  }]
-           |}
-        """.stripMargin)
-
-      walletHttpPOST(requestBody) ~> walletRoute ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
+//    "Broadcast createAssetsPrototype transaction" in {
+//      val secret = view().vault.secretByPublicImage(
+//        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+//      val tempTx = tx.as[AssetCreation].right.get
+//      val sig = secret.sign(tempTx.messageToSign)
+//      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+//
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |  "jsonrpc": "2.0",
+//           |  "id": "1",
+//           |  "method": "broadcastTx",
+//           |  "params": [{
+//           |    "tx": ${signedTx.json}
+//           |  }]
+//           |}
+//        """.stripMargin)
+//
+//      walletHttpPOST(requestBody) ~> walletRoute ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//      }
+//    }
 
     "Transfer target asset prototype" in {
       val requestBody = ByteString(
@@ -219,7 +219,7 @@ class AssetRPCSpec extends AnyWordSpec
            |   "params": [{
            |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
            |     "recipient": "${publicKeys("producer")}",
-           |     "assetId": "${Base58.encode(asset.get.id)}",
+           |     "assetId": "${asset.get.id}",
            |     "amount": 1,
            |     "fee": 0,
            |     "data": ""
@@ -271,7 +271,7 @@ class AssetRPCSpec extends AnyWordSpec
            |   "params": [{
            |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
            |     "recipient": "${publicKeys("producer")}",
-           |     "assetId": "${Base58.encode(asset.get.id)}",
+           |     "assetId": "${asset.get.id}",
            |     "amount": 1,
            |     "fee": 0,
            |     "data": ""

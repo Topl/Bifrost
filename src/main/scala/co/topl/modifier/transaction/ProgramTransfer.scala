@@ -122,7 +122,7 @@ object ProgramTransfer {
 
     val from = Seq((tx.from, tx.executionBox.nonce))
     val signature = Map(tx.from -> tx.signature)
-    val unlocker = State.generateUnlockers(from, signature).head
+    val unlocker = ProgramBox.generateUnlockers(from, signature).head
 
     state.getBox(unlocker.closedBoxId) match {
       case Some(box: ExecutionBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)

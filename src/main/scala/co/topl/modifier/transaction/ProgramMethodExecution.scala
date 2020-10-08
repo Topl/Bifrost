@@ -220,7 +220,7 @@ object ProgramMethodExecution {
     }
 
     // check that the provided signatures generate valid unlockers
-    val unlockers = State.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
+    val unlockers = ProgramBox.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
     unlockers
       .foldLeft[Try[Unit]](Success(()))(( tryUnlock, unlocker ) => {
         tryUnlock

@@ -4,9 +4,8 @@ import java.time.Instant
 
 import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
-import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ ArbitBox, TokenBox }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor }
@@ -131,7 +130,7 @@ object ArbitTransfer extends TransferCompanion {
 
     // compute transaction values used for validation
     val txOutput = tx.newBoxes.map(b => b.value).sum
-    val unlockers = State.generateUnlockers(tx.from, tx.signatures)
+    val unlockers = TokenBox.generateUnlockers(tx.from, tx.signatures)
 
     // iterate through the unlockers and sum up the value of the box for each valid unlocker
     unlockers.foldLeft[Try[Long]](Success(0L))(( trySum, unlocker ) => {

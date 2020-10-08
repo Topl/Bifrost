@@ -7,7 +7,7 @@ import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.StateSpec
+import co.topl.nodeView.state.{ State, StateSpec }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
 import co.topl.{ BifrostGenerators, ValidGenerators }
@@ -174,19 +174,18 @@ class ValkyrieSpec extends AnyPropSpec
 
     assert(valkyrieController != null)
 
-    val wallet: Wallet = Wallet.readOrGenerate(StateSpec.testSettings)
+    val state: State = State.readOrGenerate(StateSpec.testSettings)
 
-    assert(!wallet.boxesByKey(publicKeys("investor")).isEmpty)
+    assert(state.getTokenBoxes(PublicKey25519Proposition(publicKeys("investor"))).nonEmpty)
 
     val arbitInstances: util.ArrayList[ArbitInstance] = new util.ArrayList()
 
     //Sanitize inputBoxes
-    wallet.boxesByKey(publicKeys("investor")).foreach(box =>
-    box.box match {
+    state.getTokenBoxes(PublicKey25519Proposition(publicKeys("investor"))).getOrElse(Seq()).foreach {
       case arbitBox: ArbitBox =>
-        arbitInstances.add(new ArbitInstance(Base58.encode(arbitBox.proposition.pubKeyBytes), arbitBox.value, arbitBox.id))
+        arbitInstances.add(new ArbitInstance(Base58.encode(arbitBox.proposition.pubKeyBytes), arbitBox.value, arbitBox.id.hashBytes))
       case _ =>
-    })
+    }
 
     valkyrieController.setArbitBoxesForUse(arbitInstances)
 

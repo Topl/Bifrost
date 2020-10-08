@@ -240,7 +240,7 @@ class StateSpec extends AnyPropSpec
 object StateSpec {
 
   import MinimalState.VersionTag
-  import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS, VL }
+  import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS }
 
   private val settingsFilename = "src/test/resources/test.conf"
   lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
@@ -248,16 +248,15 @@ object StateSpec {
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val gs: (HIS, MS, VL, MP) = NodeViewHolder.initializeGenesis(testSettings)
+  val gs: (HIS, MS, MP) = NodeViewHolder.initializeGenesis(testSettings)
   private val _history: HIS = gs._1
   private val _genesisState: MS = gs._2
-  private val _gw: VL = gs._3
 
   def genesisState(): MS = gs._2.copy()
 
   // Unlock Secrets
-  _gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
-  _gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
-  _gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
+//  _gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
+//  _gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
+//  _gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
   val genesisBlockId: VersionTag = gs._2.version
 }

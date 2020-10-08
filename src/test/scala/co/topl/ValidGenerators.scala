@@ -150,7 +150,7 @@ trait ValidGenerators extends BifrostGenerators {
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
       Map(sender -> feeBoxes.toIndexedSeq)
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -177,7 +177,7 @@ trait ValidGenerators extends BifrostGenerators {
         methodName.getBytes ++
         sender.pubKeyBytes ++
         parameters.noSpaces.getBytes ++
-        (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
+        (executionBox.id.hashBytes ++ feeBoxIdKeyPairs.flatMap(_._1.hashBytes)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
@@ -234,20 +234,14 @@ trait ValidGenerators extends BifrostGenerators {
 
   lazy val validCoinbaseTransactionGen: Gen[Coinbase] = for {
     _ <- toSeqGen
+    amount <- positiveLongGen
     timestamp <- positiveLongGen
     id <- modifierIdGen
   } yield {
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
-    val fakeSigs = IndexedSeq(Signature25519(Array()))
-    val messageToSign = CoinbaseTransaction(
-      to,
-      fakeSigs,
-      timestamp,
-      id.hashBytes).messageToSign
-    // sign with own key because coinbase is literally giving yourself money
-    val signatures = IndexedSeq(toKeyPairs._1.sign(messageToSign))
-    CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
+    val toKeyPair = sampleUntilNonEmpty(keyPairSetGen).head
+    val rawTx = Coinbase.createRaw(toKeyPair._2, amount, timestamp, id)
+    val sig = Map(toKeyPair._2 -> toKeyPair._1.sign(rawTx.messageToSign))
+    rawTx.copy(signatures = sig)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {

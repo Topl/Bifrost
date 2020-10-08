@@ -2,7 +2,6 @@ package co.topl.nodeView.state
 
 import java.io.File
 
-import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
@@ -305,38 +304,13 @@ object State extends Logging {
     }
   }
 
-  /**
-   * Generate a series of unlockers for a transactions that is used to validate the transaction
-   *
-   * @param from
-   * @param signatures
-   * @return
-   */
-  def generateUnlockers ( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
-                          signatures: Map[PublicKey25519Proposition, Signature25519]
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    from.map {
-      case (prop, nonce) =>
-        val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
-        val boxKey = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
-        new BoxUnlocker(boxId, boxKey)
-    }
-  }
-
-  def generateUnlockers ( boxIds   : Seq[BoxId],
-                          signature: Signature25519
-                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
-    boxIds.map { id =>
-      new BoxUnlocker(id, signature)
-    }
-  }
-
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
   def stateFile(settings: AppSettings): File = {
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "Data directory must be specified").get
-    new File(dataDir).mkdirs()
-    new File(s"$dataDir/state")
+    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val file = new File(s"$dataDir/state")
+    file.mkdirs()
+    file
   }
 
   def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
@@ -344,21 +318,16 @@ object State extends Logging {
 
     val version: VersionTag = ModifierId(
       storage.lastVersionID
-        .fold(Array.emptyByteArray)(_.data)
+        .fold(Array.fill(ModifierId.size)(0:Byte))(_.data)
       )
 
     // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[PublicKey25519Proposition]] =
       settings
         .nodeKeys
-        .map(_.map(key => PublicKey25519Proposition(Base58.decode(key).get)))
+        .map(_.map(k => PublicKey25519Proposition(k)))
 
-    if ( nodeKeys.isDefined )
-      log.info(s"Initializing state to watch for public keys: ${
-        nodeKeys
-          .get
-          .map(x => Base58.encode(x.bytes))
-      }")
+    if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: ${nodeKeys}")
     else log.info("Initializing state to watch for all public keys")
 
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA

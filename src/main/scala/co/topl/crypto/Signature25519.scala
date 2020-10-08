@@ -31,7 +31,7 @@ object Signature25519 {
   lazy val SignatureSize: Int = Curve25519.SignatureLength
 
   def apply (encodedSig: String): Signature25519 = {
-    if (encodedSig.isEmpty) Signature25519(Array.empty[Byte])
+    if (encodedSig.isEmpty) Signature25519(Array.emptyByteArray)
     else {
       Base58.decode(encodedSig) match {
         case Success(sig) => new Signature25519(sig)

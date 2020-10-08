@@ -40,7 +40,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
            |    },
            |    "programId": "${executionBox.value}",
            |    "preFeeBoxes": {
-           |      "$publicKey": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]]
+           |      "$publicKey": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
            |     },
            |     "fees": {
            |      "$publicKey": 0

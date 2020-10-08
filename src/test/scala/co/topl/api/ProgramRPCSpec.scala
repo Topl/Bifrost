@@ -11,10 +11,12 @@ import co.topl.BifrostGenerators
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
 import co.topl.settings.AppContext
 import io.circe._
@@ -62,31 +64,24 @@ class ProgramRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  val publicKeys: Map[String, String] = Map(
+  private def view() = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
+    10.seconds)
+
+  lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
+
+  val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
-  )
+    )
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get)
 
-  private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
-    10.seconds)
-
-  // Unlock Secrets
-  val gw: Wallet = view().vault
-  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-  gw.unlockKeyFile(publicKeys("hub"), "genesis")
+  val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 
 
   "Program RPC" should {
-
-    val polyBoxes = view()
-      .vault
-      .boxes()
-      .filter(_.box.isInstanceOf[PolyBox])
 
     val fees = Map(
       publicKeys("investor") -> 500,
@@ -95,7 +90,6 @@ class ProgramRPCSpec extends AnyWordSpec
     )
 
     var executionBox: Option[ExecutionBox] = None
-
 
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
@@ -136,7 +130,7 @@ class ProgramRPCSpec extends AnyWordSpec
           "owner": "${publicKeys("investor")}",
           "signatures": ${Map(publicKeys("investor") -> "".asJson).asJson},
           "preFeeBoxes": {
-            "${publicKeys("investor")}": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]]
+            "${publicKeys("investor")}": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
           },
           "fees": ${fees.asJson},
           "timestamp": ${System.currentTimeMillis},

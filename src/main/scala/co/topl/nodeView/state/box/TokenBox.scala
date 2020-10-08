@@ -1,6 +1,7 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
+import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
@@ -44,4 +45,30 @@ object TokenBox {
     } yield {
       (proposition, nonce, value)
     }
+
+  /**
+   * Generate a series of unlockers for a transactions that is used to validate the transaction
+   *
+   * @param from
+   * @param signatures
+   * @return
+   */
+  def generateUnlockers ( from: Seq[(PublicKey25519Proposition, Transaction.Nonce)],
+                          signatures: Map[PublicKey25519Proposition, Signature25519]
+                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    from.map {
+      case (prop, nonce) =>
+        val boxId = PublicKeyNoncedBox.idFromBox(prop, nonce)
+        val boxKey = signatures.getOrElse(prop, throw new Exception("Signature not provided"))
+        new BoxUnlocker(boxId, boxKey)
+    }
+  }
+
+  def generateUnlockers ( boxIds   : Seq[BoxId],
+                          signature: Signature25519
+                        ): Traversable[BoxUnlocker[PublicKey25519Proposition]] = {
+    boxIds.map { id =>
+      new BoxUnlocker(id, signature)
+    }
+  }
 }
