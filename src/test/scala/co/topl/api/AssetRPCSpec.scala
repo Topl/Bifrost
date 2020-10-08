@@ -94,46 +94,46 @@ class AssetRPCSpec extends AnyWordSpec
   var tx: Json = "".asJson
 
   "Asset RPC" should {
-    "Create some assets" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "createAssets",
-           |   "params": [{
-           |     "issuer": "${publicKeys("hub")}",
-           |     "recipient": "${publicKeys("investor")}",
-           |     "amount": 10,
-           |     "assetCode": "etherAssets",
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.modifierById(txHashId).get
-        asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
-
-        val history = view().history
-        val tempBlock = Block(history.bestBlockId,
-          System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
-          Seq(txInstance),
-          settings.forgingSettings.version
-        )
-        view().state.applyModifier(tempBlock)
-        view().pool.remove(txInstance)
-        //Dont need further checks here since the subsequent tests would fail if this one did
-      }
-    }
+//    "Create some assets" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |   "jsonrpc": "2.0",
+//           |   "id": "1",
+//           |   "method": "createAssets",
+//           |   "params": [{
+//           |     "issuer": "${publicKeys("hub")}",
+//           |     "recipient": "${publicKeys("investor")}",
+//           |     "amount": 10,
+//           |     "assetCode": "etherAssets",
+//           |     "fee": 0,
+//           |     "data": ""
+//           |   }]
+//           |}
+//        """.stripMargin)
+//
+//      httpPOST(requestBody) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
+//        val txHashId = ModifierId(Base58.decode(txHash).get)
+//        val txInstance: Transaction = view().pool.modifierById(txHashId).get
+//        asset = Option(txInstance.newBoxes.head.asInstanceOf[AssetBox])
+//
+//        val history = view().history
+//        val tempBlock = Block(history.bestBlockId,
+//          System.currentTimeMillis(),
+//          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
+//          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+//          Seq(txInstance),
+//          settings.forgingSettings.version
+//        )
+//        view().state.applyModifier(tempBlock)
+//        view().pool.remove(txInstance)
+//        //Dont need further checks here since the subsequent tests would fail if this one did
+//      }
+//    }
 
     "Create assets prototype" in {
       val requestBody = ByteString(
@@ -161,27 +161,27 @@ class AssetRPCSpec extends AnyWordSpec
       }
     }
 
-    "Sign createAssets Prototype transaction" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |  "jsonrpc": "2.0",
-           |  "id": "3",
-           |  "method": "signTx",
-           |  "params": [{
-           |    "signingKeys": ["${publicKeys("hub")}"],
-           |    "protoTx": $tx
-           |  }]
-           |}
-          """.stripMargin)
-
-      walletHttpPOST(requestBody) ~> walletRoute ~> check {
-        val res = parse(responseAs[String]).right.get
-        tx = (res \\ "result").head
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
+//    "Sign createAssets Prototype transaction" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |  "jsonrpc": "2.0",
+//           |  "id": "3",
+//           |  "method": "signTx",
+//           |  "params": [{
+//           |    "signingKeys": ["${publicKeys("hub")}"],
+//           |    "protoTx": $tx
+//           |  }]
+//           |}
+//          """.stripMargin)
+//
+//      walletHttpPOST(requestBody) ~> walletRoute ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        tx = (res \\ "result").head
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//      }
+//    }
 
 //    "Broadcast createAssetsPrototype transaction" in {
 //      val secret = view().vault.secretByPublicImage(
@@ -261,62 +261,62 @@ class AssetRPCSpec extends AnyWordSpec
 //      }
 //    }
 
-    "Transfer a target asset" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "transferTargetAssets",
-           |   "params": [{
-           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
-           |     "recipient": "${publicKeys("producer")}",
-           |     "assetId": "${asset.get.id}",
-           |     "amount": 1,
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
+//    "Transfer a target asset" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |   "jsonrpc": "2.0",
+//           |   "id": "1",
+//           |   "method": "transferTargetAssets",
+//           |   "params": [{
+//           |     "sender": ["${Base58.encode(asset.get.proposition.pubKeyBytes)}"],
+//           |     "recipient": "${publicKeys("producer")}",
+//           |     "assetId": "${asset.get.id}",
+//           |     "amount": 1,
+//           |     "fee": 0,
+//           |     "data": ""
+//           |   }]
+//           |}
+//        """.stripMargin)
+//
+//      httpPOST(requestBody) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//      }
+//    }
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-      }
-    }
-
-    "Transfer some assets" in {
-      val requestBody = ByteString(
-        s"""
-           |{
-           |   "jsonrpc": "2.0",
-           |   "id": "1",
-           |   "method": "transferAssets",
-           |   "params": [{
-           |     "issuer": "${publicKeys("hub")}",
-           |      "sender": ["${publicKeys("investor")}", "${publicKeys("hub")}", "${publicKeys("producer")}"],
-           |     "recipient": "${publicKeys("producer")}",
-           |     "amount": 1,
-           |     "assetCode": "etherAssets",
-           |     "fee": 0,
-           |     "data": ""
-           |   }]
-           |}
-        """.stripMargin)
-
-      httpPOST(requestBody) ~> route ~> check {
-        val res = parse(responseAs[String]).right.get
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").head.asObject.isDefined shouldBe true
-
-        //Removing transaction from mempool so as not to affect ProgramRPC tests
-        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.modifierById(txHashId).get
-        view().pool.remove(txInstance)
-      }
-    }
+//    "Transfer some assets" in {
+//      val requestBody = ByteString(
+//        s"""
+//           |{
+//           |   "jsonrpc": "2.0",
+//           |   "id": "1",
+//           |   "method": "transferAssets",
+//           |   "params": [{
+//           |     "issuer": "${publicKeys("hub")}",
+//           |      "sender": ["${publicKeys("investor")}", "${publicKeys("hub")}", "${publicKeys("producer")}"],
+//           |     "recipient": "${publicKeys("producer")}",
+//           |     "amount": 1,
+//           |     "assetCode": "etherAssets",
+//           |     "fee": 0,
+//           |     "data": ""
+//           |   }]
+//           |}
+//        """.stripMargin)
+//
+//      httpPOST(requestBody) ~> route ~> check {
+//        val res = parse(responseAs[String]).right.get
+//        (res \\ "error").isEmpty shouldBe true
+//        (res \\ "result").head.asObject.isDefined shouldBe true
+//
+//        //Removing transaction from mempool so as not to affect ProgramRPC tests
+//        val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
+//        val txHashId = ModifierId(Base58.decode(txHash).get)
+//        val txInstance: Transaction = view().pool.modifierById(txHashId).get
+//        view().pool.remove(txInstance)
+//      }
+//    }
 
     "Create transfer assets prototype" in {
       val requestBody = ByteString(
