@@ -64,8 +64,7 @@ case class ForgingSettings ( MinimumDifficulty   : Long,
                              keyFileDir          : Option[String]
                            )
 
-case class AppSettings ( walletSeed     : String,
-                         walletDir      : Option[String],
+case class AppSettings (
                          dataDir        : Option[String],
                          logDir         : Option[String],
                          enablePBR      : Boolean,

@@ -68,7 +68,7 @@ class MessageSerializer(specs: Seq[MessageSpec[_]], magicBytes: Array[Byte]) {
           }
           data
         } else {
-          Array.empty[Byte]
+          Array.emptyByteArray
         }
 
         Some(Message(spec, Left(msgData), sourceOpt))

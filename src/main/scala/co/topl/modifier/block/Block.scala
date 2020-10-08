@@ -54,7 +54,7 @@ case class Block ( parentId : BlockId,
   lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = Signature25519(Array.empty[Byte]))
+    val noSigCopy = this.copy(signature = Signature25519(Array.emptyByteArray))
     serializer.toBytes(noSigCopy)
   }
 }
@@ -117,11 +117,11 @@ object Block {
     assert(box.proposition == privateKey.publicImage)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, Signature25519(Array.empty[Byte]), txs, version)
+    val block = Block(parentId, timestamp, box, Signature25519(Array.emptyByteArray), txs, version)
 
     // generate signature from the block message and private key
     val signature =
-      if (parentId == History.GenesisParentId) Signature25519(Array.empty[Byte]) // genesis block will skip signature check
+      if (parentId == History.GenesisParentId) Signature25519(Array.emptyByteArray) // genesis block will skip signature check
       else privateKey.sign(block.messageToSign)
 
     // return a valid block with the signature attached

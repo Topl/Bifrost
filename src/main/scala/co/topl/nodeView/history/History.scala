@@ -564,18 +564,12 @@ object History extends Logging {
   val GenesisParentId: Block.BlockId = ModifierId(Array.fill(32)(1: Byte))
 
   def readOrGenerate(settings: AppSettings): History = {
-    val dataDirOpt = settings.dataDir.ensuring(_.isDefined, "data dir must be specified")
-    val dataDir = dataDirOpt.get
-    readOrGenerate(dataDir, settings)
-  }
-
-  def readOrGenerate(dataDir: String, settings: AppSettings): History = {
-
     /** Setup persistent on-disk storage */
+    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val iFile = new File(s"$dataDir/blocks")
     iFile.mkdirs()
-    val blockStorage = new LSMStore(iFile)
-    val storage = new Storage(blockStorage, settings)
+    val blockStorageDB = new LSMStore(iFile)
+    val storage = new Storage(blockStorageDB, settings)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)

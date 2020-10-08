@@ -307,9 +307,10 @@ object State extends Logging {
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
   def stateFile(settings: AppSettings): File = {
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "Data directory must be specified").get
-    new File(dataDir).mkdirs()
-    new File(s"$dataDir/state")
+    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val file = new File(s"$dataDir/state")
+    file.mkdirs()
+    file
   }
 
   def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
@@ -317,21 +318,16 @@ object State extends Logging {
 
     val version: VersionTag = ModifierId(
       storage.lastVersionID
-        .fold(Array.emptyByteArray)(_.data)
+        .fold(Array.fill(ModifierId.size)(0:Byte))(_.data)
       )
 
     // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[PublicKey25519Proposition]] =
       settings
         .nodeKeys
-        .map(_.map(key => PublicKey25519Proposition(Base58.decode(key).get)))
+        .map(_.map(k => PublicKey25519Proposition(k)))
 
-    if ( nodeKeys.isDefined )
-      log.info(s"Initializing state to watch for public keys: ${
-        nodeKeys
-          .get
-          .map(x => Base58.encode(x.bytes))
-      }")
+    if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: ${nodeKeys}")
     else log.info("Initializing state to watch for all public keys")
 
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
