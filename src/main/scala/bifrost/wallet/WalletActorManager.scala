@@ -12,7 +12,11 @@ class WalletActorManager extends Actor {
     case msg: String => {
       if (msg == "Remote wallet actor initialized") {
         remoteWalletActor = Some(sender())
-        sender ! s"received new wallet from: ${Some(sender())}"
+        sender ! s"received new wallet from: ${sender()}"
+      }
+      if (msg == "Remote wallet actor stopped") {
+        remoteWalletActor = None
+        sender ! s"the remote wallet ${sender()} has been removed from the WalletActorManager in Bifrost"
       }
     }
 

@@ -109,6 +109,11 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
       val response: String = Await.result((bifrostActorRef ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
       sender ! response
     }
+
+    case GjallarhornStopped() => {
+      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
+      sender ! response
+    }
   }
 }
 
@@ -122,4 +127,5 @@ object WalletManager {
   //case class UpdateWallet(add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])])
 
   case class GjallarhornStarted()
+  case class GjallarhornStopped()
 }

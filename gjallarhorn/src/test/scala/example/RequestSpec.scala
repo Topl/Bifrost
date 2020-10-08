@@ -185,7 +185,13 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStarted()).mapTo[String], 100.seconds)
-    assert(bifrostResponse.contains("received new wallet from: Some(Actor[akka.tcp://requestTest@127.0.0.1"))
+    assert(bifrostResponse.contains("received new wallet from: Actor[akka.tcp://requestTest@127.0.0.1"))
+  }
+
+  it should "send msg to bifrost actor when the gjallarhorn app stops" in {
+    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped()).mapTo[String], 100.seconds)
+    assert(bifrostResponse.contains("the remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
+            bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
   }
 
 }
