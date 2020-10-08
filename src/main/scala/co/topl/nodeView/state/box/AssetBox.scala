@@ -17,27 +17,22 @@ case class AssetBox ( override val proposition: PublicKey25519Proposition,
 }
 
 object AssetBox {
-  implicit val jsonEncoder: Encoder[AssetBox] = ( box: AssetBox ) =>
-    Map(
-      "id" -> box.id.asJson,
-      "type" -> box.typeOfBox.asJson,
-      "proposition" -> box.proposition.asJson,
-      "assetCode" -> box.assetCode.asJson,
-      "value" -> box.value.toString.asJson,
+  implicit val jsonEncoder: Encoder[AssetBox] = { box: AssetBox =>
+    (TokenBox.jsonEncode(box) ++ Map(
       "issuer" -> box.issuer.asJson,
       "data" -> box.data.asJson,
-      "nonce" -> box.nonce.toString.asJson
+      "nonce" -> box.nonce.toString.asJson)
       ).asJson
+  }
 
   implicit val jsonDecoder: Decoder[AssetBox] = ( c: HCursor ) =>
     for {
-      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
-      value <- c.downField("value").as[Long]
-      nonce <- c.downField("issuer").as[Long]
+      b <- TokenBox.jsonDecode(c)
       assetCode <- c.downField("assetCode").as[String]
       issuer <- c.downField("issuer").as[PublicKey25519Proposition]
       data <- c.downField("data").as[String]
     } yield {
+      val (proposition, nonce, value) = b
       AssetBox(proposition, nonce, value, assetCode, issuer, data)
     }
 }

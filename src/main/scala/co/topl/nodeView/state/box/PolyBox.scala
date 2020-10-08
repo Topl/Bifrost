@@ -12,22 +12,10 @@ case class PolyBox(override val proposition: PublicKey25519Proposition,
 }
 
 object PolyBox {
-  implicit val jsonEncoder: Encoder[PolyBox] = { box: PolyBox =>
-    Map(
-      "id" -> box.id.toString.asJson,
-      "type" -> box.typeOfBox.asJson,
-      "proposition" -> box.proposition.toString.asJson,
-      "value" -> box.value.toString.asJson,
-      "nonce" -> box.nonce.toString.asJson
-      ).asJson
-  }
+  implicit val jsonEncoder: Encoder[PolyBox] =  (box: PolyBox) => TokenBox.jsonEncode(box).asJson
 
   implicit val jsonDecoder: Decoder[PolyBox] = ( c: HCursor ) =>
-    for {
-      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
-      value <- c.downField("value").as[Long]
-      nonce <- c.downField("issuer").as[Long]
-    } yield {
-      PolyBox(proposition, nonce, value)
+    TokenBox.jsonDecode(c).map {
+      case (proposition, nonce, value) => PolyBox(proposition, nonce, value)
     }
 }

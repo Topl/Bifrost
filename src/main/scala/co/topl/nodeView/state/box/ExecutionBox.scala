@@ -17,25 +17,20 @@ case class ExecutionBox( override val proposition: PublicKey25519Proposition,
 
 object ExecutionBox {
 
-  implicit val jsonEncoder: Encoder[ExecutionBox] = (box: ExecutionBox) =>
-    Map(
-      "id" -> box.id.toString.asJson,
-      "type" -> box.typeOfBox.asJson,
-      "proposition" -> box.proposition.toString.asJson,
-      "programId" -> box.value.toString.asJson,
+  implicit val jsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>
+    (ProgramBox.jsonEncode(box) ++ Map(
       "stateBoxIds" -> box.stateBoxIds.asJson,
-      "codeBoxIds" -> box.codeBoxIds.asJson,
-      "nonce" -> box.nonce.toString.asJson,
-      ).asJson
+      "codeBoxIds" -> box.codeBoxIds.asJson
+    )).asJson
+  }
 
-  implicit val jsonDecoder: Decoder[ExecutionBox] = (c: HCursor) =>
+  implicit val jsonDecoder: Decoder[ExecutionBox] = ( c: HCursor ) =>
     for {
-      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
-      programId <- c.downField("programId").as[ProgramId]
-      nonce <- c.downField("nonce").as[Long]
+      b <- ProgramBox.jsonDecode(c)
       stateBoxIds <- c.downField("stateBoxIds").as[Seq[ProgramId]]
       codeBoxIds <- c.downField("codeBoxIds").as[Seq[ProgramId]]
     } yield {
+      val (proposition, nonce, programId) = b
       ExecutionBox(proposition, nonce, programId, stateBoxIds, codeBoxIds)
     }
 }

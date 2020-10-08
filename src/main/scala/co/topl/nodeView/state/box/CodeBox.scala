@@ -17,25 +17,20 @@ case class CodeBox ( override val proposition: PublicKey25519Proposition,
 
 object CodeBox {
 
-  implicit val jsonEncoder: Encoder[CodeBox] = (box: CodeBox) =>
-    Map(
-      "id" -> box.id.asJson,
-      "type" -> box.typeOfBox.asJson,
-      "proposition" -> box.proposition.asJson,
-      "nonce" -> box.nonce.asJson,
-      "programId" -> box.value.asJson,
+  implicit val jsonEncoder: Encoder[CodeBox] = { box: CodeBox =>
+    (ProgramBox.jsonEncode(box) ++ Map(
       "code" -> box.code.asJson,
       "interface" -> box.interface.map(ci => ci._1 -> ci._2.asJson).asJson
-      ).asJson
+      )).asJson
+  }
 
   implicit val jsonDecoder: Decoder[CodeBox] = ( c: HCursor ) =>
     for {
-      proposition <- c.downField("proposition").as[PublicKey25519Proposition]
-      value <- c.downField("programId").as[ProgramId]
+      b <- ProgramBox.jsonDecode(c)
       code <- c.downField("code").as[Seq[String]]
       interface <- c.downField("interface").as[Map[String, Seq[String]]]
-      nonce <- c.downField("nonce").as[Long]
     } yield {
-      CodeBox(proposition, nonce, value, code, interface)
+      val (proposition, nonce, programId) = b
+      CodeBox(proposition, nonce, programId, code, interface)
     }
 }
