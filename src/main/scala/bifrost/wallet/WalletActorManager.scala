@@ -26,7 +26,7 @@ class WalletActorManager extends Actor {
 }
 
 object WalletActorManager {
-  case class RemoteWalletActorInitialized()
 
-  case class GetRemoteWalletRef()
+  case object GetRemoteWalletRef
+
 }

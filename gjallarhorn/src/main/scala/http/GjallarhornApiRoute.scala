@@ -44,7 +44,9 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    val tx = requests.transaction(params)
+    val method: String = (params \\ "method").head.asString.get
+    val innerParams: Json = (params \\ "params").head.asArray.get.head
+    val tx = requests.transaction(method, innerParams)
     Future{requests.sendRequest(tx, "asset")}
   }
 
@@ -81,7 +83,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a list of the open key files once they are retrieved.
     */
   private def listOpenKeyfiles(params: Json, id: String): Future[Json] = {
-    (keyManager ? GetOpenKeyfiles()).mapTo[Set[String]].map(_.asJson)
+    (keyManager ? GetOpenKeyfiles).mapTo[Set[String]].map(_.asJson)
   }
 
   /**

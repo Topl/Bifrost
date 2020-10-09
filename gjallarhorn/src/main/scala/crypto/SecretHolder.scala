@@ -1,10 +1,9 @@
 package crypto
 
-import serialization.{BytesSerializable, Serializer}
-import com.google.common.primitives.Bytes
 import scorex.crypto.signatures.Curve25519
+import serialization.{BytesSerializable}
+import utils.serialization.{GjalSerializer, Reader, Writer}
 
-import scala.util.Try
 
 trait Secret extends BytesSerializable {
   self =>
@@ -36,21 +35,13 @@ case class PrivateKey25519(privKeyBytes: Array[Byte], publicKeyBytes: Array[Byte
 
   override type S = PrivateKey25519
   override type PK = PublicKey25519Proposition
+  override type M = PrivateKey25519
 
   override lazy val companion: SecretCompanion[PrivateKey25519] = PrivateKey25519Companion
 
   override lazy val publicImage: PublicKey25519Proposition = PublicKey25519Proposition(publicKeyBytes)
-  override type M = PrivateKey25519
 
-  override def serializer: Serializer[PrivateKey25519] = PrivateKey25519Serializer
-}
-
-object PrivateKey25519Serializer extends Serializer[PrivateKey25519] {
-  override def toBytes(obj: PrivateKey25519): Array[Byte] = Bytes.concat(obj.privKeyBytes, obj.publicKeyBytes)
-
-  override def parseBytes(bytes: Array[Byte]): Try[PrivateKey25519] = Try {
-    PrivateKey25519(bytes.slice(0, 32), bytes.slice(32, 64))
-  }
+  override def serializer: GjalSerializer[PrivateKey25519] = PrivateKey25519Serializer
 }
 
 object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
@@ -68,5 +59,19 @@ object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
     val pair = Curve25519.createKeyPair(randomSeed)
     val secret: PrivateKey25519 = PrivateKey25519(pair._1, pair._2)
     secret -> secret.publicImage
+  }
+}
+
+object PrivateKey25519Serializer extends GjalSerializer[PrivateKey25519] {
+  override def serialize(obj: PrivateKey25519, w: Writer): Unit = {
+    /* privKeyBytes: Array[Byte] */
+    w.putBytes(obj.privKeyBytes)
+
+    /* publicKeyBytes: Array[Byte] */
+    w.putBytes(obj.publicKeyBytes)
+  }
+
+  override def parse(r: Reader): PrivateKey25519 = {
+    PrivateKey25519(r.getBytes(Curve25519.KeyLength), r.getBytes(Curve25519.KeyLength))
   }
 }

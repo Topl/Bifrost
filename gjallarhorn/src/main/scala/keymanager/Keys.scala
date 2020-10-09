@@ -3,12 +3,11 @@ package keymanager
 import java.io.File
 
 import scorex.crypto.encode.Base58
-import com.typesafe.scalalogging.StrictLogging
 import crypto.{PrivateKey25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import utils.Logging
+import scala.util.{Failure, Success, Try}
 
-import scala.util.{Failure, Success}
-
-case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extends StrictLogging {
+case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extends Logging {
 
   import Keys._
   type S = PrivateKey25519
@@ -41,49 +40,54 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
     * @param publicKeyString
     * @param password - password for the given public key.
     */
-  def unlockKeyFile(publicKeyString: String, password: String): Unit = {
-    val keyfiles = getListOfFiles(defaultKeyDir)
-      .map(file => KeyFile.readFile(file.getPath))
-      .filter(k => k
-        .pubKeyBytes sameElements Base58
-        .decode(publicKeyString)
-        .get)
+  def unlockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try{
+    val privKey = checkValid(publicKeyString: String, password: String)
 
-    assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
-    val privKey = keyfiles.head.getPrivateKey(password) match {
-      case Success(priv) => Set(priv)
-      case Failure(e) => throw e
-    }
     // ensure no duplicate by comparing privKey strings
-    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
-      secrets += privKey.head
-    } else {
-      logger.warn(s"$publicKeyString is already unlocked")
+    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.privKeyBytes))) {
+      secrets += privKey
     }
+    else log.warn(s"$publicKeyString is already unlocked")
   }
+
 
   /**
     * Given a public key and password, locks a key file.
     * @param publicKeyString
     * @param password - password associated with public key.
     */
-  def lockKeyFile(publicKeyString: String, password: String): Unit = {
-    val keyfiles = getListOfFiles(defaultKeyDir)
-      .map(file => KeyFile.readFile(file.getPath))
-      .filter(k => k
-        .pubKeyBytes sameElements Base58
-        .decode(publicKeyString)
-        .get)
-    assert(keyfiles.size == 1, "Cannot find a unique publicKey in key files")
-    val privKey = keyfiles.head.getPrivateKey(password) match {
-      case Success(priv) => Set(priv)
-      case Failure(e) => throw e
-    }
+  def lockKeyFile(publicKeyString: String, password: String): Try[Unit] = Try{
+    val privKey = checkValid(publicKeyString: String, password: String)
+
     // ensure no duplicate by comparing privKey strings
-    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.head.privKeyBytes))) {
-      logger.warn(s"$publicKeyString is already locked")
-    } else {
-      secrets -= (secrets find (p => Base58.encode(p.privKeyBytes) == Base58.encode(privKey.head.privKeyBytes))).get
+    if (!secrets.map(p => Base58.encode(p.privKeyBytes)).contains(Base58.encode(privKey.privKeyBytes)))
+      log.warn(s"$publicKeyString is already locked")
+    else secrets -= (secrets find (p => Base58.encode(p.privKeyBytes) == Base58.encode(privKey.privKeyBytes))).get
+  }
+
+
+  /** Return a list of KeuFile instances for all keys in the key file directory */
+  private def listKeyFiles: List[KeyFile] =
+    getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath))
+
+
+  /**
+    * Check if given publicKey string is valid and contained in the key file directory
+    *
+    * @param publicKeyString Base58 encoded public key to query
+    * @param password        password used to decrypt the keyfile
+    * @return the relevant PrivateKey25519 to be processed
+    */
+  private def checkValid ( publicKeyString: String, password: String ): PrivateKey25519 = {
+    val keyfile = listKeyFiles.filter {
+      _.pubKeyBytes sameElements PublicKey25519Proposition(publicKeyString).pubKeyBytes
+    }
+
+    assert(keyfile.size == 1, "Cannot find a unique publicKey in key files")
+
+    keyfile.head.getPrivateKey(password) match {
+      case Success(privKey) => privKey
+      case Failure(e)       => throw e
     }
   }
 }

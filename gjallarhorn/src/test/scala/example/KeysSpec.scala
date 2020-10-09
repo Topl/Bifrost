@@ -93,6 +93,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
     assert(Keys.getListOfFiles(keyFileDir).size == 1)
   }
 
+
   it should "Be unlocked yes path" in {
     keyManager.unlockKeyFile(Base58.encode(pubKeys.head.pubKeyBytes), password)
     assert(keyManager.secrets.size == 1)

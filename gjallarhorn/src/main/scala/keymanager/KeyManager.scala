@@ -25,7 +25,7 @@ class KeyManager(keyDir: String) extends Actor {
 
     case LockKeyFile(pubKeyString, password) => keyManager.lockKeyFile(pubKeyString, password)
 
-    case GetOpenKeyfiles() =>
+    case GetOpenKeyfiles =>
       sender ! keyManager.listOpenKeyFiles
 
     case SignTx(tx, keys, msg) =>
@@ -53,7 +53,7 @@ object KeyManager {
   case class GenerateKeyFile(password: String)
   case class UnlockKeyFile(publicKeyString: String, password: String)
   case class LockKeyFile(publicKeyString: String, password: String)
-  case class GetOpenKeyfiles()
+  case object GetOpenKeyfiles
   case class SignTx(transaction: Json, signingKeys: List[String], messageToSign: Json)
 }
 

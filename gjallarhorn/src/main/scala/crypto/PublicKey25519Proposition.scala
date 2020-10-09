@@ -1,13 +1,16 @@
 package crypto
 
-import serialization.Serializer
+
+import FastCryptographicHash._
+import utils.serialization.GjalSerializer
+import io.circe.syntax.EncoderOps
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
-// noinspection ScalaStyle
 case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
@@ -15,39 +18,42 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   import PublicKey25519Proposition._
 
-  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
+  override type M = PublicKey25519Proposition
 
   lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
 
+  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
+
+  override def serializer: GjalSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
+
   override def toString: String = address
 
-  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
-
-  override type M = PublicKey25519Proposition
-
-  override def serializer: Serializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
-
-  override def equals(obj: scala.Any): Boolean = obj match {
+  override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
     case _ => false
   }
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
 
+  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
 }
 
-object PublicKey25519PropositionSerializer extends Serializer[PublicKey25519Proposition] {
-  override def toBytes(obj: PublicKey25519Proposition): Array[Byte] = obj.pubKeyBytes
 
-  override def parseBytes(bytes: Array[Byte]): Try[PublicKey25519Proposition] = Try(PublicKey25519Proposition(bytes))
-}
 
 object PublicKey25519Proposition {
-  val AddressVersion: Byte = 1
-  val ChecksumLength = 4
-  val AddressLength = 1 + Constants25519.PubKeyLength + ChecksumLength
 
-  def calcCheckSum(bytes: Array[Byte]): Array[Byte] = Blake2b256.hash(bytes).take(ChecksumLength)
+  val AddressVersion: Byte = 1
+  val ChecksumLength: Int = 4
+  val AddressLength: Int = 1 + Constants25519.PubKeyLength + ChecksumLength
+
+  def apply(id: String): PublicKey25519Proposition = {
+    Base58.decode(id) match {
+      case Success(id) => new PublicKey25519Proposition(id)
+      case Failure(ex) => throw ex
+    }
+  }
+
+  def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
 
   def validPubKey(address: String): Try[PublicKey25519Proposition] =
     Base58.decode(address).flatMap { addressBytes =>
@@ -63,6 +69,21 @@ object PublicKey25519Proposition {
         else Failure(new Exception("Wrong checksum"))
       }
     }
+
+
+  // see circe documentation for custom encoder / decoders
+  // https://circe.github.io/circe/codecs/custom-codecs.html
+  implicit val jsonEncoder: Encoder[PublicKey25519Proposition] =
+  (prop: PublicKey25519Proposition) => prop.toString.asJson
+
+  implicit val jsonDecoder: Decoder[PublicKey25519Proposition] =
+    Decoder.decodeString.emapTry { prop => Try(PublicKey25519Proposition(prop)) }
+
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKey25519Proposition] =
+    ( prop: PublicKey25519Proposition ) => prop.toString
+
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKey25519Proposition] =
+    ( prop: String ) => Some(PublicKey25519Proposition(prop))
 }
 
 object Constants25519 {

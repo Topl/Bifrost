@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
@@ -17,7 +17,7 @@ import wallet.WalletManager
 import wallet.WalletManager._
 
 import scala.reflect.io.Path
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import scala.concurrent.Await
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
@@ -184,12 +184,14 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
-    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStarted()).mapTo[String], 100.seconds)
+    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
+      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne(), 10.seconds)
+    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStarted(bifrostActor)).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("received new wallet from: Actor[akka.tcp://requestTest@127.0.0.1"))
   }
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
-    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped()).mapTo[String], 100.seconds)
+    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("the remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
             bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
   }

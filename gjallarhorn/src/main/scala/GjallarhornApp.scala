@@ -1,50 +1,78 @@
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.pattern.ask
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
+import akka.util.Timeout
 import http.GjallarhornApiRoute
 import keymanager.{KeyManagerRef, Keys}
 import requests.Requests
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.WalletManager
-import wallet.WalletManager.GjallarhornStarted
+import wallet.WalletManager.{GjallarhornStarted, GjallarhornStopped}
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
+  private val settings: AppSettings = AppSettings.read(startupOpts)
   implicit val system: ActorSystem = ActorSystem("Gjallarhorn")
   implicit val context: ExecutionContextExecutor = system.dispatcher
+  implicit val timeout: Timeout = 10.seconds
 
-  private val settings: AppSettings = AppSettings.read(startupOpts)
+  private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
+  val keyFileDir: String = settings.keyFileDir
+  val keyManager: Keys = Keys(Set(), keyFileDir)
+
+  val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
+
+  system.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne().onComplete {
+    case Success(actor) => {
+      log.info(s"bifrst actor ref was found: $actor")
+      walletManagerRef ! GjallarhornStarted(actor)
+    }
+    case Failure(ex) =>
+      log.error(s"bifrost actor ref not found at: akka.tcp://bifrost-client@127.0.0.1:9087. Terminating application!${Console.RESET}")
+      GjallarhornApp.shutdown(system, Seq(keyManagerRef))
+  }
+
+
+  //sequence of actors for cleanly shutting down the application
+   private val actorsToStop: Seq[ActorRef] = Seq(
+     keyManagerRef,
+     walletManagerRef
+   )
+
+  //hook for initiating the shutdown procedure
+  sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
+
   val requests: Requests = new Requests(settings)
   val httpPort: Int = settings.rpcPort
 
-  private val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", "keyfiles")
-  val keyFileDir = settings.keyFileDir
-  val keyManager = Keys(Set(), keyFileDir)
-
-  private val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
-
   private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
+
   Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
     case Success(serverBinding) =>
       log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 
     case Failure(ex) =>
       log.error(s"${Console.YELLOW}Failed to bind to localhost:$httpPort. Terminating application!${Console.RESET}", ex)
+      GjallarhornApp.shutdown(system, actorsToStop)
   }
 
 
   def run(): Unit = {
-    walletManagerRef ! GjallarhornStarted
+
   }
 }
 
 object GjallarhornApp extends Logging {
 
   import com.joefkelley.argyle._
+
+  implicit val timeout: Timeout = 10.seconds
 
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
@@ -56,5 +84,21 @@ object GjallarhornApp extends Logging {
       case Success(argsParsed) => new GjallarhornApp(argsParsed).run()
       case Failure(e) => throw e
     }
+  }
+
+  def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
+    val wallet: Seq[ActorRef] = actors.filter(actor => actor.path.name == "WalletManager")
+    if (wallet.nonEmpty) {
+      log.warn ("Telling Bifrost that this wallet is shutting down.")
+      val walletManager: ActorRef = wallet.head
+      Await.result(walletManager ? GjallarhornStopped, 10.seconds)
+    }
+    log.warn("Terminating Actors")
+    actors.foreach { a => a ! PoisonPill }
+    log.warn("Terminating ActorSystem")
+    val termination = system.terminate()
+    Await.result(termination, 60.seconds)
+    log.warn("Application has been terminated.")
+
   }
 }

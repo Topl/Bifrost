@@ -5,18 +5,22 @@ import akka.pattern.ask
 import akka.util.Timeout
 import io.circe.{Json, ParsingFailure}
 import io.circe.parser.parse
+import utils.Logging
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
-class WalletManager(publicKeys: Set[String]) extends Actor {
+class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   import WalletManager._
 
   implicit val timeout: Timeout = 10.seconds
 
+  /**
+    * Represents the wallet boxes: publicKey1 -> {id1 -> walletBox1, id2 -> walletBox2, ...}, publicKey2 -> {},...
+    */
   var walletBoxes: MMap[String, MMap[String, Json]] = {
     val returnVal: MMap[String, MMap[String, Json]] = MMap.empty
     publicKeys.map(key =>
@@ -25,7 +29,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
     returnVal
   }
 
-  val bifrostActorRef: ActorSelection = context.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager")
+  var bifrostActorRef: Option[ActorRef] = None
 
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
@@ -105,14 +109,20 @@ class WalletManager(publicKeys: Set[String]) extends Actor {
 
     }
 
-    case GjallarhornStarted() => {
-      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
+    case GjallarhornStarted(actorRef: ActorRef) => {
+      bifrostActorRef = Some(actorRef)
+      val response: String = Await.result((actorRef ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
       sender ! response
+
     }
 
-    case GjallarhornStopped() => {
-      val response: String = Await.result((bifrostActorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
-      sender ! response
+    case GjallarhornStopped => {
+      bifrostActorRef match {
+        case Some(actorRef) =>
+          val response: String = Await.result((actorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
+          sender ! response
+        case None => log.error("actor ref was not found.")
+      }
     }
   }
 }
@@ -126,6 +136,6 @@ object WalletManager {
   case class UpdateWallet(updatedBoxes: Json)
   //case class UpdateWallet(add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])])
 
-  case class GjallarhornStarted()
-  case class GjallarhornStopped()
+  case class GjallarhornStarted(bifrostActorRef: ActorRef)
+  case object GjallarhornStopped
 }

@@ -22,11 +22,6 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   val pt = Bip39.apply(lang)
   //------------------------------------------------------------------------------------
 
-  "The wordlists" should "pass checksum" in {
-    assert(pt.verifyPhraseList)
-  }
-  //------------------------------------------------------------------------------------
-
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
   }

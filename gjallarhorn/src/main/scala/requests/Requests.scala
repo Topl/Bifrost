@@ -24,14 +24,13 @@ class Requests (settings: AppSettings)
 
   val timeout: Timeout = Timeout(10.seconds)
 
-  val requestPort: Int = settings.requestPort
-  val requestAddress: String = settings.requestAddress
+  val declaredAddress = settings.declaredAddress
 
   //Generic Method for HTTP POST request
   def httpPOST(jsonRequest: ByteString, path: String): HttpRequest = {
     HttpRequest(
       HttpMethods.POST,
-      uri = s"http://$requestAddress:$requestPort/$path/",
+      uri = s"$declaredAddress/$path/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
@@ -77,6 +76,7 @@ class Requests (settings: AppSettings)
     ByteString(newJSON.toString.getBytes())
   }
 
+  //TODO: this is only called from RequestSpec...
   def signTx(transaction: Json, keyManager: Keys, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
@@ -108,9 +108,7 @@ class Requests (settings: AppSettings)
   }
 
 
-  def transaction(params: Json): ByteString = {
-    val method = (params \\ "method").head.asString.get
-    val innerParams = (params \\ "params").head.asArray.get.head
+  def transaction(method: String, innerParams: Json): ByteString = {
     var requestBody: ByteString = ByteString.empty
     requestBody = ByteString(
         s"""
