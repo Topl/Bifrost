@@ -1,12 +1,13 @@
 package co.topl.program
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ CodeBox, StateBox }
-import co.topl.utils.exceptions.{ ChainProgramException, JsonParsingException }
+import co.topl.nodeView.state.box.{CodeBox, StateBox}
+import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
-import org.graalvm.polyglot.{ Context, Value }
-import scorex.crypto.encode.Base58
+import org.graalvm.polyglot.{Context, Value}
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.util.Try
 
@@ -71,7 +72,7 @@ object Program {
           .toMap
           .map {
             party =>
-              val publicKey = Base58.decode(party._1).get
+              val publicKey = PublicKey @@ Base58.decode(party._1).get
               val role = party._2.asString.get
               new PublicKey25519Proposition(publicKey) -> role
           }

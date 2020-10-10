@@ -2,17 +2,17 @@ package co.topl.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ ActorContext, ActorRef, Cancellable }
-import co.topl.network.NodeViewSynchronizer.Events.{ BetterNeighbourAppeared, NoBetterNeighbour }
+import akka.actor.{ActorContext, ActorRef, Cancellable}
+import co.topl.network.NodeViewSynchronizer.Events.{BetterNeighbourAppeared, NoBetterNeighbour}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.SendLocalSyncInfo
 import co.topl.network.peer.ConnectedPeer
-import co.topl.nodeView.history.GenericHistory.{ Fork, HistoryComparisonResult, Older, Unknown }
+import co.topl.nodeView.history.GenericHistory.{Fork, HistoryComparisonResult, Older, Unknown}
 import co.topl.settings.NetworkSettings
-import co.topl.utils.{ Logging, TimeProvider }
+import co.topl.utils.{Logging, TimeProvider}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{ FiniteDuration, _ }
+import scala.concurrent.duration.{FiniteDuration, _}
 
 /**
   * SyncTracker caches the peers' statuses (i.e. whether they are ahead or behind this node)
@@ -37,7 +37,10 @@ class SyncTracker(nvsRef: ActorRef,
     schedule foreach {
       _.cancel()
     }
-    schedule = Some(context.system.scheduler.schedule(2.seconds, minInterval())(nvsRef ! SendLocalSyncInfo))
+    schedule = Some(context.system.scheduler.scheduleWithFixedDelay(2.seconds,
+                                                                    minInterval(),
+                                                                    nvsRef,
+                                                                    SendLocalSyncInfo))
   }
 
   def maxInterval(): FiniteDuration =

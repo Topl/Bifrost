@@ -4,7 +4,7 @@ import sbtassembly.MergeStrategy
 name := "bifrost"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.11",
+  scalaVersion := "2.12.12",
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   organization := "co.topl",
@@ -12,7 +12,7 @@ lazy val commonSettings = Seq(
 //  wartremoverErrors := Warts.unsafe // settings for wartremover
 )
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.12"
 organization := "co.topl"
 version := "1.1.0"
 
@@ -22,8 +22,8 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.5.31"
-val akkaHttpVersion = "10.1.12"
+val akkaVersion = "2.6.9"
+val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
 
 val akkaDependencies = Seq(
@@ -38,7 +38,7 @@ val akkaDependencies = Seq(
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
-  "commons-net" % "commons-net" % "3.7"
+  "commons-net" % "commons-net" % "3.7.1"
 )
 
 val apiDependencies = Seq(
@@ -59,49 +59,47 @@ val testingDependencies = Seq(
   "org.scalactic" %% "scalactic" % "3.2.2" % Test,
   "org.scalatest" %% "scalatest" % "3.2.2" % Test,
   "org.scalacheck" %% "scalacheck" % "1.14.3" % Test,
-  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.0.0" % Test,
+  "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % Test,
   "com.spotify" % "docker-client" % "8.16.0" % Test,
-  "org.asynchttpclient" % "async-http-client" % "2.7.0" % Test
+  "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
 )
 
 libraryDependencies ++= Seq(
   "com.chuusai" %% "shapeless" % "2.3.3",
-  "org.scorexfoundation" %% "scrypto" % "1.3.3",
+  "org.scorexfoundation" %% "iodb" % "0.3.2",
+  "org.scorexfoundation" %% "scrypto" % "2.1.9",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
+  "org.whispersystems" % "curve25519-java" % "0.5.0",
   "com.google.guava" % "guava" % "29.0-jre",
-  "com.iheart" %% "ficus" % "1.4.7",
-  "org.rudogma" %% "supertagged" % "1.4",
+  "com.iheart" %% "ficus" % "1.5.0",
+  "org.rudogma" %% "supertagged" % "1.5",
   "com.joefkelley" %% "argyle" % "1.0.0",
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
-libraryDependencies ++= Seq(
-  "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
-  "org.whispersystems" % "curve25519-java" % "0.5.0",
-)
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.0.6",
-  "io.kamon" %% "kamon-core" % "2.1.6",
-  "io.kamon" %% "kamon-influxdb" % "2.1.6",
-  "io.kamon" %% "kamon-zipkin" % "2.1.6",
+  "io.kamon" %% "kamon-bundle" % "2.1.7",
+  "io.kamon" %% "kamon-core" % "2.1.7",
+  "io.kamon" %% "kamon-influxdb" % "2.1.7",
+  "io.kamon" %% "kamon-zipkin" % "2.1.7",
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
-libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.2.1"
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "19.3.3"
 
 // https://mvnrepository.com/artifact/org.graalvm.js/js
-libraryDependencies += "org.graalvm.js" % "js" % "19.2.1"
+libraryDependencies += "org.graalvm.js" % "js" % "19.3.3"
 
 // https://mvnrepository.com/artifact/org.graalvm.truffle/truffle-api
-libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.2.1"
+libraryDependencies += "org.graalvm.truffle" % "truffle-api" % "19.3.3"
 
 
 libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze" % "1.1",
   "com.google.protobuf" % "protobuf-java" % "3.13.0",
   "com.thesamet.scalapb" %% "lenses" % "0.10.8",
-  "com.typesafe" % "config" % "1.3.4",
+  "com.typesafe" % "config" % "1.4.0",
 )
 
 scalacOptions ++= Seq(

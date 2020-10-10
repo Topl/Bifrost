@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransfer }
+import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransfer}
 import co.topl.nodeView.state.box.ProgramBox
 
 import scala.util.Try

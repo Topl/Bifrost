@@ -2,11 +2,11 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.crypto.{ Bip39, FastCryptographicHash, KeyFile, PrivateKey25519 }
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.crypto.{Bip39, FastCryptographicHash, PrivateKey25519}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 class KeyRing ( private var secrets: Set[PrivateKey25519],
                 defaultKeyDir      : File
@@ -64,7 +64,10 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    * @param password
    */
   def generateKeyFile (password: String): Try[PublicKey25519Proposition] = Try{
-    KeyFile(password, defaultKeyDir.toString).getPrivateKey(password) match {
+    val keyfile = KeyFile(password)
+    keyfile.saveToDisk(defaultKeyDir.toString)
+
+    keyfile.getPrivateKey(password) match {
       case Success(sk) =>
         secrets += sk
         sk.publicImage
@@ -89,7 +92,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    KeyFile(password, FastCryptographicHash(seed), defaultKeyDir.toString).getPrivateKey(password) match {
+    KeyFile(password, FastCryptographicHash(seed)).getPrivateKey(password) match {
       case Success(sk) =>
         secrets += sk
         sk.publicImage

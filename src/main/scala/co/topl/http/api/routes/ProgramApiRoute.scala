@@ -1,26 +1,25 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
-import co.topl.modifier.transaction.{ CodeCreation, ProgramCreation, ProgramMethodExecution, ProgramTransfer }
+import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ CodeBox, ExecutionBox, StateBox }
-import co.topl.nodeView.state.{ ProgramId, State }
-import co.topl.program.{ ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor }
+import co.topl.nodeView.state.box.{ExecutionBox, StateBox}
+import co.topl.nodeView.state.{ProgramId, State}
+import co.topl.program.{ExecutionBuilder, ExecutionBuilderTerms, ProgramPreprocessor}
 import co.topl.settings.RESTApiSettings
 import co.topl.utils.exceptions.JsonParsingException
 import io.circe.literal._
 import io.circe.syntax._
-import io.circe.{ Decoder, Json, JsonObject }
-import scorex.crypto.encode.Base58
+import io.circe.{Decoder, Json, JsonObject}
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                           (implicit val context: ActorRefFactory) extends ApiRouteWithView {
@@ -44,7 +43,7 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
 //    viewAsync().map { view =>
 //      val wallet = view.vault
 //      val signingPublicKey = (params \\ "signingPublicKey").head.asString.get
-//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
 //      val state = view.state
 //      val tx = createProgramInstance(params, state)
 //      val signature = selectedSecret.sign(tx.messageToSign)
@@ -133,13 +132,13 @@ case class ProgramApiRoute(override val settings: RESTApiSettings, nodeViewHolde
 //
 //      val modifiedParams = params.hcursor.downField("programId").delete.top.get.deepMerge(programJson)
 //
-//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(Base58.decode(signingPublicKey).get)).get
+//      val selectedSecret = wallet.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get)).get
 //      val tempTx = modifiedParams.as[ProgramMethodExecution] match {
 //        case Right(p: ProgramMethodExecution) => p
 //        case Left(e) => throw new JsonParsingException(s"Could not parse ProgramMethodExecution: $e")
 //      }
 //      val realSignature = selectedSecret.sign(tempTx.messageToSign)
-//      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(signingPublicKey).get) -> realSignature))
+//      val tx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(signingPublicKey).get) -> realSignature))
 //
 //      ProgramMethodExecution.semanticValidate(tx, view.state) match {
 //        case Success(_) =>

@@ -3,12 +3,12 @@ package co.topl.nodeView.state
 import java.io.File
 
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.{ BoxId, ProgramBox }
+import co.topl.nodeView.state.box.{BoxId, ProgramBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * A registry containing mapping from fixed programId -> changing boxId
@@ -17,7 +17,7 @@ import scala.util.{ Failure, Success, Try }
  */
 class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
-  import ProgramBoxRegistry.{ K, V }
+  import ProgramBoxRegistry.{K, V}
 
   //----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.hashBytes

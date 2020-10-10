@@ -7,15 +7,15 @@ import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.{ State, StateSpec }
+import co.topl.nodeView.state.{State, StateSpec}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import com.google.common.primitives.{ Ints, Longs }
+import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
+import co.topl.{BifrostGenerators, ValidGenerators}
+import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 class ValkyrieSpec extends AnyPropSpec
   with Matchers
@@ -79,10 +79,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.issuer).get)
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -133,10 +133,10 @@ class ValkyrieSpec extends AnyPropSpec
 
     val assetInstance: AssetInstance = valkyrieController.getNewAssetInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.publicKey)
     val amount: Long = assetInstance.amount
     val assetCode: String = assetInstance.assetCode
-    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(assetInstance.issuer).get)
+    val issuer: PublicKey25519Proposition = PublicKey25519Proposition(assetInstance.issuer)
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
@@ -204,7 +204,7 @@ class ValkyrieSpec extends AnyPropSpec
     //Parsing the new arbit instance as an arbit box
     val newArbitInstance1: ArbitInstance = valkyrieController.getNewArbitInstances.get(0)
 
-    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(newArbitInstance1.publicKey).get)
+    val proposition: PublicKey25519Proposition = PublicKey25519Proposition(newArbitInstance1.publicKey)
     val amount: Long = newArbitInstance1.amount
 
     val timestamp = Instant.now.toEpochMilli

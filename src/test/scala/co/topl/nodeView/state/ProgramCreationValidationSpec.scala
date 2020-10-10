@@ -8,7 +8,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.util.Failure
 
@@ -90,8 +90,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val block = Block(
           ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
           Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
-          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
+          Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
           Seq(programCreation),
           settings.forgingSettings.version
         )
@@ -178,7 +178,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           programCreation.signatures.head._2.bytes.tail
 
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] = programCreation.signatures +
-          (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+          (programCreation.signatures.head._1 -> Signature25519(Signature @@ wrongSig))
 
         val invalidPC = programCreation.copy(signatures = wrongSigs)
 
@@ -275,8 +275,8 @@ class ProgramCreationValidationSpec extends ProgramSpec {
         val firstCCAddBlock = Block(
           ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
           Instant.now.toEpochMilli,
-          ArbitBox(PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
-          Signature25519(Array.fill(Block.signatureLength)(0: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
+          Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
           settings.forgingSettings.version
         )

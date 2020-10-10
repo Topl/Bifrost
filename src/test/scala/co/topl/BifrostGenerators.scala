@@ -20,7 +20,7 @@ import io.circe.syntax._
 import io.circe.{ Json, JsonObject }
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{ Arbitrary, Gen }
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.util.{ Random, Try }
 

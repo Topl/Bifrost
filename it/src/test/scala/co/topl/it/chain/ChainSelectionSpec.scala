@@ -1,8 +1,8 @@
 package co.topl.it.chain
 
-import bifrost.BifrostGenerators
-import bifrost.it.IntegrationSuite
-import bifrost.it.util.Node
+import co.topl.BifrostGenerators
+import co.topl.it.IntegrationSuite
+import co.topl.it.util.Node
 import co.topl.BifrostGenerators
 import com.typesafe.config.Config
 import org.scalatest.freespec.AnyFreeSpec

@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import co.topl.modifier.block.PersistentNodeViewModifier
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.nodeView.history.HistoryReader
 import co.topl.utils.Logging
 

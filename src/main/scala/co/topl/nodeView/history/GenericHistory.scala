@@ -5,7 +5,6 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
-import scorex.crypto.encode.Base58
 
 import scala.util.Try
 

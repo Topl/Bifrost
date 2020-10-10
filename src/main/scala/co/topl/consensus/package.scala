@@ -6,7 +6,7 @@ import co.topl.nodeView.state.box.ArbitBox
 import com.google.common.primitives.Longs
 
 import scala.concurrent.duration._
-import scala.math.{ max, min }
+import scala.math.{max, min}
 
 package object consensus {
   // TODO: JAA - 2020.07.21 - This is the maximum number of Arbits that are issued. It probably shouldn't be

@@ -1,17 +1,17 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ Box, _ }
-import co.topl.nodeView.state.{ ProgramId, State, StateReader }
-import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
+import co.topl.nodeView.state.box.{Box, _}
+import co.topl.nodeView.state.{ProgramId, StateReader}
+import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
 import co.topl.utils.exceptions.TransactionValidationException
-import com.google.common.primitives.{ Bytes, Ints, Longs }
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
   *

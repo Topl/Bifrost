@@ -2,14 +2,14 @@ package co.topl.api
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.crypto.Signature25519
-import co.topl.http.api.routes.{ AssetApiRoute, NodeViewApiRoute }
+import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -19,14 +19,13 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -135,14 +134,14 @@ class NodeViewRPCSpec extends AnyWordSpec
         }
         txHash shouldEqual assetTxHash
         assert(txHashesArray.size <= 100)
-        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txHashId = ModifierId(txHash)
         assetTxInstance = view().pool.modifierById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,
           System.currentTimeMillis(),
-          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
           settings.forgingSettings.version
         )

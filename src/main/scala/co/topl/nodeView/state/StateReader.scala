@@ -3,7 +3,7 @@ package co.topl.nodeView.state
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.nodeView.state.box.{ Box, BoxId, GenericBox, ProgramBox, TokenBox }
+import co.topl.nodeView.state.box._
 
 import scala.reflect.ClassTag
 

@@ -7,10 +7,14 @@ import co.topl.crypto.Signature25519
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+
+import scala.util.Success
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import scorex.crypto.signatures.Signature
 
 import scala.util.Success
 
@@ -38,7 +42,7 @@ class ProgramCreationSpec extends AnyPropSpec
 
         val wrongSigs: Map[PublicKey25519Proposition, Signature25519] =
           programCreation.signatures +
-            (programCreation.signatures.head._1 -> Signature25519(wrongSig))
+            (programCreation.signatures.head._1 -> Signature25519(Signature @@ wrongSig))
 
         State.syntacticValidity(programCreation.copy(signatures = wrongSigs)).isSuccess shouldBe false
     }

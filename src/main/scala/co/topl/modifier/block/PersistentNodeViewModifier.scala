@@ -1,7 +1,7 @@
 package co.topl.modifier.block
 
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import io.circe.Encoder
 
 sealed trait PersistentNodeViewModifier extends NodeViewModifier {

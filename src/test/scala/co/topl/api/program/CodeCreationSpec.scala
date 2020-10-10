@@ -11,7 +11,6 @@ import co.topl.nodeView.state.box.ArbitBox
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.encode.Base58
 
 class CodeCreationSpec extends AnyWordSpec
   with Matchers
@@ -47,7 +46,7 @@ class CodeCreationSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
 
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txHashId = ModifierId(Base58.decode(txHash).get)
+        val txHashId = ModifierId(txHash)
         val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
         val history = view().history

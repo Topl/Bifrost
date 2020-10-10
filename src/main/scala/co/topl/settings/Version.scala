@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.utils.serialization.{ BytesSerializable, _ }
+import co.topl.utils.serialization.{BytesSerializable, _}
 
 /**
   * Version of p2p protocol. Node can only process messages of it's version or lower.

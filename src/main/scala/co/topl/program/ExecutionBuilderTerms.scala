@@ -1,21 +1,15 @@
 package co.topl.program
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.coding.Gzip
-import akka.stream.ActorMaterializer
-import akka.util.ByteString
+import co.topl.utils.Gzip
 import io.circe.syntax._
-import io.circe.{ Decoder, HCursor, Json }
-import scorex.crypto.encode.Base64
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
+import io.circe.{Decoder, HCursor, Json}
+import scorex.util.encode.Base64
 
 case class ExecutionBuilderTerms(terms: String){
-
+  /*  */
   require(terms.length < 16*1024)
   lazy val json: Json = if(terms.length > 1024) {
-    s"gzip:${Base64.encode(Gzip.encode(ByteString(terms.getBytes)).toArray[Byte])}".asJson
+    s"gzip:${Base64.encode(Gzip.compress(terms.getBytes))}".asJson
   } else {
     terms.asJson
   }
@@ -25,24 +19,17 @@ case class ExecutionBuilderTerms(terms: String){
 
 object ExecutionBuilderTerms {
 
-  implicit val system = ActorSystem("QuickStart")
-  implicit val materializer = ActorMaterializer()
-
-  def decodeGzip(zipped: String): Future[ByteString] = {
-    Gzip.decode(ByteString(Base64.decode(zipped)))
-  }
+    def decodeGzip(zippedStr: String): String = {
+      val zipped: Array[Byte] = Base64.decode(zippedStr).get
+      val unzipped: Array[Byte] = Gzip.decompress(zipped)
+      new String(unzipped)
+    }
 
   implicit val decodeTerms: Decoder[ExecutionBuilderTerms] = (c: HCursor) => for {
     terms <- c.as[String]
   } yield {
-
-    if(terms.startsWith("gzip:")) {
-      Await.result({
-        import scala.concurrent.ExecutionContext.Implicits.global
-        for {
-          decodedTerms <- decodeGzip(terms.substring("gzip:".length))
-        } yield ExecutionBuilderTerms(new String(decodedTerms.toArray[Byte]))
-      }, Duration.Inf)
+    if (terms.startsWith("gzip:")) {
+      ExecutionBuilderTerms(decodeGzip(terms.substring("gzip:".length)))
     } else {
       ExecutionBuilderTerms(terms)
     }

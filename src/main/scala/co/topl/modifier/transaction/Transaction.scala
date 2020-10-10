@@ -4,10 +4,10 @@ import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
-import co.topl.nodeView.state.box.{ Box, BoxId }
+import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import supertagged.@@
 
 trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {

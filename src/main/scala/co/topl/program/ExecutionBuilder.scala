@@ -1,9 +1,9 @@
 package co.topl.program
 
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
-import scala.util.{ Success, Try }
+import scala.util.{Success, Try}
 
 /**
   * @param core                     The JavaScript program split into state and functions

@@ -3,21 +3,21 @@ package co.topl.nodeView.history
 import java.io.File
 
 import co.topl.consensus
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockValidator, Bloom }
+import co.topl.modifier.block.{Block, BlockValidator, Bloom}
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -26,7 +26,7 @@ import scala.util.{ Failure, Success, Try }
   * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
-class History ( val storage: Storage,
+class History ( val storage: Storage, //todo: JAA - make this private[history]
                 fullBlockProcessor: BlockProcessor,
                 settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
@@ -55,6 +55,8 @@ class History ( val storage: Storage,
   override def applicable(block: Block): Boolean = modifierById(block.parentId).isDefined
 
   override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
+
+  def blockContainingTx(id: ModifierId): Option[ModifierId] = storage.blockIdOf(id)
 
   override def contains(id: ModifierId): Boolean =
     (id == History.GenesisParentId) || modifierById(id).isDefined || fullBlockProcessor.contains(id)

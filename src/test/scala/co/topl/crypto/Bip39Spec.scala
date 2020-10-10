@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import co.topl.crypto.KeyFile.uuid
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

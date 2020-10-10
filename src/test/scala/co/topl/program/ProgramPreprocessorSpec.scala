@@ -1,11 +1,11 @@
 package co.topl.program
 
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.{BifrostGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 
 class ProgramPreprocessorSpec extends AnyPropSpec

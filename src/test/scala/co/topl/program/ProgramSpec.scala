@@ -3,15 +3,15 @@ package co.topl.program
 import java.time.Instant
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import io.circe.{ Json, JsonObject }
+import co.topl.{BifrostGenerators, ValidGenerators}
+import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.Curve25519
 
-import scala.util.{ Failure, Random, Success, Try }
+import scala.util.{Failure, Random, Success, Try}
 
 class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -70,7 +70,7 @@ class ProgramSpec extends AnyPropSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKey25519Proposition = {
-    PublicKey25519Proposition(Array.fill(Curve25519.KeyLength)(fillByte));
+    PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(fillByte))
   }
 
   property("Can create program") {

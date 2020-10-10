@@ -1,7 +1,7 @@
 package co.topl.nodeView.mempool
 
 import co.topl.modifier.transaction.GenericTransaction
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.nodeView.NodeViewComponent
 
 /**

@@ -1,21 +1,21 @@
 package co.topl.nodeView
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import co.topl.crypto.{ PrivateKey25519, Signature25519 }
+import akka.actor.{ActorRef, ActorSystem, Props}
+import co.topl.crypto.{PrivateKey25519, Signature25519}
 import co.topl.modifier.NodeViewModifier
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockSerializer }
+import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.transaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
+import co.topl.modifier.transaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, Box }
-import co.topl.settings.{ AppContext, AppSettings }
+import co.topl.nodeView.state.box.{ArbitBox, Box}
+import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{ Logging, TimeProvider }
-import scorex.crypto.encode.Base58
+import co.topl.utils.{Logging, TimeProvider}
+import scorex.crypto.signatures.Signature
 
 import scala.concurrent.ExecutionContext
 
@@ -106,20 +106,22 @@ object NodeViewHolder extends Logging {
         "7focbpSdsNNE4x9h7eyXSkvXE6dtxsoVyZMpTpuThLoH", "CBdnTL6C4A7nsacxCP3VL3TqUokEraFy49ckQ196KU46",
         "CfvbDC8dxGeLXzYhDpNpCF2Ar9Q5LKs8QrfcMYAV59Lt", "GFseSi5squ8GRRkj6RknbGj9Hyz82HxKkcn8NKW1e5CF",
         "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
-        ).map(s => PublicKey25519Proposition(Base58.decode(s).get))
+        ).map(PublicKey25519Proposition.apply)
 
     val genesisAccount = PrivateKey25519.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
 
     val arbTx = ArbitTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
                               icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
+                              Map(genesisAccountPriv.publicImage ->
+                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
                               0L,
                               0L,
                               "")
     val polyTx = PolyTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
                               icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
+                              Map(genesisAccountPriv.publicImage ->
+                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
                               0L,
                               0L,
                               "")

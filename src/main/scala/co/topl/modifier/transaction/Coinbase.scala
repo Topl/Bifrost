@@ -1,15 +1,17 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, Box, BoxId, TokenBox }
+import co.topl.nodeView.state.box.{ArbitBox, Box, BoxId, TokenBox}
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
+import scorex.crypto.hash.Digest32
+import scorex.crypto.signatures.Signature
 
 import scala.util.Try
 
@@ -23,7 +25,7 @@ case class Coinbase ( to        : IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
-  lazy val hashNoNonces: FastCryptographicHash.Digest = FastCryptographicHash(
+  lazy val hashNoNonces: Digest32 = FastCryptographicHash(
     to.head._1.pubKeyBytes ++
       Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
@@ -89,7 +91,7 @@ object Coinbase {
                   parentId: Block.BlockId
                 ): Coinbase = {
     val to = IndexedSeq((rewardAddr, amount))
-    val sig = Map(rewardAddr ->  Signature25519(Array.emptyByteArray))
+    val sig = Map(rewardAddr ->  Signature25519(Signature @@ Array.emptyByteArray))
     Coinbase(to, sig, timestamp, parentId)
   }
 

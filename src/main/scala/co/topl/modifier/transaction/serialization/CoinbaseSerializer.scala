@@ -5,9 +5,9 @@ import co.topl.crypto.serialization.Signature25519Serializer
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Coinbase
-import co.topl.nodeView.state.box.proposition.{ PublicKey25519Proposition, PublicKey25519PropositionSerializer }
+import co.topl.nodeView.state.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object CoinbaseSerializer extends BifrostSerializer[Coinbase] {
 

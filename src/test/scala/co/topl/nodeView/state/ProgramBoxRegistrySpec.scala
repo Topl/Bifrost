@@ -5,15 +5,18 @@ import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS }
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppSettings, StartupOpts }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{BoxId, StateBox}
+import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.syntax._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -36,7 +39,8 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   val history: HIS = gs._1
   val genesisState: MS = gs._2
 
-  val pubKey: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
+  val pubKey: PublicKey25519Proposition =
+    PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
   val stateOne =
     s"""

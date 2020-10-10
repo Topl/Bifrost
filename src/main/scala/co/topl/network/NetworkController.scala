@@ -4,17 +4,17 @@ import java.net._
 
 import akka.actor.SupervisorStrategy._
 import akka.actor._
-import akka.io.{ IO, Tcp }
+import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.message.Message
-import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PenaltyType, _ }
-import co.topl.settings.{ AppContext, NetworkSettings, Version }
-import co.topl.utils.{ Logging, NetworkUtils }
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
+import co.topl.settings.{AppContext, NetworkSettings, Version}
+import co.topl.utils.{Logging, NetworkUtils}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Control all network interaction
@@ -31,7 +31,7 @@ class NetworkController ( settings      : NetworkSettings,
   import NetworkController.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
-  import NodeViewSynchronizer.ReceivableMessages.{ DisconnectedPeer, HandshakedPeer }
+  import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import PeerManager.ReceivableMessages._
 
@@ -201,7 +201,7 @@ class NetworkController ( settings      : NetworkSettings,
    * Schedule a periodic connection to a random known peer
    */
   private def scheduleConnectionToPeer ( ): Unit = {
-    context.system.scheduler.schedule(5.seconds, 5.seconds) {
+    context.system.scheduler.scheduleWithFixedDelay(5.seconds, 5.seconds) { () =>
 
       // only attempt connections if we are connected or attempting to connect to less than max connection
       if ( connections.size + unconfirmedConnections.size < settings.maxConnections ) {

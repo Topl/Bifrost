@@ -2,11 +2,11 @@ package co.topl.api
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpRequest, _ }
+import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
@@ -17,14 +17,14 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.AppContext
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -76,7 +76,7 @@ class ProgramRPCSpec extends AnyWordSpec
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
     )
 
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get)
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
 
   val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 
@@ -94,7 +94,7 @@ class ProgramRPCSpec extends AnyWordSpec
     def manuallyApplyChanges(res: Json, version: Int): Unit = {
       // Manually manipulate state
       val txHash = ((res \\ "result").head.asObject.get.asJson \\ "txHash").head.asString.get
-      val txHashId = ModifierId(Base58.decode(txHash).get)
+      val txHashId = ModifierId(txHash)
       val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
       val programBoxes = txInstance.newBoxes.foldLeft(Seq[ProgramBox]()) { ( acc, box ) => box match {

@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 trait StoreInterface {
 

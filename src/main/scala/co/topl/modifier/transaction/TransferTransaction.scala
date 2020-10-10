@@ -1,10 +1,11 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ BoxId, PublicKeyNoncedBox, TokenBox }
+import co.topl.nodeView.state.box.{BoxId, PublicKeyNoncedBox, TokenBox}
 import com.google.common.primitives.Longs
+import scorex.crypto.hash.Digest32
 
 abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                                     val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
@@ -20,8 +21,8 @@ abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Pr
     PublicKeyNoncedBox.idFromBox(prop, nonce)
   }
 
-  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+  lazy val hashNoNonces: Digest32 = FastCryptographicHash(
+    to.flatMap(_._1.pubKeyBytes).toArray ++
       //Longs.toByteArray(timestamp) ++
       Longs.toByteArray(fee) ++
       data.getBytes
@@ -29,7 +30,7 @@ abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Pr
 
   //YT NOTE - removed timestamp and unlockers since that will be updated after signatures are received
   def commonMessageToSign: Array[Byte] =
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.flatMap(_._1.pubKeyBytes).toArray ++
       newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes)
 
   Longs.toByteArray(fee) ++

@@ -1,33 +1,27 @@
 package co.topl.api
 
-import akka.actor.{ ActorRef, PoisonPill }
+import akka.actor.{ActorRef, PoisonPill}
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.crypto.Signature25519
-import co.topl.http.api.routes.{ AssetApiRoute, WalletApiRoute }
-import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ AssetCreation, Transaction }
+import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
+import co.topl.nodeView.state.box.AssetBox
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
+import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -124,8 +118,8 @@ class AssetRPCSpec extends AnyWordSpec
 //        val history = view().history
 //        val tempBlock = Block(history.bestBlockId,
 //          System.currentTimeMillis(),
-//          ArbitBox(PublicKey25519Proposition(history.bestBlockId.hashBytes), 0L, 10000L),
-//          Signature25519(Array.fill(Curve25519.SignatureLength)(1: Byte)),
+//          ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
+//          Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
 //          Seq(txInstance),
 //          settings.forgingSettings.version
 //        )
@@ -185,10 +179,10 @@ class AssetRPCSpec extends AnyWordSpec
 
 //    "Broadcast createAssetsPrototype transaction" in {
 //      val secret = view().vault.secretByPublicImage(
-//        PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get)).get
+//        PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get)).get
 //      val tempTx = tx.as[AssetCreation].right.get
 //      val sig = secret.sign(tempTx.messageToSign)
-//      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+//      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 //
 //      val requestBody = ByteString(
 //        s"""
@@ -237,10 +231,10 @@ class AssetRPCSpec extends AnyWordSpec
 
 //    "Broadcast transferTargetAssetsPrototype" in {
 //      val prop = (tx \\ "from").head.asArray.get.head.asArray.get.head.asString.get
-//      val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(Base58.decode(prop).get)).get
+//      val secret = view().vault.secretByPublicImage(PublicKey25519Proposition(PublicKey @@ Base58.decode(prop).get)).get
 //      val tempTx = tx.as[AssetTransfer].right.get
 //      val sig = PrivateKey25519Companion.sign(secret, tempTx.messageToSign)
-//      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(Base58.decode(publicKeys("hub")).get) -> sig))
+//      val signedTx = tempTx.copy(signatures = Map(PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("hub")).get) -> sig))
 //
 //      val requestBody = ByteString(
 //        s"""

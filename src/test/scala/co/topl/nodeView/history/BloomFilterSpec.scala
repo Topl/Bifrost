@@ -11,6 +11,9 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 import scala.collection.BitSet
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import scala.collection.BitSet
 
 class BloomFilterSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

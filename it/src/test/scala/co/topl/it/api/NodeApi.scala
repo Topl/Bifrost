@@ -3,7 +3,7 @@ package co.topl.it.api
 import java.io.IOException
 import java.util.concurrent.TimeoutException
 
-import bifrost.it.util.TimerExt
+import co.topl.it.util.TimerExt
 import io.netty.util.{HashedWheelTimer, Timer}
 import org.asynchttpclient._
 import org.asynchttpclient.Dsl.{post ⇒ _post}

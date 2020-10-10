@@ -7,6 +7,7 @@ import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class ProgramMethodExecutionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

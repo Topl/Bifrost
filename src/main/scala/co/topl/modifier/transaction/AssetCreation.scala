@@ -2,15 +2,15 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ AssetBox, Box, BoxId, TokenBox }
-import com.google.common.primitives.{ Bytes, Ints, Longs }
+import co.topl.nodeView.state.box.{AssetBox, Box, BoxId, TokenBox}
+import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            signatures: Map[PublicKey25519Proposition, Signature25519],
@@ -25,10 +25,10 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
-      Longs.toByteArray(timestamp) ++
-      Longs.toByteArray(fee)
-    )
+    to.flatMap(_._1.pubKeyBytes).toArray ++
+    Longs.toByteArray(timestamp) ++
+    Longs.toByteArray(fee)
+  )
 
   override lazy val newBoxes: Traversable[TokenBox] = {
     to
@@ -51,7 +51,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetCreation".getBytes(),
-    to.map(_._1.pubKeyBytes).reduce(_ ++ _) ++
+    to.flatMap(_._1.pubKeyBytes).toArray ++
       newBoxes.foldLeft(Array[Byte]())(( acc, x ) => acc ++ x.bytes),
     issuer.pubKeyBytes,
     assetCode.getBytes,

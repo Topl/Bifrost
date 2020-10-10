@@ -11,11 +11,12 @@ import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
-import scorex.crypto.encode.Base58
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so
@@ -177,7 +178,7 @@ case class State ( override val version     : VersionTag,
 
       //Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
+        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
         case None       => stateChanges.toAppend
       }).map(b => ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(b.bytes))
 
@@ -185,7 +186,7 @@ case class State ( override val version     : VersionTag,
         case Some(keys) => stateChanges
           .boxIdsToRemove
           .flatMap(getBox)
-          .filter(b => keys.contains(PublicKey25519Proposition(b.proposition.bytes)))
+          .filter(b => keys.contains(PublicKey25519Proposition(PublicKey @@ b.proposition.bytes)))
           .map(b => b.id)
 
         case None => stateChanges.boxIdsToRemove

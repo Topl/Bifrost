@@ -4,13 +4,13 @@ import java.io.File
 
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ BoxId, TokenBox }
+import co.topl.nodeView.state.box.{BoxId, TokenBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * A registry containing mappings from public keys to a sequence of boxIds
@@ -22,7 +22,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
                          nodeKeys: Option[Set[PublicKey25519Proposition]]
                        ) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
-  import TokenBoxRegistry.{ K, V }
+  import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.pubKeyBytes

@@ -2,7 +2,7 @@ package co.topl.nodeView
 
 import akka.actor.Actor
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{ PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
+import co.topl.modifier.block.{PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.history.GenericHistory
@@ -10,12 +10,12 @@ import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.mempool.MemoryPool
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.nodeView.state.{ MinimalState, TransactionValidation }
+import co.topl.nodeView.state.{MinimalState, TransactionValidation}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 
 import scala.annotation.tailrec
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
   * Composite local view of the node

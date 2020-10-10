@@ -1,25 +1,25 @@
 package co.topl.api.program
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
+import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
+import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
+import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.AppContext
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext }
+import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
 import scala.util.Try
 
@@ -68,7 +68,7 @@ trait ProgramMockState extends BifrostGenerators {
     )
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(Base58.decode(publicKeys("investor")).get)
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
 
   val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 

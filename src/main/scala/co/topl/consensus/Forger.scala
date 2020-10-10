@@ -2,18 +2,18 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.settings.{ AppContext, ForgingSettings }
+import co.topl.settings.{AppContext, ForgingSettings}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -29,7 +29,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
-  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   // holder of private keys that are used to forge
   private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get

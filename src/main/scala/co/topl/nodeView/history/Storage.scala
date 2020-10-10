@@ -2,13 +2,13 @@ package co.topl.nodeView.history
 
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{ Block, BlockSerializer }
+import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction.GenericTransaction
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
 
 import scala.util.Success
@@ -18,7 +18,7 @@ import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{ Failure, Try }
+import scala.util.{Failure, Try}
 
 class Storage( private[history] val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
@@ -202,10 +202,10 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
       .get(blockParentKey(blockId))
       .map(d => d.data)
 
-  def blockIdOf(transactionId: Array[Byte]): Option[Array[Byte]] =
+  def blockIdOf(transactionId: ModifierId): Option[ModifierId] =
     blockCache
-      .get(ByteArrayWrapper(transactionId))
-      .map(_.data)
+      .get(ByteArrayWrapper(transactionId.hashBytes))
+      .map(id => ModifierId(id.data))
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 

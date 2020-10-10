@@ -1,11 +1,11 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.{ FastCryptographicHash, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
-import io.circe.{DecodingFailure, Encoder, HCursor, Json}
+import io.circe.{DecodingFailure, HCursor, Json}
 
  abstract class TokenBox(override val proposition: PublicKey25519Proposition,
                          override val nonce: Long,

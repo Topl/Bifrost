@@ -1,8 +1,8 @@
 package co.topl.modifier.transaction
 
 import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.state.box.proposition.Proposition
 import supertagged.@@
 

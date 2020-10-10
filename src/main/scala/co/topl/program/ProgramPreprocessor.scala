@@ -1,25 +1,20 @@
 package co.topl.program
 
-import java.nio.file.{ Files, Path }
+import java.nio.file.{Files, Path}
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.coding.Gzip
-import akka.stream.ActorMaterializer
-import akka.util.ByteString
 import co.topl.crypto.Signature25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
-import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
-import com.oracle.js.parser.{ ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser }
+import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
+import com.oracle.js.parser.{ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.crypto.encode.{ Base58, Base64 }
+import scorex.util.encode.Base64
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
 import scala.util.matching.Regex
 
 /**
@@ -113,7 +108,10 @@ object ProgramPreprocessor {
     val signed: Option[(PublicKey25519Proposition, Signature25519)] = (json \\ "signed")
       .headOption
       .map(_.as[(String, String)].right.get)
-      .map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
+      .map{pair =>
+        val pub = PublicKey25519Proposition(pair._1)
+        val sig = Signature25519(pair._2)
+        pub -> sig}
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
 
@@ -309,18 +307,15 @@ object ProgramPreprocessor {
     functionList(parsed)
   }
 
-  implicit val system = ActorSystem("QuickStart")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (p: ProgramPreprocessor) =>
     Map(
       //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
       "name" -> p.name.asJson,
-      "initjs" -> Base64.encode(Gzip.encode(ByteString(p.initjs.getBytes)).toArray[Byte]).asJson,
+      "initjs" -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
       "code" -> p.code.map(a => a._1 -> a._2).asJson,
-      "signed" -> p.signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
+      "signed" -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
     ).asJson
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
@@ -333,24 +328,24 @@ object ProgramPreprocessor {
     signed <- c.downField("signed").as[Option[(String, String)]]
   } yield {
 
-    def decodeGzip(zipped: String): Future[ByteString] = {
-      Gzip.decode(ByteString(Base64.decode(zipped)))
+    def decodeGzip(zippedStr: String): String = {
+      val zipped: Array[Byte] = Base64.decode(zippedStr).get
+      val unzipped: Array[Byte] = Gzip.decompress(zipped)
+      new String(unzipped)
     }
 
-    Await.result({
-      import scala.concurrent.ExecutionContext.Implicits.global
-      for {
-        decodedInitjs <- decodeGzip(initjs)
-        //decodedState <- decodeGzip(state)
-      } yield ProgramPreprocessor(
-        name,
-        new String(decodedInitjs.toArray[Byte]),
-        interface,
-        //parse(new String(decodedState.toArray[Byte])).right.get,
-        variables,
-        code,
-        signed.map(pair => PublicKey25519Proposition(Base58.decode(pair._1).get) -> Signature25519(Base58.decode(pair._2).get))
-      )
-    }, Duration.Inf)
+    ProgramPreprocessor(
+      name,
+      decodeGzip(initjs),
+      interface,
+      //parse(new String(decodedState.toArray[Byte])).right.get,
+      variables,
+      code,
+      signed.map{pair =>
+        val pub = PublicKey25519Proposition(pair._1)
+        val sig = Signature25519(pair._2)
+        pub -> sig
+      }
+    )
   }
 }

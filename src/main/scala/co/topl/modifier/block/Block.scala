@@ -1,15 +1,16 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
+import scorex.crypto.signatures.Signature
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?
 import serializer.BloomTopics
@@ -50,7 +51,7 @@ case class Block ( parentId    : BlockId,
   lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = Signature25519(Array.emptyByteArray))
+    val noSigCopy = this.copy(signature = Signature25519(Signature @@ Array.emptyByteArray))
     serializer.toBytes(noSigCopy)
   }
 }
@@ -113,11 +114,11 @@ object Block {
     assert(box.proposition == privateKey.publicImage)
 
     // generate block message (block with empty signature) to be signed
-    val block = Block(parentId, timestamp, box, Signature25519(Array.emptyByteArray), txs, version)
+    val block = Block(parentId, timestamp, box, Signature25519(Signature @@ Array.emptyByteArray), txs, version)
 
     // generate signature from the block message and private key
     val signature =
-      if (parentId == History.GenesisParentId) Signature25519(Array.emptyByteArray) // genesis block will skip signature check
+      if (parentId == History.GenesisParentId) Signature25519(Signature @@ Array.emptyByteArray) // genesis block will skip signature check
       else privateKey.sign(block.messageToSign)
 
     // return a valid block with the signature attached

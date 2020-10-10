@@ -16,7 +16,7 @@
 //import org.scalatest.matchers.should.Matchers
 //import org.scalatest.propspec.AnyPropSpec
 //import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-//import scorex.crypto.encode.Base58
+//import scorex.util.encode.Base58
 //import scorex.crypto.signatures.Curve25519
 //
 //import scala.reflect.io.Path

@@ -1,17 +1,16 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -79,12 +78,10 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     */
   private def delay(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val encodedSignature: String = (params \\ "blockId").head.asString.get
+      val encodedSignature: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
       val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
       Map(
-        "delay" -> Base58
-          .decode(encodedSignature)
-          .flatMap(id => view.history.averageDelay(ModifierId(id), count))
+        "delay" -> view.history.averageDelay(encodedSignature, count)
           .map(_.toString)
           .getOrElse("Undefined")
           .asJson
@@ -104,10 +101,10 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
     *  | --None specified--       |           	|                     	|                                                                         |
     *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
+//    * @param params input parameters as specified above
+//    * @param id request identifier
+//    * @return
+//    */
 //  private def myBlocks(params: Json, id: String): Future[Json] = {
 //    viewAsync().map { view =>
 //      val pubkeys: Set[PublicKey25519Proposition] =

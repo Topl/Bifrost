@@ -1,7 +1,7 @@
 package co.topl.it.util
 
-import bifrost.it.api.NodeApi
-import bifrost.settings.AppSettings
+import co.topl.it.api.NodeApi
+import co.topl.settings.AppSettings
 import co.topl.it.api.NodeApi
 import co.topl.settings.AppSettings
 

@@ -1,9 +1,9 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
-import co.topl.modifier.transaction.{ ArbitTransfer, AssetCreation, AssetTransfer, PolyTransfer, Transaction }
+import co.topl.modifier.transaction._
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -13,11 +13,11 @@ import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef )
                           ( implicit val context: ActorRefFactory ) extends ApiRouteWithView {
@@ -144,24 +144,14 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    * @param id     request identifier
    * @return
    */
-  private def transferPolysPrototype ( params: Json, id: String ): Future[Json] = {
+  private def transferPolysPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-        )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val data: String = parseOptional("data", "")
 
       checkPublicKey(sender, view)
 
@@ -281,24 +271,14 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    * @param id     request identifier
    * @return
    */
-  private def transferArbitsPrototype ( params: Json, id: String ): Future[Json] = {
+  private def transferArbitsPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-        )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val data: String = parseOptional("data", "")
 
       checkPublicKey(sender, view)
 
@@ -340,9 +320,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def balances ( params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       // parse the required arguments from the request
-      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => {
-        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
-      })
+      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => PublicKey25519Proposition(k.asString.get))
 
       checkPublicKey(publicKeys, view)
 

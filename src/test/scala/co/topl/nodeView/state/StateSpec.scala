@@ -10,6 +10,10 @@ import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheck
 
 import scala.reflect.io.Path
 import scala.util.Try
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import scala.reflect.io.Path
+import scala.util.Try
 
 class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks

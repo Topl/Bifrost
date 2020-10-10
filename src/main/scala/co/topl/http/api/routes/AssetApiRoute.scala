@@ -1,22 +1,24 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
-import co.topl.modifier.transaction.{ AssetCreation, AssetTransfer }
+import co.topl.modifier.transaction.{AssetCreation, AssetTransfer}
+import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.{AssetBox, BoxId}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ AssetBox, BoxId }
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
+import supertagged.@@
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 
 /** Class route for managing assets using JSON-RPC requests
@@ -146,33 +148,19 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
     * @param id request identifier
     * @return
     */
-  private def transferAssetsPrototype(
-      params: Json,
-      id: String
-  ): Future[Json] = {
+  private def transferAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      // parse required arguments from the request
+      // parse arguments from the request
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val issuer = PublicKey25519Proposition(
-        Base58.decode((params \\ "issuer").head.asString.get).get
-      )
-      val assetCode: String =
-        (params \\ "assetCode").head.asString.getOrElse("")
-
-      // parse optional arguments from the request
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+        (params \\ "sender").head.asArray.get.map { key =>
+          PublicKey25519Proposition(key.asString.get)
+        }
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
+      val assetCode: String = (params \\ "assetCode").head.asString.get
+      val data: String = parseOptional("data", "")
 
       // check that the transaction can be constructed
       if ( !view.state.hasTBR )
@@ -303,28 +291,18 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
     * @param id request identifier
     * @return
     */
-  private def transferTargetAssetsPrototype(
-      params: Json,
-      id: String
-  ): Future[Json] = {
+  private def transferTargetAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       // parse required arguments from the request
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get.map(key =>
-          PublicKey25519Proposition(Base58.decode(key.asString.get).get)
-        )
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-      )
-      val assetId: BoxId = BoxId((params \\ "assetId").head.asString.getOrElse(""))
+        (params \\ "sender").head.asArray.get.map { key =>
+          PublicKey25519Proposition(key.asString.get)
+        }
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      val assetId: BoxId = BoxId((params \\ "assetId").head.asString.get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-
-      // parse optional parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+      val data: String = parseOptional("data", "")
 
       val asset = view.state
         .getBox(assetId) match {
@@ -407,6 +385,41 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
 //      }
 //    }
 //  }
+//    * @param params input parameters as specified above
+//    * @param id request identifier
+//    * @return
+//    */
+//  private def createAssets(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+//        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
+//      )
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val assetCode: String =
+//        (params \\ "assetCode").head.asString.getOrElse("")
+//      val fee: Long =
+//        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None          => ""
+//      }
+//
+//      val tx =
+//        AssetCreation
+//          .createAndApply(wallet, IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
+//          .get
+//
+//      AssetCreation.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[AssetCreation](tx)
+//          tx.json
+//        case Failure(e) =>
+//          throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   /**  #### Summary
     *    Generate new assets and send them to a specified address.
@@ -433,23 +446,15 @@ case class AssetApiRoute( override val settings: RESTApiSettings, nodeViewHolder
     * @param id request identifier
     * @return
     */
-  private def createAssetsPrototype(params: Json, id: String): Future[Json] = {
+  private def createAssetsPrototype(implicit params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val issuer = PublicKey25519Proposition(
-        Base58.decode((params \\ "issuer").head.asString.get).get
-      )
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        Base58.decode((params \\ "recipient").head.asString.get).get
-      )
+      val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val assetCode: String =
-        (params \\ "assetCode").head.asString.getOrElse("")
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+      val assetCode: String = (params \\ "assetCode").head.asString.get
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val data: String = parseOptional("data", "")
+
       val tx =
         AssetCreation
           .createRaw(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)

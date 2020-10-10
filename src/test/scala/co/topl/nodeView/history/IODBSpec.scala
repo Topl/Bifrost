@@ -5,11 +5,14 @@ import java.io.File
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.{ BifrostGenerators, ValidGenerators }
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import co.topl.{BifrostGenerators, ValidGenerators}
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+
+import scala.util.Random
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.util.Random
 
