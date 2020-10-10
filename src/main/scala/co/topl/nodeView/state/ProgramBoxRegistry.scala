@@ -24,7 +24,7 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
 
   override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) => Seq(BoxId(value))
 
-  override protected val registryOut2StateIn: (K, V) => V = ( key: K, value: V) => value
+  override protected val registryOut2StateIn: (K, V) => V = ( _, value: V) => value
 
   /** Helper function to retrieve boxes out of state */
   protected[state] def getBox ( key: K, stateReader: SR ): Option[ProgramBox] =

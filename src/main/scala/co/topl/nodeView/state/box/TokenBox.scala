@@ -19,12 +19,10 @@ import io.circe.{DecodingFailure, Encoder, HCursor, Json}
 
 
 object TokenBox {
-  def idFromBox[PKP <: PublicKey25519Proposition] (box: TokenBox ): BoxId = {
-    val hashBytes = FastCryptographicHash(
-      box.proposition.pubKeyBytes ++
-        box.typeOfBox.getBytes ++
-        Longs.toByteArray(box.nonce))
+  def idFromBox[PKP <: PublicKey25519Proposition] (box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
 
+  def idFromPropNonce (proposition: PublicKey25519Proposition, nonce: Long): BoxId = {
+    val hashBytes = FastCryptographicHash(proposition.pubKeyBytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }
 

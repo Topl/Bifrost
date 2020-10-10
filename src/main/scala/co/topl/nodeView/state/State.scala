@@ -72,13 +72,10 @@ case class State ( override val version     : VersionTag,
    * @return a program box of the specified type if found at the given program is
    */
   override def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX] = {
-    (pbrOpt match {
-      case Some(pbr) => pbr.getBox(key, getReader)
-      case None      => None
-    }) match {
+    pbrOpt.flatMap(_.getBox(key, getReader) match {
       case Some(box: PBX) => Some(box)
       case _              => None
-    }
+    })
   }
 
   /**
@@ -88,12 +85,7 @@ case class State ( override val version     : VersionTag,
    * @param key the public key to find boxes for
    * @return a sequence of token boxes held by the public key
    */
-  override def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = {
-    tbrOpt match {
-      case Some(tbr) => tbr.getBox(key, getReader)
-      case None      => None
-    }
-  }
+  override def getTokenBoxes(key: KT): Option[Seq[TokenBox]] = tbrOpt.flatMap(_.getBox(key, getReader))
 
   /**
    * Lookup a sequence of boxIds from the appropriate registry.
@@ -327,7 +319,7 @@ object State extends Logging {
         .nodeKeys
         .map(_.map(k => PublicKey25519Proposition(k)))
 
-    if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: ${nodeKeys}")
+    if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")
 
     //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
