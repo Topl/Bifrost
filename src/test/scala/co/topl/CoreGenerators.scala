@@ -3,13 +3,9 @@ package co.topl
 import java.net.{InetAddress, InetSocketAddress}
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.ModifierId
 import co.topl.network.message._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.NodeViewModifier
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.Version
 import org.scalacheck.{Arbitrary, Gen}

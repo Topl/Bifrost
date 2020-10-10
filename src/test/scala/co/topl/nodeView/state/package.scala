@@ -45,7 +45,7 @@ package object state {
     // Manually manipulate state
     val versionId = ModifierId(Ints.toByteArray(version))
 
-    val updates = boxes.map(bx => bx.proposition -> Seq(bx.id)).toMap
+    val updates = boxes.map(bx => bx.proposition -> Seq(bx.nonce)).toMap
 
     val tbrSC = TokenRegistryChanges(Map(), updates)
 

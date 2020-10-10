@@ -3,26 +3,27 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
+import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
+import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.program.{ Program, ProgramPreprocessor, _ }
-import co.topl.settings.{ AppSettings, StartupOpts }
+import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
+import co.topl.program.{Program, ProgramPreprocessor, _}
+import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.utils.Logging
 import io.circe.syntax._
-import io.circe.{ Json, JsonObject }
+import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
-import org.scalacheck.{ Arbitrary, Gen }
+import org.scalacheck.{Arbitrary, Gen}
+import scorex.crypto.signatures.{PublicKey, Signature}
 import scorex.util.encode.Base58
 
-import scala.util.{ Random, Try }
+import scala.util.{Random, Try}
 
 /**
   * Created by cykoz on 4/12/17.
@@ -331,7 +332,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(Signature25519(_))
+  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(bytes => Signature25519(Signature @@ bytes))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
@@ -579,13 +580,13 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     val setOfKeys = (0 until n)
       .map(i => {
         val key = sampleUntilNonEmpty(key25519Gen)
-        (key._1, key._2.pubKeyBytes)
+        (key._1, key._2)
       })
-      .foldLeft((Set[PrivateKey25519](), Set[Array[Byte]]())) {
-        case (set: (Set[PrivateKey25519], Set[Array[Byte]]), cur: (PrivateKey25519, Array[Byte])) =>
+      .foldLeft((Set[PrivateKey25519](), Set[PublicKey25519Proposition]())) { (set, cur) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
-    val prop = MofNProposition(1, setOfKeys._2)
+
+    val prop = MofNProposition(1, setOfKeys._2.map(img => img.pubKeyBytes))
 
     (setOfKeys._1, prop)
   }

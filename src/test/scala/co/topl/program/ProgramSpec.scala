@@ -9,7 +9,7 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
 import scala.util.{Failure, Random, Success, Try}
 
