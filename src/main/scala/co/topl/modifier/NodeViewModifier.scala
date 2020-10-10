@@ -5,13 +5,12 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.network.message.InvData
 import co.topl.utils.serialization.{ BifrostSerializer, BytesSerializable, JsonEncodable }
-import co.topl.utils.{ BifrostEncoder, BifrostEncoding }
 import com.typesafe.config.ConfigFactory
 import supertagged.TaggedType
 
 import scala.util.Try
 
-trait NodeViewModifier extends BytesSerializable with BifrostEncoding with JsonEncodable {
+trait NodeViewModifier extends BytesSerializable with JsonEncodable {
   self =>
 
   import NodeViewModifier.ModifierTypeId
@@ -40,16 +39,16 @@ object NodeViewModifier {
       Transaction.modifierTypeId -> TransactionSerializer
     )
 
-  def idsToString(ids: Seq[(ModifierTypeId, ModifierId)])(implicit enc: BifrostEncoder): String = {
+  def idsToString(ids: Seq[(ModifierTypeId, ModifierId)]): String = {
     List(ids.headOption, ids.lastOption)
       .flatten
-      .map { case (typeId, id) => s"($typeId,${enc.encodeId(id)})" }
+      .map { case (typeId, id) => s"($typeId,${id.toString})" }
       .mkString("[", "..", "]")
   }
 
-  def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId])(implicit encoder: BifrostEncoder): String = {
+  def idsToString(modifierType: ModifierTypeId, ids: Seq[ModifierId]): String = {
     idsToString(ids.map(id => (modifierType, id)))
   }
 
-  def idsToString(invData: InvData)(implicit encoder: BifrostEncoder): String = idsToString(invData.typeId, invData.ids)
+  def idsToString(invData: InvData): String = idsToString(invData.typeId, invData.ids)
 }

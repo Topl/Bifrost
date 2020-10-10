@@ -29,10 +29,10 @@ object BlockSerializer extends BifrostSerializer[Block] {
     Signature25519Serializer.serialize(block.signature, w)
 
     /* txsLength: Int */
-    w.putUInt(block.txs.length)
+    w.putUInt(block.transactions.length)
 
     /* txs: Seq[Transaction] */
-    block.txs.foreach(tx => TransactionSerializer.serialize(tx, w))
+    block.transactions.foreach(tx => TransactionSerializer.serialize(tx, w))
   }
 
   override def parse(r: Reader): Block = {

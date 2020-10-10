@@ -79,7 +79,7 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
           val tx = storage
             .modifierById(blockId)
             .get
-            .txs
+            .transactions
             .filter(_.id.hashBytes sameElements id)
             .head
 

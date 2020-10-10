@@ -23,20 +23,15 @@ object ProgramRegistryChanges {
 
       // extract the needed box data from all transactions within a block
       val (removeSeq: Seq[ProgramBox], updateSeq: Seq[ProgramBox])  =
-        mod.transactions match {
-          case Some(txSeq) =>
-            txSeq.map({
+        mod.transactions.map {
               case tx: ProgramMethodExecution => (Seq(), tx.newBoxes.toSeq)
               case tx: ProgramCreation        => (Seq(), tx.newBoxes.toSeq)
               case tx: ProgramTransfer        => (Seq(), tx.newBoxes.toSeq)
               // case tx: ProgramDeletion     => (Some(???),None) // <-- this is the only case that should result in removing a program id
               case _                          => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
-            }).foldLeft((Seq[ProgramBox](), Seq[ProgramBox]()))((acc, txData) => {
+            }.foldLeft((Seq[ProgramBox](), Seq[ProgramBox]()))((acc, txData) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
-
-          case None => (Seq[ProgramBox](), Seq[ProgramBox]())
-        }
 
       val toRemove = processToMap(removeSeq)
       val toUpdate = processToMap(updateSeq)

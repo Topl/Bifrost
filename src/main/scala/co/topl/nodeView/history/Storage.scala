@@ -119,9 +119,9 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.txs)))
+      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions)))
 
-    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.map(
       tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.id.hashBytes))
     )
 

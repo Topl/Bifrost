@@ -5,7 +5,6 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
-import co.topl.nodeView.BifrostNodeViewModifier
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
@@ -32,22 +31,19 @@ import scala.collection.BitSet
  *
  * - additional data: block structure version no, timestamp etc
  */
-
-case class Block ( parentId : BlockId,
-                   timestamp: Timestamp,
-                   forgerBox: ArbitBox,
-                   signature: Signature25519,
-                   txs      : Seq[Transaction],
-                   version  : Version
-                 ) extends BifrostNodeViewModifier {
+case class Block ( parentId    : BlockId,
+                   timestamp   : Timestamp,
+                   forgerBox   : ArbitBox,
+                   signature   : Signature25519,
+                   transactions: Seq[Transaction],
+                   version     : Version
+                 ) extends TransactionsCarryingPersistentNodeViewModifier[Transaction] {
 
   type M = Block
 
   lazy val id: BlockId = ModifierId(FastCryptographicHash(messageToSign))
 
   lazy val modifierTypeId: ModifierTypeId = Block.modifierTypeId
-
-  lazy val transactions: Option[Seq[Transaction]] = Some(txs)
 
   lazy val serializer: BifrostSerializer[Block] = BlockSerializer
 
@@ -78,7 +74,7 @@ object Block {
       "timestamp" -> b.timestamp.asJson,
       "generatorBox" -> b.forgerBox.asJson,
       "signature" -> b.signature.asJson,
-      "txs" -> b.txs.map(_.json).asJson,
+      "txs" -> b.transactions.map(_.json).asJson,
       "version" -> b.version.asJson,
       "blockSize" -> b.serializer.toBytes(b).length.asJson
       ).asJson

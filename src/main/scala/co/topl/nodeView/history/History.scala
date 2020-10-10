@@ -12,7 +12,7 @@ import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
-import co.topl.utils.{ BifrostEncoding, Logging }
+import co.topl.utils.Logging
 import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.annotation.tailrec
@@ -31,8 +31,7 @@ class History ( val storage: Storage,
                 settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
               ) extends GenericHistory[Block, BifrostSyncInfo, History]
-                        with Logging
-                        with BifrostEncoding {
+                        with Logging {
 
   override type NVCT = History
 
@@ -367,7 +366,7 @@ class History ( val storage: Storage,
     }
     // Go through all pertinent txs to filter out false positives
     getBlockIdsByBloom(f).flatMap(b =>
-      modifierById(b).get.txs.filter(tx =>
+      modifierById(b).get.transactions.filter(tx =>
         tx.bloomTopics match {
           case Some(txBlooms) =>
             var res = false
@@ -377,7 +376,7 @@ class History ( val storage: Storage,
             res
           case None => false
         }
-    ))
+                                              ))
   }
 
   /**

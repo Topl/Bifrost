@@ -12,7 +12,7 @@ import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.state.{ MinimalState, TransactionValidation }
 import co.topl.settings.AppSettings
-import co.topl.utils.{ BifrostEncoding, Logging }
+import co.topl.utils.Logging
 
 import scala.annotation.tailrec
 import scala.util.{ Failure, Success, Try }
@@ -33,7 +33,7 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
                               HIS  <: GenericHistory[PMOD, _ <: SyncInfo, HIS],
                               MS   <: MinimalState[BX, PMOD, MS],
                               MP   <: MemoryPool[TX, MP]
-                            ] extends Actor with Logging with BifrostEncoding {
+                            ] extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import GenericNodeViewHolder.ReceivableMessages._

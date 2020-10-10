@@ -7,7 +7,7 @@ import co.topl.network.ModifiersStatus._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.CheckDelivery
 import co.topl.network.peer.ConnectedPeer
 import co.topl.settings.NetworkSettings
-import co.topl.utils.{ BifrostEncoding, Logging }
+import co.topl.utils.Logging
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -38,12 +38,12 @@ import scala.util.{ Failure, Try }
 class DeliveryTracker( nvsRef: ActorRef,
                        context: ActorContext,
                        networkSettings: NetworkSettings,
-                       ) extends Logging with BifrostEncoding {
+                       ) extends Logging {
 
   protected case class RequestedInfo(peer: Option[ConnectedPeer], cancellable: Cancellable, checks: Int)
 
   protected class StopExpectingError(mid: ModifierId, checks: Int)
-    extends Error(s"Stop expecting ${encoder.encodeId(mid)} due to exceeded number of retries $checks")
+    extends Error(s"Stop expecting $mid} due to exceeded number of retries $checks")
 
   private val deliveryTimeout: FiniteDuration = networkSettings.deliveryTimeout
   private val maxDeliveryChecks: Int = networkSettings.maxDeliveryChecks

@@ -6,13 +6,13 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.utils.{ BifrostEncoding, Logging }
+import co.topl.utils.Logging
 import io.iohk.iodb.ByteArrayWrapper
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostEncoding with Logging {
+class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
 
   import BlockProcessor._
 
@@ -118,6 +118,9 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends BifrostE
     loop(Some(from), from.height, Seq.empty)
   }
 }
+
+
+
 
 object BlockProcessor extends Logging {
 

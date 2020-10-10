@@ -5,7 +5,6 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.ApiRoute
-import co.topl.nodeView.state.box.BoxId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
@@ -22,11 +21,11 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
 
   private def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
     method match {
-      case "unlockKeyfile"           => unlockKeyfile(params.head, id)
-      case "lockKeyfile"             => lockKeyfile(params.head, id)
-      case "generateKeyfile"         => generateKeyfile(params.head, id)
-      case "importSeedPhrase"        => importKeyfile(params.head, id)
-      case "listOpenKeyfiles"        => listOpenKeyfiles(params.head, id)
+      case "unlockKeyfile"    => unlockKeyfile(params.head, id)
+      case "lockKeyfile"      => lockKeyfile(params.head, id)
+      case "generateKeyfile"  => generateKeyfile(params.head, id)
+      case "importSeedPhrase" => importKeyfile(params.head, id)
+      case "listOpenKeyfiles" => listOpenKeyfiles(params.head, id)
     }
 
   /** #### Summary
@@ -39,10 +38,11 @@ case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHo
    * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and allow signing of transactions on behalf of that key
    * ---
    * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	    |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	    |
-   * | publicKey               	| String    	| Required            	| Public key corresponding to an encrypted keyfile in your wallet directory   |
-   * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally        	  |
+   *
+   * | Fields | Data type | Required / Optional | Description |
+   * | ---| ---	| --- | --- |
+   * | publicKey | String	| Required | Public key corresponding to an encrypted keyfile in your wallet directory |
+   * | password  | String	| Required | String used to encrypt the private keyfile that is stored locally |
    *
    * @param params input parameters as specified above
    * @param id     request identifier

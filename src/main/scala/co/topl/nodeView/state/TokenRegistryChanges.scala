@@ -19,19 +19,14 @@ object TokenRegistryChanges {
 
       // extract the needed box data from all transactions within a block
       val (fromSeq: Seq[(K, Long)], toSeq: Seq[TokenBox]) =
-        mod.transactions match {
-          case Some(txSeq) =>
-            txSeq.map({
+        mod.transactions.map{
               case tx: TransferTransaction => (tx.from, tx.newBoxes.toSeq)
               case tx: AssetCreation => (Seq(), tx.newBoxes.toSeq)
               case tx: Coinbase      => (Seq(), tx.newBoxes.toSeq)
               case _                 => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
-            }).foldLeft((Seq[(K, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
+            }.foldLeft((Seq[(K, Long)](), Seq[TokenBox]()))(( acc, txData ) => {
               (acc._1 ++ txData._1, acc._2 ++ txData._2)
             })
-
-          case None => (Seq[(K, Long)](), Seq[TokenBox]())
-        }
 
       val toRemove: Map[K, Seq[V]] =
         fromSeq.groupBy(_._1).map { case (k, v) => (k, v.map(kv => PublicKeyNoncedBox.idFromBox(k, kv._2))) }

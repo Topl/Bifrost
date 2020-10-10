@@ -22,7 +22,7 @@ class ProgramCallSpec extends AnyWordSpec
 
     directlyAddPBRStorage(1, boxState)
 
-    view().history.bestBlock.txs.foreach{tx =>
+    view().history.bestBlock.transactions.foreach{ tx =>
       println(s"${tx.toString}")
     }
 
