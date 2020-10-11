@@ -63,17 +63,22 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    *
    * @param password
    */
-  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = Try{
-    val keyfile = KeyFile(password)
-    keyfile.saveToDisk(defaultKeyDir.toString)
-
-    keyfile.getPrivateKey(password) match {
-      case Success(sk) =>
-        secrets += sk
-        sk.publicImage
-
-      case Failure(ex) => throw ex
+  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = {
+    // generate a new random key pair and save to disk
+    generateNewKeyPairs().map { sk =>
+      exportKeyfile(sk.head.publicImage, password)
+      sk.head.publicImage
     }
+  }
+
+  /**  */
+  def generateNewKeyPairs (num: Int = 1): Try[Set[PrivateKey25519]] = Try {
+    if (num >= 1) {
+      val newSecrets = (1 to num).map(_ => KeyFile.generateKeyPair._1).toSet
+      secrets ++= newSecrets
+      newSecrets
+    }
+    else throw new Error("Number of requested keys must be greater than or equal to 1")
   }
 
   /**
@@ -92,12 +97,24 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    KeyFile(password, FastCryptographicHash(seed)).getPrivateKey(password) match {
-      case Success(sk) =>
-        secrets += sk
-        sk.publicImage
+    val (sk, pk) = KeyFile.generateKeyPair(FastCryptographicHash(seed))
 
-      case Failure(ex) => throw ex
+    // add secret to the keyring
+    secrets += sk
+
+    // return the public image of the key that was added
+    pk
+  }
+
+  /**
+    *
+    * @param publicImage
+    * @param password
+    * @return
+    */
+  def exportKeyfile (publicImage: PublicKey25519Proposition, password: String): Try[Unit] = Try {
+    secretByPublicImage(publicImage) match {
+      case Some(sk) => KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
     }
   }
 

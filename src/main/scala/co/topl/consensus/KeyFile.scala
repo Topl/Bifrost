@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import co.topl.crypto.PrivateKey25519
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -96,11 +97,7 @@ object KeyFile {
     * @param seed byte array that is used to generate the new key pair
     * @return
     */
-  def apply (password: String, seed: Array[Byte]): KeyFile = {
-
-    // generate a new key pair
-    val (sk, pk) = PrivateKey25519.generateKeys(seed)
-
+  def apply (password: String, secretKey: PrivateKey25519): KeyFile = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
     val ivData = randomBytes(16)
@@ -109,13 +106,15 @@ object KeyFile {
     val derivedKey = getDerivedKey(password, salt)
 
     // encrypt private key
-    val (cipherText, mac) = getAESResult(derivedKey, ivData, sk.bytes, encrypt = true)
+    val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
 
-    new KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
+    new KeyFile(secretKey.publicImage.pubKeyBytes, cipherText, mac, salt, ivData)
   }
 
   /** helper function to create a new random keyfile */
-  def apply (password: String): KeyFile = apply(password, randomBytes(128))
+  def generateKeyPair: (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(randomBytes(128))
+
+  def generateKeyPair (seed: Array[Byte]): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed)
 
   /**
     *

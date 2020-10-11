@@ -67,14 +67,6 @@ class NetworkController ( settings      : NetworkSettings,
   // ----------- CONTEXT
   override def receive: Receive = nonsense // should never get into this state
 
-  private def nonsense: Receive = {
-    case Tcp.CommandFailed(cmd: Tcp.Command) =>
-      log.info("Failed to execute command : " + cmd)
-
-    case nonsense: Any =>
-      log.warn(s"NetworkController (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
-  }
-
   private def initialization: Receive =
     bindingLogic orElse
       registerHandlers orElse
@@ -115,7 +107,7 @@ class NetworkController ( settings      : NetworkSettings,
 
   private def businessLogic: Receive = {
     // a message was RECEIVED from a remote peer
-    case msg@Message(spec, _, Some(remote)) =>
+    case msg @ Message(spec, _, Some(remote)) =>
       messageHandlers.get(spec.messageCode) match {
         case Some(handler) => handler ! msg // forward the message to the appropriate handler for processing
         case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
@@ -192,6 +184,14 @@ class NetworkController ( settings      : NetworkSettings,
 
     case _: Tcp.ConnectionClosed =>
       log.info("Denied connection has been closed")
+  }
+
+  private def nonsense: Receive = {
+    case Tcp.CommandFailed(cmd: Tcp.Command) =>
+      log.info("Failed to execute command : " + cmd)
+
+    case nonsense: Any =>
+      log.warn(s"NetworkController (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
