@@ -6,6 +6,7 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.{GenericTransaction, Transaction}
+import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -43,12 +44,6 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
   type MS = State
   type MP = MemPool
   type NodeView = (HIS, MS, MP)
-
-  case class UpdateInformation(history: HIS,
-                               state: MS,
-                               failedMod: Option[PMOD],
-                               alternativeProgressInfo: Option[ProgressInfo[PMOD]],
-                               suffix: IndexedSeq[PMOD])
 
   /**
     * The main data structure a node software is taking care about, a node view consists
@@ -88,10 +83,10 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
   // ----------- CONTEXT
   override def receive: Receive =
     processModifiers orElse
-    transactionsProcessing orElse
-    getCurrentInfo orElse
-    getNodeViewChanges orElse
-    nonsense
+      transactionsProcessing orElse
+      getCurrentInfo orElse
+      getNodeViewChanges orElse
+      nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
 
@@ -361,6 +356,7 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
                           state: MS,
                           progressInfo: ProgressInfo[PMOD],
                           suffixApplied: IndexedSeq[PMOD]): (HIS, Try[MS], Seq[PMOD]) = {
+
     requestDownloads(progressInfo)
 
     val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
@@ -446,9 +442,9 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
   protected def applyState(history: HIS,
                            stateToApply: MS,
                            suffixTrimmed: IndexedSeq[PMOD],
-                           progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
+                           progressInfo: ProgressInfo[PMOD]): UpdateInformation[HIS, MS, PMOD] = {
 
-    val updateInfoInit = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
+    val updateInfoInit = UpdateInformation[HIS, MS, PMOD](history, stateToApply, None, None, suffixTrimmed)
 
     progressInfo.toApply.foldLeft(updateInfoInit) { case (updateInfo, modToApply) =>
       if (updateInfo.failedMod.isEmpty) {
@@ -472,6 +468,12 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object NodeViewHolder {
+
+  case class UpdateInformation[HIS, MS, PMOD](history: HIS,
+                               state: MS,
+                               failedMod: Option[PMOD],
+                               alternativeProgressInfo: Option[ProgressInfo[PMOD]],
+                               suffix: IndexedSeq[PMOD])
 
   object ReceivableMessages {
 
