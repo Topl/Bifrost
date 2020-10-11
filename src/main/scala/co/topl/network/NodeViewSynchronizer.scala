@@ -50,7 +50,7 @@ class NodeViewSynchronizer[
   // Import the types of messages this actor may SEND or RECEIVES
   import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+  import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
 
   // the maximum number of inventory modifiers to compare with remote peers
   protected val desiredInvObjects: Int = networkSettings.desiredInvObjects

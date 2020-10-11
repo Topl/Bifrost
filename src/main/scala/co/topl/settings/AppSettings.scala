@@ -64,8 +64,7 @@ case class ForgingSettings ( MinimumDifficulty   : Long,
                              keyFileDir          : Option[String]
                            )
 
-case class AppSettings (
-                         dataDir        : Option[String],
+case class AppSettings ( dataDir        : Option[String],
                          logDir         : Option[String],
                          enablePBR      : Boolean,
                          enableTBR      : Boolean,
@@ -83,10 +82,20 @@ object AppSettings extends Logging with SettingsReaders {
 
   protected val configPath: String = "bifrost"
 
+  /**
+    *
+    * @param startupOpts
+    * @return
+    */
   def read ( startupOpts: StartupOpts = StartupOpts.empty ): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
 
+  /**
+    *
+    * @param args
+    * @return
+    */
   def readConfig ( args: StartupOpts ): Config = {
 
     val networkPath = args.networkTypeOpt.flatMap {
@@ -145,6 +154,11 @@ object AppSettings extends Logging with SettingsReaders {
     }
   }
 
+  /**
+    *
+    * @param config
+    * @return
+    */
   def fromConfig ( config: Config ): AppSettings = {
     config.as[AppSettings](configPath)
   }

@@ -7,7 +7,7 @@ sealed trait NetworkType {
 
 object NetworkType {
 
-  def all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet)
+  def all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet, LocalNet)
 
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
@@ -22,6 +22,10 @@ object NetworkType {
 
   case object DevNet extends NetworkType {
     val verboseName: String = "hel"
+  }
+
+  case object LocalNet extends NetworkType {
+    val verboseName: String = "private"
   }
 
 }

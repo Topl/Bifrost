@@ -6,7 +6,6 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import co.topl.consensus.ForgerRef
 import co.topl.http.HttpService
@@ -57,7 +56,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, upnpGateway)
+  protected val appContext = new AppContext(settings, startupOpts.networkTypeOpt, upnpGateway)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
@@ -129,7 +128,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
     log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
 
-    val httpHost = settings.restApi.bindAddress.toString.split(":").head
+    val httpHost = settings.restApi.bindAddress.getHostString
     val httpPort = settings.restApi.bindAddress.getPort
 
     def failedP2P(): Unit = {

@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.http.api.routes.{AssetApiRoute, WalletApiRoute}
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State

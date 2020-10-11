@@ -18,9 +18,9 @@ package object consensus {
   private var _targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
 
   // setters
-  def maxStake_= (value: Long): Unit = _maxStake = value
-  def inflation_= (value: Long): Unit = _inflation = value
-  def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
+  private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
+  private[consensus] def inflation_= (value: Long): Unit = _inflation = value
+  private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
 
   // getters
   def maxStake: Long = _maxStake

@@ -8,6 +8,8 @@ import co.topl.utils.serialization.{BytesSerializable, _}
 case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
   override type M = Version
 
+  val blockByte: Byte = firstDigit
+
   override def serializer: BifrostSerializer[Version] = VersionSerializer
 
   override def compare(that: Version): Int =

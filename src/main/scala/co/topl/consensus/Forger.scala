@@ -29,7 +29,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
-  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
+  import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 
   // holder of private keys that are used to forge
   private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
@@ -83,7 +83,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     case StopForging =>
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
-      context become receive
+      context become readyToForge
 
     case CurrentView(h: History, s: State, m: MemPool) =>
       updateForgeTime() // update the forge timestamp
@@ -124,32 +124,41 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
-    // get the set of boxes to use for testing
-    val boxes = getArbitBoxes(state)
+    try {
+      // get the set of boxes to use for testing
+      val boxes = getArbitBoxes(state) match {
+        case Success(boxes) => boxes
+        case Failure(ex)    => throw ex
+      }
 
-    log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
-                s"${boxes.map(_.value).sum}")
+      log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
+        s"${boxes.map(_.value).sum}")
 
-    // create the coinbase reward transaction
-    val coinbase = createCoinbase(history.bestBlock.id) match {
-      case Success(cb) => cb
-      case Failure(ex) => throw ex
-    }
+      // create the coinbase reward transaction
+      val coinbase = createCoinbase(history.bestBlock.id) match {
+        case Success(cb) => cb
+        case Failure(ex) => throw ex
+      }
 
-    // pick the transactions from the mempool for inclusion in the block (if successful)
-    val transactions = pickTransactions(memPool, state) match {
-      case Success(txs) => txs
-      case Failure(ex)  => throw ex
-    }
+      // pick the transactions from the mempool for inclusion in the block (if successful)
+      val transactions = pickTransactions(memPool, state) match {
+        case Success(txs) => txs
+        case Failure(ex)  => throw ex
+      }
 
-    // check forging eligibility
-    leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
-      case Some(block) =>
-        log.debug(s"Locally generated block: $block")
-        viewHolderRef ! LocallyGeneratedModifier[Block](block)
+      // check forging eligibility
+      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
+        case Some(block) =>
+          log.debug(s"Locally generated block: $block")
+          viewHolderRef ! LocallyGeneratedModifier[Block](block)
 
-      case None => log.debug(s"Failed to generate block")
-    }
+        case None => log.debug(s"Failed to generate block")
+      }
+    } catch {
+      case ex: Throwable =>
+        log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
+        self ! StopForging
+      }
   }
 
   /**
@@ -158,7 +167,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    * @param state state instance used to lookup the balance for all unlocked keys
    * @return a set of arbit boxes to use for testing leadership eligibility
    */
-  private def getArbitBoxes ( state: State ): Set[ArbitBox] = {
+  private def getArbitBoxes ( state: State ): Try[Set[ArbitBox]] = Try {
     val publicKeys = keyRing.publicKeys
 
     if ( publicKeys.nonEmpty ) {
@@ -168,7 +177,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
           .collect { case box: ArbitBox => box }
       }
     } else {
-      throw new Error("Attempted to forge but no keyfiles are unlocked!")
+      throw new Error("No boxes available for forging!")
     }
   }
 

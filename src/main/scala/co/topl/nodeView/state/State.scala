@@ -265,12 +265,15 @@ case class State ( override val version     : VersionTag,
   }
 }
 
+
+
+
 object State extends Logging {
 
   def genesisState ( settings: AppSettings, initialBlocks: Seq[Block] ): State = {
     initialBlocks
-      .foldLeft(readOrGenerate(settings, callFromGenesis = true)) {
-        ( state, mod ) => state.applyModifier(mod).get
+      .foldLeft(readOrGenerate(settings)) {
+        (state, mod) => state.applyModifier(mod).get
       }
   }
 
@@ -306,7 +309,7 @@ object State extends Logging {
     file
   }
 
-  def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
+  def readOrGenerate (settings: AppSettings): State = {
     val storage = new LSMStore(stateFile(settings))
 
     val version: VersionTag = ModifierId(

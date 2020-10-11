@@ -1,148 +1,507 @@
 package co.topl.nodeView
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.crypto.{PrivateKey25519, Signature25519}
-import co.topl.modifier.NodeViewModifier
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.transaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
+import co.topl.modifier.transaction.{GenericTransaction, Transaction}
+import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, Box}
+import co.topl.nodeView.state.box.Box
+import co.topl.nodeView.state.genesis.GenesisProvider
+import co.topl.nodeView.state.{State, TransactionValidation}
 import co.topl.settings.{AppContext, AppSettings}
+import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{Logging, TimeProvider}
-import scorex.crypto.signatures.Signature
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success, Try}
 
-class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext )
-                     ( implicit ec: ExecutionContext )
-  extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
-                                NodeViewHolder.MS, NodeViewHolder.MP] {
+/**
+  * Composite local view of the node
+  *
+  * Contains instances for History, MinimalState, Vault, MemoryPool.
+  * The instances are read-only for external world.
+  * Updates of the composite view(the instances are to be performed atomically.
+  */
+class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
+                     ( implicit ec: ExecutionContext ) extends Actor with Logging {
+
+  // Import the types of messages this actor can RECEIVE
+  import NodeViewHolder.ReceivableMessages._
+
+  // Import the types of messages this actor can SEND
+  import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
+
+  type BX = Box
+  type TX = Transaction
+  type PMOD = Block
+  type HIS = History
+  type MS = State
+  type MP = MemPool
+  type NodeView = (HIS, MS, MP)
+
+  case class UpdateInformation(history: HIS,
+                               state: MS,
+                               failedMod: Option[PMOD],
+                               alternativeProgressInfo: Option[ProgressInfo[PMOD]],
+                               suffix: IndexedSeq[PMOD])
+
+  /**
+    * The main data structure a node software is taking care about, a node view consists
+    * of four elements to be updated atomically: history (log of persistent modifiers),
+    * state (result of log's modifiers application to pre-historical(genesis) state,
+    * user-specific information stored in vault (it could be e.g. a wallet), and a memory pool.
+    */
+  protected var nodeView: NodeView = restoreState().getOrElse(genesisState)
+
+  /**
+    * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
+    */
+  protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
+    new DefaultModifiersCache[PMOD, HIS](settings.network.maxModifiersCacheSize)
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
-        GenericTransaction.modifierTypeId -> TransactionSerializer)
+      GenericTransaction.modifierTypeId -> TransactionSerializer)
 
-  private val timeProvider: TimeProvider = appContext.timeProvider
-
-  override def preRestart ( reason: Throwable, message: Option[Any] ): Unit = {
+  /** Define actor control behavior */
+  override def preRestart (reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
     reason.printStackTrace()
     System.exit(100) // this actor shouldn't be restarted at all so kill the whole app if that happened
   }
 
-  override def postStop ( ): Unit = {
+  override def postStop: Unit = {
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
     super.postStop()
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
   }
 
+  ////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+
+  // ----------- CONTEXT
+  override def receive: Receive =
+    processModifiers orElse
+    transactionsProcessing orElse
+    getCurrentInfo orElse
+    getNodeViewChanges orElse
+    nonsense
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+
+  protected def processModifiers: Receive = {
+    case ModifiersFromRemote(mods: Iterable[PMOD] @unchecked) => processRemoteModifiers(mods)
+
+    case LocallyGeneratedModifier(mod: Block) =>
+      log.info(s"Got locally generated modifier ${mod.id} of type ${mod.modifierTypeId}")
+      pmodModify(mod)
+  }
+
+  protected def transactionsProcessing: Receive = {
+    case newTxs: NewTransactions[Transaction] @unchecked =>
+      newTxs.txs.foreach(txModify)
+
+    case EliminateTransactions(ids) =>
+      val updatedPool = memoryPool().filter(tx => !ids.contains(tx.id))
+      updateNodeView(updatedMempool = Some(updatedPool))
+      ids.foreach { id =>
+        val e = new Exception("Became invalid")
+        context.system.eventStream.publish(FailedTransaction(id, e, immediateFailure = false))
+      }
+  }
+
+  protected def getCurrentInfo: Receive = {
+    case GetDataFromCurrentView =>
+      sender() ! CurrentView(history(), minimalState(), memoryPool())
+  }
+
+  protected def getNodeViewChanges: Receive = {
+    case GetNodeViewChanges(history, state, mempool) =>
+      if (history) sender() ! ChangedHistory(nodeView._1.getReader)
+      if (state) sender() ! ChangedState(nodeView._2.getReader)
+      if (mempool) sender() ! ChangedMempool(nodeView._3.getReader)
+  }
+
+  protected def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"NodeViewHolder: got unexpected input $nonsense from ${sender()}")
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+
+  protected def history(): HIS = nodeView._1
+
+  protected def minimalState(): MS = nodeView._2
+
+  protected def memoryPool(): MP = nodeView._3
+
   /**
-   * Restore a local view during a node startup. If no any stored view found
-   * (e.g. if it is a first launch of a node) None is to be returned
-   */
-  override def restoreState (): Option[NodeView] = {
+    * Restore a local view during a node startup. If no any stored view found
+    * (e.g. if it is a first launch of a node) None is to be returned
+    */
+  def restoreState (): Option[NodeView] = {
     if ( State.exists(settings) ) {
       Some((
-             History.readOrGenerate(settings),
-             State.readOrGenerate(settings),
-             MemPool.emptyPool
-           ))
+        History.readOrGenerate(settings),
+        State.readOrGenerate(settings),
+        MemPool.emptyPool
+      ))
     } else None
   }
 
-  //noinspection ScalaStyle
-  override protected def genesisState: NodeView = {
-    NodeViewHolder.initializeGenesis(settings)
+  /**
+    * Hard-coded initial view all the honest nodes in a network are making progress from.
+    */
+  protected def genesisState: NodeView = {
+    GenesisProvider.initializeGenesis(appContext.networkType) match {
+      case Success(block) =>
+        val history = History.readOrGenerate(settings).append(block).get._1
+        val state = State.genesisState(settings, Seq(block))
+        (history, state, MemPool.emptyPool)
+
+      case Failure(ex) => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
+    }
+  }
+
+  /**
+   * Handles adding remote modifiers to the default cache and then attempts to apply them to the history.
+   * Since this cache is unordered, we continue to loop through the cache until it's size remains constant.
+   * This indicates that no more modifiers in the cache can be appended into history
+   *
+   * @param mods recieved persistent modifiers from the remote peer
+   */
+  protected def processRemoteModifiers(mods: Iterable[PMOD]): Unit = {
+    /** First-order loop that tries to pop blocks out of the cache and apply them into history */
+    @tailrec
+    def applyLoop(applied: Seq[PMOD]): Seq[PMOD] = {
+      modifiersCache.popCandidate(history()) match {
+        case Some(mod) =>
+          pmodModify(mod)
+          applyLoop(mod +: applied)
+        case None =>
+          applied
+      }
+    }
+
+    /** Second-order loop that continues to call the first-order loop until the size of the cache remains constant */
+    @tailrec
+    def applyAllApplicable(acc: Seq[PMOD], startSize: Int): Seq[PMOD] = {
+      val applied = applyLoop(acc)
+      if (modifiersCache.size == startSize) applied
+      else applyAllApplicable(applied, modifiersCache.size)
+    }
+
+    // add all newly received modifiers to the cache
+    mods.foreach(m => modifiersCache.put(m.id, m))
+
+    // record the initial size for comparison
+    val initialSize = modifiersCache.size
+
+    // begin looping through the cache and trying to apply all applicable modifiers
+    val applied = applyAllApplicable(Seq(), initialSize)
+
+    // clean the cache if it is growing too large
+    val cleared = modifiersCache.cleanOverfull()
+
+    context.system.eventStream.publish(ModifiersProcessingResult(applied, cleared))
+    log.debug(s"Cache size before: $initialSize")
+    log.debug(s"Cache size after: ${modifiersCache.size}")
+  }
+
+  /**
+    *
+    * @param tx
+    */
+  protected def txModify(tx: TX): Unit = {
+    //todo: async validation?
+    val errorOpt: Option[Throwable] = minimalState() match {
+      case txValidator: TransactionValidation[TX] =>
+        txValidator.validate(tx) match {
+          case Success(_) => None
+          case Failure(e) => Some(e)
+        }
+      case _ => None
+    }
+
+    errorOpt match {
+      case None =>
+        memoryPool().put(tx) match {
+          case Success(newPool) =>
+            log.debug(s"Unconfirmed transaction $tx added to the memory pool")
+            context.system.eventStream.publish(SuccessfulTransaction[TX](tx))
+
+          case Failure(e) =>
+            context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+        }
+
+      case Some(e) =>
+        context.system.eventStream.publish(FailedTransaction(tx.id, e, immediateFailure = true))
+    }
+  }
+
+  //todo: update state in async way?
+  /**
+    *
+    * @param pmod
+    */
+  protected def pmodModify(pmod: PMOD): Unit =
+    if (!history().contains(pmod.id)) {
+      context.system.eventStream.publish(StartingPersistentModifierApplication(pmod))
+
+      log.info(s"Apply modifier ${pmod.id} of type ${pmod.modifierTypeId} to nodeViewHolder")
+
+      history().append(pmod) match {
+        case Success((historyBeforeStUpdate, progressInfo)) =>
+          log.debug(s"Going to apply modifications to the state: $progressInfo")
+          context.system.eventStream.publish(SyntacticallySuccessfulModifier(pmod))
+          context.system.eventStream.publish(NewOpenSurface(historyBeforeStUpdate.openSurfaceIds()))
+
+          if (progressInfo.toApply.nonEmpty) {
+            val (newHistory, newStateTry, blocksApplied) =
+              updateState(historyBeforeStUpdate, minimalState(), progressInfo, IndexedSeq())
+
+            newStateTry match {
+              case Success(newMinState) =>
+                val newMemPool = updateMemPool(progressInfo.toRemove, blocksApplied, memoryPool(), newMinState)
+
+                log.info(s"Persistent modifier ${pmod.id} applied successfully")
+                updateNodeView(Some(newHistory), Some(newMinState), Some(newMemPool))
+
+
+              case Failure(e) =>
+                log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to minimal state", e)
+                updateNodeView(updatedHistory = Some(newHistory))
+                context.system.eventStream.publish(SemanticallyFailedModification(pmod, e))
+            }
+          } else {
+            requestDownloads(progressInfo)
+            updateNodeView(updatedHistory = Some(historyBeforeStUpdate))
+          }
+        case Failure(e) =>
+          log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to history", e)
+          context.system.eventStream.publish(SyntacticallyFailedModification(pmod, e))
+      }
+    } else {
+      log.warn(s"Trying to apply modifier ${pmod.id} that's already in history")
+    }
+
+  /**
+    *
+    * @param mod
+    * @return
+    */
+  protected def extractTransactions(mod: PMOD): Seq[TX] = mod match {
+    case tcm: TransactionsCarryingPersistentNodeViewModifier[TX] => tcm.transactions
+    case _ => Seq()
+  }
+
+  /**
+    *
+    * @param pi
+    */
+  private def requestDownloads(pi: ProgressInfo[PMOD]): Unit =
+    pi.toDownload.foreach { case (tid, id) =>
+      context.system.eventStream.publish(DownloadRequest(tid, id))
+    }
+
+  /**
+    *
+    * @param suffix
+    * @param rollbackPoint
+    * @return
+    */
+  private def trimChainSuffix(suffix: IndexedSeq[PMOD], rollbackPoint: ModifierId): IndexedSeq[PMOD] = {
+    val idx = suffix.indexWhere(_.id == rollbackPoint)
+    if (idx == -1) IndexedSeq() else suffix.drop(idx)
+  }
+
+
+  /** Below is a description of how state updates are managed */
+  /** --------------------------------------------------------------------------------------------------------------------- /
+  Assume that history knows the following blocktree:
+
+           G
+          / \
+         *   G
+        /     \
+       *       G
+
+    where path with G-s is about canonical chain (G means semantically valid modifier), path with * is sidechain (* means
+    that semantic validity is unknown). New modifier is coming to the sidechain, it sends rollback to the root +
+    application of the sidechain to the state. Assume that state is finding that some modifier in the sidechain is
+    incorrect:
+
+           G
+          / \
+         G   G
+        /     \
+       B       G
+      /
+     *
+
+  In this case history should be informed about the bad modifier and it should retarget state
+
+    //todo: improve the comment below
+
+    We assume that we apply modifiers sequentially (on a single modifier coming from the network or generated locally),
+    and in case of failed application of some modifier in a progressInfo, rollback point in an alternative should be not
+    earlier than a rollback point of an initial progressInfo.
+  / ---------------------------------------------------------------------------------------------------------------------- **/
+
+  @tailrec
+  private def updateState(history: HIS,
+                          state: MS,
+                          progressInfo: ProgressInfo[PMOD],
+                          suffixApplied: IndexedSeq[PMOD]): (HIS, Try[MS], Seq[PMOD]) = {
+    requestDownloads(progressInfo)
+
+    val (stateToApplyTry: Try[MS], suffixTrimmed: IndexedSeq[PMOD]) = if (progressInfo.chainSwitchingNeeded) {
+      @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
+      val branchingPoint = progressInfo.branchPoint.get //todo: .get
+      if (state.version != branchingPoint) {
+        state.rollbackTo(branchingPoint) -> trimChainSuffix(suffixApplied, branchingPoint)
+      } else Success(state) -> IndexedSeq()
+    } else Success(state) -> suffixApplied
+
+    stateToApplyTry match {
+      case Success(stateToApply) =>
+        val stateUpdateInfo = applyState(history, stateToApply, suffixTrimmed, progressInfo)
+
+        stateUpdateInfo.failedMod match {
+          case Some(_) =>
+            @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
+            val alternativeProgressInfo = stateUpdateInfo.alternativeProgressInfo.get
+            updateState(stateUpdateInfo.history, stateUpdateInfo.state, alternativeProgressInfo, stateUpdateInfo.suffix)
+          case None => (stateUpdateInfo.history, Success(stateUpdateInfo.state), stateUpdateInfo.suffix)
+        }
+      case Failure(e) =>
+        log.error("Rollback failed: ", e)
+        context.system.eventStream.publish(RollbackFailed)
+        //todo: what to return here? the situation is totally wrong
+        ???
+    }
+  }
+
+  /**
+   * Update NodeView with new components and notify subscribers of changed components
+   *
+   * @param updatedHistory
+   * @param updatedState
+   * @param updatedMempool
+   */
+  protected def updateNodeView(updatedHistory: Option[HIS] = None,
+                               updatedState: Option[MS] = None,
+                               updatedMempool: Option[MP] = None): Unit = {
+    val newNodeView =
+      (updatedHistory.getOrElse(history()),
+      updatedState.getOrElse(minimalState()),
+      updatedMempool.getOrElse(memoryPool()))
+
+    if (updatedHistory.nonEmpty)
+      context.system.eventStream.publish(ChangedHistory(newNodeView._1.getReader))
+
+    if (updatedState.nonEmpty)
+      context.system.eventStream.publish(ChangedState(newNodeView._2.getReader))
+
+    if (updatedMempool.nonEmpty)
+      context.system.eventStream.publish(ChangedMempool(newNodeView._3.getReader))
+
+    nodeView = newNodeView
+  }
+
+  //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
+  //todo: validity of remaining transactions in a synchronous way. Do this job async!
+  protected def updateMemPool(blocksRemoved: Seq[PMOD], blocksApplied: Seq[PMOD], memPool: MP, state: MS): MP = {
+    val rolledBackTxs = blocksRemoved.flatMap(extractTransactions)
+
+    val appliedTxs = blocksApplied.flatMap(extractTransactions)
+
+    memPool.putWithoutCheck(rolledBackTxs).filter { tx =>
+      !appliedTxs.exists(t => t.id == tx.id) && {
+        state match {
+          case v: TransactionValidation[TX] => v.validate(tx).isSuccess
+          case _ => true
+        }
+      }
+    }
+  }
+
+  /**
+    * Attempts to update the local view of state by applying a set of blocks
+    *
+    * @param history the initial view of history prior to updating
+    * @param stateToApply the initial view of state prior to updating
+    * @param suffixTrimmed ???
+    * @param progressInfo class with blocks that need to be applied to state
+    * @return
+    */
+  protected def applyState(history: HIS,
+                           stateToApply: MS,
+                           suffixTrimmed: IndexedSeq[PMOD],
+                           progressInfo: ProgressInfo[PMOD]): UpdateInformation = {
+
+    val updateInfoInit = UpdateInformation(history, stateToApply, None, None, suffixTrimmed)
+
+    progressInfo.toApply.foldLeft(updateInfoInit) { case (updateInfo, modToApply) =>
+      if (updateInfo.failedMod.isEmpty) {
+        updateInfo.state.applyModifier(modToApply) match {
+          case Success(stateAfterApply) =>
+            val newHis = history.reportModifierIsValid(modToApply)
+            context.system.eventStream.publish(SemanticallySuccessfulModifier(modToApply))
+            UpdateInformation(newHis, stateAfterApply, None, None, updateInfo.suffix :+ modToApply)
+
+          case Failure(e) =>
+            val (newHis, newProgressInfo) = history.reportModifierIsInvalid(modToApply, progressInfo)
+            context.system.eventStream.publish(SemanticallyFailedModification(modToApply, e))
+            UpdateInformation(newHis, updateInfo.state, Some(modToApply), Some(newProgressInfo), updateInfo.suffix)
+        }
+      } else updateInfo
+    }
   }
 }
 
-object NodeViewHolder extends Logging {
+////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
-  type HIS = History
-  type MS = State
-  type MP = MemPool
-  type PMOD = Block
-  type TX = Transaction
-  type BX = Box
-  type NodeView = (HIS, MS, MP)
+object NodeViewHolder {
 
-  //noinspection ScalaStyle
-  def initializeGenesis ( settings: AppSettings ): NodeView = {
-    val GenesisAccountsNum = 50
-    val GenesisBalance = 100000000L
+  object ReceivableMessages {
 
-    //propositions with wallet seed genesisoo, genesiso1, ..., genesis48, genesis49
-    val icoMembers: IndexedSeq[PublicKey25519Proposition] =
-      IndexedSeq(
-        "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "7BDhJv6Wh2MekgJLvQ98ot9xiw5x3N4b3KipURdrW8Ge",
-        "Ei8oY3eg5vM26QUBhyFiAdPN1C23RJEV9irrykNmSAFV", "8LNhm5QagL88sWggvJKGDiZ5bBCG4ajV7R6vAKz4czA9",
-        "EakiCSw1rfmL5DFTPNmSJZEEAEGtTp3DN12wVPJVsURS", "AEQ8bZRuAxAp8DV9VZnTrSudGPdNyzY2HXjPBCGy8igf",
-        "DSL6bvb6j1v6SnvKjqc6fJWdsRjZ85YboH8FkzonUPiT", "419sTmWKAXb5526naQ93xJZL4YAYtpVkbLmzMb6k5X9m",
-        "GydWCS1GwExoDNuEiW6fBLYr7cs4vwdLpk1kzDeKHq6A", "G8xVDYow1YcSb4cuAHwcpYSEKxFpYwC9GqYChMvbCWn5",
-        "9E4F53GSXMPqwuPWEVoUQe9B1z4A8v9Y6tAQdKK779km", "5XtHBDxXCudA38FJnoWm1BVG8aV67AiQKnPuwYbWZCb3",
-        "8Sp3v5vtYtkM9Z2K2B7PuZbWmWQE9bfiUFCvkmsdauGj", "8XTUXeLiHPbMNXedWQh5xHQtq4xUHU3pZZGqRQzC2eyj",
-        "ftqJXjSXrWQXmumNVVaRiNB7TZuCy4GCvz9V4GJGhAv", "GMAYWvbBmssCr55m9bcq8cKzfczSKKxidtVrukBM1KFN",
-        "3nFprwUuqGH9BpvJMQeCb5AwHdaXuxKin1WSxWc9PTkY", "HfYNA96cGebFGgAhGUbxvRJYyLFchQJZpJTQMXztE6gZ",
-        "EPbo8xRWARg2znJAqevKnQMskxnemmCdimPiVFhr8eLd", "4pygr1SPEe5KbU1R8XgMmYaW7YfTH818wd113mF6bhsP",
-        "52gwahUytUXv7wfKs4j6YeKeepc38sYsUi4jp4z4jVym", "Hi3Q1ZQbD2zztq6ajm5yUKfFccxmj3yZn79GUjhFvPSW",
-        "G1yK5iwPQKNXnqU4Drg83et3gKhRW5CogqiekKEYDcrt", "Hf8XcEAVMCiWbu376rGS48FhwH5NgteivfsTsvX1XpbA",
-        "3FAskwxrbqiX2KGEnFPuD3z89aubJvvdxZTKHCrMFjxQ", "GgahaaNBaHRnyUtvEu3k7N5BnW3dvhVCXyxMP6uijdhh",
-        "7R9waVeAKuHKNQY5uTYBp6zNLNo6wSDvj9XfQCyRWmDF", "E4AoFDANgDFL83gTS6A7kjWbLmqWcPr6DqEgMG7cqU18",
-        "AEkuiLFdudYmUwZ9dSa64rakqUgJZf6pKFFwwm6CZFQz", "3QzGZvvTQbcUdhd5BL9ofEK3GdzbmqUnYA1pYTAdVY44",
-        "EjpGvdZETt3SuZpcuwKvZS4jgWCockDHzFQLoeYNW4R", "C85c1uMAiHKDgcqxF6EaiCGQyWgQEYATbpo8M7XEnx3R",
-        "8V5y1CSC1gCGD1jai3ns5FJNW7tAzf7BGd4iwmBv7V44", "CJ9udTDT61ckSHMd6YNpjeNdsN2fGwmJ6Ry6YERXmGa7",
-        "7eboeRCeeBCFwtzPtB4vKPnaYMPL52BjfiEpqSRWfkgx", "E3JJCTMouTys5BSwFyHTV3Ht55mYWfNUAverrNaVo4jE",
-        "9PLHPwnHyA5jf6GPGRjJt7HNd93rw4gWTBi7LBNL4Wwt", "2YM2FQ4HfMiV3LFkiwop2xFznbPVEHbhahVvcrhfZtXq",
-        "3oTzYXjwdr684FUzaJEVVuXBztysNgR8M8iV9QykaM9C", "J6bgGpwDMqKFrde2mpdS6dasRyn9WFV6jKgWAkHSN91q",
-        "4wtQpa1BVgAt9CA4FUuHZHCYGBYtvudPqa1sAddfAPii", "DaSXwzkAU2WfH39zxMfuXpExsVfKk6JzeYbdW9RLiXr4",
-        "6BtXEZE6GcxtEtSLAHXkE3mkcTG1u8WuoQxZG7R8BR5X", "39Z9VaCAeqoWajHyku29argf7zmVqs2vVJM8zYe7YLXy",
-        "7focbpSdsNNE4x9h7eyXSkvXE6dtxsoVyZMpTpuThLoH", "CBdnTL6C4A7nsacxCP3VL3TqUokEraFy49ckQ196KU46",
-        "CfvbDC8dxGeLXzYhDpNpCF2Ar9Q5LKs8QrfcMYAV59Lt", "GFseSi5squ8GRRkj6RknbGj9Hyz82HxKkcn8NKW1e5CF",
-        "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
-        ).map(PublicKey25519Proposition.apply)
+    // Explicit request of NodeViewChange events of certain types.
+    case class GetNodeViewChanges(history: Boolean, state: Boolean, mempool: Boolean)
 
-    val genesisAccount = PrivateKey25519.generateKeys("genesis".getBytes)
-    val genesisAccountPriv = genesisAccount._1
+    // Retrieve data from current view with an optional callback function to modify the view
+    case object GetDataFromCurrentView
 
-    val arbTx = ArbitTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
-                              icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage ->
-                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
-                              0L,
-                              0L,
-                              "")
-    val polyTx = PolyTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
-                              icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage ->
-                                Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
-                              0L,
-                              0L,
-                              "")
-    val genesisTxs = Seq(arbTx, polyTx)
+    // Modifiers received from the remote peer with new elements in it
+    case class ModifiersFromRemote[PMOD <: PersistentNodeViewModifier](modifiers: Iterable[PMOD])
 
-    log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
-    assert(icoMembers.length == GenesisAccountsNum)
+    case class LocallyGeneratedModifier[PMOD <: PersistentNodeViewModifier](pmod: PMOD)
 
-    val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
+    sealed trait NewTransactions[TX <: Transaction]{val txs: Iterable[TX]}
 
-    val genesisBlock = Block.create(History.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
+    case class LocallyGeneratedTransaction[TX <: Transaction](tx: TX) extends NewTransactions[TX] {
+      override val txs: Iterable[TX] = Iterable(tx)
+    }
 
-    assert(genesisBlock.id.toString == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${genesisBlock.id} does not match the required block for the chosen network mode.${Console.RESET}")
+    case class TransactionsFromRemote[TX <: Transaction](txs: Iterable[TX]) extends NewTransactions[TX]
 
-    val history = History.readOrGenerate(settings).append(genesisBlock).get._1
-    val state = State.genesisState(settings, Seq(genesisBlock))
+    case class EliminateTransactions(ids: Seq[ModifierId])
 
-    (history, state, MemPool.emptyPool)
   }
+
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object NodeViewHolderRef {
 
