@@ -1,10 +1,11 @@
 package co.topl.nodeView
 
+import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.state.box.{ Box, ProgramBox, TokenBox }
+import co.topl.nodeView.state.box.{Box, ProgramBox, TokenBox}
 import com.google.common.primitives.Ints
 
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 package object state {
   /** This function will modify the state storage directly without returning a new instance of state
@@ -12,7 +13,7 @@ package object state {
   def directlyAddStateStorage( version: Int, boxes: Seq[Box], state: State): Unit = {
     // Manually manipulate state
     val boxSC = StateChanges(Set(), boxes.toSet)
-    val versionId = ModifierId(Ints.toByteArray(version))
+    val versionId = ModifierId(FastCryptographicHash(Ints.toByteArray(version)))
 
     // this works by updating the underlying storage object directly and ignoring the updated state instance
     state.applyChanges(versionId, boxSC) match {
@@ -25,7 +26,7 @@ package object state {
    * USE WITH EXTREME CAUTION!! */
   def directlyAddPBRStorage ( version: Int, boxes: Seq[ProgramBox], state: State): Unit = {
     // Manually manipulate state
-    val versionId = ModifierId(Ints.toByteArray(version))
+    val versionId = ModifierId(FastCryptographicHash(Ints.toByteArray(version)))
 
     val updates = boxes.map(bx => bx.value -> Seq(bx.id)).toMap
 
@@ -43,7 +44,8 @@ package object state {
    * USE WITH EXTREME CAUTION!! */
   def directlyAddTBRStorage ( version: Int, boxes: Seq[TokenBox], state: State): Unit = {
     // Manually manipulate state
-    val versionId = ModifierId(Ints.toByteArray(version))
+    println(s"version: $version, length: ${FastCryptographicHash(Ints.toByteArray(version)).length}")
+    val versionId = ModifierId(FastCryptographicHash(Ints.toByteArray(version)))
 
     val updates = boxes.map(bx => bx.proposition -> Seq(bx.nonce)).toMap
 

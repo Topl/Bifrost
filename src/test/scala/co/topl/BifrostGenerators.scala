@@ -181,6 +181,12 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     (0 until seqLen) map { _ => (sampleUntilNonEmpty(positiveLongGen), samplePositiveDouble) }
   }
 
+  lazy val tokenBoxesGen: Gen[Seq[TokenBox]] = for {
+    tx <- Gen.someOf(polyBoxGen, arbitBoxGen, assetBoxGen)
+  } yield {
+    tx
+  }
+
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
