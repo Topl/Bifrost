@@ -27,9 +27,7 @@ package object state {
   def directlyAddPBRStorage ( version: Int, boxes: Seq[ProgramBox], state: State): Unit = {
     // Manually manipulate state
     val versionId = ModifierId(FastCryptographicHash(Ints.toByteArray(version)))
-
     val updates = boxes.map(bx => bx.value -> Seq(bx.id)).toMap
-
     val pbrSC = ProgramRegistryChanges(Map(), updates)
 
     // this works by updating the underlying storage object directly and ignoring the updated state instance
@@ -44,11 +42,8 @@ package object state {
    * USE WITH EXTREME CAUTION!! */
   def directlyAddTBRStorage ( version: Int, boxes: Seq[TokenBox], state: State): Unit = {
     // Manually manipulate state
-    println(s"version: $version, length: ${FastCryptographicHash(Ints.toByteArray(version)).length}")
     val versionId = ModifierId(FastCryptographicHash(Ints.toByteArray(version)))
-
     val updates = boxes.map(bx => bx.proposition -> Seq(bx.nonce)).toMap
-
     val tbrSC = TokenRegistryChanges(Map(), updates)
 
     // this works by updating the underlying storage object directly and ignoring the updated state instance

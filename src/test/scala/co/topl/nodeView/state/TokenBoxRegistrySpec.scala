@@ -7,9 +7,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.reflect.io.Path
-import scala.util.Try
-
 class TokenBoxRegistrySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
@@ -22,14 +19,12 @@ class TokenBoxRegistrySpec extends AnyPropSpec
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>
+      val keys = tokens.groupBy(tk => tk.proposition)
       directlyAddTBRStorage(scala.util.Random.nextInt(), tokens, state)
-      tokens.foreach(t => state.getBox(t.id) should not be None)
+      keys.foreach { key =>
+        state.getTokenBoxes(key._1).get shouldEqual key._2
+      }
     }
-  }
-
-  property("Rollback should have worked and recreated above changes exactly") {
-
-
   }
 
   override def afterAll() {
