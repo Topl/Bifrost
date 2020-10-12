@@ -3,6 +3,7 @@ package co.topl.settings
 sealed trait NetworkType {
   val verboseName: String
   def isMainNet: Boolean = false
+  def isPrivateForger: Boolean = false
 }
 
 object NetworkType {
@@ -26,6 +27,7 @@ object NetworkType {
 
   case object LocalNet extends NetworkType {
     val verboseName: String = "private"
+    override def isPrivateForger = true
   }
 
 }

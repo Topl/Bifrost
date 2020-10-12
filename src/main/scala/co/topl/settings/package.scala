@@ -2,6 +2,6 @@ package co.topl
 
 package object settings {
 
-  case object BecomeOperational
+  case class NodeViewReady()
 
 }

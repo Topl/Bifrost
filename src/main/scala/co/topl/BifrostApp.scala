@@ -7,7 +7,6 @@ import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.Forger.ReceivableMessages.StartForging
 import co.topl.consensus.ForgerRef
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
@@ -21,8 +20,7 @@ import co.topl.network.upnp.Gateway
 import co.topl.nodeView.NodeViewHolderRef
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.NetworkType.LocalNet
-import co.topl.settings.{ AppContext, AppSettings, BecomeOperational, NetworkType, StartupOpts }
+import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
 import co.topl.utils.Logging
 import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
 import com.typesafe.config.{ Config, ConfigFactory }
@@ -133,28 +131,19 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpHost = settings.restApi.bindAddress.getHostString
     val httpPort = settings.restApi.bindAddress.getPort
 
+    /** Helper function to kill the application if needed */
     def failedP2P(): Unit = {
       log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 
-    def checkPrivateForging(): Unit = appContext.networkType match {
-      case LocalNet => forgerRef ! StartForging
-      case _        => // need to implement an API method to try forging
-    }
-
     // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
     (networkControllerRef ? BindP2P).onComplete {
       case Success(bindResponse: Future[Any]) =>
-        bindResponse.onComplete({
-          case Success(Tcp.Bound(addr)) =>
-            log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
-            networkControllerRef ! BecomeOperational
-            forgerRef ! BecomeOperational
-            checkPrivateForging()
-
+        bindResponse.onComplete {
+          case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
           case Success(_) | Failure(_) => failedP2P()
-        })
+        }
       case Success(_) | Failure(_) => failedP2P()
     }
 

@@ -48,6 +48,7 @@ class NodeViewSynchronizer[
     with Logging {
 
   // Import the types of messages this actor may SEND or RECEIVES
+  import co.topl.settings.NodeViewReady
   import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
   import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
@@ -82,6 +83,9 @@ class NodeViewSynchronizer[
   override def preStart(): Unit = {
     //register as a handler for synchronization-specific types of messages
     networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
+
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
 
     //register as a listener for peers got connected (handshaked) or disconnected
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])

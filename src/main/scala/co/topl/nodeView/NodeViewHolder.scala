@@ -1,11 +1,13 @@
 package co.topl.nodeView
 
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import co.topl.consensus.Forger.ReceivableMessages.RegisterLedgerProvider
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.{ GenericTransaction, Transaction }
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
@@ -13,7 +15,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.box.Box
 import co.topl.nodeView.state.genesis.GenesisProvider
 import co.topl.nodeView.state.{ State, TransactionValidation }
-import co.topl.settings.{ AppContext, AppSettings }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
@@ -28,7 +30,7 @@ import scala.util.{ Failure, Success, Try }
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( private val keyManager: ActorRef,
+class NodeViewHolder ( private val consensusRef: ActorRef,
                        settings: AppSettings,
                        appContext: AppContext )
                      ( implicit ec: ExecutionContext ) extends Actor with Logging {
@@ -36,9 +38,6 @@ class NodeViewHolder ( private val keyManager: ActorRef,
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-  // Import the types of messages this actor can SEND
-  import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-  import co.topl.consensus.Forger.ReceivableMessages.RegisterLedgerProvider
 
   type BX = Box
   type TX = Transaction
@@ -68,7 +67,11 @@ class NodeViewHolder ( private val keyManager: ActorRef,
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
-    keyManager ! RegisterLedgerProvider
+    // register this actor as the ledger provider for consensus
+    consensusRef ! RegisterLedgerProvider
+
+    log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
+    context.system.eventStream.publish(NodeViewReady())
   }
 
   override def preRestart (reason: Throwable, message: Option[Any]): Unit = {
@@ -79,7 +82,6 @@ class NodeViewHolder ( private val keyManager: ActorRef,
 
   override def postStop: Unit = {
     log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
-    super.postStop()
     nodeView._1.closeStorage() // close History storage
     nodeView._2.closeStorage() // close State storage
   }
@@ -163,8 +165,12 @@ class NodeViewHolder ( private val keyManager: ActorRef,
     * Hard-coded initial view all the honest nodes in a network are making progress from.
     */
   protected def genesisState: NodeView = {
-    GenesisProvider.initializeGenesis(appContext.networkType, keyManager) match {
-      case Success(block) =>
+    GenesisProvider.initializeGenesis(appContext.networkType, consensusRef) match {
+      case Success((block, params)) =>
+        // send genesis parameters to the forger
+        consensusRef ! params
+
+        // generate the nodeView and return
         val history = History.readOrGenerate(settings).append(block).get._1
         val state = State.genesisState(settings, Seq(block))
         (history, state, MemPool.emptyPool)
@@ -514,15 +520,15 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
+  def apply ( consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(keyManager, settings, appContext))
+    system.actorOf(props(consensusRef, settings, appContext))
 
-  def apply ( name: String,  keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
+  def apply ( name: String,  consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(keyManager, settings, appContext), name)
+    system.actorOf(props(consensusRef, settings, appContext), name)
 
-  def props ( keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
+  def props ( consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(keyManager, settings, appContext))
+    Props(new NodeViewHolder(consensusRef, settings, appContext))
 }

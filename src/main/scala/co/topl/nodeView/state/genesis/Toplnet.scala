@@ -1,15 +1,17 @@
 package co.topl.nodeView.state.genesis
 
-import co.topl.crypto.{PrivateKey25519, Signature25519}
+import co.topl.consensus.Forger.ReceivableMessages.GenesisParams
+import co.topl.crypto.{ PrivateKey25519, Signature25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.Version
-import scorex.crypto.signatures.{PrivateKey, PublicKey, Signature}
+import scorex.crypto.signatures.{ PrivateKey, PublicKey, Signature }
 
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.util.Try
 
 object Toplnet extends GenesisProvider {
@@ -17,6 +19,8 @@ object Toplnet extends GenesisProvider {
   override protected val blockChecksum: ModifierId = ModifierId("9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu")
 
   override protected val blockVersion: Version = Version(0,0,1)
+
+  override protected val targetBlockTime: FiniteDuration = 7 seconds
 
   //propositions with wallet seed genesisoo, genesiso1, ..., genesis48, genesis49
   override protected val members: Map[String, Long] = Map(
@@ -72,7 +76,7 @@ object Toplnet extends GenesisProvider {
     "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5" -> 100000000L
     )
 
-  def getGenesisBlock: Try[Block] = Try {
+  def getGenesisBlock: Try[(Block, GenesisParams)] = Try {
 
     val memberKeys = members.keys.map(PublicKey25519Proposition.apply)
 
@@ -103,6 +107,6 @@ object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
 
-    genesisBlock
+    (genesisBlock, GenesisParams(members.values.sum, targetBlockTime))
   }
 }

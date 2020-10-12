@@ -3,7 +3,7 @@ package co.topl.nodeView.state.genesis
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.Forger.ReceivableMessages.CreateGenesisKeys
+import co.topl.consensus.Forger.ReceivableMessages.{ CreateGenesisKeys, GenesisParams }
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -15,7 +15,7 @@ import co.topl.settings.Version
 import scorex.crypto.signatures.Signature
 
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.util.Try
 
 case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
@@ -24,14 +24,16 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
 
   override protected val blockVersion: Version = Version(0,0,1)
 
+  override protected val targetBlockTime: FiniteDuration = 1 seconds
+
   override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
 
   implicit val timeout: Timeout = 30 seconds
 
-  val numberOfKeys = 10
+  val numberOfKeys = 1
   val balance = 1000000L
 
-  def getGenesisBlock: Try[Block] = Try {
+  def getGenesisBlock: Try[(Block, GenesisParams)] = Try {
     val newMembers = {
       Await.result(
         (keyManager ? CreateGenesisKeys(numberOfKeys)).mapTo[Set[PublicKey25519Proposition]],
@@ -63,6 +65,6 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
 
-    genesisBlock
+    (genesisBlock, GenesisParams(newMembers.map(_._2).sum, targetBlockTime))
   }
 }

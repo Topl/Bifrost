@@ -4,12 +4,13 @@ import akka.actor._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppContext, BecomeOperational, ForgingSettings }
+import co.topl.settings.{ AppContext, ForgingSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
@@ -30,12 +31,12 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
-  // Import the types of messages this actor SENDS
-  import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
-
   // holder of private keys that are used to forge
   private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
+
+  // flag to enable forging on a private network
+  private lazy val isPrivateForging = appContext.networkType.isPrivateForger
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
@@ -46,6 +47,11 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   // setting to limit the size of blocks
   val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
 
+  override def preStart ( ): Unit = {
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
@@ -54,10 +60,11 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
     initialization orElse
       nonsense
 
-  private def readyToForge: Receive =
+  private def readyToForge: Receive = {
     readyHandlers orElse
       keyManagement orElse
       nonsense
+  }
 
   private def activeForging: Receive =
     activeHandlers orElse
@@ -68,8 +75,10 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   private def initialization: Receive = {
     case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
     case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
-    case params: NetworkGenesis => setGenesisParameters(params)
-    case BecomeOperational      => context become readyToForge
+    case params: GenesisParams  => setGenesisParameters(params)
+    case NodeViewReady() =>
+      log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
+      checkPrivateForging()
   }
 
   private def readyHandlers: Receive = {
@@ -112,7 +121,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+      log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -128,6 +137,12 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   /** Updates the forging actors timestamp */
   private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
 
+  /** Helper function to enable private forging if we can expects keys in the key ring */
+  private def checkPrivateForging (): Unit ={
+    context become readyToForge
+    if (isPrivateForging && keyRing.publicKeys.nonEmpty) self ! StartForging
+  }
+
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateGenesisKeys (num: Int): Set[PublicKey25519Proposition] =
     keyRing.generateNewKeyPairs(num) match {
@@ -136,7 +151,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
     }
 
   /** Sets the genesis network parameters for calculating adjusted difficulty */
-  private def setGenesisParameters (parameters: NetworkGenesis): Unit = {
+  private def setGenesisParameters (parameters: GenesisParams): Unit = {
     targetBlockTime = parameters.targetBlockTime
     maxStake = parameters.totalStake
   }
@@ -311,7 +326,7 @@ object Forger {
 
     case class CreateGenesisKeys (num: Int)
 
-    case class NetworkGenesis ( totalStake: Long, targetBlockTime: FiniteDuration)
+    case class GenesisParams ( totalStake                         : Long, targetBlockTime: FiniteDuration)
 
     case object StartForging
 

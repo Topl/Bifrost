@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.message.Message
 import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PenaltyType, _ }
-import co.topl.settings.{ AppContext, BecomeOperational, NetworkSettings, Version }
+import co.topl.settings.{ AppContext, NetworkSettings, NodeViewReady, Version }
 import co.topl.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
@@ -31,7 +31,7 @@ class NetworkController ( settings      : NetworkSettings,
   import NetworkController.ReceivableMessages._
 
   // Import the types of messages this actor can SEND
-  import NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
+  import NodeViewSynchronizer.ReceivableMessages.{ DisconnectedPeer, HandshakedPeer }
   import PeerConnectionHandler.ReceivableMessages.CloseConnection
   import PeerManager.ReceivableMessages._
 
@@ -58,6 +58,9 @@ class NetworkController ( settings      : NetworkSettings,
 
   override def preStart ( ): Unit = {
     log.info(s"Declared address: ${appContext.externalNodeAddress}")
+
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -65,8 +68,7 @@ class NetworkController ( settings      : NetworkSettings,
 
   // ----------- CONTEXT
   override def receive: Receive =
-    bindingLogic orElse
-      registerHandlers orElse
+    initialization orElse
       nonsense
 
   private def operational: Receive =
@@ -76,7 +78,7 @@ class NetworkController ( settings      : NetworkSettings,
       nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
-  private def bindingLogic: Receive = {
+  private def initialization: Receive = {
     case BindP2P =>
       //check own declared address for validity
       val addrValidationResult = if ( validateDeclaredAddress() ) {
@@ -88,19 +90,17 @@ class NetworkController ( settings      : NetworkSettings,
 
       sender() ! addrValidationResult
 
-    case BecomeOperational =>
-      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
-      scheduleConnectionToPeer()
-      context become operational
-  }
-
-  private def registerHandlers: Receive = {
     case RegisterMessageSpecs(specs, handler) =>
       log.info(
         s"${Console.YELLOW}Registered ${sender()} as the handler for " +
           s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
         )
       messageHandlers ++= specs.map(_.messageCode -> handler)
+
+    case NodeViewReady() =>
+      log.info(s"${Console.YELLOW}Network Controller transitioning to the operational state${Console.RESET}")
+      scheduleConnectionToPeer()
+      context become operational
   }
 
   private def businessLogic: Receive = {
@@ -189,7 +189,7 @@ class NetworkController ( settings      : NetworkSettings,
       log.info("Failed to execute command : " + cmd)
 
     case nonsense: Any =>
-      log.warn(s"NetworkController (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+      log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
