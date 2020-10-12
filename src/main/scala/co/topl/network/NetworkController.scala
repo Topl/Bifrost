@@ -4,17 +4,17 @@ import java.net._
 
 import akka.actor.SupervisorStrategy._
 import akka.actor._
-import akka.io.{IO, Tcp}
+import akka.io.{ IO, Tcp }
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.message.Message
-import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
-import co.topl.settings.{AppContext, NetworkSettings, Version}
-import co.topl.utils.{Logging, NetworkUtils}
+import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PenaltyType, _ }
+import co.topl.settings.{ AppContext, BecomeOperational, NetworkSettings, Version }
+import co.topl.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Control all network interaction
@@ -521,8 +521,6 @@ object NetworkController {
     case object GetConnectedPeers
 
     case object BindP2P
-
-    case object BecomeOperational
 
   }
 

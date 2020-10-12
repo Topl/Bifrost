@@ -9,7 +9,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppContext, ForgingSettings }
+import co.topl.settings.{ AppContext, BecomeOperational, ForgingSettings }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
@@ -22,7 +22,7 @@ import scala.util.{ Failure, Success, Try }
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
  * Must be singleton
  */
-class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+class Forger ( settings: ForgingSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
@@ -120,7 +120,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt ( ): Unit = {
     ledgerProviders.get("nodeViewHolder") match {
-      case Some(ref) => context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! ref)
+      case Some(ref) => context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(ref ! GetDataFromCurrentView)
       case None      => log.warn(s"Ledger provider not available, skipping schedule.")
     }
   }
@@ -148,7 +148,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool, provider: ActorRef): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool, ledgerRef: ActorRef): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
@@ -178,7 +178,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
-          provider ! LocallyGeneratedModifier[Block](block)
+          ledgerRef ! LocallyGeneratedModifier[Block](block)
 
         case None => log.debug(s"Failed to generate block")
       }
@@ -313,8 +313,6 @@ object Forger {
 
     case class NetworkGenesis ( totalStake: Long, targetBlockTime: FiniteDuration)
 
-    case object BecomeOperational
-
     case object StartForging
 
     case object StopForging
@@ -337,15 +335,15 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props ( nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def props ( settings: ForgingSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new Forger(nodeViewHolderRef, settings, appContext))
+    Props(new Forger(settings, appContext))
 
-  def apply ( nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def apply ( settings: ForgingSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, appContext))
+    system.actorOf(props(settings, appContext))
 
-  def apply ( name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def apply ( name: String, settings: ForgingSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, appContext), name)
+    system.actorOf(props(settings, appContext), name)
 }

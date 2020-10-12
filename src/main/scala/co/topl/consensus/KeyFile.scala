@@ -112,7 +112,7 @@ object KeyFile {
   }
 
   /** helper function to create a new random keyfile */
-  def generateKeyPair: (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(randomBytes(128))
+  def generateKeyPair: (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(randomBytes(16))
 
   def generateKeyPair (seed: Array[Byte]): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed)
 

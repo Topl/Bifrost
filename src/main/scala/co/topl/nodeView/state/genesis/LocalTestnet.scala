@@ -24,7 +24,7 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
 
   override protected val blockVersion: Version = Version(0,0,1)
 
-  override protected val members: Map[String, Long] = Map[String, Long]("Not implemented here", 0L)
+  override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
 
   implicit val timeout: Timeout = 30 seconds
 

@@ -27,7 +27,7 @@ trait GenesisProvider extends Logging {
 object GenesisProvider {
   def initializeGenesis(networkType: NetworkType, keyManager: ActorRef): Try[Block] = networkType match {
     case MainNet  => Toplnet.getGenesisBlock
-    case LocalNet => LocalTestnet(keyManager).getGenesisBlock
+    //case LocalNet => LocalTestnet(keyManager).getGenesisBlock
     case _        => throw new Error("Undefined network type.")
   }
 }

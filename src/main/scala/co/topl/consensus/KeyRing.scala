@@ -115,6 +115,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
   def exportKeyfile (publicImage: PublicKey25519Proposition, password: String): Try[Unit] = Try {
     secretByPublicImage(publicImage) match {
       case Some(sk) => KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
+      case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
 

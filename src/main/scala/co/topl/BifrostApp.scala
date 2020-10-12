@@ -2,33 +2,35 @@ package co.topl
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
+import co.topl.consensus.Forger.ReceivableMessages.StartForging
 import co.topl.consensus.ForgerRef
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.NetworkController.ReceivableMessages.{BecomeOperational, BindP2P}
+import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
 import co.topl.nodeView.NodeViewHolderRef
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
+import co.topl.settings.NetworkType.LocalNet
+import co.topl.settings.{ AppContext, AppSettings, BecomeOperational, NetworkType, StartupOpts }
 import co.topl.utils.Logging
-import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
+import com.typesafe.config.{ Config, ConfigFactory }
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
@@ -66,9 +68,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
+  private val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, appContext)
 
-  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", forgerRef, settings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
       "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
@@ -136,6 +138,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
       BifrostApp.shutdown(actorSystem, actorsToStop)
     }
 
+    def checkPrivateForging(): Unit = appContext.networkType match {
+      case LocalNet => forgerRef ! StartForging
+      case _        => // need to implement an API method to try forging
+    }
+
     // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
     (networkControllerRef ? BindP2P).onComplete {
       case Success(bindResponse: Future[Any]) =>
@@ -143,6 +150,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
           case Success(Tcp.Bound(addr)) =>
             log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
             networkControllerRef ! BecomeOperational
+            forgerRef ! BecomeOperational
+            checkPrivateForging()
 
           case Success(_) | Failure(_) => failedP2P()
         })
