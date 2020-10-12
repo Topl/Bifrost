@@ -14,8 +14,6 @@ import scala.util.Try
 
 object Toplnet extends GenesisProvider {
 
-  override protected val genesisAcct: PrivateKey25519 = PrivateKey25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
-
   override protected val blockChecksum: ModifierId = ModifierId("9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu")
 
   override protected val blockVersion: Version = Version(0,0,1)

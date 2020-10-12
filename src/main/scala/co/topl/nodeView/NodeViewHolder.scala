@@ -28,7 +28,9 @@ import scala.util.{Failure, Success, Try}
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
+class NodeViewHolder ( private val keyManager: ActorRef,
+                       settings: AppSettings,
+                       appContext: AppContext )
                      ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
@@ -156,7 +158,7 @@ class NodeViewHolder ( val settings: AppSettings, appContext: AppContext )
     * Hard-coded initial view all the honest nodes in a network are making progress from.
     */
   protected def genesisState: NodeView = {
-    GenesisProvider.initializeGenesis(appContext.networkType) match {
+    GenesisProvider.initializeGenesis(appContext.networkType, keyManager) match {
       case Success(block) =>
         val history = History.readOrGenerate(settings).append(block).get._1
         val state = State.genesisState(settings, Seq(block))
@@ -507,15 +509,15 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, appContext: AppContext )
+  def apply ( keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext))
+    system.actorOf(props(keyManager, settings, appContext))
 
-  def apply ( name: String, settings: AppSettings, appContext: AppContext )
+  def apply ( name: String,  keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext), name)
+    system.actorOf(props(keyManager, settings, appContext), name)
 
-  def props ( settings: AppSettings, appContext: AppContext )
+  def props ( keyManager: ActorRef, settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext))
+    Props(new NodeViewHolder(keyManager, settings, appContext))
 }

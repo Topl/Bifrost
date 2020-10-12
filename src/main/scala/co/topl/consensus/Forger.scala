@@ -46,15 +46,6 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   // setting to limit the size of blocks
   val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
 
-  override def preStart (): Unit = {
-    targetBlockTime = settings.targetBlockTime
-
-    if ( settings.tryForging ) {
-      context become readyToForge
-      self ! StartForging
-    }
-  }
-
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
@@ -74,6 +65,13 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization: Receive = {
+    case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
+    case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
+    case params: NetworkGenesis => setGenesisParameters(params)
+    case BecomeOperational      => context become readyToForge
+  }
+
   private def readyHandlers: Receive = {
     case StartForging =>
       log.info("Received a START signal, forging will commence shortly.")
@@ -102,13 +100,6 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
         case None =>
           log.warn(s"Ledger provider not available, skipping forging attempt.")
       }
-  }
-
-  private def initialization: Receive = {
-    case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
-    case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
-    case params: NetworkGenesis => setGenesisParameters(params)
-    case BecomeOperational      => context become readyToForge
   }
 
   private def keyManagement: Receive = {

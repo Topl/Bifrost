@@ -58,16 +58,13 @@ class NetworkController ( settings      : NetworkSettings,
 
   override def preStart ( ): Unit = {
     log.info(s"Declared address: ${appContext.externalNodeAddress}")
-    context become initialization
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive = nonsense // should never get into this state
-
-  private def initialization: Receive =
+  override def receive: Receive =
     bindingLogic orElse
       registerHandlers orElse
       nonsense
