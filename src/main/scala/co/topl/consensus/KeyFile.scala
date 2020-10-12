@@ -115,11 +115,11 @@ object KeyFile {
   }
 
   /** helper function to create a new random keyfile */
-  def apply (password: String): KeyFile = apply(password, randomBytes(128))
+  def apply (password: String): KeyFile = apply(password, randomBytes(16))
 
   /**
     *
-    * @param filename
+    * @param filename path to file where key is stored
     * @return
     */
   def readFile (filename: String): KeyFile = {
@@ -134,8 +134,8 @@ object KeyFile {
 
   /**
     *
-    * @param password
-    * @param salt
+    * @param password user defined password for encryption
+    * @param salt random salt to enhance security
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
@@ -156,7 +156,7 @@ object KeyFile {
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
 
-    val outputText = Array.fill(32)(1: Byte)
+    val outputText = Array.fill(inputText.length)(1: Byte)
     aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
     aesCtr.doFinal(outputText, 0)
 
