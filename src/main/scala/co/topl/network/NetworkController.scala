@@ -100,7 +100,8 @@ class NetworkController ( settings      : NetworkSettings,
   private def registerHandlers: Receive = {
     case RegisterMessageSpecs(specs, handler) =>
       log.info(
-        s"${Console.YELLOW}Registered ${sender()} as the handler for ${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
+        s"${Console.YELLOW}Registered ${sender()} as the handler for " +
+          s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
         )
       messageHandlers ++= specs.map(_.messageCode -> handler)
   }
@@ -165,7 +166,7 @@ class NetworkController ( settings      : NetworkSettings,
     case Handshaked(connectedPeer) =>
       handleHandshake(connectedPeer, sender())
 
-    case f@Tcp.CommandFailed(c: Tcp.Connect) =>
+    case f @ Tcp.CommandFailed(c: Tcp.Connect) =>
       unconfirmedConnections -= c.remoteAddress
       f.cause match {
         case Some(t) => log.info("Failed to connect to : " + c.remoteAddress, t)
@@ -238,7 +239,7 @@ class NetworkController ( settings      : NetworkSettings,
         } else {
           log.warn(s"Connection to peer $remote is already established")
         }
-      case None         =>
+      case None =>
         log.warn(s"Can't obtain remote address for peer $peer")
     }
   }
@@ -290,6 +291,12 @@ class NetworkController ( settings      : NetworkSettings,
     unconfirmedConnections -= connectionId.remoteAddress
   }
 
+  /**
+   * Saves a new peer into the database
+   *
+   * @param peerInfo connected peer information
+   * @param peerHandlerRef dedicated handler actor reference
+   */
   private def handleHandshake ( peerInfo      : PeerInfo,
                                 peerHandlerRef: ActorRef
                               ): Unit = {
@@ -361,9 +368,9 @@ class NetworkController ( settings      : NetworkSettings,
   private def connectionForPeerAddress ( peerAddress: InetSocketAddress ): Option[ConnectedPeer] = {
     connections.values.find { connectedPeer =>
       connectedPeer.connectionId.remoteAddress == peerAddress ||
-        connectedPeer.peerInfo.exists(peerInfo =>
-                                        getPeerAddress(peerInfo).contains(peerAddress)
-                                      )
+        connectedPeer.peerInfo.exists { peerInfo =>
+          getPeerAddress(peerInfo).contains(peerAddress)
+        }
     }
   }
 
@@ -535,10 +542,9 @@ object NetworkControllerRef {
       )
   }
 
-  def props (
-              settings      : NetworkSettings,
+  def props ( settings      : NetworkSettings,
               peerManagerRef: ActorRef,
-              appContext: AppContext,
+              appContext    : AppContext,
               tcpManager    : ActorRef
             )( implicit ec: ExecutionContext ): Props = {
     Props(
@@ -551,7 +557,10 @@ object NetworkControllerRef {
       )
   }
 
-  def apply ( name      : String, settings: NetworkSettings, peerManagerRef: ActorRef, appContext: AppContext,
+  def apply ( name: String,
+              settings: NetworkSettings,
+              peerManagerRef: ActorRef,
+              appContext: AppContext,
               tcpManager: ActorRef
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef = {
     system.actorOf(
@@ -560,11 +569,10 @@ object NetworkControllerRef {
       )
   }
 
-  def apply (
-              name          : String,
+  def apply ( name          : String,
               settings      : NetworkSettings,
               peerManagerRef: ActorRef,
-              appContext: AppContext
+              appContext    : AppContext
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef = {
     system.actorOf(
       props(settings, peerManagerRef, appContext, IO(Tcp)),

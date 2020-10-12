@@ -2,18 +2,21 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.settings.{AppContext, ForgingSettings}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.settings.{ AppContext, ForgingSettings }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -25,7 +28,6 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   //type HR = HistoryReader[Block, BifrostSyncInfo]
 
   // Import the types of messages this actor RECEIVES
-
   import Forger.ReceivableMessages._
 
   // Import the types of messages this actor SENDS
@@ -38,10 +40,13 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
 
+  // a map of ledger providers that expose functionality to handle different requests from consensus
+  private val ledgerProviders: mutable.Map[String, ActorRef] = mutable.Map[String, ActorRef]()
+
   // setting to limit the size of blocks
   val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
 
-  override def preStart ( ): Unit = {
+  override def preStart (): Unit = {
     targetBlockTime = settings.targetBlockTime
 
     if ( settings.tryForging ) {
@@ -54,7 +59,9 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive = nonsense
+  override def receive: Receive =
+    initialization orElse
+      nonsense
 
   private def readyToForge: Receive =
     readyHandlers orElse
@@ -86,9 +93,22 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       context become readyToForge
 
     case CurrentView(h: History, s: State, m: MemPool) =>
-      updateForgeTime() // update the forge timestamp
-      tryForging(h, s, m) // initiate forging attempt
-      scheduleForgingAttempt() // schedule the next forging attempt
+      ledgerProviders.get("nodeViewHolder") match {
+        case Some(provider) =>
+          updateForgeTime() // update the forge timestamp
+          tryForging(h, s, m, provider) // initiate forging attempt
+          scheduleForgingAttempt() // schedule the next forging attempt
+
+        case None =>
+          log.warn(s"Ledger provider not available, skipping forging attempt.")
+      }
+  }
+
+  private def initialization: Receive = {
+    case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
+    case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
+    case params: NetworkGenesis => setGenesisParameters(params)
+    case BecomeOperational      => context become readyToForge
   }
 
   private def keyManagement: Receive = {
@@ -107,11 +127,28 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a forging attempt */
-  private def scheduleForgingAttempt ( ): Unit =
-    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView)
+  private def scheduleForgingAttempt ( ): Unit = {
+    ledgerProviders.get("nodeViewHolder") match {
+      case Some(ref) => context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! ref)
+      case None      => log.warn(s"Ledger provider not available, skipping schedule.")
+    }
+  }
 
   /** Updates the forging actors timestamp */
   private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
+
+  /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
+  private def generateGenesisKeys (num: Int): Set[PublicKey25519Proposition] =
+    keyRing.generateNewKeyPairs(num) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    }
+
+  /** Sets the genesis network parameters for calculating adjusted difficulty */
+  private def setGenesisParameters (parameters: NetworkGenesis): Unit = {
+    targetBlockTime = parameters.targetBlockTime
+    maxStake = parameters.totalStake
+  }
 
   /**
    * Primary method for attempting to forge a new block and publish it to the network
@@ -120,7 +157,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool ): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool, provider: ActorRef): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
@@ -150,7 +187,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
-          viewHolderRef ! LocallyGeneratedModifier[Block](block)
+          provider ! LocallyGeneratedModifier[Block](block)
 
         case None => log.debug(s"Failed to generate block")
       }
@@ -279,19 +316,27 @@ object Forger {
 
   object ReceivableMessages {
 
+    case object RegisterLedgerProvider
+
+    case class CreateGenesisKeys (num: Int)
+
+    case class NetworkGenesis ( totalStake: Long, targetBlockTime: FiniteDuration)
+
+    case object BecomeOperational
+
     case object StartForging
 
     case object StopForging
 
-    case class UnlockKey ( addr: String, password: String )
+    case class UnlockKey (addr: String, password: String)
 
-    case class LockKey ( addr: String, password: String )
+    case class LockKey (addr: String, password: String)
 
     case object ListKeys
 
-    case class CreateKey ( password: String )
+    case class CreateKey (password: String)
 
-    case class ImportKey ( password: String, mnemonic: String, lang: String)
+    case class ImportKey (password: String, mnemonic: String, lang: String)
 
   }
 
