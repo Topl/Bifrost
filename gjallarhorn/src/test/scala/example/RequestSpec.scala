@@ -1,6 +1,6 @@
 package example
 
-import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSelection, ActorSystem, DeadLetter, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.ActorMaterializer
@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 import scorex.crypto.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import keymanager.{KeyFile, Keys}
-import wallet.WalletManager
+import wallet.{DeadLetterListener, WalletManager}
 import wallet.WalletManager._
 
 import scala.reflect.io.Path
@@ -183,17 +183,29 @@ class RequestSpec extends AsyncFlatSpec
     }
   }
 
-  it should "connect to bifrost actor when the gjallarhorn app starts" in {
+  /*it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
       "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne(), 10.seconds)
-    val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStarted(bifrostActor)).mapTo[String], 100.seconds)
+    walletManagerRef ! GjallarhornStarted(bifrostActor)
+    Thread.sleep(10000)
     assert(bifrostResponse.contains("received new wallet from: Actor[akka.tcp://requestTest@127.0.0.1"))
-  }
+
+    val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
+    newBlock match {
+      case Some(block) => assert(block == "new block")
+      case None => sys.error("no new blocks")
+    }
+  }*/
 
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
+    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
+      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne(), 10.seconds)
+    walletManagerRef ! GjallarhornStarted(bifrostActor)
+    Thread.sleep(1000)
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
-    assert(bifrostResponse.contains("the remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
-            bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
+    assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
+      bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
   }
+
 
 }

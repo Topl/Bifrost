@@ -1,4 +1,4 @@
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorRef, ActorSystem, DeadLetter, PoisonPill, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
@@ -8,7 +8,7 @@ import keymanager.{KeyManagerRef, Keys}
 import requests.Requests
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
-import wallet.WalletManager
+import wallet.{DeadLetterListener, WalletManager}
 import wallet.WalletManager.{GjallarhornStarted, GjallarhornStopped}
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
@@ -28,16 +28,23 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
 
-  system.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne().onComplete {
-    case Success(actor) => {
-      log.info(s"bifrst actor ref was found: $actor")
-      walletManagerRef ! GjallarhornStarted(actor)
-    }
-    case Failure(ex) =>
-      log.error(s"bifrost actor ref not found at: akka.tcp://bifrost-client@127.0.0.1:9087. Terminating application!${Console.RESET}")
-      GjallarhornApp.shutdown(system, Seq(keyManagerRef))
-  }
+  val listener = system.actorOf(Props[DeadLetterListener]())
+  system.eventStream.subscribe(listener, classOf[DeadLetter])
 
+  if (settings.chainProvider == "") {
+    log.info("gjallarhorn running in offline mode.")
+  }else{
+    log.info("gjallarhorn running in online mode. Trying to connect to Bifrost...")
+    system.actorSelection(s"akka.tcp://${settings.chainProvider}/user/walletActorManager").resolveOne().onComplete {
+      case Success(actor) => {
+        log.info(s"bifrst actor ref was found: $actor")
+        walletManagerRef ! GjallarhornStarted(actor)
+      }
+      case Failure(ex) =>
+        log.error(s"bifrost actor ref not found at: akka.tcp://${settings.chainProvider}. Terminating application!${Console.RESET}")
+        GjallarhornApp.shutdown(system, Seq(keyManagerRef))
+    }
+  }
 
   //sequence of actors for cleanly shutting down the application
    private val actorsToStop: Seq[ActorRef] = Seq(
@@ -89,9 +96,10 @@ object GjallarhornApp extends Logging {
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
     val wallet: Seq[ActorRef] = actors.filter(actor => actor.path.name == "WalletManager")
     if (wallet.nonEmpty) {
-      log.warn ("Telling Bifrost that this wallet is shutting down.")
+      log.info ("Telling Bifrost that this wallet is shutting down.")
       val walletManager: ActorRef = wallet.head
-      Await.result(walletManager ? GjallarhornStopped, 10.seconds)
+      val bifrostResponse: String = Await.result((walletManager ? GjallarhornStopped).mapTo[String], 100.seconds)
+      log.info(s"$bifrostResponse")
     }
     log.warn("Terminating Actors")
     actors.foreach { a => a ! PoisonPill }

@@ -1,7 +1,6 @@
 package bifrost.nodeView
 
 import akka.actor.{Actor, ActorRef}
-import akka.pattern.ask
 import akka.util.Timeout
 import bifrost.history.GenericHistory
 import bifrost.history.GenericHistory.ProgressInfo
@@ -13,11 +12,10 @@ import bifrost.settings.AppSettings
 import bifrost.state.{MinimalState, TransactionValidation}
 import bifrost.utils.{BifrostEncoding, Logging}
 import bifrost.wallet.Vault
-import bifrost.wallet.WalletActorManager.GetRemoteWalletRef
+import bifrost.wallet.WalletActorManager.{NewBlockAdded}
 
 import scala.concurrent.duration._
 import scala.annotation.tailrec
-import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -222,12 +220,8 @@ trait GenericNodeViewHolder[TX <: Transaction, PMOD <: PersistentNodeViewModifie
     }
   }
 
-  protected def updateRemoteWallet(pmod: PMOD): Unit = {
-    val remoteWalletRef: Option[ActorRef] = Await.result((walletActorManagerRef ? GetRemoteWalletRef).mapTo[Option[ActorRef]], 10.seconds)
-    remoteWalletRef match {
-      case Some(walletRef) => walletRef ! s"new block added: $pmod"
-      case None => log.warn("no remote wallets running.")
-    }
+  protected def updateRemoteWallet(newBlock: PMOD): Unit = {
+    walletActorManagerRef ! NewBlockAdded(newBlock)
   }
 
   //todo: update state in async way?

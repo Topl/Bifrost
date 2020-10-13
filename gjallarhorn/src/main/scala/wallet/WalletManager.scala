@@ -1,8 +1,8 @@
 package wallet
 
-import akka.actor.{Actor, ActorRef, ActorSelection}
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
-import akka.util.Timeout
+import akka.util.{Timeout}
 import io.circe.{Json, ParsingFailure}
 import io.circe.parser.parse
 import utils.Logging
@@ -31,6 +31,15 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   var bifrostActorRef: Option[ActorRef] = None
 
+  var newestBlock: Option[String] = None
+
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.info("WalletManagerActor: preRestart")
+    log.info(s"WalletManagerActor reason: ${reason.getMessage}")
+    log.info(s"WalletManagerActor message: ${message.getOrElse("")}")
+    super.preRestart(reason, message)
+  }
+
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
     * @param sameTypeBoxes - list of boxes all of the same box type
@@ -56,6 +65,23 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
       }
     })
     boxesMap
+  }
+
+  def newBlock(blockMsg: String): Unit = {
+    val block : String = blockMsg.substring(16)
+    log.info(s"Wallet Manager received new block: ${block}")
+    parse(block) match {
+      case Right(blockJson) => {
+        updateWallet(blockJson)
+      }
+      case Left(e) => sys.error(s"Could not parse json $e")
+    }
+    newestBlock = Some(block)
+  }
+
+  def updateWallet(newBlock: Json): Unit = {
+      val tx = (newBlock \\ "txs").head
+      val newBoxes = tx \\ "newBoxes"
   }
 
   /**
@@ -87,12 +113,55 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     walletBoxes
   }
 
+  def gjalStart(bifrost: ActorRef): Unit = {
+    bifrostActorRef = Some(bifrost)
+    context.system.eventStream.subscribe(bifrost, classOf[String])
+    bifrost ! "Remote wallet actor initialized"
+    /*val response: String = Await.result((bifrost ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
+    sender ! response*/
+  }
+
+  /*case msg: String => {
+    if (msg.contains("New block added")) {
+    println(s"Wallet Manager received block: ${msg.substring(17)}")
+    newestBlock = Some(msg.substring(17))
+  }
+    if (msg.contains("new block added")) {
+    println(s"Wallet Manager received block from generic node view holder: ${msg.substring(17)}")
+    newestBlock = Some(msg.substring(17))
+  }
+    log.info(s"${Console.MAGENTA} Received a message: $msg")
+  }*/
+
+  def msgHandling(msg: String): Unit = {
+    if (msg.contains("received new wallet from:")) {
+      log.info(s"${Console.YELLOW} Bifrost $msg")
+    }
+    if (msg.contains("new block added")) {
+      newBlock(msg)
+    }
+    if (msg.contains("publishing")) {
+      log.info(s"published block!")
+    }
+  }
+
+
   override def receive: Receive = {
+    case GjallarhornStarted(actorRef: ActorRef) => {
+      gjalStart(actorRef)
+    }
+
+    case msg: String => {
+      msgHandling(msg)
+    }
+
+    case GetNewBlock => {
+      sender ! newestBlock
+    }
 
     case UpdateWallet(updatedBoxes) => {
       sender ! parseAndUpdate(updatedBoxes)
     }
-
     /*case UpdateWallet(add, remove) => {
       remove.foreach { case (publicKey, ids) =>
         walletBoxes.get(publicKey).map(boxes => ids.foreach(boxes.remove))
@@ -101,29 +170,13 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
         walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
       }
     }*/
-
-    case msg: String => {
-      if (msg.contains("new block added:")) {
-        println(s"Wallet Manager received block: ${msg.substring(17)}")
-      }
-
-    }
-
-    case GjallarhornStarted(actorRef: ActorRef) => {
-      bifrostActorRef = Some(actorRef)
-      val response: String = Await.result((actorRef ? "Remote wallet actor initialized").mapTo[String], 10.seconds)
-      sender ! response
-
-    }
-
     case GjallarhornStopped => {
       bifrostActorRef match {
         case Some(actorRef) =>
           val response: String = Await.result((actorRef ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
           sender ! response
         case None => log.error("actor ref was not found.")
-      }
-    }
+      }}
   }
 }
 
@@ -138,4 +191,7 @@ object WalletManager {
 
   case class GjallarhornStarted(bifrostActorRef: ActorRef)
   case object GjallarhornStopped
+  case object GetNewBlock
+  case class NewBlock(block: String)
+
 }
