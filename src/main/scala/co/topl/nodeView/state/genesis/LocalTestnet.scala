@@ -54,7 +54,7 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
       val arbTx = ArbitTransfer(
         IndexedSeq(genesisAcct.publicImage -> 0L),
         privateMembers,
-        Map(genesisAcct.publicImage -> Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+        Map(genesisAcct.publicImage -> Signature25519.genesis()),
         0L,
         0L,
         "")
@@ -62,7 +62,7 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
       val polyTx = PolyTransfer(
         IndexedSeq(genesisAcct.publicImage -> 0L),
         privateMembers,
-        Map(genesisAcct.publicImage -> Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+        Map(genesisAcct.publicImage -> Signature25519.genesis()),
         0L,
         0L,
         "")

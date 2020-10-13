@@ -5,9 +5,8 @@ import co.topl.nodeView.state.box.proposition.{Proposition, PublicKey25519Propos
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
-import supertagged.@@
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 

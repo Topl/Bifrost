@@ -51,7 +51,7 @@ case class Block ( parentId    : BlockId,
   lazy val json: Json = Block.jsonEncoder(this)
 
   lazy val messageToSign: Array[Byte] = {
-    val noSigCopy = this.copy(signature = Signature25519(Signature @@ Array.emptyByteArray))
+    val noSigCopy = this.copy(signature = Signature25519.empty())
     serializer.toBytes(noSigCopy)
   }
 }

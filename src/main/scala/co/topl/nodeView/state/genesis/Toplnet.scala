@@ -83,7 +83,7 @@ object Toplnet extends GenesisProvider {
     val arbTx = ArbitTransfer(
       IndexedSeq(genesisAcct.publicImage -> 0L),
       memberKeys.zip(members.values).toIndexedSeq,
-      Map(genesisAcct.publicImage -> Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+      Map(genesisAcct.publicImage -> Signature25519.genesis()),
       0L,
       0L,
       "")
@@ -91,7 +91,7 @@ object Toplnet extends GenesisProvider {
     val polyTx = PolyTransfer(
       IndexedSeq(genesisAcct.publicImage -> 0L),
       memberKeys.zip(members.values).toIndexedSeq,
-      Map(genesisAcct.publicImage -> Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+      Map(genesisAcct.publicImage -> Signature25519.genesis()),
       0L,
       0L,
       "")

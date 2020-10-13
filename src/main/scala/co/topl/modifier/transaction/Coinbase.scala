@@ -91,7 +91,7 @@ object Coinbase {
                   parentId: Block.BlockId
                 ): Coinbase = {
     val to = IndexedSeq((rewardAddr, amount))
-    val sig = Map(rewardAddr ->  Signature25519(Signature @@ Array.emptyByteArray))
+    val sig = Map(rewardAddr ->  Signature25519.empty())
     Coinbase(to, sig, timestamp, parentId)
   }
 
