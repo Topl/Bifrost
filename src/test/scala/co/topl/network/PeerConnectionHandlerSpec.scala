@@ -3,13 +3,10 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor._
-import akka.io.{IO, Tcp}
 import akka.testkit.TestKit
-import akka.testkit.TestActorRef
-import bifrost.BifrostGenerators
-import bifrost.network.peer.PeerConnectionHandlerRef
-import bifrost.settings.BifrostContext
-import org.scalatest.PrivateMethodTester
+import co.topl.BifrostGenerators
+import co.topl.network.message.MessageSerializer
+import co.topl.settings.AppContext
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -19,17 +16,21 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
   with AnyPropSpecLike
   with ScalaCheckPropertyChecks
-  with PrivateMethodTester
   with Matchers
   with BifrostGenerators {
 
-  property("A new PeerConnectionHandler should be created with the specified message codes") {
+  val appContext = new AppContext(settings, None)
 
-    val bifrostContext = new BifrostContext(settings, None)
+  property("MessageSerializer should initialize correctly with specified message codes") {
 
-    val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings.network, bifrostContext)
+    new MessageSerializer(appContext.messageSpecs, settings.network.magicBytes)
+  }
+
+  property("A new PeerConnectionHandler should be created") {
+
+    val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
     val networkControllerRef: ActorRef =
-      NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+      NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
 
     val localPort = 9085
     val remotePort = 9086
@@ -37,6 +38,6 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
     val connectionDescription = ConnectionDescription(networkControllerRef, connectionId, None, Seq())
 
-    val pch = PeerConnectionHandlerRef(settings.network, networkControllerRef, bifrostContext, connectionDescription)
+    PeerConnectionHandlerRef(settings.network, networkControllerRef, appContext, connectionDescription)
   }
 }
