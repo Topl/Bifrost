@@ -98,7 +98,7 @@ object Toplnet extends GenesisProvider {
 
     val genesisTxs = Seq(arbTx, polyTx)
 
-    val genesisBox = ArbitBox(genesisAcct.publicImage, 0, members.values.sum)
+    val genesisBox = ArbitBox(genesisAcct.publicImage, 0, totalStake)
 
     val genesisBlock = Block.create(History.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAcct, blockVersion.blockByte)
 
@@ -107,6 +107,6 @@ object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
 
-    (genesisBlock, GenesisParams(members.values.sum, targetBlockTime))
+    (genesisBlock, GenesisParams(totalStake, targetBlockTime))
   }
 }

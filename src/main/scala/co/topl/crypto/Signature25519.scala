@@ -41,6 +41,15 @@ object Signature25519 {
     }
   }
 
+  /** Returns a signature filled with 1's for use in genesis signatures */
+  def genesis (): Signature25519 = {
+    Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))
+  }
+
+  /** Helper function to create empty signatures */
+  def empty (): Signature25519 = Signature25519(Signature @@ Array.emptyByteArray)
+
+
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[Signature25519] =

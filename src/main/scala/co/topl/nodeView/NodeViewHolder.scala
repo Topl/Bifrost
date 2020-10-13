@@ -164,16 +164,18 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
   /**
     * Hard-coded initial view all the honest nodes in a network are making progress from.
     */
-  protected def genesisState: NodeView = {
+  private def genesisState: NodeView = {
     GenesisProvider.initializeGenesis(appContext.networkType, consensusRef) match {
       case Success((block, params)) =>
         // send genesis parameters to the forger
         consensusRef ! params
 
         // generate the nodeView and return
-        val history = History.readOrGenerate(settings).append(block).get._1
-        val state = State.genesisState(settings, Seq(block))
-        (history, state, MemPool.emptyPool)
+        (
+          History.readOrGenerate(settings).append(block).get._1,
+          State.genesisState(settings, Seq(block)),
+          MemPool.emptyPool
+        )
 
       case Failure(ex) => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
     }

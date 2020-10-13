@@ -91,8 +91,7 @@ class NetworkController ( settings      : NetworkSettings,
       sender() ! addrValidationResult
 
     case RegisterMessageSpecs(specs, handler) =>
-      log.info(
-        s"${Console.YELLOW}Registered ${sender()} as the handler for " +
+      log.info(s"${Console.YELLOW}Registered ${sender()} as the handler for " +
           s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
         )
       messageHandlers ++= specs.map(_.messageCode -> handler)

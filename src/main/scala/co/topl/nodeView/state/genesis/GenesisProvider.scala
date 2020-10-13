@@ -25,10 +25,14 @@ trait GenesisProvider extends Logging {
 
   protected val members: Map[String, Long]
 
+  protected lazy val totalStake: Long = members.values.sum
+
   def getGenesisBlock: Try[(Block, GenesisParams)]
 }
 
 object GenesisProvider {
+  /** Return the correct genesis parameters for the chosen network. NOTE: the default private network is set
+   * in AppContext so the fall-through should result in an error.*/
   def initializeGenesis(networkType: NetworkType, keyManager: ActorRef): Try[(Block, GenesisParams)] =
     networkType match {
       case MainNet  => Toplnet.getGenesisBlock
