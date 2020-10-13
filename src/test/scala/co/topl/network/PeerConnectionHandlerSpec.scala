@@ -1,4 +1,4 @@
-package bifrost.network
+package co.topl.network
 
 import java.net.InetSocketAddress
 
