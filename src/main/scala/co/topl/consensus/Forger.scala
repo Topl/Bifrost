@@ -78,6 +78,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
     case params: GenesisParams  => setGenesisParameters(params)
     case NodeViewReady() =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
+      context become readyToForge
       checkPrivateForging()
   }
 
@@ -138,10 +139,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging (): Unit ={
-    context become readyToForge
-    if (isPrivateForging && keyRing.publicKeys.nonEmpty) self ! StartForging
-  }
+  private def checkPrivateForging (): Unit = if (isPrivateForging && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateGenesisKeys (num: Int): Set[PublicKey25519Proposition] =
