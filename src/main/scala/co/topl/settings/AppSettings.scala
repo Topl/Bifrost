@@ -54,9 +54,7 @@ case class NetworkSettings ( addedMaxDelay          : Option[FiniteDuration],
                              upnpGatewayTimeout     : Option[FiniteDuration]
                            )
 
-case class ForgingSettings ( MinimumDifficulty   : Long,
-                             InitialDifficulty   : Long,
-                             tryForging          : Boolean,
+case class ForgingSettings ( InitialDifficulty   : Long,
                              targetBlockTime     : FiniteDuration,
                              blockGenerationDelay: FiniteDuration,
                              version             : Byte,
@@ -121,7 +119,7 @@ object AppSettings extends Logging with SettingsReaders {
 
     (userConfigFileOpt, networkConfigFileOpt) match {
       /* If both are provided, user provided settings should override the default setting */
-      case (Some(file), None)                    ⇒
+      case (Some(file), None) ⇒
         log.warn("Found custom settings. Using default settings for ones not specified in custom Settings")
         val config = ConfigFactory.parseFile(file)
         ConfigFactory
@@ -130,14 +128,15 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(ConfigFactory.defaultApplication())
           .withFallback(ConfigFactory.defaultReference())
           .resolve()
-      case (None, Some(networkConfigFile))       ⇒
-        //        log.warn("No custom settings provided. Starting with default settings!")
+
+      case (None, Some(networkConfigFile)) ⇒
         val config = ConfigFactory.parseFile(networkConfigFile)
         ConfigFactory
           .defaultOverrides()
           .withFallback(config)
           .withFallback(ConfigFactory.defaultReference())
           .resolve()
+
       case (Some(file), Some(networkConfigFile)) =>
         log.warn(s"Found custom settings. Using network settings for ones not specified in custom Settings")
         val config = ConfigFactory.parseFile(file)
@@ -148,7 +147,8 @@ object AppSettings extends Logging with SettingsReaders {
           .withFallback(networkConfig)
           .withFallback(ConfigFactory.defaultReference())
           .resolve()
-      case _                                     ⇒
+
+      case _ ⇒
         log.warn("No custom setting specified, using default configuration")
         ConfigFactory.load()
     }

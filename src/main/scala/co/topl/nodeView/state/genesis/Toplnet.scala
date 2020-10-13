@@ -96,17 +96,19 @@ object Toplnet extends GenesisProvider {
       0L,
       "")
 
-    val genesisTxs = Seq(arbTx, polyTx)
+    val txs = Seq(arbTx, polyTx)
 
-    val genesisBox = ArbitBox(genesisAcct.publicImage, 0, totalStake)
+    val generatorBox = ArbitBox(genesisAcct.publicImage, 0, totalStake)
 
-    val genesisBlock = Block.create(History.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAcct, blockVersion.blockByte)
+    val signature = Signature25519.genesis()
 
-    require(genesisBlock.id == blockChecksum, s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${genesisBlock.id} does not match the required block for the chosen network mode.${Console.RESET}")
+    val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
 
-    log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
+    require(block.id == blockChecksum, s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}")
 
-    (genesisBlock, GenesisParams(totalStake, targetBlockTime))
+    log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
+
+    (block, GenesisParams(totalStake, targetBlockTime))
   }
 }
