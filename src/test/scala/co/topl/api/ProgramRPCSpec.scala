@@ -22,6 +22,7 @@ import co.topl.settings.AppContext
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
@@ -34,7 +35,7 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/13/2017.
   */
-
+@DoNotDiscover
 class ProgramRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

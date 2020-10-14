@@ -15,6 +15,8 @@ import scorex.util.encode.Base64
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.matching.Regex
 
 /**
