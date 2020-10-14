@@ -12,7 +12,6 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -32,15 +31,13 @@ class MempoolSpec extends AnyPropSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
-
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   ignore("Repeated transactions already in history should be discarded " +
     "when received by the node view") {
-    val txs = view().history.bestBlock.txs
+    val txs = view().history.bestBlock.transactions
     txs.foreach(tx ⇒ nodeViewHolderRef ! LocallyGeneratedTransaction[Transaction](tx))
     txs.foreach(tx ⇒ view().pool.contains(tx) shouldBe false)
   }

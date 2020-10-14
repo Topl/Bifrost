@@ -5,7 +5,6 @@ import co.topl.utils.Logging
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.signatures.PrivateKey
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -101,7 +100,7 @@ class Bip39Spec extends AnyFlatSpec
 
     val key1 = KeyFile(password, seed1Hash)
     val key2 = KeyFile(password, seed2Hash)
-    val key3 = KeyFile(password = password, seed = FastCryptographicHash(uuidString))
+    val key3 = KeyFile(password, FastCryptographicHash(uuidString))
 
     val key1Private = key1 invokePrivate getPrivateKey(password)
     val key2Private = key2 invokePrivate getPrivateKey(password)
