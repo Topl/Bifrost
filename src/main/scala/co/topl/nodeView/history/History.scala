@@ -17,6 +17,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
+
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -557,6 +558,22 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     storage.getIndex(heightIdsKey(height: Int))
       .getOrElse(Array()).grouped(32).map(ModifierId).toSeq
    */
+
+  /**
+    * If a transaction exists in a block found in history, get it
+    * by its modifier ID
+    * @param txId the modifier ID associated with the transaction
+    * @return an optional transaction from a block
+    */
+  override def txById(txId: ModifierId): Option[Transaction] = {
+    storage.blockIdOf(txId).flatMap { id =>
+      storage
+        .modifierById(id)
+        .get
+        .transactions
+        .find(_.id == txId)
+    }
+  }
 }
 
 

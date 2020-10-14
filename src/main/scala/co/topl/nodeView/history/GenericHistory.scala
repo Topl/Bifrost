@@ -3,6 +3,7 @@ package co.topl.nodeView.history
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 
@@ -57,6 +58,8 @@ trait GenericHistory[
   def modifierById(modifierId: ModifierId): Option[PM]
 
   def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
+
+  def txById(txId: ModifierId): Option[Transaction]
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 
