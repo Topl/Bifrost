@@ -103,9 +103,9 @@ object ProgramBoxRegistry extends Logging {
 
       val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
-      val iFile = new File(s"$dataDir/programBoxRegistry")
-      iFile.mkdirs()
-      val storage = new LSMStore(iFile)
+      val file = new File(s"$dataDir/programBoxRegistry")
+      file.mkdirs()
+      val storage = new LSMStore(file)
 
       Some(new ProgramBoxRegistry(storage))
 

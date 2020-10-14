@@ -304,8 +304,7 @@ object State extends Logging {
 
   def stateFile(settings: AppSettings): File = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    new File(s"$dataDir/state").mkdirs()
-    new File(s"$dataDir/state/state.dat")
+    new File(s"$dataDir/state")
   }
 
   def readOrGenerate (settings: AppSettings): State = {

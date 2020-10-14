@@ -568,9 +568,9 @@ object History extends Logging {
   def readOrGenerate(settings: AppSettings): History = {
     /** Setup persistent on-disk storage */
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorageDB = new LSMStore(iFile)
+    val file = new File(s"$dataDir/blocks")
+    file.mkdirs()
+    val blockStorageDB = new LSMStore(file)
     val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
