@@ -6,11 +6,11 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import co.topl.settings.AppSettings
 import com.spotify.docker.client.DefaultDockerClient
-import com.spotify.docker.client.messages.{ Container, ContainerConfig }
-import com.typesafe.config.{ Config, ConfigFactory }
-import org.asynchttpclient.Dsl.{ asyncHttpClient, config }
+import com.spotify.docker.client.messages.{Container, ContainerConfig}
+import com.typesafe.config.{Config, ConfigFactory}
+import org.asynchttpclient.Dsl.{asyncHttpClient, config}
 
-import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.control.NonFatal
@@ -54,7 +54,7 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
       val containerName: String = networkName + "-" + settings.network.nodeName
       val containerId: String = client.createContainer(containerConfig, containerName).id
       Node(settings, containerId, 9084, 9085)
-    }catch {
+    } catch {
       case NonFatal(e) => throw e
     }
   }
@@ -72,12 +72,12 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
 
   private def buildContainerConfig(settings: AppSettings): ContainerConfig = {
 
-
     val shellCmd = "echo Options: $OPTS; java $OPTS -jar /usr/src/bifrost/bifrost.jar"
 
-    ContainerConfig.builder()
+    ContainerConfig
+      .builder()
       .image(Docker.bifrostImage)
-      .exposedPorts(settings.network.bindAddress.getPort.toString, settings.rpcPort.toString)
+      .exposedPorts(settings.network.bindAddress.getPort.toString, settings.restApi.bindAddress.getPort.toString)
       .entrypoint("sh", "-c", shellCmd)
       .build()
   }
@@ -95,10 +95,7 @@ class Docker()(implicit ec: ExecutionContext) extends AutoCloseable with Logging
     log.debug(s"$label: $x")
   }
 
-
-  override def close(): Unit = {
-
-  }
+  override def close(): Unit = {}
 }
 
 object Docker {

@@ -22,7 +22,7 @@ test in assembly := {}
 // The Typesafe repository
 resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/"
 
-val akkaVersion = "2.6.9"
+val akkaVersion = "2.6.10"
 val akkaHttpVersion = "10.2.1"
 val circeVersion = "0.13.0"
 
@@ -89,10 +89,10 @@ libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependenci
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
-  "io.kamon" %% "kamon-bundle" % "2.1.7",
-  "io.kamon" %% "kamon-core" % "2.1.7",
-  "io.kamon" %% "kamon-influxdb" % "2.1.7",
-  "io.kamon" %% "kamon-zipkin" % "2.1.7",
+  "io.kamon" %% "kamon-bundle" % "2.1.8",
+  "io.kamon" %% "kamon-core" % "2.1.8",
+  "io.kamon" %% "kamon-influxdb" % "2.1.8",
+  "io.kamon" %% "kamon-zipkin" % "2.1.8"
 )
 
 // https://mvnrepository.com/artifact/org.graalvm.sdk/graal-sdk
