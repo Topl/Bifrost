@@ -1,7 +1,5 @@
 package co.topl.nodeView.mempool
 
-import co.topl.modifier.transaction.GenericTransaction
-import co.topl.nodeView.NodeViewComponent
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.GenericTransaction
 import co.topl.nodeView.NodeViewComponent
@@ -15,10 +13,8 @@ import scala.util.Try
   */
 trait MemoryPool[TX <: GenericTransaction[_], M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
 
-  import co.topl.modifier.ModifierId
-
   //getters
-  def getById(id: ModifierId): Option[TX]
+  def modifierById(id: ModifierId): Option[TX]
 
   def contains(id: ModifierId): Boolean
 

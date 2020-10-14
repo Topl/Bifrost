@@ -2,29 +2,27 @@ package co.topl.nodeView
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import co.topl.crypto.{PrivateKey25519, Signature25519}
-import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.modifier.transaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, Box}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ArbitBox, Box}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{Logging, TimeProvider}
-import co.topl.wallet.Wallet
-import scorex.crypto.signatures.{PublicKey, Signature}
-import scorex.util.encode.Base58
+import scorex.crypto.signatures.Signature
 
 import scala.concurrent.ExecutionContext
 
 class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext )
                      ( implicit ec: ExecutionContext )
   extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
-                                NodeViewHolder.MS, NodeViewHolder.VL, NodeViewHolder.MP] {
+                                NodeViewHolder.MS, NodeViewHolder.MP] {
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
@@ -49,12 +47,11 @@ class NodeViewHolder ( override val settings: AppSettings, appContext: AppContex
    * Restore a local view during a node startup. If no any stored view found
    * (e.g. if it is a first launch of a node) None is to be returned
    */
-  override def restoreState ( ): Option[NodeView] = {
-    if ( Wallet.exists(settings) ) {
+  override def restoreState (): Option[NodeView] = {
+    if ( State.exists(settings) ) {
       Some((
              History.readOrGenerate(settings),
              State.readOrGenerate(settings),
-             Wallet.readOrGenerate(settings, 1),
              MemPool.emptyPool
            ))
     } else None
@@ -70,12 +67,11 @@ object NodeViewHolder extends Logging {
 
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   type PMOD = Block
   type TX = Transaction
   type BX = Box
-  type NodeView = (HIS, MS, VL, MP)
+  type NodeView = (HIS, MS, MP)
 
   //noinspection ScalaStyle
   def initializeGenesis ( settings: AppSettings ): NodeView = {
@@ -110,7 +106,7 @@ object NodeViewHolder extends Logging {
         "7focbpSdsNNE4x9h7eyXSkvXE6dtxsoVyZMpTpuThLoH", "CBdnTL6C4A7nsacxCP3VL3TqUokEraFy49ckQ196KU46",
         "CfvbDC8dxGeLXzYhDpNpCF2Ar9Q5LKs8QrfcMYAV59Lt", "GFseSi5squ8GRRkj6RknbGj9Hyz82HxKkcn8NKW1e5CF",
         "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
-        ).map(s => PublicKey25519Proposition(PublicKey @@ Base58.decode(s).get))
+        ).map(PublicKey25519Proposition.apply)
 
     val genesisAccount = PrivateKey25519.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
@@ -136,23 +132,15 @@ object NodeViewHolder extends Logging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
+    val genesisBlock = Block.create(History.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
 
-    assert(genesisBlock.encodedId == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${genesisBlock.encodedId} does not match the required block for the chosen network mode.${Console.RESET}")
+    assert(genesisBlock.id.toString == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+      s"with id ${genesisBlock.id} does not match the required block for the chosen network mode.${Console.RESET}")
 
     val history = History.readOrGenerate(settings).append(genesisBlock).get._1
     val state = State.genesisState(settings, Seq(genesisBlock))
-    val wallet = Wallet.genesisWallet(settings, Seq(genesisBlock))
 
-    assert(!settings.walletSeed.startsWith("genesis") || wallet.boxes().flatMap(_.box match {
-                                                                                case ab: ArbitBox => Some(ab.value)
-                                                                                case _            => None
-                                                                              }).sum >= GenesisBalance)
-
-    wallet.boxes().foreach(b => assert(state.getBox(b.box.id).isDefined))
-
-    (history, state, wallet, MemPool.emptyPool)
+    (history, state, MemPool.emptyPool)
   }
 }
 

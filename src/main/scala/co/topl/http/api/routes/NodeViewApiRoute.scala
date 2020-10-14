@@ -8,10 +8,8 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.RESTApiSettings
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
-import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -21,7 +19,6 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("nodeView") { basicRoute(handlers) }
 
@@ -70,28 +67,22 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
   private def transactionById(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
       // parse required arguments
-      val transactionId: String = (params \\ "transactionId").head.asString.get
+      val transactionId: ModifierId = ModifierId((params \\ "transactionId").head.asString.get)
 
-      Base58.decode(transactionId) match {
-        case Success(id) =>
-          val storage = view.history.storage
-          val blockIdWithPrefix = storage.blockIdOf(id).get
-          val blockId = ModifierId(blockIdWithPrefix.tail)
-          val blockNumber = storage.heightOf(blockId)
-          val tx = storage
-            .modifierById(blockId)
-            .get
-            .txs
-            .filter(_.id.hashBytes sameElements id)
-            .head
+      val blockId = view.history.blockContainingTx(transactionId).get
+      val blockNumber = view.history.storage.heightOf(blockId)
+      val tx = view.history.storage
+        .modifierById(blockId)
+        .get
+        .transactions
+        .filter(_.id == transactionId)
+        .head
 
-          tx.json.asObject.get
-            .add("blockNumber", blockNumber.asJson)
-            .add("blockId", blockId.toString.asJson)
-            .asJson
+      tx.json.asObject.get
+        .add("blockNumber", blockNumber.asJson)
+        .add("blockId", blockId.toString.asJson)
+        .asJson
 
-        case Failure(e) ⇒ throw e
-      }
     }
   }
 
@@ -111,15 +102,10 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
     */
   private def transactionFromMempool(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val transactionId: String = (params \\ "transactionId").head.asString.get
-      val tx = Base58.decode(transactionId) match {
-        case Success(txId) => view.pool.getById(ModifierId(txId))
-        case Failure(_) => throw new Error("Unable to parse the provided transaction id")
-      }
-
-      tx match {
+      val transactionId: ModifierId = ModifierId((params \\ "transactionId").head.asString.get)
+      view.pool.modifierById(transactionId) match {
         case Some(tx) => tx.json
-        case None => throw new Error("Unable to retrieve transaction")
+        case None     => throw new Error("Unable to retrieve transaction")
       }
     }
   }
@@ -140,23 +126,16 @@ case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHold
     */
   private def blockById(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val modifierId: String = (params \\ "blockId").head.asString.get
-      Base58.decode(modifierId) match {
-        case Success(id) =>
-          val blockId = ModifierId(id)
-          val blockNumber = view.history.storage.heightOf(blockId)
-          val storage = view.history.storage
-          view.history
-            .modifierById(blockId)
-            .get
-            .json
-            .asObject
-            .get
-            .add("blockNumber", blockNumber.asJson)
-            .add("blockDifficulty", storage.difficultyOf(blockId).asJson)
-            .asJson
-        case Failure(e) ⇒ throw e
-      }
+      val blockId: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
+      view.history
+        .modifierById(blockId)
+        .get
+        .asJson
+        .asObject
+        .get
+        .add("blockNumber", view.history.storage.heightOf(blockId).asJson)
+        .add("blockDifficulty", view.history.storage.difficultyOf(blockId).asJson)
+        .asJson
     }
   }
 }

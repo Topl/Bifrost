@@ -1,8 +1,7 @@
 package co.topl.consensus
 
-import co.topl.modifier.block.{ Block, BlockValidator }
-import co.topl.nodeView.history.{ BlockProcessor, Storage }
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, BlockValidator}
+import co.topl.nodeView.history.{BlockProcessor, Storage}
 
 import scala.util.Try
 

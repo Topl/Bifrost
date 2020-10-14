@@ -181,6 +181,12 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     (0 until seqLen) map { _ => (sampleUntilNonEmpty(positiveLongGen), samplePositiveDouble) }
   }
 
+  lazy val tokenBoxesGen: Gen[Seq[TokenBox]] = for {
+    tx <- Gen.someOf(polyBoxGen, arbitBoxGen, assetBoxGen)
+  } yield {
+    tx
+  }
+
   lazy val polyBoxGen: Gen[PolyBox] = for {
     proposition <- propositionGen
     nonce <- positiveLongGen
@@ -332,8 +338,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     ExecutionBuilder(terms, assetCode, ProgramPreprocessor(name, initjs)(JsonObject.empty))
   }
 
-  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map{
-    sig => Signature25519(Signature @@ sig)}
+  lazy val signatureGen: Gen[Signature25519] = genBytesList(Signature25519.SignatureSize).map(bytes => Signature25519(Signature @@ bytes))
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
@@ -581,13 +586,13 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     val setOfKeys = (0 until n)
       .map(i => {
         val key = sampleUntilNonEmpty(key25519Gen)
-        (key._1, key._2.pubKeyBytes)
+        (key._1, key._2)
       })
-      .foldLeft((Set[PrivateKey25519](), Set[PublicKey]())) {
-        case (set: (Set[PrivateKey25519], Set[PublicKey]), cur: (PrivateKey25519, PublicKey)) =>
+      .foldLeft((Set[PrivateKey25519](), Set[PublicKey25519Proposition]())) { (set, cur) =>
           (set._1 + cur._1, set._2 + cur._2)
       }
-    val prop = MofNProposition(1, setOfKeys._2)
+
+    val prop = MofNProposition(1, setOfKeys._2.map(img => img.pubKeyBytes))
 
     (setOfKeys._1, prop)
   }
@@ -653,7 +658,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     keyPair ← key25519Gen
   } yield {
     Block.create(
-      ModifierId(History.GenesisParentId),
+      History.GenesisParentId,
       Instant.now().toEpochMilli,
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),

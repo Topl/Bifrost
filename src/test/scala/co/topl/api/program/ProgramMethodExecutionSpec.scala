@@ -5,9 +5,11 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+@DoNotDiscover
 class ProgramMethodExecutionSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
@@ -40,7 +42,7 @@ class ProgramMethodExecutionSpec extends AnyWordSpec
            |    },
            |    "programId": "${executionBox.value}",
            |    "preFeeBoxes": {
-           |      "$publicKey": [[${polyBoxes.head.box.nonce}, ${polyBoxes.head.box.value}]]
+           |      "$publicKey": [[${polyBoxes.head.nonce}, ${polyBoxes.head.value}]]
            |     },
            |     "fees": {
            |      "$publicKey": 0

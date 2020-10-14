@@ -18,7 +18,7 @@ class MofNPropositionSpec extends AnyPropSpec
       case (keySet: Set[PrivateKey25519], mn: MofNProposition) =>
         val message = nonEmptyBytesGen.sample.get
         keySet
-          .map(PrivateKey25519.sign(_, message))
+          .map(_.sign(message))
           .map(sig => mn.verify(message, sig.signature))
           .forall(next => next) shouldBe true
     }

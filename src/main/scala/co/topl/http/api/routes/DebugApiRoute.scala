@@ -7,9 +7,7 @@ import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
@@ -22,7 +20,6 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
 
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("debug") { basicRoute(handlers) }
 
@@ -30,7 +27,7 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     method match {
       case "info" => infoRoute(params.head, id)
       case "delay" => delay(params.head, id)
-      case "myBlocks" => myBlocks(params.head, id)
+//      case "myBlocks" => myBlocks(params.head, id)
       case "generators" => generators(params.head, id)
     }
 
@@ -56,7 +53,7 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
         "height" -> view.history.height.toString.asJson,
         "score" -> view.history.score.asJson,
         "bestBlockId" -> view.history.bestBlockId.toString.asJson,
-        "bestBlock" -> view.history.bestBlock.json,
+        "bestBlock" -> view.history.bestBlock.asJson,
         "stateVersion" -> view.state.version.toString.asJson
       ).asJson
     }
@@ -81,12 +78,10 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     */
   private def delay(params: Json, id: String): Future[Json] = {
     viewAsync().map { view =>
-      val encodedSignature: String = (params \\ "blockId").head.asString.get
+      val encodedSignature: ModifierId = ModifierId((params \\ "blockId").head.asString.get)
       val count: Int = (params \\ "numBlocks").head.asNumber.get.toInt.get
       Map(
-        "delay" -> Base58
-          .decode(encodedSignature)
-          .flatMap(id => view.history.averageDelay(ModifierId(id), count))
+        "delay" -> view.history.averageDelay(encodedSignature, count)
           .map(_.toString)
           .getOrElse("Undefined")
           .asJson
@@ -106,25 +101,25 @@ case class DebugApiRoute(override val settings: RESTApiSettings, nodeViewHolderR
     *  |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	|
     *  | --None specified--       |           	|                     	|                                                                         |
     *
-    * @param params input parameters as specified above
-    * @param id request identifier
-    * @return
-    */
-  private def myBlocks(params: Json, id: String): Future[Json] = {
-    viewAsync().map { view =>
-      val pubkeys: Set[PublicKey25519Proposition] =
-        view.vault.publicKeys.flatMap {
-          case pkp: PublicKey25519Proposition => Some(pkp)
-          case _                              => None
-        }
-      val count =
-        view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
-      Map(
-        "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
-        "count" -> count.asJson
-      ).asJson
-    }
-  }
+//    * @param params input parameters as specified above
+//    * @param id request identifier
+//    * @return
+//    */
+//  private def myBlocks(params: Json, id: String): Future[Json] = {
+//    viewAsync().map { view =>
+//      val pubkeys: Set[PublicKey25519Proposition] =
+//        view.vault.publicKeys.flatMap {
+//          case pkp: PublicKey25519Proposition => Some(pkp)
+//          case _                              => None
+//        }
+//      val count =
+//        view.history.count(b => pubkeys.contains(b.forgerBox.proposition))
+//      Map(
+//        "pubkeys" -> pubkeys.map(pk => Base58.encode(pk.pubKeyBytes)).asJson,
+//        "count" -> count.asJson
+//      ).asJson
+//    }
+//  }
 
   /**  #### Summary
     *    Find distribution of block generators from all public keys in the chain's history

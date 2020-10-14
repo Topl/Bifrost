@@ -1,8 +1,11 @@
 package co.topl.crypto
 
-import co.topl.crypto.KeyFile.uuid
+import co.topl.consensus.KeyFile
+import co.topl.utils.Logging
+import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scorex.crypto.signatures.PrivateKey
 
 import scala.reflect.io.Path
 import scala.util.Try
@@ -11,26 +14,30 @@ import scala.util.Try
  * Test class for verifying BIP39 phrase translator class
  */
 
-class Bip39Spec extends AnyFlatSpec with Matchers {
+class Bip39Spec extends AnyFlatSpec
+  with Matchers
+  with PrivateMethodTester
+  with Logging {
 
   val keyFileDir = "/tmp/bifrost/test-data/keyfiles/bip39test"
   val path: Path = Path(keyFileDir)
 
   // sample uuid string
-  val uuidString = uuid
+  val uuidString: String = java.util.UUID.randomUUID.toString
+
   // language for phrase words
   val lang = "en"
-  //phrase translator
-  val pt = Bip39.apply(lang)
 
-  "The wordlists" should "pass checksum" in {
-    assert(pt.verifyPhraseList)
-  }
+  //phrase translator
+  val pt: Bip39 = Bip39(lang)
+
+  val getPrivateKey: PrivateMethod[Try[PrivateKey25519]] =
+    PrivateMethod[Try[PrivateKey25519]]('getPrivateKey)
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
-    println("seed hex: "+seedHex)
-    println("seed phrase: "+phrase)
+    log.debug("seed hex: " + seedHex)
+    log.debug("seed phrase: " + phrase)
   }
 
   "A seed phrase" should "be translated to hex" in{
@@ -64,15 +71,15 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
       outString
     }
 
-    println(checkPT(phraseGood))
-    println(checkPT(phraseBad))
-    println(checkPT(phraseShort))
-    println(checkPT(phraseMixed))
+    log.debug(checkPT(phraseGood))
+    log.debug(checkPT(phraseBad))
+    log.debug(checkPT(phraseShort))
+    log.debug(checkPT(phraseMixed))
 
-    println(checkPT(phraseGood15))
-    println(checkPT(phraseGood18))
-    println(checkPT(phraseGood21))
-    println(checkPT(phraseGood24))
+    log.debug(checkPT(phraseGood15))
+    log.debug(checkPT(phraseGood18))
+    log.debug(checkPT(phraseGood21))
+    log.debug(checkPT(phraseGood24))
 
 
     assert(pt.phraseToHex(phraseColeman) == hexColeman)
@@ -83,21 +90,26 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   "A key file" should "be generated" in {
     Try(path.deleteRecursively())
     Try(path.createDirectory())
+
     val password = "password"
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     val seed1 = pt.hexToUuid(seedHex)
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
+
     val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)
     val seed2Hash: Array[Byte] = FastCryptographicHash(seed2)
-    val key1 = KeyFile(password, seed1Hash, keyFileDir)
-    val key2 = KeyFile(password, seed2Hash, keyFileDir)
-    val key3 = KeyFile(password = password, seed = FastCryptographicHash(uuidString),defaultKeyDir = keyFileDir)
-    assert(key1.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key2.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key2.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key3.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key3.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key1.getPrivateKey(password).get.privKeyBytes.mkString(""))
+
+    val key1 = KeyFile(password, seed1Hash)
+    val key2 = KeyFile(password, seed2Hash)
+    val key3 = KeyFile(password = password, seed = FastCryptographicHash(uuidString))
+
+    val key1Private = key1 invokePrivate getPrivateKey(password)
+    val key2Private = key2 invokePrivate getPrivateKey(password)
+    val key3Private = key3 invokePrivate getPrivateKey(password)
+
+    key1Private.get.privKeyBytes.mkString("") shouldEqual key2Private.get.privKeyBytes.mkString("")
+    key2Private.get.privKeyBytes.mkString("") shouldEqual key3Private.get.privKeyBytes.mkString("")
+    key3Private.get.privKeyBytes.mkString("") shouldEqual key1Private.get.privKeyBytes.mkString("")
   }
 
   Try(path.deleteRecursively())

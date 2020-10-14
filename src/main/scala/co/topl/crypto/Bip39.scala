@@ -5,6 +5,7 @@ import scorex.crypto.hash.Sha256
 
 import scala.io.Source
 import scala.math.BigInt
+import scala.util.{Failure, Success, Try}
 
 /**
  * AMS Feb 2019:
@@ -24,25 +25,7 @@ import scala.math.BigInt
  * https://github.com/bitcoin/bips/tree/master/bip-0039
  */
 
-case class Bip39 (phraseLanguage: String) extends Logging {
-
-  val iso639_1_toFile: Map[String,String] = Map(
-    "zh-hans"->"chinese_simplified.txt",
-    "zh-hant"->"chinese_traditional.txt",
-    "en"->"english.txt",
-    "fr"->"french.txt",
-    "it"->"italian.txt",
-    "ja"->"japanese.txt",
-    "ko"->"korean.txt",
-    "es"->"spanish.txt"
-  )
-  val phraseListDir = "src/main/resources/bip-0039/"
-  var wordList: List[String] = List.fill(2048)("")
-  try {
-    wordList = Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase)).getLines.toList
-  } catch {
-    case _: Exception => log.error("File not found or data corrupted")
-  }
+class Bip39 (wordList: List[String]) extends Logging {
 
   /*
    *  CS = ENT / 32
@@ -64,26 +47,6 @@ case class Bip39 (phraseLanguage: String) extends Logging {
   val endCSMap: Map[Int,Int] = Map(128->4,160->5,192->6,224->7,256->8)
   val byteLen = 8
   val indexLen = 11
-
-  /**
-    * Verifies the wordlist for the given language by calculating the SHA2 hash
-    * @return true if hash matches precalculated hash
-    */
-  def verifyPhraseList: Boolean = {
-    val phraseLanguagesHash = Map(
-      "chinese_simplified.txt"->"bfd683b91db88609fabad8968c7efe4bf69606bf5a49ac4a4ba5e355955670cb",
-      "chinese_traditional.txt"->"85b285c4e0e3eb1e52038e2cf4b4f8bba69fd814e1a09e063ce3609a1f67ad62",
-      "english.txt"->"ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db",
-      "french.txt"->"9cbdaadbd3ce9cbaee1b360fce45e935b21e3e2c56d9fcd56b3398ced2371866",
-      "italian.txt"->"80d2e90d7436603fd6e57cd9af6f839391e64beac1a3e015804f094fcc5ab24c",
-      "japanese.txt"->"d9d1fde478cbeb45c06b93632a487eefa24f6533970f866ae81f136fbf810160",
-      "korean.txt"->"f04f70b26cfef84474ff56582e798bcbc1a5572877d14c88ec66551272688c73",
-      "spanish.txt"->"a556a26c6a5bb36db0fb7d8bf579cb7465fcaeec03957c0dda61b569962d9da5"
-    )
-    (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
-      == Sha256.hash(Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase))
-        .getLines.toList.mkString).map("%02x" format _).mkString)
-  }
 
   def toBinaryIndex(i: Int): String = String.format("%11s", BigInt(i).toString(2) ).replace(' ', '0')
 
@@ -142,12 +105,56 @@ case class Bip39 (phraseLanguage: String) extends Logging {
   }
 }
 
+
+
+
 object Bip39 {
+  //fixme: JAA - this won't work on compilation since the resources move
+  val phraseListDir = "src/main/resources/bip-0039/"
+
+  val iso639_1_toFile: Map[String,String] = Map(
+    "zh-hans"->"chinese_simplified.txt",
+    "zh-hant"->"chinese_traditional.txt",
+    "en"->"english.txt",
+    "fr"->"french.txt",
+    "it"->"italian.txt",
+    "ja"->"japanese.txt",
+    "ko"->"korean.txt",
+    "es"->"spanish.txt"
+    )
+
   def apply(phraseLanguage: String): Bip39 = {
-    val pt = new Bip39(phraseLanguage)
-    pt.verifyPhraseList match {
-      case true => pt
-      case false => new Bip39("")
+
+    // open the specified file
+    val wordList = Try(Source.fromFile(phraseListDir + iso639_1_toFile(phraseLanguage.toLowerCase))) match {
+      case Success(file) => file.getLines.toList
+      case Failure(ex)   => throw ex
     }
+
+    if (verifyPhraseList(wordList: List[String], phraseLanguage)) {
+      new Bip39(wordList)
+    } else {
+      throw new Error("The reference word lists cannot be verified. Aborting phrase conversion")
+    }
+  }
+
+  /**
+   * Verifies the wordlist for the given language by calculating the SHA2 hash
+   * @return true if hash matches precalculated hash
+   */
+  def verifyPhraseList(wordList: List[String], phraseLanguage: String): Boolean = {
+    val phraseLanguagesHash = Map(
+      "chinese_simplified.txt"->"bfd683b91db88609fabad8968c7efe4bf69606bf5a49ac4a4ba5e355955670cb",
+      "chinese_traditional.txt"->"85b285c4e0e3eb1e52038e2cf4b4f8bba69fd814e1a09e063ce3609a1f67ad62",
+      "english.txt"->"ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db",
+      "french.txt"->"9cbdaadbd3ce9cbaee1b360fce45e935b21e3e2c56d9fcd56b3398ced2371866",
+      "italian.txt"->"80d2e90d7436603fd6e57cd9af6f839391e64beac1a3e015804f094fcc5ab24c",
+      "japanese.txt"->"d9d1fde478cbeb45c06b93632a487eefa24f6533970f866ae81f136fbf810160",
+      "korean.txt"->"f04f70b26cfef84474ff56582e798bcbc1a5572877d14c88ec66551272688c73",
+      "spanish.txt"->"a556a26c6a5bb36db0fb7d8bf579cb7465fcaeec03957c0dda61b569962d9da5"
+      )
+
+    (phraseLanguagesHash(iso639_1_toFile(phraseLanguage.toLowerCase))
+      == Sha256.hash(wordList.mkString).map("%02x" format _).mkString)
   }
 }

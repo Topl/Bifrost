@@ -34,9 +34,9 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
       case obj: AssetCreation =>
         w.putByteString("AssetCreation")
         AssetCreationSerializer.serialize(obj, w)
-      case obj: CoinbaseTransaction =>
-        w.putByteString("CoinbaseTransaction")
-        CoinbaseTransactionSerializer.serialize(obj, w)
+      case obj: Coinbase      =>
+        w.putByteString("Coinbase")
+        CoinbaseSerializer.serialize(obj, w)
     }
   }
 
@@ -53,7 +53,7 @@ object TransactionSerializer extends BifrostSerializer[Transaction] {
       case "AssetTransfer" => AssetTransferSerializer.parse(r)
 
       case "AssetCreation" => AssetCreationSerializer.parse(r)
-      case "CoinbaseTransaction" => CoinbaseTransactionSerializer.parse(r)
+      case "Coinbase" => CoinbaseSerializer.parse(r)
     }
   }
 }

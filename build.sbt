@@ -66,8 +66,8 @@ val testingDependencies = Seq(
 
 val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "2.1.9",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
-  "org.whispersystems" % "curve25519-java" % "0.4.1"
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
+  "org.whispersystems" % "curve25519-java" % "0.5.0"
 )
 
 val miscDependencies = Seq(
@@ -79,11 +79,6 @@ val miscDependencies = Seq(
   "com.joefkelley" %% "argyle" % "1.0.0",
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
-libraryDependencies ++= Seq(
-  "org.scorexfoundation" %% "iodb" % "0.3.2",
-  "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
-  "org.whispersystems" % "curve25519-java" % "0.5.0",
-)
 
 libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
 

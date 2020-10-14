@@ -5,10 +5,10 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.util.Timeout
 import co.topl.settings.RESTApiSettings
-import io.circe.Json
 import io.circe.parser.parse
-import scorex.crypto.hash.{Blake2b256, Digest32}
+import io.circe.{Decoder, Json}
 import scorex.util.encode.Base58
+import scorex.crypto.hash.{Blake2b256, Digest32}
 
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
@@ -27,12 +27,23 @@ trait ApiRoute extends Directives {
 
   def postJsonRoute(fn: ApiResponse): Route = jsonRoute(fn, post)
 
+  /**
+   *
+   * @param fn
+   * @param method
+   * @return
+   */
   private def jsonRoute(fn: ApiResponse, method: Directive0): Route = method {
     complete(
       HttpEntity(ContentTypes.`application/json`, fn.toJson.spaces2)
     )
   }
 
+  /**
+   *
+   * @param route
+   * @return
+   */
   def withAuth(route: => Route): Route = {
     optionalHeaderValueByName("x-api-key") { keyOpt =>
       if (isValid(keyOpt)) route
@@ -40,6 +51,11 @@ trait ApiRoute extends Directives {
     }
   }
 
+  /**
+   *
+   * @param keyOpt
+   * @return
+   */
   private def isValid(keyOpt: Option[String]): Boolean = {
     lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
     (apiKeyHash, keyHash) match {
@@ -49,7 +65,25 @@ trait ApiRoute extends Directives {
     }
   }
 
+  /**
+   * Helper function to parse optional parameters from the request
+   * @param key optional key to be looked for
+   * @param default default return value
+   * @tparam A type of the value expected to be retrieved
+   * @return the provided value or the default
+   */
+  def parseOptional[A](key: String, default: A)(implicit params: Json, decode: Decoder[A]): A = {
+    params.hcursor.downField(key).as[A] match {
+      case Right(value) => value
+      case Left(_)      => default
+    }
+  }
 
+  /**
+   *
+   * @param handler
+   * @return
+   */
   protected final def basicRoute( handler: (String, Vector[Json], String) => Future[Json]): Route = path("") {
     entity(as[String]) { body =>
       withAuth {

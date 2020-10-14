@@ -10,7 +10,6 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.settings.RESTApiSettings
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
 import scorex.util.encode.Base58
@@ -21,7 +20,6 @@ case class UtilsApiRoute(override val settings: RESTApiSettings)
                         (implicit val context: ActorRefFactory, ec: ExecutionContext) extends ApiRoute {
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("utils") { basicRoute(handlers) }
 

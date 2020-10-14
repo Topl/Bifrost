@@ -1,12 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
-import scorex.util.encode.Base58
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 case class StateBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,
@@ -15,33 +12,22 @@ case class StateBox(override val proposition: PublicKey25519Proposition,
                     ) extends ProgramBox(proposition, nonce, value) {
 
   override lazy val typeOfBox: String = "StateBox"
-
-  override lazy val id: Array[Byte] = StateBox.idFromBox(proposition, nonce)
-
-  override lazy val json: Json = Map(
-    "id" -> Base58.encode(id).asJson,
-    "type" -> typeOfBox.asJson,
-    "proposition" -> Base58.encode(proposition.pubKeyBytes).asJson,
-    "programId" -> value.toString.asJson,
-    "state" -> state.asJson,
-    "nonce" -> nonce.toString.asJson,
-  ).asJson
 }
 
 object StateBox {
 
-  def idFromBox[proposition <: PublicKey25519Proposition](prop: proposition, nonce: Long): Array[Byte] =
-    FastCryptographicHash(prop.pubKeyBytes ++ "state".getBytes ++ Longs.toByteArray(nonce))
-
-  // TODO: Jing - Check if this is used anywhere
-  implicit val decodeStateBox: Decoder[StateBox] = (c: HCursor) => for {
-    proposition <- c.downField("proposition").as[String]
-    value <- c.downField("programId").as[String]
-    state <- c.downField("state").as[Json]
-    nonce <- c.downField("nonce").as[Long]
-  } yield {
-    val prop = PublicKey25519Proposition(proposition).get
-    val programId = new ProgramId(Base58.decode(value).get)
-    StateBox(prop, nonce, programId, state)
+  implicit val jsonEncoder: Encoder[StateBox] = { box: StateBox =>
+    (ProgramBox.jsonEncode(box) ++ Map(
+      "state" -> box.state.asJson,
+    )).asJson
   }
+
+  implicit val jsonDecoder: Decoder[StateBox] = ( c: HCursor ) =>
+    for {
+      b <- ProgramBox.jsonDecode(c)
+      state <- c.downField("state").as[Json]
+    } yield {
+      val (proposition, nonce, programId) = b
+      StateBox(proposition, nonce, programId, state)
+    }
 }
