@@ -129,7 +129,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
     log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
 
-    val httpHost = settings.restApi.bindAddress.toString.split(":").head
+    val httpHost = settings.restApi.bindAddress.getHostName
     val httpPort = settings.restApi.bindAddress.getPort
 
     def failedP2P(): Unit = {
