@@ -38,7 +38,6 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
   // Import the types of messages this actor can RECEIVE
   import NodeViewHolder.ReceivableMessages._
 
-
   type BX = Box
   type TX = Transaction
   type PMOD = Block
@@ -165,7 +164,7 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
     * Hard-coded initial view all the honest nodes in a network are making progress from.
     */
   private def genesisState: NodeView = {
-    GenesisProvider.initializeGenesis(appContext.networkType, consensusRef) match {
+    GenesisProvider.initializeGenesis(consensusRef, settings, appContext.networkType) match {
       case Success((block, params)) =>
         // send genesis parameters to the forger
         consensusRef ! params

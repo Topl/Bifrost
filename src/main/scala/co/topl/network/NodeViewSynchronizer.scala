@@ -43,9 +43,7 @@ class NodeViewSynchronizer[
   viewHolderRef: ActorRef,
   networkSettings: NetworkSettings,
   appContext: AppContext
-)(implicit ec: ExecutionContext)
-    extends Synchronizer
-    with Logging {
+)(implicit ec: ExecutionContext) extends Synchronizer with Logging {
 
   // Import the types of messages this actor may SEND or RECEIVES
   import co.topl.settings.NodeViewReady

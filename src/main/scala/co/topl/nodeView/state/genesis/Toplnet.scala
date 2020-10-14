@@ -80,7 +80,7 @@ object Toplnet extends GenesisProvider {
 
     val memberKeys = members.keys.map(PublicKey25519Proposition.apply)
 
-    val arbTx = ArbitTransfer(
+    val txInput = (
       IndexedSeq(genesisAcct.publicImage -> 0L),
       memberKeys.zip(members.values).toIndexedSeq,
       Map(genesisAcct.publicImage -> Signature25519.genesis()),
@@ -88,15 +88,7 @@ object Toplnet extends GenesisProvider {
       0L,
       "")
 
-    val polyTx = PolyTransfer(
-      IndexedSeq(genesisAcct.publicImage -> 0L),
-      memberKeys.zip(members.values).toIndexedSeq,
-      Map(genesisAcct.publicImage -> Signature25519.genesis()),
-      0L,
-      0L,
-      "")
-
-    val txs = Seq(arbTx, polyTx)
+    val txs = Seq((ArbitTransfer.apply: ARB).tupled(txInput), (PolyTransfer.apply: POLY).tupled(txInput))
 
     val generatorBox = ArbitBox(genesisAcct.publicImage, 0, totalStake)
 

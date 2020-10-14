@@ -10,70 +10,70 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 
-case class RESTApiSettings ( bindAddress: InetSocketAddress,
-                             apiKeyHash : String,
-                             corsAllowed: Boolean,
-                             timeout    : FiniteDuration,
-                             verboseAPI : Boolean,
+case class RESTApiSettings (bindAddress: InetSocketAddress,
+                            apiKeyHash  : String,
+                            corsAllowed : Boolean,
+                            timeout     : FiniteDuration,
+                            verboseAPI  : Boolean,
                            )
 
-case class NetworkSettings ( addedMaxDelay          : Option[FiniteDuration],
-                             agentName              : String,
-                             appVersion             : String,
-                             bindAddress            : InetSocketAddress,
-                             connectionTimeout      : FiniteDuration,
-                             controllerTimeout      : Option[FiniteDuration],
-                             declaredAddress        : Option[InetSocketAddress],
-                             deliveryTimeout        : FiniteDuration,
-                             desiredInvObjects      : Int,
-                             getPeersInterval       : FiniteDuration,
-                             handshakeTimeout       : FiniteDuration,
-                             knownPeers             : Seq[InetSocketAddress],
-                             localOnly              : Boolean,
-                             magicBytes             : Array[Byte],
-                             maxConnections         : Int,
-                             maxDeliveryChecks      : Int,
-                             maxHandshakeSize       : Int,
-                             maxInvObjects          : Int,
-                             maxModifiersCacheSize  : Int,
-                             maxChainCacheDepth     : Int,
-                             maxPacketSize          : Int,
-                             maxPeerSpecObjects     : Int,
-                             nodeName               : String,
-                             penaltySafeInterval    : FiniteDuration,
-                             penaltyScoreThreshold  : Int,
-                             syncInterval           : FiniteDuration,
-                             syncIntervalStable     : FiniteDuration,
-                             syncStatusRefresh      : FiniteDuration,
-                             syncStatusRefreshStable: FiniteDuration,
-                             syncTimeout            : Option[FiniteDuration],
-                             temporalBanDuration    : FiniteDuration,
-                             upnpDiscoverTimeout    : Option[FiniteDuration],
-                             upnpEnabled            : Boolean,
-                             upnpUseRandom          : Option[Boolean],
-                             upnpGatewayTimeout     : Option[FiniteDuration]
+case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
+                            agentName: String,
+                            appVersion              : String,
+                            bindAddress             : InetSocketAddress,
+                            connectionTimeout       : FiniteDuration,
+                            controllerTimeout       : Option[FiniteDuration],
+                            declaredAddress         : Option[InetSocketAddress],
+                            deliveryTimeout: FiniteDuration,
+                            desiredInvObjects: Int,
+                            getPeersInterval        : FiniteDuration,
+                            handshakeTimeout        : FiniteDuration,
+                            knownPeers              : Seq[InetSocketAddress],
+                            localOnly: Boolean,
+                            magicBytes: Array[Byte],
+                            maxConnections          : Int,
+                            maxDeliveryChecks       : Int,
+                            maxHandshakeSize        : Int,
+                            maxInvObjects           : Int,
+                            maxModifiersCacheSize   : Int,
+                            maxChainCacheDepth      : Int,
+                            maxPacketSize           : Int,
+                            maxPeerSpecObjects: Int,
+                            nodeName: String,
+                            penaltySafeInterval: FiniteDuration,
+                            penaltyScoreThreshold: Int,
+                            syncInterval            : FiniteDuration,
+                            syncIntervalStable      : FiniteDuration,
+                            syncStatusRefresh       : FiniteDuration,
+                            syncStatusRefreshStable : FiniteDuration,
+                            syncTimeout             : Option[FiniteDuration],
+                            temporalBanDuration     : FiniteDuration,
+                            upnpDiscoverTimeout     : Option[FiniteDuration],
+                            upnpEnabled             : Boolean,
+                            upnpUseRandom           : Option[Boolean],
+                            upnpGatewayTimeout      : Option[FiniteDuration]
                            )
 
-case class ForgingSettings ( InitialDifficulty   : Long,
-                             targetBlockTime     : FiniteDuration,
-                             blockGenerationDelay: FiniteDuration,
-                             version             : Byte,
-                             forkHeight          : Long,
-                             keyFileDir          : Option[String]
+case class ForgingSettings (InitialDifficulty: Long,
+                            blockGenerationDelay : FiniteDuration,
+                            targetBlockTime      : FiniteDuration,
+                            numTestnetAccts      : Option[Int],
+                            testnetBalance       : Option[Int]
                            )
 
-case class AppSettings ( dataDir        : Option[String],
-                         logDir         : Option[String],
-                         enablePBR      : Boolean,
-                         enableTBR      : Boolean,
-                         nodeKeys       : Option[Set[String]],
-                         version        : String,
-                         cacheExpire    : Int,
-                         cacheSize      : Int,
-                         network        : NetworkSettings,
-                         forgingSettings: ForgingSettings,
-                         restApi        : RESTApiSettings,
-                         ntp            : NetworkTimeProviderSettings
+case class AppSettings (dataDir: Option[String],
+                        logDir          : Option[String],
+                        keyFileDir      : Option[String],
+                        enablePBR       : Boolean,
+                        enableTBR       : Boolean,
+                        nodeKeys        : Option[Set[String]],
+                        version         : Version,
+                        cacheExpire: Int,
+                        cacheSize       : Int,
+                        network         : NetworkSettings,
+                        forgingSettings : ForgingSettings,
+                        restApi         : RESTApiSettings,
+                        ntp             : NetworkTimeProviderSettings
                        )
 
 object AppSettings extends Logging with SettingsReaders {
@@ -85,7 +85,7 @@ object AppSettings extends Logging with SettingsReaders {
     * @param startupOpts
     * @return
     */
-  def read ( startupOpts: StartupOpts = StartupOpts.empty ): AppSettings = {
+  def read (startupOpts : StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
 
@@ -94,7 +94,7 @@ object AppSettings extends Logging with SettingsReaders {
     * @param args
     * @return
     */
-  def readConfig ( args: StartupOpts ): Config = {
+  def readConfig (args : StartupOpts): Config = {
 
     val networkPath = args.networkTypeOpt.flatMap {
       networkType =>
@@ -159,7 +159,7 @@ object AppSettings extends Logging with SettingsReaders {
     * @param config
     * @return
     */
-  def fromConfig ( config: Config ): AppSettings = {
+  def fromConfig (config: Config): AppSettings = {
     config.as[AppSettings](configPath)
   }
 }

@@ -3,7 +3,9 @@ package co.topl.network
 import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
 import akka.util.{ByteString, CompactByteString}
-import co.topl.network.message.{Handshake, HandshakeSpec, MessageSerializer}
+import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
+import co.topl.network.PeerConnectionHandler.ReceivableMessages._
+import co.topl.network.message.{Handshake, HandshakeSpec, Message, MessageSerializer}
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, NetworkSettings, Version}
@@ -15,25 +17,18 @@ import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-class PeerConnectionHandler( val settings: NetworkSettings,
+class PeerConnectionHandler( settings: NetworkSettings,
                              networkControllerRef: ActorRef,
                              appContext: AppContext,
                              connectionDescription: ConnectionDescription
-                           )(implicit ec: ExecutionContext)
-  extends Actor with Logging {
-
-  // Import the types of messages this actor can RECEIVE
-  import PeerConnectionHandler.ReceivableMessages._
-  import co.topl.network.message.Message
-
-  // Import the types of messages this actor can SEND
-  import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
+                           )(implicit ec: ExecutionContext) extends Actor with Logging {
 
   private val connection = connectionDescription.connection
   private val connectionId = connectionDescription.connectionId
   private val direction = connectionDescription.connectionId.direction
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
+  private val localPeerSpec = PeerSpec(settings.agentName, Version(settings.appVersion), settings.nodeName, ownSocketAddress, localFeatures)
 
   private val featureSerializers: PeerFeature.Serializers =
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
@@ -236,16 +231,7 @@ class PeerConnectionHandler( val settings: NetworkSettings,
   }
 
   private def createHandshakeMessage(): Unit = {
-    val nodeInfo = message.Handshake(
-      PeerSpec(
-        settings.agentName,
-        Version(settings.appVersion),
-        settings.nodeName,
-        ownSocketAddress,
-        localFeatures
-      ),
-      appContext.timeProvider.time()
-    )
+    val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time())
 
     // create, save, and schedule a timeout option. The variable lets us cancel the timeout message if a handshake is received
     handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)(self ! HandshakeTimeout))

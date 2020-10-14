@@ -2,28 +2,28 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppContext, ForgingSettings, NodeViewReady }
+import co.topl.settings.{AppContext, AppSettings, ForgingSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
  * Must be singleton
  */
-class Forger ( settings: ForgingSettings, appContext: AppContext )
+class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
@@ -130,7 +130,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt ( ): Unit = {
     ledgerProviders.get("nodeViewHolder") match {
-      case Some(ref) => context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(ref ! GetDataFromCurrentView)
+      case Some(ref) => context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(ref ! GetDataFromCurrentView)
       case None      => log.warn(s"Ledger provider not available, skipping schedule.")
     }
   }
@@ -188,7 +188,7 @@ class Forger ( settings: ForgingSettings, appContext: AppContext )
       }
 
       // check forging eligibility
-      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
+      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version.firstDigit) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
           ledgerRef ! LocallyGeneratedModifier[Block](block)
@@ -324,7 +324,7 @@ object Forger {
 
     case class CreateGenesisKeys (num: Int)
 
-    case class GenesisParams ( totalStake                         : Long, targetBlockTime: FiniteDuration)
+    case class GenesisParams ( totalStake: Long, targetBlockTime: FiniteDuration)
 
     case object StartForging
 
@@ -348,15 +348,15 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props ( settings: ForgingSettings, appContext: AppContext )
+  def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
     Props(new Forger(settings, appContext))
 
-  def apply ( settings: ForgingSettings, appContext: AppContext )
+  def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
     system.actorOf(props(settings, appContext))
 
-  def apply ( name: String, settings: ForgingSettings, appContext: AppContext )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
     system.actorOf(props(settings, appContext), name)
 }
