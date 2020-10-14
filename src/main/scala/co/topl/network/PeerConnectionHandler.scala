@@ -8,7 +8,7 @@ import co.topl.network.PeerConnectionHandler.ReceivableMessages._
 import co.topl.network.message.{ Handshake, HandshakeSpec, Message, MessageSerializer }
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
-import co.topl.settings.{ AppContext, AppSettings, NetworkSettings, Version }
+import co.topl.settings.{ AppContext, AppSettings, NetworkSettings, NodeViewReady, Version }
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 

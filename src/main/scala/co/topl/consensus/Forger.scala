@@ -52,7 +52,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   override def preStart ( ): Unit = {
     //register for application initialization message
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -79,7 +79,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
     case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
     case params: GenesisParams  => setGenesisParameters(params)
-    case NodeViewReady() =>
+    case NodeViewReady =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       context become readyToForge
       checkPrivateForging()

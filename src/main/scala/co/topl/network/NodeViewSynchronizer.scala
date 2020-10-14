@@ -82,7 +82,7 @@ class NodeViewSynchronizer[
     networkControllerRef ! RegisterMessageSpecs(appContext.nodeViewSyncRemoteMessages.toSeq, self)
 
     //register for application initialization message
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
 
     //register as a listener for peers got connected (handshaked) or disconnected
     context.system.eventStream.subscribe(self, classOf[HandshakedPeer])
@@ -106,16 +106,24 @@ class NodeViewSynchronizer[
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive = {
+  override def receive: Receive =
+    initialization orElse nonsense
+
+  private def operational: Receive =
     processDataFromPeer orElse
       processSyncStatus orElse
       manageModifiers orElse
       viewHolderEvents orElse
       peerManagerEvents orElse
       nonsense
-  }
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization(): Receive = {
+    case NodeViewReady =>
+      log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
+      context become operational
+  }
+
   protected def processSyncStatus: Receive = {
     // send local sync status to a peer
     case SendLocalSyncInfo =>

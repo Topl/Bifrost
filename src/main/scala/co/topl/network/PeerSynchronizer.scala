@@ -7,7 +7,7 @@ import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, Regi
 import co.topl.network.PeerManager.ReceivableMessages.{ AddPeerIfEmpty, RecentlySeenPeers }
 import co.topl.network.message._
 import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, AppSettings }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
@@ -37,22 +37,41 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
   }
 
   override def preStart: Unit = {
-    networkControllerRef ! RegisterMessageSpecs(
-      appContext.peerSyncRemoteMessages.toSeq,
-      self
-      )
+    //register as a handler for synchronization-specific types of messages
+    networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
 
-    val msg = Message[Unit](getPeersSpec, Right(Unit), None)
-    context.system.scheduler.scheduleWithFixedDelay(2.seconds, settings.network.getPeersInterval, networkControllerRef, SendToNetwork(msg, SendToRandom))
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
-  override def receive: Receive = {
+  // ----------- CONTEXT
+  override def receive: Receive =
+    initialization orElse nonsense
+
+  private def operational: Receive = {
     processDataFromPeer orElse
       nonsense
+  }
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization(): Receive = {
+    case NodeViewReady =>
+      log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
+      context become operational
+      scheduleGetPeers()
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  /** Schedule a message to gossip about our locally known peers */
+  private def scheduleGetPeers(): Unit = {
+    val msg = Message[Unit](getPeersSpec, Right(Unit), None)
+    context.system.scheduler.scheduleWithFixedDelay(
+      2.seconds, settings.network.getPeersInterval, networkControllerRef, SendToNetwork(msg, SendToRandom)
+      )
   }
 
   /**

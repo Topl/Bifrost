@@ -5,7 +5,7 @@ import java.net.{ InetAddress, InetSocketAddress }
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{ InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType }
-import co.topl.settings.{ AppContext, AppSettings }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
@@ -24,12 +24,15 @@ class PeerManager (settings: AppSettings,
 
   private val peerDatabase = new InMemoryPeerDatabase(settings.network, appContext.timeProvider)
 
+  override def preStart: Unit = {
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+  }
+
+  // fill database with peers from config file if empty
   if (peerDatabase.isEmpty) {
-    // fill database with peers from config file if empty
     settings.network.knownPeers.foreach { address =>
-      if (!isSelf(address)) {
-        peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
-      }
+      if (!isSelf(address)) peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
     }
   }
 
@@ -38,10 +41,19 @@ class PeerManager (settings: AppSettings,
 
   // ----------- CONTEXT
   override def receive: Receive =
+    initialization orElse nonsense
+
+  private def operational: Receive =
     peersManagement orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization(): Receive = {
+    case NodeViewReady =>
+      log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
+      context become operational
+  }
+
   private def peersManagement: Receive = {
 
     case ConfirmConnection(connectionId, handlerRef) =>

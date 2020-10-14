@@ -70,7 +70,7 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
     consensusRef ! RegisterLedgerProvider
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
-    context.system.eventStream.publish(NodeViewReady())
+    context.system.eventStream.publish(NodeViewReady)
   }
 
   override def preRestart (reason: Throwable, message: Option[Any]): Unit = {
