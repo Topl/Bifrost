@@ -1,14 +1,9 @@
 package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
-import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.SyncInfo
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
-import co.topl.utils.BifrostEncoder
-import scorex.util.encode.Base58
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 

@@ -566,10 +566,12 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @return an optional transaction from a block
     */
   override def txById(txId: ModifierId): Option[Transaction] = {
-    storage.blockIdOf(txId.hashBytes) match {
-      case Some(block) ⇒ storage.modifierById(ModifierId(block.tail))
-        .get.txs.find(_.id == txId)
-      case None ⇒ None
+    storage.blockIdOf(txId).flatMap { id =>
+      storage
+        .modifierById(id)
+        .get
+        .transactions
+        .find(_.id == txId)
     }
   }
 }
