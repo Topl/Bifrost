@@ -33,8 +33,6 @@ case class PrivateKey25519( private[crypto] val privKeyBytes: PrivateKey,
   }
 }
 
-
-
 object PrivateKey25519 extends SecretCompanion[PrivateKey25519] {
 
   override def verify(message: Array[Byte], publicImage: PublicKey25519Proposition, proof: Signature25519): Boolean =
