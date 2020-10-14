@@ -3,10 +3,11 @@ package co.topl.nodeView.state
 import java.io.File
 
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.{BoxId, TokenBox}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{BoxId, TokenBox}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
+import com.google.common.primitives.Longs
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 import scala.util.{Failure, Success, Try}
@@ -24,11 +25,12 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
   import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  override protected def registryInput ( key: K ): Array[Byte] = key.pubKeyBytes
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.pubKeyBytes
 
-  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = value.grouped(BoxId.size).toSeq.map(v => BoxId(v))
+  override protected val registryOutput: Array[Byte] => Seq[V] =
+    (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(v => Longs.fromByteArray(v))
 
-  override protected def registryOut2StateIn (value: V): Array[Byte] = value.hashBytes
+  override protected val registryOut2StateIn: (K, V) => BoxId = ( key: K, value: V) => TokenBox.idFromPropNonce(key, value)
 
   protected[state] def getBox ( key: K, state: SR): Option[Seq[TokenBox]] = super.getBox[TokenBox](key, state)
 
@@ -61,25 +63,25 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
       val (deleted: Seq[K], updated: Seq[(K, Set[V])]) = {
 
         // make a list of all accounts to consider then loop through them and determine their new state
-        (filteredRemove.keys ++ filteredAppend.keys).map(key => {
-          val current = lookup(key).getOrElse(Seq())
+        (filteredRemove.keys ++ filteredAppend.keys).map(f = key => {
+          val current = lookupRaw(key).getOrElse(Seq())
 
           // case where the account no longer has any boxes
           if ( current.forall(filteredRemove.getOrElse(key, Seq()).contains) && filteredAppend.getOrElse(key, Seq()).isEmpty ) {
             (Some(key), None)
 
-          // case where the account was initially empty and now has boxes
-          } else if (current.isEmpty && filteredAppend.getOrElse(key, Seq()).nonEmpty) {
+            // case where the account was initially empty and now has boxes
+          } else if ( current.isEmpty && filteredAppend.getOrElse(key, Seq()).nonEmpty ) {
             (None, Some((key, filteredAppend(key).toSet)))
 
-          // case for updating the set of boxes for an account
-          } else if (filteredAppend.getOrElse(key, List()).nonEmpty) {
+            // case for updating the set of boxes for an account
+          } else if ( filteredAppend.getOrElse(key, List()).nonEmpty ) {
             val idsToRemove = filteredRemove.getOrElse(key, Seq())
             val idsToAppend = filteredAppend.getOrElse(key, Seq())
             val newIds = (current.filterNot(idsToRemove.contains(_)) ++ idsToAppend).toSet
             (None, Some((key, newIds)))
 
-          // case for genesis account where there are no previous boxes and nothing to remove or append
+            // case for genesis account where there are no previous boxes and nothing to remove or append
           } else (None, None)
         })
       }.foldLeft((Seq[K](), Seq[(K, Set[V])]()))((acc, acct) => (acc._1 ++ acct._1, acc._2 ++ acct._2))
@@ -88,7 +90,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
         ByteArrayWrapper(newVersion.hashBytes),
         deleted.map(k => ByteArrayWrapper(registryInput(k))),
         updated.map {
-          case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(_.hashBytes).toArray)
+          case (key, value) => ByteArrayWrapper(registryInput(key)) -> ByteArrayWrapper(value.toSeq.flatMap(Longs.toByteArray).toArray)
         })
 
     } match {
@@ -114,7 +116,7 @@ class TokenBoxRegistry ( protected val storage: LSMStore,
 object TokenBoxRegistry extends Logging {
 
   type K = PublicKey25519Proposition
-  type V = BoxId
+  type V = Long
 
   def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
     if (settings.enableTBR) {

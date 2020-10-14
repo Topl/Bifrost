@@ -1,36 +1,23 @@
 package co.topl.modifier.transaction
 
-import java.time.Instant
-
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.serialization.ProgramTransferSerializer
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{Box, ExecutionBox, ProgramBox}
-import co.topl.nodeView.state.{State, StateReader}
-import co.topl.utils.serialization.BifrostSerializer
-import co.topl.wallet.Wallet
+import co.topl.nodeView.state.box.{Box, BoxId, ExecutionBox, ProgramBox}
 import com.google.common.primitives.{Bytes, Longs}
-import io.circe.Json
 import io.circe.syntax._
-import io.iohk.iodb.ByteArrayWrapper
-import scorex.crypto.signatures.Signature
-import scorex.util.encode.Base58
+import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.{Failure, Success, Try}
 
-case class ProgramTransfer ( from        : PublicKey25519Proposition,
-                             to          : PublicKey25519Proposition,
-                             signature   : Signature25519,
-                             executionBox: ExecutionBox,
-                             fee         : Long,
-                             timestamp   : Long,
-                             data        : String
+case class ProgramTransfer (from        : PublicKey25519Proposition,
+                            to          : PublicKey25519Proposition,
+                            signature   : Signature25519,
+                            executionBox: ExecutionBox,
+                            fee         : Long,
+                            timestamp   : Long,
+                            data        : String
                            ) extends Transaction {
-
-  override type M = ProgramTransfer
-
-  override lazy val serializer: BifrostSerializer[ProgramTransfer] = ProgramTransferSerializer
 
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
     to.pubKeyBytes
@@ -38,11 +25,11 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
       ++ data.getBytes
     )
 
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq(executionBox.id)
+  override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq(executionBox.id)
 
   override lazy val newBoxes: Traversable[ProgramBox] = {
 
-    val nonce = ProgramTransfer.nonceFromDigest(
+    val nonce = Transaction.nonceFromDigest(
       FastCryptographicHash("ProgramTransfer".getBytes
                               ++ to.pubKeyBytes
                               ++ hashNoNonces
@@ -58,19 +45,6 @@ case class ProgramTransfer ( from        : PublicKey25519Proposition,
       ++ Longs.toByteArray(fee)
     )
 
-  override lazy val json: Json = Map(
-    "txHash" -> id.toString.asJson,
-    "txType" -> "ProgramTransfer".asJson,
-    "newBoxes" -> Base58.encode(newBoxes.head.id).asJson,
-    "boxesToRemove" -> Base58.encode(boxIdsToOpen.head).asJson,
-    "from" -> Base58.encode(from.pubKeyBytes).asJson,
-    "to" -> Base58.encode(to.pubKeyBytes).asJson,
-    "signature" -> Base58.encode(signature.signature).asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-    ).asJson
-
   override def toString: String = s"ProgramTransfer(${json.noSpaces})"
 }
 
@@ -78,25 +52,33 @@ object ProgramTransfer {
 
   type SR = StateReader[Box]
 
-  def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(8))
-
-  def createAndApply ( w           : Wallet,
-                       from        : PublicKey25519Proposition,
-                       to          : PublicKey25519Proposition,
-                       executionBox: ExecutionBox,
-                       fee         : Long,
-                       data        : String
-                     ): Try[ProgramTransfer] = Try {
-
-    val selectedSecret = w.secretByPublicImage(from).get
-    val fakeSig = Signature25519(Signature @@ Array.emptyByteArray)
-    val timestamp = Instant.now.toEpochMilli
-    val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
-
-    val signature = PrivateKey25519.sign(selectedSecret, messageToSign)
-
-    ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
+  implicit val jsonEncoder: Encoder[ProgramTransfer] = { tx: ProgramTransfer =>
+    Map(
+      "txHash" -> tx.id.toString.asJson,
+      "txType" -> "ProgramTransfer".asJson,
+      "newBoxes" -> tx.newBoxes.head.id.toString.asJson,
+      "boxesToRemove" -> tx.boxIdsToOpen.head.toString.asJson,
+      "from" -> tx.from.toString.asJson,
+      "to" -> tx.to.toString.asJson,
+      "signature" -> tx.signature.toString.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
   }
+
+  implicit val jsonDecoder: Decoder[ProgramTransfer] = (c: HCursor) =>
+    for {
+      from <- c.downField("from").as[PublicKey25519Proposition]
+      to <- c.downField("to").as[PublicKey25519Proposition]
+      signature <- c.downField("signature").as[Signature25519]
+      executionBox <- c.downField("executionBox").as[ExecutionBox]
+      fee <- c.downField("fee").as[Long]
+      timestamp <- c.downField("timestamp").as[Long]
+      data <- c.downField("data").as[String]
+    } yield {
+      ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
+    }
 
   //TODO implement prototype tx
   /*def createPrototype(tokenBoxRegistry: TokenBoxRegistry,
@@ -127,8 +109,7 @@ object ProgramTransfer {
     }
 
     // ensure unique list of inuts and output
-    val wrappedBoxIdsToOpen = tx.boxIdsToOpen.map(b ⇒ ByteArrayWrapper(b))
-    require(tx.newBoxes.forall(b ⇒ !wrappedBoxIdsToOpen.contains(ByteArrayWrapper(b.id))))
+    require(tx.newBoxes.forall(b ⇒ !tx.boxIdsToOpen.contains(b.id)))
   }
 
   def semanticValidate ( tx: ProgramTransfer, state: SR ): Try[Unit] = {
@@ -141,13 +122,31 @@ object ProgramTransfer {
 
     val from = Seq((tx.from, tx.executionBox.nonce))
     val signature = Map(tx.from -> tx.signature)
-    val unlocker = State.generateUnlockers(from, signature).head
+    val unlocker = ProgramBox.generateUnlockers(from, signature).head
 
     state.getBox(unlocker.closedBoxId) match {
       case Some(box: ExecutionBox) if unlocker.boxKey.isValid(box.proposition, tx.messageToSign) => Success(Unit)
-      case Some(_)                                                                               => Failure(new Exception("Invalid unlocker"))
-      case None                                                                                  => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
-      case _                                                                                     => Failure(new Exception("Invalid Box type for this transaction"))
+      case Some(_) => Failure(new Exception("Invalid unlocker"))
+      case None    => Failure(new Exception(s"Box for unlocker $unlocker cannot be found in state"))
+      case _       => Failure(new Exception("Invalid Box type for this transaction"))
     }
   }
 }
+
+//def createAndApply ( w           : Wallet,
+//from        : PublicKey25519Proposition,
+//to          : PublicKey25519Proposition,
+//executionBox: ExecutionBox,
+//fee         : Long,
+//data        : String
+//): Try[ProgramTransfer] = Try {
+//
+//  val selectedSecret = w.secretByPublicImage(from).get
+//  val fakeSig = Signature25519(Array())
+//  val timestamp = Instant.now.toEpochMilli
+//  val messageToSign = ProgramTransfer(from, to, fakeSig, executionBox, fee, timestamp, data).messageToSign
+//
+//  val signature = selectedSecret.sign(messageToSign)
+//
+//  ProgramTransfer(from, to, signature, executionBox, fee, timestamp, data)
+//}

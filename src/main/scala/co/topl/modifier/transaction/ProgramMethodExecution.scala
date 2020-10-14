@@ -1,20 +1,16 @@
 package co.topl.modifier.transaction
 
 import co.topl.crypto.{FastCryptographicHash, MultiSignature25519, Signature25519}
-import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.serialization.ProgramMethodExecutionSerializer
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.{ProgramBoxRegistry, ProgramId, State, StateReader}
+import co.topl.nodeView.state.{ProgramId, State, StateReader}
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException
-import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.{Bytes, Longs}
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import scorex.crypto.hash.Digest32
-import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
@@ -30,8 +26,6 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
                                     timestamp   : Long,
                                     data        : String
                                   ) extends ProgramTransaction {
-
-  override type M = ProgramMethodExecution
 
   val proposition: PublicKey25519Proposition = executionBox.proposition
 
@@ -53,11 +47,11 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 
   //lazy val stateBoxIds: IndexedSeq[Array[Byte]] = IndexedSeq(state.head._1.id)
 
-  lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = feeBoxIdKeyPairs.map(_._1)
+  lazy val boxIdsToOpen: IndexedSeq[BoxId] = feeBoxIdKeyPairs.map(_._1)
 
   lazy val hashNoNonces: Digest32 =
     FastCryptographicHash(
-      executionBox.id ++
+      executionBox.id.hashBytes ++
         methodName.getBytes ++
         owner.pubKeyBytes ++
         methodParams.noSpaces.getBytes ++
@@ -69,7 +63,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
     //    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
     val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
 
-    val nonce = ProgramTransaction.nonceFromDigest(digest)
+    val nonce = Transaction.nonceFromDigest(digest)
 
     val programResult: Json =
         Program.execute(stateBoxes, codeBoxes, methodName)(owner)(methodParams.asObject.get) match {
@@ -82,17 +76,6 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 
     IndexedSeq(updatedStateBox)
   }
-
-  lazy val json: Json = (
-    commonJson.asObject.get.toMap ++ Map(
-      "state" -> stateBoxes.map { _.json }.asJson,
-      "code" -> codeBoxes.map { _.json }.asJson,
-      "methodName" -> methodName.asJson,
-      "methodParams" -> methodParams,
-      "newBoxes" -> newBoxes.map { _.json }.toSeq.asJson
-      )).asJson
-
-  override lazy val serializer: BifrostSerializer[ProgramMethodExecution] = ProgramMethodExecutionSerializer
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
@@ -107,17 +90,66 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 //      )
 
   override def toString: String = s"ProgramMethodExecution(${json.noSpaces})"
+
 }
+
+
+
+
 
 object ProgramMethodExecution {
 
   type SR = StateReader[Box]
 
-  //YT NOTE - example of how to use static function to construct methodParams for PME tx
+  implicit val jsonEncoder: Encoder[ProgramMethodExecution] = (tx: ProgramMethodExecution) =>
+    Map(
+      "txHash" -> tx.id.asJson,
+      "txType" -> "ProgramMethodExecution".asJson,
+      "owner" -> tx.owner.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "feePreBoxes" -> tx.preFeeBoxes.asJson,
+      "fees" -> tx.fees.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "state" -> tx.stateBoxes.asJson,
+      "code" -> tx.codeBoxes.asJson,
+      "methodName" -> tx.methodName.asJson,
+      "methodParams" -> tx.methodParams,
+      "newBoxes" -> tx.newBoxes.map { _.json }.toSeq.asJson
+      ).asJson
 
-  //noinspection ScalaStyle
+  implicit val jsonDecoder: Decoder[ProgramMethodExecution] = ( c: HCursor ) =>
+    for {
+      executionBox <- c.downField("executionBox").as[ExecutionBox]
+      stateBoxes <- c.downField("state").as[Seq[StateBox]]
+      codeBoxes <- c.downField("code").as[Seq[CodeBox]]
+      methodName <- c.downField("methodName").as[String]
+      methodParams <- c.downField("methodParams").as[Json]
+      owner <- c.downField("owner").as[PublicKey25519Proposition]
+      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      preFeeBoxes <- c.downField("preFeeBoxes").as[Map[PublicKey25519Proposition, IndexedSeq[(Long, Long)]]]
+      fees <- c.downField("fees").as[Map[PublicKey25519Proposition, Long]]
+      timestamp <- c.downField("timestamp").as[Long]
+      data <- c.downField("data").as[String]
+    } yield {
+      ProgramMethodExecution(executionBox, stateBoxes, codeBoxes, methodName, methodParams,
+                             owner, signatures, preFeeBoxes, fees, timestamp, data)
+    }
+
+  /**
+   *
+   * @param state
+   * @param programId
+   * @param methodName
+   * @param methodParams
+   * @param owner
+   * @param signatures
+   * @param preFeeBoxes
+   * @param fees
+   * @param timestamp
+   * @param data
+   * @return
+   */
   def create ( state       : State,
-               pbr         : ProgramBoxRegistry,
                programId   : ProgramId,
                methodName  : String,
                methodParams: Json,
@@ -138,13 +170,30 @@ object ProgramMethodExecution {
     ProgramMethodExecution(execBox, stateBoxes, codeBoxes, methodName, methodParams, owner, signatures, preFeeBoxes, fees, timestamp, data)
   }
 
+  /**
+   *
+   * @param tx
+   * @param withSigs
+   * @return
+   */
   def syntacticValidate ( tx: ProgramMethodExecution, withSigs: Boolean = true ): Try[Unit] = Try {
     require(tx.signatures(tx.owner).isValid(tx.owner, tx.messageToSign)
             , "Either an invalid signature was submitted or the party listed was not part of the program.")
   }.flatMap(_ => ProgramTransaction.commonValidation(tx))
 
+  /**
+   *
+   * @param tx
+   * @return
+   */
   def validatePrototype ( tx: ProgramMethodExecution ): Try[Unit] = syntacticValidate(tx, withSigs = false)
 
+  /**
+   *
+   * @param tx
+   * @param state
+   * @return
+   */
   def semanticValidate ( tx: ProgramMethodExecution, state: SR ): Try[Unit] = {
     // check that the transaction is correctly formed before checking state
     syntacticValidate(tx) match {
@@ -154,7 +203,7 @@ object ProgramMethodExecution {
 
     /* Program exists */
     if ( state.getBox(tx.executionBox.id).isEmpty ) {
-      throw new TransactionValidationException(s"Program ${Base58.encode(tx.executionBox.id)} does not exist")
+      throw new TransactionValidationException(s"Program ${tx.executionBox.id} does not exist")
     }
 
     //TODO get execution box from box registry using UUID before using its actual id to get it from storage
@@ -172,7 +221,7 @@ object ProgramMethodExecution {
     }
 
     // check that the provided signatures generate valid unlockers
-    val unlockers = State.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
+    val unlockers = ProgramBox.generateUnlockers(tx.boxIdsToOpen, tx.signatures.head._2)
     unlockers
       .foldLeft[Try[Unit]](Success(()))(( tryUnlock, unlocker ) => {
         tryUnlock
@@ -187,33 +236,4 @@ object ProgramMethodExecution {
           }
       })
   }
-
-  implicit val decodeProgramMethodExecution: Decoder[ProgramMethodExecution] =
-    ( c: HCursor ) => for {
-      stateBoxes <- c.downField("state").as[Seq[StateBox]]
-      codeBoxes <- c.downField("code").as[Seq[CodeBox]]
-      executionBox <- c.downField("executionBox").as[ExecutionBox]
-      methodName <- c.downField("methodName").as[String]
-      methodParams <- c.downField("methodParams").as[Json]
-      rawOwner <- c.downField("owner").as[String]
-      rawSignatures <- c.downField("signatures").as[Map[String, String]]
-      rawPreFeeBoxes <- c.downField("preFeeBoxes").as[Map[String, IndexedSeq[(Long, Long)]]]
-      rawFees <- c.downField("fees").as[Map[String, Long]]
-      timestamp <- c.downField("timestamp").as[Long]
-      data <- c.downField("data").as[String]
-    } yield {
-      val commonArgs = ProgramTransaction.commonDecode(rawOwner, rawSignatures, rawPreFeeBoxes, rawFees)
-      transaction.ProgramMethodExecution(
-        executionBox,
-        stateBoxes,
-        codeBoxes,
-        methodName,
-        methodParams,
-        commonArgs._1,
-        commonArgs._2,
-        commonArgs._3,
-        commonArgs._4,
-        timestamp,
-        data)
-    }
 }

@@ -3,7 +3,7 @@ package co.topl.nodeView.state
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.nodeView.state.box.{GenericBox, ProgramBox, TokenBox}
+import co.topl.nodeView.state.box._
 
 import scala.reflect.ClassTag
 
@@ -16,7 +16,7 @@ trait StateReader[BX <: GenericBox[_ <: Proposition, _]] extends NodeViewCompone
   //must be ID of last applied modifier
   def version: VersionTag
 
-  def getBox ( id: Array[Byte]): Option[BX]
+  def getBox( id: BoxId ): Option[Box]
 
   def getProgramBox[PBX <: ProgramBox : ClassTag] (key: KP): Option[PBX]
 

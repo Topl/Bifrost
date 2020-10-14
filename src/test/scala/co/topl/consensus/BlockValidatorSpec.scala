@@ -2,11 +2,13 @@ package co.topl.consensus
 
 import co.topl.BifrostGenerators
 import co.topl.nodeView.history.{BlockProcessor, History}
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+@DoNotDiscover
 class BlockValidatorSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers

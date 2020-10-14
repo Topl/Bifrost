@@ -1,14 +1,10 @@
 package co.topl.nodeView.history
 
 import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
-import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
-import co.topl.utils.BifrostEncoder
-import co.topl.modifier.ModifierId
-import co.topl.network.message.SyncInfo
-import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
-import scorex.util.encode.Base58
+import co.topl.nodeView.NodeViewComponent
 
 import scala.util.Try
 
@@ -23,7 +19,6 @@ import scala.util.Try
   * To say "longest chain" is the canonical one is simplification, usually some kind of "cumulative difficulty"
   * function has been used instead, even in PoW systems.
   */
-
 trait GenericHistory[
   PM <: PersistentNodeViewModifier,
   SI <: SyncInfo,
@@ -32,9 +27,7 @@ trait GenericHistory[
 
   import GenericHistory._
 
-  /**
-    * Is there's no history, even genesis block
-    */
+  /** Is there's no history, even genesis block */
   def isEmpty: Boolean
 
   /**
@@ -63,7 +56,7 @@ trait GenericHistory[
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
-  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(Base58.decode(modifierId).get)).toOption.flatMap(modifierById)
+  def modifierById(modifierId: String): Option[PM] = Try(ModifierId(modifierId)).toOption.flatMap(modifierById)
 
   def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
 
@@ -130,8 +123,7 @@ object GenericHistory {
   case class ProgressInfo[PM <: PersistentNodeViewModifier](branchPoint: Option[ModifierId],
                                                             toRemove: Seq[PM],
                                                             toApply: Seq[PM],
-                                                            toDownload: Seq[(ModifierTypeId, ModifierId)])
-                                                           (implicit encoder: BifrostEncoder) {
+                                                            toDownload: Seq[(ModifierTypeId, ModifierId)]) {
 
     if (toRemove.nonEmpty)
       require(branchPoint.isDefined, s"Branch point should be defined for non-empty `toRemove`")
@@ -139,8 +131,8 @@ object GenericHistory {
     lazy val chainSwitchingNeeded: Boolean = toRemove.nonEmpty
 
     override def toString: String = {
-      s"ProgressInfo(BranchPoint: ${branchPoint.map(encoder.encodeId)}, " +
-        s" to remove: ${toRemove.map(_.encodedId)}, to apply: ${toApply.map(_.encodedId)})"
+      s"ProgressInfo(BranchPoint: $branchPoint, " +
+        s" to remove: ${toRemove.map(_.id)}, to apply: ${toApply.map(_.id)})"
     }
   }
 }

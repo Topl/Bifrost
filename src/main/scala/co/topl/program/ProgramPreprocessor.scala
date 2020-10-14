@@ -5,16 +5,13 @@ import java.nio.file.{Files, Path}
 import co.topl.crypto.Signature25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Gzip
-import co.topl.utils.serialization.JsonSerializable
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.{ErrorManager, Lexer, Parser, ScriptEnvironment, Source, Token, TokenStream, TokenType}
+import com.oracle.js.parser.{ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser}
 import io.circe._
-import io.circe.parser._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import scorex.crypto.signatures.{PublicKey, Signature}
-import scorex.util.encode.{Base58, Base64}
+import scorex.util.encode.Base64
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -31,18 +28,9 @@ case class ProgramPreprocessor(name: String,
                                //state: Json,
                                variables: Json,
                                code: Map[String, String],
-                               signed: Option[(PublicKey25519Proposition, Signature25519)]) extends JsonSerializable {
+                               signed: Option[(PublicKey25519Proposition, Signature25519)])
 
-  lazy val json: Json = Map(
-    //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
-    "name" -> name.asJson,
-    "initjs" -> Base64.encode(Gzip.compress(initjs.getBytes)).asJson,
-    "interface" -> interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
-    "variables" -> variables.asJson,
-    "code" -> code.map(a => a._1 -> a._2).asJson,
-    "signed" -> signed.map(pair => Base58.encode(pair._1.pubKeyBytes) -> Base58.encode(pair._2.bytes)).asJson
-  ).asJson
-}
+
 
 object ProgramPreprocessor {
 
@@ -84,7 +72,7 @@ object ProgramPreprocessor {
   def apply(modulePath: Path)(args: JsonObject): ProgramPreprocessor = {
 
     /* Read file from path, expect JSON */
-    val parsed = parse(new String(Files.readAllBytes(modulePath)))
+    val parsed = io.circe.parser.parse(new String(Files.readAllBytes(modulePath)))
 
     parsed match {
       case Left(f) => throw f
@@ -123,8 +111,8 @@ object ProgramPreprocessor {
       .headOption
       .map(_.as[(String, String)].right.get)
       .map{pair =>
-        val pub = PublicKey25519Proposition(PublicKey @@ Base58.decode(pair._1).get)
-        val sig = Signature25519(Signature @@ Base58.decode(pair._2).get)
+        val pub = PublicKey25519Proposition(pair._1)
+        val sig = Signature25519(pair._2)
         pub -> sig}
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs, name, announcedRegistry)(args)
@@ -250,7 +238,7 @@ object ProgramPreprocessor {
 
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
-    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parser: GraalParser = new GraalParser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
     def varList(node: FunctionNode): Json = {
@@ -301,7 +289,7 @@ object ProgramPreprocessor {
 
     val errManager = new ErrorManager.ThrowErrorManager
     val src = Source.sourceFor("script", initjs)
-    val parser: Parser = new Parser(scriptEnv, src, errManager)
+    val parser: GraalParser = new GraalParser(scriptEnv, src, errManager)
     val parsed = parser.parse()
 
     def functionList(node: FunctionNode): Map[String, String] = {
@@ -321,7 +309,16 @@ object ProgramPreprocessor {
     functionList(parsed)
   }
 
-  implicit val encodeTerms: Encoder[ProgramPreprocessor] = (b: ProgramPreprocessor) => b.json
+  implicit val encodeTerms: Encoder[ProgramPreprocessor] = (p: ProgramPreprocessor) =>
+    Map(
+      //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
+      "name" -> p.name.asJson,
+      "initjs" -> Base64.encode(Gzip.compress(p.initjs.getBytes)).asJson,
+      "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
+      "variables" -> p.variables.asJson,
+      "code" -> p.code.map(a => a._1 -> a._2).asJson,
+      "signed" -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
+    ).asJson
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) => for {
     //state <- c.downField("state").as[String]
@@ -347,8 +344,8 @@ object ProgramPreprocessor {
       variables,
       code,
       signed.map{pair =>
-        val pub = PublicKey25519Proposition(PublicKey @@ Base58.decode(pair._1).get)
-        val sig = Signature25519(Signature @@ Base58.decode(pair._2).get)
+        val pub = PublicKey25519Proposition(pair._1)
+        val sig = Signature25519(pair._2)
         pub -> sig
       }
     )

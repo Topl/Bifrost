@@ -2,7 +2,6 @@ package co.topl.http.api.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.server.Route
-import co.topl.crypto.{Bip39, PrivateKey25519}
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction._
 import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction
@@ -12,10 +11,8 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.TokenBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -26,28 +23,22 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
                           ( implicit val context: ActorRefFactory ) extends ApiRouteWithView {
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
   override val route: Route = pathPrefix("wallet") { basicRoute(handlers) }
 
   def handlers ( method: String, params: Vector[Json], id: String ): Future[Json] =
     method match {
-      case "transferPolys"           => transferPolys(params.head, id)
-      case "transferArbits"          => transferArbits(params.head, id)
+//      case "transferPolys"           => transferPolys(params.head, id)
+//      case "transferArbits"          => transferArbits(params.head, id)
       case "transferArbitsPrototype" => transferArbitsPrototype(params.head, id)
       case "transferPolysPrototype"  => transferPolysPrototype(params.head, id)
       case "balances"                => balances(params.head, id)
-      case "unlockKeyfile"           => unlockKeyfile(params.head, id)
-      case "lockKeyfile"             => lockKeyfile(params.head, id)
-      case "generateKeyfile"         => generateKeyfile(params.head, id)
-      case "listOpenKeyfiles"        => listOpenKeyfiles(params.head, id)
-      case "importSeedPhrase"        => importKeyfile(params.head, id)
-      case "signTx"                  => signTx(params.head, id)
+//      case "signTx"                  => signTx(params.head, id)
       case "broadcastTx"             => broadcastTx(params.head, id)
     }
 
   def checkPublicKey (keys: Seq[PublicKey25519Proposition], view: CV): Unit = {
-    if ( view.state.tbrOpt.isEmpty )
+    if ( !view.state.hasTBR )
       throw new Exception("TokenBoxRegistry not defined for node")
 
     //YT NOTE - if nodeKeys not defined in settings file then node watches for all keys in a state update
@@ -78,54 +69,54 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | fee                     	| Number     	| Optional            	| Default to 0                                                          	  |
    *      | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def transferPolys ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
-      )
-      val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key => PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get))
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
-
-      checkPublicKey(sender, view)
-
-      // Call to BifrostTX to create TX
-      val tx = PolyTransfer
-        .create(
-          view.state.tbrOpt.get,
-          view.state,
-          wallet,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          data
-          )
-        .get
-
-      // Update nodeView with new TX
-      PolyTransfer.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[PolyTransfer](tx)
-          tx.json
-        case Failure(e) =>
-          throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def transferPolys ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+//        Base58.decode((params \\ "recipient").head.asString.get).get
+//        )
+//      val sender: IndexedSeq[PublicKey25519Proposition] =
+//        (params \\ "sender").head.asArray.get
+//          .map(key => PublicKey25519Proposition(Base58.decode(key.asString.get).get))
+//      val fee: Long =
+//        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//
+//      // Optional API parameters
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None          => ""
+//      }
+//
+//      checkPublicKey(sender, view)
+//
+//      // Call to BifrostTX to create TX
+//      val tx = PolyTransfer
+//        .create(
+//          view.state.tbrOpt.get,
+//          view.state,
+//          wallet,
+//          IndexedSeq((recipient, amount)),
+//          sender,
+//          fee,
+//          data
+//          )
+//        .get
+//
+//      // Update nodeView with new TX
+//      PolyTransfer.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[PolyTransfer](tx)
+//          tx.json
+//        case Failure(e) =>
+//          throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   /** #### Summary
    * Transfer Polys from an account to a specified recipient.
@@ -153,30 +144,19 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    * @param id     request identifier
    * @return
    */
-  private def transferPolysPrototype ( params: Json, id: String ): Future[Json] = {
+  private def transferPolysPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
-      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val data: String = parseOptional("data", "")
 
       checkPublicKey(sender, view)
 
       val tx = PolyTransfer
         .createPrototype(
-          view.state.tbrOpt.get,
           view.state,
           IndexedSeq((recipient, amount)),
           sender,
@@ -217,53 +197,53 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | fee                     	| Number     	| Optional            	| Default to 0                                                          	  |
    *      | data                    	| String    	| Optional            	| Data string which can be associated with this transaction (may be empty) 	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def transferArbits ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
-      )
-      val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
-
-      checkPublicKey(sender, view)
-
-      val tx = ArbitTransfer
-        .create(
-          view.state.tbrOpt.get,
-          view.state,
-          wallet,
-          IndexedSeq((recipient, amount)),
-          sender,
-          fee,
-          data
-          )
-        .get
-      // Update nodeView with new TX
-      ArbitTransfer.semanticValidate(tx, view.state) match {
-        case Success(_) =>
-          nodeViewHolderRef ! LocallyGeneratedTransaction[ArbitTransfer](tx)
-          tx.json
-        case Failure(e) =>
-          throw new Exception(s"Could not validate transaction: $e")
-      }
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def transferArbits ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
+//      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
+//        Base58.decode((params \\ "recipient").head.asString.get).get
+//        )
+//      val sender: IndexedSeq[PublicKey25519Proposition] =
+//        (params \\ "sender").head.asArray.get
+//          .map(key =>
+//                 PublicKey25519Proposition(Base58.decode(key.asString.get).get)
+//               )
+//      val fee: Long =
+//        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
+//      // Optional API parameters
+//      val data: String = (params \\ "data").headOption match {
+//        case Some(dataStr) => dataStr.asString.getOrElse("")
+//        case None          => ""
+//      }
+//
+//      checkPublicKey(sender, view)
+//
+//      val tx = ArbitTransfer
+//        .create(
+//          view.state.tbrOpt.get,
+//          view.state,
+//          wallet,
+//          IndexedSeq((recipient, amount)),
+//          sender,
+//          fee,
+//          data
+//          )
+//        .get
+//      // Update nodeView with new TX
+//      ArbitTransfer.semanticValidate(tx, view.state) match {
+//        case Success(_) =>
+//          nodeViewHolderRef ! LocallyGeneratedTransaction[ArbitTransfer](tx)
+//          tx.json
+//        case Failure(e) =>
+//          throw new Exception(s"Could not validate transaction: $e")
+//      }
+//    }
+//  }
 
   /** #### Summary
    * Transfer Polys from an account to a specified recipient.
@@ -291,29 +271,19 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    * @param id     request identifier
    * @return
    */
-  private def transferArbitsPrototype ( params: Json, id: String ): Future[Json] = {
+  private def transferArbitsPrototype ( implicit params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
-      val recipient: PublicKey25519Proposition = PublicKey25519Proposition(
-        PublicKey @@ Base58.decode((params \\ "recipient").head.asString.get).get
-      )
+      val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
       val sender: IndexedSeq[PublicKey25519Proposition] =
-        (params \\ "sender").head.asArray.get
-          .map(key =>
-                 PublicKey25519Proposition(PublicKey @@ Base58.decode(key.asString.get).get)
-               )
-      val fee: Long =
-        (params \\ "fee").head.asNumber.flatMap(_.toLong).getOrElse(0L)
-      // Optional API parameters
-      val data: String = (params \\ "data").headOption match {
-        case Some(dataStr) => dataStr.asString.getOrElse("")
-        case None          => ""
-      }
+        (params \\ "sender").head.asArray.get.map(key => PublicKey25519Proposition(key.asString.get))
+      val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
+      val data: String = parseOptional("data", "")
 
       checkPublicKey(sender, view)
 
       val tx = ArbitTransfer
-        .createPrototype(view.state.tbrOpt.get, view.state, IndexedSeq((recipient, amount)), sender, fee, data)
+        .createPrototype(view.state, IndexedSeq((recipient, amount)), sender, fee, data)
         .get
 
       // Update nodeView with new TX
@@ -350,9 +320,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   private def balances ( params: Json, id: String ): Future[Json] = {
     viewAsync().map { view =>
       // parse the required arguments from the request
-      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => {
-        PublicKey25519Proposition(PublicKey @@ Base58.decode(k.asString.get).get)
-      })
+      val publicKeys = (params \\ "publicKeys").head.asArray.get.map(k => PublicKey25519Proposition(k.asString.get))
 
       checkPublicKey(publicKeys, view)
 
@@ -389,168 +357,6 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
   }
 
   /** #### Summary
-   * Generate a new keyfile in local storage
-   *
-   * #### Type
-   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-   *
-   * #### Description
-   * Generate and save a new encrypted private keyfile using Curve25519 key pairs.
-   * ---
-   * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-   * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally        	|
-   *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def generateKeyfile ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val password: String = (params \\ "password").head.asString.get
-      val pubKey = wallet.generateNewSecret(password)
-      Map("publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson).asJson
-    }
-  }
-
-  /** #### Summary
-   * Import key from mnemonic
-   *
-   * #### Type
-   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-   *
-   * #### Description
-   * Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
-   * ---
-   * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-   * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
-   * | seedPhrase              	| String    	| Required            	| 12, 15, 18, 21, or 24 word mnemonic							         	                |
-   * | seddPhraseLang         	| String    	| Optional            	| Defaults to 'en'. Valid options are ["zh-hans", "zh-hant", "en", "fr", "it", "ja", "ko", "es"] |
-   *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def importKeyfile ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val password: String = (params \\ "password").head.asString.get
-      val seedPhrase: String = (params \\ "seedPhrase").head.asString.get
-      val seedPhraseLang: String =
-        (params \\ "seedPhraseLang").headOption match {
-          case Some(dataStr) => dataStr.asString.getOrElse("")
-          case None          => "en"
-        }
-      val pt = Bip39.apply(seedPhraseLang)
-      Map(
-        if ( pt.phraseCheckSum(seedPhrase) ) {
-          val seed = pt.hexToUuid(pt.phraseToHex(seedPhrase))
-          val pubKey = wallet.generateNewSecret(password, seed)
-          "publicKey" -> Base58.encode(pubKey.pubKeyBytes).asJson
-        } else {
-          "error:" -> "not a valid input phrase".asJson
-        }
-        ).asJson
-    }
-  }
-
-  /** #### Summary
-   * Unlock keyfile
-   *
-   * #### Type
-   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-   *
-   * #### Description
-   * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and allow signing of transactions on behalf of that key
-   * ---
-   * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	    |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	    |
-   * | publicKey               	| String    	| Required            	| Public key corresponding to an encrypted keyfile in your wallet directory   |
-   * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally        	  |
-   *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def unlockKeyfile ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val publicKey: String = (params \\ "publicKey").head.asString.get
-      val password: String = (params \\ "password").head.asString.get
-      wallet.unlockKeyFile(publicKey, password)
-      Map(
-        publicKey -> "unlocked".asJson
-        ).asJson
-    }
-  }
-
-  /** #### Summary
-   * Lock keyfile
-   *
-   * #### Type
-   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-   *
-   * #### Description
-   * Lock a previously unlocked keyfile in your wallet.
-   * ---
-   * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-   * | publicKey               	| String    	| Required            	| Public key corresponding to an encrypted keyfile in your wallet directory |
-   * | password                	| String    	| Required            	| String used to encrypt the private keyfile that is stored locally         |
-   *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def lockKeyfile ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val publicKey: String = (params \\ "publicKey").head.asString.get
-      val password: String = (params \\ "password").head.asString.get
-      wallet.lockKeyFile(publicKey, password)
-      Map(
-        publicKey -> "locked".asJson
-        ).asJson
-    }
-  }
-
-  /** #### Summary
-   * Return list of open keyfiles
-   *
-   * #### Type
-   * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
-   *
-   * #### Description
-   * Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
-   * ---
-   * #### Params
-   * | Fields                  	| Data type 	| Required / Optional 	| Description                                                            	  |
-   * |-------------------------	|-----------	|---------------------	|------------------------------------------------------------------------	  |
-   * | --None specified--       |           	|                     	|                                                                         |
-   *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def listOpenKeyfiles ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      wallet.secrets
-        .flatMap(_ match {
-                   case pkp: PrivateKey25519 => Some(Base58.encode(pkp.publicKeyBytes))
-                   case _                    => None
-                 })
-        .asJson
-    }
-  }
-
-  /** #### Summary
    * Sign a prototype transaction
    *
    * #### Type
@@ -568,38 +374,38 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
    *      | signingKeys             	| String[]   	| Required            	| List of keys that signatures will be created for                       	  |
    *      | protoTx             	    | object     	| Required            	| A prototype transaction JSON object                                     	|
    *
-   * @param params input parameters as specified above
-   * @param id     request identifier
-   * @return
-   */
-  private def signTx ( params: Json, id: String ): Future[Json] = {
-    viewAsync().map { view =>
-      val wallet = view.vault
-      val props = (params \\ "signingKeys").head.asArray.get.map(k => {
-        PublicKey25519Proposition(PublicKey @@ Base58.decode(k.asString.get).get)
-      })
-
-      val tx = (params \\ "protoTx").head
-      val txType = (tx \\ "txType").head.asString.get
-      val txInstance = txType match {
-        case "AssetCreation" => tx.as[AssetCreation].right.get
-        case "AssetTransfer" => tx.as[AssetTransfer].right.get
-        case _               =>
-          throw new Exception(s"Could not find valid transaction type $txType")
-      }
-      val signatures: Json = Map(
-        "signatures" -> Transaction
-          .signTx(wallet, props, txInstance.messageToSign)
-          .map(sig => {
-            Base58.encode(sig._1.pubKeyBytes) -> Base58
-              .encode(sig._2.signature)
-              .asJson
-          })
-        ).asJson
-
-      tx.deepMerge(signatures)
-    }
-  }
+//   * @param params input parameters as specified above
+//   * @param id     request identifier
+//   * @return
+//   */
+//  private def signTx ( params: Json, id: String ): Future[Json] = {
+//    viewAsync().map { view =>
+//      val wallet = view.vault
+//      val props = (params \\ "signingKeys").head.asArray.get.map(k => {
+//        PublicKey25519Proposition(Base58.decode(k.asString.get).get)
+//      })
+//
+//      val tx = (params \\ "protoTx").head
+//      val txType = (tx \\ "txType").head.asString.get
+//      val txInstance = txType match {
+//        case "AssetCreation" => tx.as[AssetCreation].right.get
+//        case "AssetTransfer" => tx.as[AssetTransfer].right.get
+//        case _               =>
+//          throw new Exception(s"Could not find valid transaction type $txType")
+//      }
+//      val signatures: Json = Map(
+//        "signatures" -> Transaction
+//          .signTx(wallet, props, txInstance.messageToSign)
+//          .map(sig => {
+//            Base58.encode(sig._1.pubKeyBytes) -> Base58
+//              .encode(sig._2.signature)
+//              .asJson
+//          })
+//        ).asJson
+//
+//      tx.deepMerge(signatures)
+//    }
+//  }
 
   /** #### Summary
    * Broadcast transaction

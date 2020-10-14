@@ -2,13 +2,14 @@ package co.topl.program
 
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import io.circe.parser
+import io.circe.syntax.EncoderOps
 
 object ExecutionBuilderSerializer extends BifrostSerializer[ExecutionBuilder] {
 
   override def serialize(obj: ExecutionBuilder, w: Writer): Unit = {
     w.putIntString(obj.terms.json.noSpaces)
     w.putIntString(obj.assetCode)
-    w.putIntString(obj.core.json.noSpaces)
+    w.putIntString(obj.core.asJson.noSpaces)
   }
 
   override def parse(r: Reader): ExecutionBuilder = {

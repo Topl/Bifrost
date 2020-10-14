@@ -4,10 +4,12 @@ import co.topl.BifrostGenerators
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import org.scalacheck.Gen
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+@DoNotDiscover
 class BifrostHistorySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers

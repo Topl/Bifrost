@@ -10,6 +10,8 @@ import co.topl.modifier.block.{Block, BlockSerializer}
 import io.iohk.iodb.ByteArrayWrapper
 
 
+
+
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @BenchmarkMode(Array(Mode.AverageTime))
 @Threads(1)

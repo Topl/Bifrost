@@ -1,8 +1,8 @@
 package co.topl.network.message
 
 import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
-import co.topl.nodeView.NodeViewModifier.ModifierTypeId
 
 
 case class BifrostSyncInfo(lastBlockIds: Seq[ModifierId]) extends SyncInfo {

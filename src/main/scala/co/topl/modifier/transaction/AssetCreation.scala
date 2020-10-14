@@ -2,35 +2,26 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.serialization.AssetCreationSerializer
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{AssetBox, Box, TokenBox}
-import co.topl.wallet.Wallet
+import co.topl.nodeView.state.box.{AssetBox, Box, BoxId, TokenBox}
 import com.google.common.primitives.{Bytes, Ints, Longs}
 import io.circe.syntax._
-import io.circe.{Decoder, HCursor, Json}
-import scorex.crypto.signatures.{Curve25519, Signature}
-import scorex.util.encode.Base58
+import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.{Failure, Success, Try}
 
 case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
                            signatures: Map[PublicKey25519Proposition, Signature25519],
-                           assetCode: String,
-                           issuer: PublicKey25519Proposition,
-                           override val fee: Long,
-                           override val timestamp: Long,
-                           data: String
+                           assetCode : String,
+                           issuer    : PublicKey25519Proposition,
+                           fee       : Long,
+                           timestamp : Long,
+                           data      : String
                          ) extends Transaction {
 
-  override type M = AssetCreation
-
-  lazy val serializer: AssetCreationSerializer.type = AssetCreationSerializer
-
-  override lazy val boxIdsToOpen: IndexedSeq[Array[Byte]] = IndexedSeq()
+  override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
   lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
@@ -44,7 +35,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
       .filter(toInstance => toInstance._2 > 0L)
       .zipWithIndex
       .map { case ((prop, value), idx) =>
-        val nonce = AssetCreation.nonceFromDigest(
+        val nonce = Transaction.nonceFromDigest(
           FastCryptographicHash(
             "AssetCreation".getBytes ++
               prop.pubKeyBytes ++
@@ -57,23 +48,6 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
         AssetBox(prop, nonce, value, assetCode, issuer, data)
       }
   }
-
-  override lazy val json: Json = Map(
-    "txHash" -> Base58.encode(id.hashBytes).asJson,
-    "txType" -> "AssetCreation".asJson,
-    "newBoxes" -> newBoxes.map(b => Base58.encode(b.id).asJson).toSeq.asJson,
-    "to" -> to.map { case (prop, value) =>
-      Base58.encode(prop.pubKeyBytes) -> value.toString.asJson
-    }.asJson,
-    "issuer" -> Base58.encode(issuer.pubKeyBytes).asJson,
-    "assetCode" -> assetCode.asJson,
-    "signatures" -> signatures.map { case (prop, sig) =>
-      Base58.encode(prop.pubKeyBytes) -> Base58.encode(sig.signature)
-    }.asJson,
-    "fee" -> fee.asJson,
-    "timestamp" -> timestamp.asJson,
-    "data" -> data.asJson
-    ).asJson
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetCreation".getBytes(),
@@ -93,37 +67,40 @@ object AssetCreation {
 
   type SR = StateReader[Box]
 
-  def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
-
-  /**
-   * Route here from AssetApiRoute
-   * Assumes that the WalletTrait contains the issuer's key information
-   * Takes WalletTrait from current view, and generates signature from issuer's public key
-   * Forms corresponding AssetCreation transaction
-   */
-  def createAndApply ( w        : Wallet,
-                       to       : IndexedSeq[(PublicKey25519Proposition, Long)],
-                       fee      : Long,
-                       issuer   : PublicKey25519Proposition,
-                       assetCode: String,
-                       data     : String
-                     ): Try[AssetCreation] = Try {
-
-    val selectedSecret = w.secretByPublicImage(issuer).get
-    val timestamp = Instant.now.toEpochMilli
-    val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
-
-    val signatures = Map(issuer -> PrivateKey25519.sign(selectedSecret, messageToSign))
-
-    AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
+  implicit val jsonEncoder: Encoder[AssetCreation] = { tx: AssetCreation =>
+    Map(
+      "txHash" -> tx.id.toString.asJson,
+      "txType" -> "AssetCreation".asJson,
+      "newBoxes" -> tx.newBoxes.map(b => b.id.toString).toSeq.asJson,
+      "to" -> tx.to.asJson,
+      "issuer" -> tx.issuer.asJson,
+      "assetCode" -> tx.assetCode.asJson,
+      "signatures" -> tx.signatures.asJson,
+      "fee" -> tx.fee.asJson,
+      "timestamp" -> tx.timestamp.asJson,
+      "data" -> tx.data.asJson
+      ).asJson
   }
 
-  def createPrototype ( to       : IndexedSeq[(PublicKey25519Proposition, Long)],
-                        fee      : Long,
-                        issuer   : PublicKey25519Proposition,
-                        assetCode: String,
-                        data     : String
-                      ): Try[AssetCreation] = Try {
+  implicit val jsonDecoder: Decoder[AssetCreation] = ( c: HCursor ) =>
+    for {
+      to <- c.downField("to").as[IndexedSeq[(PublicKey25519Proposition, Long)]]
+      signatures <- c.downField("signatures").as[Map[PublicKey25519Proposition, Signature25519]]
+      assetCode <- c.downField("assetCode").as[String]
+      issuer <- c.downField("issuer").as[PublicKey25519Proposition]
+      fee <- c.downField("fee").as[Long]
+      timestamp <- c.downField("timestamp").as[Long]
+      data <- c.downField("data").as[String]
+    } yield {
+      AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
+    }
+
+  def createRaw ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
+                  fee: Long,
+                  issuer: PublicKey25519Proposition,
+                  assetCode: String,
+                  data: String
+                ): Try[AssetCreation] = Try {
 
     val timestamp = Instant.now.toEpochMilli
 
@@ -158,37 +135,27 @@ object AssetCreation {
     syntacticValidate(tx)
 
   }
-
-  implicit val decodeAssetCreation: Decoder[AssetCreation] = ( c: HCursor ) =>
-    for {
-      rawTo <- c.downField("to").as[IndexedSeq[(String, String)]]
-      rawSignatures <- c.downField("signatures").as[Map[String, String]]
-      assetCode <- c.downField("assetCode").as[String]
-      rawIssuer <- c.downField("issuer").as[String]
-      fee <- c.downField("fee").as[Long]
-      timestamp <- c.downField("timestamp").as[Long]
-      data <- c.downField("data").as[String]
-    } yield {
-      val to = rawTo.map(t => Transaction.stringToPubKey(t._1) -> t._2.toLong)
-      val signatures = rawSignatures.map { case (key, value) =>
-        if ( value == "" ) {
-          (Transaction.stringToPubKey(key), Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1.toByte)))
-        } else {
-          (Transaction.stringToPubKey(key), Transaction.stringToSignature(value))
-        }
-      }
-      val issuer = Transaction.stringToPubKey(rawIssuer)
-
-      AssetCreation(
-        to,
-        signatures,
-        assetCode,
-        issuer,
-        fee,
-        timestamp,
-        data
-        )
-    }
-
-
 }
+
+/**
+ * Route here from AssetApiRoute
+ * Assumes that the WalletTrait contains the issuer's key information
+ * Takes WalletTrait from current view, and generates signature from issuer's public key
+ * Forms corresponding AssetCreation transaction
+ */
+//  def createAndApply (w        : Wallet,
+//                      to       : IndexedSeq[(PublicKey25519Proposition, Long)],
+//                      fee      : Long,
+//                      issuer   : PublicKey25519Proposition,
+//                      assetCode: String,
+//                      data     : String
+//                     ): Try[AssetCreation] = Try {
+//
+//    val selectedSecret = w.secretByPublicImage(issuer).get
+//    val timestamp = Instant.now.toEpochMilli
+//    val messageToSign = AssetCreation(to, Map(), assetCode, issuer, fee, timestamp, data).messageToSign
+//
+//    val signatures = Map(issuer -> selectedSecret.sign(messageToSign))
+//
+//    AssetCreation(to, signatures, assetCode, issuer, fee, timestamp, data)
+//  }

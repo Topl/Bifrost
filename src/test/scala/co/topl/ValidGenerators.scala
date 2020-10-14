@@ -1,9 +1,9 @@
 package co.topl
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import co.topl.crypto.{FastCryptographicHash, Signature25519}
 import co.topl.modifier.transaction.Transaction.{Nonce, Value}
 import co.topl.modifier.transaction._
-import co.topl.nodeView.state.box.{PublicKeyNoncedBox, _}
+import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.program._
 import com.google.common.primitives.{Bytes, Longs}
@@ -88,7 +88,7 @@ trait ValidGenerators extends BifrostGenerators {
 
       val falseSig = Map(sender -> Signature25519(Signature @@ Array.emptyByteArray))
       val pc = ProgramCreation(executionBuilder, readOnlyIds, preInvestmentBoxes, sender, falseSig, feePreBoxes, fees, timestamp, data)
-      val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, pc.messageToSign))
+      val signature = Map(sender -> senderKeyPair._1.sign(pc.messageToSign))
 
       pc.copy(signatures = signature)
     } match {
@@ -151,7 +151,7 @@ trait ValidGenerators extends BifrostGenerators {
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Nonce)]] =
       Map(sender -> feeBoxes.toIndexedSeq)
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -174,17 +174,17 @@ trait ValidGenerators extends BifrostGenerators {
     val parameters = {}.asJson
 
     val hashNoNonces = FastCryptographicHash(
-      executionBox.id ++
+      executionBox.id.hashBytes ++
         methodName.getBytes ++
         sender.pubKeyBytes ++
         parameters.noSpaces.getBytes ++
-        (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1)) ++
+        (executionBox.id.hashBytes ++ feeBoxIdKeyPairs.flatMap(_._1.hashBytes)) ++
         Longs.toByteArray(timestamp) ++
         fees.flatMap { case (prop, value) => prop.pubKeyBytes ++ Longs.toByteArray(value) }
     )
 
     val messageToSign = Bytes.concat(FastCryptographicHash(executionBox.bytes ++ hashNoNonces), data.getBytes)
-    val signature = Map(sender -> PrivateKey25519.sign(senderKeyPair._1, messageToSign))
+    val signature = Map(sender -> senderKeyPair._1.sign(messageToSign))
 
     ProgramMethodExecution(
       executionBox,
@@ -233,22 +233,16 @@ trait ValidGenerators extends BifrostGenerators {
     ArbitTransfer(from, to, fee, timestamp, data)
   }
 
-  lazy val validCoinbaseTransactionGen: Gen[CoinbaseTransaction] = for {
+  lazy val validCoinbaseTransactionGen: Gen[Coinbase] = for {
     _ <- toSeqGen
+    amount <- positiveLongGen
     timestamp <- positiveLongGen
     id <- modifierIdGen
   } yield {
-    val toKeyPairs = sampleUntilNonEmpty(keyPairSetGen).head
-    val to = IndexedSeq((toKeyPairs._2, 4L))
-    val fakeSigs = IndexedSeq(Signature25519(Signature @@ Array.emptyByteArray))
-    val messageToSign = CoinbaseTransaction(
-      to,
-      fakeSigs,
-      timestamp,
-      id.hashBytes).messageToSign
-    // sign with own key because coinbase is literally giving yourself money
-    val signatures = IndexedSeq(PrivateKey25519.sign(toKeyPairs._1, messageToSign))
-    CoinbaseTransaction(to, signatures, timestamp, id.hashBytes)
+    val toKeyPair = sampleUntilNonEmpty(keyPairSetGen).head
+    val rawTx = Coinbase.createRaw(toKeyPair._2, amount, timestamp, id)
+    val sig = Map(toKeyPair._2 -> toKeyPair._1.sign(rawTx.messageToSign))
+    rawTx.copy(signatures = sig)
   }
 
   lazy val validAssetTransferGen: Gen[AssetTransfer] = for {
@@ -283,7 +277,7 @@ trait ValidGenerators extends BifrostGenerators {
 
     val messageToSign = AssetCreation(to, Map(), assetCode, oneHub._2, fee, timestamp, data).messageToSign
 
-    val signatures = Map(oneHub._2 -> PrivateKey25519.sign(oneHub._1, messageToSign))
+    val signatures = Map(oneHub._2 -> oneHub._1.sign(messageToSign))
 
     AssetCreation(to, signatures, assetCode, oneHub._2, fee, timestamp, data)
   }
