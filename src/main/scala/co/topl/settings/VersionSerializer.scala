@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object VersionSerializer extends BifrostSerializer[Version] {
   val SerializedVersionLength: Int = 3

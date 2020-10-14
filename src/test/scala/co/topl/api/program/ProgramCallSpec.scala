@@ -6,9 +6,11 @@ import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+@DoNotDiscover
 class ProgramCallSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
@@ -22,7 +24,7 @@ class ProgramCallSpec extends AnyWordSpec
 
     directlyAddPBRStorage(1, boxState)
 
-    view().history.bestBlock.txs.foreach{tx =>
+    view().history.bestBlock.transactions.foreach{ tx =>
       println(s"${tx.toString}")
     }
 

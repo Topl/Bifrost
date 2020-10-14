@@ -3,23 +3,22 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
+import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
-import co.topl.nodeView.NodeViewModifier.{ModifierTypeId, idsToString}
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.nodeView.{NodeViewModifier, PersistentNodeViewModifier}
 import co.topl.settings.{AppContext, NetworkSettings}
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{BifrostEncoding, Logging, MalformedModifierError}
-import co.topl.wallet.VaultReader
+import co.topl.utils.{Logging, MalformedModifierError}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -46,8 +45,7 @@ class NodeViewSynchronizer[
   appContext: AppContext
 )(implicit ec: ExecutionContext)
     extends Synchronizer
-    with Logging
-    with BifrostEncoding {
+    with Logging {
 
   // Import the types of messages this actor may SEND or RECEIVES
   import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
@@ -97,7 +95,7 @@ class NodeViewSynchronizer[
     context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[PMOD]])
 
     // instantiate the internal NodeViewSynchronizer state for History and Mempool
-    viewHolderRef ! GetNodeViewChanges(history = true, state = false, vault = false, mempool = true)
+    viewHolderRef ! GetNodeViewChanges(history = true, state = false, mempool = true)
 
     // schedules a SendLocalSyncInfo message to be sent at a fixed interval
     statusTracker.scheduleSendSyncInfo()
@@ -249,13 +247,13 @@ class NodeViewSynchronizer[
             // this is the case that we are continuing to wait on a specific peer to respond
             case Some(peer) if underMaxAttempts =>
               // a remote peer sent `Inv` for this modifier, wait for delivery from that peer until the number of checks exceeds the maximum
-              log.info(s"Peer ${peer.toString} has not delivered requested modifier ${encoder.encodeId(modifierId)} on time")
+              log.info(s"Peer ${peer.toString} has not delivered requested modifier $modifierId on time")
               penalizeNonDeliveringPeer(peer)
 
             // this is the case that we are going to start asking anyone for this modifier
             // we'll keep hitting this case until no peer is specified and we hit the maximum number of tries again
             case Some(_) | None =>
-              log.info(s"Modifier ${encoder.encodeId(modifierId)} still has not been delivered. Querying random peers")
+              log.info(s"Modifier $modifierId still has not been delivered. Querying random peers")
               // request must have been sent previously to have scheduled a CheckDelivery
               requestDownload(modifierTypeId, Seq(modifierId), None, previouslyRequested = true)
           }
@@ -435,7 +433,7 @@ class NodeViewSynchronizer[
     val typeId = data.typeId
     val modifiers = data.modifiers
     log.info(s"Got ${modifiers.size} modifiers of type $typeId from remote connected peer: $remote")
-    log.trace(s"Received modifier ids ${modifiers.keySet.map(encoder.encodeId).mkString(",")}")
+    log.trace(s"Received modifier ids ${modifiers.keySet}")
 
     // filter out non-requested modifiers
     val requestedModifiers = processSpam(remote, typeId, modifiers)
@@ -477,7 +475,7 @@ class NodeViewSynchronizer[
         case _ =>
           // Penalize peer and do nothing - it will be switched to correct state on CheckDelivery
           penalizeMisbehavingPeer(remote)
-          log.warn(s"Failed to parse modifier with declared id ${encoder.encodeId(id)} from ${remote.toString}")
+          log.warn(s"Failed to parse modifier with declared id $id from $remote")
           None
       }
     }
@@ -532,7 +530,7 @@ class NodeViewSynchronizer[
     if (spam.nonEmpty) {
       log.info(
         s"Spam attempt: peer $remote has sent a non-requested modifiers of type $typeId with ids" +
-        s": ${spam.keys.map(encoder.encodeId)}"
+        s": ${spam.keys}"
       )
       penalizeSpammingPeer(remote)
     }
@@ -632,8 +630,6 @@ object NodeViewSynchronizer {
         extends NodeViewChange
 
     case class ChangedMempool[MR <: MemPoolReader[_ <: Transaction]](mempool: MR) extends NodeViewChange
-
-    case class ChangedVault[VR <: VaultReader](reader: VR) extends NodeViewChange
 
     case class ChangedState[SR <: StateReader[_ <: GenericBox[_ <: Proposition, _]]](reader: SR) extends NodeViewChange
 

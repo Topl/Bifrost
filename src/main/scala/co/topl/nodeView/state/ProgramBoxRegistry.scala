@@ -20,11 +20,11 @@ class ProgramBoxRegistry ( protected val storage: LSMStore ) extends Registry[Pr
   import ProgramBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  override protected def registryInput ( key: K ): Array[Byte] = key.hashBytes
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.hashBytes
 
-  override protected def registryOutput ( value: Array[Byte] ): Seq[V] = Seq(BoxId(value))
+  override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) => Seq(BoxId(value))
 
-  override protected def registryOut2StateIn ( value: V ): Array[Byte] = value.hashBytes
+  override protected val registryOut2StateIn: (K, V) => V = ( _, value: V) => value
 
   /** Helper function to retrieve boxes out of state */
   protected[state] def getBox ( key: K, stateReader: SR ): Option[ProgramBox] =

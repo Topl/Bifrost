@@ -8,7 +8,7 @@ import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox}
+import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
 import co.topl.program.ExecutionBuilderSerializer
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Bytes, Longs}
@@ -52,14 +52,14 @@ class ProgramTransactionSpec extends AnyPropSpec
       positiveLongGen.sample.get -> (positiveLongGen.sample.get / 1e5.toLong + 1L)
     }
 
-    val investmentBoxIds: IndexedSeq[Array[Byte]] = preInvestmentBoxes
+    val investmentBoxIds: IndexedSeq[BoxId] = preInvestmentBoxes
       .map(n => PublicKeyNoncedBox.idFromBox(sender, n._1))
 
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] = {
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
     }
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes.toIndexedSeq
       .flatMap {
         case (prop, v) =>
           v.map {
@@ -76,10 +76,10 @@ class ProgramTransactionSpec extends AnyPropSpec
       ExecutionBuilderSerializer.toBytes(executionBuilder),
       //roles.zip(parties).sortBy(_._1).foldLeft(Array[Byte]())((a, b) => a ++ b._2.pubKeyBytes),
       keyPair._2.pubKeyBytes,
-      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).reduce(_ ++ _),
+      (investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)).foldLeft(Array[Byte]())((acc, box) => acc ++ box.hashBytes),
       data.getBytes)
 
-    val signatures = Map(sender -> PrivateKey25519.sign(keyPair._1, messageToSign))
+    val signatures = Map(sender -> keyPair._1.sign(messageToSign))
 
 
     val stateTwo =
@@ -148,7 +148,7 @@ class ProgramTransactionSpec extends AnyPropSpec
     val feePreBoxes: Map[PublicKey25519Proposition, IndexedSeq[(Nonce, Long)]] =
       Map(sender -> IndexedSeq(preFeeBoxGen(minFee, maxFee).sample.get))
 
-    val feeBoxIdKeyPairs: IndexedSeq[(Array[Byte], PublicKey25519Proposition)] = feePreBoxes
+    val feeBoxIdKeyPairs: IndexedSeq[(BoxId, PublicKey25519Proposition)] = feePreBoxes
       .toIndexedSeq
       .flatMap { case (prop, v) =>
         v.map {
@@ -163,18 +163,18 @@ class ProgramTransactionSpec extends AnyPropSpec
     }
 
     val hashNoNonces = FastCryptographicHash(
-      executionBox.id
+      executionBox.id.hashBytes
         ++ methodName.getBytes
         ++ sender.pubKeyBytes
         ++ parameters.noSpaces.getBytes
-        ++ (executionBox.id ++ feeBoxIdKeyPairs.flatMap(_._1))
+        ++ (executionBox.id.hashBytes ++ feeBoxIdKeyPairs.flatMap(_._1.hashBytes))
         ++ Longs.toByteArray(timestamp)
         ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) })
 
     val messageToSign = Bytes.concat(
       FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
         data.getBytes)
-    val signature = PrivateKey25519.sign(priv, messageToSign)
+    val signature = priv.sign(messageToSign)
 
     ProgramMethodExecution(
       executionBox,

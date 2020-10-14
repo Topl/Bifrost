@@ -3,12 +3,12 @@ package co.topl.nodeView.state
 import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
-import co.topl.nodeView.state.box.{Box, PolyBox}
+import co.topl.nodeView.state.box.{Box, BoxId, PolyBox}
 import com.google.common.primitives.Longs
 
 import scala.util.Try
 
-case class StateChanges( override val boxIdsToRemove: Set[Array[Byte]],
+case class StateChanges( override val boxIdsToRemove: Set[BoxId],
                          override val toAppend: Set[Box],
                        ) extends GenericStateChanges[Any, ProofOfKnowledgeProposition[PrivateKey25519], Box](boxIdsToRemove, toAppend)
 
@@ -19,16 +19,12 @@ object StateChanges {
   def apply(mod: BPMOD): Try[StateChanges] =
     Try {
 
-      // extract the needed box data from all transactions within a block
-      val boxDeltas: Seq[(Set[Array[Byte]], Set[BX], Long)] =
-        mod.transactions match {
-          case Some(txSeq) => txSeq.map(tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee))
-          case _           => Seq((Set[Array[Byte]](), Set[BX](), 0L))
-        }
-
+      // extract the needed box data from all transactions within a block and
       // aggregate the transaction data into separate lists for updating state
-      val (toRemove: Set[Array[Byte]], toAdd: Set[BX], reward: Long) =
-        boxDeltas.foldLeft((Set[Array[Byte]](), Set[BX](), 0L))(
+      val (toRemove: Set[BoxId], toAdd: Set[BX], reward: Long) =
+        mod.transactions.map {
+          tx => (tx.boxIdsToOpen.toSet, tx.newBoxes.toSet, tx.fee)
+        }.foldLeft((Set[BoxId](), Set[BX](), 0L))(
           (aggregate, boxDelta) => {
             (
               aggregate._1 ++ boxDelta._1,

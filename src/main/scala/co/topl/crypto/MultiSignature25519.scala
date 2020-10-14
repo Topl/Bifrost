@@ -3,11 +3,11 @@ package co.topl.crypto
 import co.topl.crypto.serialization.MultiSignature25519Serializer
 import co.topl.nodeView.state.box.proposition.{MofNProposition, Proposition, PublicKey25519Proposition}
 import co.topl.utils.serialization.BifrostSerializer
-import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
-case class MultiSignature25519(signatureSet: Set[Signature25519])
-  extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
+case class MultiSignature25519(signatureSet: Set[Signature25519]) extends ProofOfKnowledge[PrivateKey25519, MofNProposition] {
+
   signatureSet.foreach(sig => {
     require(sig.signature.length == MultiSignature25519.SignatureSize)
   })

@@ -9,10 +9,11 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
+@DoNotDiscover
 class CodeCreationSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
@@ -47,8 +48,8 @@ class CodeCreationSpec extends AnyWordSpec
         (res \\ "result").head.asObject.isDefined shouldBe true
 
         val txHash = ((res \\ "result").head \\ "txHash").head.asString.get
-        val txHashId = ModifierId(Base58.decode(txHash).get)
-        val txInstance: Transaction = view().pool.getById(txHashId).get
+        val txHashId = ModifierId(txHash)
+        val txInstance: Transaction = view().pool.modifierById(txHashId).get
 
         val history = view().history
         val tempBlock = Block.create(
@@ -56,7 +57,7 @@ class CodeCreationSpec extends AnyWordSpec
           System.currentTimeMillis(),
           Seq(txInstance),
           ArbitBox(prop, 0L, 10000L),
-          gw.secrets.head,
+          signSk,
           settings.forgingSettings.version
         )
 

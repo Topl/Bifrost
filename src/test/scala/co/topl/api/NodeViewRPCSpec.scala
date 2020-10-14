@@ -21,19 +21,19 @@ import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import io.circe.Json
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
+@DoNotDiscover
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
@@ -73,10 +73,8 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
-
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   val publicKeys = Map(
@@ -84,12 +82,6 @@ class NodeViewRPCSpec extends AnyWordSpec
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
   )
-
-  // Unlock Secrets
-  val gw: Wallet = view().vault
-  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   var txHash: String = ""
   var assetTxHash: String = ""
@@ -144,8 +136,8 @@ class NodeViewRPCSpec extends AnyWordSpec
         }
         txHash shouldEqual assetTxHash
         assert(txHashesArray.size <= 100)
-        val txHashId = ModifierId(Base58.decode(txHash).get)
-        assetTxInstance = view().pool.getById(txHashId).get
+        val txHashId = ModifierId(txHash)
+        assetTxInstance = view().pool.modifierById(txHashId).get
         val history = view().history
         //Create a block with the above created createAssets transaction
         val tempBlock = Block(history.bestBlockId,

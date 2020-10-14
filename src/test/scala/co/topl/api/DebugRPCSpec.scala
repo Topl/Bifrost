@@ -15,8 +15,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -25,6 +25,7 @@ import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
+@DoNotDiscover
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
@@ -54,10 +55,8 @@ class DebugRPCSpec extends AnyWordSpec
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
-
   private def view() = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   "Debug RPC" should {

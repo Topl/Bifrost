@@ -3,8 +3,8 @@ package co.topl.settings
 import java.io.File
 import java.net.InetSocketAddress
 
-import co.topl.utils.{ Logging, NetworkTimeProviderSettings }
-import com.typesafe.config.{ Config, ConfigFactory }
+import co.topl.utils.{Logging, NetworkTimeProviderSettings}
+import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
@@ -60,12 +60,11 @@ case class ForgingSettings ( MinimumDifficulty   : Long,
                              targetBlockTime     : FiniteDuration,
                              blockGenerationDelay: FiniteDuration,
                              version             : Byte,
-                             forkHeight          : Long
+                             forkHeight          : Long,
+                             keyFileDir          : Option[String]
                            )
 
-case class AppSettings ( walletSeed     : String,
-                         keyFileDir     : Option[String],
-                         walletDir      : Option[String],
+case class AppSettings (
                          dataDir        : Option[String],
                          logDir         : Option[String],
                          enablePBR      : Boolean,

@@ -14,10 +14,9 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.AppContext
-import co.topl.wallet.Wallet
 import io.circe.syntax._
-import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
+import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -51,10 +50,8 @@ trait ProgramMockState extends BifrostGenerators {
     ).withHeaders(RawHeader("x-api-key", "test_key"))
   }
 
-  private def actOnCurrentView(v: CurrentView[History, State, Wallet, MemPool]): CurrentView[History, State, Wallet, MemPool] = v
-
-  protected def view(): CurrentView[History, State, Wallet, MemPool] = Await.result(
-    (nodeViewHolderRef ? GetDataFromCurrentView(actOnCurrentView)).mapTo[CurrentView[History, State, Wallet, MemPool]],
+  protected def view(): CurrentView[History, State, MemPool] = Await.result(
+    (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]],
     10.seconds)
 
   def directlyAddPBRStorage(version: Int, boxes: Seq[ProgramBox]): Unit = {
@@ -62,24 +59,18 @@ trait ProgramMockState extends BifrostGenerators {
     state.directlyAddPBRStorage(version, boxes, view().state)
   }
 
+  lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetGen).head
+
   val publicKeys = Map(
     "investor" -> "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
     "producer" -> "A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb",
     "hub" -> "F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU"
     )
-  // Unlock Secrets
-  val gw: Wallet = view().vault
-  gw.unlockKeyFile(publicKeys("investor"), "genesis")
-  gw.unlockKeyFile(publicKeys("producer"), "genesis")
-  gw.unlockKeyFile(publicKeys("hub"), "genesis")
 
   val publicKey = "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"
-  val prop: PublicKey25519Proposition = PublicKey25519Proposition(PublicKey @@ Base58.decode(publicKeys("investor")).get)
+  val prop: PublicKey25519Proposition = PublicKey25519Proposition(publicKeys("investor"))
 
-  val polyBoxes = view()
-    .vault
-    .boxes()
-    .filter(_.box.isInstanceOf[PolyBox])
+  val polyBoxes: Seq[TokenBox] = view().state.getTokenBoxes(prop).getOrElse(Seq())
 
   val fees: Map[String, Int] = Map(publicKey -> 500)
 

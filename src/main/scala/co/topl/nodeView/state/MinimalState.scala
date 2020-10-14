@@ -5,10 +5,11 @@ package co.topl.nodeView.state
   */
 
 import co.topl.modifier.ModifierId
+import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.nodeView.{NodeViewComponent, PersistentNodeViewModifier}
 
 import scala.util.Try
 

@@ -1,12 +1,10 @@
 package co.topl.nodeView.history
 
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
+import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.message.SyncInfo
-import co.topl.nodeView.history.GenericHistory.{ HistoryComparisonResult, ModifierIds }
-import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
-import co.topl.modifier.{ ContainsModifiers, ModifierId }
-import co.topl.network.message.SyncInfo
-import co.topl.nodeView.{ NodeViewComponent, PersistentNodeViewModifier }
+import co.topl.nodeView.NodeViewComponent
+import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
 
 import scala.util.Try
 

@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.nodeView.state.box.GenericBox
+import co.topl.nodeView.state.box.{BoxId, GenericBox}
 import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.utils.Logging
 
@@ -17,13 +17,13 @@ trait Registry[K, V] extends StoreInterface with Logging {
   protected def rollbackTo (version: VersionTag): Try[Registry[K, V]]
 
   /** Helper function to transform registry input key to Array[Byte] */
-  protected def registryInput (key: K): Array[Byte]
+  protected val registryInput: K => Array[Byte]
 
   /** Helper function to transform registry output value from Array[Byte] */
-  protected def registryOutput (value: Array[Byte]): Seq[V]
+  protected val registryOutput: Array[Byte] => Seq[V]
 
   /** Helper function to transform registry output value to input for state */
-  protected def registryOut2StateIn (value: V): Array[Byte]
+  protected val registryOut2StateIn: (K, V) => BoxId
 
   /**
     * Lookup boxId stored by key in the registry
@@ -31,10 +31,19 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @param key storage key used to identify value(s) in registry
     * @return the value associated with the key within the registry
     */
-  def lookup (key: K): Option[Seq[V]] = {
+  def lookup (key: K): Option[Seq[BoxId]] =
     getFromStorage(registryInput(key))
       .map(registryOutput)
-  }
+      .map(_.map(registryOut2StateIn(key, _)))
+
+  /**
+   * Lookup raw value stored in the registry
+   * @param key storage key used to identify value(s) in the registry
+   * @return the raw value stored in the registry
+   */
+  def lookupRaw (key: K): Option[Seq[V]] =
+    getFromStorage(registryInput(key))
+      .map(registryOutput)
 
   /**
     * A convenience method to allow for seamlessly looking up a box in a registry and then querying
@@ -45,13 +54,12 @@ trait Registry[K, V] extends StoreInterface with Logging {
     * @return a sequence of boxes from state using the registry key to look them up
    */
   protected def getBox[BX : ClassTag] (key: K, state: SR): Option[Seq[BX]] =
-      lookup(key)
-        .map {
-          _.map(registryOut2StateIn)
-            .map(state.getBox)
-            .flatMap {
-              case Some(box: BX) => Some(box)
-              case _             => None
-            }
-        }
+    lookup(key)
+      .map {
+        _.map(state.getBox)
+          .flatMap {
+            case Some(box: BX) => Some(box)
+            case _             => None
+          }
+      }
 }

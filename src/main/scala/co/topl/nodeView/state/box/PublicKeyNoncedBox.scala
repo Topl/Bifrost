@@ -7,12 +7,12 @@ import com.google.common.primitives.Longs
 trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PKP, Long] {
   val nonce: Long
 
-  lazy val id: Array[Byte] = PublicKeyNoncedBox.idFromBox(proposition, nonce)
+  lazy val id: BoxId = PublicKeyNoncedBox.idFromBox(proposition, nonce)
 
   lazy val publicKey = proposition
 
   override def equals(obj: Any): Boolean = obj match {
-    case acc: PublicKeyNoncedBox[PKP] => (acc.id sameElements this.id) && acc.value == this.value
+    case acc: PublicKeyNoncedBox[PKP] => (acc.id == this.id) && acc.value == this.value
     case _ => false
   }
 
@@ -21,6 +21,8 @@ trait PublicKeyNoncedBox[PKP <: PublicKey25519Proposition] extends GenericBox[PK
 
 object PublicKeyNoncedBox {
 
-  def idFromBox[PKP <: PublicKey25519Proposition](prop: PKP, nonce: Long): Array[Byte] =
-    FastCryptographicHash(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
+  def idFromBox[PKP <: PublicKey25519Proposition](prop: PKP, nonce: Long): BoxId = {
+    val hashBytes = FastCryptographicHash(prop.pubKeyBytes ++ Longs.toByteArray(nonce))
+    BoxId(hashBytes)
+  }
 }

@@ -9,6 +9,9 @@ import co.topl.{BifrostGenerators, ValidGenerators}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+
+import scala.util.Random
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.util.Random
@@ -37,7 +40,7 @@ class IODBSpec extends AnyPropSpec
       val boxIdsToRemove: Iterable[ByteArrayWrapper] = Seq()
       val boxesToAdd: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
         tx.newBoxes
-          .map(b => (ByteArrayWrapper(b.id), ByteArrayWrapper(b.bytes)))
+          .map(b => (ByteArrayWrapper(b.id.hashBytes), ByteArrayWrapper(b.bytes)))
           .toList
 
       blocksStorage.update(ByteArrayWrapper(tx.id.hashBytes), boxIdsToRemove, boxesToAdd)
@@ -50,7 +53,7 @@ class IODBSpec extends AnyPropSpec
       */
     def checkTx(tx: Transaction): Unit = {
       tx.newBoxes
-        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id)).isDefined))
+        .foreach(b => require(blocksStorage.get(ByteArrayWrapper(b.id.hashBytes)).isDefined))
     }
 
     forAll(validBifrostTransactionSeqGen) { txs =>

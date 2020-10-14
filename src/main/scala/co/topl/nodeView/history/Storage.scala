@@ -2,13 +2,13 @@ package co.topl.nodeView.history
 
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{ Block, BlockSerializer }
+import co.topl.modifier.block.{Block, BlockSerializer}
 import co.topl.modifier.transaction.GenericTransaction
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
+import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 import scorex.crypto.hash.Sha256
 
 import scala.util.Success
@@ -18,7 +18,7 @@ import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{ Failure, Try }
+import scala.util.{Failure, Try}
 
 class Storage( private[history] val storage: LSMStore, val settings: AppSettings) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
@@ -51,7 +51,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
   def bestBlockId: ModifierId = blockCache
     .get(bestBlockIdKey)
     .map(d => ModifierId(d.data))
-    .getOrElse(ModifierId(History.GenesisParentId))
+    .getOrElse(History.GenesisParentId)
 
   def bestChainScore: Long = scoreOf(bestBlockId).get
 
@@ -94,7 +94,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
     val typeByte = Block.modifierTypeId
 
     val blockK: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(ByteArrayWrapper(b.serializedId) -> ByteArrayWrapper(typeByte +: b.bytes))
+      Seq(ByteArrayWrapper(b.id.hashBytes) -> ByteArrayWrapper(typeByte +: b.bytes))
 
     val blockH: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockHeightKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentHeight(b) + 1)))
@@ -103,31 +103,31 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
       Seq(idHeightKey(parentHeight(b) + 1) → ByteArrayWrapper(b.id.hashBytes))
 
     val blockDiff: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockDiffKey(b.serializedId) -> ByteArrayWrapper(Longs.toByteArray(diff)))
+      Seq(blockDiffKey(b.id.hashBytes) -> ByteArrayWrapper(Longs.toByteArray(diff)))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
     val blockScore: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
       Seq(blockScoreKey(b.id) -> ByteArrayWrapper(Longs.toByteArray(parentChainScore(b) + diff / 10000000000L)))
 
-    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.serializedId))
+    val bestBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = Seq(bestBlockIdKey -> ByteArrayWrapper(b.id.hashBytes))
 
     val parentBlock: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      if (b.parentId.hashBytes sameElements History.GenesisParentId) {
+      if (b.parentId == History.GenesisParentId) {
         Seq()
       } else {
-        Seq(blockParentKey(b.serializedId) -> ByteArrayWrapper(b.serializedParentId))
+        Seq(blockParentKey(b.id.hashBytes) -> ByteArrayWrapper(b.parentId.hashBytes))
       }
 
     val blockBloom: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] =
-      Seq(blockBloomKey(b.serializedId) -> ByteArrayWrapper(Block.createBloom(b.txs)))
+      Seq(blockBloomKey(b.id.hashBytes) -> ByteArrayWrapper(Block.createBloom(b.transactions)))
 
-    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.get.map(
-      tx => (ByteArrayWrapper(tx.serializedId), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.serializedId))
+    val newTransactionsToBlockIds: Iterable[(ByteArrayWrapper, ByteArrayWrapper)] = b.transactions.map(
+      tx => (ByteArrayWrapper(tx.id.hashBytes), ByteArrayWrapper(GenericTransaction.modifierTypeId +: b.id.hashBytes))
     )
 
     /* update storage */
     storage.update(
-      ByteArrayWrapper(b.serializedId),
+      ByteArrayWrapper(b.id.hashBytes),
       Seq(),
       blockK ++ blockDiff ++ blockH ++ idHeight ++ blockScore ++ bestBlock ++ newTransactionsToBlockIds ++ blockBloom ++ parentBlock
     )
@@ -184,7 +184,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
   }
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    if (blockId.hashBytes sameElements History.GenesisParentId) {
+    if (blockId == History.GenesisParentId) {
       Some(settings.forgingSettings.InitialDifficulty)
     } else {
       blockCache
@@ -202,10 +202,10 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
       .get(blockParentKey(blockId))
       .map(d => d.data)
 
-  def blockIdOf(transactionId: Array[Byte]): Option[Array[Byte]] =
+  def blockIdOf(transactionId: ModifierId): Option[ModifierId] =
     blockCache
-      .get(ByteArrayWrapper(transactionId))
-      .map(_.data)
+      .get(ByteArrayWrapper(transactionId.hashBytes))
+      .map(id => ModifierId(id.data))
 
   def parentChainScore(b: Block): Long = scoreOf(b.parentId).getOrElse(0L)
 
@@ -213,5 +213,5 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
 
   def parentDifficulty(b: Block): Long = difficultyOf(b.parentId).getOrElse(0L)
 
-  def isGenesis(b: Block): Boolean = b.parentId.hashBytes sameElements History.GenesisParentId
+  def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 }

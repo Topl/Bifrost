@@ -10,6 +10,9 @@ import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+
+import scala.util.Success
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.Signature
 
