@@ -28,6 +28,7 @@ trait GenesisProvider extends Logging {
   protected lazy val totalStake: Long = members.values.sum
 
   def getGenesisBlock: Try[(Block, GenesisParams)]
+
 }
 
 object GenesisProvider {

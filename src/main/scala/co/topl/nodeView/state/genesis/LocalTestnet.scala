@@ -44,30 +44,32 @@ case class LocalTestnet(keyManager: ActorRef) extends GenesisProvider {
   val balance = 1000000L
 
   def formNewBlock: Future[(Block, GenesisParams)] = {
+
+    type POLY = (
+      IndexedSeq[(PublicKey25519Proposition, Long)],
+        IndexedSeq[(PublicKey25519Proposition, Long)],
+        Map[PublicKey25519Proposition, Signature25519], Long, Long, String) => PolyTransfer
+
+    type ARB = (
+      IndexedSeq[(PublicKey25519Proposition, Long)],
+        IndexedSeq[(PublicKey25519Proposition, Long)],
+        Map[PublicKey25519Proposition, Signature25519], Long, Long, String) => ArbitTransfer
+
     // send the request to get keys to the key mangers
     (keyManager ? CreateGenesisKeys(numberOfKeys)).mapTo[Set[PublicKey25519Proposition]].map { keys =>
 
       // map the members to their balances then continue as normal
-      val privateMembers = keys.map(_ -> balance).toIndexedSeq
       val privateTotalStake = numberOfKeys * balance
 
-      val arbTx = ArbitTransfer(
+      val txInput = (
         IndexedSeq(genesisAcct.publicImage -> 0L),
-        privateMembers,
+        keys.map(_ -> balance).toIndexedSeq,
         Map(genesisAcct.publicImage -> Signature25519.genesis()),
         0L,
         0L,
-        "")
+        "")+
 
-      val polyTx = PolyTransfer(
-        IndexedSeq(genesisAcct.publicImage -> 0L),
-        privateMembers,
-        Map(genesisAcct.publicImage -> Signature25519.genesis()),
-        0L,
-        0L,
-        "")
-
-      val txs = Seq(arbTx, polyTx)
+      val txs = Seq((ArbitTransfer.apply: ARB).tupled(txInput), (PolyTransfer.apply: POLY).tupled(txInput))
 
       val generatorBox = ArbitBox(genesisAcct.publicImage, 0, privateTotalStake)
 
