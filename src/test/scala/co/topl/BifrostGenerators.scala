@@ -638,7 +638,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.forgingSettings.version)
+    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.forging.version)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
@@ -657,7 +657,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
       keyPair._1,
-      settings.forgingSettings.version)
+      settings.forging.version)
   }
 
   def generateHistory: History = {

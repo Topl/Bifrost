@@ -1,14 +1,14 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction.GenericTransaction
-import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
 import com.google.common.primitives.Longs
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.crypto.hash.Sha256
 
 import scala.util.Success
@@ -18,12 +18,13 @@ import serializer.BloomTopics
 
 import scala.collection.BitSet
 import scala.concurrent.duration.MILLISECONDS
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Try }
 
-class Storage( private[history] val storage: LSMStore, val settings: AppSettings) extends Logging {
+class Storage( private[history] val storage: LSMStore,
+               private val cacheExpire: Int,
+               private val cacheSize: Int
+             ) extends Logging {
   /* ------------------------------- Cache Initialization ------------------------------- */
-  private val cacheExpire: Int = settings.cacheExpire
-  private val cacheSize: Int = settings.cacheSize
   type KEY = ByteArrayWrapper
   type VAL = ByteArrayWrapper
 
@@ -185,7 +186,7 @@ class Storage( private[history] val storage: LSMStore, val settings: AppSettings
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     if (blockId == History.GenesisParentId) {
-      Some(settings.forgingSettings.InitialDifficulty)
+      Some(consensus.initialDifficulty)
     } else {
       blockCache
         .get(blockDiffKey(blockId.hashBytes))

@@ -5,7 +5,11 @@ import co.topl.utils.serialization.{BytesSerializable, _}
 /**
   * Version of p2p protocol. Node can only process messages of it's version or lower.
   */
-case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extends BytesSerializable with Ordered[Version] {
+class Version( val firstDigit: Byte,
+               val secondDigit: Byte,
+               val thirdDigit: Byte
+             ) extends BytesSerializable with Ordered[Version] {
+
   override type M = Version
 
   val blockByte: Byte = firstDigit
@@ -24,10 +28,10 @@ case class Version(firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte) extend
 
 object Version {
   def apply(v: String): Version = {
-    val splitted = v.split("\\.")
-    Version(splitted(0).toByte, splitted(1).toByte, splitted(2).toByte)
+    val split = v.split("\\.")
+    new Version(split(0).toByte, split(1).toByte, split(2).toByte)
   }
 
-  val initial: Version = Version(0, 0, 1)
-  val last: Version = Version(0, 0, 1)
+  val initial: Version = new Version(0, 0, 1)
+  val last: Version = new Version(0, 0, 1)
 }

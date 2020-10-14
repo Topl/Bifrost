@@ -303,7 +303,7 @@ object State extends Logging {
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
   def stateFile(settings: AppSettings): File = {
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     new File(s"$dataDir/state").mkdirs()
     new File(s"$dataDir/state/state.dat")
   }
@@ -320,8 +320,7 @@ object State extends Logging {
 
     // node keys are a set of keys that this node will restrict its state to update
     val nodeKeys: Option[Set[PublicKey25519Proposition]] =
-      settings
-        .nodeKeys
+      settings.application.nodeKeys
         .map(_.map(k => PublicKey25519Proposition(k)))
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")

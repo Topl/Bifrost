@@ -40,11 +40,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
-  log.debug(s"Starting application with settings \n$settings")
-
-  // Setup name limit defined in application.conf
-  private val conf: Config = ConfigFactory.load("application")
-  private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
+  log.debug(s"Starting application with settings \n${settings}")
 
   // check for gateway device and setup port forwarding
   private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
@@ -60,18 +56,18 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
+  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings, peerManagerRef, appContext)
 
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
-
-  private val forgerRef: ActorRef = ForgerRef("forger", settings.forgingSettings, appContext)
+  private val forgerRef: ActorRef = ForgerRef("forger", settings, appContext)
 
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", forgerRef, settings, appContext)
 
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings, appContext)
+
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
+      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings, appContext)
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(
@@ -122,7 +118,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def run(): Unit = {
-    require(settings.network.agentName.length <= ApplicationNameLimit)
+    require(settings.network.agentName.length <= settings.network.applicationNameLimit)
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")

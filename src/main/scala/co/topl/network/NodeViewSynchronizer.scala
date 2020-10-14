@@ -2,28 +2,30 @@ package co.topl.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import co.topl.modifier.NodeViewModifier.{ModifierTypeId, idsToString}
+import akka.actor.{ ActorRef, ActorSystem, Props }
+import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.ModifiersStatus.Requested
-import co.topl.network.message.{InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _}
-import co.topl.network.peer.{ConnectedPeer, PenaltyType}
+import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
+import co.topl.network.message.{ InvSpec, MessageSpec, ModifiersSpec, RequestModifierSpec, SyncInfo, SyncInfoSpec, _ }
+import co.topl.network.peer.{ ConnectedPeer, PenaltyType }
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote }
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.GenericBox
 import co.topl.nodeView.state.box.proposition.Proposition
-import co.topl.settings.{AppContext, NetworkSettings}
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.serialization.BifrostSerializer
-import co.topl.utils.{Logging, MalformedModifierError}
+import co.topl.utils.{ Logging, MalformedModifierError }
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /**
   * A component which is synchronizing local node view (locked inside NodeViewHolder) with the p2p network.
@@ -38,21 +40,18 @@ class NodeViewSynchronizer[
   PMOD <: PersistentNodeViewModifier,
   HR <: HistoryReader[PMOD, SI]: ClassTag,
   MR <: MemPoolReader[TX]: ClassTag
-](
-  networkControllerRef: ActorRef,
-  viewHolderRef: ActorRef,
-  networkSettings: NetworkSettings,
-  appContext: AppContext
+]( networkControllerRef: ActorRef,
+   viewHolderRef       : ActorRef,
+   settings            : AppSettings,
+   appContext          : AppContext
 )(implicit ec: ExecutionContext) extends Synchronizer with Logging {
 
-  // Import the types of messages this actor may SEND or RECEIVES
-  import co.topl.settings.NodeViewReady
-  import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
+  // Import the types of messages this actor may SEND
   import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
-  import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetNodeViewChanges, ModifiersFromRemote, TransactionsFromRemote}
+
 
   // the maximum number of inventory modifiers to compare with remote peers
-  protected val desiredInvObjects: Int = networkSettings.desiredInvObjects
+  protected val desiredInvObjects: Int = settings.network.desiredInvObjects
 
   // serializers for blocks and transactions
   protected val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
@@ -72,8 +71,8 @@ class NodeViewSynchronizer[
     case (_: ModifiersSpec, data: ModifiersData, remote) => gotRemoteModifiers(data, remote)
   }
 
-  protected val deliveryTracker = new DeliveryTracker(self, context, networkSettings)
-  protected val statusTracker = new SyncTracker(self, context, networkSettings, appContext.timeProvider)
+  protected val deliveryTracker = new DeliveryTracker(self, context, settings.network)
+  protected val statusTracker = new SyncTracker(self, context, settings.network, appContext.timeProvider)
 
   protected var historyReaderOpt: Option[HR] = None
   protected var mempoolReaderOpt: Option[MR] = None
@@ -554,7 +553,7 @@ class NodeViewSynchronizer[
     var size = 5 //message type id + message size
     val batch = mods.takeWhile { case (_, modBytes) =>
       size += NodeViewModifier.ModifierIdSize + 4 + modBytes.length
-      size < networkSettings.maxPacketSize
+      size < settings.network.maxPacketSize
     }
 
     // send the chunk of modifiers to the remote
@@ -690,10 +689,10 @@ object NodeViewSynchronizerRef {
   ](
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
-    networkSettings: NetworkSettings,
+    settings: AppSettings,
     appContext: AppContext
   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext))
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def props[
     TX <: Transaction,
@@ -704,10 +703,10 @@ object NodeViewSynchronizerRef {
   ](
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
-    networkSettings: NetworkSettings,
+    settings: AppSettings,
     appContext: AppContext
   )(implicit ec: ExecutionContext): Props =
-    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext))
+    Props(new NodeViewSynchronizer[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext))
 
   def apply[
     TX <: Transaction,
@@ -719,8 +718,8 @@ object NodeViewSynchronizerRef {
     name: String,
     networkControllerRef: ActorRef,
     viewHolderRef: ActorRef,
-    networkSettings: NetworkSettings,
+    settings: AppSettings,
     appContext: AppContext
   )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, networkSettings, appContext), name)
+    system.actorOf(props[TX, SI, PMOD, HR, MR](networkControllerRef, viewHolderRef, settings, appContext), name)
 }

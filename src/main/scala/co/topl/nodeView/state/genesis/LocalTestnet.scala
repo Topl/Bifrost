@@ -3,31 +3,30 @@ package co.topl.nodeView.state.genesis
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.Forger.ReceivableMessages.{CreateGenesisKeys, GenesisParams}
+import co.topl.consensus.Forger.ReceivableMessages.{ CreateGenesisKeys, GenesisParams }
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{AppSettings, Version}
-import scorex.crypto.signatures.Signature
+import co.topl.settings.{ AppSettings, Version }
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.{ Await, Future }
 import scala.util.Try
 
 case class LocalTestnet(keyManager: ActorRef, settings: AppSettings) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 
-  override protected val blockVersion: Version = settings.version
+  override protected val blockVersion: Version = settings.application.version
 
-  override protected val targetBlockTime: FiniteDuration = settings.forgingSettings.targetBlockTime
+  protected val targetBlockTime: FiniteDuration = settings.forging.targetBlockTime
 
-  override protected val initialDifficulty: Long = settings.forgingSettings.InitialDifficulty
+  protected val initialDifficulty: Long = settings.forging.initialDifficulty
 
   override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
 
@@ -42,8 +41,8 @@ case class LocalTestnet(keyManager: ActorRef, settings: AppSettings) extends Gen
    * we can use the public images to pre-fund the accounts from genesis.
    */
   implicit val timeout: Timeout = 30 seconds
-  val numberOfKeys: Int = settings.forgingSettings.numTestnetAccts.getOrElse(10)
-  val balance: Long = settings.forgingSettings.testnetBalance.getOrElse(1000000L)
+  val numberOfKeys: Int = settings.forging.numTestnetAccts.getOrElse(10)
+  val balance: Long = settings.forging.testnetBalance.getOrElse(1000000L)
 
   def formNewBlock: Future[(Block, GenesisParams)] = {
 
@@ -71,7 +70,7 @@ case class LocalTestnet(keyManager: ActorRef, settings: AppSettings) extends Gen
 
       log.debug(s"Initialize state with transaction ${txs} with boxes ${txs.head.newBoxes}")
 
-      (block, GenesisParams(privateTotalStake, targetBlockTime))
+      (block, GenesisParams(privateTotalStake, targetBlockTime, initialDifficulty))
     }
   }
 }

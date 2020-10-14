@@ -1,11 +1,12 @@
 package co.topl.network
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
-import co.topl.settings.{AppContext, NetworkSettings}
-import co.topl.utils.{Logging, NetworkUtils}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import co.topl.network.NetworkController.ReceivableMessages._
+import co.topl.network.peer.{ InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType }
+import co.topl.settings.{ AppContext, AppSettings }
+import co.topl.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -14,19 +15,18 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit ec: ExecutionContext) extends Actor with Logging {
+class PeerManager (settings: AppSettings,
+                   appContext: AppContext)
+                  ( implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
 
-  // Import the types of messages this actor can SEND
-  import co.topl.network.NetworkController.ReceivableMessages._
-
-  private val peerDatabase = new InMemoryPeerDatabase(settings, appContext.timeProvider)
+  private val peerDatabase = new InMemoryPeerDatabase(settings.network, appContext.timeProvider)
 
   if (peerDatabase.isEmpty) {
     // fill database with peers from config file if empty
-    settings.knownPeers.foreach { address =>
+    settings.network.knownPeers.foreach { address =>
       if (!isSelf(address)) {
         peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
       }
@@ -88,7 +88,7 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
     * Given a peer's address, returns `true` if the peer is the same is this node.
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, settings.bindAddress, appContext.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
   }
 
   private def isSelf(peerSpec: PeerSpec): Boolean = {
@@ -183,17 +183,17 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: NetworkSettings, appContext: AppContext)
+  def props(settings: AppSettings, appContext: AppContext)
            (implicit ec: ExecutionContext): Props = {
     Props(new PeerManager(settings, appContext))
   }
 
-  def apply(settings: NetworkSettings, appContext: AppContext)
+  def apply(settings: AppSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, appContext))
   }
 
-  def apply(name: String, settings: NetworkSettings, appContext: AppContext)
+  def apply(name: String, settings: AppSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, appContext), name)
   }

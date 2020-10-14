@@ -2,22 +2,22 @@ package co.topl.consensus
 
 import akka.actor._
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{AppContext, AppSettings, ForgingSettings, NodeViewReady}
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -31,8 +31,11 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // Import the types of messages this actor RECEIVES
   import Forger.ReceivableMessages._
 
+  // version byte used for creating blocks
+  private val blockVersion = settings.application.version.firstDigit
+
   // holder of private keys that are used to forge
-  private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
 
   // flag to enable forging on a private network
@@ -130,7 +133,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt ( ): Unit = {
     ledgerProviders.get("nodeViewHolder") match {
-      case Some(ref) => context.system.scheduler.scheduleOnce(settings.forgingSettings.blockGenerationDelay)(ref ! GetDataFromCurrentView)
+      case Some(ref) => context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(ref ! GetDataFromCurrentView)
       case None      => log.warn(s"Ledger provider not available, skipping schedule.")
     }
   }
@@ -152,6 +155,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private def setGenesisParameters (parameters: GenesisParams): Unit = {
     targetBlockTime = parameters.targetBlockTime
     maxStake = parameters.totalStake
+    initialDifficulty = parameters.initialDifficulty
   }
 
   /**
@@ -188,7 +192,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       }
 
       // check forging eligibility
-      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version.firstDigit) match {
+      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, blockVersion) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
           ledgerRef ! LocallyGeneratedModifier[Block](block)
@@ -324,7 +328,7 @@ object Forger {
 
     case class CreateGenesisKeys (num: Int)
 
-    case class GenesisParams ( totalStake: Long, targetBlockTime: FiniteDuration)
+    case class GenesisParams (totalStake: Long, targetBlockTime: FiniteDuration, initialDifficulty: Long)
 
     case object StartForging
 

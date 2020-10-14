@@ -98,10 +98,10 @@ object ProgramBoxRegistry extends Logging {
   type V = BoxId
 
   def readOrGenerate ( settings: AppSettings ): Option[ProgramBoxRegistry] = {
-    if ( settings.enablePBR ) {
+    if ( settings.application.enablePBR ) {
       log.info("Initializing state with Program Box Registry")
 
-      val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
       val iFile = new File(s"$dataDir/programBoxRegistry")
       iFile.mkdirs()

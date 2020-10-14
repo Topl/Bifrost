@@ -1,24 +1,24 @@
 package co.topl.network
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Cancellable, Props, SupervisorStrategy }
 import akka.io.Tcp
-import akka.util.{ByteString, CompactByteString}
-import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
+import akka.util.{ ByteString, CompactByteString }
+import co.topl.network.NetworkController.ReceivableMessages.{ Handshaked, PenalizePeer }
 import co.topl.network.PeerConnectionHandler.ReceivableMessages._
-import co.topl.network.message.{Handshake, HandshakeSpec, Message, MessageSerializer}
+import co.topl.network.message.{ Handshake, HandshakeSpec, Message, MessageSerializer }
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
-import co.topl.settings.{AppContext, NetworkSettings, Version}
+import co.topl.settings.{ AppContext, AppSettings, NetworkSettings, Version }
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
-class PeerConnectionHandler( settings: NetworkSettings,
-                             networkControllerRef: ActorRef,
+class PeerConnectionHandler( networkControllerRef: ActorRef,
+                             settings: AppSettings,
                              appContext: AppContext,
                              connectionDescription: ConnectionDescription
                            )(implicit ec: ExecutionContext) extends Actor with Logging {
@@ -28,13 +28,13 @@ class PeerConnectionHandler( settings: NetworkSettings,
   private val direction = connectionDescription.connectionId.direction
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
-  private val localPeerSpec = PeerSpec(settings.agentName, Version(settings.appVersion), settings.nodeName, ownSocketAddress, localFeatures)
+  private val localPeerSpec = PeerSpec(settings.network.agentName, settings.application.version, settings.network.nodeName, ownSocketAddress, localFeatures)
 
   private val featureSerializers: PeerFeature.Serializers =
     localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
 
-  private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.maxHandshakeSize)
-  private val messageSerializer = new MessageSerializer(appContext.messageSpecs, settings.magicBytes)
+  private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.network.maxHandshakeSize)
+  private val messageSerializer = new MessageSerializer(appContext.messageSpecs, settings.network.magicBytes)
 
   // there is no recovery for broken connections
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
@@ -234,7 +234,7 @@ class PeerConnectionHandler( settings: NetworkSettings,
     val nodeInfo = message.Handshake(localPeerSpec, appContext.timeProvider.time())
 
     // create, save, and schedule a timeout option. The variable lets us cancel the timeout message if a handshake is received
-    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout)(self ! HandshakeTimeout))
+    handshakeTimeoutCancellableOpt = Some(context.system.scheduler.scheduleOnce(settings.network.handshakeTimeout)(self ! HandshakeTimeout))
 
     // send a handshake message with our node information to the remote peer
     connection ! Tcp.Write(ByteString(handshakeSerializer.toBytes(nodeInfo)), Tcp.NoAck)
@@ -308,25 +308,25 @@ object PeerConnectionHandler {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object PeerConnectionHandlerRef {
-  def props( settings: NetworkSettings,
-             networkControllerRef: ActorRef,
+  def props( networkControllerRef: ActorRef,
+             settings: AppSettings,
              appContext: AppContext,
              connectionDescription: ConnectionDescription
            )(implicit ec: ExecutionContext): Props =
-    Props(new PeerConnectionHandler(settings, networkControllerRef, appContext, connectionDescription))
+    Props(new PeerConnectionHandler(networkControllerRef, settings, appContext, connectionDescription))
 
-  def apply( settings: NetworkSettings,
-             networkControllerRef: ActorRef,
+  def apply( networkControllerRef: ActorRef,
+             settings: AppSettings,
              appContext: AppContext,
-             connectionDescription: ConnectionDescription)
-           (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, appContext, connectionDescription))
+             connectionDescription: ConnectionDescription
+           )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
+    system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription))
 
   def apply( name: String,
-             settings: NetworkSettings,
              networkControllerRef: ActorRef,
+             settings: AppSettings,
              appContext: AppContext,
              connectionDescription: ConnectionDescription)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, networkControllerRef, appContext, connectionDescription), name)
+    system.actorOf(props(networkControllerRef, settings, appContext, connectionDescription), name)
 }

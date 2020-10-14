@@ -10,6 +10,16 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import scala.concurrent.duration._
 
+case class ApplicationSettings ( dataDir: Option[String],
+                                 keyFileDir: Option[String],
+                                 enablePBR: Boolean,
+                                 enableTBR: Boolean,
+                                 nodeKeys: Option[Set[String]],
+                                 version: Version,
+                                 cacheExpire: Int,
+                                 cacheSize: Int
+                               )
+
 case class RESTApiSettings (bindAddress: InetSocketAddress,
                             apiKeyHash  : String,
                             corsAllowed : Boolean,
@@ -19,7 +29,7 @@ case class RESTApiSettings (bindAddress: InetSocketAddress,
 
 case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             agentName: String,
-                            appVersion              : String,
+                            applicationNameLimit: Int,
                             bindAddress             : InetSocketAddress,
                             connectionTimeout       : FiniteDuration,
                             controllerTimeout       : Option[FiniteDuration],
@@ -29,7 +39,6 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             getPeersInterval        : FiniteDuration,
                             handshakeTimeout        : FiniteDuration,
                             knownPeers              : Seq[InetSocketAddress],
-                            localOnly: Boolean,
                             magicBytes: Array[Byte],
                             maxConnections          : Int,
                             maxDeliveryChecks       : Int,
@@ -54,26 +63,18 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             upnpGatewayTimeout      : Option[FiniteDuration]
                            )
 
-case class ForgingSettings (InitialDifficulty: Long,
-                            blockGenerationDelay : FiniteDuration,
-                            targetBlockTime      : FiniteDuration,
-                            numTestnetAccts      : Option[Int],
-                            testnetBalance       : Option[Int]
+case class ForgingSettings ( initialDifficulty   : Long,
+                             blockGenerationDelay: FiniteDuration,
+                             targetBlockTime     : FiniteDuration,
+                             numTestnetAccts     : Option[Int],
+                             testnetBalance      : Option[Long]
                            )
 
-case class AppSettings (dataDir: Option[String],
-                        logDir          : Option[String],
-                        keyFileDir      : Option[String],
-                        enablePBR       : Boolean,
-                        enableTBR       : Boolean,
-                        nodeKeys        : Option[Set[String]],
-                        version         : Version,
-                        cacheExpire: Int,
-                        cacheSize       : Int,
-                        network         : NetworkSettings,
-                        forgingSettings : ForgingSettings,
-                        restApi         : RESTApiSettings,
-                        ntp             : NetworkTimeProviderSettings
+case class AppSettings ( application: ApplicationSettings,
+                         network    : NetworkSettings,
+                         forging    : ForgingSettings,
+                         restApi    : RESTApiSettings,
+                         ntp        : NetworkTimeProviderSettings
                        )
 
 object AppSettings extends Logging with SettingsReaders {

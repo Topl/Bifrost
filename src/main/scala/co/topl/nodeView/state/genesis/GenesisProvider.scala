@@ -27,7 +27,9 @@ trait GenesisProvider extends Logging {
       IndexedSeq[(PublicKey25519Proposition, Long)],
       Map[PublicKey25519Proposition, Signature25519], Long, Long, String) => ArbitTransfer
 
-  protected val genesisAcct: PrivateKey25519 = PrivateKey25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
+  protected lazy val genesisAcct: PrivateKey25519 = PrivateKey25519(PrivateKey @@ Array.fill(32)(2: Byte), PublicKey @@ Array.fill(32)(2: Byte))
+
+  protected lazy val totalStake: Long = members.values.sum
 
   protected val blockChecksum: ModifierId
 
@@ -35,9 +37,9 @@ trait GenesisProvider extends Logging {
 
   protected val targetBlockTime: FiniteDuration
 
-  protected val members: Map[String, Long]
+  protected val initialDifficulty: Long
 
-  protected lazy val totalStake: Long = members.values.sum
+  protected val members: Map[String, Long]
 
   def getGenesisBlock: Try[(Block, GenesisParams)]
 

@@ -14,13 +14,15 @@ import scorex.crypto.signatures.{ PrivateKey, PublicKey, Signature }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.util.Try
 
-object Toplnet extends GenesisProvider {
+case object Toplnet extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId("9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu")
 
-  override protected val blockVersion: Version = Version(0,0,1)
+  override protected val blockVersion: Version = new Version(0, 0, 1)
 
   override protected val targetBlockTime: FiniteDuration = 7 seconds
+
+  override protected val initialDifficulty: Long = 1000000000000000000L
 
   //propositions with wallet seed genesisoo, genesiso1, ..., genesis48, genesis49
   override protected val members: Map[String, Long] = Map(
@@ -101,6 +103,6 @@ object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
 
-    (block, GenesisParams(totalStake, targetBlockTime))
+    (block, GenesisParams(totalStake, targetBlockTime, initialDifficulty))
   }
 }
