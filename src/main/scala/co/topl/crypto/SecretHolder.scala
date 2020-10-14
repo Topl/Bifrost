@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
 import co.topl.utils.serialization.BytesSerializable
 
@@ -20,8 +19,6 @@ trait SecretCompanion[S <: Secret] {
   type PK = S#PK
 
   type PR <: ProofOfKnowledge[S, _ <: ProofOfKnowledgeProposition[S]]
-
-  def owns(secret: S, box: GenericBox[_, Long]): Boolean
 
   def sign(secret: S, message: Array[Byte]): PR
 

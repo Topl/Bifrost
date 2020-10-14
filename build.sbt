@@ -64,9 +64,15 @@ val testingDependencies = Seq(
   "org.asynchttpclient" % "async-http-client" % "2.12.1" % Test
 )
 
-libraryDependencies ++= Seq(
-  "com.chuusai" %% "shapeless" % "2.3.3",
+val cryptoDependencies = Seq(
   "org.scorexfoundation" %% "scrypto" % "2.1.9",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.54",
+  "org.whispersystems" % "curve25519-java" % "0.4.1"
+)
+
+val miscDependencies = Seq(
+  "org.scorexfoundation" %% "iodb" % "0.3.2",
+  "com.chuusai" %% "shapeless" % "2.3.3",
   "com.google.guava" % "guava" % "29.0-jre",
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
@@ -78,6 +84,8 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcprov-jdk15on" % "1.66",
   "org.whispersystems" % "curve25519-java" % "0.5.0",
 )
+
+libraryDependencies ++= akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies ++ cryptoDependencies ++ miscDependencies
 
 // monitoring dependencies
 libraryDependencies ++= Seq(
@@ -195,6 +203,13 @@ lazy val benchmarking = Project(id = "benchmark", base = file("benchmark"))
   .settings(commonSettings: _*)
   .dependsOn(bifrost % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+
+lazy val gjallarhorn = Project(id = "gjallarhorn", base = file("gjallarhorn"))
+  .settings(
+    commonSettings,
+    libraryDependencies ++=akkaDependencies ++ testingDependencies ++ cryptoDependencies ++ apiDependencies ++ loggingDependencies ++ miscDependencies
+  )
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val it = Project(id = "it", base = file("it"))
