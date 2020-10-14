@@ -94,7 +94,6 @@ object KeyFile {
     * Recreate a keyfile from the provided seed
     *
     * @param password string used to encrypt the private key when saved to disk
-    * @param seed byte array that is used to generate the new key pair
     * @return
     */
   def apply (password: String, secretKey: PrivateKey25519): KeyFile = {

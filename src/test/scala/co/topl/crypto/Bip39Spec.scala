@@ -1,5 +1,6 @@
 package co.topl.crypto
 
+import co.topl.consensus.KeyFile
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -12,11 +13,8 @@ import scala.util.Try
 
 class Bip39Spec extends AnyFlatSpec with Matchers {
 
-  val keyFileDir = "/tmp/bifrost/test-data/keyfiles/bip39test"
-  val path: Path = Path(keyFileDir)
-
   // sample uuid string
-  val uuidString = java.util.UUID.randomUUID.toString
+  val uuidString: String = java.util.UUID.randomUUID.toString
 
   // language for phrase words
   val lang = "en"
@@ -78,24 +76,20 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   }
 
   "A key file" should "be generated" in {
-    Try(path.deleteRecursively())
-    Try(path.createDirectory())
-    val password = "password"
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     val seed1 = pt.hexToUuid(seedHex)
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
     val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)
     val seed2Hash: Array[Byte] = FastCryptographicHash(seed2)
-    val key1 = KeyFile(password, seed1Hash, keyFileDir)
-    val key2 = KeyFile(password, seed2Hash, keyFileDir)
-    val key3 = KeyFile(password = password, seed = FastCryptographicHash(uuidString),defaultKeyDir = keyFileDir)
-    assert(key1.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key2.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key2.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key3.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key3.getPrivateKey(password).get.privKeyBytes.mkString("")
-        == key1.getPrivateKey(password).get.privKeyBytes.mkString(""))
-  }
+    val key1 = PrivateKey25519.generateKeys(seed1Hash)
+    val key2 = PrivateKey25519.generateKeys(seed2Hash)
+    val key3 = PrivateKey25519.generateKeys(FastCryptographicHash(uuidString))
 
-  Try(path.deleteRecursively())
+    KeyFile.generateKeyPair(seed1Hash)
+
+    assert(key1 == key2)
+    assert(key2 == key3)
+    assert(key1 == key3)
+
+  }
 }
