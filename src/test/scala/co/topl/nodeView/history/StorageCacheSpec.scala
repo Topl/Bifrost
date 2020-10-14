@@ -3,10 +3,12 @@ package co.topl.nodeView.history
 import co.topl.BifrostGenerators
 import co.topl.modifier.block.Block
 import io.iohk.iodb.ByteArrayWrapper
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+@DoNotDiscover
 class StorageCacheSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers

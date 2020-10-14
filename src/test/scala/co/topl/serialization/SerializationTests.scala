@@ -6,11 +6,12 @@ import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
-import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.program.{ExecutionBuilder, ExecutionBuilderSerializer}
+import co.topl.{BifrostGenerators, ValidGenerators}
+import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import serializer.BloomTopics
 
 import scala.collection.BitSet
@@ -19,6 +20,7 @@ import scala.util.{Failure, Success}
 /**
   * Created by cykoz on 4/12/17.
   */
+@Ignore
 class SerializationTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
