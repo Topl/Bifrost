@@ -1,4 +1,4 @@
-package bifrost
+package co.topl
 
 import java.lang.management.ManagementFactory
 
@@ -8,23 +8,22 @@ import akka.io.Tcp
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import bifrost.consensus.ForgerRef
-import bifrost.crypto.PrivateKey25519
-import bifrost.history.History
-import bifrost.http.HttpService
-import bifrost.http.api.ApiRoute
-import bifrost.http.api.routes._
-import bifrost.mempool.MemPool
-import bifrost.modifier.block.Block
-import bifrost.modifier.box.Box
-import bifrost.modifier.box.proposition.ProofOfKnowledgeProposition
-import bifrost.modifier.transaction.bifrostTransaction.Transaction
-import bifrost.network._
-import bifrost.network.message._
-import bifrost.nodeView.{NodeViewHolder, NodeViewHolderRef}
-import bifrost.settings.{AppSettings, BifrostContext, NetworkType, StartupOpts}
-import bifrost.utils.Logging
-import bifrost.wallet.WalletActorManager
+import co.topl.consensus.ForgerRef
+import co.topl.http.HttpService
+import co.topl.http.api.ApiRoute
+import co.topl.http.api.routes._
+import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction
+import co.topl.network.NetworkController.ReceivableMessages.{BecomeOperational, BindP2P}
+import co.topl.network._
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.upnp.Gateway
+import co.topl.nodeView.NodeViewHolderRef
+import co.topl.wallet.WalletActorManager
+import co.topl.nodeView.history.History
+import co.topl.nodeView.mempool.MemPool
+import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
+import co.topl.utils.Logging
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
@@ -35,13 +34,11 @@ import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
-  // todo: JAA - 2020.08.27 - We aren't using these anywhere currently. We could use an dependency injection pattern
-  // todo:       and try to have this be where we define concrete type for the application, or we could remove.
-  type P = ProofOfKnowledgeProposition[PrivateKey25519]
-  type BX = Box
+  type BSI = BifrostSyncInfo
   type TX = Transaction
   type PMOD = Block
-  type NVHT = NodeViewHolder
+  type HIS = History
+  type MP = MemPool
 
   // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
@@ -52,7 +49,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
 
   // check for gateway device and setup port forwarding
-  private val upnpGateway: Option[upnp.Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
+  private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Setup the execution environment for running the application
@@ -61,24 +58,24 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
   // save environment into a variable for reference throughout the application
-  protected val bifrostContext = new BifrostContext(settings, upnpGateway)
+  protected val appContext = new AppContext(settings, upnpGateway)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = peer.PeerManagerRef("peerManager", settings.network, bifrostContext)
+  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, bifrostContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
 
-  private val peerSynchronizer: ActorRef = peer.PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, bifrostContext)
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
   private val walletActorManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletActorManager), name = "walletActorManager")
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, bifrostContext, walletActorManagerRef)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
 
-  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, bifrostContext)
+  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
 
-  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[Transaction, BifrostSyncInfo, Block, History, MemPool](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, bifrostContext)
+  private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
+    "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(
@@ -96,12 +93,13 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create and register controllers for API routes
   private val apiRoutes: Seq[ApiRoute] = Seq(
-    UtilsApiRoute(settings),
-    AssetApiRoute(settings, nodeViewHolderRef),
-    DebugApiRoute(settings, nodeViewHolderRef),
-    WalletApiRoute(settings, nodeViewHolderRef),
-    ProgramApiRoute(settings, nodeViewHolderRef),
-    NodeViewApiRoute(settings, nodeViewHolderRef)
+    UtilsApiRoute(settings.restApi),
+    KeyManagementApiRoute(settings.restApi, forgerRef),
+    AssetApiRoute(settings.restApi, nodeViewHolderRef),
+    DebugApiRoute(settings.restApi, nodeViewHolderRef),
+    WalletApiRoute(settings.restApi, nodeViewHolderRef),
+    ProgramApiRoute(settings.restApi, nodeViewHolderRef),
+    NodeViewApiRoute(settings.restApi, nodeViewHolderRef)
   )
 
   private val httpService = HttpService(apiRoutes)
@@ -132,11 +130,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
-    log.debug(s"RPC is allowed at 0.0.0.0:${settings.rpcPort}")
+    log.debug(s"RPC is allowed at: ${settings.restApi.bindAddress}")
 
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
-    val httpHost = "0.0.0.0"
-    val httpPort = settings.rpcPort
+    val httpHost = settings.restApi.bindAddress.getHostName
+    val httpPort = settings.restApi.bindAddress.getPort
 
     def failedP2P(): Unit = {
       log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
@@ -144,19 +141,20 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     }
 
     // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
-    (networkControllerRef ? NetworkController.ReceivableMessages.BindP2P).onComplete {
+    (networkControllerRef ? BindP2P).onComplete {
       case Success(bindResponse: Future[Any]) =>
         bindResponse.onComplete({
           case Success(Tcp.Bound(addr)) =>
-            log.info(s"${Console.YELLOW}P2P protocol bound to ${addr}${Console.RESET}")
-            networkControllerRef ! NetworkController.ReceivableMessages.BecomeOperational
+            log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
+            networkControllerRef ! BecomeOperational
 
           case Success(_) | Failure(_) => failedP2P()
         })
       case Success(_) | Failure(_) => failedP2P()
     }
 
-    Http().newServerAt(httpHost, httpPort).bindFlow(httpService.compositeRoute).onComplete {
+    // trigger the HTTP server bind and check that the bind is successful. Terminate the application on failure
+    Http().newServerAt(httpHost, httpPort).bind(httpService.compositeRoute).onComplete {
       case Success(serverBinding) =>
         log.info(s"${Console.YELLOW}HTTP server bound to ${serverBinding.localAddress}${Console.RESET}")
 

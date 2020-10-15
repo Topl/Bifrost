@@ -15,6 +15,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
+import co.topl.wallet.WalletActorManager
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
@@ -39,7 +40,8 @@ class DebugRPCSpec extends AnyWordSpec
   protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
+  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing

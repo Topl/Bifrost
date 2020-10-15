@@ -19,6 +19,7 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.AppContext
+import co.topl.wallet.WalletActorManager
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
@@ -49,7 +50,8 @@ class ProgramRPCSpec extends AnyWordSpec
   protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
+  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing

@@ -1,9 +1,9 @@
-package bifrost.wallet
+package co.topl.wallet
 
-import akka.actor.{Actor, ActorRef}
-import akka.pattern.ask
-import bifrost.modifier.block.Block
-import bifrost.nodeView.PersistentNodeViewModifier
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import co.topl.modifier.block.Block
+import co.topl.modifier.block.PersistentNodeViewModifier
+
 
 class WalletActorManager extends Actor {
   import WalletActorManager._
@@ -49,4 +49,7 @@ class WalletActorManager extends Actor {
 object WalletActorManager {
   case object GetRemoteWalletRef
   case class NewBlockAdded(block: PersistentNodeViewModifier)
+
+  def apply( implicit system: ActorSystem ): ActorRef =
+    system.actorOf(Props(new WalletActorManager), name = "walletActorManager")
 }

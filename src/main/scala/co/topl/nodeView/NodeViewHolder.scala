@@ -1,46 +1,34 @@
-package bifrost.nodeView
+package co.topl.nodeView
 
-import akka.actor.{ ActorRef, ActorSystem, Props }
-import bifrost.crypto.{ PrivateKey25519Companion, Signature25519 }
-import bifrost.history.History
-import bifrost.mempool.MemPool
-import bifrost.modifier.ModifierId
-import bifrost.modifier.block.{ Block, BlockSerializer }
-import bifrost.modifier.box.ArbitBox
-import bifrost.modifier.box.proposition.PublicKey25519Proposition
-import bifrost.modifier.transaction.bifrostTransaction.{ ArbitTransfer, GenericTransaction, PolyTransfer, Transaction }
-import bifrost.modifier.transaction.serialization.TransactionSerializer
-import bifrost.network.message.BifrostSyncInfo
-import bifrost.nodeView.NodeViewModifier.ModifierTypeId
-import bifrost.settings.{ AppSettings, BifrostContext }
-import bifrost.state.State
-import bifrost.utils.serialization.BifrostSerializer
-import bifrost.utils.{ Logging, TimeProvider }
-import bifrost.wallet.Wallet
-import scorex.crypto.encode.Base58
+import akka.actor.{ActorRef, ActorSystem, Props}
+import co.topl.crypto.{PrivateKey25519, Signature25519}
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
+import co.topl.modifier.block.{Block, BlockSerializer}
+import co.topl.modifier.transaction.serialization.TransactionSerializer
+import co.topl.modifier.transaction.{ArbitTransfer, GenericTransaction, PolyTransfer, Transaction}
+import co.topl.nodeView.history.History
+import co.topl.nodeView.mempool.MemPool
+import co.topl.nodeView.state.State
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.box.{ArbitBox, Box}
+import co.topl.settings.{AppContext, AppSettings}
+import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.{Logging, TimeProvider}
+import scorex.crypto.signatures.Signature
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolder ( override val settings: AppSettings, bifrostContext: BifrostContext,
-                       override val walletActorManagerRef: ActorRef)
+class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext, override val walletActorManagerRef: ActorRef )
                      ( implicit ec: ExecutionContext )
-  extends GenericNodeViewHolder[Transaction, Block] {
-
-  override type SI = BifrostSyncInfo
-  override type HIS = History
-  override type MS = State
-  override type VL = Wallet
-  override type MP = MemPool
-  type PMOD = Block
+  extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
+    NodeViewHolder.MS, NodeViewHolder.MP] {
 
   lazy val modifierCompanions: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
     Map(Block.modifierTypeId -> BlockSerializer,
-        GenericTransaction.modifierTypeId -> TransactionSerializer)
+      GenericTransaction.modifierTypeId -> TransactionSerializer)
 
-  override protected lazy val modifiersCache: ModifiersCache[PMOD, HIS] =
-    new DefaultModifiersCache[Block, History](settings.network.maxModifiersCacheSize)
-
-  private val timeProvider: TimeProvider = bifrostContext.timeProvider
+  private val timeProvider: TimeProvider = appContext.timeProvider
 
   override def preRestart ( reason: Throwable, message: Option[Any] ): Unit = {
     super.preRestart(reason, message)
@@ -48,21 +36,24 @@ class NodeViewHolder ( override val settings: AppSettings, bifrostContext: Bifro
     System.exit(100) // this actor shouldn't be restarted at all so kill the whole app if that happened
   }
 
+  override def postStop ( ): Unit = {
+    log.info(s"${Console.RED}Application is going down NOW!${Console.RESET}")
+    super.postStop()
+    nodeView._1.closeStorage() // close History storage
+    nodeView._2.closeStorage() // close State storage
+  }
+
   /**
-   * Restore a local view during a node startup. If no any stored view found
-   * (e.g. if it is a first launch of a node) None is to be returned
-   */
-  override def restoreState ( ): Option[NodeView] = {
-    if ( Wallet.exists(settings) ) {
-      val x = History.readOrGenerate(settings)
-      Some(
-        (
-          x,
-          State.readOrGenerate(settings, callFromGenesis = true, x),
-          Wallet.readOrGenerate(settings, 1),
-          MemPool.emptyPool
-        )
-        )
+    * Restore a local view during a node startup. If no any stored view found
+    * (e.g. if it is a first launch of a node) None is to be returned
+    */
+  override def restoreState (): Option[NodeView] = {
+    if ( State.exists(settings) ) {
+      Some((
+        History.readOrGenerate(settings),
+        State.readOrGenerate(settings),
+        MemPool.emptyPool
+      ))
     } else None
   }
 
@@ -76,10 +67,11 @@ object NodeViewHolder extends Logging {
 
   type HIS = History
   type MS = State
-  type VL = Wallet
   type MP = MemPool
-
-  type NodeView = (HIS, MS, VL, MP)
+  type PMOD = Block
+  type TX = Transaction
+  type BX = Box
+  type NodeView = (HIS, MS, MP)
 
   //noinspection ScalaStyle
   def initializeGenesis ( settings: AppSettings ): NodeView = {
@@ -114,23 +106,25 @@ object NodeViewHolder extends Logging {
         "7focbpSdsNNE4x9h7eyXSkvXE6dtxsoVyZMpTpuThLoH", "CBdnTL6C4A7nsacxCP3VL3TqUokEraFy49ckQ196KU46",
         "CfvbDC8dxGeLXzYhDpNpCF2Ar9Q5LKs8QrfcMYAV59Lt", "GFseSi5squ8GRRkj6RknbGj9Hyz82HxKkcn8NKW1e5CF",
         "FuTHJNKaPTneEYRkjKAC3MkSttvAC7NtBeb2uNGS8mg3", "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5"
-        ).map(s => PublicKey25519Proposition(Base58.decode(s).get))
+      ).map(PublicKey25519Proposition.apply)
 
-    val genesisAccount = PrivateKey25519Companion.generateKeys("genesis".getBytes)
+    val genesisAccount = PrivateKey25519.generateKeys("genesis".getBytes)
     val genesisAccountPriv = genesisAccount._1
 
     val arbTx = ArbitTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
-                              icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
-                              0L,
-                              0L,
-                              "")
+      icoMembers.map(_ -> GenesisBalance),
+      Map(genesisAccountPriv.publicImage ->
+        Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+      0L,
+      0L,
+      "")
     val polyTx = PolyTransfer(IndexedSeq(genesisAccountPriv.publicImage -> 0L),
-                              icoMembers.map(_ -> GenesisBalance),
-                              Map(genesisAccountPriv.publicImage -> Signature25519(Array.fill(Signature25519.SignatureSize)(1: Byte))),
-                              0L,
-                              0L,
-                              "")
+      icoMembers.map(_ -> GenesisBalance),
+      Map(genesisAccountPriv.publicImage ->
+        Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))),
+      0L,
+      0L,
+      "")
     val genesisTxs = Seq(arbTx, polyTx)
 
     log.debug(s"Initialize state with transaction ${genesisTxs.head} with boxes ${genesisTxs.head.newBoxes}")
@@ -138,37 +132,29 @@ object NodeViewHolder extends Logging {
 
     val genesisBox = ArbitBox(genesisAccountPriv.publicImage, 0, GenesisBalance)
 
-    val genesisBlock = Block.create(ModifierId(History.GenesisParentId), 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
+    val genesisBlock = Block.create(History.GenesisParentId, 0L, genesisTxs, genesisBox, genesisAccountPriv, settings.forgingSettings.version)
 
-    assert(genesisBlock.encodedId == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${genesisBlock.encodedId} does not match the required block for the chosen network mode.${Console.RESET}")
+    assert(genesisBlock.id.toString == "9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu", s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+      s"with id ${genesisBlock.id} does not match the required block for the chosen network mode.${Console.RESET}")
 
     val history = History.readOrGenerate(settings).append(genesisBlock).get._1
-    val state = State.genesisState(settings, Seq(genesisBlock), history)
-    val wallet = Wallet.genesisWallet(settings, Seq(genesisBlock))
+    val state = State.genesisState(settings, Seq(genesisBlock))
 
-    assert(!settings.walletSeed.startsWith("genesis") || wallet.boxes().flatMap(_.box match {
-                                                                                case ab: ArbitBox => Some(ab.value)
-                                                                                case _            => None
-                                                                              }).sum >= GenesisBalance)
-
-    wallet.boxes().foreach(b => assert(state.closedBox(b.box.id).isDefined))
-
-    (history, state, wallet, MemPool.emptyPool)
+    (history, state, MemPool.emptyPool)
   }
 }
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
+  def apply ( settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext, walletActorManagerRef))
+    system.actorOf(props(settings, appContext, walletActorManagerRef: ActorRef))
 
-  def apply ( name: String, settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, bifrostContext, walletActorManagerRef), name)
+    system.actorOf(props(settings, appContext, walletActorManagerRef: ActorRef), name)
 
-  def props ( settings: AppSettings, bifrostContext: BifrostContext, walletActorManagerRef: ActorRef )
+  def props ( settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, bifrostContext, walletActorManagerRef))
+    Props(new NodeViewHolder(settings, appContext, walletActorManagerRef: ActorRef))
 }
