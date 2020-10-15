@@ -67,23 +67,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     boxesMap
   }
 
-  def newBlock(blockMsg: String): Unit = {
-    val block : String = blockMsg.substring(16)
-    log.info(s"Wallet Manager received new block: ${block}")
-    parse(block) match {
-      case Right(blockJson) => {
-        updateWallet(blockJson)
-      }
-      case Left(e) => sys.error(s"Could not parse json $e")
-    }
-    newestBlock = Some(block)
-  }
-
-  def updateWallet(newBlock: Json): Unit = {
-      val tx = (newBlock \\ "txs").head
-      val newBoxes = tx \\ "newBoxes"
-  }
-
   /**
     * Given the balance response from Bifrost, parse the json and update wallet box
     * @param json - the balance response from Bifrost
@@ -111,6 +94,41 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
         walletBoxes(key) = boxesMap}
     })
     walletBoxes
+  }
+
+  def newBlock(blockMsg: String): Unit = {
+    val block : String = blockMsg.substring(16)
+    log.info(s"Wallet Manager received new block: ${block}")
+    parse(block) match {
+      case Right(blockJson) => {
+        updateWalletFromBlock(blockJson)
+      }
+      case Left(e) => sys.error(s"Could not parse json $e")
+    }
+    newestBlock = Some(block)
+  }
+
+  def updateWalletFromBlock(newBlock: Json): Unit = {
+    val tx: Json = (newBlock \\ "txs").head
+    val newBoxes: Json = (tx \\ "newBoxes").head
+    var add: MMap[String, MMap[String, Json]] = MMap.empty
+    var remove: List[(String, List[String])] = List.empty
+    val publicKey = newBoxes \\ "proposition"
+    addAndRemoveBoxes(add, remove)
+  }
+
+  /**
+    *
+    * @param add - boxes to add in the form: public key -> {id1 -> box}, {id2 -> box2}
+    * @param remove - boxes to remove in the form: {(public key, {id1, id2}), (publicKey2, {id3, id4})}
+    */
+  def addAndRemoveBoxes (add: MMap[String, MMap[String, Json]], remove: List[(String, List[String])]): Unit = {
+    remove.foreach { case (publicKey, ids) =>
+      walletBoxes.get(publicKey).map(boxes => ids.foreach(boxes.remove))
+    }
+    add.foreach { case (publicKey, newBoxes) =>
+      walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
+    }
   }
 
   def gjalStart(bifrost: ActorRef): Unit = {
@@ -177,6 +195,9 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
           sender ! response
         case None => log.error("actor ref was not found.")
       }}
+
+    case GetWallet => sender ! walletBoxes
+
   }
 }
 
@@ -193,5 +214,6 @@ object WalletManager {
   case object GjallarhornStopped
   case object GetNewBlock
   case class NewBlock(block: String)
+  case object GetWallet
 
 }

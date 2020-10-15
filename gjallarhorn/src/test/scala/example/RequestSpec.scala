@@ -8,6 +8,7 @@ import _root_.requests.Requests
 import akka.util.{ByteString, Timeout}
 import crypto.PrivateKey25519Companion
 import io.circe.Json
+import io.circe.parser.parse
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scorex.crypto.encode.Base58
@@ -205,6 +206,57 @@ class RequestSpec extends AsyncFlatSpec
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
       bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
+  }
+
+  it should "update wallet correctly after receiving new block" in {
+    val block: String =
+      s"""
+         |{
+         |  "timestamp" : 1602624092235,
+         |  "signature" : "3HNmKwuvGAzBKjQcK79C5RQRkvNimpP11t2wPqsgAF5AEhoo679dndndor5PiLQG1XDgTuao3mBbEftZgogVCM9H",
+         |  "blockSize" : 316,
+         |  "generatorBox" : "fc9Lb6RcnoJ5A4vzyHNezNHFtwytxVRk9z1w7FRU8eeFFeB1NuZy8Rk9jmofc4i2aaq49CqkS",
+         |  "version" : 1,
+         |  "id" : "9ZP1eUEDAhtesHZH4PFaaFhjyo9FvFqA8QGSH2auoJbX",
+         |  "txs" : [
+         |    {
+         |      "txType" : "CoinbaseTransaction",
+         |      "txHash" : "3nKBueQ1Mj5VkAiqNf9LgUsT5sLJLUpVXmk5otwYmU52",
+         |      "timestamp" : 1602624092222,
+         |      "signatures" : [
+         |        "4uqAkTgy3xvEs7ipVJUjbA36xgjAHb9D9LXBWUDK8iaBzniPkLi38G5gJknbhTK7qTSTytZi1aEcpcqP6CiFHwWV"
+         |      ],
+         |      "newBoxes" : [
+         |      ],
+         |      "to" : [
+         |        {
+         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |          "value" : 0
+         |        }
+         |      ],
+         |      "fee" : 0
+         |    }
+         |  ],
+         |  "parentId" : "4RbYjQHVWRcvTEoJcpFNfBrcNL7tpMatP13Tr8fJMHDm"
+         |}
+         """
+    parse(block) match {
+      case Right(blockJson) => {
+        val actorMsg: String = s"new block added: $blockJson"
+        walletManagerRef ! actorMsg
+        Thread.sleep(1000)
+        val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
+          .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
+        val iTguyBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+        iTguyBoxes match {
+          case Some(map) => {
+            assert(map.size == 1)
+          }
+          case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+        }
+      }
+      case Left(e) => sys.error(s"Could not parse json $e")
+    }
   }
 
 
