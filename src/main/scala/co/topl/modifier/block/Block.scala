@@ -118,7 +118,7 @@ object Block {
 
     // generate signature from the block message and private key
     val signature =
-      if (parentId == History.GenesisParentId) Signature25519(Signature @@ Array.emptyByteArray) // genesis block will skip signature check
+      if (parentId == History.GenesisParentId) Signature25519(Signature @@ Array.fill(64)(1: Byte)) // genesis block will skip signature check
       else privateKey.sign(block.messageToSign)
 
     // return a valid block with the signature attached
