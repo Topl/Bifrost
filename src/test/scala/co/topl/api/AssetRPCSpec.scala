@@ -1,6 +1,6 @@
 package co.topl.api
 
-import akka.actor.{ActorRef, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.server.Route
@@ -16,6 +16,7 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.AssetBox
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
+import co.topl.wallet.WalletActorManager
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -46,7 +47,8 @@ class AssetRPCSpec extends AnyWordSpec
   protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
+  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing
