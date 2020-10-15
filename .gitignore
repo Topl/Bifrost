@@ -6,7 +6,7 @@
 .project
 .metals/
 .bloop/
-.bsp
+.bsp/
 *.iml
 
 # scala build folders
