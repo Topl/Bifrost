@@ -301,13 +301,13 @@ object State extends Logging {
 
   def stateFile(settings: AppSettings): File = {
     val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    val file = new File(s"$dataDir/state")
-    file.mkdirs()
-    file
+    new File(s"$dataDir/state")
   }
 
   def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
-    val storage = new LSMStore(stateFile(settings))
+    val sFile = stateFile(settings)
+    sFile.mkdirs()
+    val storage = new LSMStore(sFile)
 
     val version: VersionTag = ModifierId(
       storage.lastVersionID

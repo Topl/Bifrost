@@ -45,8 +45,12 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
     targetBlockTime = settings.targetBlockTime
 
     if ( settings.tryForging ) {
-      context become readyToForge
-      self ! StartForging
+      keyRing.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis") match {
+        case Success(_) =>
+          context become readyToForge
+          self ! StartForging
+        case Failure(ex) => log.warn(s"Failed to unlock the keyfile: $ex")
+      }
     }
   }
 

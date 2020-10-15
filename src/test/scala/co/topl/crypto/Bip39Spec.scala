@@ -86,7 +86,7 @@ class Bip39Spec extends AnyFlatSpec
     assert(pt.phraseToHex(phrase) == seedHex)
   }
 
-  "A key file" should "be generated" in {
+  "A key file" should "be generated" ignore {
     Try(path.deleteRecursively())
     Try(path.createDirectory())
 
