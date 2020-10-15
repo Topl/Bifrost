@@ -3,27 +3,28 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import akka.actor.ActorSystem.Version
+import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519, Signature25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
+import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction._
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
-import co.topl.program.{Program, ProgramPreprocessor, _}
-import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.nodeView.state.box.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.program.{ Program, ProgramPreprocessor, _ }
+import co.topl.settings.{ AppSettings, StartupOpts, Version }
 import co.topl.utils.Logging
 import io.circe.syntax._
-import io.circe.{Json, JsonObject}
+import io.circe.{ Json, JsonObject }
 import io.iohk.iodb.LSMStore
-import org.scalacheck.{Arbitrary, Gen}
-import scorex.crypto.signatures.{PublicKey, Signature}
+import org.scalacheck.{ Arbitrary, Gen }
+import scorex.crypto.signatures.{ PublicKey, Signature }
 import scorex.util.encode.Base58
 
-import scala.util.{Random, Try}
+import scala.util.{ Random, Try }
 
 /**
   * Created by cykoz on 4/12/17.
@@ -42,7 +43,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
   private val settingsFilename = "src/test/resources/test.conf"
   val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
-  val settings_version0: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None)).copy(version = "0.0.0")
+  val settings_version0: AppSettings = settings.copy(application = settings.application.copy(version = new Version(0,0,0)))
+
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {
     f(seed) match {
@@ -644,7 +646,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     signature <- signatureGen
     txs <- bifrostTransactionSeqGen
   } yield {
-    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.forging.version)
+    Block(ModifierId(parentId), timestamp, generatorBox, signature, txs, settings.application.version.firstDigit)
   }
 
   lazy val bifrostSyncInfoGen: Gen[BifrostSyncInfo] = for {
@@ -663,7 +665,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       Seq(),
       ArbitBox(keyPair._2, 0L, 0L),
       keyPair._1,
-      settings.forging.version)
+      settings.application.version.firstDigit)
   }
 
   def generateHistory: History = {
@@ -673,11 +675,11 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     iFile.mkdirs()
     val blockStorage = new LSMStore(iFile)
 
-    val storage = new Storage(blockStorage, settings)
+    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
     //we don't care about validation here
     val validators = Seq()
 
-    var history = new History(storage, BlockProcessor(1024), settings, validators)
+    var history = new History(storage, BlockProcessor(1024), validators)
 
     val genesisBlock = genesisBlockGen.sample.get
 
