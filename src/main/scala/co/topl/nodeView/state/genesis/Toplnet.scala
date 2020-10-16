@@ -1,5 +1,6 @@
 package co.topl.nodeView.state.genesis
 
+import co.topl.consensus.Forger.ConsensusParams
 import co.topl.consensus.Forger.ReceivableMessages.GenesisParams
 import co.topl.crypto.{ PrivateKey25519, Signature25519 }
 import co.topl.modifier.ModifierId
@@ -78,7 +79,7 @@ case object Toplnet extends GenesisProvider {
     "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5" -> 100000000L
     )
 
-  def getGenesisBlock: Try[(Block, GenesisParams)] = Try {
+  def getGenesisBlock: Try[(Block, ConsensusParams)] = Try {
 
     val memberKeys = members.keys.map(PublicKey25519Proposition.apply)
 
@@ -103,6 +104,6 @@ case object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
 
-    (block, GenesisParams(totalStake, targetBlockTime, initialDifficulty))
+    (block, ConsensusParams(totalStake, targetBlockTime, initialDifficulty))
   }
 }

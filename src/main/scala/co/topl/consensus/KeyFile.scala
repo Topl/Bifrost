@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import java.io.{BufferedWriter, FileWriter}
+import java.io.{ BufferedWriter, FileWriter }
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -9,14 +9,14 @@ import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.crypto.hash.Keccak256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
+import scorex.crypto.hash.{ Digest32, Keccak256 }
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
@@ -33,7 +33,7 @@ case class KeyFile (pubKeyBytes: Array[Byte],
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
-    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
+    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements Digest32 @@ mac, "MAC does not match. Try again")
 
     val privateKey = KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
         case (decrypted, _) => decrypted.grouped(Curve25519.KeyLength).toSeq match {

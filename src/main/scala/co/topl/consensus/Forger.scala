@@ -1,6 +1,7 @@
 package co.topl.consensus
 
 import akka.actor._
+import co.topl.consensus.Forger.ConsensusParams
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.CurrentView
@@ -10,6 +11,8 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.genesis.{ LocalTestnet, Toplnet }
+import co.topl.settings.NetworkType.{ LocalNet, MainNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
@@ -38,21 +41,17 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
 
-  // flag to enable forging on a private network
-  private lazy val isPrivateForging = appContext.networkType.isPrivateForger
+  // calculate the delay between forging attempts (scaled to block time)
+  private lazy val blockGenerationDelay: FiniteDuration =
+    settings.forging.targetBlockTime / settings.forging.forgingAttempts
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
 
-  // a map of ledger providers that expose functionality to handle different requests from consensus
-  private val ledgerProviders: mutable.Map[String, ActorRef] = mutable.Map[String, ActorRef]()
-
-  // setting to limit the size of blocks
-  val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
-
-  override def preStart ( ): Unit = {
+  override def preStart (): Unit = {
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -63,11 +62,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
     initialization orElse
       nonsense
 
-  private def readyToForge: Receive = {
+  private def readyToForge: Receive =
     readyHandlers orElse
       keyManagement orElse
       nonsense
-  }
 
   private def activeForging: Receive =
     activeHandlers orElse
@@ -76,10 +74,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
-    case RegisterLedgerProvider => ledgerProviders += "nodeViewHolder" -> sender
-    case CreateGenesisKeys(num) => sender() ! generateGenesisKeys(num)
-    case params: GenesisParams  => setGenesisParameters(params)
-    case NodeViewReady =>
+    case GenerateGenesis         => sender() ! initializeGenesis
+    case params: ConsensusParams => setConsensusParameters(params)
+    case NodeViewReady           =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       context become readyToForge
       checkPrivateForging()
@@ -104,15 +101,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
       context become readyToForge
 
     case CurrentView(h: History, s: State, m: MemPool) =>
-      ledgerProviders.get("nodeViewHolder") match {
-        case Some(provider) =>
           updateForgeTime() // update the forge timestamp
-          tryForging(h, s, m, provider) // initiate forging attempt
+          tryForging(h, s, m) // initiate forging attempt
           scheduleForgingAttempt() // schedule the next forging attempt
-
-        case None =>
-          log.warn(s"Ledger provider not available, skipping forging attempt.")
-      }
   }
 
   private def keyManagement: Receive = {
@@ -131,18 +122,16 @@ class Forger (settings: AppSettings, appContext: AppContext )
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a forging attempt */
-  private def scheduleForgingAttempt ( ): Unit = {
-    ledgerProviders.get("nodeViewHolder") match {
-      case Some(ref) => context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(ref ! GetDataFromCurrentView)
-      case None      => log.warn(s"Ledger provider not available, skipping schedule.")
-    }
+  private def scheduleForgingAttempt (): Unit = {
+    context.system.scheduler.scheduleOnce(blockGenerationDelay)(context.system.eventStream.publish(GetDataFromCurrentView))
   }
 
   /** Updates the forging actors timestamp */
-  private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
+  private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging (): Unit = if (isPrivateForging && keyRing.publicKeys.nonEmpty) self ! StartForging
+  private def checkPrivateForging (): Unit =
+    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateGenesisKeys (num: Int): Set[PublicKey25519Proposition] =
@@ -151,9 +140,24 @@ class Forger (settings: AppSettings, appContext: AppContext )
       case Failure(ex)   => throw ex
     }
 
+  /** Return the correct genesis parameters for the chosen network. NOTE: the default private network is set
+   * in AppContext so the fall-through should result in an error.*/
+  private def initializeGenesis: Try[(Block, ConsensusParams)] =
+    (appContext.networkType match {
+      case MainNet  => Toplnet.getGenesisBlock
+      case LocalNet => LocalTestnet(generateGenesisKeys, settings).getGenesisBlock
+      case _        => throw new Error("Undefined network type.")
+    }).map {
+      case (block: Block, params: ConsensusParams) => {
+        setConsensusParameters(params)
+        block
+      }
+    }
+
   /** Sets the genesis network parameters for calculating adjusted difficulty */
-  private def setGenesisParameters (parameters: GenesisParams): Unit = {
-    targetBlockTime = parameters.targetBlockTime
+  private def setConsensusParameters (): Unit = {
+    targetBlockTime = settings.forging.targetBlockTime
+    txsPerBlock = settings.forging.numTxPerBlock
     maxStake = parameters.totalStake
     initialDifficulty = parameters.initialDifficulty
   }
@@ -165,7 +169,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool, ledgerRef: ActorRef): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
@@ -195,7 +199,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, blockVersion) match {
         case Some(block) =>
           log.debug(s"Locally generated block: $block")
-          ledgerRef ! LocallyGeneratedModifier[Block](block)
+          context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
 
         case None => log.debug(s"Failed to generate block")
       }
@@ -322,13 +326,16 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
 object Forger {
 
+  val actorName = "forger"
+
+  case class ConsensusParams ( totalStake       : Long,
+                               targetBlockTime  : FiniteDuration,
+                               initialDifficulty: Long
+                             )
+
   object ReceivableMessages {
 
-    case object RegisterLedgerProvider
-
-    case class CreateGenesisKeys (num: Int)
-
-    case class GenesisParams (totalStake: Long, targetBlockTime: FiniteDuration, initialDifficulty: Long)
+    case object GenerateGenesis
 
     case object StartForging
 

@@ -1,9 +1,6 @@
 package co.topl.nodeView.state.genesis
 
-import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.Timeout
-import co.topl.consensus.Forger.ReceivableMessages.{ CreateGenesisKeys, GenesisParams }
+import co.topl.consensus.Forger.ConsensusParams
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -11,28 +8,21 @@ import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppSettings, Version }
+import co.topl.settings.{ AppSettings, PrivateTestnetSettings, Version }
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-case class LocalTestnet(keyManager: ActorRef, settings: AppSettings) extends GenesisProvider {
+case class LocalTestnet(keyGen: Int => Set[PublicKey25519Proposition],
+                        settings: AppSettings) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 
   override protected val blockVersion: Version = settings.application.version
 
-  protected val targetBlockTime: FiniteDuration = settings.forging.targetBlockTime
-
-  protected val initialDifficulty: Long = settings.forging.initialDifficulty
-
   override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
 
-  override def getGenesisBlock: Try[(Block, GenesisParams)] = Try {
-    Await.result(formNewBlock, timeout.duration)
-  }
+  override def getGenesisBlock: Try[(Block, ConsensusParams)] = Try(formNewBlock)
 
   /**
    * We want a private network to have a brand new genesis block that is created at runtime. This is
@@ -40,37 +30,32 @@ case class LocalTestnet(keyManager: ActorRef, settings: AppSettings) extends Gen
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  implicit val timeout: Timeout = 30 seconds
-  val numberOfKeys: Int = settings.forging.numTestnetAccts.getOrElse(10)
-  val balance: Long = settings.forging.testnetBalance.getOrElse(1000000L)
+  private val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet.map { settings =>
+      (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
+  }.getOrElse(10, 1000000L, 1000000000000000000L)
 
-  def formNewBlock: Future[(Block, GenesisParams)] = {
+  def formNewBlock: (Block, ConsensusParams) = {
+    // map the members to their balances then continue as normal
+    val privateTotalStake = numberOfKeys * balance
 
-    // send the request to get keys to the key mangers
-    (keyManager ? CreateGenesisKeys(numberOfKeys)).mapTo[Set[PublicKey25519Proposition]].map { keys =>
+    val txInput = (
+      IndexedSeq(genesisAcct.publicImage -> 0L),
+      keyGen(numberOfKeys).map(_ -> balance).toIndexedSeq,
+      Map(genesisAcct.publicImage -> Signature25519.genesis()),
+      0L,
+      0L,
+      "")
 
-      // map the members to their balances then continue as normal
-      val privateTotalStake = numberOfKeys * balance
+    val txs = Seq((ArbitTransfer.apply: ARB).tupled(txInput), (PolyTransfer.apply: POLY).tupled(txInput))
 
-      val txInput = (
-        IndexedSeq(genesisAcct.publicImage -> 0L),
-        keys.map(_ -> balance).toIndexedSeq,
-        Map(genesisAcct.publicImage -> Signature25519.genesis()),
-        0L,
-        0L,
-        "")
+    val generatorBox = ArbitBox(genesisAcct.publicImage, 0, privateTotalStake)
 
-      val txs = Seq((ArbitTransfer.apply: ARB).tupled(txInput), (PolyTransfer.apply: POLY).tupled(txInput))
+    val signature = Signature25519.genesis()
 
-      val generatorBox = ArbitBox(genesisAcct.publicImage, 0, privateTotalStake)
+    val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
 
-      val signature = Signature25519.genesis()
+    log.debug(s"Initialize state with transaction ${txs} with boxes ${txs.head.newBoxes}")
 
-      val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
-
-      log.debug(s"Initialize state with transaction ${txs} with boxes ${txs.head.newBoxes}")
-
-      (block, GenesisParams(privateTotalStake, targetBlockTime, initialDifficulty))
-    }
+    (block, ConsensusParams(privateTotalStake, targetBlockTime, initialDifficulty))
   }
 }

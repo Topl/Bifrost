@@ -12,7 +12,7 @@ class Version( val firstDigit: Byte,
 
   override type M = Version
 
-  val blockByte: Byte = firstDigit
+  lazy val blockByte: Byte = firstDigit
 
   override def serializer: BifrostSerializer[Version] = VersionSerializer
 

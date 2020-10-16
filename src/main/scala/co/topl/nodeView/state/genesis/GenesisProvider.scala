@@ -1,17 +1,19 @@
 package co.topl.nodeView.state.genesis
 
 import akka.actor.ActorRef
+import co.topl.consensus.Forger.ConsensusParams
 import co.topl.consensus.Forger.ReceivableMessages.GenesisParams
-import co.topl.crypto.{PrivateKey25519, Signature25519}
+import co.topl.crypto.{ PrivateKey25519, Signature25519 }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.NetworkType.{LocalNet, MainNet}
-import co.topl.settings.{AppSettings, NetworkType, Version}
+import co.topl.settings.NetworkType.{ LocalNet, MainNet }
+import co.topl.settings.{ AppSettings, NetworkType, Version }
 import co.topl.utils.Logging
-import scorex.crypto.signatures.{PrivateKey, PublicKey}
+import scorex.crypto.signatures.{ PrivateKey, PublicKey }
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -41,17 +43,6 @@ trait GenesisProvider extends Logging {
 
   protected val members: Map[String, Long]
 
-  def getGenesisBlock: Try[(Block, GenesisParams)]
+  def getGenesisBlock: Try[(Block, ConsensusParams)]
 
-}
-
-object GenesisProvider {
-  /** Return the correct genesis parameters for the chosen network. NOTE: the default private network is set
-   * in AppContext so the fall-through should result in an error.*/
-  def initializeGenesis(keyManager: ActorRef, settings: AppSettings, networkType: NetworkType): Try[(Block, GenesisParams)] =
-    networkType match {
-      case MainNet  => Toplnet.getGenesisBlock
-      case LocalNet => LocalTestnet(keyManager, settings).getGenesisBlock
-      case _        => throw new Error("Undefined network type.")
-    }
 }

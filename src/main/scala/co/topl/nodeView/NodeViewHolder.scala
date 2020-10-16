@@ -1,7 +1,11 @@
 package co.topl.nodeView
 
 import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
-import co.topl.consensus.Forger.ReceivableMessages.RegisterLedgerProvider
+import akka.pattern.ask
+import akka.util.Timeout
+import co.topl.consensus.Forger
+import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ReceivableMessages.{ GenerateGenesis, RegisterLedgerProvider }
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
 import co.topl.modifier.transaction.serialization.TransactionSerializer
@@ -20,7 +24,8 @@ import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration.DurationInt
 import scala.util.{ Failure, Success, Try }
 
 /**
@@ -30,8 +35,7 @@ import scala.util.{ Failure, Success, Try }
   * The instances are read-only for external world.
   * Updates of the composite view(the instances are to be performed atomically.
   */
-class NodeViewHolder ( private val consensusRef: ActorRef,
-                       settings: AppSettings,
+class NodeViewHolder ( settings: AppSettings,
                        appContext: AppContext )
                      ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
@@ -66,8 +70,9 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
 
   /** Define actor control behavior */
   override def preStart(): Unit = {
-    // register this actor as the ledger provider for consensus
-    consensusRef ! RegisterLedgerProvider
+    // subscribe to particular messages this actor expects to receive
+    context.system.eventStream.subscribe(self, GetDataFromCurrentView.getClass)
+    context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
     context.system.eventStream.publish(NodeViewReady)
@@ -160,23 +165,28 @@ class NodeViewHolder ( private val consensusRef: ActorRef,
     } else None
   }
 
-  /**
-    * Hard-coded initial view all the honest nodes in a network are making progress from.
-    */
-  private def genesisState: NodeView = {
-    GenesisProvider.initializeGenesis(consensusRef, settings, appContext.networkType) match {
-      case Success((block, params)) =>
-        // send genesis parameters to the forger
-        consensusRef ! params
+  /** Hard-coded initial view all the honest nodes in a network are making progress from. */
+  private def genesisState(implicit timeout: Timeout = 10 seconds): NodeView = {
+    // this has to be resolved before moving on with the rest of the initialization procedure
+    val genesisBlock = Await.result(getGenesisBlock, timeout.duration)
 
-        // generate the nodeView and return
-        (
-          History.readOrGenerate(settings).append(block).get._1,
-          State.genesisState(settings, Seq(block)),
-          MemPool.emptyPool
-        )
+    // generate the nodeView and return
+    (
+      History.readOrGenerate(settings).append(genesisBlock).get._1,
+      State.genesisState(settings, Seq(genesisBlock)),
+      MemPool.emptyPool
+    )
+  }
 
-      case Failure(ex) => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
+  private def getGenesisBlock(implicit timeout: Timeout): Future[Block] = {
+    // need to lookup the actor reference for the forger
+    context.actorSelection("user/" + Forger.actorName).resolveOne().flatMap { consensusRef =>
+
+      // if a reference was found, ask for the genesis block
+     (consensusRef ? GenerateGenesis).mapTo[Try[ConsensusParams]].map {
+        case Success(ConsensusParams(block, _, _, _)) => block
+        case Failure(ex)                              => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
+      }
     }
   }
 
