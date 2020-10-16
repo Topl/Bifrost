@@ -12,7 +12,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
-import co.topl.wallet.WalletActorManager
+import co.topl.wallet.WalletConnectionHandler
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -28,8 +28,7 @@ class MempoolSpec extends AnyPropSpec
   with BifrostGenerators {
 
   protected val appContext = new AppContext(settings, None)
-  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 

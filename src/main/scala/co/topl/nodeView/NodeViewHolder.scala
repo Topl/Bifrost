@@ -19,7 +19,7 @@ import scorex.crypto.signatures.Signature
 
 import scala.concurrent.ExecutionContext
 
-class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext, override val walletActorManagerRef: ActorRef )
+class NodeViewHolder ( override val settings: AppSettings, appContext: AppContext )
                      ( implicit ec: ExecutionContext )
   extends GenericNodeViewHolder[NodeViewHolder.BX, NodeViewHolder.TX, NodeViewHolder.PMOD, NodeViewHolder.HIS,
     NodeViewHolder.MS, NodeViewHolder.MP] {
@@ -146,15 +146,15 @@ object NodeViewHolder extends Logging {
 
 object NodeViewHolderRef {
 
-  def apply ( settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
+  def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext, walletActorManagerRef: ActorRef))
+    system.actorOf(props(settings, appContext))
 
-  def apply ( name: String, settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(settings, appContext, walletActorManagerRef: ActorRef), name)
+    system.actorOf(props(settings, appContext), name)
 
-  def props ( settings: AppSettings, appContext: AppContext, walletActorManagerRef: ActorRef )
+  def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(settings, appContext, walletActorManagerRef: ActorRef))
+    Props(new NodeViewHolder(settings, appContext))
 }

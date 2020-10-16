@@ -14,7 +14,7 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.AppContext
-import co.topl.wallet.WalletActorManager
+import co.topl.wallet.WalletConnectionHandler
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
@@ -38,8 +38,7 @@ trait ProgramMockState extends BifrostGenerators {
   protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
-  protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
+  protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   implicit val timeout: Timeout = Timeout(10.seconds)

@@ -36,7 +36,7 @@ case class KeyFile (pubKeyBytes: Array[Byte],
 
     val privateKey = KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
         case (decrypted, _) => decrypted.grouped(Curve25519.KeyLength).toSeq match {
-          case Seq(skBytes, pkBytes) => new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+          case Seq(skBytes) => new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pubKeyBytes)
         }
       }
 

@@ -13,7 +13,6 @@ import co.topl.nodeView.state.box.proposition.Proposition
 import co.topl.nodeView.state.{MinimalState, TransactionValidation}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import co.topl.wallet.WalletActorManager.NewBlockAdded
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -51,7 +50,6 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
                                suffix: IndexedSeq[PMOD])
 
   val settings: AppSettings
-  val walletActorManagerRef: ActorRef
 
   /**
     * Cache for modifiers. If modifiers are coming out-of-order, they are to be stored in this cache.
@@ -215,10 +213,6 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
     }
   }
 
-  protected def updateRemoteWallet(newBlock: PMOD): Unit = {
-    walletActorManagerRef ! NewBlockAdded(newBlock)
-  }
-
   //todo: update state in async way?
   protected def pmodModify(pmod: PMOD): Unit =
     if (!history().contains(pmod.id)) {
@@ -242,7 +236,6 @@ trait GenericNodeViewHolder [ BX   <: GenericBox[_ <: Proposition, _],
 
                 log.info(s"Persistent modifier ${pmod.id} applied successfully")
                 updateNodeView(Some(newHistory), Some(newMinState), Some(newMemPool))
-                updateRemoteWallet(pmod)
 
               case Failure(e) =>
                 log.warn(s"Can`t apply persistent modifier (id: ${pmod.id}, contents: $pmod) to minimal state", e)

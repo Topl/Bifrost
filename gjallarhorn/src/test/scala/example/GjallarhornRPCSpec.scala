@@ -14,7 +14,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.circe.parser.parse
 import keymanager.{KeyManagerRef, Keys}
 import requests.Requests
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import wallet.WalletManager
 
@@ -77,7 +77,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          """.stripMargin)
 
     httpPOST(createAssetRequest) ~> route ~> check {
-      val res = parse(responseAs[String]).right.get
+      val response = responseAs[String]
+      println("response" + response)
+      println("parse " + parse(response))
+      val res = parse(response).right.get
       (res \\ "error").isEmpty shouldBe true
       (res \\ "result").head.asObject.isDefined shouldBe true
     }

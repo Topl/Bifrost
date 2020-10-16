@@ -19,7 +19,7 @@ import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
 import co.topl.nodeView.NodeViewHolderRef
-import co.topl.wallet.WalletActorManager
+import co.topl.wallet.WalletConnectionHandler
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
@@ -68,9 +68,9 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
-  private val walletActorManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletActorManager), name = "walletActorManager")
+  private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(Props(new WalletConnectionHandler), name = "walletConnectionHandler")
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
 
@@ -84,7 +84,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     peerSynchronizer,
     nodeViewSynchronizer,
     forgerRef,
-    nodeViewHolderRef
+    nodeViewHolderRef,
+    walletConnectionHandlerRef
   )
 
   // hook for initiating the shutdown procedure

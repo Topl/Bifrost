@@ -4,14 +4,14 @@ package crypto
 import FastCryptographicHash._
 import utils.serialization.GjalSerializer
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
-import scorex.crypto.encode.Base58
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.Curve25519
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
-case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
+case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
@@ -35,7 +35,7 @@ case class PublicKey25519Proposition(pubKeyBytes: Array[Byte]) extends ProofOfKn
 
   override def hashCode(): Int = (BigInt(Blake2b256(pubKeyBytes)) % Int.MaxValue).toInt
 
-  def verify(message: Array[Byte], signature: Array[Byte]): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
+  def verify(message: Array[Byte], signature: Signature): Boolean = Curve25519.verify(signature, message, pubKeyBytes)
 }
 
 
@@ -48,7 +48,7 @@ object PublicKey25519Proposition {
 
   def apply(id: String): PublicKey25519Proposition = {
     Base58.decode(id) match {
-      case Success(id) => new PublicKey25519Proposition(id)
+      case Success(id) => new PublicKey25519Proposition(PublicKey @@ id)
       case Failure(ex) => throw ex
     }
   }
@@ -65,7 +65,7 @@ object PublicKey25519Proposition {
         val checkSumGenerated = calcCheckSum(addressBytes.dropRight(ChecksumLength))
 
         if (checkSum.sameElements(checkSumGenerated))
-          Success(PublicKey25519Proposition(addressBytes.dropRight(ChecksumLength).tail))
+          Success(PublicKey25519Proposition(PublicKey @@ addressBytes.dropRight(ChecksumLength).tail))
         else Failure(new Exception("Wrong checksum"))
       }
     }

@@ -21,7 +21,7 @@ import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.AppContext
-import co.topl.wallet.WalletActorManager
+import co.topl.wallet.WalletConnectionHandler
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
@@ -48,8 +48,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   protected val appContext = new AppContext(settings, None)
 
   // Create Bifrost singleton actors
-  private val walletActorManagerRef: ActorRef = WalletActorManager.apply
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext, walletActorManagerRef)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 
   // setup route for testing

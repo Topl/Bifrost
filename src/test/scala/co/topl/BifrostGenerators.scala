@@ -16,6 +16,7 @@ import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Pr
 import co.topl.program.{Program, ProgramPreprocessor, _}
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.utils.Logging
+import com.typesafe.config.Config
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
 import io.iohk.iodb.LSMStore
@@ -41,7 +42,8 @@ trait BifrostGenerators extends CoreGenerators with Logging {
   }
 
   private val settingsFilename = "src/test/resources/test.conf"
-  val settings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val config: Config = AppSettings.readConfig(StartupOpts(Some(settingsFilename), None))
+  val settings: AppSettings = AppSettings.fromConfig(config)
   val settings_version0: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None)).copy(version = "0.0.0")
 
   def unfoldLeft[A, B](seed: B)(f: B => Option[(A, B)]): Seq[A] = {

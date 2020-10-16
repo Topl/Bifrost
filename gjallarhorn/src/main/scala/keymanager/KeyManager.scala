@@ -4,7 +4,8 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
 import io.circe.Json
 import io.circe.syntax._
-import scorex.crypto.encode.Base58
+import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.concurrent.ExecutionContext
 
@@ -30,12 +31,12 @@ class KeyManager(keyDir: String) extends Actor {
 
     case SignTx(tx, keys, msg) =>
       val sigs: List[(String, String)] = keys.map { pk =>
-        val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
+        val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get )
         val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
         privKey match {
           case Some(sk) => {
-            val signature = Base58.encode(PrivateKey25519Companion.sign(sk, Base58.decode(msg.asString.get).get).signature)
+            val signature = Base58.encode(sk.sign(Base58.decode(msg.asString.get).get).signature)
             (pk, signature)
           }
           case None => throw new NoSuchElementException

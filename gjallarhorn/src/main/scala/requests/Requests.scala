@@ -9,12 +9,15 @@ import keymanager.Keys
 import crypto._
 import io.circe.{Json, parser}
 import io.circe.syntax._
+import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import settings.AppSettings
+
+import scala.util.{Failure, Success}
 
 
 class Requests (settings: AppSettings)
@@ -39,6 +42,7 @@ class Requests (settings: AppSettings)
     val response = http.singleRequest(request)
     response.flatMap {
       case _@HttpResponse(StatusCodes.OK, _, entity, _) =>
+        println("http response: " + response)
         entity.dataBytes.runFold(ByteString.empty) { case (acc, b) => acc ++ b }
       case _ => sys.error("something wrong")
     }
@@ -46,6 +50,7 @@ class Requests (settings: AppSettings)
 
   def byteStringToJSON(data: Future[ByteString]): Json = {
     val parsedData: Future[Json] = data.map { x =>
+      println("data: " + x.utf8String)
       parser.parse(x.utf8String) match {
         case Right(parsed) => parsed
         case Left(e) => throw e.getCause
@@ -84,13 +89,13 @@ class Requests (settings: AppSettings)
     assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
 
     var sigs: List[(String, String)] = signingKeys.map { pk =>
-      val pubKey = PublicKey25519Proposition(Base58.decode(pk).get)
+      val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get)
       val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
       privKey match {
         case Some(sk) => {
-          val signature = Base58.encode(PrivateKey25519Companion.sign(sk, Base58.decode(messageToSign.asString.get).get).signature)
-          (pk, signature)
+            val signature = Base58.encode(sk.sign(Base58.decode(messageToSign.asString.get).get).signature)
+            (pk, signature)
         }
         case None => throw new NoSuchElementException
       }

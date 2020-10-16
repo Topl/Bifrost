@@ -4,7 +4,7 @@ import crypto.{PrivateKey25519, PrivateKey25519Companion, PublicKey25519Proposit
 import keymanager.{KeyFile, Keys}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 
 import scala.reflect.io.Path
@@ -49,17 +49,17 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
   it should "Match its signature to the expected sender private key" in {
       //Entropic input to input for pub/priv keypair
-      val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
+      val proof = sk1.sign(messageToSign)
       assert(PrivateKey25519Companion.verify(messageToSign, pk1, proof))
   }
 
   it should "Yield an invalid signature if signed with incorrect foreign key" in {
-      val proof = PrivateKey25519Companion.sign(sk1,messageToSign)
+      val proof = sk1.sign(messageToSign)
       assert(!PrivateKey25519Companion.verify(messageToSign, pk2, proof))
   }
 
   it should "Sign and verify as expected when msg is deterministic" in {
-      val proof = PrivateKey25519Companion.sign(sk2,messageBytes)
+      val proof = sk2.sign(messageBytes)
       //Utilize same input. Proving hashing function AND keygen methods are deterministic
       assert(PrivateKey25519Companion.verify(messageBytes, pk2, proof))
   }

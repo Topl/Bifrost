@@ -2,9 +2,11 @@ package keymanager
 
 import java.io.File
 
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import crypto.{PrivateKey25519, ProofOfKnowledgeProposition, PublicKey25519Proposition}
+import scorex.crypto.signatures.PublicKey
 import utils.Logging
+
 import scala.util.{Failure, Success, Try}
 
 case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extends Logging {
@@ -19,7 +21,7 @@ case class Keys(var secrets: Set[PrivateKey25519], defaultKeyDir: String) extend
     */
   def publicKeys: Set[PI] = {
     //secrets.map(_.publicImage)
-    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(KeyFile.readFile(file.getPath).pubKeyBytes))
+    getListOfFiles(defaultKeyDir).map(file => PublicKey25519Proposition(PublicKey @@ KeyFile.readFile(file.getPath).pubKeyBytes))
       .toSet
   }
 

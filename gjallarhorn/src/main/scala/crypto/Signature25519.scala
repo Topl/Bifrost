@@ -1,16 +1,17 @@
 package crypto
 
-import scorex.crypto.encode.Base58
-import scorex.crypto.signatures.Curve25519
-import utils.serialization.{GjalSerializer, Writer, Reader}
+import scorex.util.encode.Base58
+import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import utils.serialization.{GjalSerializer, Reader, Writer}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
-import scala.util.{ Failure, Success, Try }
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * @param signature 25519 signature
   */
-case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[PrivateKey25519, PublicKey25519Proposition] {
+case class Signature25519(signature: Signature) extends ProofOfKnowledge[PrivateKey25519, PublicKey25519Proposition] {
   require(signature.isEmpty || signature.length == Curve25519.SignatureLength,
     s"${signature.length} != ${Curve25519.SignatureLength}")
 
@@ -19,7 +20,7 @@ case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[Priva
   override def serializer: GjalSerializer[Signature25519] = Signature25519Serializer
 
   override def isValid(proposition: Proposition, message: Array[Byte]): Boolean =
-    Curve25519.verify(signature, message, proposition.bytes)
+    Curve25519.verify(signature, message, PublicKey @@ proposition.bytes)
 
   override def toString: String = s"Signature25519(${Base58.encode(signature)})"
 }
@@ -27,17 +28,17 @@ case class Signature25519(signature: Array[Byte]) extends ProofOfKnowledge[Priva
 object Signature25519Serializer extends GjalSerializer[Signature25519] {
   override def serialize(obj: Signature25519, w: Writer): Unit = w.putBytes(obj.signature)
 
-  override def parse(r: Reader): Signature25519 = Signature25519(r.getBytes(Curve25519.SignatureLength))
+  override def parse(r: Reader): Signature25519 = Signature25519(Signature @@ r.getBytes(Curve25519.SignatureLength))
 }
 
 object Signature25519 {
   lazy val SignatureSize: Int = Curve25519.SignatureLength
 
   def apply (encodedSig: String): Signature25519 = {
-    if (encodedSig.isEmpty) Signature25519(Array.emptyByteArray)
+    if (encodedSig.isEmpty) Signature25519(Signature @@ Array.emptyByteArray)
     else {
       Base58.decode(encodedSig) match {
-        case Success(sig) => new Signature25519(sig)
+        case Success(sig) => new Signature25519(Signature @@ sig)
         case Failure(ex)  => throw ex
       }
     }

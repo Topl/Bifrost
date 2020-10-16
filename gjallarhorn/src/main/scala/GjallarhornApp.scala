@@ -35,7 +35,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
     log.info("gjallarhorn running in offline mode.")
   }else{
     log.info("gjallarhorn running in online mode. Trying to connect to Bifrost...")
-    system.actorSelection(s"akka.tcp://${settings.chainProvider}/user/walletActorManager").resolveOne().onComplete {
+    system.actorSelection(s"akka.tcp://${settings.chainProvider}/user/walletConnectionHandler").resolveOne().onComplete {
       case Success(actor) => {
         log.info(s"bifrst actor ref was found: $actor")
         walletManagerRef ! GjallarhornStarted(actor)

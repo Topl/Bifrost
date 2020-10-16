@@ -16,8 +16,9 @@ import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
-import scorex.crypto.encode.Base58
+import scorex.util.encode.Base58
 import scorex.crypto.hash.{Blake2b256, Keccak256}
+import scorex.crypto.signatures.{PrivateKey, PublicKey}
 
 import scala.util.Try
 
@@ -45,7 +46,7 @@ case class KeyFile(pubKeyBytes: Array[Byte],
     val (decrypted, _) = getAESResult(derivedKey, iv, cipherText, encrypt = false)
     require(pubKeyBytes sameElements getPkFromSk(decrypted), "PublicKey in file is invalid")
 
-    PrivateKey25519(decrypted, pubKeyBytes)
+    PrivateKey25519(PrivateKey @@ decrypted, PublicKey @@ pubKeyBytes)
   }
 
   lazy val json: Json = Map(

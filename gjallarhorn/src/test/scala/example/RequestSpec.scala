@@ -3,11 +3,11 @@ package example
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, DeadLetter, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, Materializer}
 import _root_.requests.Requests
 import akka.util.{ByteString, Timeout}
 import crypto.PrivateKey25519Companion
-import io.circe.Json
+import io.circe.{Json, parser}
 import io.circe.parser.parse
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -29,7 +29,6 @@ class RequestSpec extends AsyncFlatSpec
   with GjallarhornGenerators {
 
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val timeout: Timeout = 10.seconds
 
   val http: HttpExt = Http(actorSystem)
@@ -60,7 +59,7 @@ class RequestSpec extends AsyncFlatSpec
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
 
-  it should "receive a successful response from Bifrost upon creating asset" in {
+/*  it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -182,34 +181,29 @@ class RequestSpec extends AsyncFlatSpec
       }
       case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     }
-  }
+  }*/
 
-  /*it should "connect to bifrost actor when the gjallarhorn app starts" in {
+  it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne(), 10.seconds)
+      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
     walletManagerRef ! GjallarhornStarted(bifrostActor)
     Thread.sleep(10000)
-    assert(bifrostResponse.contains("received new wallet from: Actor[akka.tcp://requestTest@127.0.0.1"))
 
     val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
     newBlock match {
-      case Some(block) => assert(block == "new block")
+      case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
       case None => sys.error("no new blocks")
     }
-  }*/
+  }
 
-  it should "send msg to bifrost actor when the gjallarhorn app stops" in {
-    val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-      "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletActorManager").resolveOne(), 10.seconds)
-    walletManagerRef ! GjallarhornStarted(bifrostActor)
-    Thread.sleep(1000)
+ it should "send msg to bifrost actor when the gjallarhorn app stops" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? GjallarhornStopped).mapTo[String], 100.seconds)
     assert(bifrostResponse.contains("The remote wallet Actor[akka.tcp://requestTest@127.0.0.1") &&
-      bifrostResponse.contains("has been removed from the WalletActorManager in Bifrost"))
+      bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
   }
 
   it should "update wallet correctly after receiving new block" in {
-    val block: String =
+    val block: ByteString = ByteString(
       s"""
          |{
          |  "timestamp" : 1602624092235,
@@ -227,6 +221,13 @@ class RequestSpec extends AsyncFlatSpec
          |        "4uqAkTgy3xvEs7ipVJUjbA36xgjAHb9D9LXBWUDK8iaBzniPkLi38G5gJknbhTK7qTSTytZi1aEcpcqP6CiFHwWV"
          |      ],
          |      "newBoxes" : [
+         |        {
+         |          "id" : "9asdjeokMDFG8sasdd6JKL0wj",
+         |          "type" : "Arbit",
+         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |          "value" : "10",
+         |          "nonce" : "mhj3GHI9asdkj0JKLre3P"
+         |        }
          |      ],
          |      "to" : [
          |        {
@@ -239,11 +240,10 @@ class RequestSpec extends AsyncFlatSpec
          |  ],
          |  "parentId" : "4RbYjQHVWRcvTEoJcpFNfBrcNL7tpMatP13Tr8fJMHDm"
          |}
-         """
-    parse(block) match {
+         """.stripMargin)
+    parser.parse(block.utf8String) match {
       case Right(blockJson) => {
-        val actorMsg: String = s"new block added: $blockJson"
-        walletManagerRef ! actorMsg
+        walletManagerRef ! s"new block added: $blockJson"
         Thread.sleep(1000)
         val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
           .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
