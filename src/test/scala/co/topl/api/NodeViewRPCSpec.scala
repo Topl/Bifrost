@@ -44,7 +44,7 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, None, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
@@ -145,7 +145,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
-          settings.forging.version
+          settings.application.version.blockByte
         )
         history.append(tempBlock)
         blockId = tempBlock.id

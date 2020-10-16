@@ -6,7 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.BifrostGenerators
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -26,7 +26,7 @@ class MempoolSpec extends AnyPropSpec
   with ScalatestRouteTest
   with BifrostGenerators {
 
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, None, None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
 
   implicit val timeout: Timeout = Timeout(10.seconds)

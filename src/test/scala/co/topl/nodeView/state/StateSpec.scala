@@ -1,19 +1,22 @@
 package co.topl.nodeView.state
 
+import co.topl.consensus.KeyRing
+import co.topl.consensus.genesis.LocalTestnet
+import co.topl.modifier.ModifierId
+import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder
-import co.topl.settings.{ AppSettings, StartupOpts }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.nodeView.history.History
+import co.topl.nodeView.mempool.MemPool
+import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
-
-import scala.reflect.io.Path
-import scala.util.Try
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import scala.reflect.io.Path
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
+import scala.reflect.io.Path
 
 class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
@@ -243,24 +246,27 @@ class StateSpec extends AnyPropSpec
 
 object StateSpec {
 
-  import MinimalState.VersionTag
-  import co.topl.nodeView.NodeViewHolder.{ HIS, MP, MS }
-
   private val settingsFilename = "src/test/resources/test.conf"
   lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  val gs: (HIS, MS, MP) = NodeViewHolder.initializeGenesis(testSettings)
-  private val _history: HIS = gs._1
-  private val _genesisState: MS = gs._2
+  val keyRing: KeyRing = KeyRing(path + "/keyfiles")
+  val block: Block = LocalTestnet((_: Int) => {
+    keyRing.generateNewKeyPairs(num = 3) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    } }, testSettings).getGenesisBlock.get._1
 
-  def genesisState(): MS = gs._2.copy()
+  private val _history = History.readOrGenerate(testSettings).append(block).get._1
+  private val _genesisState = State.genesisState(testSettings, Seq(block))
+
+  def genesisState(): State = State.genesisState(testSettings, Seq(block)).copy()
 
   // Unlock Secrets
 //  _gw.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis")
 //  _gw.unlockKeyFile("A9vRt6hw7w4c7b4qEkQHYptpqBGpKM5MGoXyrkGCbrfb", "genesis")
 //  _gw.unlockKeyFile("F6ABtYMsJABDLH2aj7XVPwQr5mH7ycsCE4QGQrLeB3xU", "genesis")
-  val genesisBlockId: VersionTag = gs._2.version
+  val genesisBlockId: ModifierId = block.id
 }

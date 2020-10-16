@@ -145,7 +145,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 }
 
 object KeyRing {
-  def apply ( path: String ): KeyRing = {
+  def apply (path: String): KeyRing = {
     val dir = new File(path)
     dir.mkdirs()
     new KeyRing(Set(), dir)

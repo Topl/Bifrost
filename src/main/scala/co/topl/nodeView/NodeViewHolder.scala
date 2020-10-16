@@ -165,7 +165,7 @@ class NodeViewHolder ( settings: AppSettings,
   }
 
   /** Hard-coded initial view all the honest nodes in a network are making progress from. */
-  private def genesisState(implicit timeout: Timeout = 10 seconds): NodeView = {
+  private[nodeView] def genesisState(implicit timeout: Timeout = 10 seconds): NodeView = {
     // this has to be resolved before moving on with the rest of the initialization procedure
     val genesisBlock = Await.result(getGenesisBlock, timeout.duration)
 

@@ -19,7 +19,7 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
   with Matchers
   with BifrostGenerators {
 
-  val appContext = new AppContext(settings, None)
+  val appContext = new AppContext(settings, None, None)
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 
@@ -28,9 +28,9 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
   property("A new PeerConnectionHandler should be created") {
 
-    val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
+    val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, appContext)
     val networkControllerRef: ActorRef =
-      NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
+      NetworkControllerRef("networkController", settings, peerManagerRef, appContext)
 
     val localPort = 9085
     val remotePort = 9086
@@ -38,6 +38,6 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
     val connectionDescription = ConnectionDescription(networkControllerRef, connectionId, None, Seq())
 
-    PeerConnectionHandlerRef(settings.network, networkControllerRef, appContext, connectionDescription)
+    PeerConnectionHandlerRef(networkControllerRef, settings, appContext, connectionDescription)
   }
 }
