@@ -96,7 +96,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       val res: (History, ProgressInfo[Block]) = {
 
         if (isGenesis(block)) {
-          storage.update(block, consensus.initialDifficulty, isBest = true)
+          storage.update(block, consensus.difficulty, isBest = true)
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return

@@ -2,12 +2,12 @@ package co.topl
 
 import java.lang.management.ManagementFactory
 
-import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.consensus.{ Forger, ForgerRef }
+import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
@@ -17,18 +17,18 @@ import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
-import co.topl.nodeView.NodeViewHolderRef
+import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{ AppContext, AppSettings, NetworkType, StartupOpts }
+import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
 import co.topl.utils.Logging
-import com.sun.management.{ HotSpotDiagnosticMXBean, VMOption }
-import com.typesafe.config.{ Config, ConfigFactory }
+import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
+import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 
 import scala.concurrent.duration._
-import scala.concurrent.{ Await, ExecutionContext, Future }
-import scala.util.{ Failure, Success }
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
@@ -56,18 +56,18 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, appContext)
+  private val peerManagerRef: ActorRef = PeerManagerRef(PeerManager.actorName, settings, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings, peerManagerRef, appContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef(NetworkController.actorName, settings, peerManagerRef, appContext)
 
   private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", forgerRef, settings, appContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings, appContext)
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
-      "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings, appContext)
+      NodeViewSynchronizer.actorName, networkControllerRef, nodeViewHolderRef, settings, appContext)
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(

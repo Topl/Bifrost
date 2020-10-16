@@ -33,7 +33,7 @@ case class KeyFile (pubKeyBytes: Array[Byte],
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
-    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements Digest32 @@ mac, "MAC does not match. Try again")
+    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
 
     val privateKey = KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
         case (decrypted, _) => decrypted.grouped(Curve25519.KeyLength).toSeq match {

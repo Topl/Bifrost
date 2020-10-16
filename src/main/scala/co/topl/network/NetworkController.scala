@@ -493,6 +493,8 @@ class NetworkController ( settings      : AppSettings,
 
 object NetworkController {
 
+  val actorName = "networkController"
+
   val ChildActorHandlingRetriesNr: Int = 10
 
   object ReceivableMessages {

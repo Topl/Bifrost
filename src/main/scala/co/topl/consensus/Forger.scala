@@ -49,6 +49,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private var forgeTime: Time = appContext.timeProvider.time()
 
   override def preStart (): Unit = {
+    //read consensus parameters from settings and set their values
+    setConsensusParameters()
+
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
     context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
@@ -75,7 +78,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
     case GenerateGenesis         => sender() ! initializeGenesis
-    case params: ConsensusParams => setConsensusParameters(params)
     case NodeViewReady           =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       context become readyToForge
@@ -134,7 +136,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateGenesisKeys (num: Int): Set[PublicKey25519Proposition] =
+  private def generateKeys (num: Int): Set[PublicKey25519Proposition] =
     keyRing.generateNewKeyPairs(num) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
@@ -142,24 +144,23 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Return the correct genesis parameters for the chosen network. NOTE: the default private network is set
    * in AppContext so the fall-through should result in an error.*/
-  private def initializeGenesis: Try[(Block, ConsensusParams)] =
+  private def initializeGenesis: Try[Block] =
     (appContext.networkType match {
       case MainNet  => Toplnet.getGenesisBlock
-      case LocalNet => LocalTestnet(generateGenesisKeys, settings).getGenesisBlock
+      case LocalNet => LocalTestnet(generateKeys, settings).getGenesisBlock
       case _        => throw new Error("Undefined network type.")
     }).map {
-      case (block: Block, params: ConsensusParams) => {
-        setConsensusParameters(params)
+      case (block: Block, ConsensusParams(totalStake, initDifficulty)) =>
+        maxStake = totalStake
+        difficulty = initDifficulty
+
         block
-      }
     }
 
   /** Sets the genesis network parameters for calculating adjusted difficulty */
   private def setConsensusParameters (): Unit = {
     targetBlockTime = settings.forging.targetBlockTime
-    txsPerBlock = settings.forging.numTxPerBlock
-    maxStake = parameters.totalStake
-    initialDifficulty = parameters.initialDifficulty
+    numTxInBlock = settings.forging.numTxPerBlock
   }
 
   /**
@@ -259,7 +260,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
                                  state  : State
                                ): Try[Seq[Transaction]] = Try {
 
-    memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
+    memPool.take(numTxInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
       val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
@@ -328,10 +329,7 @@ object Forger {
 
   val actorName = "forger"
 
-  case class ConsensusParams ( totalStake       : Long,
-                               targetBlockTime  : FiniteDuration,
-                               initialDifficulty: Long
-                             )
+  case class ConsensusParams (totalStake: Long, difficulty: Long)
 
   object ReceivableMessages {
 

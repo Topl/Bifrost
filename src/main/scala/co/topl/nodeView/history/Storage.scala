@@ -186,7 +186,7 @@ class Storage( private[history] val storage: LSMStore,
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     if (blockId == History.GenesisParentId) {
-      Some(consensus.initialDifficulty)
+      Some(consensus.difficulty)
     } else {
       blockCache
         .get(blockDiffKey(blockId.hashBytes))

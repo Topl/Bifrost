@@ -581,6 +581,8 @@ class NodeViewSynchronizer[
 
 object NodeViewSynchronizer {
 
+  val actorName = "nodeViewSynchronizer"
+
   case class RemoteMessageHandler(
     syncInfoSpec: SyncInfoSpec,
     invSpec: InvSpec,

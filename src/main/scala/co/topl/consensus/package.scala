@@ -14,19 +14,22 @@ package object consensus {
   private var _maxStake: Long = _
   private var _inflation: Long = _
   private var _targetBlockTime: FiniteDuration = _
-  private var _initialDifficulty: Long = _
+  private var _difficulty: Long = _
+  private var _numTxInBlock: Int = _
 
   // setters
   private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
   private[consensus] def inflation_= (value: Long): Unit = _inflation = value
   private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
-  private[consensus] def initialDifficulty_= (value: Long): Unit = _initialDifficulty = value
+  private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
+  private[consensus] def numTxInBlock_= (value: Int): Unit = _numTxInBlock = value
 
   // getters
   def maxStake: Long = _maxStake
   def inflation: Long = _inflation
   def targetBlockTime: FiniteDuration = _targetBlockTime
-  def initialDifficulty: Long = _initialDifficulty
+  def difficulty: Long = _difficulty
+  def numTxInBlock: Int = _numTxInBlock
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge

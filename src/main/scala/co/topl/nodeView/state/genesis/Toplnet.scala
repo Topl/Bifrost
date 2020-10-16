@@ -1,18 +1,16 @@
 package co.topl.nodeView.state.genesis
 
 import co.topl.consensus.Forger.ConsensusParams
-import co.topl.consensus.Forger.ReceivableMessages.GenesisParams
-import co.topl.crypto.{ PrivateKey25519, Signature25519 }
+import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.Version
-import scorex.crypto.signatures.{ PrivateKey, PublicKey, Signature }
 
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 case object Toplnet extends GenesisProvider {
@@ -20,8 +18,6 @@ case object Toplnet extends GenesisProvider {
   override protected val blockChecksum: ModifierId = ModifierId("9VX9smBd7Jz56HzTcmY6EZiLfrn7WdxECbsSgNRrPXmu")
 
   override protected val blockVersion: Version = new Version(0, 0, 1)
-
-  override protected val targetBlockTime: FiniteDuration = 7 seconds
 
   override protected val initialDifficulty: Long = 1000000000000000000L
 
@@ -104,6 +100,6 @@ case object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
 
-    (block, ConsensusParams(totalStake, targetBlockTime, initialDifficulty))
+    (block, ConsensusParams(totalStake, initialDifficulty))
   }
 }

@@ -112,6 +112,8 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 
 object PeerSynchronizer {
 
+  val actorName = "peerSynchronizer"
+
   case class RemoteMessageHandler ( peersSpec: PeersSpec, getPeersSpec: GetPeersSpec ) {
 
     def toSeq: Seq[MessageSpec[_]] = Seq(peersSpec, getPeersSpec)

@@ -1,32 +1,31 @@
 package co.topl.nodeView
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.consensus.Forger
 import co.topl.consensus.Forger.ConsensusParams
-import co.topl.consensus.Forger.ReceivableMessages.{ GenerateGenesis, RegisterLedgerProvider }
+import co.topl.consensus.Forger.ReceivableMessages.GenerateGenesis
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{ Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier }
+import co.topl.modifier.block.{Block, BlockSerializer, PersistentNodeViewModifier, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.modifier.transaction.{ GenericTransaction, Transaction }
-import co.topl.modifier.{ ModifierId, NodeViewModifier }
+import co.topl.modifier.transaction.{GenericTransaction, Transaction}
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages._
 import co.topl.nodeView.NodeViewHolder.UpdateInformation
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.box.Box
-import co.topl.nodeView.state.genesis.GenesisProvider
-import co.topl.nodeView.state.{ State, TransactionValidation }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.state.{State, TransactionValidation}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.serialization.BifrostSerializer
 
 import scala.annotation.tailrec
-import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration.DurationInt
-import scala.util.{ Failure, Success, Try }
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Composite local view of the node
@@ -183,9 +182,9 @@ class NodeViewHolder ( settings: AppSettings,
     context.actorSelection("user/" + Forger.actorName).resolveOne().flatMap { consensusRef =>
 
       // if a reference was found, ask for the genesis block
-     (consensusRef ? GenerateGenesis).mapTo[Try[ConsensusParams]].map {
-        case Success(ConsensusParams(block, _, _, _)) => block
-        case Failure(ex)                              => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
+     (consensusRef ? GenerateGenesis).mapTo[Try[Block]].map {
+        case Success(block) => block
+        case Failure(ex)    => throw new Error(s"${Console.RED}Failed to initialize genesis due to error${Console.RESET} $ex")
       }
     }
   }
@@ -493,6 +492,8 @@ class NodeViewHolder ( settings: AppSettings,
 
 object NodeViewHolder {
 
+  val actorName = "nodeViewHolder"
+
   case class UpdateInformation[HIS, MS, PMOD <: PersistentNodeViewModifier](history: HIS,
                                                                             state: MS,
                                                                             failedMod: Option[PMOD],
@@ -531,15 +532,15 @@ object NodeViewHolder {
 
 object NodeViewHolderRef {
 
-  def apply ( consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
+  def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(consensusRef, settings, appContext))
+    system.actorOf(props(settings, appContext))
 
-  def apply ( name: String,  consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(consensusRef, settings, appContext), name)
+    system.actorOf(props(settings, appContext), name)
 
-  def props ( consensusRef: ActorRef, settings: AppSettings, appContext: AppContext )
+  def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new NodeViewHolder(consensusRef, settings, appContext))
+    Props(new NodeViewHolder(settings, appContext))
 }

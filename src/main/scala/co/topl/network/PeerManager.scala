@@ -114,6 +114,8 @@ class PeerManager (settings: AppSettings,
 
 object PeerManager {
 
+  val actorName = "peerManager"
+
   object ReceivableMessages {
 
     case class ConfirmConnection(connectionId: ConnectionId, handlerRef: ActorRef)

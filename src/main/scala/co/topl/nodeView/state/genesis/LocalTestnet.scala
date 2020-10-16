@@ -30,7 +30,7 @@ case class LocalTestnet(keyGen: Int => Set[PublicKey25519Proposition],
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  private val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet.map { settings =>
+  val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet.map { settings =>
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
   }.getOrElse(10, 1000000L, 1000000000000000000L)
 
@@ -56,6 +56,6 @@ case class LocalTestnet(keyGen: Int => Set[PublicKey25519Proposition],
 
     log.debug(s"Initialize state with transaction ${txs} with boxes ${txs.head.newBoxes}")
 
-    (block, ConsensusParams(privateTotalStake, targetBlockTime, initialDifficulty))
+    (block, ConsensusParams(privateTotalStake, initialDifficulty))
   }
 }
