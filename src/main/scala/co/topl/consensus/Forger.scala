@@ -11,7 +11,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.genesis.{ LocalTestnet, Toplnet }
+import co.topl.consensus.genesis.{ LocalTestnet, Toplnet }
 import co.topl.settings.NetworkType.{ LocalNet, MainNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging

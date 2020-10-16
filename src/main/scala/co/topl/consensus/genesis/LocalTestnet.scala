@@ -1,4 +1,4 @@
-package co.topl.nodeView.state.genesis
+package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ConsensusParams
 import co.topl.crypto.Signature25519
