@@ -4,13 +4,14 @@ import java.net.InetSocketAddress
 
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
-import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
+import co.topl.network.{ NodeViewSynchronizer, PeerSynchronizer, peer }
 import co.topl.utils.NetworkTimeProvider
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 import scala.concurrent.ExecutionContext
 
 class AppContext ( settings: AppSettings,
-                   networkOpt: Option[NetworkType],
+                   startupOpts: StartupOpts,
                    val upnpGateway: Option[Gateway]
                  )(implicit ec: ExecutionContext) {
 
@@ -25,9 +26,9 @@ class AppContext ( settings: AppSettings,
   val timeProvider = new NetworkTimeProvider(settings.ntp)
 
   // save chosen network for loading genesis config
-  val networkType: NetworkType = networkOpt match {
+  val networkType: NetworkType = startupOpts.networkTypeOpt match {
     case Some(network) => network
-    case None          => NetworkType.LocalNet
+    case None          => NetworkType.PrivateNet
   }
 
   // enumerate features and message specs present for communicating between peers

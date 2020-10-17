@@ -51,8 +51,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, startupOpts.networkTypeOpt, upnpGateway)
+  // save runtime environment into a variable for reference throughout the application
+  protected val appContext = new AppContext(settings, startupOpts, upnpGateway)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
@@ -168,7 +168,7 @@ object BifrostApp extends Logging {
   // parse command line arguments
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*)
     ).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +183,7 @@ object BifrostApp extends Logging {
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
     log.warn("Terminating Actors")
-    actors.foreach { a => a ! PoisonPill }
+    actors.foreach { _ ! PoisonPill }
     log.warn("Terminating ActorSystem")
     val termination = system.terminate()
     Await.result(termination, 60.seconds)

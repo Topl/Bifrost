@@ -84,7 +84,7 @@ object AppSettings extends Logging with SettingsReaders {
     * @param startupOpts
     * @return
     */
-  def read (startupOpts : StartupOpts = StartupOpts.empty): AppSettings = {
+  def read (startupOpts: StartupOpts = StartupOpts.empty): AppSettings = {
     fromConfig(readConfig(startupOpts))
   }
 

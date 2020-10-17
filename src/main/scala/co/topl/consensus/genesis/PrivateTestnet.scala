@@ -13,8 +13,8 @@ import co.topl.settings.{ AppSettings, PrivateTestnetSettings, Version }
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-case class LocalTestnet(keyGen: Int => Set[PublicKey25519Proposition],
-                        settings: AppSettings) extends GenesisProvider {
+case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
+                            settings: AppSettings) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 

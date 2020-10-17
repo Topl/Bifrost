@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.consensus.KeyRing
-import co.topl.consensus.genesis.LocalTestnet
+import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder
@@ -253,7 +253,7 @@ object StateSpec {
   Try(path.deleteRecursively())
 
   val keyRing: KeyRing = KeyRing(path + "/keyfiles")
-  val block: Block = LocalTestnet((_: Int) => {
+  val block: Block = PrivateTestnet(( _: Int) => {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex

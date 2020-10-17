@@ -3,7 +3,7 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.consensus.Forger.ConsensusParams
-import co.topl.consensus.genesis.{ LocalTestnet, Toplnet }
+import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
@@ -13,7 +13,7 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ LocalNet, MainNet }
+import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
@@ -77,8 +77,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
   private def initialization: Receive = {
-    case GenerateGenesis         => sender() ! initializeGenesis
-    case NodeViewReady           =>
+    case GenerateGenesis => sender() ! initializeGenesis
+    case NodeViewReady   =>
       log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
       context become readyToForge
       checkPrivateForging()
@@ -145,19 +145,24 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKey25519Proposition] =
+  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
     keyRing.generateNewKeyPairs(num) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
+  }
 
-  /** Return the correct genesis parameters for the chosen network. NOTE: the default private network is set
-   * in AppContext so the fall-through should result in an error.*/
-  private def initializeGenesis: Try[Block] =
+  /** Return the correct genesis parameters for the chosen network.
+   * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
+   */
+  private def initializeGenesis: Try[Block] = {
     (appContext.networkType match {
-      case MainNet  => Toplnet.getGenesisBlock
-      case LocalNet => LocalTestnet(generateKeys, settings).getGenesisBlock
-      case _        => throw new Error("Undefined network type.")
+      case MainNet    => Toplnet.getGenesisBlock
+      case TestNet    => ???
+      case DevNet     => ???
+      case LocalNet   => ???
+      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case _          => throw new Error("Undefined network type.")
     }).map {
       case (block: Block, ConsensusParams(totalStake, initDifficulty)) =>
         maxStake = totalStake
@@ -165,6 +170,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
         block
     }
+  }
 
   /** Sets the genesis network parameters for calculating adjusted difficulty */
   private def setConsensusParameters (): Unit = {
@@ -192,6 +198,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
       log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
         s"${boxes.map(_.value).sum}")
+
+      require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
       // create the coinbase reward transaction
       val coinbase = createCoinbase(history.bestBlock.id) match {
