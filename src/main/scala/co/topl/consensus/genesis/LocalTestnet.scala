@@ -54,7 +54,7 @@ case class LocalTestnet(keyGen: Int => Set[PublicKey25519Proposition],
 
     val block = Block(History.GenesisParentId, 0L, generatorBox, signature, txs, blockVersion.blockByte)
 
-    log.debug(s"Initialize state with transaction ${txs} with boxes ${txs.head.newBoxes}")
+    log.debug(s"Initialize state with transactions ${txs}")
 
     (block, ConsensusParams(privateTotalStake, initialDifficulty))
   }

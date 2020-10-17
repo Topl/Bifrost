@@ -318,9 +318,11 @@ object State extends Logging {
       )
 
     // node keys are a set of keys that this node will restrict its state to update
-    val nodeKeys: Option[Set[PublicKey25519Proposition]] =
-      settings.application.nodeKeys
-        .map(_.map(k => PublicKey25519Proposition(k)))
+    val nodeKeys: Option[Set[PublicKey25519Proposition]] = settings.application.nodeKeys match {
+      case None => None
+      case Some(keys) if keys.isEmpty => None
+      case Some(keys) => Some(keys.map(k => PublicKey25519Proposition(k)))
+    }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")

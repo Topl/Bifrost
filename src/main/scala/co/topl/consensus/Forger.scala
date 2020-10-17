@@ -1,23 +1,23 @@
 package co.topl.consensus
 
 import akka.actor._
+import akka.util.Timeout
 import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.genesis.{ LocalTestnet, Toplnet }
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
-import co.topl.nodeView.CurrentView
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.consensus.genesis.{ LocalTestnet, Toplnet }
+import co.topl.nodeView.{ CurrentView, NodeViewHolder }
 import co.topl.settings.NetworkType.{ LocalNet, MainNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{ Failure, Success, Try }
@@ -55,7 +55,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
     context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
-    context.system.eventStream.subscribe(self, classOf[CurrentView[History, State, MemPool]])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -103,9 +102,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
       context become readyToForge
 
-    case CurrentView(h: History, s: State, m: MemPool) =>
+    case CurrentView(history: History, state: State, mempool: MemPool) =>
           updateForgeTime() // update the forge timestamp
-          tryForging(h, s, m) // initiate forging attempt
+          tryForging(history, state, mempool) // initiate forging attempt
           scheduleForgingAttempt() // schedule the next forging attempt
   }
 
@@ -126,15 +125,24 @@ class Forger (settings: AppSettings, appContext: AppContext )
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
-    context.system.scheduler.scheduleOnce(blockGenerationDelay)(context.system.eventStream.publish(GetDataFromCurrentView))
+    implicit val timeout: Timeout = Timeout(blockGenerationDelay)
+    // going to go with actorSelection for now but the block creation heeds to be moved to the ledger layer
+    context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
+      case Success(nvh: ActorRef) =>
+        context.system.scheduler.scheduleOnce(blockGenerationDelay)(nvh ! GetDataFromCurrentView)
+      case _ =>
+        log.warn("No ledger actor found. Stopping forging attempts")
+        self ! StopForging
+    }
   }
 
   /** Updates the forging actors timestamp */
   private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging (): Unit =
+  private def checkPrivateForging (): Unit = {
     if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+  }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateKeys (num: Int): Set[PublicKey25519Proposition] =

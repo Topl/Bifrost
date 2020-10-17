@@ -70,7 +70,6 @@ class NodeViewHolder ( settings: AppSettings,
   /** Define actor control behavior */
   override def preStart(): Unit = {
     // subscribe to particular messages this actor expects to receive
-    context.system.eventStream.subscribe(self, GetDataFromCurrentView.getClass)
     context.system.eventStream.subscribe(self, classOf[LocallyGeneratedModifier[PMOD]])
 
     log.info(s"${Console.YELLOW}NodeViewHolder publishing ready signal${Console.RESET}")
