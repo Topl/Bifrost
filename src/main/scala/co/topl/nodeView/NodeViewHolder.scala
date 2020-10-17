@@ -179,7 +179,7 @@ class NodeViewHolder ( settings: AppSettings,
 
   private def getGenesisBlock(implicit timeout: Timeout): Future[Block] = {
     // need to lookup the actor reference for the forger
-    context.actorSelection("user/" + Forger.actorName).resolveOne().flatMap { consensusRef =>
+    context.actorSelection("../" + Forger.actorName).resolveOne().flatMap { consensusRef =>
 
       // if a reference was found, ask for the genesis block
      (consensusRef ? GenerateGenesis).mapTo[Try[Block]].map {

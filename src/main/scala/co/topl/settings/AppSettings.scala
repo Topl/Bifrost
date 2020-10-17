@@ -20,10 +20,10 @@ case class ApplicationSettings (dataDir: Option[String],
                                 cacheSize: Int)
 
 case class RESTApiSettings (bindAddress: InetSocketAddress,
-                            apiKeyHash  : String,
-                            corsAllowed : Boolean,
-                            timeout     : FiniteDuration,
-                            verboseAPI  : Boolean)
+                            apiKeyHash : String,
+                            corsAllowed: Boolean,
+                            timeout    : FiniteDuration,
+                            verboseAPI : Boolean)
 
 case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             agentName: String,
@@ -60,7 +60,7 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             upnpUseRandom           : Option[Boolean],
                             upnpGatewayTimeout      : Option[FiniteDuration])
 
-case class ForgingSettings (forgingAttempts  : Int,
+case class ForgingSettings (forgingAttempts : Int,
                             targetBlockTime : FiniteDuration,
                             numTxPerBlock   : Int,
                             privateTestnet  : Option[PrivateTestnetSettings])
@@ -101,7 +101,7 @@ object AppSettings extends Logging with SettingsReaders {
         Option(s"src/main/resources/${networkType.verboseName}.conf")
     }
 
-    args.networkTypeOpt.fold(log.warn("No network specified. Running as local testnet."))(
+    args.networkTypeOpt.fold(log.warn("No network specified, running as local testnet."))(
       networkType => log.info(s"Running in ${networkType.verboseName} network mode"))
 
     val networkConfigFileOpt = for {

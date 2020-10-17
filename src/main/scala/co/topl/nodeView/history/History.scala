@@ -80,7 +80,6 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
   override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
-    println(s"\n>>>>>>>>>>>>$block")
 
     // test new block against all validators
     val validationResults = validators.map(_.validate(block)).map {
@@ -532,8 +531,6 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
     } else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
-
-      println(s"\n>>>>>>>>>>> startingpoints: $startingPoints")
 
       if (startingPoints.headOption.contains(GenesisParentId)) {
         BifrostSyncInfo(GenesisParentId +: startingPoints)

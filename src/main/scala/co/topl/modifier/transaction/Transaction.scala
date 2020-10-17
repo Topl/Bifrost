@@ -12,13 +12,11 @@ import supertagged.@@
 
 trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
 
-  self =>
-
   override type M = Transaction
 
   override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
-  override lazy val json: Json = Transaction.jsonEncoder(self)
+  override lazy val json: Json = Transaction.jsonEncoder(this)
 
   override lazy val serializer: BifrostSerializer[Transaction] = TransactionSerializer
 

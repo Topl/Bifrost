@@ -55,6 +55,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
     context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
+    context.system.eventStream.subscribe(self, classOf[CurrentView[History, State, MemPool]])
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
