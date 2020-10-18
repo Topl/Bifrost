@@ -92,6 +92,11 @@ final class InMemoryPeerDatabase(settings: NetworkSettings, timeProvider: TimePr
       }
     }
 
+  override def peerSeen(peerInfo: PeerInfo): Unit = {
+    val pi = peerInfo.copy(lastSeen = timeProvider.time())
+    addOrUpdateKnownPeer(pi)
+  }
+
   /**
     * Currently accumulated penalty score for a given address.
     */

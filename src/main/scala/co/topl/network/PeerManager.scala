@@ -68,6 +68,8 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
         peerDatabase.addOrUpdateKnownPeer(peerInfo)
       }
 
+    case PeerSeen(peerInfo) => peerDatabase.peerSeen(peerInfo)
+
     case RemovePeer(address) =>
       log.info(s"$address removed")
       peerDatabase.remove(address)
@@ -112,6 +114,8 @@ object PeerManager {
 
     // peerListOperations messages
     case class AddOrUpdatePeer(data: PeerInfo)
+
+    case class PeerSeen(peerInfo: PeerInfo)
 
     case class AddPeerIfEmpty(data: PeerSpec)
 
