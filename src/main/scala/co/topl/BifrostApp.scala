@@ -63,7 +63,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // Create Bifrost singleton actors
   private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, appContext, peerManagerRef)
 
   private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
 
