@@ -280,7 +280,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
           ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
           Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
           Seq(cc),
-          settings.forging.version
+          settings.application.version.blockByte
         )
 
         val necessaryState = StateSpec

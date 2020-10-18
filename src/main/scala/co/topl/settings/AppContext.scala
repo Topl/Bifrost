@@ -4,9 +4,8 @@ import java.net.InetSocketAddress
 
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
-import co.topl.network.{ NodeViewSynchronizer, PeerSynchronizer, peer }
+import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
 import co.topl.utils.NetworkTimeProvider
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 import scala.concurrent.ExecutionContext
 

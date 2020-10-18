@@ -58,7 +58,7 @@ class CodeCreationSpec extends AnyWordSpec
           Seq(txInstance),
           ArbitBox(prop, 0L, 10000L),
           signSk,
-          settings.forging.version
+          settings.application.version.blockByte
         )
 
         view().state.applyModifier(tempBlock)

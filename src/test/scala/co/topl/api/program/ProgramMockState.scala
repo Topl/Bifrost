@@ -13,7 +13,7 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
-import co.topl.settings.AppContext
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
@@ -34,7 +34,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
