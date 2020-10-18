@@ -38,7 +38,7 @@ val akkaDependencies = Seq(
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
-  "commons-net" % "commons-net" % "3.7.1"
+  "commons-net" % "commons-net" % "3.7.2"
 )
 
 val apiDependencies = Seq(
