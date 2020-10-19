@@ -214,7 +214,7 @@ class RequestSpec extends AsyncFlatSpec
          |  "id" : "9ZP1eUEDAhtesHZH4PFaaFhjyo9FvFqA8QGSH2auoJbX",
          |  "txs" : [
          |    {
-         |      "txType" : "CoinbaseTransaction",
+         |      "txType" : "ArbitTransfer",
          |      "txHash" : "3nKBueQ1Mj5VkAiqNf9LgUsT5sLJLUpVXmk5otwYmU52",
          |      "timestamp" : 1602624092222,
          |      "signatures" : [
@@ -227,6 +227,20 @@ class RequestSpec extends AsyncFlatSpec
          |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
          |          "value" : "10",
          |          "nonce" : "mhj3GHI9asdkj0JKLre3P"
+         |        },
+         |        {
+         |          "nonce": "-9110370178208068175",
+         |          "id": "GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8",
+         |          "type": "Arbit",
+         |          "proposition": "3X4AW3Swr1iM1syu2g4Xi4L4eTSJFKxGsZPgVctUYg4ga8MZpD",
+         |          "value": "1000000"
+         |        },
+         |        {
+         |          "nonce": "-8269943573030898832",
+         |          "id": "97gkUUwPQWGKU1LMf7cZE4PGdbUezWYLcbcuiRRryGeE",
+         |          "type": "Arbit",
+         |          "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
+         |          "value": "1000000"
          |        }
          |      ],
          |      "to" : [
@@ -234,6 +248,50 @@ class RequestSpec extends AsyncFlatSpec
          |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
          |          "value" : 0
          |        }
+         |      ],
+         |      "boxesToRemove": [
+         |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
+         |      ],
+         |      "fee" : 0
+         |    },
+         |    {
+         |      "txType": "PolyTransfer",
+         |      "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
+         |      "timestamp": 0,
+         |      "signatures": {
+         |          "2xdTv8awN1BjgYEw8W1BVXVtiEwG2b29U8KoZQqJrDuEqSQ9e4": "Signature25519(2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2)"
+         |      },
+         |      "newBoxes": [
+         |          {
+         |             "nonce": "-5988475187915922381",
+         |             "id": "GgNqzkSywewv99vCrb99UakEw1Myn4mqYXo3N4a6PWVW",
+         |             "type": "Poly",
+         |             "proposition": "3X4AW3Swr1iM1syu2g4Xi4L4eTSJFKxGsZPgVctUYg4ga8MZpD",
+         |             "value": "1000000"
+         |          },
+         |          {
+         |             "nonce": "965750754031143229",
+         |             "id": "5UGTHuvG7kJVqp9Sw55A1C6wVEtgeQKn12njLG1bbUTK",
+         |             "type": "Poly",
+         |             "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
+         |             "value": "1000000"
+         |          },
+         |          {
+         |             "nonce": "-59884751870915922381",
+         |             "id": "GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW",
+         |             "type": "Poly",
+         |             "proposition": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |             "value": "1000000"
+         |          }
+         |      ],
+         |      "to" : [
+         |        {
+         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |          "value" : 0
+         |        }
+         |      ],
+         |      "boxesToRemove": [
+         |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
          |      ],
          |      "fee" : 0
          |    }
@@ -250,7 +308,7 @@ class RequestSpec extends AsyncFlatSpec
         val iTguyBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
         iTguyBoxes match {
           case Some(map) => {
-            assert(map.size == 1)
+            assert(map.size == 2)
           }
           case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
         }
@@ -258,6 +316,5 @@ class RequestSpec extends AsyncFlatSpec
       case Left(e) => sys.error(s"Could not parse json $e")
     }
   }
-
 
 }

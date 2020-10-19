@@ -40,6 +40,17 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     super.preRestart(reason, message)
   }
 
+  def parseJsonList(list: Json): Array[String] = {
+    var listArray: Array[String] = list.toString().trim.stripPrefix("[").stripSuffix("]").
+      split("},")
+   listArray = listArray.map(asset => {
+      if (listArray.indexOf(asset) != listArray.length-1) {
+        asset.concat("}")
+      } else asset
+    })
+    listArray
+  }
+
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
     * @param sameTypeBoxes - list of boxes all of the same box type
@@ -47,13 +58,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     */
   def parseBoxType (sameTypeBoxes: Json): MMap[String, Json] = {
     val boxesMap: MMap[String, Json] = MMap.empty
-    var boxesArray: Array[String] = sameTypeBoxes.toString().trim.stripPrefix("[").stripSuffix("]").
-      split("},")
-    boxesArray = boxesArray.map(asset => {
-      if (boxesArray.indexOf(asset) != boxesArray.length-1) {
-        asset.concat("}")
-      } else asset
-    })
+    val boxesArray: Array[String] = parseJsonList(sameTypeBoxes)
     boxesArray.foreach(asset => {
       val assetJson: Either[ParsingFailure, Json] = parse(asset)
       assetJson match {
@@ -105,25 +110,58 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     newestBlock = Some(block)
   }
 
+
+  def parseBoxesToAdd (newBoxes: Json, add: MMap[String, MMap[String, Json]]): MMap[String, MMap[String, Json]] = {
+    val boxes: Array[String] = parseJsonList(newBoxes)
+    boxes.foreach(boxString => {
+      val boxJson: Either[ParsingFailure, Json] = parse(boxString)
+      boxJson match {
+        case Right(json) =>
+          val publicKey: String = (json \\ "proposition").head.toString().replace("\"", "")
+          var idToBox: MMap[String, Json] = MMap.empty
+          add.get(publicKey) match {
+            case Some(boxesMap) => idToBox = boxesMap
+            case None => idToBox = MMap.empty
+          }
+          val id: String = (json \\ "id").head.toString().replace("\"", "")
+          idToBox.put(id, json)
+          add.put(publicKey, idToBox)
+        case Left(e) => sys.error(s"Could not parse json: $e")
+      }
+    })
+    add
+  }
+
   def updateWalletFromBlock(newBlock: Json): Unit = {
-    val tx: Json = (newBlock \\ "txs").head
-    val add: MMap[String, MMap[String, Json]] = MMap.empty
+    var add: MMap[String, MMap[String, Json]] = MMap.empty
     //val remove: List[(String, List[String])] = List.empty
     var idsToRemove: List[String] = List.empty
-    val newBoxes: List[Json] = tx \\ "newBoxes"
+    val tx: Json = (newBlock \\ "txs").head
+    val newBoxes = tx \\ "newBoxes"
     if ((newBoxes.head \\ "proposition").nonEmpty) {
-      newBoxes.foreach(box => {
-        val publicKey: Json = (box \\ "proposition").head
-        val idToBox: MMap[String, Json] = MMap.empty
-        val id: Json = (box \\ "id").head
-        idToBox.put(id.toString().replace("\"", ""), box)
-        add.put(publicKey.toString().replace("\"", ""), idToBox)
+      var transactions: Array[String] = tx.toString().trim.stripPrefix("[").stripSuffix("]").
+        split("fee")
+      transactions = transactions.map(asset => {
+        if (transactions.indexOf(asset) != transactions.length-1) {
+          if (transactions.indexOf(asset) != 0) {
+            asset.trim.substring(3).trim.substring(2).trim.substring(2).trim
+              .substring(0, asset.length-14).trim.stripSuffix(",").concat("}")
+          }else asset.substring(0, asset.length-2).trim.stripSuffix(",").concat("}")
+        } else asset.trim.substring(3).trim.substring(2).trim
       })
-    }
-
-    if ((tx \\ "boxesToRemove").nonEmpty) {
-      val boxesToRemove: List[Json] = tx \\ "boxesToRemove"
-      idsToRemove = boxesToRemove.map(box => box.toString())
+      transactions.foreach(txString => {
+        val txJson: Either[ParsingFailure, Json] = parse(txString)
+        txJson match {
+          case Right(json) =>
+            val newBoxes = (json \\ "newBoxes").head
+            add = parseBoxesToAdd(newBoxes, add)
+            if ((tx \\ "boxesToRemove").nonEmpty) {
+              val boxesToRemove: List[Json] = tx \\ "boxesToRemove"
+              idsToRemove = boxesToRemove.map(box => box.toString().trim.stripPrefix("[").stripSuffix("]").trim.stripPrefix("\"").stripSuffix("\""))
+            }
+          case Left(e) => println("could not parse: " + txString)
+        }
+      })
     }
     addAndRemoveBoxes(add, idsToRemove)
   }
