@@ -30,6 +30,6 @@ object Version {
 //    new Version(split(0).toByte, split(1).toByte, split(2).toByte)
 //  }
 
-  val initial: Version = new Version(0, 0, 1)
-  val last: Version = new Version(0, 0, 1)
+  val initial: Version = Version(0, 0, 1)
+  val last: Version = Version(0, 0, 1)
 }

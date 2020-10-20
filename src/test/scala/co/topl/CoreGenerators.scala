@@ -40,7 +40,7 @@ trait CoreGenerators {
     fd <- Gen.choose(0: Byte, MaxVersion)
     sd <- Gen.choose(0: Byte, MaxVersion)
     td <- Gen.choose(0: Byte, MaxVersion)
-  } yield new Version(fd, sd, td)
+  } yield Version(fd, sd, td)
   lazy val inetSocketAddressGen = for {
     ip1 <- Gen.choose(0, MaxIp)
     ip2 <- Gen.choose(0, MaxIp)

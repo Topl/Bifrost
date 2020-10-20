@@ -12,7 +12,7 @@ object VersionSerializer extends BifrostSerializer[Version] {
   }
 
   override def parse(r: Reader): Version = {
-    new Version(
+    Version(
       r.getByte(),
       r.getByte(),
       r.getByte()
