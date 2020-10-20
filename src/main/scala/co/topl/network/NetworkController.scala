@@ -4,20 +4,21 @@ import java.net._
 
 import akka.actor.SupervisorStrategy._
 import akka.actor._
-import akka.io.{ IO, Tcp }
+import akka.io.{IO, Tcp}
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ DisconnectedPeer, HandshakedPeer }
+import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
 import co.topl.network.message.Message
-import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PenaltyType, _ }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady, Version }
-import co.topl.utils.{ Logging, NetworkUtils }
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
+import co.topl.settings.{AppContext, AppSettings, NetworkSettings, NodeViewReady, Version}
+import co.topl.utils.TimeProvider.Time
+import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Control all network interaction
@@ -106,6 +107,7 @@ class NetworkController ( settings      : AppSettings,
   private def businessLogic: Receive = {
     // a message was RECEIVED from a remote peer
     case msg @ Message(spec, _, Some(remote)) =>
+      updatePeerStatus(remote) // update last seen time for the peer sending us this message
       messageHandlers.get(spec.messageCode) match {
         case Some(handler) => handler ! msg // forward the message to the appropriate handler for processing
         case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
@@ -172,7 +174,7 @@ class NetworkController ( settings      : AppSettings,
 
       // If enough live connections, remove unresponsive peer from the database
       // In not enough live connections, maybe connectivity lost but the node has not updated its status, no ban then
-      if (connections.size > settings.maxConnections / 2) {
+      if (connections.size > settings.network.maxConnections / 2) {
         peerManagerRef ! RemovePeer(c.remoteAddress)
       }
 
@@ -209,6 +211,7 @@ class NetworkController ( settings      : AppSettings,
 
       // only attempt connections if we are connected or attempting to connect to less than max connection
       if ( connections.size + unconfirmedConnections.size < settings.network.maxConnections ) {
+        log.info(s"Looking for a new random connection")
 
         // get a set of random peers from the database (excluding connected peers)
         val randomPeerF = peerManagerRef ? RandomPeerExcluding(connections.values.flatMap(_.peerInfo).toSeq)
@@ -231,7 +234,7 @@ class NetworkController ( settings      : AppSettings,
       // Drop connections with peers if they seem to be inactive
       connections.values.foreach { cp =>
         val lastSeen = cp.peerInfo.map(_.lastSeen).getOrElse(now)
-        if ((now - lastSeen) > settings.syncStatusRefreshStable.toMillis) {
+        if ((now - lastSeen) > settings.network.syncStatusRefreshStable.toMillis) {
           log.info(s"Dropping connection with ${cp.peerInfo}, last seen ${(now - lastSeen) / 1000} seconds ago")
           cp.handlerRef ! CloseConnection
         }
@@ -313,11 +316,29 @@ class NetworkController ( settings      : AppSettings,
   }
 
   /**
-   * Saves a new peer into the database
-   *
-   * @param peerInfo connected peer information
-   * @param peerHandlerRef dedicated handler actor reference
-   */
+    * Updates the local peer information when we receive new messages
+    * @param remote a connected peer that sent a message
+    */
+  private def updatePeerStatus(remote: ConnectedPeer): Unit = {
+    val remoteAddress = remote.connectionId.remoteAddress
+    connections.get(remote.connectionId.remoteAddress) match {
+      case Some(cp) => cp.peerInfo match {
+        case Some(pi) =>
+          val now = networkTime()
+          lastIncomingMessageTime = now
+          connections += remoteAddress -> cp.copy(peerInfo = Some(pi.copy(lastSeen = now)))
+        case None     => log.warn("Peer info not found for a message received from: " + remoteAddress)
+      }
+      case None     => log.warn("Connection not found for a message received from: " + remoteAddress)
+    }
+  }
+
+  /**
+    * Saves a new peer into the database
+    *
+    * @param peerInfo connected peer information
+    * @param peerHandlerRef dedicated handler actor reference
+    */
   private def handleHandshake ( peerInfo      : PeerInfo,
                                 peerHandlerRef: ActorRef
                               ): Unit = {
