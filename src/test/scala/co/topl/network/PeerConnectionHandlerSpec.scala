@@ -30,7 +30,7 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
     val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
     val networkControllerRef: ActorRef =
-      NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
+      NetworkControllerRef("networkController", settings.network, appContext, peerManagerRef)
 
     val localPort = 9085
     val remotePort = 9086
