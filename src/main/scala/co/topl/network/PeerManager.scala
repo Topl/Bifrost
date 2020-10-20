@@ -62,7 +62,7 @@ class PeerManager (settings: AppSettings,
       else sender() ! ConnectionConfirmed(connectionId, handlerRef)
 
     case AddOrUpdatePeer(peerInfo) =>
-      // We have connected to a peer and got his peerInfo from him
+      // We have connected to a peer and got peerInfo from them
       if (!isSelf(peerInfo.peerSpec)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
 
     case Penalize(peer, penaltyType) =>
@@ -77,8 +77,11 @@ class PeerManager (settings: AppSettings,
       // We have received peer data from other peers. It might be modified and should not affect existing data if any
       if (peerSpec.address.forall(a => peerDatabase.get(a).isEmpty) && !isSelf(peerSpec)) {
         val peerInfo: PeerInfo = PeerInfo(peerSpec, 0, None)
+        log.info(s"New discovered peer: $peerInfo")
         peerDatabase.addOrUpdateKnownPeer(peerInfo)
       }
+
+    case PeerSeen(peerInfo) => peerDatabase.peerSeen(peerInfo)
 
     case RemovePeer(address) =>
       log.info(s"$address removed")
@@ -127,6 +130,8 @@ object PeerManager {
     // peerListOperations messages
     case class AddOrUpdatePeer(data: PeerInfo)
 
+    case class PeerSeen(peerInfo: PeerInfo)
+
     case class AddPeerIfEmpty(data: PeerSpec)
 
     case class RemovePeer(address: InetSocketAddress)
@@ -141,19 +146,17 @@ object PeerManager {
     }
 
     /**
-      * Choose at most `howMany` random peers, which are connected to our peer or
-      * were connected in at most 1 hour ago and weren't blacklisted.
-      */
+     * Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
+     *
+     * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
+     */
     case class RecentlySeenPeers(howMany: Int) extends GetPeers[Seq[PeerInfo]] {
-      private val TimeDiff: Long = 60 * 60 * 1000
-
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
                           sc: AppContext): Seq[PeerInfo] = {
-        val currentTime = sc.timeProvider.time()
         val recentlySeenNonBlacklisted = knownPeers.values.toSeq
           .filter { p =>
-            (p.connectionType.isDefined || currentTime - p.lastSeen > TimeDiff) &&
+            (p.connectionType.isDefined || p.lastSeen > 0) &&
               !blacklistedPeers.exists(ip => p.peerSpec.declaredAddress.exists(_.getAddress == ip))
           }
         Random.shuffle(recentlySeenNonBlacklisted).take(howMany)
