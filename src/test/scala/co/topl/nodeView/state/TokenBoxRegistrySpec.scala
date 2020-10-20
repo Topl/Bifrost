@@ -2,11 +2,9 @@ package co.topl.nodeView.state
 
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.NodeViewHolder.MS
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -19,7 +17,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  val state: MS = State.readOrGenerate(settings)
+  val state: State = State.readOrGenerate(settings)
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>
@@ -27,7 +25,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
       directlyAddTBRStorage(scala.util.Random.nextInt, tokens, state)
       keys.foreach { key =>
         val ids = key._2.map(_.id)
-        state.registryLookup(key._1).value shouldEqual ids
+        state.registryLookup(key._1).get shouldEqual ids
       }
     }
   }

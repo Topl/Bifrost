@@ -1,25 +1,25 @@
 package co.topl.nodeView.state
 
+import co.topl.consensus.KeyRing
+import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.NodeViewHolder.{HIS, MP, MS}
+import co.topl.modifier.block.Block
+import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{BoxId, StateBox}
-import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
+import io.circe.Json
 import io.circe.syntax._
-import org.scalatest.{BeforeAndAfterAll, Ignore}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import org.scalatest.{BeforeAndAfterAll, Ignore}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 @Ignore
 class ProgramBoxRegistrySpec extends AnyPropSpec
@@ -33,22 +33,24 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())
 
-  private val settingsFilename = "src/test/resources/test.conf"
-  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
+  val keyRing: KeyRing = KeyRing(path + "/keyfiles")
+  val genesisBlock: Block = PrivateTestnet((_: Int) => {
+    keyRing.generateNewKeyPairs(num = 3) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    } }, testSettings).getGenesisBlock.get._1
 
-  val gs: (HIS, MS, MP) = NodeViewHolder.initializeGenesis(testSettings)
-  val history: HIS = gs._1
-  val genesisState: MS = gs._2
+  def genesisState(): State = State.genesisState(testSettings, Seq(genesisBlock)).copy()
 
   val pubKey: PublicKey25519Proposition =
     PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
 
-  val stateOne =
+  val stateOne: Json =
     s"""
        |{ "a": "0" }
      """.stripMargin.asJson
 
-  val stateTwo =
+  val stateTwo: Json =
     s"""
        |{"b": "1" }
      """.stripMargin.asJson
@@ -62,7 +64,7 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
 
     val changes_1: StateChanges = StateChanges(Set(), Set(sboxOne))
     val pbr_changes_1 = Some(ProgramRegistryChanges(Map(), Map(sboxOne.value -> Seq(sboxOne.id))))
-    newState_1 = genesisState.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
+    newState_1 = genesisState().applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
 
     assert(newState_1.registryLookup(sboxOne.value).get.head == sboxOne.id)
     assert(newState_1.getProgramBox[StateBox](sboxOne.value).get.bytes sameElements sboxOne.bytes)
@@ -89,7 +91,6 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   }
 
   override def afterAll() {
-    history.closeStorage()
-    genesisState.closeStorage()
+    genesisState().closeStorage()
   }
 }

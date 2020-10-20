@@ -265,12 +265,15 @@ case class State ( override val version     : VersionTag,
   }
 }
 
+
+
+
 object State extends Logging {
 
   def genesisState ( settings: AppSettings, initialBlocks: Seq[Block] ): State = {
     initialBlocks
-      .foldLeft(readOrGenerate(settings, callFromGenesis = true)) {
-        ( state, mod ) => state.applyModifier(mod).get
+      .foldLeft(readOrGenerate(settings)) {
+        (state, mod) => state.applyModifier(mod).get
       }
   }
 
@@ -300,11 +303,11 @@ object State extends Logging {
   def exists(settings: AppSettings): Boolean = stateFile(settings).exists()
 
   def stateFile(settings: AppSettings): File = {
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     new File(s"$dataDir/state")
   }
 
-  def readOrGenerate ( settings: AppSettings, callFromGenesis: Boolean = false ): State = {
+  def readOrGenerate (settings: AppSettings): State = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
     val storage = new LSMStore(sFile)
@@ -315,10 +318,11 @@ object State extends Logging {
       )
 
     // node keys are a set of keys that this node will restrict its state to update
-    val nodeKeys: Option[Set[PublicKey25519Proposition]] =
-      settings
-        .nodeKeys
-        .map(_.map(k => PublicKey25519Proposition(k)))
+    val nodeKeys: Option[Set[PublicKey25519Proposition]] = settings.application.nodeKeys match {
+      case None => None
+      case Some(keys) if keys.isEmpty => None
+      case Some(keys) => Some(keys.map(k => PublicKey25519Proposition(k)))
+    }
 
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")

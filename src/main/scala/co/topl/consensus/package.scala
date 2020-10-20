@@ -9,23 +9,27 @@ import scala.concurrent.duration._
 import scala.math.{max, min}
 
 package object consensus {
-  // TODO: JAA - 2020.07.21 - This is the maximum number of Arbits that are issued. It probably shouldn't be
-  // TODO: hard-coded
-  // these variables are left as vars since they need to be determined at runtime from the network config
+  // these variables are left as vars since they MUST be determined at runtime from the config file
   // todo: JAA - figure out a better way to do this
-  private var _maxStake: Long = 5000000000L
-  private var _inflation: Long = 0L
-  private var _targetBlockTime: FiniteDuration = FiniteDuration(5, "seconds")
+  private var _maxStake: Long = _
+  private var _inflation: Long = _
+  private var _targetBlockTime: FiniteDuration = _
+  private var _difficulty: Long = _
+  private var _numTxInBlock: Int = _
 
   // setters
-  def maxStake_= (value: Long): Unit = _maxStake = value
-  def inflation_= (value: Long): Unit = _inflation = value
-  def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
+  private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
+  private[consensus] def inflation_= (value: Long): Unit = _inflation = value
+  private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
+  private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
+  private[consensus] def numTxInBlock_= (value: Int): Unit = _numTxInBlock = value
 
   // getters
   def maxStake: Long = _maxStake
   def inflation: Long = _inflation
   def targetBlockTime: FiniteDuration = _targetBlockTime
+  def difficulty: Long = _difficulty
+  def numTxInBlock: Int = _numTxInBlock
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge

@@ -5,9 +5,8 @@ import co.topl.nodeView.state.box.proposition.{Proposition, PublicKey25519Propos
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
-import supertagged.@@
+import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
@@ -40,6 +39,15 @@ object Signature25519 {
       }
     }
   }
+
+  /** Returns a signature filled with 1's for use in genesis signatures */
+  def genesis (): Signature25519 = {
+    Signature25519(Signature @@ Array.fill(Signature25519.SignatureSize)(1: Byte))
+  }
+
+  /** Helper function to create empty signatures */
+  def empty (): Signature25519 = Signature25519(Signature @@ Array.emptyByteArray)
+
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html

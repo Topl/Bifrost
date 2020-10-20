@@ -9,12 +9,12 @@ import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
 import co.topl.http.api.routes.DebugApiRoute
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.AppContext
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
@@ -36,7 +36,7 @@ class DebugRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)

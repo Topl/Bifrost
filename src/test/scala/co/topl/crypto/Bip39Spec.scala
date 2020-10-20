@@ -2,12 +2,8 @@ package co.topl.crypto
 
 import co.topl.consensus.KeyFile
 import co.topl.utils.Logging
-import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import scala.reflect.io.Path
-import scala.util.Try
 
 /*
  * Test class for verifying BIP39 phrase translator class
@@ -15,11 +11,7 @@ import scala.util.Try
 
 class Bip39Spec extends AnyFlatSpec
   with Matchers
-  with PrivateMethodTester
   with Logging {
-
-  val keyFileDir = "/tmp/bifrost/test-data/keyfiles/bip39test"
-  val path: Path = Path(keyFileDir)
 
   // sample uuid string
   val uuidString: String = java.util.UUID.randomUUID.toString
@@ -29,9 +21,6 @@ class Bip39Spec extends AnyFlatSpec
 
   //phrase translator
   val pt: Bip39 = Bip39(lang)
-
-  val getPrivateKey: PrivateMethod[Try[PrivateKey25519]] =
-    PrivateMethod[Try[PrivateKey25519]]('getPrivateKey)
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
@@ -81,35 +70,25 @@ class Bip39Spec extends AnyFlatSpec
     log.debug(checkPT(phraseGood24))
 
 
-    assert(pt.phraseToHex(phraseColeman) == hexColeman)
-
-    assert(pt.phraseToHex(phrase) == seedHex)
+    pt.phraseToHex(phraseColeman) shouldEqual hexColeman
+    pt.phraseToHex(phrase) shouldEqual seedHex
   }
 
-  "A key file" should "be generated" ignore {
-    Try(path.deleteRecursively())
-    Try(path.createDirectory())
-
-    val password = "password"
+  "A key file" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     val seed1 = pt.hexToUuid(seedHex)
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
-
     val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)
     val seed2Hash: Array[Byte] = FastCryptographicHash(seed2)
+    val key1 = PrivateKey25519.generateKeys(seed1Hash)
+    val key2 = PrivateKey25519.generateKeys(seed2Hash)
+    val key3 = PrivateKey25519.generateKeys(FastCryptographicHash(uuidString))
 
-    val key1 = KeyFile(password, seed1Hash)
-    val key2 = KeyFile(password, seed2Hash)
-    val key3 = KeyFile(password, FastCryptographicHash(uuidString))
+    KeyFile.generateKeyPair(seed1Hash)
 
-    val key1Private = key1 invokePrivate getPrivateKey(password)
-    val key2Private = key2 invokePrivate getPrivateKey(password)
-    val key3Private = key3 invokePrivate getPrivateKey(password)
+    key1 shouldEqual key2
+    key2 shouldEqual key3
+    key1 shouldEqual key3
 
-    key1Private.get.privKeyBytes.mkString("") shouldEqual key2Private.get.privKeyBytes.mkString("")
-    key2Private.get.privKeyBytes.mkString("") shouldEqual key3Private.get.privKeyBytes.mkString("")
-    key3Private.get.privKeyBytes.mkString("") shouldEqual key1Private.get.privKeyBytes.mkString("")
   }
-
-  Try(path.deleteRecursively())
 }

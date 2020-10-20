@@ -8,5 +8,5 @@ object Signature25519Serializer extends BifrostSerializer[Signature25519] {
 
   override def serialize(obj: Signature25519, w: Writer): Unit = w.putBytes(obj.signature)
 
-  override def parse(r: Reader): Signature25519 = Signature25519(Signature @@ r.getBytes(Curve25519.SignatureLength))
+  override def parse(r: Reader): Signature25519 = Signature25519(Signature @@ r.getBytes(Signature25519.SignatureSize))
 }

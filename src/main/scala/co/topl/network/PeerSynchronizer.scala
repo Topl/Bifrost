@@ -1,11 +1,13 @@
 package co.topl.network
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.pattern.ask
 import akka.util.Timeout
+import co.topl.network.NetworkController.ReceivableMessages.{ PenalizePeer, RegisterMessageSpecs, SendToNetwork }
+import co.topl.network.PeerManager.ReceivableMessages.{ AddPeerIfEmpty, RecentlySeenPeers }
 import co.topl.network.message._
-import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
-import co.topl.settings.{AppContext, NetworkSettings}
+import co.topl.network.peer.{ ConnectedPeer, PeerInfo, PeerSpec, PenaltyType }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
 
@@ -18,19 +20,11 @@ import scala.language.postfixOps
  */
 class PeerSynchronizer ( networkControllerRef: ActorRef,
                          peerManager         : ActorRef,
-                         settings            : NetworkSettings,
-                         appContext      : AppContext
-                       )( implicit
-                          ec: ExecutionContext
-                       ) extends Synchronizer
-                                 with Logging {
+                         settings            : AppSettings,
+                         appContext          : AppContext
+                       )( implicit ec: ExecutionContext ) extends Synchronizer with Logging {
 
-  // Import the types of messages this actor can SEND
-
-  import PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
-  import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessageSpecs, SendToNetwork}
-
-  private implicit val timeout: Timeout = Timeout(settings.syncTimeout.getOrElse(5 seconds))
+  private implicit val timeout: Timeout = Timeout(settings.network.syncTimeout.getOrElse(5 seconds))
 
   // types of remote messages to be handled by this synchronizer
   protected val peersSpec: PeersSpec = appContext.peerSyncRemoteMessages.peersSpec
@@ -43,25 +37,41 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
   }
 
   override def preStart: Unit = {
-    networkControllerRef ! RegisterMessageSpecs(
-      appContext.peerSyncRemoteMessages.toSeq,
-      self
-      )
+    //register as a handler for synchronization-specific types of messages
+    networkControllerRef ! RegisterMessageSpecs(appContext.peerSyncRemoteMessages.toSeq, self)
 
-    val msg = Message[Unit](getPeersSpec, Right(Unit), None)
-    context.system.scheduler.scheduleWithFixedDelay(2.seconds,
-                                                    settings.getPeersInterval,
-                                                    networkControllerRef,
-                                                    SendToNetwork(msg, SendToRandom))
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////******
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
-  // ----------- CONTEXT && MESSAGE PROCESSING FUNCTIONS
-  override def receive: Receive = {
+  // ----------- CONTEXT
+  override def receive: Receive =
+    initialization orElse nonsense
+
+  private def operational: Receive = {
     processDataFromPeer orElse
       nonsense
+  }
+
+  // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization(): Receive = {
+    case NodeViewReady =>
+      log.info(s"${Console.YELLOW}PeerSynchronizer transitioning to the operational state${Console.RESET}")
+      context become operational
+      scheduleGetPeers()
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  /** Schedule a message to gossip about our locally known peers */
+  private def scheduleGetPeers(): Unit = {
+    val msg = Message[Unit](getPeersSpec, Right(Unit), None)
+    context.system.scheduler.scheduleWithFixedDelay(
+      2.seconds, settings.network.getPeersInterval, networkControllerRef, SendToNetwork(msg, SendToRandom)
+      )
   }
 
   /**
@@ -80,10 +90,9 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
    * @param remote the remote peer to be informed of our local peers
    */
   private def gossipPeers ( remote: ConnectedPeer ): Unit =
-    (peerManager ? RecentlySeenPeers(settings.maxPeerSpecObjects))
+    (peerManager ? RecentlySeenPeers(settings.network.maxPeerSpecObjects))
       .mapTo[Seq[PeerInfo]]
-      .foreach
-      { peers =>
+      .foreach { peers =>
         val msg = Message(peersSpec, Right(PeersData(peers.map(_.peerSpec))), None)
         networkControllerRef ! SendToNetwork(msg, SendToPeer(remote))
       }
@@ -92,8 +101,9 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
     networkControllerRef ! PenalizePeer(peer.connectionId.remoteAddress, PenaltyType.PermanentPenalty)
   }
 
-  protected def nonsense: Receive = { case nonsense: Any =>
-    log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
+  protected def nonsense: Receive = {
+    case nonsense: Any =>
+      log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 }
 
@@ -101,6 +111,8 @@ class PeerSynchronizer ( networkControllerRef: ActorRef,
 /////////////////////////////// COMPANION SINGLETON ////////////////////////////////
 
 object PeerSynchronizer {
+
+  val actorName = "peerSynchronizer"
 
   case class RemoteMessageHandler ( peersSpec: PeersSpec, getPeersSpec: GetPeersSpec ) {
 
@@ -114,41 +126,26 @@ object PeerSynchronizer {
 
 object PeerSynchronizerRef {
 
-  def apply ( networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,
-              appContext      : AppContext
-            )(
-              implicit
-              system: ActorSystem,
-              ec    : ExecutionContext
-            ): ActorRef =
-    system.actorOf(
-      props(networkControllerRef, peerManager, settings, appContext)
-      )
+  def apply ( networkControllerRef: ActorRef,
+              peerManager: ActorRef,
+              settings   : AppSettings,
+              appContext : AppContext
+            )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
+    system.actorOf(props(networkControllerRef, peerManager, settings, appContext))
 
-  def apply (
-              name                : String,
+  def apply ( name: String,
               networkControllerRef: ActorRef,
               peerManager         : ActorRef,
-              settings            : NetworkSettings,
-              appContext      : AppContext
+              settings            : AppSettings,
+              appContext          : AppContext
             )( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(
-      props(networkControllerRef, peerManager, settings, appContext),
-      name
-      )
+    system.actorOf(props(networkControllerRef, peerManager, settings, appContext), name)
 
-  def props ( networkControllerRef: ActorRef, peerManager: ActorRef, settings: NetworkSettings,
-              appContext      : AppContext
-            )(
-              implicit ec: ExecutionContext
-            ): Props =
-    Props(
-      new PeerSynchronizer(
-        networkControllerRef,
-        peerManager,
-        settings,
-        appContext
-        )
-      )
+  def props ( networkControllerRef: ActorRef,
+              peerManager         : ActorRef,
+              settings            : AppSettings,
+              appContext          : AppContext
+            )( implicit ec: ExecutionContext ): Props =
+    Props(new PeerSynchronizer(networkControllerRef, peerManager, settings, appContext))
 
 }
