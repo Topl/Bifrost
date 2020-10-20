@@ -63,6 +63,7 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
 case class ForgingSettings (forgingAttempts : Int,
                             targetBlockTime : FiniteDuration,
                             numTxPerBlock   : Int,
+                            nxtBlockNum     : Int,
                             privateTestnet  : Option[PrivateTestnetSettings])
 
 case class PrivateTestnetSettings (numTestnetAccts  : Int,

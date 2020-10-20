@@ -140,9 +140,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging (): Unit = {
+  private def checkPrivateForging (): Unit =
     if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
-  }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
@@ -176,6 +175,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   private def setConsensusParameters (): Unit = {
     targetBlockTime = settings.forging.targetBlockTime
     numTxInBlock = settings.forging.numTxPerBlock
+    nxtBlockNum = settings.forging.nxtBlockNum
   }
 
   /**
