@@ -12,8 +12,7 @@ import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
-import org.scalatest.{BeforeAndAfterAll, Ignore}
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
@@ -21,8 +20,8 @@ import scorex.util.encode.Base58
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
-@Ignore
-class ProgramBoxRegistrySpec extends AnyPropSpec
+@DoNotDiscover
+class ProgramBoxRegistrySpec extends StateSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -40,7 +39,7 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
       case Failure(ex)   => throw ex
     } }, testSettings).getGenesisBlock.get._1
 
-  def genesisState(): State = State.genesisState(testSettings, Seq(genesisBlock)).copy()
+  val state: State = createState(StateSpec.settingsFilename)
 
   val pubKey: PublicKey25519Proposition =
     PublicKey25519Proposition(PublicKey @@ Base58.decode("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").get)
@@ -64,7 +63,7 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
 
     val changes_1: StateChanges = StateChanges(Set(), Set(sboxOne))
     val pbr_changes_1 = Some(ProgramRegistryChanges(Map(), Map(sboxOne.value -> Seq(sboxOne.id))))
-    newState_1 = genesisState().applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
+    newState_1 = state.applyChanges(ModifierId(Ints.toByteArray(1)), changes_1, None, pbr_changes_1).get
 
     assert(newState_1.registryLookup(sboxOne.value).get.head == sboxOne.id)
     assert(newState_1.getProgramBox[StateBox](sboxOne.value).get.bytes sameElements sboxOne.bytes)
@@ -91,6 +90,6 @@ class ProgramBoxRegistrySpec extends AnyPropSpec
   }
 
   override def afterAll() {
-    genesisState().closeStorage()
+    state.closeStorage()
   }
 }
