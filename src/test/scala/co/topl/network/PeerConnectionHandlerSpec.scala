@@ -6,7 +6,7 @@ import akka.actor._
 import akka.testkit.TestKit
 import co.topl.BifrostGenerators
 import co.topl.network.message.MessageSerializer
-import co.topl.settings.AppContext
+import co.topl.settings.{AppContext, StartupOpts}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -19,7 +19,7 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
   with Matchers
   with BifrostGenerators {
 
-  val appContext = new AppContext(settings, None)
+  val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 
@@ -28,9 +28,9 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
   property("A new PeerConnectionHandler should be created") {
 
-    val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
+    val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings, appContext)
     val networkControllerRef: ActorRef =
-      NetworkControllerRef("networkController", settings.network, appContext, peerManagerRef)
+      NetworkControllerRef("networkController", settings, peerManagerRef, appContext)
 
     val localPort = 9085
     val remotePort = 9086
@@ -38,6 +38,6 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
 
     val connectionDescription = ConnectionDescription(networkControllerRef, connectionId, None, Seq())
 
-    PeerConnectionHandlerRef(settings.network, networkControllerRef, appContext, connectionDescription)
+    PeerConnectionHandlerRef(networkControllerRef, settings, appContext, connectionDescription)
   }
 }

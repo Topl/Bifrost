@@ -1,21 +1,22 @@
 package co.topl.consensus
 
-import java.io.{BufferedWriter, FileWriter}
+import java.io.{ BufferedWriter, FileWriter }
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import co.topl.crypto.PrivateKey25519
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.crypto.hash.Keccak256
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
+import scorex.crypto.hash.{ Digest32, Keccak256 }
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
@@ -93,14 +94,9 @@ object KeyFile {
     * Recreate a keyfile from the provided seed
     *
     * @param password string used to encrypt the private key when saved to disk
-    * @param seed byte array that is used to generate the new key pair
     * @return
     */
-  def apply (password: String, seed: Array[Byte]): KeyFile = {
-
-    // generate a new key pair
-    val (sk, pk) = PrivateKey25519.generateKeys(seed)
-
+  def apply (password: String, secretKey: PrivateKey25519): KeyFile = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
     val ivData = randomBytes(16)
@@ -109,17 +105,19 @@ object KeyFile {
     val derivedKey = getDerivedKey(password, salt)
 
     // encrypt private key
-    val (cipherText, mac) = getAESResult(derivedKey, ivData, sk.bytes, encrypt = true)
+    val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
 
-    new KeyFile(pk.pubKeyBytes, cipherText, mac, salt, ivData)
+    new KeyFile(secretKey.publicImage.pubKeyBytes, cipherText, mac, salt, ivData)
   }
 
   /** helper function to create a new random keyfile */
-  def apply (password: String): KeyFile = apply(password, randomBytes(16))
+  def generateKeyPair: (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(randomBytes(128))
+
+  def generateKeyPair (seed: Array[Byte]): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed)
 
   /**
     *
-    * @param filename path to file where key is stored
+    * @param filename
     * @return
     */
   def readFile (filename: String): KeyFile = {
@@ -134,8 +132,8 @@ object KeyFile {
 
   /**
     *
-    * @param password user defined password for encryption
-    * @param salt random salt to enhance security
+    * @param password
+    * @param salt
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {

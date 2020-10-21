@@ -39,7 +39,7 @@
 //
 //  /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
 //  // save environment into a variable for reference throughout the application
-//  protected val appContext = new AppContext(settings, None)
+//  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 //
 //  // Create Bifrost singleton actors
 //  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)

@@ -8,13 +8,14 @@ import co.topl.BifrostGenerators
 import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
+import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success}
 
-
+@DoNotDiscover
 class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

@@ -1,64 +1,69 @@
 package co.topl.consensus
 
 import akka.actor._
+import akka.util.Timeout
+import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{Coinbase, Transaction}
-import co.topl.nodeView.CurrentView
+import co.topl.modifier.transaction.{ Coinbase, Transaction }
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.settings.{AppContext, ForgingSettings}
+import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.nodeView.{ CurrentView, NodeViewHolder }
+import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{ Failure, Success, Try }
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
  * Must be singleton
  */
-class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
   //type HR = HistoryReader[Block, BifrostSyncInfo]
 
   // Import the types of messages this actor RECEIVES
-
   import Forger.ReceivableMessages._
 
-  // Import the types of messages this actor SENDS
-  import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
+  // version byte used for creating blocks
+  private val blockVersion = settings.application.version.firstDigit
 
   // holder of private keys that are used to forge
-  private val keyFileDir = settings.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
+
+  // calculate the delay between forging attempts (scaled to block time)
+  private lazy val blockGenerationDelay: FiniteDuration =
+    settings.forging.targetBlockTime / settings.forging.forgingAttempts
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
 
-  // setting to limit the size of blocks
-  val TransactionsInBlock = 100 //todo: JAA - should be a part of consensus, but for our app is okay
+  override def preStart (): Unit = {
+    //read consensus parameters from settings and set their values
+    setConsensusParameters()
 
-  override def preStart ( ): Unit = {
-    targetBlockTime = settings.targetBlockTime
-
-    if ( settings.tryForging ) {
-      keyRing.unlockKeyFile("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ", "genesis") match {
-        case Success(_) =>
-          context become readyToForge
-          self ! StartForging
-        case Failure(ex) => log.warn(s"Failed to unlock the keyfile: $ex")
-      }
-    }
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+    context.system.eventStream.subscribe(self, GenerateGenesis.getClass)
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
-  override def receive: Receive = nonsense
+  override def receive: Receive =
+    initialization orElse
+      nonsense
 
   private def readyToForge: Receive =
     readyHandlers orElse
@@ -71,6 +76,14 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
       nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization: Receive = {
+    case GenerateGenesis => sender() ! initializeGenesis
+    case NodeViewReady   =>
+      log.info(s"${Console.YELLOW}Forger transitioning to the operational state${Console.RESET}")
+      context become readyToForge
+      checkPrivateForging()
+  }
+
   private def readyHandlers: Receive = {
     case StartForging =>
       log.info("Received a START signal, forging will commence shortly.")
@@ -87,12 +100,12 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
     case StopForging =>
       log.info(s"Forger: Received a stop signal. Forging will terminate after this trial")
-      context become receive
+      context become readyToForge
 
-    case CurrentView(h: History, s: State, m: MemPool) =>
-      updateForgeTime() // update the forge timestamp
-      tryForging(h, s, m) // initiate forging attempt
-      scheduleForgingAttempt() // schedule the next forging attempt
+    case CurrentView(history: History, state: State, mempool: MemPool) =>
+          updateForgeTime() // update the forge timestamp
+          tryForging(history, state, mempool) // initiate forging attempt
+          scheduleForgingAttempt() // schedule the next forging attempt
   }
 
   private def keyManagement: Receive = {
@@ -105,17 +118,65 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
   private def nonsense: Receive = {
     case nonsense: Any =>
-      log.warn(s"Forger (in context ${context.toString}): got unexpected input $nonsense from ${sender()}")
+      log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a forging attempt */
-  private def scheduleForgingAttempt ( ): Unit =
-    context.system.scheduler.scheduleOnce(settings.blockGenerationDelay)(viewHolderRef ! GetDataFromCurrentView)
+  private def scheduleForgingAttempt (): Unit = {
+    implicit val timeout: Timeout = Timeout(blockGenerationDelay)
+    // going to go with actorSelection for now but the block creation heeds to be moved to the ledger layer
+    context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
+      case Success(nvh: ActorRef) =>
+        context.system.scheduler.scheduleOnce(blockGenerationDelay)(nvh ! GetDataFromCurrentView)
+      case _ =>
+        log.warn("No ledger actor found. Stopping forging attempts")
+        self ! StopForging
+    }
+  }
 
   /** Updates the forging actors timestamp */
-  private def updateForgeTime ( ): Unit = forgeTime = appContext.timeProvider.time()
+  private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
+
+  /** Helper function to enable private forging if we can expects keys in the key ring */
+  private def checkPrivateForging (): Unit = {
+    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+  }
+
+  /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
+  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
+    keyRing.generateNewKeyPairs(num) match {
+      case Success(keys) => keys.map(_.publicImage)
+      case Failure(ex)   => throw ex
+    }
+  }
+
+  /** Return the correct genesis parameters for the chosen network.
+   * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
+   */
+  private def initializeGenesis: Try[Block] = {
+    (appContext.networkType match {
+      case MainNet    => Toplnet.getGenesisBlock
+      case TestNet    => ???
+      case DevNet     => ???
+      case LocalNet   => ???
+      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case _          => throw new Error("Undefined network type.")
+    }).map {
+      case (block: Block, ConsensusParams(totalStake, initDifficulty)) =>
+        maxStake = totalStake
+        difficulty = initDifficulty
+
+        block
+    }
+  }
+
+  /** Sets the genesis network parameters for calculating adjusted difficulty */
+  private def setConsensusParameters (): Unit = {
+    targetBlockTime = settings.forging.targetBlockTime
+    numTxInBlock = settings.forging.numTxPerBlock
+  }
 
   /**
    * Primary method for attempting to forge a new block and publish it to the network
@@ -124,36 +185,47 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    * @param state   state instance for semantic validity tests of transactions
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
-  private def tryForging ( history: History, state: State, memPool: MemPool ): Unit = {
+  private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
 
-    // get the set of boxes to use for testing
-    val boxes = getArbitBoxes(state)
+    try {
+      // get the set of boxes to use for testing
+      val boxes = getArbitBoxes(state) match {
+        case Success(boxes) => boxes
+        case Failure(ex)    => throw ex
+      }
 
-    log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
-                s"${boxes.map(_.value).sum}")
+      log.debug(s"Trying to generate block on top of ${history.bestBlock.id} with balance " +
+        s"${boxes.map(_.value).sum}")
 
-    // create the coinbase reward transaction
-    val coinbase = createCoinbase(history.bestBlock.id) match {
-      case Success(cb) => cb
-      case Failure(ex) => throw ex
-    }
+      require(boxes.map(_.value).sum > 0, "No Arbits could be found to stake with, exiting attempt")
 
-    // pick the transactions from the mempool for inclusion in the block (if successful)
-    val transactions = pickTransactions(memPool, state) match {
-      case Success(txs) => txs
-      case Failure(ex)  => throw ex
-    }
+      // create the coinbase reward transaction
+      val coinbase = createCoinbase(history.bestBlock.id) match {
+        case Success(cb) => cb
+        case Failure(ex) => throw ex
+      }
 
-    // check forging eligibility
-    leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, settings.version) match {
-      case Some(block) =>
-        log.debug(s"Locally generated block: $block")
-        viewHolderRef ! LocallyGeneratedModifier[Block](block)
+      // pick the transactions from the mempool for inclusion in the block (if successful)
+      val transactions = pickTransactions(memPool, state) match {
+        case Success(txs) => txs
+        case Failure(ex)  => throw ex
+      }
 
-      case None => log.debug(s"Failed to generate block")
-    }
+      // check forging eligibility
+      leaderElection(history.bestBlock, history.difficulty, boxes, coinbase, transactions, blockVersion) match {
+        case Some(block) =>
+          log.debug(s"Locally generated block: $block")
+          context.system.eventStream.publish(LocallyGeneratedModifier[Block](block))
+
+        case None => log.debug(s"Failed to generate block")
+      }
+    } catch {
+      case ex: Throwable =>
+        log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
+        self ! StopForging
+      }
   }
 
   /**
@@ -162,7 +234,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
    * @param state state instance used to lookup the balance for all unlocked keys
    * @return a set of arbit boxes to use for testing leadership eligibility
    */
-  private def getArbitBoxes ( state: State ): Set[ArbitBox] = {
+  private def getArbitBoxes ( state: State ): Try[Set[ArbitBox]] = Try {
     val publicKeys = keyRing.publicKeys
 
     if ( publicKeys.nonEmpty ) {
@@ -172,7 +244,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
           .collect { case box: ArbitBox => box }
       }
     } else {
-      throw new Error("Attempted to forge but no keyfiles are unlocked!")
+      throw new Error("No boxes available for forging!")
     }
   }
 
@@ -205,7 +277,7 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
                                  state  : State
                                ): Try[Seq[Transaction]] = Try {
 
-    memPool.take(TransactionsInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
+    memPool.take(numTxInBlock).foldLeft(Seq[Transaction]()) { case (txAcc, tx) =>
       val txNotIncluded = tx.boxIdsToOpen.forall(id => !txAcc.flatMap(_.boxIdsToOpen).contains(id))
       val validBoxes = tx.newBoxes.forall(b ⇒ state.getBox(b.id).isEmpty)
 
@@ -272,21 +344,27 @@ class Forger ( viewHolderRef: ActorRef, settings: ForgingSettings, appContext: A
 
 object Forger {
 
+  val actorName = "forger"
+
+  case class ConsensusParams (totalStake: Long, difficulty: Long)
+
   object ReceivableMessages {
+
+    case object GenerateGenesis
 
     case object StartForging
 
     case object StopForging
 
-    case class UnlockKey ( addr: String, password: String )
+    case class UnlockKey (addr: String, password: String)
 
-    case class LockKey ( addr: String, password: String )
+    case class LockKey (addr: String, password: String)
 
     case object ListKeys
 
-    case class CreateKey ( password: String )
+    case class CreateKey (password: String)
 
-    case class ImportKey ( password: String, mnemonic: String, lang: String)
+    case class ImportKey (password: String, mnemonic: String, lang: String)
 
   }
 
@@ -296,15 +374,15 @@ object Forger {
 //////////////////////////////// ACTOR REF HELPER //////////////////////////////////
 
 object ForgerRef {
-  def props ( nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def props ( settings: AppSettings, appContext: AppContext )
             ( implicit ec: ExecutionContext ): Props =
-    Props(new Forger(nodeViewHolderRef, settings, appContext))
+    Props(new Forger(settings, appContext))
 
-  def apply ( nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def apply ( settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, appContext))
+    system.actorOf(props(settings, appContext))
 
-  def apply ( name: String, nodeViewHolderRef: ActorRef, settings: ForgingSettings, appContext: AppContext )
+  def apply ( name: String, settings: AppSettings, appContext: AppContext )
             ( implicit system: ActorSystem, ec: ExecutionContext ): ActorRef =
-    system.actorOf(props(nodeViewHolderRef, settings, appContext), name)
+    system.actorOf(props(settings, appContext), name)
 }

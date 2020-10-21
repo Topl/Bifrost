@@ -1,13 +1,14 @@
 package co.topl.settings
 
-sealed trait NetworkType {
+sealed abstract class NetworkType {
   val verboseName: String
   def isMainNet: Boolean = false
+  def isPrivateForger: Boolean = false
 }
 
 object NetworkType {
 
-  def all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet)
+  lazy val all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet, LocalNet, PrivateNet)
 
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
@@ -24,4 +25,12 @@ object NetworkType {
     val verboseName: String = "hel"
   }
 
+  case object LocalNet extends NetworkType {
+    val verboseName: String = "local"
+  }
+
+  case object PrivateNet extends NetworkType {
+    val verboseName: String = "private"
+    override def isPrivateForger = true
+  }
 }
