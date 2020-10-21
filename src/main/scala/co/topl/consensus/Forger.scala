@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import akka.actor._
 import akka.util.Timeout
-import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ Coinbase, Transaction }
@@ -14,7 +14,7 @@ import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolder }
 import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady, ProtocolRules }
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
@@ -50,7 +50,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   override def preStart (): Unit = {
     //read consensus parameters from settings and set their values
-    setConsensusParameters()
+    setProtocolRules()
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
@@ -123,6 +123,16 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  private def getProtocolRules(blockHeight: Long): Option[ProtocolRules] =
+    ProtocolRules.current(settings.application.version)(blockHeight)
+
+  /** Updates the forging actors timestamp */
+  private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
+
+  /** Helper function to enable private forging if we can expects keys in the key ring */
+  private def checkPrivateForging (): Unit =
+    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
     implicit val timeout: Timeout = Timeout(blockGenerationDelay)
@@ -135,13 +145,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
         self ! StopForging
     }
   }
-
-  /** Updates the forging actors timestamp */
-  private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
-
-  /** Helper function to enable private forging if we can expects keys in the key ring */
-  private def checkPrivateForging (): Unit =
-    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
   private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
@@ -163,7 +166,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
       case _          => throw new Error("Undefined network type.")
     }).map {
-      case (block: Block, ConsensusParams(totalStake, initDifficulty)) =>
+      case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         maxStake = totalStake
         difficulty = initDifficulty
 
@@ -172,7 +175,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Sets the genesis network parameters for calculating adjusted difficulty */
-  private def setConsensusParameters (): Unit = {
+  private def setProtocolRules (): Unit = {
+    ProtocolRules.current()
     targetBlockTime = settings.forging.targetBlockTime
     numTxInBlock = settings.forging.numTxPerBlock
     nxtBlockNum = settings.forging.nxtBlockNum
@@ -346,7 +350,7 @@ object Forger {
 
   val actorName = "forger"
 
-  case class ConsensusParams (totalStake: Long, difficulty: Long)
+  case class ChainParams ( totalStake: Long, difficulty: Long)
 
   object ReceivableMessages {
 
