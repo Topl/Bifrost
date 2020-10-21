@@ -109,9 +109,9 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
               // calculate the new base difficulty
               val parentDifficulty = storage.difficultyOf(block.parentId).get
-              // fixme: number of blocks here should be part of consensus
-              val prevTimes = lastBlocks(consensus.nxtBlockNum + 1, block).map(prev => prev.timestamp)
-              val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+              val prevTimes = lastBlocks(consensus.nxtBlockNum + 1, block).map(_.timestamp)
+              val newHeight = storage.heightOf(block.parentId).get + 1
+              val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
               // update storage
               storage.update(block, newBaseDifficulty, isBest = true)

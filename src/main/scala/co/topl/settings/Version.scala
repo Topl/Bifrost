@@ -16,6 +16,8 @@ class Version ( val firstDigit: Byte,
 
   override def serializer: BifrostSerializer[Version] = VersionSerializer
 
+  override def toString: String = s"${firstDigit.toString}.${secondDigit.toString}.${thirdDigit.toString}"
+
   override def compare (that: Version): Int =
     if (this.firstDigit != that.firstDigit) {
       this.firstDigit - that.firstDigit
@@ -33,5 +35,5 @@ object Version {
   }
 
   val initial: Version = new Version(0, 0, 1)
-  val last: Version = new Version(0, 0, 1)
+  val MaxValue: Version = new Version(Byte.MaxValue, Byte.MaxValue, Byte.MaxValue)
 }

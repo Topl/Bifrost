@@ -3,42 +3,63 @@ package co.topl
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.ArbitBox
+import co.topl.settings.{ Monon_0, Monon_01, Monon_1, ProtocolRules }
 import com.google.common.primitives.Longs
 
 import scala.concurrent.duration._
-import scala.math.{max, min}
+import scala.math.{ max, min }
 
 package object consensus {
-  // these variables are left as vars since they MUST be determined at runtime from the config file
+  private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
 
-  // chain parameters that may change block to block
+  // these variables are left as vars since they are local state of the consensus protocol determined from the chain
   private var _maxStake: Long = _
-  private var _inflation: Long = _
-  private var _difficulty: Long = _
-  private var _height: Long = _
-
-  // protocol parameters that must be defined in the application config
-  private var _targetBlockTime: FiniteDuration = _
-  private var _numTxInBlock: Int = _
-  private var _nxtBlockNum: Int = _
+  private var _inflation: Long = _  // not currently used
+  private var _difficulty: Long = _ // not currently used
+  private var _height: Long = _     // not currently used
 
   // setters
+  private[consensus] def protocolMngr_= (value: ProtocolVersioner): Unit = _protocolMngr = value
   private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
   private[consensus] def inflation_= (value: Long): Unit = _inflation = value
   private[consensus] def height_= (value: Long): Unit = _height = value
   private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
-  private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
-  private[consensus] def numTxInBlock_= (value: Int): Unit = _numTxInBlock = value
-  private[consensus] def nxtBlockNum_= (value: Int): Unit = _nxtBlockNum = value
 
   // getters
+  def protocolMngr: ProtocolVersioner = _protocolMngr
   def maxStake: Long = _maxStake
   def inflation: Long = _inflation
   def difficulty: Long = _difficulty
   def height: Long = _height
-  def targetBlockTime: FiniteDuration = _targetBlockTime
-  def numTxInBlock: Int = _numTxInBlock
-  def nxtBlockNum: Int = _nxtBlockNum
+
+  // number of blocks to use for determining the avg block delay
+  def nxtBlockNum: Int = 3
+
+  /** Find the rule set for the given app version and block height */
+  def getProtocolRules(blockHeight: Long): ProtocolRules =
+    protocolMngr.current(blockHeight)
+    .getOrElse(throw new Error("Unable to find applicable protocol rules"))
+
+  def targetBlockTime(blockHeight: Long): FiniteDuration =
+    getProtocolRules(blockHeight) match {
+      case pr: Monon_0 => pr.targetBlockTime
+      case pr: Monon_1 => pr.targetBlockTime
+      case pr: Monon_01 => pr.targetBlockTime
+    }
+
+  def numTxInBlock(blockHeight: Long): Int =
+    getProtocolRules(blockHeight) match {
+      case pr: Monon_0 => pr.numTxPerBlock
+      case pr: Monon_1 => pr.numTxPerBlock
+      case pr: Monon_01 => pr.numTxPerBlock
+    }
+
+  def blockVersion(blockHeight: Long): Byte =
+    getProtocolRules(blockHeight) match {
+      case pr: Monon_0 => pr.blockVersion
+      case pr: Monon_1 => pr.blockVersion
+      case pr: Monon_01 => pr.blockVersion
+    }
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge
@@ -62,13 +83,14 @@ package object consensus {
    * @return the adjusted difficulty
    */
   def calcAdjustedTarget(parent: Block,
+                         parentHeight: Long,
                          baseDifficulty: Long,
                          timestamp: Long): BigDecimal = {
 
     val target: Double = baseDifficulty.toDouble / maxStake.toDouble
     val timeDelta = timestamp - parent.timestamp
 
-    BigDecimal(target * timeDelta.toDouble / targetBlockTime.toUnit(MILLISECONDS))
+    BigDecimal(target * timeDelta.toDouble / targetBlockTime(parentHeight).toUnit(MILLISECONDS))
   }
 
   /**
@@ -79,9 +101,9 @@ package object consensus {
     * @param prevTimes      sequence of block times to calculate the average and compare to target
     * @return the modified difficulty
     */
-  def calcNewBaseDifficulty(prevDifficulty: Long, prevTimes: Seq[Block.Timestamp]): Long = {
+  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[Block.Timestamp]): Long = {
     val averageDelay = (prevTimes drop 1, prevTimes).zipped.map(_-_).sum / (prevTimes.length - 1)
-    val targetTimeMilli = targetBlockTime.toUnit(MILLISECONDS)
+    val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)
 
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
     if (averageDelay > targetTimeMilli) {

@@ -63,6 +63,7 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
 case class ForgingSettings (blockGenerationDelay: FiniteDuration,
                             monon_0: Monon_0,
                             monon_1: Monon_1,
+                            monon_01: Monon_01,
                             privateTestnet  : Option[PrivateTestnetSettings])
 
 case class PrivateTestnetSettings (numTestnetAccts  : Int,
