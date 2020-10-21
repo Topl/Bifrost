@@ -327,7 +327,6 @@ object State extends Logging {
     if ( nodeKeys.isDefined ) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")
 
-    //TODO fix bug where walletSeed and empty nodeKeys setting prevents forging - JAA
     val pbr = ProgramBoxRegistry.readOrGenerate(settings)
     val tbr = TokenBoxRegistry.readOrGenerate(settings, nodeKeys)
 
