@@ -1,17 +1,17 @@
 package co.topl.crypto
 
 import co.topl.consensus.KeyFile
+import co.topl.utils.Logging
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import scala.reflect.io.Path
-import scala.util.Try
 
 /*
  * Test class for verifying BIP39 phrase translator class
  */
 
-class Bip39Spec extends AnyFlatSpec with Matchers {
+class Bip39Spec extends AnyFlatSpec
+  with Matchers
+  with Logging {
 
   // sample uuid string
   val uuidString: String = java.util.UUID.randomUUID.toString
@@ -20,12 +20,12 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   val lang = "en"
 
   //phrase translator
-  val pt = Bip39(lang)
+  val pt: Bip39 = Bip39(lang)
 
   "A seed phrase" should "be generated" in {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
-    println("seed hex: "+seedHex)
-    println("seed phrase: "+phrase)
+    log.debug("seed hex: " + seedHex)
+    log.debug("seed phrase: " + phrase)
   }
 
   "A seed phrase" should "be translated to hex" in{
@@ -59,20 +59,19 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
       outString
     }
 
-    println(checkPT(phraseGood))
-    println(checkPT(phraseBad))
-    println(checkPT(phraseShort))
-    println(checkPT(phraseMixed))
+    log.debug(checkPT(phraseGood))
+    log.debug(checkPT(phraseBad))
+    log.debug(checkPT(phraseShort))
+    log.debug(checkPT(phraseMixed))
 
-    println(checkPT(phraseGood15))
-    println(checkPT(phraseGood18))
-    println(checkPT(phraseGood21))
-    println(checkPT(phraseGood24))
+    log.debug(checkPT(phraseGood15))
+    log.debug(checkPT(phraseGood18))
+    log.debug(checkPT(phraseGood21))
+    log.debug(checkPT(phraseGood24))
 
 
-    assert(pt.phraseToHex(phraseColeman) == hexColeman)
-
-    assert(pt.phraseToHex(phrase) == seedHex)
+    pt.phraseToHex(phraseColeman) shouldEqual hexColeman
+    pt.phraseToHex(phrase) shouldEqual seedHex
   }
 
   "A key file" should "be generated" in {
@@ -87,9 +86,9 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
 
     KeyFile.generateKeyPair(seed1Hash)
 
-    assert(key1 == key2)
-    assert(key2 == key3)
-    assert(key1 == key3)
+    key1 shouldEqual key2
+    key2 shouldEqual key3
+    key1 shouldEqual key3
 
   }
 }

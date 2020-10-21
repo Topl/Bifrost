@@ -90,6 +90,13 @@ object AppSettings extends Logging with SettingsReaders {
   }
 
   /**
+    * Produces an application settings class by reading the specified HOCON configuration file
+    * @param config config factory compatible configuration
+    * @return
+    */
+  def fromConfig (config: Config): AppSettings = config.as[AppSettings](configPath)
+
+  /**
     *
     * @param args
     * @return
@@ -152,14 +159,5 @@ object AppSettings extends Logging with SettingsReaders {
         log.warn("No custom setting specified, using default configuration")
         ConfigFactory.load()
     }
-  }
-
-  /**
-    *
-    * @param config
-    * @return
-    */
-  def fromConfig (config: Config): AppSettings = {
-    config.as[AppSettings](configPath)
   }
 }
