@@ -40,7 +40,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
 
   // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
-  log.debug(s"Starting application with settings \n${settings}")
+  log.debug(s"Starting application with settings \n$settings")
 
   // check for gateway device and setup port forwarding
   private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
@@ -104,11 +104,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // Is JVMCI enabled?
   val bean: HotSpotDiagnosticMXBean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
   val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
-  System.out.println(enableJVMCI)
+  log.debug(s"$enableJVMCI")
 
   // Is the system using the JVMCI compiler for normal compilations?
   val useJVMCICompiler: VMOption = bean.getVMOption("UseJVMCICompiler")
-  System.out.println(useJVMCICompiler)
+  log.debug(s"$useJVMCICompiler")
 
   // What compiler is selected?
   val compiler: String = System.getProperty("jvmci.Compiler")
