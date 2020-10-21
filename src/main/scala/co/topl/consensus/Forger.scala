@@ -3,24 +3,24 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady, ProtocolRules }
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, Monon_0, Monon_1, NodeViewReady, ProtocolRules}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
@@ -32,25 +32,22 @@ class Forger (settings: AppSettings, appContext: AppContext )
   //type HR = HistoryReader[Block, BifrostSyncInfo]
 
   // Import the types of messages this actor RECEIVES
+
   import Forger.ReceivableMessages._
 
   // version byte used for creating blocks
   private val blockVersion = settings.application.version.firstDigit
 
   // holder of private keys that are used to forge
-  private val keyFileDir = settings.application.keyFileDir.ensuring(_.isDefined, "A keyfile directory must be specified").get
+  private val keyFileDir = settings.application.keyFileDir
+    .ensuring(_.isDefined, "A keyfile directory must be specified").get
   private val keyRing = KeyRing(keyFileDir)
-
-  // calculate the delay between forging attempts (scaled to block time)
-  private lazy val blockGenerationDelay: FiniteDuration =
-    settings.forging.targetBlockTime / settings.forging.forgingAttempts
 
   // a timestamp updated on each forging attempt
   private var forgeTime: Time = appContext.timeProvider.time()
 
   override def preStart (): Unit = {
-    //read consensus parameters from settings and set their values
-    setProtocolRules()
+    // initialize the protocol rule set to the in
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
@@ -103,9 +100,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
       context become readyToForge
 
     case CurrentView(history: History, state: State, mempool: MemPool) =>
-          updateForgeTime() // update the forge timestamp
-          tryForging(history, state, mempool) // initiate forging attempt
-          scheduleForgingAttempt() // schedule the next forging attempt
+      updateForgeTime() // update the forge timestamp
+      updateProtocolRules(history.height)
+      tryForging(history, state, mempool) // initiate forging attempt
+      scheduleForgingAttempt() // schedule the next forging attempt
   }
 
   private def keyManagement: Receive = {
@@ -123,9 +121,6 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
-  private def getProtocolRules(blockHeight: Long): Option[ProtocolRules] =
-    ProtocolRules.current(settings.application.version)(blockHeight)
-
   /** Updates the forging actors timestamp */
   private def updateForgeTime (): Unit = forgeTime = appContext.timeProvider.time()
 
@@ -135,12 +130,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
-    implicit val timeout: Timeout = Timeout(blockGenerationDelay)
+    implicit val timeout: Timeout = Timeout(settings.forging.blockGenerationDelay)
     // going to go with actorSelection for now but the block creation heeds to be moved to the ledger layer
     context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
       case Success(nvh: ActorRef) =>
-        context.system.scheduler.scheduleOnce(blockGenerationDelay)(nvh ! GetDataFromCurrentView)
-      case _ =>
+        context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
+      case _                      =>
         log.warn("No ledger actor found. Stopping forging attempts")
         self ! StopForging
     }
@@ -155,32 +150,46 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Return the correct genesis parameters for the chosen network.
-   * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
-   */
+    * NOTE: the default private network is set in AppContext so the fall-through should result in an error.
+    */
   private def initializeGenesis: Try[Block] = {
-    (appContext.networkType match {
+    ( appContext.networkType match {
       case MainNet    => Toplnet.getGenesisBlock
       case TestNet    => ???
       case DevNet     => ???
       case LocalNet   => ???
       case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
       case _          => throw new Error("Undefined network type.")
-    }).map {
+    } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         maxStake = totalStake
         difficulty = initDifficulty
+        height = 0
 
         block
     }
   }
 
   /** Sets the genesis network parameters for calculating adjusted difficulty */
-  private def setProtocolRules (): Unit = {
-    ProtocolRules.current()
-    targetBlockTime = settings.forging.targetBlockTime
-    numTxInBlock = settings.forging.numTxPerBlock
-    nxtBlockNum = settings.forging.nxtBlockNum
+  private def updateProtocolRules (blockHeight: Long): Unit = {
+    // find the applicable rule set
+    val rules = ProtocolRules.current(settings.application.version)(blockHeight) match {
+      case Some(rules) => rules
+      case None        => throw new Error("Unable to find applicable protocol rules")
+    }
+
+    // extract the consensus parameters
+    val (blockTime, blockTx, nxtBlocks) = rules match {
+      case pr: Monon_0 => (pr.targetBlockTime, pr.numTxPerBlock, pr.nxtBlockNum)
+      case pr: Monon_1 => (pr.targetBlockTime, pr.numTxPerBlock, pr.nxtBlockNum)
+    }
+
+    // set the consensus parmaeters
+    targetBlockTime = blockTime
+    numTxInBlock = blockTx
+    nxtBlockNum = nxtBlocks
   }
+
 
   /**
    * Primary method for attempting to forge a new block and publish it to the network

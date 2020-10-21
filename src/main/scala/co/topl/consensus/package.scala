@@ -10,27 +10,33 @@ import scala.math.{max, min}
 
 package object consensus {
   // these variables are left as vars since they MUST be determined at runtime from the config file
-  // todo: JAA - figure out a better way to do this
+
+  // chain parameters that may change block to block
   private var _maxStake: Long = _
   private var _inflation: Long = _
-  private var _targetBlockTime: FiniteDuration = _
   private var _difficulty: Long = _
+  private var _height: Long = _
+
+  // protocol parameters that must be defined in the application config
+  private var _targetBlockTime: FiniteDuration = _
   private var _numTxInBlock: Int = _
   private var _nxtBlockNum: Int = _
 
   // setters
   private[consensus] def maxStake_= (value: Long): Unit = _maxStake = value
   private[consensus] def inflation_= (value: Long): Unit = _inflation = value
-  private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
+  private[consensus] def height_= (value: Long): Unit = _height = value
   private[consensus] def difficulty_= (value: Long): Unit = _difficulty = value
+  private[consensus] def targetBlockTime_= (value: FiniteDuration): Unit = _targetBlockTime = value
   private[consensus] def numTxInBlock_= (value: Int): Unit = _numTxInBlock = value
   private[consensus] def nxtBlockNum_= (value: Int): Unit = _nxtBlockNum = value
 
   // getters
   def maxStake: Long = _maxStake
   def inflation: Long = _inflation
-  def targetBlockTime: FiniteDuration = _targetBlockTime
   def difficulty: Long = _difficulty
+  def height: Long = _height
+  def targetBlockTime: FiniteDuration = _targetBlockTime
   def numTxInBlock: Int = _numTxInBlock
   def nxtBlockNum: Int = _nxtBlockNum
 

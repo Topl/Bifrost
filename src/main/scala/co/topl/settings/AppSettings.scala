@@ -60,7 +60,7 @@ case class NetworkSettings (addedMaxDelay: Option[FiniteDuration],
                             upnpUseRandom           : Option[Boolean],
                             upnpGatewayTimeout      : Option[FiniteDuration])
 
-case class ForgingSettings (forgingAttempts : Int,
+case class ForgingSettings (blockGenerationDelay: FiniteDuration,
                             monon_0: Monon_0,
                             monon_1: Monon_1,
                             privateTestnet  : Option[PrivateTestnetSettings])
