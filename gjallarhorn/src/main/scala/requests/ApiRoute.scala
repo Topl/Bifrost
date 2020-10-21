@@ -55,9 +55,7 @@ trait ApiRoute extends Directives {
     * @return - true if the key is a valid API key, false otherwise.
     */
   private def isValid(keyOpt: Option[String]): Boolean = {
-    println("key opt: "+ keyOpt)
     lazy val keyHash: Option[Digest32] = keyOpt.map(Blake2b256(_))
-    println("key hash: "+ keyHash)
     (apiKeyHash, keyHash) match {
       case (None, _) => true
       case (Some(expected), Some(passed)) => expected sameElements passed

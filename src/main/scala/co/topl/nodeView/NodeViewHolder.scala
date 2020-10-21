@@ -65,6 +65,8 @@ class NodeViewHolder ( override val settings: AppSettings, appContext: AppContex
 
 object NodeViewHolder extends Logging {
 
+  val actorName = "nodeViewHolder"
+
   type HIS = History
   type MS = State
   type MP = MemPool

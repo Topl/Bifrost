@@ -40,6 +40,32 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     super.preRestart(reason, message)
   }
 
+  def gjalStart(bifrost: ActorRef): Unit = {
+    bifrostActorRef = Some(bifrost)
+    bifrost ! "Remote wallet actor initialized"
+  }
+
+  /*case msg: String => {
+    if (msg.contains("New block added")) {
+    println(s"Wallet Manager received block: ${msg.substring(17)}")
+    newestBlock = Some(msg.substring(17))
+  }
+    if (msg.contains("new block added")) {
+    println(s"Wallet Manager received block from generic node view holder: ${msg.substring(17)}")
+    newestBlock = Some(msg.substring(17))
+  }
+    log.info(s"${Console.MAGENTA} Received a message: $msg")
+  }*/
+
+  def msgHandling(msg: String): Unit = {
+    if (msg.contains("received new wallet from:")) {
+      log.info(s"${Console.YELLOW} Bifrost $msg")
+    }
+    if (msg.contains("new block added")) {
+      newBlock(msg)
+    }
+  }
+
   def parseJsonList(list: Json): Array[String] = {
     var listArray: Array[String] = list.toString().trim.stripPrefix("[").stripSuffix("]").
       split("},")
@@ -50,6 +76,9 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     })
     listArray
   }
+
+  //------------------------------------------------------------------------------------
+  //Methods for parsing balance response - UpdateWallet
 
   /**
     * Parses the list of boxes for a specific type (asset, poly, or arbit)
@@ -99,6 +128,9 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     })
     walletBoxes
   }
+
+  //------------------------------------------------------------------------------------
+  //Methods for parsing new block from Bifrost:
 
   def newBlock(blockMsg: String): Unit = {
     val block : String = blockMsg.substring("new block added: ".length)
@@ -188,34 +220,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
       walletBoxes.get(publicKey).map(boxes => newBoxes.foreach(box => boxes.put(box._1, box._2)))
     }
   }
-
-  def gjalStart(bifrost: ActorRef): Unit = {
-    bifrostActorRef = Some(bifrost)
-    context.system.eventStream.subscribe(self, classOf[String])
-    bifrost ! "Remote wallet actor initialized"
-  }
-
-  /*case msg: String => {
-    if (msg.contains("New block added")) {
-    println(s"Wallet Manager received block: ${msg.substring(17)}")
-    newestBlock = Some(msg.substring(17))
-  }
-    if (msg.contains("new block added")) {
-    println(s"Wallet Manager received block from generic node view holder: ${msg.substring(17)}")
-    newestBlock = Some(msg.substring(17))
-  }
-    log.info(s"${Console.MAGENTA} Received a message: $msg")
-  }*/
-
-  def msgHandling(msg: String): Unit = {
-    if (msg.contains("received new wallet from:")) {
-      log.info(s"${Console.YELLOW} Bifrost $msg")
-    }
-    if (msg.contains("new block added")) {
-      newBlock(msg)
-    }
-  }
-
 
   override def receive: Receive = {
     case GjallarhornStarted(actorRef: ActorRef) => gjalStart(actorRef)

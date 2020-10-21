@@ -106,7 +106,7 @@ class RequestSpec extends AsyncFlatSpec
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "transferPolys",
+         |   "method": "transferPolysPrototype",
          |   "params": [{
          |     "recipient": "${publicKeys.tail.head}",
          |     "sender": ["6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"],

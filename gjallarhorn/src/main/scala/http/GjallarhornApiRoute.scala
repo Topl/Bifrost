@@ -4,22 +4,28 @@ import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import requests.{ApiRoute, Requests}
-import io.circe.Json
+import io.circe.{Encoder, Json}
+import io.circe.parser.parse
 import io.circe.syntax._
 import keymanager.KeyManager._
+import requests.RequestsManager.CreateTransaction
 import settings.AppSettings
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
-                               walletManager: ActorRef,
+                               requestsManager: ActorRef,
                                requests: Requests)
                               (implicit val context: ActorRefFactory,
                                implicit val actorSystem: ActorSystem) extends ApiRoute {
 
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
+
+  implicit val jsonEncoder: Encoder[Future[String]] =
+    (msg: Future[String]) => Await.result(msg, 10.seconds).asJson
 
   /**
     * Handles the different methods that are called.
@@ -44,11 +50,13 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    println("transaction: " + params)
-    val method: String = (params \\ "method").head.asString.get
+    (requestsManager ? CreateTransaction(params)).mapTo[String].map(_.asJson)
+
+    /*val method: String = (params \\ "method").head.asString.get
     val innerParams: Json = (params \\ "params").head.asArray.get.head
     val tx = requests.transaction(method, innerParams)
-    Future{requests.sendRequest(tx, "asset")}
+
+    Future{requests.sendRequest(tx, "asset")}*/
   }
 
   /**
@@ -73,6 +81,7 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
+    //bifrostWCH ! broadcastTx(params)
     Future{requests.broadcastTx(params)}
   }
 

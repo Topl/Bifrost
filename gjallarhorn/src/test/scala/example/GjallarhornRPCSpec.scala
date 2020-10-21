@@ -11,13 +11,16 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import http.GjallarhornApiRoute
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import io.circe.Json
 import io.circe.parser.parse
 import keymanager.{KeyManagerRef, Keys}
-import requests.Requests
+import requests.{Requests, RequestsManager}
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import wallet.WalletManager
+import wallet.WalletManager.GjallarhornStarted
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class GjallarhornRPCSpec extends AsyncFlatSpec
@@ -42,10 +45,10 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", "keyfiles")
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(Set(), keyFileDir)
-  val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)))
+  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
   val requests: Requests = new Requests(settings)
 
-  val route: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
+  val route: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
 
   def httpPOST(jsonRequest: ByteString): HttpRequest = {
     HttpRequest(
@@ -77,12 +80,14 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          """.stripMargin)
 
     httpPOST(createAssetRequest) ~> route ~> check {
-      val response = responseAs[String]
-      println("response" + response)
-      println("parse " + parse(response))
-      val res = parse(response).right.get
-      (res \\ "error").isEmpty shouldBe true
-      (res \\ "result").head.asObject.isDefined shouldBe true
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) => {
+          (res \\ "error").isEmpty shouldBe true
+          (res \\ "result").head.asObject.isDefined shouldBe true
+        }
+      }
     }
   }
 

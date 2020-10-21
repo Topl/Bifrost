@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import http.GjallarhornApiRoute
 import keymanager.{KeyManagerRef, Keys}
-import requests.Requests
+import requests.{Requests, RequestsManager}
 import settings.{AppSettings, NetworkType, StartupOpts}
 import utils.Logging
 import wallet.{DeadLetterListener, WalletManager}
@@ -27,6 +27,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val keyManager: Keys = Keys(Set(), keyFileDir)
 
   val walletManagerRef: ActorRef = system.actorOf(Props(new WalletManager(keyManager.listOpenKeyFiles)), name = "WalletManager")
+  val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
 
   val listener = system.actorOf(Props[DeadLetterListener]())
   system.eventStream.subscribe(listener, classOf[DeadLetter])
@@ -49,7 +50,8 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //sequence of actors for cleanly shutting down the application
    private val actorsToStop: Seq[ActorRef] = Seq(
      keyManagerRef,
-     walletManagerRef
+     walletManagerRef,
+     requestsManagerRef
    )
 
   //hook for initiating the shutdown procedure
@@ -58,7 +60,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   val requests: Requests = new Requests(settings)
   val httpPort: Int = settings.rpcPort
 
-  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, walletManagerRef, requests).route
+  private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
 
   Http().newServerAt("localhost", httpPort).bind(apiRoute).onComplete {
     case Success(serverBinding) =>
