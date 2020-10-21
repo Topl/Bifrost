@@ -154,7 +154,7 @@ object KeyFile {
     val aesCtr = new BufferedBlockCipher(new SICBlockCipher(new AESEngine))
     aesCtr.init(encrypt, cipherParams)
 
-    val outputText = Array.fill(32)(1: Byte)
+    val outputText = Array.fill(inputText.length)(1: Byte)
     aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
     aesCtr.doFinal(outputText, 0)
 
