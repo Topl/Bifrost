@@ -1,15 +1,14 @@
 package co.topl.nodeView.state.box.proposition
 
-import co.topl.crypto.FastCryptographicHash._
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
+import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
+import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
@@ -44,7 +43,7 @@ object PublicKey25519Proposition {
 
   val AddressVersion: Byte = 1
   val ChecksumLength: Int = 4
-  val AddressLength: Int = 1 + Constants25519.PubKeyLength + ChecksumLength
+  val AddressLength: Int = 1 + Curve25519.KeyLength + ChecksumLength
 
   def apply(id: String): PublicKey25519Proposition = {
     Base58.decode(id) match {
@@ -53,12 +52,13 @@ object PublicKey25519Proposition {
     }
   }
 
-  def calcCheckSum(bytes: Array[Byte]): Array[Byte] = hash(bytes).take(ChecksumLength)
+  def calcCheckSum(bytes: Array[Byte]): Array[Byte] = Blake2b256(bytes).take(ChecksumLength)
 
   def validPubKey(address: String): Try[PublicKey25519Proposition] =
     Base58.decode(address).flatMap { addressBytes =>
       if (addressBytes.length != AddressLength)
         Failure(new Exception("Wrong address length"))
+
       else {
         val checkSum = addressBytes.takeRight(ChecksumLength)
 
@@ -84,9 +84,4 @@ object PublicKey25519Proposition {
 
   implicit val jsonKeyDecoder: KeyDecoder[PublicKey25519Proposition] =
     ( prop: String ) => Some(PublicKey25519Proposition(prop))
-}
-
-object Constants25519 {
-  val PrivKeyLength = 32
-  val PubKeyLength = 32
 }

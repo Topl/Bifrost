@@ -1,12 +1,12 @@
 package co.topl
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.ArbitBox
 import com.google.common.primitives.Longs
+import scorex.crypto.hash.Blake2b256
 
 import scala.concurrent.duration._
-import scala.math.{max, min}
+import scala.math.{ max, min }
 
 package object consensus {
   // these variables are left as vars since they MUST be determined at runtime from the config file
@@ -39,7 +39,7 @@ package object consensus {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = FastCryptographicHash(lastBlock.bytes ++ box.bytes)
+    val h = Blake2b256(lastBlock.bytes ++ box.bytes)
 
     Longs.fromByteArray((0: Byte) +: h.take(7))
   }
