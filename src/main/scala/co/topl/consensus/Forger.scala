@@ -125,7 +125,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
     implicit val timeout: Timeout = Timeout(settings.forging.blockGenerationDelay)
-    // going to go with actorSelection for now but the block creation heeds to be moved to the ledger layer
+    // going to go with actorSelection for now but the block creation needs to be moved to the ledger layer
     context.actorSelection("../" + NodeViewHolder.actorName).resolveOne().onComplete {
       case Success(nvh: ActorRef) =>
         context.system.scheduler.scheduleOnce(settings.forging.blockGenerationDelay)(nvh ! GetDataFromCurrentView)
