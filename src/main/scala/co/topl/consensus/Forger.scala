@@ -42,7 +42,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   override def preStart (): Unit = {
     // determine the set of applicable protocol rules for this software version
-    protocolMngr = ProtocolVersioner(Seq(settings.forging.monon_0, settings.forging.monon_1, settings.forging.monon_01))
+    protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
     //register for application initialization message
     context.system.eventStream.subscribe(self, NodeViewReady.getClass)
@@ -172,10 +172,9 @@ class Forger (settings: AppSettings, appContext: AppContext )
    * @param memPool mempool instance for picking transactions to include in the block if created
    */
   private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
+    log.debug(s"${Console.YELLOW}Attempting to forge with settings ${protocolMngr.current(history.height)}${Console.RESET}")
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
     log.info("chain difficulty: " + history.difficulty)
-
-    println(s"\n${Console.YELLOW}>>>>>>>>>>> Trying to forge a block with settings ${protocolMngr.current(history.height).get}${Console.RESET}\n")
 
     try {
       // get the set of boxes to use for testing

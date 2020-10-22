@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.settings.ProtocolRules
+import co.topl.settings.{ ProtocolSettings, Version }
 
 import scala.collection.SortedSet
 
@@ -9,22 +9,25 @@ import scala.collection.SortedSet
  * protocol definitions
  * @param protocolVersions all previous rule sets (that must be available in the configuration file)
  */
-class ProtocolVersioner(protocolVersions: SortedSet[ProtocolRules]) {
+class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[ProtocolSettings]) {
+
+  /** this is the set of protocol settings a particular version of the software can utilize */
+  lazy val applicable: SortedSet[ProtocolSettings] = protocolVersions.takeWhile(appVersion >= _.version)
+
   /**
-   * Finds the currently applicable set of consensus rules based on block height
+   * Finds the consensus rules that should be used based on block height
    * @param blockHeight height of the block being considered
    * @return
    */
-  def current(blockHeight: Long): Option[ProtocolRules] =
-    protocolVersions.find(blockHeight <= _.blockHeightLimit)
+  def current(blockHeight: Long): Option[ProtocolSettings] = applicable.find(blockHeight >= _.startBlock)
 }
 
 object ProtocolVersioner {
-  def apply(protocolVersions: Seq[ProtocolRules]): ProtocolVersioner = {
-    val sortedAndUniqueVersions = SortedSet[ProtocolRules]() ++ protocolVersions.toSet
+  def apply(appVersion: Version, protocolVersions: Seq[ProtocolSettings]): ProtocolVersioner = {
+    val sortedAndUniqueVersions = SortedSet[ProtocolSettings]() ++ protocolVersions.toSet
     require(sortedAndUniqueVersions.size == protocolVersions.size, "Non-unique protocol versions specified at runtime")
-    new ProtocolVersioner(sortedAndUniqueVersions)
+    new ProtocolVersioner(appVersion, sortedAndUniqueVersions)
   }
 
-  def empty: ProtocolVersioner = ProtocolVersioner(Seq())
+  def empty: ProtocolVersioner = ProtocolVersioner(Version.initial, Seq())
 }

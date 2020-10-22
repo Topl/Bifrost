@@ -3,7 +3,7 @@ package co.topl
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.settings.{ Monon_0, Monon_01, Monon_1, ProtocolRules }
+import co.topl.settings.ProtocolSettings
 import com.google.common.primitives.Longs
 
 import scala.concurrent.duration._
@@ -36,30 +36,18 @@ package object consensus {
   def nxtBlockNum: Int = 3
 
   /** Find the rule set for the given app version and block height */
-  def getProtocolRules(blockHeight: Long): ProtocolRules =
+  def getProtocolRules(blockHeight: Long): ProtocolSettings =
     protocolMngr.current(blockHeight)
     .getOrElse(throw new Error("Unable to find applicable protocol rules"))
 
   def targetBlockTime(blockHeight: Long): FiniteDuration =
-    getProtocolRules(blockHeight) match {
-      case pr: Monon_0 => pr.targetBlockTime
-      case pr: Monon_1 => pr.targetBlockTime
-      case pr: Monon_01 => pr.targetBlockTime
-    }
+    getProtocolRules(blockHeight).targetBlockTime.get
 
   def numTxInBlock(blockHeight: Long): Int =
-    getProtocolRules(blockHeight) match {
-      case pr: Monon_0 => pr.numTxPerBlock
-      case pr: Monon_1 => pr.numTxPerBlock
-      case pr: Monon_01 => pr.numTxPerBlock
-    }
+    getProtocolRules(blockHeight).numTxPerBlock.get
 
   def blockVersion(blockHeight: Long): Byte =
-    getProtocolRules(blockHeight) match {
-      case pr: Monon_0 => pr.blockVersion
-      case pr: Monon_1 => pr.blockVersion
-      case pr: Monon_01 => pr.blockVersion
-    }
+    getProtocolRules(blockHeight).blockVersion.get
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge
