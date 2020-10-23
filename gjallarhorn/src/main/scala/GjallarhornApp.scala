@@ -57,7 +57,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
   //hook for initiating the shutdown procedure
   sys.addShutdownHook(GjallarhornApp.shutdown(system, actorsToStop))
 
-  val requests: Requests = new Requests(settings)
+  val requests: Requests = new Requests(settings, requestsManagerRef)
   val httpPort: Int = settings.rpcPort
 
   private val apiRoute: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route

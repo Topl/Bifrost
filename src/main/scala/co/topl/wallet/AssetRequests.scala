@@ -143,6 +143,9 @@ class AssetRequests (nodeViewHolderRef: ActorRef)
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]].map { view =>
       val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
+      println("recipient: " + (params \\ "recipient").head.asString.get)
+      println("pub key: " + recipient)
+      println("pub key bytes: " + recipient.pubKeyBytes + " of length " + recipient.pubKeyBytes.length)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
@@ -152,7 +155,6 @@ class AssetRequests (nodeViewHolderRef: ActorRef)
         AssetCreation
           .createRaw(IndexedSeq((recipient, amount)), fee, issuer, assetCode, data)
           .get
-      println(s"create asset prototype: $tx")
       AssetCreation.validatePrototype(tx) match {
         case Success(_) =>
           Map(

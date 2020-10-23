@@ -17,10 +17,7 @@ import keymanager.{KeyManagerRef, Keys}
 import requests.{Requests, RequestsManager}
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import wallet.WalletManager
-import wallet.WalletManager.GjallarhornStarted
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class GjallarhornRPCSpec extends AsyncFlatSpec
@@ -46,7 +43,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager = Keys(Set(), keyFileDir)
   val requestsManagerRef: ActorRef = system.actorOf(Props(new RequestsManager), name = "RequestsManager")
-  val requests: Requests = new Requests(settings)
+  val requests: Requests = new Requests(settings, requestsManagerRef)
 
   val route: Route = GjallarhornApiRoute(settings, keyManagerRef, requestsManagerRef, requests).route
 
@@ -84,6 +81,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
         case Left(f) => throw f
         case Right(res: Json) => {
+          println(res)
           (res \\ "error").isEmpty shouldBe true
           (res \\ "result").head.asObject.isDefined shouldBe true
         }

@@ -1,14 +1,17 @@
 package requests
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import keymanager.Keys
 import crypto._
+import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
+import requests.RequestsManager.{AssetRequest, WalletRequest}
 import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,12 +23,12 @@ import settings.AppSettings
 import scala.util.{Failure, Success}
 
 
-class Requests (settings: AppSettings)
+class Requests (settings: AppSettings, requestsManager: ActorRef)
                (implicit val actorSystem: ActorSystem) {
 
   val http: HttpExt = Http(actorSystem)
 
-  val timeout: Timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   val declaredAddress = settings.declaredAddress
 
@@ -81,14 +84,31 @@ class Requests (settings: AppSettings)
     ByteString(newJSON.toString.getBytes())
   }
 
-  //TODO: this is only called from RequestSpec...
+  def createJsonResponse (transaction: Json, result: Json): Json = {
+    val resultString = result.toString().replace("\\", "").replace("\"{", "{")
+      .replace("}\"", "}")
+    var resultJson: Json = result
+    parse(resultString) match {
+      case Left(f) => throw f
+      case Right(res: Json) => resultJson = res
+    }
+    Map(
+      "jsonrpc" -> (transaction \\ "jsonrpc").head.asJson,
+      "id" -> (transaction \\ "id").head.asJson,
+      "result" -> resultJson
+    ).asJson
+  }
+
+
   def signTx(transaction: Json, keyManager: Keys, signingKeys: List[String]): Json = {
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
-    assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
+    val signingPKeys = signingKeys.map(key => PublicKey25519Proposition(key).toString)
+    assert(signingPKeys.contains((tx \\ "issuer").head.asString.get))
+    //assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
 
-    var sigs: List[(String, String)] = signingKeys.map { pk =>
+    val sigs: List[(String, String)] = signingKeys.map { pk =>
       val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get)
       val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
@@ -105,11 +125,7 @@ class Requests (settings: AppSettings)
       "signatures" -> sigs.toMap.asJson
     ).asJson)
     val newResult = Map("formattedTx"-> newTx).asJson
-    Map(
-      "jsonrpc" -> (transaction \\ "jsonrpc").head.asJson,
-      "id" -> (transaction \\ "id").head.asJson,
-      "result" -> newResult
-    ).asJson
+    createJsonResponse(transaction, newResult)
   }
 
 
@@ -129,14 +145,40 @@ class Requests (settings: AppSettings)
   }
 
   def sendRequest(request: ByteString, path: String): Json  = {
-    val sendTx = httpPOST(request, path)
+    val req: Json = byteStringToJSON(request)
+    path match {
+      case "asset" =>
+        val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+        createJsonResponse(req, result)
+      case "wallet" =>
+        val result = Await.result(
+          (requestsManager ? WalletRequest(byteStringToJSON(request))).mapTo[String].map(_.asJson), 10.seconds)
+        createJsonResponse(req, result)
+    }
+
+    //API:
+    /*val sendTx = httpPOST(request, path)
     val data = requestResponseByteString(sendTx)
-    byteStringToJSON(data)
+    byteStringToJSON(data)*/
   }
 
-  def broadcastTx(signedTransaction: Json): Json = {
-    val tx = jsonToByteString(signedTransaction)
-    sendRequest(tx, "wallet")
+  def broadcastTx(signedTransaction: Json): Future[Json] = {
+    val result = (signedTransaction \\ "result").head
+    val tx = (result \\ "formattedTx").head
+    val params: Json = Map(
+      "tx" -> tx
+    ).asJson
+    val newJSON: Json = Map(
+      "jsonrpc" -> (signedTransaction \\ "jsonrpc").head,
+      "id" -> (signedTransaction \\ "id").head,
+      "method" -> "broadcastTx".asJson,
+      "params" -> List(params).asJson
+    ).asJson
+    (requestsManager ? WalletRequest(newJSON)).mapTo[String].map(_.asJson)
+
+    //API:
+    /*val tx = jsonToByteString(signedTransaction)
+    sendRequest(tx, "wallet")*/
   }
 
   def getBalances (publicKeys: Set[String]): Json = {

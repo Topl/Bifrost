@@ -8,7 +8,7 @@ import io.circe.{Encoder, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
 import keymanager.KeyManager._
-import requests.RequestsManager.CreateTransaction
+import requests.RequestsManager.{WalletRequest, AssetRequest}
 import settings.AppSettings
 
 import scala.concurrent.{Await, Future}
@@ -23,9 +23,6 @@ case class GjallarhornApiRoute(settings: AppSettings,
                                implicit val actorSystem: ActorSystem) extends ApiRoute {
 
   override val route: Route = pathPrefix("gjallarhorn") {basicRoute(handlers) }
-
-  implicit val jsonEncoder: Encoder[Future[String]] =
-    (msg: Future[String]) => Await.result(msg, 10.seconds).asJson
 
   /**
     * Handles the different methods that are called.
@@ -50,8 +47,9 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    (requestsManager ? CreateTransaction(params)).mapTo[String].map(_.asJson)
+    (requestsManager ? AssetRequest(params)).mapTo[String].map(_.asJson)
 
+    //API:
     /*val method: String = (params \\ "method").head.asString.get
     val innerParams: Json = (params \\ "params").head.asArray.get.head
     val tx = requests.transaction(method, innerParams)
@@ -81,8 +79,10 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    //bifrostWCH ! broadcastTx(params)
-    Future{requests.broadcastTx(params)}
+    (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
+
+    //API:
+    //Future{requests.broadcastTx(params)}
   }
 
 

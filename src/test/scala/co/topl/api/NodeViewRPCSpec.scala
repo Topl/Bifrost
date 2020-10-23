@@ -94,7 +94,7 @@ class NodeViewRPCSpec extends AnyWordSpec
        |{
        |   "jsonrpc": "2.0",
        |   "id": "1",
-       |   "method": "createAssets",
+       |   "method": "createAssetsPrototype",
        |   "params": [{
        |     "issuer": "${publicKeys("hub")}",
        |     "recipient": "${publicKeys("investor")}",

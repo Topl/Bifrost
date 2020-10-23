@@ -25,6 +25,16 @@ class RequestsManager ( implicit ec: ExecutionContext ) extends Actor with Loggi
 
   }
 
+  def sendToBifrost(msg: String, gjalApi: ActorRef): Unit = {
+    context.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne().onComplete {
+      case Success(bifrost: ActorRef) =>
+        val futureResponse = bifrost ? msg
+        futureResponse.pipeTo(gjalApi)
+      case _ =>
+        log.warn("There is no bifrost actor reference to send to.")
+    }
+  }
+
   override def receive: Receive = {
     case msg: String => msgHandler(msg)
 
@@ -32,16 +42,14 @@ class RequestsManager ( implicit ec: ExecutionContext ) extends Actor with Loggi
       bifrostActorRef = Some(bifrostActor)
     }
 
-    case CreateTransaction(tx: Json) => {
+    case AssetRequest(tx: Json) => {
       val gjalApi: ActorRef = sender()
-      println("in create transaction in requests manager")
-      context.actorSelection("akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne().onComplete {
-        case Success(bifrost: ActorRef) =>
-          val futureResponse = bifrost ? s"asset transaction: $tx"
-          futureResponse.pipeTo(gjalApi)
-        case _ =>
-          log.warn("There is not bifrost actor reference to send to.")
-      }
+      sendToBifrost(s"asset transaction: $tx", gjalApi)
+    }
+
+    case WalletRequest(params: Json) => {
+      val gjalApi: ActorRef = sender()
+      sendToBifrost(s"wallet request: $params", gjalApi)
     }
 
 
@@ -49,5 +57,6 @@ class RequestsManager ( implicit ec: ExecutionContext ) extends Actor with Loggi
 }
 
 object RequestsManager {
-  case class CreateTransaction (tx: Json)
+  case class AssetRequest(tx: Json)
+  case class WalletRequest(params: Json)
 }

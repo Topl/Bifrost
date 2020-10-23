@@ -4,9 +4,9 @@ import akka.actor.{ActorRef, ActorSelection, ActorSystem, DeadLetter, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
 import akka.stream.{ActorMaterializer, Materializer}
-import _root_.requests.Requests
+import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
-import crypto.PrivateKey25519Companion
+import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
 import io.circe.{Json, parser}
 import io.circe.parser.parse
 import org.scalatest.flatspec.AsyncFlatSpec
@@ -19,7 +19,7 @@ import wallet.WalletManager._
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 
@@ -29,11 +29,14 @@ class RequestSpec extends AsyncFlatSpec
   with GjallarhornGenerators {
 
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
-  implicit val timeout: Timeout = 10.seconds
+  implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
+  implicit val timeout: Timeout = 30.seconds
 
   val http: HttpExt = Http(actorSystem)
 
-  val requests = new Requests(requestSettings)
+  val requestsManagerRef: ActorRef = actorSystem.actorOf(Props(new RequestsManager), name = "RequestsManager")
+
+  val requests = new Requests(requestSettings, requestsManagerRef)
 
   val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
   val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
@@ -59,7 +62,7 @@ class RequestSpec extends AsyncFlatSpec
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
 
-/*  it should "receive a successful response from Bifrost upon creating asset" in {
+ it should "receive a successful response from Bifrost upon creating asset" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -93,12 +96,13 @@ class RequestSpec extends AsyncFlatSpec
     (signedTransaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
+  /*
   it should "receive successful JSON response from broadcast transaction" in {
-    val response = requests.broadcastTx(signedTransaction)
+    val response = Await.result(requests.broadcastTx(signedTransaction), 10.seconds)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
-  }
+  }*/
 
   it should "receive a successful response from Bifrost upon transfering a poly" in {
     val transferPolysRequest: ByteString = ByteString(
@@ -130,14 +134,14 @@ class RequestSpec extends AsyncFlatSpec
     val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
     newBoxes
   }
-
+/*
   it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
-         |   "method": "createAssets",
+         |   "method": "createAssetsPrototype",
          |   "params": [{
          |     "issuer": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
          |     "recipient": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
@@ -149,6 +153,7 @@ class RequestSpec extends AsyncFlatSpec
          |}
          """.stripMargin)
     transaction = requests.sendRequest(createAssetRequest, "asset")
+    println(transaction)
     newBoxId = parseForBoxId(transaction)
     Thread.sleep(10000)
     balanceResponse = requests.getBalances(publicKeys)
@@ -156,6 +161,7 @@ class RequestSpec extends AsyncFlatSpec
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
+    println (result)
     (((result \\ "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").head \\ "Boxes").head \\ "Asset").
       head.toString().contains(newBoxId) shouldBe true
   }
@@ -181,8 +187,8 @@ class RequestSpec extends AsyncFlatSpec
       }
       case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     }
-  }*/
-
+  }
+*/
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
       "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)

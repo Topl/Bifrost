@@ -7,6 +7,7 @@ import co.topl.modifier.block.Block
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutcome, SemanticallySuccessfulModifier}
 import co.topl.utils.Logging
 import co.topl.wallet.AssetRequests.AssetRequest
+import co.topl.wallet.WalletRequests.WalletRequest
 import io.circe.Json
 import io.circe.parser.parse
 
@@ -40,6 +41,32 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
     }
    */
 
+  def sendRequest(params: String, walletRef: ActorRef, requestType: String): Unit = {
+    parse(params) match {
+      case Right(tx) => {
+        requestType match {
+          case "asset" =>
+            context.actorSelection("../" + AssetRequests.actorName).resolveOne().onComplete {
+              case Success(request: ActorRef) =>
+                    val futureResponse = request ? AssetRequest(tx)
+                    futureResponse.pipeTo(walletRef)
+              case _ =>
+                log.warn("No ledger actor found. Can not update view.")
+            }
+          case "wallet" =>
+            context.actorSelection("../" + WalletRequests.actorName).resolveOne().onComplete {
+              case Success(request: ActorRef) =>
+                val futureResponse = request ? WalletRequest(tx)
+                futureResponse.pipeTo(walletRef)
+              case _ =>
+                log.warn("No ledger actor found. Can not update view.")
+            }
+        }
+      }
+      case Left(error)  => throw new Exception (s"error: $error")
+    }
+  }
+
   def msgHandler(msg: String): Unit = {
     if (msg == "Remote wallet actor initialized") {
       remoteWalletActor = Some(sender())
@@ -59,19 +86,14 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
       val txString: String = msg.substring("asset transaction: ".length)
       println("Wallet Connection handler received asset transaction: " + txString)
       val walletActorRef: ActorRef = sender()
-      parse(txString) match {
-        case Right(tx) => {
-          context.actorSelection("../" + AssetRequests.actorName).resolveOne().onComplete {
-            case Success(request: ActorRef) =>
-              val futureResponse = request ? AssetRequest(tx)
-              futureResponse.pipeTo(walletActorRef)
-            case _ =>
-              log.warn("No ledger actor found. Can not update view.")
-          }
-        }
-        case Left(error)  => throw new Exception (s"error: $error")
-      }
+      sendRequest(txString, walletActorRef, "asset")
+    }
 
+    if (msg.contains("wallet request:")) {
+      val params: String = msg.substring("wallet request: ".length)
+      println("Wallet connection handler received wallet request: " + params)
+      val walletActorRef: ActorRef = sender()
+      sendRequest(params, walletActorRef, "wallet")
     }
   }
 
