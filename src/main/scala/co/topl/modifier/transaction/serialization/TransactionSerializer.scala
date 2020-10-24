@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction.serialization
 
 import co.topl.modifier.transaction._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object TransactionSerializer extends BifrostSerializer[Transaction] {
 

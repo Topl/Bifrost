@@ -4,19 +4,20 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
+import co.topl.crypto.PrivateKey25519
 import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
+import co.topl.modifier.transaction.Transaction.Nonce
+import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
+import co.topl.nodeView.state.box.{ BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
 import co.topl.program.ExecutionBuilderSerializer
-import co.topl.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Bytes, Longs}
+import co.topl.{ BifrostGenerators, ValidGenerators }
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import scorex.crypto.hash.Blake2b256
 
 import scala.collection.immutable.Seq
 
@@ -162,7 +163,7 @@ class ProgramTransactionSpec extends AnyPropSpec
         prop -> available
     }
 
-    val hashNoNonces = FastCryptographicHash(
+    val hashNoNonces = Blake2b256(
       executionBox.id.hashBytes
         ++ methodName.getBytes
         ++ sender.pubKeyBytes
@@ -172,7 +173,7 @@ class ProgramTransactionSpec extends AnyPropSpec
         ++ fees.flatMap { case (prop, feeValue) => prop.pubKeyBytes ++ Longs.toByteArray(feeValue) })
 
     val messageToSign = Bytes.concat(
-      FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
+      Blake2b256(executionBox.bytes ++ hashNoNonces),
         data.getBytes)
     val signature = priv.sign(messageToSign)
 

@@ -1,9 +1,9 @@
 package co.topl.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object LocalAddressPeerFeatureSerializer extends BifrostSerializer[LocalAddressPeerFeature] {
 

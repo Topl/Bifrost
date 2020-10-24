@@ -2,21 +2,21 @@ package co.topl.nodeView.state
 
 import java.io.File
 
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box._
-import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-import scorex.util.encode.Base58
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 import scorex.crypto.signatures.PublicKey
+import scorex.util.encode.Base58
 
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
  * BifrostState is a data structure which deterministically defines whether an arbitrary transaction is valid and so

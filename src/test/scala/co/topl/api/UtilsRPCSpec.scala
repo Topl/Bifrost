@@ -1,19 +1,19 @@
 package co.topl.api
 
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
+import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTypes }
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import co.topl.BifrostGenerators
-import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 @DoNotDiscover
 class UtilsRPCSpec extends AnyWordSpec
@@ -97,7 +97,7 @@ class UtilsRPCSpec extends AnyWordSpec
         val res = parse(responseAs[String]).right.get
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").head.asObject.isDefined shouldBe true
-        ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(FastCryptographicHash("Hello World"))
+        ((res \\ "result").head \\ "hash").head.asString.get shouldEqual Base58.encode(Blake2b256("Hello World"))
       }
     }
   }

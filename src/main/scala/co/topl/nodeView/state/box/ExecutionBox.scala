@@ -1,9 +1,9 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.ProgramId
 import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.nodeView.state.ProgramId
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 
 case class ExecutionBox( override val proposition: PublicKey25519Proposition,
                          override val nonce      : Long,

@@ -1,7 +1,6 @@
 package co.topl.crypto
 
 import co.topl.nodeView.state.box._
-import co.topl.crypto.proposition.ProofOfKnowledgeProposition
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {

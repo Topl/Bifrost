@@ -6,12 +6,12 @@ import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.BifrostGenerators
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedTransaction }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
+import co.topl.settings.{ AppContext, StartupOpts }
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec

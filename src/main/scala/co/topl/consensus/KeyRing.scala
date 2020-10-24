@@ -2,11 +2,12 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.crypto.{Bip39, FastCryptographicHash, PrivateKey25519}
 import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.{ Bip39, PrivateKey25519 }
 import co.topl.utils.Logging
+import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 class KeyRing ( private var secrets: Set[PrivateKey25519],
                 defaultKeyDir      : File
@@ -97,7 +98,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    val (sk, pk) = KeyFile.generateKeyPair(FastCryptographicHash(seed))
+    val (sk, pk) = KeyFile.generateKeyPair(Blake2b256(seed))
 
     // add secret to the keyring
     secrets += sk

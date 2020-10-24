@@ -1,13 +1,13 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.state.StateReader
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ Box, BoxId, ExecutionBox, ProgramBox }
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
@@ -20,7 +20,7 @@ case class ProgramTransfer (from        : PublicKey25519Proposition,
                             data        : String
                            ) extends Transaction {
 
-  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = Blake2b256(
     to.pubKeyBytes
       ++ Longs.toByteArray(fee)
       ++ data.getBytes
@@ -31,7 +31,7 @@ case class ProgramTransfer (from        : PublicKey25519Proposition,
   override lazy val newBoxes: Traversable[ProgramBox] = {
 
     val nonce = Transaction.nonceFromDigest(
-      FastCryptographicHash("ProgramTransfer".getBytes
+      Blake2b256("ProgramTransfer".getBytes
                               ++ to.pubKeyBytes
                               ++ hashNoNonces
                             ))

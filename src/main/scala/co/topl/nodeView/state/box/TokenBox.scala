@@ -1,12 +1,12 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.modifier.transaction.Transaction
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{ DecodingFailure, HCursor, Json }
+import scorex.crypto.hash.Blake2b256
 
  abstract class TokenBox(override val proposition: PublicKey25519Proposition,
                          override val nonce: Long,
@@ -23,7 +23,7 @@ object TokenBox {
   def idFromBox[PKP <: PublicKey25519Proposition] (box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
 
   def idFromPropNonce (proposition: PublicKey25519Proposition, nonce: Long): BoxId = {
-    val hashBytes = FastCryptographicHash(proposition.pubKeyBytes ++ Longs.toByteArray(nonce))
+    val hashBytes = Blake2b256(proposition.pubKeyBytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }
 

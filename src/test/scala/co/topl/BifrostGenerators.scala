@@ -3,8 +3,9 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import akka.actor.ActorSystem.Version
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519 }
+import co.topl.crypto.PrivateKey25519
+import co.topl.crypto.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.crypto.signature.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
@@ -13,8 +14,6 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.{ BlockProcessor, History, Storage }
 import co.topl.nodeView.state.ProgramId
 import co.topl.nodeView.state.box._
-import co.topl.crypto.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.crypto.signature.Signature25519
 import co.topl.program.{ Program, ProgramPreprocessor, _ }
 import co.topl.settings.{ AppSettings, StartupOpts, Version }
 import co.topl.utils.Logging
@@ -22,7 +21,8 @@ import io.circe.syntax._
 import io.circe.{ Json, JsonObject }
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{ Arbitrary, Gen }
-import scorex.crypto.signatures.{ PublicKey, Signature }
+import scorex.crypto.hash.Blake2b256
+import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
 import scala.util.{ Random, Try }
@@ -357,7 +357,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     storage <- jsonGen()
     status <- jsonGen()
     executionBuilder <- validExecutionBuilderGen().map(_.json)
-    id <- genBytesList(FastCryptographicHash.DigestSize)
+    id <- genBytesList(Blake2b256.DigestSize)
   } yield {
     Program(Map(
       "parties" -> Map(

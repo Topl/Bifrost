@@ -5,17 +5,17 @@ import java.util
 
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.{State, StateSpec}
 import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
-import co.topl.{BifrostGenerators, ValidGenerators}
-import com.google.common.primitives.{Ints, Longs}
+import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
+import co.topl.nodeView.state.{ State, StateSpec }
+import co.topl.{ BifrostGenerators, ValidGenerators }
+import com.google.common.primitives.{ Ints, Longs }
 import org.graalvm.polyglot.Context
 import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 @Ignore
@@ -88,13 +88,13 @@ class ValkyrieSpec extends AnyPropSpec
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes ++
         Longs.toByteArray(timestamp)
       //Longs.toByteArray(fee)
     )
 
-    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(Blake2b256(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++
@@ -142,13 +142,13 @@ class ValkyrieSpec extends AnyPropSpec
     val data: String = assetInstance.data
 
     val timestamp = Instant.now.toEpochMilli
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes ++
         Longs.toByteArray(timestamp)
       //Longs.toByteArray(fee)
     )
 
-    val nonce = Transaction.nonceFromDigest(FastCryptographicHash(
+    val nonce = Transaction.nonceFromDigest(Blake2b256(
       "AssetCreation".getBytes ++
         proposition.pubKeyBytes ++
         issuer.pubKeyBytes ++
@@ -211,14 +211,14 @@ class ValkyrieSpec extends AnyPropSpec
 
     val timestamp = Instant.now.toEpochMilli
 
-    lazy val hashNoNonces = FastCryptographicHash(
+    lazy val hashNoNonces = Blake2b256(
       proposition.pubKeyBytes) ++
       //unlockers.map(_.closedBoxId).reduce(_ ++ _) ++
       Longs.toByteArray(timestamp)
     //Longs.toByteArray(fee)
 
     val nonce = Transaction
-      .nonceFromDigest(FastCryptographicHash("ArbitTransfer".getBytes
+      .nonceFromDigest(Blake2b256("ArbitTransfer".getBytes
         ++ proposition.pubKeyBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0)))

@@ -8,6 +8,8 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.http.api.routes.{ AssetApiRoute, NodeViewApiRoute }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -17,8 +19,6 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
 import co.topl.nodeView.{ CurrentView, NodeViewHolderRef }
 import co.topl.settings.{ AppContext, StartupOpts }
 import io.circe.Json

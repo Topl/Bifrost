@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box.serialization
 
 import co.topl.nodeView.state.box.CodeBox
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object CodeBoxSerializer extends BifrostSerializer[CodeBox] {
 

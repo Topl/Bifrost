@@ -1,9 +1,8 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.{ Box, _ }
 import co.topl.nodeView.state.{ ProgramId, StateReader }
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
@@ -11,6 +10,7 @@ import co.topl.utils.exceptions.TransactionValidationException
 import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
@@ -46,14 +46,14 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq() //investmentBoxIds ++ feeBoxIdKeyPairs.map(_._1)
 
-  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = Blake2b256(
     ExecutionBuilderSerializer.toBytes(executionBuilder) ++
       owner.pubKeyBytes ++
       //boxIdsToOpen.foldLeft(Array[Byte]())(_ ++ _) ++
       fees.foldLeft(Array[Byte]())((a, b) => a ++ b._1.pubKeyBytes ++ Longs.toByteArray(b._2)))
 
   lazy val newStateBoxes: IndexedSeq[StateBox] = {
-    val nonceGen = FastCryptographicHash("stateBox".getBytes
+    val nonceGen = Blake2b256("stateBox".getBytes
                                            ++ executionBuilder.core.variables.noSpaces.getBytes
                                            ++ hashNoNonces
                                            ++ Ints.toByteArray(0))
@@ -73,20 +73,20 @@ case class ProgramCreation(executionBuilder: ExecutionBuilder,
 
     // generate nonces for the boxes and program ids for the new program
     val investorNonce = Transaction.nonceFromDigest(
-      FastCryptographicHash("ProgramCreation".getBytes
+      Blake2b256("ProgramCreation".getBytes
         ++ owner.pubKeyBytes
         ++ hashNoNonces
         ++ Ints.toByteArray(0))
     )
 
-    val cbNonceGen = FastCryptographicHash("codeBox".getBytes
+    val cbNonceGen = Blake2b256("codeBox".getBytes
                                              ++ executionBuilder.core.code.values.foldLeft(Array[Byte]())((a,b) => a ++ b.getBytes())
                                              ++ hashNoNonces
                                              ++ Ints.toByteArray(0))
     val codeNonce = Transaction.nonceFromDigest(cbNonceGen)
     val cbProgramId = ProgramId.create(cbNonceGen ++ "programId".getBytes)
 
-    val execNonceGen = FastCryptographicHash("executionBuilder".getBytes
+    val execNonceGen = Blake2b256("executionBuilder".getBytes
                                               ++ hashNoNonces
                                               ++ Ints.toByteArray(0))
     val execNonce = Transaction.nonceFromDigest(execNonceGen)

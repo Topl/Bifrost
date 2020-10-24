@@ -2,12 +2,13 @@ package co.topl.api
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.{HttpEntity, HttpRequest, _}
+import akka.http.scaladsl.model.{ HttpEntity, HttpRequest, _ }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.http.api.routes.ProgramApiRoute
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
@@ -16,16 +17,14 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.nodeView.{ CurrentView, NodeViewHolderRef, state }
+import co.topl.settings.{ AppContext, StartupOpts }
 import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import scorex.util.encode.Base58
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

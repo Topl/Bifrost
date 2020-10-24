@@ -1,11 +1,11 @@
 package co.topl.network
 
 import akka.actor.Actor
-import co.topl.network.message.{Message, MessageSpec}
+import co.topl.network.message.{ Message, MessageSpec }
 import co.topl.network.peer.ConnectedPeer
 import co.topl.utils.Logging
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 trait Synchronizer extends Actor with Logging {
 

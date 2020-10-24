@@ -2,12 +2,12 @@ package co.topl.nodeView.state
 
 import java.time.Instant
 
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.box._
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
 import org.scalatest.Ignore
 import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
 

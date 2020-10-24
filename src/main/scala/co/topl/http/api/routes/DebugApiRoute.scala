@@ -1,6 +1,6 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId

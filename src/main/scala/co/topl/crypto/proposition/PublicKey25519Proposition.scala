@@ -1,6 +1,6 @@
 package co.topl.crypto.proposition
 
-import co.topl.crypto.PrivateKey25519
+import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledgeProposition }
 import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps

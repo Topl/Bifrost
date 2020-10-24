@@ -3,6 +3,7 @@ package co.topl.network
 import java.net.InetSocketAddress
 
 import akka.actor.{ ActorRef, ActorSystem, Props }
+import co.topl.crypto.Proposition
 import co.topl.modifier.NodeViewModifier.{ ModifierTypeId, idsToString }
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.modifier.transaction.Transaction
@@ -17,7 +18,6 @@ import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.GenericBox
-import co.topl.crypto.proposition.Proposition
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{ Logging, MalformedModifierError }

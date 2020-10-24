@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box
 
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 
 case class ArbitBox(override val proposition: PublicKey25519Proposition,
                     override val nonce: Long,

@@ -1,9 +1,9 @@
 package co.topl.network.peer
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
 import co.topl.settings.NetworkSettings
-import co.topl.utils.{Logging, TimeProvider}
+import co.topl.utils.{ Logging, TimeProvider }
 
 import scala.concurrent.duration._
 

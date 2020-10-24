@@ -1,6 +1,6 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.ModifierId
@@ -13,7 +13,6 @@ import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 case class NodeViewApiRoute(override val settings: RESTApiSettings, nodeViewHolderRef: ActorRef)
                            (implicit val context: ActorRefFactory) extends ApiRouteWithView {

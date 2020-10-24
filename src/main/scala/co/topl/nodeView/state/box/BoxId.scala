@@ -2,11 +2,11 @@ package co.topl.nodeView.state.box
 
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 import scorex.crypto.hash.Blake2b256
+import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class BoxId (hashBytes: Array[Byte]) {
   require(hashBytes.length == BoxId.size, s"Invalid size for BoxId")

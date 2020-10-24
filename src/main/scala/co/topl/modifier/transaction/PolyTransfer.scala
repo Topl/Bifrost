@@ -2,15 +2,16 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519 }
-import co.topl.modifier.transaction
-import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.crypto.PrivateKey25519
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.modifier.transaction
+import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.box.{ PolyBox, TokenBox }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, HCursor }
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
@@ -30,7 +31,7 @@ case class PolyTransfer ( override val from      : IndexedSeq[(PublicKey25519Pro
       .map { case ((prop, value), idx) =>
         val nonce = Transaction
           .nonceFromDigest(
-            FastCryptographicHash(
+            Blake2b256(
               "PolyTransfer".getBytes
                 ++ prop.pubKeyBytes
                 ++ hashNoNonces

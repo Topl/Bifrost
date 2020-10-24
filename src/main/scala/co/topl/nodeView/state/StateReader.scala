@@ -1,8 +1,8 @@
 package co.topl.nodeView.state
 
+import co.topl.crypto.Proposition
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
-import co.topl.crypto.proposition.Proposition
 import co.topl.nodeView.state.box._
 
 import scala.reflect.ClassTag

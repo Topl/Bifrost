@@ -1,17 +1,17 @@
 package co.topl.http.api
 
 import akka.actor.ActorRefFactory
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
-import akka.http.scaladsl.server.{Directive0, Directives, Route}
+import akka.http.scaladsl.model.{ ContentTypes, HttpEntity }
+import akka.http.scaladsl.server.{ Directive0, Directives, Route }
 import akka.util.Timeout
 import co.topl.settings.RESTApiSettings
 import io.circe.parser.parse
-import io.circe.{Decoder, Json}
+import io.circe.{ Decoder, Json }
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 import scorex.util.encode.Base58
-import scorex.crypto.hash.{Blake2b256, Digest32}
 
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Await, Future }
+import scala.util.{ Failure, Success, Try }
 
 trait ApiRoute extends Directives {
   val settings: RESTApiSettings

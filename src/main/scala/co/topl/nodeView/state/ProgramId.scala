@@ -1,13 +1,13 @@
 package co.topl.nodeView.state
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class ProgramId (hashBytes: Array[Byte]) {
 
@@ -26,7 +26,7 @@ case class ProgramId (hashBytes: Array[Byte]) {
 
 object ProgramId extends BifrostSerializer[ProgramId] {
 
-  val size: Int = FastCryptographicHash.DigestSize; // number of bytes in identifier,
+  val size: Int = Blake2b256.DigestSize; // number of bytes in identifier,
 
   def apply(id: String): ProgramId = {
     Base58.decode(id) match {
@@ -36,7 +36,7 @@ object ProgramId extends BifrostSerializer[ProgramId] {
   }
 
   def create (seed: Array[Byte]): ProgramId = {
-    new ProgramId(FastCryptographicHash(seed))
+    new ProgramId(Blake2b256(seed))
   }
 
   override def serialize(obj: ProgramId, w: Writer): Unit = {

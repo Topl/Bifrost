@@ -1,9 +1,9 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.state.ProgramId
-import co.topl.nodeView.state.box.ProgramBox
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.nodeView.state.ProgramId
+import co.topl.nodeView.state.box.ProgramBox
 import co.topl.utils.serialization.{ Reader, Writer }
 
 object ProgramBoxSerializer {

@@ -5,14 +5,11 @@ package co.topl.nodeView.history
   */
 
 import co.topl.modifier.block.Bloom
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.collection.BitSet
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 import scala.collection.BitSet
 

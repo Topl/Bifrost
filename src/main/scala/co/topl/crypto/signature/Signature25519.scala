@@ -1,8 +1,8 @@
 package co.topl.crypto.signature
 
-import co.topl.crypto.proposition.{ Proposition, PublicKey25519Proposition }
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.serialization.Signature25519Serializer
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledge }
+import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledge, Proposition }
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }

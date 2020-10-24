@@ -1,6 +1,5 @@
 package co.topl.crypto
 
-import co.topl.crypto.proposition.{ProofOfKnowledgeProposition, Proposition}
 import co.topl.utils.serialization.BytesSerializable
 
 /**

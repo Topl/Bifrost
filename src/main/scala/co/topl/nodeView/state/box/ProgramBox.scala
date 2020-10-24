@@ -1,13 +1,13 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.ProgramId
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.state.ProgramId
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{ DecodingFailure, HCursor, Json }
+import scorex.crypto.hash.Blake2b256
 
 abstract class ProgramBox ( override val proposition: PublicKey25519Proposition,
                             override val nonce      : Long,
@@ -22,7 +22,7 @@ abstract class ProgramBox ( override val proposition: PublicKey25519Proposition,
 
 object ProgramBox {
   def idFromBox[PKP <: PublicKey25519Proposition] (box: ProgramBox ): BoxId = {
-    val hashBytes = FastCryptographicHash(
+    val hashBytes = Blake2b256(
       box.proposition.pubKeyBytes ++
         box.typeOfBox.getBytes ++
         Longs.toByteArray(box.nonce))

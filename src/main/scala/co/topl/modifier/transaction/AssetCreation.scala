@@ -2,14 +2,14 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.nodeView.state.StateReader
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.{ AssetBox, Box, BoxId, TokenBox }
 import com.google.common.primitives.{ Bytes, Ints, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
@@ -25,7 +25,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
   //TODO deprecate timestamp once fee boxes are included in nonce generation
-  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = Blake2b256(
     to.flatMap(_._1.pubKeyBytes).toArray ++
     Longs.toByteArray(timestamp) ++
     Longs.toByteArray(fee)
@@ -37,7 +37,7 @@ case class AssetCreation ( to: IndexedSeq[(PublicKey25519Proposition, Long)],
       .zipWithIndex
       .map { case ((prop, value), idx) =>
         val nonce = Transaction.nonceFromDigest(
-          FastCryptographicHash(
+          Blake2b256(
             "AssetCreation".getBytes ++
               prop.pubKeyBytes ++
               issuer.pubKeyBytes ++

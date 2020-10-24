@@ -1,6 +1,5 @@
-package co.topl.crypto.proposition
+package co.topl.crypto
 
-import co.topl.crypto.Secret
 import co.topl.utils.serialization.BytesSerializable
 
 trait Proposition extends BytesSerializable

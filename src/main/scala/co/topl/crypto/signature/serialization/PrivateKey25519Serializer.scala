@@ -1,8 +1,8 @@
 package co.topl.crypto.signature.serialization
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 
 object PrivateKey25519Serializer extends BifrostSerializer[PrivateKey25519] {
 

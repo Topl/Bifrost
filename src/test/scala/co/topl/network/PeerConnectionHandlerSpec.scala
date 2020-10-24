@@ -6,7 +6,7 @@ import akka.actor._
 import akka.testkit.TestKit
 import co.topl.BifrostGenerators
 import co.topl.network.message.MessageSerializer
-import co.topl.settings.{AppContext, StartupOpts}
+import co.topl.settings.{ AppContext, StartupOpts }
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

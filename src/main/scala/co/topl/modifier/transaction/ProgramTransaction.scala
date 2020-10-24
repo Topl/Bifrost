@@ -1,11 +1,11 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.{ BoxId, PolyBox, PublicKeyNoncedBox }
 import com.google.common.primitives.Ints
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.Try
 
@@ -40,7 +40,7 @@ abstract class ProgramTransaction extends Transaction {
         case ((prop, value), idx) =>
           val nonce = Transaction
             .nonceFromDigest(
-              FastCryptographicHash("ProgramCreation".getBytes
+              Blake2b256("ProgramCreation".getBytes
                 ++ prop.pubKeyBytes
                 ++ hashNoNonces
                 ++ Ints.toByteArray(idx)))

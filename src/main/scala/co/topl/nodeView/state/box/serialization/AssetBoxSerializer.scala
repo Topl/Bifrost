@@ -1,8 +1,8 @@
 package co.topl.nodeView.state.box.serialization
 
-import co.topl.nodeView.state.box.AssetBox
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.nodeView.state.box.AssetBox
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object AssetBoxSerializer extends BifrostSerializer[AssetBox] {

@@ -3,9 +3,9 @@ package co.topl.http
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.model.{ HttpResponse, StatusCodes }
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.{Directive0, Directives, Route}
+import akka.http.scaladsl.server.{ Directive0, Directives, Route }
 
 /**
  * Provides tools for handling a Cross-Origin Resource Sharing spec workflow

@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicLong
 import org.apache.commons.net.ntp.NTPUDPClient
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 object NetworkTime {
   def localWithOffset(offset: Long): Long = System.currentTimeMillis() + offset

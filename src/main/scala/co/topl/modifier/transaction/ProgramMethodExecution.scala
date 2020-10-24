@@ -1,17 +1,16 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.state.box._
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.{ MultiSignature25519, Signature25519 }
+import co.topl.modifier.transaction.Transaction.Nonce
+import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.{ ProgramId, State, StateReader }
 import co.topl.program.Program
 import co.topl.utils.exceptions.TransactionValidationException
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor, Json }
-import scorex.crypto.hash.Digest32
+import scorex.crypto.hash.{ Blake2b256, Digest32 }
 
 import scala.util.{ Failure, Success, Try }
 
@@ -51,7 +50,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = feeBoxIdKeyPairs.map(_._1)
 
   lazy val hashNoNonces: Digest32 =
-    FastCryptographicHash(
+    Blake2b256(
       executionBox.id.hashBytes ++
         methodName.getBytes ++
         owner.pubKeyBytes ++
@@ -62,7 +61,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
 
   override lazy val newBoxes: Traversable[ProgramBox] = {
     //    val digest = FastCryptographicHash(MofNPropositionSerializer.toBytes(proposition) ++ hashNoNonces)
-    val digest = FastCryptographicHash(proposition.pubKeyBytes ++ hashNoNonces)
+    val digest = Blake2b256(proposition.pubKeyBytes ++ hashNoNonces)
 
     val nonce = Transaction.nonceFromDigest(digest)
 
@@ -79,7 +78,7 @@ case class ProgramMethodExecution ( executionBox: ExecutionBox,
   }
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
-    FastCryptographicHash(executionBox.bytes ++ hashNoNonces),
+    Blake2b256(executionBox.bytes ++ hashNoNonces),
     data.getBytes
     )
 

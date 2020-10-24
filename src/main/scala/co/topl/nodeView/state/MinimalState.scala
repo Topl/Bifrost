@@ -4,12 +4,12 @@ package co.topl.nodeView.state
   * Created by cykoz on 4/13/17.
   */
 
+import co.topl.crypto.Proposition
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.state.box.GenericBox
-import co.topl.crypto.proposition.Proposition
 
 import scala.util.Try
 

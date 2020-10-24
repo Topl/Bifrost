@@ -1,11 +1,11 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.crypto.signature.serialization.Signature25519Serializer
-import co.topl.modifier.transaction.ProgramTransfer
-import co.topl.nodeView.state.box.ExecutionBox
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
 import co.topl.crypto.signature.Signature25519
+import co.topl.crypto.signature.serialization.Signature25519Serializer
+import co.topl.modifier.transaction.ProgramTransfer
+import co.topl.nodeView.state.box.ExecutionBox
 import co.topl.nodeView.state.box.serialization.ExecutionBoxSerializer
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 

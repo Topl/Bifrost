@@ -1,18 +1,18 @@
 package co.topl.http.api.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.http.api.ApiRoute
 import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.http.api.ApiRoute
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class KeyManagementApiRoute ( override val settings: RESTApiSettings, keyHolderRef: ActorRef )
                                  ( implicit val context: ActorRefFactory ) extends ApiRoute {

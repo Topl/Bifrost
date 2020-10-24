@@ -1,6 +1,5 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.FastCryptographicHash
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
 import co.topl.nodeView.state.box.{ Box, BoxId, CodeBox }
@@ -9,6 +8,7 @@ import co.topl.program.ProgramPreprocessor
 import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor, JsonObject }
+import scorex.crypto.hash.Blake2b256
 
 import scala.util.{ Failure, Success, Try }
 
@@ -22,7 +22,7 @@ case class CodeCreation ( to       : PublicKey25519Proposition,
 
   override lazy val boxIdsToOpen: IndexedSeq[BoxId] = IndexedSeq()
 
-  lazy val hashNoNonces: Array[Byte] = FastCryptographicHash(
+  lazy val hashNoNonces: Array[Byte] = Blake2b256(
     to.pubKeyBytes ++
       code.getBytes ++
       Longs.toByteArray(fee) ++
@@ -31,7 +31,7 @@ case class CodeCreation ( to       : PublicKey25519Proposition,
 
   override val newBoxes: Traversable[Box] = {
 
-    val nonceGen = FastCryptographicHash(
+    val nonceGen = Blake2b256(
       "CodeCreation".getBytes ++
         to.pubKeyBytes ++
         code.getBytes ++
