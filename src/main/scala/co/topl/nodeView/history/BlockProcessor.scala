@@ -53,10 +53,9 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
       val parentDifficulty = history.storage.difficultyOf(block.parentId).get
-      val prevTimes = history.lastBlocks(4, block).map(prev => prev.timestamp)
-
+      val prevTimes = history.lastBlocks(consensus.nxtBlockNum + 1, block).map(prev => prev.timestamp)
       val newHeight = history.storage.heightOf(block.parentId).get + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
       chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
 
@@ -68,9 +67,8 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
 
       val parentDifficulty = cacheParent.baseDifficulty
       val prevTimes = (cacheParent.prevBlockTimes :+ block.timestamp).takeRight(4)
-
       val newHeight = cacheParent.height + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
       chainCache = chainCache.add( block, newHeight, newBaseDifficulty, prevTimes )
 
