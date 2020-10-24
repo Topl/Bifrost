@@ -1,14 +1,15 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ConsensusParams
-import co.topl.crypto.{PrivateKey25519, Signature25519}
+import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.settings.Version
 import co.topl.utils.Logging
-import scorex.crypto.signatures.{PrivateKey, PublicKey}
+import scorex.crypto.signatures.{ PrivateKey, PublicKey }
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try

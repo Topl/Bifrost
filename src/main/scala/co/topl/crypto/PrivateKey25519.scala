@@ -1,10 +1,11 @@
 package co.topl.crypto
 
-import co.topl.crypto.serialization.PrivateKey25519Serializer
+import co.topl.crypto.signature.serialization.PrivateKey25519Serializer
 import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.utils.serialization.BifrostSerializer
-import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
+import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 
 case class PrivateKey25519( private[crypto] val privKeyBytes: PrivateKey,
                             private[crypto] val publicKeyBytes: PublicKey

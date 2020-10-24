@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.consensus.Forger.ReceivableMessages._
 import co.topl.http.api.ApiRoute
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.settings.RESTApiSettings
 import io.circe.Json
 import io.circe.syntax.EncoderOps

@@ -1,5 +1,6 @@
-package co.topl.nodeView.state.box.proposition
+package co.topl.crypto.proposition.serialization
 
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import scorex.crypto.signatures.{ Curve25519, PublicKey }
 

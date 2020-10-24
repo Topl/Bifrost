@@ -1,6 +1,6 @@
 package co.topl.crypto
 
-import co.topl.nodeView.state.box.proposition.{ProofOfKnowledgeProposition, Proposition}
+import co.topl.crypto.proposition.{ProofOfKnowledgeProposition, Proposition}
 import co.topl.utils.serialization.BytesSerializable
 
 /**

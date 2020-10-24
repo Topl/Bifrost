@@ -3,7 +3,7 @@ package co.topl.consensus
 import java.io.File
 
 import co.topl.crypto.{Bip39, FastCryptographicHash, PrivateKey25519}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
 
 import scala.util.{Failure, Success, Try}

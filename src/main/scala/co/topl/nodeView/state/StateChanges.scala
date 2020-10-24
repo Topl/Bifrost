@@ -2,7 +2,7 @@ package co.topl.nodeView.state
 
 import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.block.Block
-import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
+import co.topl.crypto.proposition.ProofOfKnowledgeProposition
 import co.topl.nodeView.state.box.{Box, BoxId, PolyBox}
 import com.google.common.primitives.Longs
 

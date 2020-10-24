@@ -1,4 +1,4 @@
-package co.topl.nodeView.state.box.proposition
+package co.topl.crypto.proposition
 
 import co.topl.crypto.Secret
 import co.topl.utils.serialization.BytesSerializable

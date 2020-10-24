@@ -3,17 +3,17 @@ package co.topl.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import co.topl.crypto.Signature25519
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.State
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 
 import scala.util.Success
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import scorex.crypto.signatures.Signature
 
 import scala.util.Success

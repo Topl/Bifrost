@@ -17,7 +17,7 @@ import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
+import co.topl.crypto.proposition.Proposition
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
 import co.topl.utils.serialization.BifrostSerializer
 import co.topl.utils.{ Logging, MalformedModifierError }

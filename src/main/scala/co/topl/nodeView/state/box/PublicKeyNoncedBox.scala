@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import com.google.common.primitives.Longs
 import scorex.crypto.hash.Blake2b256
 

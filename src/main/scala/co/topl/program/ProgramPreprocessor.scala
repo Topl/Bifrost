@@ -1,13 +1,13 @@
 package co.topl.program
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{ Files, Path }
 
-import co.topl.crypto.Signature25519
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
-import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
-import com.oracle.js.parser.{ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser}
+import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }
+import com.oracle.js.parser.{ ErrorManager, Lexer, ScriptEnvironment, Source, Token, TokenStream, TokenType, Parser => GraalParser }
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
@@ -16,7 +16,7 @@ import scorex.util.encode.Base64
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.util.matching.Regex
 
 /**

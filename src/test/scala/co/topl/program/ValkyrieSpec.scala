@@ -8,7 +8,7 @@ import InstrumentClasses.TokenClasses._
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.{State, StateSpec}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}

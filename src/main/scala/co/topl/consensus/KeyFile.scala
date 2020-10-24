@@ -6,7 +6,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }

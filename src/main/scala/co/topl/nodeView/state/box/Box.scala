@@ -1,7 +1,7 @@
 package co.topl.nodeView.state.box
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
+import co.topl.crypto.proposition.ProofOfKnowledgeProposition
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.{Decoder, Encoder, HCursor, Json}

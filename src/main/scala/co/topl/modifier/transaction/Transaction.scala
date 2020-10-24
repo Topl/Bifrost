@@ -3,7 +3,7 @@ package co.topl.modifier.transaction
 import co.topl.crypto.PrivateKey25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.proposition.ProofOfKnowledgeProposition
+import co.topl.crypto.proposition.ProofOfKnowledgeProposition
 import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs

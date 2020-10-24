@@ -1,15 +1,16 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.crypto.Signature25519
-import co.topl.crypto.serialization.Signature25519Serializer
+import co.topl.crypto.signature.serialization.Signature25519Serializer
 import co.topl.modifier.transaction.ProgramMethodExecution
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import co.topl.nodeView.state.box.serialization.{CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer}
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.box.serialization.{ CodeBoxSerializer, ExecutionBoxSerializer, StateBoxSerializer }
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import io.circe.{Json, parser}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
+import io.circe.{ Json, parser }
 
 object ProgramMethodExecutionSerializer extends BifrostSerializer[ProgramMethodExecution] {
 

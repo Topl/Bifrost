@@ -1,8 +1,9 @@
 package co.topl.nodeView.state.box.serialization
 
 import co.topl.nodeView.state.box.TokenBox
-import co.topl.nodeView.state.box.proposition.{PublicKey25519Proposition, PublicKey25519PropositionSerializer}
-import co.topl.utils.serialization.{Reader, Writer}
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.utils.serialization.{ Reader, Writer }
 
 object TokenBoxSerializer {
 

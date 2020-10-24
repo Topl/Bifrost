@@ -1,14 +1,15 @@
-package co.topl.crypto
+package co.topl.crypto.signature
 
-import co.topl.crypto.serialization.Signature25519Serializer
-import co.topl.nodeView.state.box.proposition.{Proposition, PublicKey25519Proposition}
+import co.topl.crypto.proposition.{ Proposition, PublicKey25519Proposition }
+import co.topl.crypto.signature.serialization.Signature25519Serializer
+import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledge }
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
+import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * @param signature 25519 signature

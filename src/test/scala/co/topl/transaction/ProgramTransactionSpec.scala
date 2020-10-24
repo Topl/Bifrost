@@ -7,7 +7,7 @@ package co.topl.transaction
 import co.topl.crypto.{FastCryptographicHash, PrivateKey25519}
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ProgramCreation, ProgramMethodExecution, ProgramTransaction}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }
 import co.topl.program.ExecutionBuilderSerializer
 import co.topl.{BifrostGenerators, ValidGenerators}

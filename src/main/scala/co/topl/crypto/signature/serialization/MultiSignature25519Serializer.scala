@@ -1,8 +1,9 @@
-package co.topl.crypto.serialization
+package co.topl.crypto.signature.serialization
 
-import co.topl.crypto.{MultiSignature25519, Signature25519}
+import co.topl.crypto.signature
+import co.topl.crypto.signature.{ MultiSignature25519, Signature25519 }
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 
 object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature25519] {
@@ -17,6 +18,6 @@ object MultiSignature25519Serializer extends BifrostSerializer[MultiSignature255
     val signatureSetLength: Int = r.getUInt().toIntExact
     val signatureSet: Set[Signature25519] = (0 until signatureSetLength).map(_ => Signature25519Serializer.parse(r)).toSet
 
-    MultiSignature25519(signatureSet)
+    signature.MultiSignature25519(signatureSet)
   }
 }

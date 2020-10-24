@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
 import co.topl.nodeView.state.box.GenericBox
-import co.topl.nodeView.state.box.proposition.Proposition
+import co.topl.crypto.proposition.Proposition
 import com.google.common.primitives.Longs
 
 /**

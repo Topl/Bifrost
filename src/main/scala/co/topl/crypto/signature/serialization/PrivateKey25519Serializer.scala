@@ -1,4 +1,4 @@
-package co.topl.crypto.serialization
+package co.topl.crypto.signature.serialization
 
 import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}

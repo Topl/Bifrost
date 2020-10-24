@@ -1,14 +1,14 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.Signature25519
-import co.topl.crypto.serialization.Signature25519Serializer
+import co.topl.crypto.signature.Signature25519
+import co.topl.crypto.signature.serialization.Signature25519Serializer
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.Extensions._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
 object BlockSerializer extends BifrostSerializer[Block] {
 

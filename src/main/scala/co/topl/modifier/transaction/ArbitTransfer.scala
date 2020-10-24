@@ -2,15 +2,16 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, TokenBox}
+import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519 }
+import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.box.{ ArbitBox, TokenBox }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class ArbitTransfer ( override val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
                            override val to        : IndexedSeq[(PublicKey25519Proposition, Long)],

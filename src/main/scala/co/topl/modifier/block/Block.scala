@@ -1,15 +1,16 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.{FastCryptographicHash, PrivateKey25519, Signature25519}
+import co.topl.crypto.signature.Signature25519
+import co.topl.crypto.{ FastCryptographicHash, PrivateKey25519 }
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 import scorex.crypto.signatures.Signature
 import supertagged.@@
 // fixme: JAA 0 2020.07.19 - why is protobuf still used here?

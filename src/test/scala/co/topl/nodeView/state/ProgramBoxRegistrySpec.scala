@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.Json

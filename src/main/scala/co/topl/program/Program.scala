@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.nodeView.state.box.{CodeBox, StateBox}
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._

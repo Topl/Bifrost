@@ -1,18 +1,19 @@
 package co.topl
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
-import co.topl.modifier.transaction.Transaction.{Nonce, Value}
+import co.topl.crypto.FastCryptographicHash
+import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.modifier.transaction._
 import co.topl.nodeView.state.box.{ PublicKeyNoncedBox, _ }
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.program._
-import com.google.common.primitives.{Bytes, Longs}
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
 import org.scalacheck.Gen
 import scorex.crypto.signatures.Signature
 import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Created by cykoz on 5/11/2017.

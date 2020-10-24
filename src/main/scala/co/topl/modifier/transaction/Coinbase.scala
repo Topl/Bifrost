@@ -1,15 +1,16 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{ArbitBox, Box, BoxId, TokenBox}
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.box.{ ArbitBox, Box, BoxId, TokenBox }
 import com.google.common.primitives.Longs
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import scorex.crypto.hash.Digest32
 import scorex.crypto.signatures.Signature
 

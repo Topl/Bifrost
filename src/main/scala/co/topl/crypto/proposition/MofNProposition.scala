@@ -1,11 +1,12 @@
-package co.topl.nodeView.state.box.proposition
+package co.topl.crypto.proposition
 
 import co.topl.crypto.PrivateKey25519
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition._
+import co.topl.crypto.proposition.PublicKey25519Proposition._
+import co.topl.crypto.proposition.serialization.MofNPropositionSerializer
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
 
 //noinspection ScalaStyle
 case class MofNProposition(m: Int, setOfPubKeyBytes: Set[PublicKey]) extends ProofOfKnowledgeProposition[PrivateKey25519] {

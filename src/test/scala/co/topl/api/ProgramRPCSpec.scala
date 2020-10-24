@@ -16,7 +16,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
+import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe._

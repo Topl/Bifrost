@@ -1,14 +1,15 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{FastCryptographicHash, Signature25519}
+import co.topl.crypto.FastCryptographicHash
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.state.box.{Box, BoxId, ExecutionBox, ProgramBox}
-import com.google.common.primitives.{Bytes, Longs}
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
+import co.topl.nodeView.state.box.{ Box, BoxId, ExecutionBox, ProgramBox }
+import com.google.common.primitives.{ Bytes, Longs }
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class ProgramTransfer (from        : PublicKey25519Proposition,
                             to          : PublicKey25519Proposition,
