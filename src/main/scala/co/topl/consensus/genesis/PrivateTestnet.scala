@@ -1,6 +1,6 @@
 package co.topl.consensus.genesis
 
-import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -22,7 +22,7 @@ case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
 
   override protected val members: Map[String, Long] = Map("Not implemented here" -> 0L)
 
-  override def getGenesisBlock: Try[(Block, ConsensusParams)] = Try(formNewBlock)
+  override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
   /**
    * We want a private network to have a brand new genesis block that is created at runtime. This is
@@ -34,7 +34,7 @@ case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
   }.getOrElse(10, 1000000L, 1000000000000000000L)
 
-  def formNewBlock: (Block, ConsensusParams) = {
+  def formNewBlock: (Block, ChainParams) = {
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
@@ -56,6 +56,6 @@ case class PrivateTestnet ( keyGen  : Int => Set[PublicKey25519Proposition],
 
     log.debug(s"Initialize state with transactions ${txs}")
 
-    (block, ConsensusParams(privateTotalStake, initialDifficulty))
+    (block, ChainParams(privateTotalStake, initialDifficulty))
   }
 }
