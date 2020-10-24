@@ -1,6 +1,6 @@
 package co.topl.consensus.genesis
 
-import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.{PrivateKey25519, Signature25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -37,6 +37,6 @@ trait GenesisProvider extends Logging {
 
   protected val members: Map[String, Long]
 
-  def getGenesisBlock: Try[(Block, ConsensusParams)]
+  def getGenesisBlock: Try[(Block, ChainParams)]
 
 }
