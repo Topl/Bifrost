@@ -1,6 +1,6 @@
-package co.topl.nodeView.state.box
+package co.topl.crypto
 
-import co.topl.crypto.{ Proof, Proposition }
+import co.topl.nodeView.state.box.BoxId
 
 sealed abstract class Unlocker[+P <: Proposition]
 

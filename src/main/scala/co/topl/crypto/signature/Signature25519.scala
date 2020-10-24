@@ -28,6 +28,9 @@ case class Signature25519 (signature: Signature) extends ProofOfKnowledge[Privat
   override def toString: String = s"Signature25519(${Base58.encode(signature)})"
 }
 
+
+
+
 object Signature25519 {
   lazy val SignatureSize: Int = Curve25519.SignatureLength
 

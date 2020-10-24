@@ -1,5 +1,6 @@
 package co.topl.nodeView.state.box
 
+import co.topl.crypto.BoxUnlocker
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
 import co.topl.modifier.transaction.Transaction
