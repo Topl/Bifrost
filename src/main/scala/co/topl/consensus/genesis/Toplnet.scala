@@ -1,16 +1,15 @@
 package co.topl.consensus.genesis
 
-import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ChainParams
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
 import co.topl.settings.Version
 
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 import scala.util.Try
 
 case object Toplnet extends GenesisProvider {
@@ -75,7 +74,7 @@ case object Toplnet extends GenesisProvider {
     "5hhPGEFCZM2HL6DNKs8KvUZAH3wC47rvMXBGftw9CCA5" -> 100000000L
     )
 
-  def getGenesisBlock: Try[(Block, ConsensusParams)] = Try {
+  def getGenesisBlock: Try[(Block, ChainParams)] = Try {
 
     val memberKeys = members.keys.map(PublicKey25519Proposition.apply)
 
@@ -100,6 +99,6 @@ case object Toplnet extends GenesisProvider {
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
 
-    (block, ConsensusParams(totalStake, initialDifficulty))
+    (block, ChainParams(totalStake, initialDifficulty))
   }
 }

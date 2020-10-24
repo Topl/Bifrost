@@ -1,17 +1,16 @@
 package co.topl.consensus.genesis
 
-import co.topl.consensus.Forger.ConsensusParams
+import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.PrivateKey25519
+import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.signature.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
 import co.topl.settings.Version
 import co.topl.utils.Logging
 import scorex.crypto.signatures.{ PrivateKey, PublicKey }
 
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 trait GenesisProvider extends Logging {
@@ -38,6 +37,6 @@ trait GenesisProvider extends Logging {
 
   protected val members: Map[String, Long]
 
-  def getGenesisBlock: Try[(Block, ConsensusParams)]
+  def getGenesisBlock: Try[(Block, ChainParams)]
 
 }

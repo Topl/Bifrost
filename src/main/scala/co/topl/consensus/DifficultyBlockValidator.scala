@@ -13,11 +13,13 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
   private def checkConsensusRules(block: Block): Try[Unit] = Try {
     if (!storage.isGenesis(block)) {
       // find the source of the parent block (either storage or chain cache)
-      val (parent, parentDifficulty) = blockProcessor.getCacheBlock(block.parentId) match {
+      val (parent, parentDifficulty, parentHeight) = blockProcessor.getCacheBlock(block.parentId) match {
         case Some(cacheParent) =>
-          (cacheParent.block, cacheParent.baseDifficulty)
+          (cacheParent.block, cacheParent.baseDifficulty, cacheParent.height)
         case None =>
-          (storage.modifierById(block.parentId).get, storage.parentDifficulty(block))
+          (storage.modifierById(block.parentId).get,
+            storage.difficultyOf(block.parentId).get,
+            storage.heightOf(block.parentId).get)
       }
 
       // calculate the hit value from the forger box included in the new block
@@ -25,7 +27,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 
       // calculate the adjusted difficulty the forger would have used to determine eligibility
       val timestamp = block.timestamp
-      val target = calcAdjustedTarget(parent, parentDifficulty, timestamp)
+      val target = calcAdjustedTarget(parent, parentHeight, parentDifficulty, timestamp)
       val valueTarget = (target * BigDecimal(block.forgerBox.value)).toBigInt
 
       // did the forger create a block with a valid forger box and adjusted difficulty?

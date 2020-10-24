@@ -3,16 +3,20 @@ package co.topl.settings
 import co.topl.utils.serialization.{BytesSerializable, _}
 
 /**
-  * Version of p2p protocol. Node can only process messages of it's version or lower.
+  * Version of blockchain protocol
   */
-case class Version ( firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte
-                   ) extends BytesSerializable with Product with Ordered[Version] {
+class Version ( val firstDigit: Byte,
+                val secondDigit: Byte,
+                val thirdDigit: Byte
+              ) extends BytesSerializable with Ordered[Version] {
 
   override type M = Version
 
   lazy val blockByte: Byte = firstDigit
 
   override def serializer: BifrostSerializer[Version] = VersionSerializer
+
+  override def toString: String = s"${firstDigit.toString}.${secondDigit.toString}.${thirdDigit.toString}"
 
   override def compare (that: Version): Int =
     if (this.firstDigit != that.firstDigit) {
@@ -25,11 +29,11 @@ case class Version ( firstDigit: Byte, secondDigit: Byte, thirdDigit: Byte
 }
 
 object Version {
-//  def apply(v: String): Version = {
-//    val split = v.split("\\.")
-//    new Version(split(0).toByte, split(1).toByte, split(2).toByte)
-//  }
+  def apply(value: String): Version = {
+    val split = value.split("\\.")
+    new Version(split(0).toByte, split(1).toByte, split(2).toByte)
+  }
 
-  val initial: Version = Version(0, 0, 1)
-  val last: Version = Version(0, 0, 1)
+  val initial: Version = new Version(0, 0, 1)
+  val MaxValue: Version = new Version(Byte.MaxValue, Byte.MaxValue, Byte.MaxValue)
 }
