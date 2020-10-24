@@ -15,12 +15,12 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{ KeyParameter, ParametersWithIV }
-import scorex.crypto.hash.{ Digest32, Keccak256 }
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
 
-import scala.util.{ Failure, Success, Try }
+import scala.util.Try
 
 /**
   * Created by cykoz on 6/22/2017.
@@ -35,19 +35,19 @@ case class KeyFile ( address   : Array[Byte],
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
-    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
+    val calcMAC = KeyFile.getMAC(derivedKey, cipherText)
+    require(calcMAC sameElements mac, "MAC does not match. Try again")
 
     KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
-        case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
-          case Seq(skBytes, pkBytes) => {
-            // recreate the private key
-            val privateKey = new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
-            // check that the address given in the keyfile matches the public key
-            require(publicKeyFromAddress == privateKey.publicImage, "PublicKey in file is invalid")
-            privateKey
-          }
-        }
+      case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
+        case Seq(skBytes, pkBytes) =>
+          // recreate the private key
+          val privateKey = new PrivateKey25519(PrivateKey @@ skBytes, PublicKey @@ pkBytes)
+          // check that the address given in the keyfile matches the public key
+          require(publicKeyFromAddress == privateKey.publicImage, "PublicKey in file is invalid")
+          privateKey
       }
+    }
   }
 
   private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
@@ -145,6 +145,16 @@ object KeyFile {
   }
 
   /**
+   *
+   * @param derivedKey
+   * @param cipherText
+   * @return
+   */
+  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] = {
+    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
+  }
+
+  /**
     *
     * @param derivedKey
     * @param ivData
@@ -162,6 +172,8 @@ object KeyFile {
     aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
     aesCtr.doFinal(outputText, 0)
 
-    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
+    val mac = getMAC(derivedKey, outputText)
+
+    (outputText, mac)
   }
 }
