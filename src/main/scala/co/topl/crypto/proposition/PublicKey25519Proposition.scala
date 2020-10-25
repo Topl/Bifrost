@@ -20,13 +20,13 @@ case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnow
 
   override type M = PublicKey25519Proposition
 
-  lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
+  //lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
 
-  private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
+  //private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
 
   override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
-  override def toString: String = address
+  //override def toString: String = address
 
   override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
@@ -68,7 +68,7 @@ object PublicKey25519Proposition {
       }
     }
 
-  def calcCheckSum(bytes: Array[Byte]): Array[Byte] = Blake2b256(bytes).take(ChecksumLength)
+  //def calcCheckSum(bytes: Array[Byte]): Array[Byte] = Blake2b256(bytes).take(ChecksumLength)
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
