@@ -1,10 +1,10 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.crypto.{PrivateKey25519, ProofOfKnowledgeProposition, Secret}
 import io.circe.syntax.EncoderOps
-import io.circe.{ Decoder, Encoder, HCursor }
+import io.circe.{Decoder, Encoder, HCursor}
 
-case class ArbitBox(override val proposition: PublicKey25519Proposition,
+case class ArbitBox(override val proposition: ProofOfKnowledgeProposition[_ <: Secret],
                     override val nonce: Long,
                     override val value: Long) extends TokenBox(proposition, nonce, value) {
 

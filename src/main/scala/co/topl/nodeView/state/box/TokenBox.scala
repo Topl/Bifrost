@@ -1,29 +1,32 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.BoxUnlocker
+import co.topl.address.PublicKeyAddress
+import co.topl.address.ToplAddress.AddressContent
 import co.topl.crypto.proposition.PublicKey25519Proposition
 import co.topl.crypto.signature.Signature25519
+import co.topl.crypto.{BoxUnlocker, PrivateKey25519, ProofOfKnowledgeProposition, Secret}
 import co.topl.modifier.transaction.Transaction
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
-import io.circe.{ DecodingFailure, HCursor, Json }
+import io.circe.{DecodingFailure, HCursor, Json}
 import scorex.crypto.hash.Blake2b256
 
- abstract class TokenBox(override val proposition: PublicKey25519Proposition,
-                         override val nonce: Long,
-                         override val value: Long
+ abstract class TokenBox(override val proposition: ProofOfKnowledgeProposition[_ <: Secret],
+                         override val nonce: Box.Nonce,
+                         override val value: TokenBox.Value
                         ) extends Box(proposition, nonce, value) {
-  self =>
 
-  lazy val id: BoxId = TokenBox.idFromBox(self)
+  lazy val id: BoxId = TokenBox.idFromBox(this)
 
 }
 
 
 object TokenBox {
-  def idFromBox[PKP <: PublicKey25519Proposition] (box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
+  type Value = Long
 
-  def idFromPropNonce (proposition: PublicKey25519Proposition, nonce: Long): BoxId = {
+  def idFromBox[PKP <: ProofOfKnowledgeProposition[PrivateKey25519]] (box: TokenBox ): BoxId = idFromPropNonce(box.proposition, box.nonce)
+
+  def idFromPropNonce (proposition: ProofOfKnowledgeProposition[PrivateKey25519], nonce: Long): BoxId = {
     val hashBytes = Blake2b256(proposition.pubKeyBytes ++ Longs.toByteArray(nonce))
     BoxId(hashBytes)
   }

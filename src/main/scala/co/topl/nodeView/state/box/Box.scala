@@ -1,27 +1,25 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledgeProposition }
+import co.topl.crypto.{ProofOfKnowledgeProposition, Secret}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 
 /**
  * Created by Matthew on 4/11/2017.
  */
-abstract class Box ( val proposition: ProofOfKnowledgeProposition[PrivateKey25519],
-                     val nonce: Long,
-                     val value: Any
-                   ) extends GenericBox[ProofOfKnowledgeProposition[PrivateKey25519], Any] {
-
-  self =>
+abstract class Box(val proposition: ProofOfKnowledgeProposition[_ <: Secret],
+                   val nonce: Box.Nonce,
+                   val value: Any
+                  ) extends GenericBox[ProofOfKnowledgeProposition[_ <: Secret], Any] {
 
   override type M = Box
 
   val typeOfBox: String
 
-  lazy val publicKey: ProofOfKnowledgeProposition[PrivateKey25519] = proposition
+  //lazy val publicKey: ProofOfKnowledgeProposition[PrivateKey25519] = proposition
 
-  override lazy val json: Json = Box.jsonEncoder(self)
+  override lazy val json: Json = Box.jsonEncoder(this)
 
   override def serializer: BifrostSerializer[Box] = BoxSerializer
 
@@ -35,6 +33,8 @@ abstract class Box ( val proposition: ProofOfKnowledgeProposition[PrivateKey2551
 
 
 object Box {
+  type Nonce = Long
+
   implicit val jsonEncoder: Encoder[Box] = {
     case box: ArbitBox     => ArbitBox.jsonEncoder(box)
     case box: PolyBox      => PolyBox.jsonEncoder(box)

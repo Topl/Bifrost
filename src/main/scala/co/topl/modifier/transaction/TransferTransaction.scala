@@ -1,19 +1,19 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
-import co.topl.modifier.transaction.Transaction.Nonce
-import co.topl.nodeView.state.box.{ BoxId, PublicKeyNoncedBox, TokenBox }
+import co.topl.address.ToplAddress
+import co.topl.crypto.{ProofOfKnowledge, ProofOfKnowledgeProposition, Secret}
+import co.topl.nodeView.state.box.{Box, BoxId, PublicKeyNoncedBox, TokenBox}
 import com.google.common.primitives.Longs
-import scorex.crypto.hash.{ Blake2b256, Digest32 }
+import scorex.crypto.hash.{Blake2b256, Digest32}
 
-abstract class TransferTransaction (val from      : IndexedSeq[(PublicKey25519Proposition, Nonce)],
-                                    val to        : IndexedSeq[(PublicKey25519Proposition, Long)],
-                                    val signatures: Map[PublicKey25519Proposition, Signature25519],
-                                    val fee       : Long,
-                                    val timestamp : Long,
-                                    val data      : String
-                                   ) extends Transaction {
+abstract class TransferTransaction[S <: Secret, P <: ProofOfKnowledgeProposition[S]]
+(val from      : IndexedSeq[(ToplAddress[S], Box.Nonce)],
+ val to        : IndexedSeq[(ToplAddress[S], TokenBox.Value)],
+ val signatures: Map[P, ProofOfKnowledge[S, P]],
+ val fee       : Long,
+ val timestamp : Long,
+ val data      : String
+) extends Transaction {
 
   override val newBoxes: Traversable[TokenBox]
 

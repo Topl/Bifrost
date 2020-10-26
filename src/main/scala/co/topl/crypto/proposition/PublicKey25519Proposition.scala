@@ -16,17 +16,9 @@ case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnow
   require(pubKeyBytes.length == Curve25519.KeyLength,
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
 
-  import PublicKey25519Proposition._
-
   override type M = PublicKey25519Proposition
 
-  //lazy val address: String = Base58.encode(bytesWithVersion ++ calcCheckSum(bytesWithVersion))
-
-  //private def bytesWithVersion: Array[Byte] = AddressVersion +: pubKeyBytes
-
   override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
-
-  //override def toString: String = address
 
   override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
@@ -46,27 +38,27 @@ object PublicKey25519Proposition {
   val ChecksumLength: Int = 4
   val AddressLength: Int = 1 + Curve25519.KeyLength + ChecksumLength
 
-  def apply(address: String): PublicKey25519Proposition =
-    validAddress(address) match {
-      case Success(pk) => pk
-      case Failure(ex) => throw ex
-    }
-
-  def validAddress(address: String): Try[PublicKey25519Proposition] =
-    Base58.decode(address).flatMap { addressBytes =>
-      if (addressBytes.length != AddressLength)
-        Failure(new Exception("Wrong address length"))
-
-      else {
-        val checkSum = addressBytes.takeRight(ChecksumLength)
-
-        val checkSumGenerated = calcCheckSum(addressBytes.dropRight(ChecksumLength))
-
-        if (checkSum.sameElements(checkSumGenerated))
-          Success(PublicKey25519Proposition(PublicKey @@ addressBytes.dropRight(ChecksumLength).tail))
-        else Failure(new Exception("Wrong checksum"))
-      }
-    }
+//  def apply(address: String): PublicKey25519Proposition =
+//    validAddress(address) match {
+//      case Success(pk) => pk
+//      case Failure(ex) => throw ex
+//    }
+//
+//  def validAddress(address: String): Try[PublicKey25519Proposition] =
+//    Base58.decode(address).flatMap { addressBytes =>
+//      if (addressBytes.length != AddressLength)
+//        Failure(new Exception("Wrong address length"))
+//
+//      else {
+//        val checkSum = addressBytes.takeRight(ChecksumLength)
+//
+//        val checkSumGenerated = calcCheckSum(addressBytes.dropRight(ChecksumLength))
+//
+//        if (checkSum.sameElements(checkSumGenerated))
+//          Success(PublicKey25519Proposition(PublicKey @@ addressBytes.dropRight(ChecksumLength).tail))
+//        else Failure(new Exception("Wrong checksum"))
+//      }
+//    }
 
   //def calcCheckSum(bytes: Array[Byte]): Array[Byte] = Blake2b256(bytes).take(ChecksumLength)
 

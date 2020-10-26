@@ -1,21 +1,24 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledgeProposition }
+import co.topl.address.AddressEncoder
+import co.topl.crypto.{PrivateKey25519, ProofOfKnowledgeProposition, Secret}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.transaction.serialization.TransactionSerializer
-import co.topl.nodeView.state.box.{ Box, BoxId }
+import co.topl.nodeView.state.box.{Box, BoxId}
 import co.topl.utils.serialization.BifrostSerializer
 import com.google.common.primitives.Longs
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import supertagged.@@
 
-trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey25519], Any, Box] {
+trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[_ <: Secret], Any, Box] {
+
+  implicit val addressEncoder: AddressEncoder
 
   override type M = Transaction
 
   override val modifierTypeId: ModifierTypeId = Transaction.modifierTypeId
 
-  override lazy val json: Json = Transaction.jsonEncoder(this)
+  override lazy val json: Json = Transaction.jsonEncoder(this, addressEncoder)
 
   override lazy val serializer: BifrostSerializer[Transaction] = TransactionSerializer
 
@@ -25,17 +28,13 @@ trait Transaction extends BoxTransaction[ProofOfKnowledgeProposition[PrivateKey2
 }
 
 
-
-
 object Transaction {
-  type Nonce = Long
-  type Value = Long
 
   val modifierTypeId: Byte @@ ModifierTypeId.Tag = ModifierTypeId @@ (2: Byte)
 
-  def nonceFromDigest ( digest: Array[Byte] ): Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
+  def nonceFromDigest ( digest: Array[Byte] ): Box.Nonce = Longs.fromByteArray(digest.take(Longs.BYTES))
 
-  implicit val jsonEncoder: Encoder[Transaction] = {
+  def jsonEncoder(tx: Transaction, implicit addressEncoder: AddressEncoder): Encoder[Transaction] = {
     case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
     case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
     case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
