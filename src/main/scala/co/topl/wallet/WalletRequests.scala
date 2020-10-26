@@ -178,13 +178,11 @@ class WalletRequests (nodeViewHolderRef: ActorRef)
     * @return
     */
   private def broadcastTx (params: Json, id: String): Future[String] = {
-    println("In broadcast tx!" + params)
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CV].map{ view =>
       val tx = (params \\ "tx").head
       val txType = (tx \\ "txType").head.asString.get
       val txInstance: Transaction = txType match {
         case "AssetCreation" =>
-          println(tx)
           println("to: " + (tx \\ "to").head.asArray.get.head)
           tx.as[AssetCreation] match {
               case Right(asset) => asset

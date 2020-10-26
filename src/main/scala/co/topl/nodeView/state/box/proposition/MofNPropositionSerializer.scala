@@ -2,7 +2,7 @@ package co.topl.nodeView.state.box.proposition
 
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
-import scorex.crypto.signatures.PublicKey
+import scorex.crypto.signatures.{Curve25519, PublicKey}
 
 object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
 
@@ -18,7 +18,7 @@ object MofNPropositionSerializer extends BifrostSerializer[MofNProposition] {
   override def parse(r: Reader): MofNProposition = {
     val m: Int = r.getUInt().toIntExact
     val n: Int = r.getUInt().toIntExact
-    val setOfPubKeyBytes: Set[PublicKey] = (0 until n).map(_ => PublicKey @@ r.getBytes(Constants25519.PubKeyLength)).toSet
+    val setOfPubKeyBytes: Set[PublicKey] = (0 until n).map(_ => PublicKey @@ r.getBytes(Curve25519.KeyLength)).toSet
 
     MofNProposition(m, setOfPubKeyBytes)
   }

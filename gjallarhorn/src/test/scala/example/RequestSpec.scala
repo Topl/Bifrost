@@ -96,13 +96,12 @@ class RequestSpec extends AsyncFlatSpec
     (signedTransaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  /*
   it should "receive successful JSON response from broadcast transaction" in {
     val response = Await.result(requests.broadcastTx(signedTransaction), 10.seconds)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
-  }*/
+  }
 
   it should "receive a successful response from Bifrost upon transfering a poly" in {
     val transferPolysRequest: ByteString = ByteString(
@@ -134,7 +133,7 @@ class RequestSpec extends AsyncFlatSpec
     val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
     newBoxes
   }
-/*
+
   it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
@@ -165,7 +164,7 @@ class RequestSpec extends AsyncFlatSpec
     (((result \\ "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").head \\ "Boxes").head \\ "Asset").
       head.toString().contains(newBoxId) shouldBe true
   }
-
+/*
   it should "update boxes correctly with balance response" in {
     val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
