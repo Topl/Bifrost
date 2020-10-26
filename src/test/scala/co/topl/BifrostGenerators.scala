@@ -668,7 +668,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
       settings.application.version.firstDigit)
   }
 
-  def generateHistory: History = {
+  def generateHistory(genesisBlockVersion: Byte): History = {
     val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
 
     val iFile = new File(s"$dataDir/blocks")
@@ -681,7 +681,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    val genesisBlock = genesisBlockGen.sample.get
+    val genesisBlock = genesisBlockGen.sample.get.copy(version = genesisBlockVersion)
 
     history = history.append(genesisBlock).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)

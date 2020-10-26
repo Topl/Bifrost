@@ -14,7 +14,7 @@ class BlockValidatorSpec extends AnyPropSpec
   with Matchers
   with BifrostGenerators {
 
-  val history: History = generateHistory
+  val history: History = generateHistory(0: Byte)
 
   property("A block with a timestamp older than its parent should never result in a hit") {
     forAll(BlockGen) { blockTemp ⇒

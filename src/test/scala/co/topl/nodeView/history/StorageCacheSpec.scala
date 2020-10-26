@@ -14,7 +14,7 @@ class StorageCacheSpec extends AnyPropSpec
   with Matchers
   with BifrostGenerators {
 
-  var history: History = generateHistory
+  var history: History = generateHistory(0: Byte)
 
 
 
