@@ -62,10 +62,7 @@ class ProgramSpec extends AnyPropSpec
       "myAssetCode",
       ProgramPreprocessor(
         "test",
-        validInitJsGen(
-          "test",
-          "testCode",
-        ).sample.get
+        validInitJsGen.sample.get
       )(JsonObject.empty)
     ).json
 
