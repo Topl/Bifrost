@@ -166,7 +166,7 @@ trait BifrostGenerators extends CoreGenerators with Logging {
     BigDecimal(wholeNumber + "." + decimalPortion)
   }
 
-  //generate a num from smallInt for len of seq, map that many tuples, concatenate together into seq
+  //generate a num from for len of seq, map that many tuples, concatenate together into seq
   def seqDoubleGen(minLength: Int): Gen[Seq[(Double, (Double, Double, Double))]] = for {
     seqLen <- Gen.choose(minLength, minLength + sampleUntilNonEmpty(positiveTinyIntGen))
   } yield {
