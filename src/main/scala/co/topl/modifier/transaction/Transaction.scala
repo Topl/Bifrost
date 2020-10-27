@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.evidence.AddressEncoder
+import co.topl.attestation.evidence.EvidenceEncoder
 import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.attestation.secrets.Secret
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
