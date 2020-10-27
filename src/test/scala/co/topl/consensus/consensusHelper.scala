@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import co.topl.settings.AppSettings
 
-package object consensus {
+object consensusHelper {
   def setProtocolMngr(settings: AppSettings): Unit = {
     protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
   }
