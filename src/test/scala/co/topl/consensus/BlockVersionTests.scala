@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.BifrostGenerators
-import co.topl.consensus.consensus.setProtocolMngr
+import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
@@ -9,30 +9,39 @@ import co.topl.nodeView.state.State
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-
 class BlockVersionTests extends AnyPropSpec
   with Matchers
   with BifrostGenerators {
 
+  /* Initialize protocolMngr */
   setProtocolMngr(settings)
 
-  var history: History = generateHistory(0: Byte)
+  val fstVersion: Byte = protocolMngr.applicable.map(_.blockVersion).min.get
+  var history: History = generateHistory(fstVersion)
   var state: State = State.readOrGenerate(settings)
 
-  val numOfBlocks: Int = 10
+  /* Don't make a test.conf that has a version with a really large startBlock */
+  val blocksToAppend: Int = protocolMngr.applicable.maxBy(_.startBlock).startBlock.toInt
+  val blocksCount: Int = blocksToAppend + 1 // counting the genesis block
 
-  for (_ <- 1 to numOfBlocks) {
+  for (_ <- 1 to blocksToAppend) {
     val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, transactions = Seq(), version = blockVersion(history.height + 1))
+//    val oneBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId, version = blockVersion(history.height+1))
     history = history.append(oneBlock).get._1
     state = state.applyModifier(oneBlock).get
   }
 
-  property("Reading a history with different versions of block should yield correct blocks") {
+  property("Applying different blocks in different versions according to the test.conf should yield blocks " +
+    "with intended versions") {
     var currentId: ModifierId = history.storage.bestBlockId
-    for (_ <- 0 to numOfBlocks) {
+    for (height <- blocksCount to 1 by -1) {
       val currentBlock: Block = history.storage.modifierById(currentId).get
       currentId = currentBlock.parentId
-      log.debug(s"${Console.MAGENTA}${currentBlock.json}${Console.RESET}")
+      // log.debug(s"${Console.MAGENTA}${currentBlock.json}${Console.RESET}")
+      val versionConf = protocolMngr.current(height)
+        .getOrElse(throw new Error("Unable to find applicable protocol rules"))
+        .blockVersion.get
+      versionConf == currentBlock.version shouldBe true
     }
   }
 }
