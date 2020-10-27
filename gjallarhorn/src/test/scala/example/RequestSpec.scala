@@ -60,6 +60,8 @@ class RequestSpec extends AsyncFlatSpec
 
   val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString)
 
+  publicKeys.foreach(key => println("request key: " + key))
+
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
   val amount = 10
@@ -67,8 +69,9 @@ class RequestSpec extends AsyncFlatSpec
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
 
- it should "receive a successful response from Bifrost upon creating asset" in {
+  val api: Boolean = false
 
+ it should "receive a successful response from Bifrost upon creating asset" in {
    val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -85,7 +88,7 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
          """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "asset")
+    transaction = requests.sendRequest(createAssetRequest, "asset", api)
     assert(transaction.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
@@ -102,7 +105,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive successful JSON response from broadcast transaction" in {
-    val response = requests.broadcastTx(signedTransaction)
+    val response = requests.broadcastTx(signedTransaction, api)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
@@ -125,7 +128,7 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
          """.stripMargin)
-    val tx = requests.sendRequest(transferPolysRequest, "wallet")
+    val tx = requests.sendRequest(transferPolysRequest, "wallet", api)
     assert(tx.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
@@ -157,11 +160,11 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
          """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "asset")
+    transaction = requests.sendRequest(createAssetRequest, "asset", api)
     println(transaction)
     newBoxId = parseForBoxId(transaction)
     Thread.sleep(10000)
-    balanceResponse = requests.getBalances(publicKeys)
+    balanceResponse = requests.getBalances(publicKeys, api)
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head

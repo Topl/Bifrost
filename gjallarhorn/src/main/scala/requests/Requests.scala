@@ -12,7 +12,6 @@ import io.circe.parser.parse
 import io.circe.{Json, parser}
 import io.circe.syntax._
 import requests.RequestsManager.{AssetRequest, WalletRequest}
-import scorex.crypto.signatures.PublicKey
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
@@ -20,7 +19,6 @@ import scala.concurrent.duration._
 import scorex.util.encode.Base58
 import settings.AppSettings
 
-import scala.util.{Failure, Success}
 
 
 class Requests (settings: AppSettings, requestsManager: ActorRef)
@@ -143,46 +141,40 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     requestBody
   }
 
-  def sendRequest(request: ByteString, path: String): Json  = {
-    val req: Json = byteStringToJSON(request)
-    path match {
-      case "asset" =>
-        val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-        createJsonResponse(req, result)
-      case "wallet" =>
-        val result = Await.result(
-          (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
-        createJsonResponse(req, result)
+  /**
+    *
+    * @param request
+    * @param path - asset or wallet request
+    * @param api - true, if the request should be sent through the API,
+    *            false, if the request should be sent through the AKKA actor system.
+    * @return
+    */
+  def sendRequest(request: ByteString, path: String, api: Boolean): Json  = {
+    api match {
+      case true =>
+        val sendTx = httpPOST(request, path)
+        val data = requestResponseByteString(sendTx)
+        byteStringToJSON(data)
+
+      case false =>
+        val req: Json = byteStringToJSON(request)
+        path match {
+          case "asset" =>
+            val result = Await.result((requestsManager ? AssetRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+            createJsonResponse(req, result)
+          case "wallet" =>
+            val result = Await.result(
+              (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
+            createJsonResponse(req, result)
+        }
     }
-
-    //API:
-    /*val sendTx = httpPOST(request, path)
-    val data = requestResponseByteString(sendTx)
-    byteStringToJSON(data)*/
   }
 
-  def broadcastTx(signedTransaction: Json): Json = {
-    val result = (signedTransaction \\ "result").head
-    val tx = (result \\ "formattedTx").head
-    val params: Json = Map(
-      "tx" -> tx
-    ).asJson
-    val newJSON: Json = Map(
-      "jsonrpc" -> (signedTransaction \\ "jsonrpc").head,
-      "id" -> (signedTransaction \\ "id").head,
-      "method" -> "broadcastTx".asJson,
-      "params" -> List(params).asJson
-    ).asJson
-    val reqResult = Await.result(
-      (requestsManager ? WalletRequest(newJSON)).mapTo[String].map(_.asJson), 10.seconds)
-    createJsonResponse(newJSON, reqResult)
-
-    //API:
-    /*val tx = jsonToByteString(signedTransaction)
-    sendRequest(tx, "wallet")*/
+  def broadcastTx(signedTransaction: Json, api: Boolean): Json = {
+    sendRequest(jsonToByteString(signedTransaction), "wallet", api)
   }
 
-  def getBalances (publicKeys: Set[String]): Json = {
+  def getBalances (publicKeys: Set[String], api: Boolean): Json = {
     val keysWithQuotes: Set[String] = publicKeys.map(pk => s""""$pk"""")
     val keys: String = keysWithQuotes.mkString(", \n")
     val json = (
@@ -202,7 +194,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
        """
     )
     val requestBody = ByteString(json.stripMargin)
-    sendRequest(requestBody, "wallet")
+    sendRequest(requestBody, "wallet", api)
   }
 }
 

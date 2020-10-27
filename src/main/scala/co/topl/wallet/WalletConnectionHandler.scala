@@ -68,9 +68,21 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
     }
   }
 
+  def parseKeys (keys: String): Unit = {
+    val keysArr: Array[String] = keys.split(",")
+    remoteWalletKeys = keysArr.map( key =>
+      if (keysArr.indexOf(key) == 0)
+        key.substring("Set(".length)
+      else if (keysArr.indexOf(key) == keysArr.length-1)
+        key.substring(1, key.length-1)
+      else key.substring(1)
+    ).toSet
+    remoteWalletKeys.foreach(key => println ("pub key from wallet: " + key))
+  }
+
   def msgHandler(msg: String): Unit = {
     if (msg.contains("Remote wallet actor initialized")) {
-      remoteWalletKeys = msg.substring("Remote wallet actor initialized. My public keys are: ".length).split(",").toSet
+      parseKeys(msg.substring("Remote wallet actor initialized. My public keys are: ".length))
       remoteWalletActor = Some(sender())
       remoteWalletActor match {
         case Some(actor) => {
