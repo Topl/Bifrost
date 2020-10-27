@@ -13,12 +13,10 @@ import co.topl.nodeView.state.box.{ArbitBox, AssetBox}
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.{Ints, Longs}
 import org.graalvm.polyglot.Context
-import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import scorex.util.encode.Base58
 
-@Ignore
 class ValkyrieSpec extends AnyPropSpec
   with Matchers
   with BifrostGenerators

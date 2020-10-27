@@ -11,16 +11,16 @@ import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.propspec.AnyPropSpec
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
-@DoNotDiscover
 class ProgramBoxRegistrySpec extends StateSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks

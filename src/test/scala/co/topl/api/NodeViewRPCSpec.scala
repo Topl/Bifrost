@@ -23,7 +23,6 @@ import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
 import io.circe.parser.parse
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
@@ -33,7 +32,6 @@ import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
-@DoNotDiscover
 class NodeViewRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

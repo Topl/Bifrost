@@ -16,7 +16,6 @@ import co.topl.nodeView.state.State
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
 import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.parser.parse
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -25,7 +24,6 @@ import scala.concurrent.duration._
 import scala.reflect.io.Path
 import scala.util.Try
 
-@DoNotDiscover
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

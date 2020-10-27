@@ -6,11 +6,9 @@ import akka.util.ByteString
 import co.topl.http.api.routes.ProgramApiRoute
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-@DoNotDiscover
 class ProgramCallSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

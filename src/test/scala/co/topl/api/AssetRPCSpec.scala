@@ -19,7 +19,6 @@ import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import scorex.util.encode.Base58
@@ -32,7 +31,6 @@ import scala.util.Try
 /**
   * Created by cykoz on 7/3/2017.
   */
-@DoNotDiscover
 class AssetRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest

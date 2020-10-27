@@ -9,11 +9,9 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.ArbitBox
 import io.circe.parser.parse
-import org.scalatest.DoNotDiscover
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-@DoNotDiscover
 class CodeCreationSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
