@@ -13,15 +13,14 @@ import co.topl.http.api.routes.{AssetApiRoute, NodeViewApiRoute}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef}
-import co.topl.settings.AppContext
-import co.topl.wallet.WalletConnectionHandler
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.DoNotDiscover
@@ -45,7 +44,7 @@ class NodeViewRPCSpec extends AnyWordSpec
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
@@ -94,7 +93,7 @@ class NodeViewRPCSpec extends AnyWordSpec
        |{
        |   "jsonrpc": "2.0",
        |   "id": "1",
-       |   "method": "createAssetsPrototype",
+       |   "method": "createAssets",
        |   "params": [{
        |     "issuer": "${publicKeys("hub")}",
        |     "recipient": "${publicKeys("investor")}",
@@ -146,7 +145,7 @@ class NodeViewRPCSpec extends AnyWordSpec
           ArbitBox(PublicKey25519Proposition(PublicKey @@ history.bestBlockId.hashBytes), 0L, 10000L),
           Signature25519(Signature @@ Array.fill(Curve25519.SignatureLength)(1: Byte)),
           Seq(assetTxInstance),
-          settings.forgingSettings.version
+          settings.application.version.blockByte
         )
         history.append(tempBlock)
         blockId = tempBlock.id

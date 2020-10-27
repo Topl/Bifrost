@@ -1,14 +1,14 @@
 package co.topl.wallet
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import co.topl.modifier.transaction.{AssetCreation, AssetTransfer}
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.nodeView.CurrentView
 import co.topl.nodeView.state.box.{AssetBox, BoxId}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
@@ -17,7 +17,7 @@ import io.circe.{Decoder, Json}
 import io.circe.syntax._
 import scorex.util.encode.Base58
 
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
@@ -141,11 +141,10 @@ class AssetRequests (nodeViewHolderRef: ActorRef)
     */
   private def createAssetsPrototype(implicit params: Json): Future[String] = {
     (nodeViewHolderRef ? GetDataFromCurrentView).mapTo[CurrentView[History, State, MemPool]].map { view =>
+     println("issuer: " + (params \\ "issuer").head.asString.get)
       val issuer = PublicKey25519Proposition((params \\ "issuer").head.asString.get)
+      println("receipient: " + (params \\ "recipient").head.asString.get)
       val recipient: PublicKey25519Proposition = PublicKey25519Proposition((params \\ "recipient").head.asString.get)
-      println("recipient: " + (params \\ "recipient").head.asString.get)
-      println("pub key: " + recipient)
-      println("pub key bytes: " + recipient.pubKeyBytes + " of length " + recipient.pubKeyBytes.length)
       val amount: Long = (params \\ "amount").head.asNumber.get.toLong.get
       val assetCode: String = (params \\ "assetCode").head.asString.get
       val fee: Long = (params \\ "fee").head.asNumber.flatMap(_.toLong).get
@@ -168,11 +167,10 @@ class AssetRequests (nodeViewHolderRef: ActorRef)
   }
 
   override def receive: Receive =  {
-    case AssetRequest(tx: Json) => {
+    case AssetRequest(tx: Json) =>
       val method: String = (tx \\ "method").head.asString.get
       val future: Future[String] = requestFromWallet(method, (tx \\ "params").head)
       future.pipeTo(sender())
-    }
   }
 
 }

@@ -53,9 +53,9 @@ object PublicKey25519Proposition {
 
   def validAddress(address: String): Try[PublicKey25519Proposition] =
     Base58.decode(address).flatMap { addressBytes =>
-      if (addressBytes.length != AddressLength)
+      if (addressBytes.length != AddressLength) {
         Failure(new Exception("Wrong address length"))
-
+      }
       else {
         val checkSum = addressBytes.takeRight(ChecksumLength)
 

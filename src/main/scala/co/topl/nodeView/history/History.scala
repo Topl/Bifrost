@@ -4,32 +4,30 @@ import java.io.File
 
 import co.topl.consensus
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockValidator, Bloom}
+import co.topl.modifier.block.{ Block, BlockValidator, Bloom }
 import co.topl.modifier.transaction.Transaction
-import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
+import io.iohk.iodb.{ ByteArrayWrapper, LSMStore }
 
 import scala.annotation.tailrec
 import scala.collection.BitSet
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
   *
   * @param storage    a wrapper primarily for the LSMStore and for storage of the minimal state
-  * @param settings   settings regarding updating forging difficulty, constants, etc.
   * @param validators rule sets that dictate validity of blocks in the history
   */
 class History ( val storage: Storage, //todo: JAA - make this private[history]
                 fullBlockProcessor: BlockProcessor,
-                settings: AppSettings,
                 validators: Seq[BlockValidator[Block]]
               ) extends GenericHistory[Block, BifrostSyncInfo, History]
                         with Logging {
@@ -97,11 +95,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
       val res: (History, ProgressInfo[Block]) = {
 
         if (isGenesis(block)) {
-          storage.update(block, settings.forgingSettings.InitialDifficulty, isBest = true)
+          storage.update(block, consensus.difficulty, isBest = true)
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+          (new History(storage, fullBlockProcessor, validators), progInfo)
 
         } else {
           val progInfo: ProgressInfo[Block] =
@@ -111,9 +109,9 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
               // calculate the new base difficulty
               val parentDifficulty = storage.difficultyOf(block.parentId).get
-              // fixme: number of blocks here should be part of consensus
-              val prevTimes = lastBlocks(4, block).map(prev => prev.timestamp)
-              val newBaseDifficulty = consensus.calcNewBaseDifficulty(parentDifficulty, prevTimes)
+              val prevTimes = lastBlocks(consensus.nxtBlockNum + 1, block).map(_.timestamp)
+              val newHeight = storage.heightOf(block.parentId).get + 1
+              val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parentDifficulty, prevTimes)
 
               // update storage
               storage.update(block, newBaseDifficulty, isBest = true)
@@ -138,11 +136,11 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
             }
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+          (new History(storage, fullBlockProcessor, validators), progInfo)
         }
       }
-      log.info(s"History: block ${block.id} appended to chain with score ${storage.scoreOf(block.id)}. " +
-        s"Best score is $score. Pair: $bestBlockId")
+      log.info(s"block ${block.id} appended to parent ${block.parentId} with score ${storage.scoreOf(block.id).get}.")
+      // return result
       res
 
     } else {
@@ -165,7 +163,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id)
-    new History(storage, fullBlockProcessor, settings, validators)
+    new History(storage, fullBlockProcessor, validators)
   }
 
   /**
@@ -440,7 +438,7 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
                                        progressInfo: ProgressInfo[Block]): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, fullBlockProcessor, settings, validators), progInfo)
+    (new History(storage, fullBlockProcessor, validators), progInfo)
   }
   
   /**
@@ -528,13 +526,13 @@ class History ( val storage: Storage, //todo: JAA - make this private[history]
     * @return
     */
   override def syncInfo: BifrostSyncInfo =
-    if(isEmpty) {
+    if (isEmpty) {
       BifrostSyncInfo(Seq.empty)
 
     } else {
       val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
 
-      if(startingPoints.headOption.exists(x ⇒ isGenesis(modifierById(x).get))) {
+      if (startingPoints.headOption.contains(GenesisParentId)) {
         BifrostSyncInfo(GenesisParentId +: startingPoints)
 
       } else {
@@ -583,11 +581,11 @@ object History extends Logging {
 
   def readOrGenerate(settings: AppSettings): History = {
     /** Setup persistent on-disk storage */
-    val dataDir = settings.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorageDB = new LSMStore(iFile)
-    val storage = new Storage(blockStorageDB, settings)
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val file = new File(s"$dataDir/blocks")
+    file.mkdirs()
+    val blockStorageDB = new LSMStore(file)
+    val storage = new Storage(blockStorageDB, settings.application.cacheExpire, settings.application.cacheSize)
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
@@ -599,6 +597,6 @@ object History extends Logging {
       //new SemanticBlockValidator(FastCryptographicHash)
     )
 
-    new History(storage, blockProcessor, settings, validators)
+    new History(storage, blockProcessor, validators)
   }
 }

@@ -104,12 +104,11 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     val result = (transaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val messageToSign = (result \\ "messageToSign").head
-    val signingPKeys = signingKeys.map(key => PublicKey25519Proposition(key).toString)
-    assert(signingPKeys.contains((tx \\ "issuer").head.asString.get))
-    //assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
+    assert(signingKeys.contains((tx \\ "issuer").head.asString.get))
 
     val sigs: List[(String, String)] = signingKeys.map { pk =>
-      val pubKey = PublicKey25519Proposition(PublicKey @@ Base58.decode(pk).get)
+      val pubKey = PublicKey25519Proposition(pk)
+
       val privKey = keyManager.secrets.find(sk => sk.publicKeyBytes sameElements pubKey.pubKeyBytes)
 
       privKey match {
@@ -152,7 +151,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
         createJsonResponse(req, result)
       case "wallet" =>
         val result = Await.result(
-          (requestsManager ? WalletRequest(byteStringToJSON(request))).mapTo[String].map(_.asJson), 10.seconds)
+          (requestsManager ? WalletRequest(req)).mapTo[String].map(_.asJson), 10.seconds)
         createJsonResponse(req, result)
     }
 
@@ -162,7 +161,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     byteStringToJSON(data)*/
   }
 
-  def broadcastTx(signedTransaction: Json): Future[Json] = {
+  def broadcastTx(signedTransaction: Json): Json = {
     val result = (signedTransaction \\ "result").head
     val tx = (result \\ "formattedTx").head
     val params: Json = Map(
@@ -174,7 +173,9 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
       "method" -> "broadcastTx".asJson,
       "params" -> List(params).asJson
     ).asJson
-    (requestsManager ? WalletRequest(newJSON)).mapTo[String].map(_.asJson)
+    val reqResult = Await.result(
+      (requestsManager ? WalletRequest(newJSON)).mapTo[String].map(_.asJson), 10.seconds)
+    createJsonResponse(newJSON, reqResult)
 
     //API:
     /*val tx = jsonToByteString(signedTransaction)

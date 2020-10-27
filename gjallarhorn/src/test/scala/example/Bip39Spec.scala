@@ -1,13 +1,12 @@
 package example
 
+import crypto.{FastCryptographicHash, PrivateKey25519}
 import keymanager.{Bip39, KeyFile}
-import keymanager.KeyFile.uuid
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.reflect.io.Path
 import scala.util.Try
-import scorex.crypto.hash.Blake2b256
 
 class Bip39Spec extends AnyFlatSpec with Matchers {
 
@@ -15,7 +14,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   val path: Path = Path(keyFileDir)
 
   // sample uuid string
-  val uuidString = uuid
+  val uuidString: String = java.util.UUID.randomUUID.toString
   // language for phrase words
   val lang = "en"
   //phrase translator
@@ -70,17 +69,17 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
     val seed1 = pt.hexToUuid(seedHex)
     val seed2 = pt.hexToUuid(pt.phraseToHex(phrase))
-    val seed1Hash: Array[Byte] = Blake2b256.hash(seed1)
-    val seed2Hash: Array[Byte] = Blake2b256.hash(seed2)
-    val key1 = KeyFile(password, seed1Hash, keyFileDir)
-    val key2 = KeyFile(password, seed2Hash, keyFileDir)
-    val key3 = KeyFile(password = password, seed = Blake2b256.hash(uuidString),defaultKeyDir = keyFileDir)
-    assert(key1.getPrivateKey(password).get.privKeyBytes.mkString("")
-      == key2.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key2.getPrivateKey(password).get.privKeyBytes.mkString("")
-      == key3.getPrivateKey(password).get.privKeyBytes.mkString(""))
-    assert(key3.getPrivateKey(password).get.privKeyBytes.mkString("")
-      == key1.getPrivateKey(password).get.privKeyBytes.mkString(""))
+    val seed1Hash: Array[Byte] = FastCryptographicHash(seed1)
+    val seed2Hash: Array[Byte] = FastCryptographicHash(seed2)
+    val key1 = PrivateKey25519.generateKeys(seed1Hash)
+    val key2 = PrivateKey25519.generateKeys(seed2Hash)
+    val key3 = PrivateKey25519.generateKeys(FastCryptographicHash(uuidString))
+
+    KeyFile.generateKeyPair(seed1Hash)
+
+    key1 shouldEqual key2
+    key2 shouldEqual key3
+    key1 shouldEqual key3
   }
 
   Try(path.deleteRecursively())

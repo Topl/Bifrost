@@ -2,7 +2,6 @@ package co.topl.settings
 
 import java.net.InetSocketAddress
 
-import co.topl.network
 import co.topl.network.message._
 import co.topl.network.upnp.Gateway
 import co.topl.network.{NodeViewSynchronizer, PeerSynchronizer, peer}
@@ -10,7 +9,10 @@ import co.topl.utils.NetworkTimeProvider
 
 import scala.concurrent.ExecutionContext
 
-class AppContext ( settings: AppSettings, val upnpGateway: Option[Gateway])( implicit ec: ExecutionContext) {
+class AppContext ( settings: AppSettings,
+                   startupOpts: StartupOpts,
+                   val upnpGateway: Option[Gateway]
+                 )(implicit ec: ExecutionContext) {
 
   // save your address for sending to others peers
   val externalNodeAddress: Option[InetSocketAddress] = {
@@ -22,6 +24,12 @@ class AppContext ( settings: AppSettings, val upnpGateway: Option[Gateway])( imp
   // save a common time provider to be used
   val timeProvider = new NetworkTimeProvider(settings.ntp)
 
+  // save chosen network for loading genesis config
+  val networkType: NetworkType = startupOpts.networkTypeOpt match {
+    case Some(network) => network
+    case None          => NetworkType.PrivateNet(startupOpts)
+  }
+
   // enumerate features and message specs present for communicating between peers
   val features: Seq[peer.PeerFeature] = Seq()
   val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
@@ -31,7 +39,7 @@ class AppContext ( settings: AppSettings, val upnpGateway: Option[Gateway])( imp
     val getPeersSpec = new GetPeersSpec
     val peersSpec = new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
 
-    network.PeerSynchronizer.RemoteMessageHandler(peersSpec, getPeersSpec)
+    PeerSynchronizer.RemoteMessageHandler(peersSpec, getPeersSpec)
   }
 
   // instantiate and populate the local message handler for node view management requests from remote peers

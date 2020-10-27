@@ -3,28 +3,28 @@ package co.topl.consensus
 import akka.actor._
 import akka.util.Timeout
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.genesis.{ PrivateTestnet, Toplnet }
+import co.topl.consensus.genesis.{PrivateTestnet, Toplnet}
 import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.{ Coinbase, Transaction }
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{ GetDataFromCurrentView, LocallyGeneratedModifier }
+import co.topl.modifier.transaction.{Coinbase, Transaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedModifier}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.nodeView.{ CurrentView, NodeViewHolder }
-import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
-import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.nodeView.{CurrentView, NodeViewHolder}
+import co.topl.settings.NetworkType.{DevNet, LocalNet, MainNet, PrivateNet, TestNet}
+import co.topl.settings.{AppContext, AppSettings, NodeViewReady}
 import co.topl.utils.Logging
 import co.topl.utils.TimeProvider.Time
 
 import scala.concurrent.ExecutionContext
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 /**
-  * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
-  * Must be singleton
-  */
+ * Forger takes care of attempting to create new blocks using the wallet provided in the NodeView
+ * Must be singleton
+ */
 class Forger (settings: AppSettings, appContext: AppContext )
              ( implicit ec: ExecutionContext ) extends Actor with Logging {
 
@@ -136,8 +136,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
-    keyRing.generateNewKeyPairs(num) match {
+  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKey25519Proposition] = {
+    keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
@@ -152,7 +152,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
       case TestNet    => ???
       case DevNet     => ???
       case LocalNet   => ???
-      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
+      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
       case _          => throw new Error("Undefined network type.")
     } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
@@ -165,12 +165,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /**
-    * Primary method for attempting to forge a new block and publish it to the network
-    *
-    * @param history history instance for gathering chain parameters
-    * @param state   state instance for semantic validity tests of transactions
-    * @param memPool mempool instance for picking transactions to include in the block if created
-    */
+   * Primary method for attempting to forge a new block and publish it to the network
+   *
+   * @param history history instance for gathering chain parameters
+   * @param state   state instance for semantic validity tests of transactions
+   * @param memPool mempool instance for picking transactions to include in the block if created
+   */
   private def tryForging ( history: History, state: State, memPool: MemPool): Unit = {
     log.debug(s"${Console.YELLOW}Attempting to forge with settings ${protocolMngr.current(history.height)}${Console.RESET}")
     log.info(s"${Console.CYAN}Trying to generate a new block, chain length: ${history.height}${Console.RESET}")
@@ -212,15 +212,15 @@ class Forger (settings: AppSettings, appContext: AppContext )
       case ex: Throwable =>
         log.warn(s"Disabling forging due to exception: $ex. Resolve forging error and try forging again.")
         self ! StopForging
-    }
+      }
   }
 
   /**
-    * Get the set of Arbit boxes owned by all unlocked keys in the key ring
-    *
-    * @param state state instance used to lookup the balance for all unlocked keys
-    * @return a set of arbit boxes to use for testing leadership eligibility
-    */
+   * Get the set of Arbit boxes owned by all unlocked keys in the key ring
+   *
+   * @param state state instance used to lookup the balance for all unlocked keys
+   * @return a set of arbit boxes to use for testing leadership eligibility
+   */
   private def getArbitBoxes ( state: State ): Try[Set[ArbitBox]] = Try {
     val publicKeys = keyRing.publicKeys
 
@@ -237,12 +237,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
 
   /**
-    * Attempt to create an unsigned coinbase transaction that will distribute the block reward
-    * if forging is successful
-    *
-    * @param parentId block id of the current head of the chain
-    * @return an unsigned coinbase transaction
-    */
+   * Attempt to create an unsigned coinbase transaction that will distribute the block reward
+   * if forging is successful
+   *
+   * @param parentId block id of the current head of the chain
+   * @return an unsigned coinbase transaction
+   */
   private def createCoinbase ( parentId: Block.BlockId ): Try[Coinbase] = Try {
     //todo: JAA - we may want to reconsider how to specify the reward address
     val rewardAddr = keyRing.publicKeys.headOption match {
@@ -254,12 +254,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /**
-    * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
-    *
-    * @param memPool the set of pending transactions
-    * @param state   state to use for semantic validity checking
-    * @return a sequence of valid transactions
-    */
+   * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
+   *
+   * @param memPool the set of pending transactions
+   * @param state   state to use for semantic validity checking
+   * @return a sequence of valid transactions
+   */
   private def pickTransactions ( memPool: MemPool,
                                  state  : State,
                                  chainHeight: Long
@@ -282,15 +282,15 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /**
-    * Performs the leader election procedure and returns a block if successful
-    *
-    * @param parent       block to forge on top of
-    * @param parentHeight height of the block being forged on top of
-    * @param parentDifficulty   base difficulty of the parent block
-    * @param boxes        set of Arbit boxes to attempt to forge with
-    * @param txsToInclude sequence of transactions for inclusion in the block body
-    * @return a block if the leader election is successful (none if test failed)
-    */
+   * Performs the leader election procedure and returns a block if successful
+   *
+   * @param parent       block to forge on top of
+   * @param parentHeight height of the block being forged on top of
+   * @param parentDifficulty   base difficulty of the parent block
+   * @param boxes        set of Arbit boxes to attempt to forge with
+   * @param txsToInclude sequence of transactions for inclusion in the block body
+   * @return a block if the leader election is successful (none if test failed)
+   */
   private def leaderElection ( parent: Block,
                                parentHeight: Long,
                                parentDifficulty: Long,

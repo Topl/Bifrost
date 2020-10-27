@@ -33,6 +33,8 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   var newestBlock: Option[String] = None
 
+  var connectedToBifrost: Boolean = false
+
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     log.info("WalletManagerActor: preRestart")
     log.info(s"WalletManagerActor reason: ${reason.getMessage}")
@@ -42,7 +44,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   def gjalStart(bifrost: ActorRef): Unit = {
     bifrostActorRef = Some(bifrost)
-    bifrost ! "Remote wallet actor initialized"
+    bifrost ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
   }
 
   /*case msg: String => {
@@ -59,6 +61,7 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
+      connectedToBifrost = true
       log.info(s"${Console.YELLOW} Bifrost $msg")
     }
     if (msg.contains("new block added")) {
@@ -248,6 +251,8 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
 
     case GetWallet => sender ! walletBoxes
 
+    case IsConnected => sender ! connectedToBifrost
+
   }
 }
 
@@ -265,5 +270,6 @@ object WalletManager {
   case object GetNewBlock
   case class NewBlock(block: String)
   case object GetWallet
+  case object IsConnected
 
 }

@@ -6,15 +6,14 @@ import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaType
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import co.topl.BifrostGenerators
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.GetDataFromCurrentView
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{CurrentView, NodeViewHolderRef, state}
-import co.topl.settings.AppContext
-import co.topl.wallet.WalletConnectionHandler
+import co.topl.settings.{AppContext, StartupOpts}
 import io.circe.syntax._
 import scorex.util.encode.Base58
 import scorex.crypto.signatures.PublicKey
@@ -35,7 +34,7 @@ trait ProgramMockState extends BifrostGenerators {
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, None)
+  protected val appContext = new AppContext(settings, StartupOpts.empty, None)
 
   // Create Bifrost singleton actors
   protected val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)

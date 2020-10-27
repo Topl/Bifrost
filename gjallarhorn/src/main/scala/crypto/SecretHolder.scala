@@ -31,7 +31,10 @@ trait SecretCompanion[S <: Secret] {
 }
 
 
-case class PrivateKey25519(privKeyBytes: PrivateKey, publicKeyBytes: PublicKey) extends Secret {
+case class PrivateKey25519(privKeyBytes: PrivateKey,
+                           publicKeyBytes: PublicKey
+                          ) extends Secret {
+
   require(privKeyBytes.length == Curve25519.KeyLength, s"${privKeyBytes.length} == ${Curve25519.KeyLength}")
   require(publicKeyBytes.length == Curve25519.KeyLength, s"${publicKeyBytes.length} == ${Curve25519.KeyLength}")
 
@@ -39,7 +42,7 @@ case class PrivateKey25519(privKeyBytes: PrivateKey, publicKeyBytes: PublicKey) 
   override type PK = PublicKey25519Proposition
   override type PR = Signature25519
 
-  override lazy val companion: SecretCompanion[PrivateKey25519] = PrivateKey25519Companion
+  override lazy val companion: SecretCompanion[PrivateKey25519] = PrivateKey25519
 
   override lazy val serializer: GjalSerializer[PrivateKey25519] = PrivateKey25519Serializer
 
@@ -54,14 +57,14 @@ case class PrivateKey25519(privKeyBytes: PrivateKey, publicKeyBytes: PublicKey) 
 
 }
 
-object PrivateKey25519Companion extends SecretCompanion[PrivateKey25519] {
+object PrivateKey25519 extends SecretCompanion[PrivateKey25519] {
 
   override def verify(message: Array[Byte], publicImage: PublicKey25519Proposition, proof: Signature25519): Boolean =
     Curve25519.verify(proof.signature, message, publicImage.pubKeyBytes)
 
   override def generateKeys(randomSeed: Array[Byte]): (PrivateKey25519, PublicKey25519Proposition) = {
-    val pair = Curve25519.createKeyPair(randomSeed)
-    val secret: PrivateKey25519 = PrivateKey25519(pair._1, pair._2)
+    val (sk, pk) = Curve25519.createKeyPair(randomSeed)
+    val secret: PrivateKey25519 = new PrivateKey25519(sk, pk)
     secret -> secret.publicImage
   }
 }

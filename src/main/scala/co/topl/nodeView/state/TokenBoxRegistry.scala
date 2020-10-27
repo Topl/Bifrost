@@ -119,14 +119,14 @@ object TokenBoxRegistry extends Logging {
   type V = Long
 
   def readOrGenerate ( settings: AppSettings, nodeKeys: Option[Set[PublicKey25519Proposition]] ): Option[TokenBoxRegistry] = {
-    if (settings.enableTBR) {
+    if (settings.application.enableTBR) {
       log.info("Initializing state with Token Box Registry")
 
-      val dataDir = settings.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
-      val iFile = new File(s"$dataDir/tokenBoxRegistry")
-      iFile.mkdirs()
-      val storage = new LSMStore(iFile)
+      val file = new File(s"$dataDir/tokenBoxRegistry")
+      file.mkdirs()
+      val storage = new LSMStore(file)
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
 

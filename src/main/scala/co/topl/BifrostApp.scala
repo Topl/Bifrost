@@ -6,24 +6,23 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.io.Tcp
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import co.topl.consensus.ForgerRef
+import co.topl.consensus.{Forger, ForgerRef}
 import co.topl.http.HttpService
 import co.topl.http.api.ApiRoute
 import co.topl.http.api.routes._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.NetworkController.ReceivableMessages.{BecomeOperational, BindP2P}
+import co.topl.network.NetworkController.ReceivableMessages.BindP2P
 import co.topl.network._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.upnp.Gateway
-import co.topl.nodeView.NodeViewHolderRef
-import co.topl.wallet.{AssetRequests, WalletConnectionHandler, WalletRequests}
+import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
 import co.topl.utils.Logging
+import co.topl.wallet.{AssetRequests, WalletConnectionHandler, WalletRequests}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
@@ -44,10 +43,6 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private val settings: AppSettings = AppSettings.read(startupOpts)
   log.debug(s"Starting application with settings \n$settings")
 
-  // Setup name limit defined in application.conf
-  private val conf: Config = ConfigFactory.load("application")
-  private val ApplicationNameLimit: Int = conf.getInt("app.applicationNameLimit")
-
   // check for gateway device and setup port forwarding
   private val upnpGateway: Option[Gateway] = if (settings.network.upnpEnabled) upnp.Gateway(settings.network) else None
 
@@ -57,29 +52,29 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   private implicit val timeout: Timeout = Timeout(settings.network.controllerTimeout.getOrElse(5 seconds))
   implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-  // save environment into a variable for reference throughout the application
-  protected val appContext = new AppContext(settings, upnpGateway)
+  // save runtime environment into a variable for reference throughout the application
+  protected val appContext = new AppContext(settings, startupOpts, upnpGateway)
 
   /* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- *//* ----------------- */
   // Create Bifrost singleton actors
-  private val peerManagerRef: ActorRef = PeerManagerRef("peerManager", settings.network, appContext)
+  private val peerManagerRef: ActorRef = PeerManagerRef(PeerManager.actorName, settings, appContext)
 
-  private val networkControllerRef: ActorRef = NetworkControllerRef("networkController", settings.network, peerManagerRef, appContext)
+  private val networkControllerRef: ActorRef = NetworkControllerRef(NetworkController.actorName, settings, peerManagerRef, appContext)
 
-  private val peerSynchronizer: ActorRef = PeerSynchronizerRef("PeerSynchronizer", networkControllerRef, peerManagerRef, settings.network, appContext)
+  private val forgerRef: ActorRef = ForgerRef(Forger.actorName, settings, appContext)
 
   private val walletConnectionHandlerRef: ActorRef = actorSystem.actorOf(Props(new WalletConnectionHandler), name = "walletConnectionHandler")
 
-  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)
+  private val nodeViewHolderRef: ActorRef = NodeViewHolderRef(NodeViewHolder.actorName, settings, appContext)
 
   private val assetRequestsRef: ActorRef = actorSystem.actorOf(Props(new AssetRequests(nodeViewHolderRef)), name = AssetRequests.actorName)
 
   private val walletRequestsRef: ActorRef = actorSystem.actorOf(Props(new WalletRequests(nodeViewHolderRef)), name = WalletRequests.actorName)
 
-  private val forgerRef: ActorRef = ForgerRef("forger", nodeViewHolderRef, settings.forgingSettings, appContext)
+  private val peerSynchronizer: ActorRef = PeerSynchronizerRef(PeerSynchronizer.actorName, networkControllerRef, peerManagerRef, settings, appContext)
 
   private val nodeViewSynchronizer: ActorRef = NodeViewSynchronizerRef[TX, BSI, PMOD, HIS, MP](
-    "nodeViewSynchronizer", networkControllerRef, nodeViewHolderRef, settings.network, appContext)
+      NodeViewSynchronizer.actorName, networkControllerRef, nodeViewHolderRef, settings, appContext)
 
   // Sequence of actors for cleanly shutting now the application
   private val actorsToStop: Seq[ActorRef] = Seq(
@@ -119,11 +114,11 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   // Is JVMCI enabled?
   val bean: HotSpotDiagnosticMXBean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
   val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
-  System.out.println(enableJVMCI)
+  log.debug(s"$enableJVMCI")
 
   // Is the system using the JVMCI compiler for normal compilations?
   val useJVMCICompiler: VMOption = bean.getVMOption("UseJVMCICompiler")
-  System.out.println(useJVMCICompiler)
+  log.debug(s"$useJVMCICompiler")
 
   // What compiler is selected?
   val compiler: String = System.getProperty("jvmci.Compiler")
@@ -133,7 +128,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def run(): Unit = {
-    require(settings.network.agentName.length <= ApplicationNameLimit)
+    require(settings.network.agentName.length <= settings.network.applicationNameLimit)
 
     log.debug(s"Available processors: ${Runtime.getRuntime.availableProcessors}")
     log.debug(s"Max memory available: ${Runtime.getRuntime.maxMemory}")
@@ -142,6 +137,7 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     val httpHost = settings.restApi.bindAddress.getHostName
     val httpPort = settings.restApi.bindAddress.getPort
 
+    /** Helper function to kill the application if needed */
     def failedP2P(): Unit = {
       log.error(s"${Console.RED}Unable to bind to the P2P port. Terminating application!${Console.RESET}")
       BifrostApp.shutdown(actorSystem, actorsToStop)
@@ -150,13 +146,10 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
     // trigger the P2P network bind and check that the protocol bound successfully. Terminate the application on failure
     (networkControllerRef ? BindP2P).onComplete {
       case Success(bindResponse: Future[Any]) =>
-        bindResponse.onComplete({
-          case Success(Tcp.Bound(addr)) =>
-            log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
-            networkControllerRef ! BecomeOperational
-
+        bindResponse.onComplete {
+          case Success(Tcp.Bound(addr)) => log.info(s"${Console.YELLOW}P2P protocol bound to $addr${Console.RESET}")
           case Success(_) | Failure(_) => failedP2P()
-        })
+        }
       case Success(_) | Failure(_) => failedP2P()
     }
 
@@ -185,7 +178,8 @@ object BifrostApp extends Logging {
   // parse command line arguments
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x): _*)
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
+      optional[String]("--seed", "-s")
     ).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +194,7 @@ object BifrostApp extends Logging {
 
   def shutdown(system: ActorSystem, actors: Seq[ActorRef]): Unit = {
     log.warn("Terminating Actors")
-    actors.foreach { a => a ! PoisonPill }
+    actors.foreach { _ ! PoisonPill }
     log.warn("Terminating ActorSystem")
     val termination = system.terminate()
     Await.result(termination, 60.seconds)

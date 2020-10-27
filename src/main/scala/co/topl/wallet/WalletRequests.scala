@@ -5,7 +5,7 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import co.topl.modifier.transaction.{ArbitTransfer, AssetCreation, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.CurrentView
-import co.topl.nodeView.GenericNodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
@@ -200,11 +200,10 @@ class WalletRequests (nodeViewHolderRef: ActorRef)
   }
 
   override def receive: Receive = {
-    case WalletRequest (params: Json) => {
+    case WalletRequest (params: Json) =>
       val method: String = (params \\ "method").head.asString.get
       val future: Future[String] = requestFromWallet(method, (params \\ "params").head, (params \\ "id").head.asString.get)
       future.pipeTo(sender())
-    }
   }
 
 }

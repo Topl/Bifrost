@@ -39,7 +39,7 @@ val akkaDependencies = Seq(
 
 val networkDependencies = Seq(
   "org.bitlet" % "weupnp" % "0.1.4",
-  "commons-net" % "commons-net" % "3.7.1"
+  "commons-net" % "commons-net" % "3.7.2"
 )
 
 val apiDependencies = Seq(
@@ -74,7 +74,7 @@ val cryptoDependencies = Seq(
 val miscDependencies = Seq(
   "org.scorexfoundation" %% "iodb" % "0.3.2",
   "com.chuusai" %% "shapeless" % "2.3.3",
-  "com.google.guava" % "guava" % "29.0-jre",
+  "com.google.guava" % "guava" % "30.0-jre",
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
   "com.joefkelley" %% "argyle" % "1.0.0",

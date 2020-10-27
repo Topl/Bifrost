@@ -5,6 +5,7 @@ import java.io.File
 import co.topl.crypto.{Bip39, FastCryptographicHash, PrivateKey25519}
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
+import com.google.common.primitives.Ints
 
 import scala.util.{Failure, Success, Try}
 
@@ -63,17 +64,25 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
    *
    * @param password
    */
-  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = Try{
-    val keyfile = KeyFile(password)
-    keyfile.saveToDisk(defaultKeyDir.toString)
-
-    keyfile.getPrivateKey(password) match {
-      case Success(sk) =>
-        secrets += sk
-        sk.publicImage
-
-      case Failure(ex) => throw ex
+  def generateKeyFile (password: String): Try[PublicKey25519Proposition] = {
+    // generate a new random key pair and save to disk
+    generateNewKeyPairs().map { sk =>
+      exportKeyfile(sk.head.publicImage, password)
+      sk.head.publicImage
     }
+  }
+
+  /**  */
+  def generateNewKeyPairs (num: Int = 1, seedOpt: Option[String] = None): Try[Set[PrivateKey25519]] = Try {
+    if (num >= 1) {
+      val newSecrets = seedOpt match {
+        case Some(seed) => (1 to num).map(i => KeyFile.generateKeyPair(Ints.toByteArray(i) ++ seed.getBytes())._1).toSet
+        case _          => (1 to num).map(_ => KeyFile.generateKeyPair._1).toSet
+      }
+      secrets ++= newSecrets
+      newSecrets
+    }
+    else throw new Error("Number of requested keys must be greater than or equal to 1")
   }
 
   /**
@@ -92,29 +101,42 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 
     // calculate the new keyfile and return
     val seed = bip.hexToUuid(bip.phraseToHex(mnemonic))
-    KeyFile(password, FastCryptographicHash(seed)).getPrivateKey(password) match {
-      case Success(sk) =>
-        secrets += sk
-        sk.publicImage
+    val (sk, pk) = KeyFile.generateKeyPair(FastCryptographicHash(seed))
 
-      case Failure(ex) => throw ex
+    // add secret to the keyring
+    secrets += sk
+
+    // return the public image of the key that was added
+    pk
+  }
+
+  /**
+    *
+    * @param publicImage
+    * @param password
+    * @return
+    */
+  def exportKeyfile (publicImage: PublicKey25519Proposition, password: String): Try[Unit] = Try {
+    secretByPublicImage(publicImage) match {
+      case Some(sk) => KeyFile(password, sk).saveToDisk(defaultKeyDir.getAbsolutePath)
+      case _        => Failure(new Error("Unable to find a matching secret in the key ring"))
     }
   }
 
-  /** Return a list of KeuFile instances for all keys in the key file directory */
+  /** Return a list of KeyFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KeyFile] =
     getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath))
 
   /**
    * Check if given publicKey string is valid and contained in the key file directory
    *
-   * @param publicKeyString Base58 encoded public key to query
+   * @param address Base58 encoded public key to query
    * @param password        password used to decrypt the keyfile
    * @return the relevant PrivateKey25519 to be processed
    */
-  private def checkValid ( publicKeyString: String, password: String ): PrivateKey25519 = {
+  private def checkValid ( address: String, password: String ): PrivateKey25519 = {
     val keyfile = listKeyFiles.filter {
-      _.pubKeyBytes sameElements PublicKey25519Proposition(publicKeyString).pubKeyBytes
+      _.publicKeyFromAddress == PublicKey25519Proposition(address)
     }
 
     assert(keyfile.size == 1, "Cannot find a unique publicKey in key files")
@@ -127,7 +149,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
 }
 
 object KeyRing {
-  def apply ( path: String ): KeyRing = {
+  def apply (path: String): KeyRing = {
     val dir = new File(path)
     dir.mkdirs()
     new KeyRing(Set(), dir)

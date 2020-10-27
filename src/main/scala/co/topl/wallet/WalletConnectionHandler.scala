@@ -8,10 +8,9 @@ import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{ModificationOutc
 import co.topl.utils.Logging
 import co.topl.wallet.AssetRequests.AssetRequest
 import co.topl.wallet.WalletRequests.WalletRequest
-import io.circe.Json
 import io.circe.parser.parse
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.ExecutionContext
 import scala.util.Success
 import scala.concurrent.duration._
 
@@ -20,6 +19,8 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
   import WalletConnectionHandler._
 
   var remoteWalletActor: Option[ActorRef] = None
+
+  var remoteWalletKeys: Set[String] = Set.empty
 
   implicit val timeout: Timeout = 10.seconds
 
@@ -68,7 +69,8 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
   }
 
   def msgHandler(msg: String): Unit = {
-    if (msg == "Remote wallet actor initialized") {
+    if (msg.contains("Remote wallet actor initialized")) {
+      remoteWalletKeys = msg.substring("Remote wallet actor initialized. My public keys are: ".length).split(",").toSet
       remoteWalletActor = Some(sender())
       remoteWalletActor match {
         case Some(actor) => {

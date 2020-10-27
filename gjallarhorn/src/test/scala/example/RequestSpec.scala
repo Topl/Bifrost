@@ -1,25 +1,22 @@
 package example
 
-import akka.actor.{ActorRef, ActorSelection, ActorSystem, DeadLetter, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.http.scaladsl.{Http, HttpExt}
-import akka.stream.{ActorMaterializer, Materializer}
 import _root_.requests.{Requests, RequestsManager}
 import akka.util.{ByteString, Timeout}
-import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
+import crypto.{PrivateKey25519, PublicKey25519Proposition}
 import io.circe.{Json, parser}
-import io.circe.parser.parse
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scorex.util.encode.Base58
 import scorex.crypto.hash.Blake2b256
 import keymanager.{KeyFile, Keys}
-import wallet.{DeadLetterListener, WalletManager}
+import wallet.WalletManager
 import wallet.WalletManager._
 
 import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.duration._
 
@@ -38,10 +35,14 @@ class RequestSpec extends AsyncFlatSpec
 
   val requests = new Requests(requestSettings, requestsManagerRef)
 
-  val seed1 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val seed2 = Blake2b256(java.util.UUID.randomUUID.toString)
-  val (sk1, pk1) = PrivateKey25519Companion.generateKeys(seed1)
-  val (sk2, pk2) = PrivateKey25519Companion.generateKeys(seed2)
+  val seed1: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
+  val seed2: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
+  val seed3: Array[Byte] = Blake2b256(java.util.UUID.randomUUID.toString)
+  //val (sk1, pk1): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed1)
+
+  val (sk2, pk2): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed2)
+  val (sk3, pk3): (PrivateKey25519, PublicKey25519Proposition) = PrivateKey25519.generateKeys(seed3)
+  var pk1: PublicKey25519Proposition = pk2
 
   val keyFileDir = "keyfiles/keyManagerTest"
   val path: Path = Path(keyFileDir)
@@ -49,11 +50,15 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.createDirectory())
   val password = "pass"
 
-  val keyFile = KeyFile(password, seed1, keyFileDir)
-  val keyManager = Keys(Set(), keyFileDir)
-  keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
+  val keyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
+  val keyManager = Keys(keyFileDir)
+  //keyManager.unlockKeyFile(Base58.encode(sk1.publicKeyBytes), password)
+  keyManager.generateKeyFile(password) match {
+    case Success(pk) => pk1 = pk
+    case Failure (ex) => throw new Error (s"An error occured: $ex")
+  }
 
-  val publicKeys: Set[String] = Set(Base58.encode(pk1.pubKeyBytes), Base58.encode(pk2.pubKeyBytes), "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+  val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString)
 
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
@@ -63,15 +68,16 @@ class RequestSpec extends AsyncFlatSpec
   var signedTransaction: Json = Json.Null
 
  it should "receive a successful response from Bifrost upon creating asset" in {
-    val createAssetRequest: ByteString = ByteString(
+
+   val createAssetRequest: ByteString = ByteString(
       s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
          |   "method": "createAssetsPrototype",
          |   "params": [{
-         |     "issuer": "${publicKeys.head}",
-         |     "recipient": "${publicKeys.tail.head}",
+         |     "issuer": "${pk1.toString}",
+         |     "recipient": "${pk2.toString}",
          |     "amount": $amount,
          |     "assetCode": "etherAssets",
          |     "fee": 0,
@@ -85,7 +91,6 @@ class RequestSpec extends AsyncFlatSpec
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-
   it should "receive successful JSON response from sign transaction" in {
     val issuer: List[String] = List(publicKeys.head)
     signedTransaction = requests.signTx(transaction, keyManager, issuer)
@@ -97,13 +102,14 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive successful JSON response from broadcast transaction" in {
-    val response = Await.result(requests.broadcastTx(signedTransaction), 10.seconds)
+    val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  it should "receive a successful response from Bifrost upon transfering a poly" in {
+  //TODO: get generic keys that are in bifrost
+/*  it should "receive a successful response from Bifrost upon transfering a poly" in {
     val transferPolysRequest: ByteString = ByteString(
       s"""
          |{
@@ -111,8 +117,8 @@ class RequestSpec extends AsyncFlatSpec
          |   "id": "1",
          |   "method": "transferPolysPrototype",
          |   "params": [{
-         |     "recipient": "${publicKeys.tail.head}",
-         |     "sender": ["6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ"],
+         |     "recipient": "${pk3.toString}",
+         |     "sender": ["${pk1.toString}"],
          |     "amount": $amount,
          |     "fee": 0,
          |     "data": ""
@@ -123,7 +129,7 @@ class RequestSpec extends AsyncFlatSpec
     assert(tx.isInstanceOf[Json])
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
-  }
+  }*/
 
   var balanceResponse: Json = Json.Null
   var newBoxId: String = ""
@@ -134,7 +140,7 @@ class RequestSpec extends AsyncFlatSpec
     newBoxes
   }
 
-  it should "receive a successful and correct response from Bifrost upon requesting balances" in {
+ /*it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     val createAssetRequest: ByteString = ByteString(
       s"""
          |{
@@ -142,8 +148,8 @@ class RequestSpec extends AsyncFlatSpec
          |   "id": "1",
          |   "method": "createAssetsPrototype",
          |   "params": [{
-         |     "issuer": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |     "recipient": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |     "issuer": "${pk1.toString}",
+         |     "recipient": "${pk1.toString}",
          |     "amount": $amount,
          |     "assetCode": "test",
          |     "fee": 0,
@@ -164,7 +170,7 @@ class RequestSpec extends AsyncFlatSpec
     (((result \\ "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").head \\ "Boxes").head \\ "Asset").
       head.toString().contains(newBoxId) shouldBe true
   }
-/*
+
   it should "update boxes correctly with balance response" in {
     val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
@@ -186,14 +192,19 @@ class RequestSpec extends AsyncFlatSpec
       }
       case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
     }
-  }
-*/
+  }*/
+
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
       "akka.tcp://bifrost-client@127.0.0.1:9087/user/walletConnectionHandler").resolveOne(), 10.seconds)
     walletManagerRef ! GjallarhornStarted(bifrostActor)
-    Thread.sleep(10000)
+    Thread.sleep(100)
+    val connected = Await.result((walletManagerRef ? IsConnected).mapTo[Boolean], 10.seconds)
+    assert(connected)
+  }
 
+  it should "receive a block from bifrost after 5000ms" in {
+    Thread.sleep(5000)
     val newBlock: Option[String] = Await.result((walletManagerRef ? GetNewBlock).mapTo[Option[String]], 100.seconds)
     newBlock match {
       case Some(block) => assert(block.contains("timestamp") && block.contains("signature") && block.contains("id") && block.contains("newBoxes"))
@@ -211,62 +222,59 @@ class RequestSpec extends AsyncFlatSpec
     val block: ByteString = ByteString(
       s"""
          |{
-         |  "timestamp" : 1602624092235,
-         |  "signature" : "3HNmKwuvGAzBKjQcK79C5RQRkvNimpP11t2wPqsgAF5AEhoo679dndndor5PiLQG1XDgTuao3mBbEftZgogVCM9H",
-         |  "blockSize" : 316,
-         |  "generatorBox" : "fc9Lb6RcnoJ5A4vzyHNezNHFtwytxVRk9z1w7FRU8eeFFeB1NuZy8Rk9jmofc4i2aaq49CqkS",
-         |  "version" : 1,
-         |  "id" : "9ZP1eUEDAhtesHZH4PFaaFhjyo9FvFqA8QGSH2auoJbX",
-         |  "txs" : [
-         |    {
-         |      "txType" : "ArbitTransfer",
-         |      "txHash" : "3nKBueQ1Mj5VkAiqNf9LgUsT5sLJLUpVXmk5otwYmU52",
-         |      "timestamp" : 1602624092222,
-         |      "signatures" : [
-         |        "4uqAkTgy3xvEs7ipVJUjbA36xgjAHb9D9LXBWUDK8iaBzniPkLi38G5gJknbhTK7qTSTytZi1aEcpcqP6CiFHwWV"
-         |      ],
-         |      "newBoxes" : [
-         |        {
-         |          "id" : "9asdjeokMDFG8sasdd6JKL0wj",
-         |          "type" : "Arbit",
-         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |          "value" : "10",
-         |          "nonce" : "mhj3GHI9asdkj0JKLre3P"
+         |   "timestamp" : 1603750438238,
+         |   "signature" : "Signature25519(4FjrDM9uUue7syi4xXNH2PC65bDuZStQvU6QV2qmeUJ81DJEf3XMVzwxKyQzyWs2WWvXoWG9nLh5nD7ND1ShtEaa)",
+         |   "blockSize" : 335,
+         |   "generatorBox" : {
+         |      "nonce" : "-439024012794791436",
+         |      "id" : "44SWAsPAUdRgm68qgo9joNM9BiRnDfJvQsQNRaA6oLVi",
+         |      "type" : "Arbit",
+         |      "proposition" : "4YCxsBZujUFEfEaRWhhURgzvWEzN8BWbbho1qEovmhunN7c9fQ",
+         |      "value" : "1000000"
+         |   },
+         |   "version" : 0,
+         |   "id" : "CzrMgZskNAwoEE1F65yh7i8WMbYSW6bN3HMRbLKGQ5re",
+         |   "txs" : [
+         |      {
+         |        "txType" : "Coinbase",
+         |        "txHash" : "HK5CxRpT1xXBbLeQRnxzBfMZkTr2czwbEcCchRofsx9z",
+         |        "timestamp" : 1603750438238,
+         |        "signatures" : {
+         |          "4YCxsBZujUFEfEaRWhhURgzvWEzN8BWbbho1qEovmhunN7c9fQ" : "Signature25519(5h4GoyqCYC8qhvzDHoheD442JSu7YaE5bNFFemfVhfwGLZtvUYGgXyZ35jYyhG2YtUAW6pnwpkDVdgq2GpAux3xS)"
          |        },
-         |        {
-         |          "nonce": "-9110370178208068175",
-         |          "id": "GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8",
-         |          "type": "Arbit",
-         |          "proposition": "3X4AW3Swr1iM1syu2g4Xi4L4eTSJFKxGsZPgVctUYg4ga8MZpD",
-         |          "value": "1000000"
-         |        },
-         |        {
-         |          "nonce": "-8269943573030898832",
-         |          "id": "97gkUUwPQWGKU1LMf7cZE4PGdbUezWYLcbcuiRRryGeE",
-         |          "type": "Arbit",
-         |          "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
-         |          "value": "1000000"
-         |        }
-         |      ],
-         |      "to" : [
-         |        {
-         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |          "value" : 0
-         |        }
-         |      ],
-         |      "boxesToRemove": [
-         |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
-         |      ],
-         |      "fee" : 0
-         |    },
-         |    {
-         |      "txType": "PolyTransfer",
-         |      "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
-         |      "timestamp": 0,
-         |      "signatures": {
-         |          "2xdTv8awN1BjgYEw8W1BVXVtiEwG2b29U8KoZQqJrDuEqSQ9e4": "Signature25519(2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2)"
+         |        "newBoxes" : [
+         |          {
+         |            "nonce": "-9110370178208068175",
+         |            "id": "GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8",
+         |            "type": "Arbit",
+         |            "proposition": "${pk1.toString}",
+         |            "value": "1000000"
+         |          },
+         |          {
+         |            "nonce": "-8269943573030898832",
+         |            "id": "97gkUUwPQWGKU1LMf7cZE4PGdbUezWYLcbcuiRRryGeE",
+         |            "type": "Arbit",
+         |            "proposition": "4EoSC4YmTm7zoPt5HDJU4aa73Vn2LPrmUszvggAPM5Ff3R1DVt",
+         |            "value": "1000000"
+         |          }
+         |        ],
+         |        "to" : [
+         |          [
+         |            "4Nb1ewkxoT8GJAZkCLaetQAWgVdfcu58v5Uka8iag3nsXakiVj",
+         |            0
+         |          ]
+         |        ],
+         |        "parentId" : "HVa5fBayzLEDStb9Hwthe9HDJWAtakGW3o11s9z2cRo4",
+         |        "fee" : 0
          |      },
-         |      "newBoxes": [
+         |      {
+         |        "txType": "PolyTransfer",
+         |        "txHash": "G1KX8RPVBBmHWuuZ7ihNkQLXVJa8AMr4DxafAJHUUCuy",
+         |        "timestamp": 0,
+         |        "signatures": {
+         |          "2xdTv8awN1BjgYEw8W1BVXVtiEwG2b29U8KoZQqJrDuEqSQ9e4": "Signature25519(2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2)"
+         |        },
+         |        "newBoxes": [
          |          {
          |             "nonce": "-5988475187915922381",
          |             "id": "GgNqzkSywewv99vCrb99UakEw1Myn4mqYXo3N4a6PWVW",
@@ -285,39 +293,42 @@ class RequestSpec extends AsyncFlatSpec
          |             "nonce": "-59884751870915922381",
          |             "id": "GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW",
          |             "type": "Poly",
-         |             "proposition": "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |             "proposition": "${pk1.toString}",
          |             "value": "1000000"
          |          }
-         |      ],
-         |      "to" : [
-         |        {
-         |          "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
-         |          "value" : 0
-         |        }
-         |      ],
-         |      "boxesToRemove": [
+         |        ],
+         |        "to" : [
+         |          {
+         |            "proposition" : "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ",
+         |            "value" : 0
+         |          }
+         |        ],
+         |        "boxesToRemove": [
          |                        "2fvgQ6xAJbMxtsGv73veyN3sHnwKUh2Lda3b9CyNxriv"
-         |      ],
-         |      "fee" : 0
-         |    }
-         |  ],
-         |  "parentId" : "4RbYjQHVWRcvTEoJcpFNfBrcNL7tpMatP13Tr8fJMHDm"
+         |        ],
+         |        "fee" : 0
+         |      }
+         |    ],
+         |   "parentId" : "CzrMgZskNAwoEE1F65yh7i8WMbYSW6bN3HMRbLKGQ5re"
          |}
          """.stripMargin)
     parser.parse(block.utf8String) match {
-      case Right(blockJson) => {
+      case Right(blockJson) =>
         walletManagerRef ! s"new block added: $blockJson"
         Thread.sleep(1000)
         val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? GetWallet)
           .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
-        val iTguyBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
-        iTguyBoxes match {
-          case Some(map) => {
+        val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
+        pk1Boxes match {
+          case Some(map) =>
             assert(map.size == 2)
-          }
-          case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+            assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
+            map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
+              case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
+              case None => sys.error ("poly box was not found!")
+            }
+          case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
         }
-      }
       case Left(e) => sys.error(s"Could not parse json $e")
     }
   }

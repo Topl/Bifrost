@@ -1,11 +1,12 @@
 package co.topl.network
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ InetAddress, InetSocketAddress }
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
-import co.topl.settings.{AppContext, NetworkSettings}
-import co.topl.utils.{Logging, NetworkUtils}
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props }
+import co.topl.network.NetworkController.ReceivableMessages._
+import co.topl.network.peer.{ InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType }
+import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }
+import co.topl.utils.{ Logging, NetworkUtils }
 
 import scala.concurrent.ExecutionContext
 import scala.util.Random
@@ -14,22 +15,24 @@ import scala.util.Random
   * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
   * Must be singleton
   */
-class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit ec: ExecutionContext) extends Actor with Logging {
+class PeerManager (settings: AppSettings,
+                   appContext: AppContext)
+                  ( implicit ec: ExecutionContext) extends Actor with Logging {
 
   // Import the types of messages this actor can RECEIVE
   import PeerManager.ReceivableMessages._
 
-  // Import the types of messages this actor can SEND
-  import co.topl.network.NetworkController.ReceivableMessages._
+  private val peerDatabase = new InMemoryPeerDatabase(settings.network, appContext.timeProvider)
 
-  private val peerDatabase = new InMemoryPeerDatabase(settings, appContext.timeProvider)
+  override def preStart: Unit = {
+    //register for application initialization message
+    context.system.eventStream.subscribe(self, NodeViewReady.getClass)
+  }
 
+  // fill database with peers from config file if empty
   if (peerDatabase.isEmpty) {
-    // fill database with peers from config file if empty
-    settings.knownPeers.foreach { address =>
-      if (!isSelf(address)) {
-        peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
-      }
+    settings.network.knownPeers.foreach { address =>
+      if (!isSelf(address)) peerDatabase.addOrUpdateKnownPeer(PeerInfo.fromAddress(address))
     }
   }
 
@@ -38,10 +41,19 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
 
   // ----------- CONTEXT
   override def receive: Receive =
+    initialization orElse nonsense
+
+  private def operational: Receive =
     peersManagement orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS
+  private def initialization(): Receive = {
+    case NodeViewReady =>
+      log.info(s"${Console.YELLOW}PeerManager transitioning to the operational state${Console.RESET}")
+      context become operational
+  }
+
   private def peersManagement: Receive = {
 
     case ConfirmConnection(connectionId, handlerRef) =>
@@ -50,7 +62,7 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
       else sender() ! ConnectionConfirmed(connectionId, handlerRef)
 
     case AddOrUpdatePeer(peerInfo) =>
-      // We have connected to a peer and got his peerInfo from him
+      // We have connected to a peer and got peerInfo from them
       if (!isSelf(peerInfo.peerSpec)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
 
     case Penalize(peer, penaltyType) =>
@@ -65,8 +77,11 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
       // We have received peer data from other peers. It might be modified and should not affect existing data if any
       if (peerSpec.address.forall(a => peerDatabase.get(a).isEmpty) && !isSelf(peerSpec)) {
         val peerInfo: PeerInfo = PeerInfo(peerSpec, 0, None)
+        log.info(s"New discovered peer: $peerInfo")
         peerDatabase.addOrUpdateKnownPeer(peerInfo)
       }
+
+    case PeerSeen(peerInfo) => peerDatabase.peerSeen(peerInfo)
 
     case RemovePeer(address) =>
       log.info(s"$address removed")
@@ -88,7 +103,7 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
     * Given a peer's address, returns `true` if the peer is the same is this node.
     */
   private def isSelf(peerAddress: InetSocketAddress): Boolean = {
-    NetworkUtils.isSelf(peerAddress, settings.bindAddress, appContext.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
   }
 
   private def isSelf(peerSpec: PeerSpec): Boolean = {
@@ -102,6 +117,8 @@ class PeerManager (settings: NetworkSettings, appContext: AppContext)( implicit 
 
 object PeerManager {
 
+  val actorName = "peerManager"
+
   object ReceivableMessages {
 
     case class ConfirmConnection(connectionId: ConnectionId, handlerRef: ActorRef)
@@ -112,6 +129,8 @@ object PeerManager {
 
     // peerListOperations messages
     case class AddOrUpdatePeer(data: PeerInfo)
+
+    case class PeerSeen(peerInfo: PeerInfo)
 
     case class AddPeerIfEmpty(data: PeerSpec)
 
@@ -127,19 +146,17 @@ object PeerManager {
     }
 
     /**
-      * Choose at most `howMany` random peers, which are connected to our peer or
-      * were connected in at most 1 hour ago and weren't blacklisted.
-      */
+     * Choose at most `howMany` random peers, which were connected to our peer and weren't blacklisted.
+     *
+     * Used in peer propagation: peers chosen are recommended to a peer asking our node about more peers.
+     */
     case class RecentlySeenPeers(howMany: Int) extends GetPeers[Seq[PeerInfo]] {
-      private val TimeDiff: Long = 60 * 60 * 1000
-
       override def choose(knownPeers: Map[InetSocketAddress, PeerInfo],
                           blacklistedPeers: Seq[InetAddress],
                           sc: AppContext): Seq[PeerInfo] = {
-        val currentTime = sc.timeProvider.time()
         val recentlySeenNonBlacklisted = knownPeers.values.toSeq
           .filter { p =>
-            (p.connectionType.isDefined || currentTime - p.lastSeen > TimeDiff) &&
+            (p.connectionType.isDefined || p.lastSeen > 0) &&
               !blacklistedPeers.exists(ip => p.peerSpec.declaredAddress.exists(_.getAddress == ip))
           }
         Random.shuffle(recentlySeenNonBlacklisted).take(howMany)
@@ -183,17 +200,17 @@ object PeerManager {
 
 object PeerManagerRef {
 
-  def props(settings: NetworkSettings, appContext: AppContext)
+  def props(settings: AppSettings, appContext: AppContext)
            (implicit ec: ExecutionContext): Props = {
     Props(new PeerManager(settings, appContext))
   }
 
-  def apply(settings: NetworkSettings, appContext: AppContext)
+  def apply(settings: AppSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, appContext))
   }
 
-  def apply(name: String, settings: NetworkSettings, appContext: AppContext)
+  def apply(name: String, settings: AppSettings, appContext: AppContext)
            (implicit system: ActorSystem, ec: ExecutionContext): ActorRef = {
     system.actorOf(props(settings, appContext), name)
   }

@@ -2,16 +2,14 @@ package co.topl.nodeView.state
 
 import co.topl.crypto.FastCryptographicHash
 import co.topl.modifier.ModifierId
-import co.topl.nodeView.NodeViewHolder.MS
 import co.topl.{BifrostGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class TokenBoxRegistrySpec extends AnyPropSpec
+class TokenBoxRegistrySpec extends StateSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
@@ -19,7 +17,7 @@ class TokenBoxRegistrySpec extends AnyPropSpec
   with BifrostGenerators
   with ValidGenerators {
 
-  val state: MS = State.readOrGenerate(settings)
+  val state: State = createState(StateSpec.settingsFilename)
 
   property("Token boxes should be inserted into the registry") {
     forAll(tokenBoxesGen) { tokens =>

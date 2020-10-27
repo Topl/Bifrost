@@ -1,7 +1,7 @@
 package keymanager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import crypto.{PrivateKey25519Companion, PublicKey25519Proposition}
+import crypto.PublicKey25519Proposition
 import io.circe.Json
 import io.circe.syntax._
 import scorex.crypto.signatures.PublicKey
@@ -14,13 +14,13 @@ class KeyManager(keyDir: String) extends Actor {
 
   import KeyManager._
 
-  val keyManager: Keys = Keys(Set.empty, keyDir)
+  val keyManager: Keys = Keys(keyDir)
 
   //Overload messaging, stateful necessary
   // is the idea here to have another keys actor??? So that the keyManager requests using ask (?), then key tells (!) sender?
   override def receive: Receive = {
     case GenerateKeyFile(password) =>
-      sender ! Base58.encode(KeyFile(password, defaultKeyDir = keyManager.defaultKeyDir).pubKeyBytes)
+      sender ! keyManager.generateKeyFile(password)
 
     case UnlockKeyFile(pubKeyString, password) => keyManager.unlockKeyFile(pubKeyString, password)
 
