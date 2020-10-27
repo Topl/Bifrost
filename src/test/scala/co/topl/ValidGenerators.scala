@@ -14,7 +14,7 @@ import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
 
-trait ValidGenerators extends BifrostGenerators {
+trait ValidGenerators extends CoreGenerators {
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[Transaction]] = for {
     seqLen <- positiveMediumIntGen

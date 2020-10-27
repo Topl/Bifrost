@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.Timeout
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.{GetDataFromCurrentView, LocallyGeneratedTransaction}
 import co.topl.nodeView.history.History
@@ -24,7 +24,7 @@ class MempoolSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
   with ScalatestRouteTest
-  with BifrostGenerators {
+  with CoreGenerators {
 
   protected val appContext = new AppContext(settings, StartupOpts.empty, None)
   private val nodeViewHolderRef: ActorRef = NodeViewHolderRef("nodeViewHolder", settings, appContext)

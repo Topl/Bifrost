@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +12,7 @@ class ProgramPreprocessorSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   val args: JsonObject = Map(

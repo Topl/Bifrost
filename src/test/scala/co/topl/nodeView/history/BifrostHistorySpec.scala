@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import org.scalacheck.Gen
@@ -11,7 +11,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class BifrostHistorySpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   var history: History = generateHistory(0: Byte)
 

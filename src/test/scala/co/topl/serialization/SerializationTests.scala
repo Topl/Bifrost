@@ -7,7 +7,7 @@ import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.box.proposition.{MofNProposition, MofNPropositionSerializer}
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.program.{ ExecutionBuilder, ExecutionBuilderSerializer }
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.{ CoreGenerators, ValidGenerators }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
@@ -23,7 +23,7 @@ class SerializationTests extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   property("oneOfNProposition Serialization") {

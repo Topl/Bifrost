@@ -1,6 +1,6 @@
 package co.topl.transaction.proposition
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.crypto.PrivateKey25519
 import co.topl.nodeView.state.box.proposition.MofNProposition
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +11,7 @@ class MofNPropositionSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   property("Any signature from set validates") {
     forAll(oneOfNPropositionGen) {

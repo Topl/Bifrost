@@ -3,7 +3,7 @@ package co.topl.program
 import java.time.Instant
 
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import io.circe.{Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
@@ -17,7 +17,7 @@ class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
     //TODO Replace with

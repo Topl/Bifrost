@@ -1,7 +1,7 @@
 package co.topl.program
 
 import co.topl.nodeView.state.box.{CodeBox, StateBox}
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import io.circe.JsonObject
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
@@ -13,7 +13,7 @@ class ProgramMethodSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   property("Can call a function from a program") {

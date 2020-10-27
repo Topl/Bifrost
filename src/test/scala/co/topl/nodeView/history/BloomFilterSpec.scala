@@ -5,7 +5,7 @@ package co.topl.nodeView.history
   */
 
 import co.topl.modifier.block.Bloom
-import co.topl.{ BifrostGenerators, ValidGenerators }
+import co.topl.{ CoreGenerators, ValidGenerators }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
@@ -19,7 +19,7 @@ class BloomFilterSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   var history: History = generateHistory(0: Byte)

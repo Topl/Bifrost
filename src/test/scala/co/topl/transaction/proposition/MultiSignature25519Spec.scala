@@ -1,6 +1,6 @@
 package co.topl.transaction.proposition
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.crypto.{MultiSignature25519, PrivateKey25519}
 import co.topl.nodeView.state.box.proposition.{MofNProposition, PublicKey25519Proposition}
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +11,7 @@ class MultiSignature25519Spec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
 
   property("A MultiSignature25519 created from single Signature25519 " +

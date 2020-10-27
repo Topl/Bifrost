@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.crypto.FastCryptographicHash
 import co.topl.http.api.routes.UtilsApiRoute
 import io.circe.parser.parse
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success}
 class UtilsRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
-  with BifrostGenerators {
+  with CoreGenerators {
 
   val route = UtilsApiRoute(settings.restApi).route
 

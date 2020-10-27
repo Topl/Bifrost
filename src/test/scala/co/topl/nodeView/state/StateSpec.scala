@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.block
 import co.topl.settings.{AppSettings, StartupOpts}
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -19,7 +19,7 @@ class StateSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators
   with FileUtils
   with BeforeAndAfterAll {

@@ -1,6 +1,6 @@
 package co.topl.nodeView.state
 
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
@@ -10,7 +10,7 @@ class ProgramSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with ScalaCheckDrivenPropertyChecks
   with Matchers
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
 //  def getPreExistingPolyBoxes(cc: ProgramCreation): Set[Box] = {

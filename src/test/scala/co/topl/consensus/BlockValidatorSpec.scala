@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.nodeView.history.{ BlockProcessor, History }
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -10,7 +10,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class BlockValidatorSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   val history: History = generateHistory(0: Byte)
 

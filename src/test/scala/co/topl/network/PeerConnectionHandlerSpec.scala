@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor._
 import akka.testkit.TestKit
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.network.message.MessageSerializer
 import co.topl.settings.{AppContext, StartupOpts}
 import org.scalatest.matchers.must.Matchers
@@ -17,7 +17,7 @@ class PeerConnectionHandlerSpec extends TestKit(ActorSystem("PCHSpec"))
   with AnyPropSpecLike
   with ScalaCheckPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   val appContext = new AppContext(settings, StartupOpts.empty, None)
 

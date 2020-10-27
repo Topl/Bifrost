@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.http.api.routes.DebugApiRoute
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
@@ -27,7 +27,7 @@ import scala.util.Try
 class DebugRPCSpec extends AnyWordSpec
   with Matchers
   with ScalatestRouteTest
-  with BifrostGenerators {
+  with CoreGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())

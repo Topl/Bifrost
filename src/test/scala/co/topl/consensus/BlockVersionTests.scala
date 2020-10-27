@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -11,7 +11,7 @@ import org.scalatest.propspec.AnyPropSpec
 
 class BlockVersionTests extends AnyPropSpec
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   /* Initialize protocolMngr */
   setProtocolMngr(settings)

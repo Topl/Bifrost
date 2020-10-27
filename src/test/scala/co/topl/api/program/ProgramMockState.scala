@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
@@ -23,7 +23,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.reflect.io.Path
 import scala.util.Try
 
-trait ProgramMockState extends BifrostGenerators {
+trait ProgramMockState extends CoreGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
   Try(path.deleteRecursively())

@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.BifrostGenerators
+import co.topl.CoreGenerators
 import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.consensus.protocolMngr
 import co.topl.modifier.block.Block
@@ -12,7 +12,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class StorageCacheSpec extends AnyPropSpec
   with ScalaCheckPropertyChecks
   with Matchers
-  with BifrostGenerators {
+  with CoreGenerators {
 
   /* Initialize protocolMngr */
   setProtocolMngr(settings)

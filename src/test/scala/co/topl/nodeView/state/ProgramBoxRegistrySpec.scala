@@ -7,14 +7,13 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.{CoreGenerators, ValidGenerators}
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
@@ -26,7 +25,7 @@ class ProgramBoxRegistrySpec extends StateSpec
   with ScalaCheckDrivenPropertyChecks
   with Matchers
   with BeforeAndAfterAll
-  with BifrostGenerators
+  with CoreGenerators
   with ValidGenerators {
 
   val path: Path = Path("/tmp/bifrost/test-data")
