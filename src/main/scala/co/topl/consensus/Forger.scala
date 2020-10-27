@@ -136,8 +136,8 @@ class Forger (settings: AppSettings, appContext: AppContext )
   }
 
   /** Helper function to generate a set of keys used for the genesis block (for private test networks) */
-  private def generateKeys (num: Int): Set[PublicKey25519Proposition] = {
-    keyRing.generateNewKeyPairs(num) match {
+  private def generateKeys (num: Int, seed: Option[String] = None): Set[PublicKey25519Proposition] = {
+    keyRing.generateNewKeyPairs(num, seed) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
     }
@@ -148,12 +148,12 @@ class Forger (settings: AppSettings, appContext: AppContext )
     */
   private def initializeGenesis: Try[Block] = {
     ( appContext.networkType match {
-      case MainNet    => Toplnet.getGenesisBlock
-      case TestNet    => ???
-      case DevNet     => ???
-      case LocalNet   => ???
-      case PrivateNet => PrivateTestnet(generateKeys, settings).getGenesisBlock
-      case _          => throw new Error("Undefined network type.")
+      case MainNet          => Toplnet.getGenesisBlock
+      case TestNet          => ???
+      case DevNet           => ???
+      case LocalNet         => ???
+      case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
+      case _                => throw new Error("Undefined network type.")
     } ).map {
       case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         maxStake = totalStake

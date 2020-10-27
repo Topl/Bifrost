@@ -1,36 +1,19 @@
 package co.topl.settings
 
-sealed abstract class NetworkType {
-  val verboseName: String
-  def isMainNet: Boolean = false
-  def isPrivateForger: Boolean = false
-}
+sealed abstract class NetworkType(val verboseName    : String,
+                                  val isMainNet      : Boolean = false,
+                                  val isPrivateForger: Boolean = false )
 
 object NetworkType {
 
-  lazy val all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet, LocalNet, PrivateNet)
+  lazy val all: Seq[NetworkType] = Seq(MainNet, TestNet, DevNet, LocalNet, PrivateNet(StartupOpts.empty))
 
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
-  case object MainNet extends NetworkType {
-    val verboseName: String = "toplnet"
-    override def isMainNet: Boolean = true
-  }
+  case object MainNet extends NetworkType("toplnet", true)
+  case object TestNet extends NetworkType("valhalla")
+  case object DevNet extends NetworkType("hel")
+  case object LocalNet extends NetworkType("local")
+  case class PrivateNet(startupOpts: StartupOpts) extends NetworkType("private" , isPrivateForger = true)
 
-  case object TestNet extends NetworkType {
-    val verboseName: String = "valhalla"
-  }
-
-  case object DevNet extends NetworkType {
-    val verboseName: String = "hel"
-  }
-
-  case object LocalNet extends NetworkType {
-    val verboseName: String = "local"
-  }
-
-  case object PrivateNet extends NetworkType {
-    val verboseName: String = "private"
-    override def isPrivateForger = true
-  }
 }

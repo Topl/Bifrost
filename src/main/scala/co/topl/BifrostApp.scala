@@ -168,7 +168,8 @@ object BifrostApp extends Logging {
   // parse command line arguments
   val argParser: Arg[StartupOpts] = (
     optional[String]("--config", "-c") and
-      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*)
+      optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
+      optional[String]("--seed", "-s")
     ).to[StartupOpts]
 
   ////////////////////////////////////////////////////////////////////////////////////

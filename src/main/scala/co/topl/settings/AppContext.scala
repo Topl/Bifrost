@@ -27,7 +27,7 @@ class AppContext ( settings: AppSettings,
   // save chosen network for loading genesis config
   val networkType: NetworkType = startupOpts.networkTypeOpt match {
     case Some(network) => network
-    case None          => NetworkType.PrivateNet
+    case None          => NetworkType.PrivateNet(startupOpts)
   }
 
   // enumerate features and message specs present for communicating between peers
