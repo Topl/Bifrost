@@ -1,5 +1,7 @@
-package co.topl.crypto
+package co.topl.attestation.proof
 
+import co.topl.attestation.proposition.{ KnowledgeProposition, Proposition }
+import co.topl.attestation.secrets.Secret
 import co.topl.utils.serialization.BytesSerializable
 
 /**
@@ -13,4 +15,4 @@ trait Proof[+P <: Proposition] extends BytesSerializable {
   def isValid(proposition: Proposition, message: Array[Byte]): Boolean
 }
 
-trait ProofOfKnowledge[S <: Secret, P <: ProofOfKnowledgeProposition[S]] extends Proof[P]
+trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]

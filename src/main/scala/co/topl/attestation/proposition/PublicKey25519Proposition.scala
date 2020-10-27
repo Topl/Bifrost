@@ -1,7 +1,7 @@
-package co.topl.crypto.proposition
+package co.topl.attestation.proposition
 
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledgeProposition }
-import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.attestation.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
@@ -11,14 +11,15 @@ import scorex.util.encode.Base58
 
 import scala.util.{ Failure, Success, Try }
 
-case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
+case class PublicKey25519Proposition(pubKeyBytes: PublicKey) {
+//  extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
   require(pubKeyBytes.length == Curve25519.KeyLength,
     s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.length} found")
 
-  override type M = PublicKey25519Proposition
-
-  override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
+//  override type M = PublicKey25519Proposition
+//
+//  override def serializer: BifrostSerializer[PublicKey25519Proposition] = PublicKey25519PropositionSerializer
 
   override def equals(obj: Any): Boolean = obj match {
     case p: PublicKey25519Proposition => p.pubKeyBytes sameElements pubKeyBytes
@@ -34,9 +35,9 @@ case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnow
 
 object PublicKey25519Proposition {
 
-  val AddressVersion: Byte = 1
-  val ChecksumLength: Int = 4
-  val AddressLength: Int = 1 + Curve25519.KeyLength + ChecksumLength
+//  val AddressVersion: Byte = 1
+//  val ChecksumLength: Int = 4
+//  val AddressLength: Int = 1 + Curve25519.KeyLength + ChecksumLength
 
 //  def apply(address: String): PublicKey25519Proposition =
 //    validAddress(address) match {

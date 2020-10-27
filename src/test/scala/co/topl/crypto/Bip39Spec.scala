@@ -1,5 +1,6 @@
 package co.topl.crypto
 
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.consensus.KeyFile
 import co.topl.utils.Logging
 import org.scalatest.flatspec.AnyFlatSpec

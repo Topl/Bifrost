@@ -11,7 +11,7 @@ import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.state.box.ArbitBox
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import co.topl.nodeView.{ CurrentView, NodeViewHolder }
 import co.topl.settings.NetworkType.{ DevNet, LocalNet, MainNet, PrivateNet, TestNet }
 import co.topl.settings.{ AppContext, AppSettings, NodeViewReady }

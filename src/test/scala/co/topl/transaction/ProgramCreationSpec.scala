@@ -3,8 +3,8 @@ package co.topl.transaction
 /**
   * Created by cykoz on 5/11/2017.
   */
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.modifier.transaction.ProgramCreation
 import co.topl.nodeView.state.State
 import co.topl.{ BifrostGenerators, ValidGenerators }

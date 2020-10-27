@@ -1,7 +1,7 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.signature.Signature25519
-import co.topl.crypto.signature.serialization.Signature25519Serializer
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proof.serialization.Signature25519Serializer
 import co.topl.modifier.ModifierId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.serialization.TransactionSerializer

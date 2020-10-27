@@ -1,6 +1,7 @@
-package co.topl.crypto
+package co.topl.attestation.secrets
 
-import co.topl.nodeView.state.box._
+import co.topl.attestation.proof.ProofOfKnowledge
+import co.topl.attestation.proposition.KnowledgeProposition
 import co.topl.utils.serialization.BytesSerializable
 
 trait Secret extends BytesSerializable {
@@ -8,8 +9,8 @@ trait Secret extends BytesSerializable {
 
   type M = S
   type S >: self.type <: Secret
-  type PK <: ProofOfKnowledgeProposition[S]
-  type PR <: ProofOfKnowledge[S, _ <: ProofOfKnowledgeProposition[S]]
+  type PK <: KnowledgeProposition[S]
+  type PR <: ProofOfKnowledge[S, _ <: KnowledgeProposition[S]]
 
   def companion: SecretCompanion[S]
 
@@ -17,7 +18,7 @@ trait Secret extends BytesSerializable {
 
   def publicImage: PK
 
-  def owns(box: GenericBox[_ <: PK, _]): Boolean
+  //def owns(box: GenericBox[_ <: PK, _]): Boolean
 
   def sign(message: Array[Byte]): PR
 }

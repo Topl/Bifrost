@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.Proposition
+import co.topl.attestation.proposition.Proposition
 import co.topl.utils.serialization.{ BytesSerializable, JsonEncodable }
 
 /**

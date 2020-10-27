@@ -1,6 +1,6 @@
-package co.topl.crypto.proposition.serialization
+package co.topl.attestation.proposition.serialization
 
-import co.topl.crypto.proposition.MofNProposition
+import co.topl.attestation.proposition.MofNProposition
 import co.topl.utils.Extensions._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import scorex.crypto.signatures.{ Curve25519, PublicKey }

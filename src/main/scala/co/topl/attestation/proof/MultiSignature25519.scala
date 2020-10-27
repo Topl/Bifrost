@@ -1,8 +1,8 @@
-package co.topl.crypto.signature
+package co.topl.attestation.proof
 
-import co.topl.crypto.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.crypto.signature.serialization.MultiSignature25519Serializer
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledge, Proposition }
+import co.topl.attestation.proposition.{ MofNProposition, Proposition, PublicKey25519Proposition }
+import co.topl.attestation.proof.serialization.MultiSignature25519Serializer
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.Curve25519
 import scorex.util.encode.Base58

@@ -8,8 +8,8 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.http.api.routes.{ AssetApiRoute, NodeViewApiRoute }
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block

@@ -1,7 +1,7 @@
 package co.topl.modifier.block
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block._
 import co.topl.modifier.transaction.Transaction

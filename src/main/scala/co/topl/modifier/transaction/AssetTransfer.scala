@@ -2,9 +2,9 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.transaction
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.box.{ AssetBox, TokenBox }
@@ -27,7 +27,7 @@ case class AssetTransfer ( override val from      : IndexedSeq[(PublicKey25519Pr
 
   override lazy val messageToSign: Array[Byte] = Bytes.concat(
     "AssetTransfer".getBytes(),
-    super.commonMessageToSign,
+    super.messageToSign,
     issuer.pubKeyBytes,
     assetCode.getBytes,
     )

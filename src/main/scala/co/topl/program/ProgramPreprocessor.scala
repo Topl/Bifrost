@@ -2,8 +2,8 @@ package co.topl.program
 
 import java.nio.file.{ Files, Path }
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.utils.Gzip
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{ FunctionNode, LexicalContext, Node, VarNode }

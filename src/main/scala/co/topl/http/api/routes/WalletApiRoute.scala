@@ -2,7 +2,7 @@ package co.topl.http.api.routes
 
 import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import co.topl.http.api.ApiRouteWithView
 import co.topl.modifier.transaction._
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.LocallyGeneratedTransaction

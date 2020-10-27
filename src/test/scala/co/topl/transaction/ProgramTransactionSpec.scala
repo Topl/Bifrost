@@ -4,8 +4,8 @@ package co.topl.transaction
   * Created by cykoz on 5/11/2017.
   */
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.modifier.transaction.{ ProgramCreation, ProgramMethodExecution, ProgramTransaction }
 import co.topl.nodeView.state.box.{ BoxId, CodeBox, ExecutionBox, PublicKeyNoncedBox, StateBox }

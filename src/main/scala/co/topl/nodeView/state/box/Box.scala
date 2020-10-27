@@ -1,17 +1,18 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.{ProofOfKnowledgeProposition, Secret}
+import co.topl.attestation.proposition.KnowledgeProposition
+import co.topl.attestation.secrets.Secret
 import co.topl.nodeView.state.box.serialization.BoxSerializer
 import co.topl.utils.serialization.BifrostSerializer
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 /**
  * Created by Matthew on 4/11/2017.
  */
-abstract class Box(val proposition: ProofOfKnowledgeProposition[_ <: Secret],
-                   val nonce: Box.Nonce,
-                   val value: Any
-                  ) extends GenericBox[ProofOfKnowledgeProposition[_ <: Secret], Any] {
+abstract class Box( val proposition: KnowledgeProposition[_ <: Secret],
+                    val nonce: Box.Nonce,
+                    val value: Any
+                  ) extends GenericBox[KnowledgeProposition[_ <: Secret], Any] {
 
   override type M = Box
 

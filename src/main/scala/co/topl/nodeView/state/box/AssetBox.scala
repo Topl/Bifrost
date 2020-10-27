@@ -1,6 +1,6 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }
 

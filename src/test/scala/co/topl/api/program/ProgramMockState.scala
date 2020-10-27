@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.{ HttpEntity, HttpMethods, HttpRequest, MediaTyp
 import akka.pattern.ask
 import akka.util.{ ByteString, Timeout }
 import co.topl.BifrostGenerators
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages.GetDataFromCurrentView
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool

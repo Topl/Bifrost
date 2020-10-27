@@ -1,11 +1,13 @@
 package co.topl.modifier.transaction.serialization
 
+import co.topl.attestation.proposition.KnowledgeProposition
+import co.topl.attestation.secrets.Secret
 import co.topl.modifier.transaction._
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 
-object TransactionSerializer extends BifrostSerializer[Transaction] {
+object TransactionSerializer extends BifrostSerializer[Transaction[_ <: Secret, _ <: KnowledgeProposition[_]]] {
 
-  override def serialize(obj: Transaction, w: Writer): Unit = {
+  override def serialize(obj: Transaction[S <: Secret, P <: ProofOfKnowledgeProposition[S]], w: Writer): Unit = {
     obj match {
       case obj: CodeCreation =>
         w.putByteString("CodeCreation")

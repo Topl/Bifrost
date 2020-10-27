@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box.{ BoxId, PolyBox, PublicKeyNoncedBox }
 import com.google.common.primitives.Ints

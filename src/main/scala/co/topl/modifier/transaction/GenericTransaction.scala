@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.Proposition
+import co.topl.attestation.proposition.Proposition
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import scorex.crypto.hash.Blake2b256

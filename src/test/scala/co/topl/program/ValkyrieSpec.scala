@@ -5,7 +5,7 @@ import java.util
 
 import InstrumentClasses.ProgramController
 import InstrumentClasses.TokenClasses._
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.box.{ ArbitBox, AssetBox }
 import co.topl.nodeView.state.{ State, StateSpec }

@@ -4,7 +4,7 @@ import akka.actor.{ ActorRef, ActorRefFactory }
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import co.topl.consensus.Forger.ReceivableMessages._
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
 import co.topl.http.api.ApiRoute
 import co.topl.settings.RESTApiSettings
 import io.circe.Json

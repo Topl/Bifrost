@@ -1,9 +1,9 @@
 package co.topl.modifier.transaction.serialization
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.proposition.serialization.PublicKey25519PropositionSerializer
-import co.topl.crypto.signature.Signature25519
-import co.topl.crypto.signature.serialization.Signature25519Serializer
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.serialization.PublicKey25519PropositionSerializer
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proof.serialization.Signature25519Serializer
 import co.topl.modifier.transaction.ProgramMethodExecution
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._

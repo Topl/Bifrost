@@ -2,8 +2,9 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.{ Bip39, PrivateKey25519 }
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.secrets.PrivateKey25519
+import co.topl.crypto.Bip39
 import co.topl.utils.Logging
 import scorex.crypto.hash.Blake2b256
 

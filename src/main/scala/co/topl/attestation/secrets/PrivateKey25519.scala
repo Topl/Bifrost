@@ -1,9 +1,8 @@
-package co.topl.crypto
+package co.topl.attestation.secrets
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
-import co.topl.crypto.signature.serialization.PrivateKey25519Serializer
-import co.topl.nodeView.state.box.GenericBox
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.secrets.serialization.PrivateKey25519Serializer
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 
@@ -24,14 +23,13 @@ case class PrivateKey25519( private[crypto] val privKeyBytes: PrivateKey,
 
   override lazy val publicImage: PublicKey25519Proposition = PublicKey25519Proposition(publicKeyBytes)
 
-  override def owns(box: GenericBox[_ <: PK, _]): Boolean = box.proposition == this.publicImage
+  //override def owns(box: GenericBox[_ <: PK, _]): Boolean = box.proposition == this.publicImage
 
   override def sign(message: Array[Byte]): Signature25519 = Signature25519(Curve25519.sign(this.privKeyBytes, message))
 
-  override def equals(o: Any): Boolean = {
-    o.isInstanceOf[PrivateKey25519] &&
-      java.util.Arrays.equals(privKeyBytes, o.asInstanceOf[PrivateKey25519].privKeyBytes)
-  }
+  override def equals(obj: Any): Boolean = obj match {
+    case sk: PrivateKey25519 => sk.privKeyBytes sameElements privKeyBytes
+    case _ => false
 }
 
 object PrivateKey25519 extends SecretCompanion[PrivateKey25519] {

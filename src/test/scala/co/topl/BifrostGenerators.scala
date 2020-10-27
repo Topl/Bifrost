@@ -3,9 +3,9 @@ package co.topl
 import java.io.File
 import java.time.Instant
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.{ MofNProposition, PublicKey25519Proposition }
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.{ MofNProposition, PublicKey25519Proposition }
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }

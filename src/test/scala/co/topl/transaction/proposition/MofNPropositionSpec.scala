@@ -1,8 +1,8 @@
 package co.topl.transaction.proposition
 
 import co.topl.BifrostGenerators
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.MofNProposition
+import co.topl.attestation.proposition.MofNProposition
+import co.topl.attestation.secrets.PrivateKey25519
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }

@@ -1,8 +1,8 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
@@ -98,6 +98,8 @@ case object Toplnet extends GenesisProvider {
       s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}")
 
     log.debug(s"Initialize state with transaction ${txs.head} with boxes ${txs.head.newBoxes}")
+
+    block.
 
     (block, ChainParams(totalStake, initialDifficulty))
   }

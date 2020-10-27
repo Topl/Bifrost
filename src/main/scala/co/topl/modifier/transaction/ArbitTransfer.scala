@@ -2,27 +2,28 @@ package co.topl.modifier.transaction
 
 import java.time.Instant
 
-import co.topl.address.ToplAddress
-import co.topl.crypto.{PrivateKey25519, ProofOfKnowledge, ProofOfKnowledgeProposition, Secret}
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
-import co.topl.nodeView.state.box.{ArbitBox, Box, TokenBox}
+import co.topl.attestation.evidence.Evidence
+import co.topl.attestation.proposition.{ KnowledgeProposition, PublicKey25519Proposition }
+import co.topl.attestation.proof.{ ProofOfKnowledge, Signature25519 }
+import co.topl.attestation.secrets.{ PrivateKey25519, Secret }
+import co.topl.nodeView.state.box.{ ArbitBox, Box, TokenBox }
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{ Decoder, Encoder, HCursor }
 import scorex.crypto.hash.Blake2b256
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
-case class ArbitTransfer[S <: Secret, P <: ProofOfKnowledgeProposition[S]] (override val from      : IndexedSeq[(ToplAddress[S], Box.Nonce)],
-                                                                            override val to        : IndexedSeq[(ToplAddress[S], TokenBox.Value)],
-                                                                            override val signatures: Map[P, ProofOfKnowledge[S, P]],
-                                                                            override val fee       : Long,
-                                                                            override val timestamp : Long,
-                                                                            override val data      : String
-                                                                           ) extends TransferTransaction[S, P](from, to, signatures, fee, timestamp, data) {
+case class ArbitTransfer[S <: Secret, P <: KnowledgeProposition[S]]
+  ( override val from      : IndexedSeq[(Evidence, Box.Nonce)],
+    override val to        : IndexedSeq[(Evidence, TokenBox.Value)],
+    override val signatures: Map[P, ProofOfKnowledge[S, P]],
+    override val fee       : Long,
+    override val timestamp : Long,
+    override val data      : String
+  ) extends TransferTransaction[S, P](from, to, signatures, fee, timestamp, data) {
 
-  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.commonMessageToSign
+  override lazy val messageToSign: Array[Byte] = "ArbitTransfer".getBytes ++ super.messageToSign
 
   override lazy val newBoxes: Traversable[ArbitBox] =
     to.filter(_._2 > 0L)
@@ -32,12 +33,14 @@ case class ArbitTransfer[S <: Secret, P <: ProofOfKnowledgeProposition[S]] (over
           .nonceFromDigest(
             Blake2b256(
               "ArbitTransfer".getBytes
-                ++ prop.addressBytes
+                ++ prop.bytes
                 ++ hashNoNonces
                 ++ Ints.toByteArray(idx)))
 
         ArbitBox(prop, nonce, value)
       }
+
+  val g = List("g", "h").mk
 
   override def toString: String = s"ArbitTransfer(${json.noSpaces})"
 }
@@ -45,8 +48,8 @@ case class ArbitTransfer[S <: Secret, P <: ProofOfKnowledgeProposition[S]] (over
 //noinspection ScalaStyle
 object ArbitTransfer extends TransferCompanion {
 
-  implicit val jsonEncoder: Encoder[ArbitTransfer[_ <: Secret, _ <: ProofOfKnowledgeProposition[_]]] = {
-    tx: ArbitTransfer[_ <: Secret, _ <: ProofOfKnowledgeProposition[_]] =>
+  implicit val jsonEncoder: Encoder[ArbitTransfer[PrivateKey25519, Evidence]] = {
+    tx: ArbitTransfer[PrivateKey25519, Evidence] =>
       Map(
         "txHash" -> tx.id.asJson,
         "txType" -> "ArbitTransfer".asJson,
@@ -162,3 +165,5 @@ object ArbitTransfer extends TransferCompanion {
    */
   def syntacticValidate ( tx: ArbitTransfer ): Try[Unit] = validateTransfer(tx)
 }
+
+

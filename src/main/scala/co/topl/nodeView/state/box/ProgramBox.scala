@@ -1,8 +1,8 @@
 package co.topl.nodeView.state.box
 
-import co.topl.crypto.BoxUnlocker
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.BoxUnlocker
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.ProgramId
 import com.google.common.primitives.Longs

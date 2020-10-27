@@ -2,8 +2,8 @@ package co.topl
 
 import java.net.{ InetAddress, InetSocketAddress }
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.{ ModifierId, NodeViewModifier }
 import co.topl.network.message._

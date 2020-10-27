@@ -1,15 +1,15 @@
-package co.topl.crypto.proposition
+package co.topl.attestation.proposition
 
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledgeProposition }
-import co.topl.crypto.proposition.PublicKey25519Proposition._
-import co.topl.crypto.proposition.serialization.MofNPropositionSerializer
+import co.topl.attestation.proposition.PublicKey25519Proposition._
+import co.topl.attestation.proposition.serialization.MofNPropositionSerializer
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
 import scorex.util.encode.Base58
 
 //noinspection ScalaStyle
-case class MofNProposition(m: Int, setOfPubKeyBytes: Set[PublicKey]) extends ProofOfKnowledgeProposition[PrivateKey25519] {
+case class MofNProposition(m: Int, setOfPubKeyBytes: Set[PublicKey]) extends KnowledgeProposition[PrivateKey25519] {
 
   setOfPubKeyBytes.foreach(pubKeyBytes => {
     require(pubKeyBytes.length == Curve25519.KeyLength,

@@ -1,8 +1,9 @@
-package co.topl.crypto.signature
+package co.topl.attestation.proof
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.serialization.Signature25519Serializer
-import co.topl.crypto.{ PrivateKey25519, ProofOfKnowledge, Proposition }
+import co.topl.attestation.evidence.Evidence
+import co.topl.attestation.proposition.{ Proposition, PublicKey25519Proposition }
+import co.topl.attestation.proof.serialization.Signature25519Serializer
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
 import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
@@ -14,7 +15,7 @@ import scala.util.{ Failure, Success, Try }
 /**
   * @param signature 25519 signature
   */
-case class Signature25519 (signature: Signature) extends ProofOfKnowledge[PrivateKey25519, PublicKey25519Proposition] {
+case class Signature25519 (signature: Signature) extends ProofOfKnowledge[PrivateKey25519, Evidence] {
   require(signature.isEmpty || signature.length == Curve25519.SignatureLength,
     s"${signature.length} != ${Curve25519.SignatureLength}")
 

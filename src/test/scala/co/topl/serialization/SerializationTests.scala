@@ -1,7 +1,7 @@
 package co.topl.serialization
 
-import co.topl.crypto.proposition.MofNProposition
-import co.topl.crypto.proposition.serialization.MofNPropositionSerializer
+import co.topl.attestation.proposition.MofNProposition
+import co.topl.attestation.proposition.serialization.MofNPropositionSerializer
 import co.topl.modifier.block.{ Block, BlockSerializer }
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.serialization._

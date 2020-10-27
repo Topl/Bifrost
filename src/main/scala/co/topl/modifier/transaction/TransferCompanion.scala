@@ -1,8 +1,8 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.Signature25519
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.Signature25519
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.modifier.transaction.Transaction.{ Nonce, Value }
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.state.box._

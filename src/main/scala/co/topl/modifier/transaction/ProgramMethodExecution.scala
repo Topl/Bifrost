@@ -1,7 +1,7 @@
 package co.topl.modifier.transaction
 
-import co.topl.crypto.proposition.PublicKey25519Proposition
-import co.topl.crypto.signature.{ MultiSignature25519, Signature25519 }
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.proof.{ MultiSignature25519, Signature25519 }
 import co.topl.modifier.transaction.Transaction.Nonce
 import co.topl.nodeView.state.box._
 import co.topl.nodeView.state.{ ProgramId, State, StateReader }

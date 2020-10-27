@@ -5,8 +5,8 @@ import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
-import co.topl.crypto.PrivateKey25519
-import co.topl.crypto.proposition.PublicKey25519Proposition
+import co.topl.attestation.proposition.PublicKey25519Proposition
+import co.topl.attestation.secrets.PrivateKey25519
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder, HCursor }

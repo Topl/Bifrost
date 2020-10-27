@@ -1,6 +1,6 @@
-package co.topl.crypto.signature.serialization
+package co.topl.attestation.secrets.serialization
 
-import co.topl.crypto.PrivateKey25519
+import co.topl.attestation.secrets.PrivateKey25519
 import co.topl.utils.serialization.{ BifrostSerializer, Reader, Writer }
 import scorex.crypto.signatures.{ Curve25519, PrivateKey, PublicKey }
 
