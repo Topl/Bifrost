@@ -131,7 +131,6 @@ object AppSettings extends Logging with SettingsReaders {
           .defaultOverrides()
           .withFallback(config)
           .withFallback(ConfigFactory.defaultApplication())
-          .withFallback(ConfigFactory.defaultReference())
           .resolve()
 
       case (None, Some(networkConfigFile)) ⇒
@@ -139,7 +138,7 @@ object AppSettings extends Logging with SettingsReaders {
         ConfigFactory
           .defaultOverrides()
           .withFallback(config)
-          .withFallback(ConfigFactory.defaultReference())
+          .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
       case (Some(file), Some(networkConfigFile)) =>
@@ -150,7 +149,7 @@ object AppSettings extends Logging with SettingsReaders {
           .defaultOverrides()
           .withFallback(config)
           .withFallback(networkConfig)
-          .withFallback(ConfigFactory.defaultReference())
+          .withFallback(ConfigFactory.defaultApplication())
           .resolve()
 
       case _ ⇒

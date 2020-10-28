@@ -148,10 +148,10 @@ class Forger (settings: AppSettings, appContext: AppContext )
     */
   private def initializeGenesis: Try[Block] = {
     ( appContext.networkType match {
-      case MainNet          => Toplnet.getGenesisBlock
-      case TestNet          => ???
-      case DevNet           => ???
-      case LocalNet         => ???
+      case MainNet(opts)    => Toplnet.getGenesisBlock
+      case TestNet(opts)    => ???
+      case DevNet(opts)     => ???
+      case LocalNet(opts)   => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
       case PrivateNet(opts) => PrivateTestnet(generateKeys, settings, opts).getGenesisBlock
       case _                => throw new Error("Undefined network type.")
     } ).map {
