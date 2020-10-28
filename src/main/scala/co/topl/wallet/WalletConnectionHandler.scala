@@ -77,7 +77,6 @@ class WalletConnectionHandler ( implicit ec: ExecutionContext ) extends Actor wi
         key.substring(1, key.length-1)
       else key.substring(1)
     ).toSet
-    remoteWalletKeys.foreach(key => println ("pub key from wallet: " + key))
   }
 
   def msgHandler(msg: String): Unit = {

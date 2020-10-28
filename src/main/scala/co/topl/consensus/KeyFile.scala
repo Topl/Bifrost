@@ -15,7 +15,7 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import scorex.crypto.hash.{Blake2b256, Digest32, Keccak256}
+import scorex.crypto.hash.Blake2b256
 import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
 import scorex.util.encode.Base58
@@ -25,13 +25,13 @@ import scala.util.Try
 /**
   * Created by cykoz on 6/22/2017.
   */
-case class KeyFile (address: Array[Byte],
+case class KeyFile (address    : String,
                     cipherText : Array[Byte],
                     mac        : Array[Byte],
                     salt       : Array[Byte],
                     iv         : Array[Byte]) {
 
-  lazy val publicKeyFromAddress: PublicKey25519Proposition = PublicKey25519Proposition(Base58.encode(address))
+  lazy val publicKeyFromAddress: PublicKey25519Proposition = PublicKey25519Proposition(address)
 
   private[consensus] def getPrivateKey (password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
@@ -52,7 +52,7 @@ case class KeyFile (address: Array[Byte],
 
   private[consensus] def saveToDisk (dir: String): Try[Unit] = Try {
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${Base58.encode(this.address)}.json"))
+    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${this.address}.json"))
     w.write(KeyFile.jsonEncoder(this).toString)
     w.close()
   }
@@ -73,7 +73,7 @@ object KeyFile {
         "kdfSalt" -> Base58.encode(kf.salt).asJson,
         "mac" -> Base58.encode(kf.mac).asJson
       ).asJson,
-      "address" -> Base58.encode(kf.address).asJson
+      "address" -> kf.address.asJson
     ).asJson
   }
 
@@ -85,13 +85,12 @@ object KeyFile {
       saltString <- c.downField("crypto").downField("kdfSalt").as[String]
       ivString <- c.downField("crypto").downField("cipherParams").downField("iv").as[String]
     } yield {
-      val addr = Base58.decode(address).get
       val cipherText = Base58.decode(cipherTextString).get
       val mac = Base58.decode(macString).get
       val salt = Base58.decode(saltString).get
       val iv = Base58.decode(ivString).get
 
-      new KeyFile(addr, cipherText, mac, salt, iv)
+      new KeyFile(address, cipherText, mac, salt, iv)
     }
 
   /**
@@ -111,7 +110,7 @@ object KeyFile {
     // encrypt private key
     val (cipherText, mac) = getAESResult(derivedKey, ivData, secretKey.bytes, encrypt = true)
 
-    new KeyFile(secretKey.publicImage.pubKeyBytes, cipherText, mac, salt, ivData)
+    new KeyFile(secretKey.publicImage.address, cipherText, mac, salt, ivData)
   }
 
   /** helper function to create a new random keyfile */
@@ -141,7 +140,8 @@ object KeyFile {
     * @return
     */
   private def getDerivedKey (password: String, salt: Array[Byte]): Array[Byte] = {
-    SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
+    val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
+    SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
   }
 
   /**
@@ -174,6 +174,6 @@ object KeyFile {
 
     val mac = getMAC(derivedKey, outputText)
 
-    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
+    (outputText, mac)
   }
 }

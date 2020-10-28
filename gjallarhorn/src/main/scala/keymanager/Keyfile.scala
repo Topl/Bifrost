@@ -15,7 +15,7 @@ import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 import scorex.util.encode.Base58
-import scorex.crypto.hash.Keccak256
+import scorex.crypto.hash.{Blake2b256, Keccak256}
 import scorex.crypto.signatures.{Curve25519, PrivateKey, PublicKey}
 import scorex.util.Random.randomBytes
 
@@ -25,11 +25,11 @@ import scala.util.Try
   * Created by cykoz on 6/22/2017.
   */
 
-case class KeyFile(address: String,
-                   cipherText: Array[Byte],
-                   mac: Array[Byte],
-                   salt: Array[Byte],
-                   iv: Array[Byte]) {
+case class KeyFile(address    : String,
+                   cipherText : Array[Byte],
+                   mac        : Array[Byte],
+                   salt       : Array[Byte],
+                   iv         : Array[Byte]) {
 
 
   lazy val publicKeyFromAddress: PublicKey25519Proposition = PublicKey25519Proposition(address)
@@ -41,7 +41,8 @@ case class KeyFile(address: String,
     */
   /*private[keymanager]*/ def getPrivateKey(password: String): Try[PrivateKey25519] = Try {
     val derivedKey = KeyFile.getDerivedKey(password, salt)
-    require(Keccak256(derivedKey.slice(16, 32) ++ cipherText) sameElements mac, "MAC does not match. Try again")
+    val calcMAC = KeyFile.getMAC(derivedKey, cipherText)
+    require(calcMAC sameElements mac, "MAC does not match. Try again")
 
     KeyFile.getAESResult(derivedKey, iv, cipherText, encrypt = false) match {
       case (cipherBytes, _) => cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
@@ -142,7 +143,18 @@ object KeyFile {
     * @return - the derived key as an array of bytes.
     */
   def getDerivedKey(password: String, salt: Array[Byte]): Array[Byte] = {
-    SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
+    val passwordBytes = password.getBytes(StandardCharsets.UTF_8)
+    SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
+  }
+
+  /**
+    *
+    * @param derivedKey
+    * @param cipherText
+    * @return
+    */
+  private def getMAC (derivedKey: Array[Byte], cipherText: Array[Byte]): Array[Byte] = {
+    Blake2b256(derivedKey.slice(16, 32) ++ cipherText)
   }
 
   /**
@@ -163,6 +175,8 @@ object KeyFile {
     aesCtr.processBytes(inputText, 0, inputText.length, outputText, 0)
     aesCtr.doFinal(outputText, 0)
 
-    (outputText, Keccak256(derivedKey.slice(16, 32) ++ outputText))
+    val mac = getMAC(derivedKey, outputText)
+
+    (outputText, mac)
   }
 }

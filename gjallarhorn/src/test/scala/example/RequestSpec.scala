@@ -60,8 +60,6 @@ class RequestSpec extends AsyncFlatSpec
 
   val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString)
 
-  publicKeys.foreach(key => println("request key: " + key))
-
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
   val amount = 10
@@ -69,7 +67,7 @@ class RequestSpec extends AsyncFlatSpec
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
 
-  val api: Boolean = false
+  val api: Boolean = true
 
  it should "receive a successful response from Bifrost upon creating asset" in {
    val createAssetRequest: ByteString = ByteString(

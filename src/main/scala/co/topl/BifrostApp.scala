@@ -20,7 +20,7 @@ import co.topl.network.upnp.Gateway
 import co.topl.nodeView.{NodeViewHolder, NodeViewHolderRef}
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool
-import co.topl.settings.{AppContext, AppSettings, NetworkType, StartupOpts}
+import co.topl.settings.{AppContext, AppSettings, NetworkType, RuntimeOpts, StartupOpts}
 import co.topl.utils.Logging
 import co.topl.wallet.{AssetRequests, WalletConnectionHandler, WalletRequests}
 import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
@@ -176,12 +176,13 @@ object BifrostApp extends Logging {
   import com.joefkelley.argyle._ // import for parsing command line arguments
 
   // parse command line arguments
-  val argParser: Arg[StartupOpts] = (
-    optional[String]("--config", "-c") and
+  val argParser: Arg[StartupOpts] =
+    (optional[String]("--config", "-c") and
       optionalOneOf[NetworkType](NetworkType.all.map(x => s"--${x.verboseName}" -> x) : _*) and
-      optional[String]("--seed", "-s")
-    ).to[StartupOpts]
-
+      ( optional[String]("--seed", "-s") and
+        flag("--forge", "-f")
+        ).to[RuntimeOpts]
+      ).to[StartupOpts]
   ////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   def main(args: Array[String]): Unit =

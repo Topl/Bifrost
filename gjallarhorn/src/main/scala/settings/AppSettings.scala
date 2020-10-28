@@ -13,7 +13,9 @@ case class AppSettings(declaredAddress: String,
                        requestPort: Int,
                        requestAddress: String,
                        keyFileDir: String,
-                       chainProvider: String)
+                       chainProvider: String,
+                       apiKeyHash: String)
+
 
 object AppSettings extends Logging with SettingsReaders {
 

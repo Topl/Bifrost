@@ -5,7 +5,7 @@ import co.topl.consensus.genesis.PrivateTestnet
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.block
-import co.topl.settings.{AppSettings, StartupOpts}
+import co.topl.settings.{AppSettings, RuntimeOpts, StartupOpts}
 import co.topl.{BifrostGenerators, ValidGenerators}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -26,7 +26,7 @@ class StateSpec extends AnyPropSpec
 
   def createState(settingsPath: String): State = {
     val file = createTempFile
-    val initialSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsPath), None, None))
+    val initialSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsPath), None))
     val settings = initialSettings.copy(
       application = initialSettings.application.copy(
         dataDir = Some(file.getPath + "data")
@@ -39,14 +39,14 @@ class StateSpec extends AnyPropSpec
 object StateSpec {
 
   val settingsFilename = "src/test/resources/test.conf"
-  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None, None))
+  lazy val testSettings: AppSettings = AppSettings.read(StartupOpts(Some(settingsFilename), None))
 
   val keyRing: KeyRing = KeyRing(testSettings.application.keyFileDir.get)
-  val block: Block = PrivateTestnet(( _: Int) => {
+  val block: Block = PrivateTestnet(( _: Int, _: Option[String]) => {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    } }, testSettings, ).getGenesisBlock.get._1
+    } }, testSettings, RuntimeOpts.empty).getGenesisBlock.get._1
 
   def genesisState(): State = State.genesisState(testSettings, Seq(block)).copy()
 

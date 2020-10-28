@@ -7,6 +7,8 @@ import akka.util.Timeout
 import io.circe.{Decoder, Json}
 import io.circe.parser.parse
 import scorex.crypto.hash.{Blake2b256, Digest32}
+import scorex.util.encode.Base58
+import settings.AppSettings
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -15,11 +17,14 @@ import scala.util.{Failure, Success, Try}
 trait ApiRoute extends Directives {
   val context: ActorRefFactory
   val route: Route
+  val settings: AppSettings
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   lazy val corsAllowed: Boolean = true
-  lazy val apiKeyHash: Option[Array[Byte]] = None
+  lazy val apiKeyHash: Option[Array[Byte]] =
+    if (settings.apiKeyHash == "") None
+    else Base58.decode(settings.apiKeyHash).toOption
 
   def actorRefFactory: ActorRefFactory = context
 

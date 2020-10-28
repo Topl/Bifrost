@@ -7,13 +7,14 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.state.StateSpec.testSettings
 import co.topl.nodeView.state.box.StateBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.{BifrostGenerators, ValidGenerators}
+import co.topl.settings.RuntimeOpts
+import co.topl.{ BifrostGenerators, ValidGenerators }
 import com.google.common.primitives.Ints
 import io.circe.Json
 import io.circe.syntax._
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.{ BeforeAndAfterAll, DoNotDiscover }
+import org.scalatestplus.scalacheck.{ ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks }
 import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
@@ -33,11 +34,11 @@ class ProgramBoxRegistrySpec extends StateSpec
   Try(path.deleteRecursively())
 
   val keyRing: KeyRing = KeyRing(path + "/keyfiles")
-  val genesisBlock: Block = PrivateTestnet((_: Int) => {
+  val genesisBlock: Block = PrivateTestnet((_: Int, _: Option[String]) => {
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    }}, testSettings).getGenesisBlock.get._1
+    }}, testSettings, RuntimeOpts.empty).getGenesisBlock.get._1
 
   val state: State = createState(StateSpec.settingsFilename)
 
