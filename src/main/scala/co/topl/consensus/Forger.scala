@@ -120,7 +120,7 @@ class Forger (settings: AppSettings, appContext: AppContext )
 
   /** Helper function to enable private forging if we can expects keys in the key ring */
   private def checkPrivateForging (): Unit =
-    if (appContext.networkType.isPrivateForger && keyRing.publicKeys.nonEmpty) self ! StartForging
+    if (appContext.networkType.startWithForging && keyRing.publicKeys.nonEmpty) self ! StartForging
 
   /** Schedule a forging attempt */
   private def scheduleForgingAttempt (): Unit = {
