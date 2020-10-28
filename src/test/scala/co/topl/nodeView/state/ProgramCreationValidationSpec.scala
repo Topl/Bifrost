@@ -88,7 +88,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
     forAll(validProgramCreationGen) {
       programCreation: ProgramCreation =>
         val block = Block(
-          ModifierId(Array.fill(Block.signatureLength)(-1: Byte)),
+          ModifierId(Array.fill(Block.blockIdLength)(-1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), 0L, 0L),
           Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
@@ -273,7 +273,7 @@ class ProgramCreationValidationSpec extends ProgramSpec {
 
 
         val firstCCAddBlock = Block(
-          ModifierId(Array.fill(Block.signatureLength)(1: Byte)),
+          ModifierId(Array.fill(Block.blockIdLength)(1: Byte)),
           Instant.now.toEpochMilli,
           ArbitBox(PublicKey25519Proposition(PublicKey @@ Array.fill(Curve25519.KeyLength)(0: Byte)), scala.util.Random.nextLong(), 0L),
           Signature25519(Signature @@ Array.fill(Block.signatureLength)(0: Byte)),
