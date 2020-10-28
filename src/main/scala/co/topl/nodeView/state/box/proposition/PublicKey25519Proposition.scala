@@ -3,12 +3,12 @@ package co.topl.nodeView.state.box.proposition
 import co.topl.crypto.PrivateKey25519
 import co.topl.utils.serialization.BifrostSerializer
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scorex.util.encode.Base58
+import io.circe.{ Decoder, Encoder, KeyDecoder, KeyEncoder }
 import scorex.crypto.hash.Blake2b256
-import scorex.crypto.signatures.{Curve25519, PublicKey, Signature}
+import scorex.crypto.signatures.{ Curve25519, PublicKey, Signature }
+import scorex.util.encode.Base58
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 case class PublicKey25519Proposition(pubKeyBytes: PublicKey) extends ProofOfKnowledgeProposition[PrivateKey25519] {
 
@@ -53,9 +53,9 @@ object PublicKey25519Proposition {
 
   def validAddress(address: String): Try[PublicKey25519Proposition] =
     Base58.decode(address).flatMap { addressBytes =>
-      if (addressBytes.length != AddressLength) {
+      if (addressBytes.length != AddressLength)
         Failure(new Exception("Wrong address length"))
-      }
+
       else {
         val checkSum = addressBytes.takeRight(ChecksumLength)
 
@@ -72,7 +72,7 @@ object PublicKey25519Proposition {
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
   implicit val jsonEncoder: Encoder[PublicKey25519Proposition] =
-  (prop: PublicKey25519Proposition) => prop.toString.asJson
+    (prop: PublicKey25519Proposition) => prop.toString.asJson
 
   implicit val jsonDecoder: Decoder[PublicKey25519Proposition] =
     Decoder.decodeString.emapTry(PublicKey25519Proposition.validAddress(_))

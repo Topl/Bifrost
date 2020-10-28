@@ -39,6 +39,8 @@ class BifrostApp(startupOpts: StartupOpts) extends Logging with Runnable {
   type HIS = History
   type MP = MemPool
 
+  println(s"\n>>>>>>>>>>>>>> startupOpts: $startupOpts")
+
   // Setup settings file to be passed into the application
   private val settings: AppSettings = AppSettings.read(startupOpts)
   log.debug(s"Starting application with settings \n$settings")

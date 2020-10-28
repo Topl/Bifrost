@@ -158,8 +158,7 @@ class WalletRequests (nodeViewHolderRef: ActorRef)
 
       boxes.map {
         case (prop, boxes) =>
-          println("balance boxes: " + boxes)
-          Base58.encode(prop.pubKeyBytes) -> Map(
+          prop.address -> Map(
             "Balances" -> Map(
               "Polys" -> balances(prop).getOrElse("Poly", 0L),
               "Arbits" -> balances(prop).getOrElse("Arbit", 0L),
@@ -183,7 +182,6 @@ class WalletRequests (nodeViewHolderRef: ActorRef)
       val txType = (tx \\ "txType").head.asString.get
       val txInstance: Transaction = txType match {
         case "AssetCreation" =>
-          println("to: " + (tx \\ "to").head.asArray.get.head)
           tx.as[AssetCreation] match {
               case Right(asset) => asset
               case Left(f) => throw f

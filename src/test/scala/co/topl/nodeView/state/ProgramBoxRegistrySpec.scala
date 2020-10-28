@@ -19,7 +19,7 @@ import scorex.crypto.signatures.PublicKey
 import scorex.util.encode.Base58
 
 import scala.reflect.io.Path
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 @DoNotDiscover
 class ProgramBoxRegistrySpec extends StateSpec
@@ -38,7 +38,7 @@ class ProgramBoxRegistrySpec extends StateSpec
     keyRing.generateNewKeyPairs(num = 3) match {
       case Success(keys) => keys.map(_.publicImage)
       case Failure(ex)   => throw ex
-    }}, testSettings, RuntimeOpts.empty).getGenesisBlock.get._1
+    } }, testSettings, RuntimeOpts.empty).getGenesisBlock.get._1
 
   val state: State = createState(StateSpec.settingsFilename)
 

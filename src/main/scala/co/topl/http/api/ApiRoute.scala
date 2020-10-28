@@ -21,7 +21,7 @@ trait ApiRoute extends Directives {
   implicit val timeout: Timeout = Timeout(settings.timeout)
 
   lazy val corsAllowed: Boolean = settings.corsAllowed
-  lazy val apiKeyHash: Option[Array[Byte]] = Base58.decode(settings.apiKeyHash).toOption
+  lazy val apiKeyHash: Option[Array[Byte]] = None
 
   def actorRefFactory: ActorRefFactory = context
 

@@ -145,12 +145,10 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     *
     * @param request
     * @param path - asset or wallet request
-    * @param api - true, if the request should be sent through the API,
-    *            false, if the request should be sent through the AKKA actor system.
     * @return
     */
-  def sendRequest(request: ByteString, path: String, api: Boolean): Json  = {
-    api match {
+  def sendRequest(request: ByteString, path: String): Json  = {
+    settings.useApiRoute match {
       case true =>
         val sendTx = httpPOST(request, path)
         val data = requestResponseByteString(sendTx)
@@ -170,11 +168,11 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
     }
   }
 
-  def broadcastTx(signedTransaction: Json, api: Boolean): Json = {
-    sendRequest(jsonToByteString(signedTransaction), "wallet", api)
+  def broadcastTx(signedTransaction: Json): Json = {
+    sendRequest(jsonToByteString(signedTransaction), "wallet")
   }
 
-  def getBalances (publicKeys: Set[String], api: Boolean): Json = {
+  def getBalances (publicKeys: Set[String]): Json = {
     val keysWithQuotes: Set[String] = publicKeys.map(pk => s""""$pk"""")
     val keys: String = keysWithQuotes.mkString(", \n")
     val json = (
@@ -194,7 +192,7 @@ class Requests (settings: AppSettings, requestsManager: ActorRef)
        """
     )
     val requestBody = ByteString(json.stripMargin)
-    sendRequest(requestBody, "wallet", api)
+    sendRequest(requestBody, "wallet")
   }
 }
 

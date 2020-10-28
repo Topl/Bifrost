@@ -1,9 +1,9 @@
 package co.topl.modifier
 
-import co.topl.crypto.FastCryptographicHash
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import scorex.crypto.hash.Blake2b256
 import scorex.util.encode.Base58
 
 import scala.util.{Failure, Success, Try}
@@ -23,7 +23,7 @@ case class ModifierId(hashBytes: Array[Byte]) {
 }
 
 object ModifierId {
-  val size: Int = FastCryptographicHash.DigestSize // boxId is a 32 byte identifier
+  val size: Int = Blake2b256.DigestSize // boxId is a 32 byte identifier
 
   implicit val ord: Ordering[ModifierId] = Ordering.by(_.toString)
 

@@ -47,18 +47,6 @@ class WalletManager(publicKeys: Set[String]) extends Actor with Logging {
     bifrost ! s"Remote wallet actor initialized. My public keys are: ${walletBoxes.keySet}"
   }
 
-  /*case msg: String => {
-    if (msg.contains("New block added")) {
-    println(s"Wallet Manager received block: ${msg.substring(17)}")
-    newestBlock = Some(msg.substring(17))
-  }
-    if (msg.contains("new block added")) {
-    println(s"Wallet Manager received block from generic node view holder: ${msg.substring(17)}")
-    newestBlock = Some(msg.substring(17))
-  }
-    log.info(s"${Console.MAGENTA} Received a message: $msg")
-  }*/
-
   def msgHandling(msg: String): Unit = {
     if (msg.contains("received new wallet from:")) {
       connectedToBifrost = true

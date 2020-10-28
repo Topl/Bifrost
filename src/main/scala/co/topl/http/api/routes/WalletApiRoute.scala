@@ -344,7 +344,7 @@ case class WalletApiRoute ( override val settings: RESTApiSettings, nodeViewHold
 
       boxes.map {
         case (prop, boxes) =>
-          Base58.encode(prop.pubKeyBytes) -> Map(
+          prop.address -> Map(
             "Balances" -> Map(
               "Polys" -> balances(prop).getOrElse("Poly", 0L),
               "Arbits" -> balances(prop).getOrElse("Arbit", 0L)

@@ -2,12 +2,13 @@ package co.topl.consensus
 
 import java.io.File
 
-import co.topl.crypto.{Bip39, FastCryptographicHash, PrivateKey25519}
+import co.topl.crypto.{ Bip39, FastCryptographicHash, PrivateKey25519 }
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
 import co.topl.utils.Logging
+import com.google
 import com.google.common.primitives.Ints
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 class KeyRing ( private var secrets: Set[PrivateKey25519],
                 defaultKeyDir      : File
@@ -79,6 +80,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
         case Some(seed) => (1 to num).map(i => KeyFile.generateKeyPair(Ints.toByteArray(i) ++ seed.getBytes())._1).toSet
         case _          => (1 to num).map(_ => KeyFile.generateKeyPair._1).toSet
       }
+
       secrets ++= newSecrets
       newSecrets
     }
@@ -123,7 +125,7 @@ class KeyRing ( private var secrets: Set[PrivateKey25519],
     }
   }
 
-  /** Return a list of KeyFile instances for all keys in the key file directory */
+  /** Return a list of KeuFile instances for all keys in the key file directory */
   private def listKeyFiles: List[KeyFile] =
     getListOfFiles(defaultKeyDir).map(file => KeyFile.readFile(file.getPath))
 

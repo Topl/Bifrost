@@ -8,13 +8,14 @@ import co.topl.modifier.transaction.{ ArbitTransfer, PolyTransfer }
 import co.topl.nodeView.history.History
 import co.topl.nodeView.state.box.ArbitBox
 import co.topl.nodeView.state.box.proposition.PublicKey25519Proposition
-import co.topl.settings.{ AppSettings, RuntimeOpts, StartupOpts, Version }
+import co.topl.settings.{ AppSettings, RuntimeOpts, Version }
 
 import scala.util.Try
 
 case class PrivateTestnet ( keyGen  : (Int, Option[String]) => Set[PublicKey25519Proposition],
                             settings: AppSettings,
-                            opts    : RuntimeOpts) extends GenesisProvider {
+                            opts    : RuntimeOpts
+                          ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId(Array.fill(32)(0: Byte))
 

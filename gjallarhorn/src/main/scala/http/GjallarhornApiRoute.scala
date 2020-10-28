@@ -5,15 +5,13 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import requests.{ApiRoute, Requests}
 import io.circe.{Encoder, Json}
-import io.circe.parser.parse
 import io.circe.syntax._
 import keymanager.KeyManager._
 import requests.RequestsManager.{WalletRequest, AssetRequest}
 import settings.AppSettings
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 
 case class GjallarhornApiRoute(settings: AppSettings,
                                keyManager: ActorRef,
@@ -47,14 +45,19 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return - a response after creating transaction.
     */
   private def createTransaction(params: Json, id: String): Future[Json] = {
-    (requestsManager ? AssetRequest(params)).mapTo[String].map(_.asJson)
+    settings.useApiRoute match {
+      case true =>
+        val method: String = (params \\ "method").head.asString.get
+        val innerParams: Json = (params \\ "params").head.asArray.get.head
+        val tx = requests.transaction(method, innerParams)
 
-    //API:
-    /*val method: String = (params \\ "method").head.asString.get
-    val innerParams: Json = (params \\ "params").head.asArray.get.head
-    val tx = requests.transaction(method, innerParams)
+        Future {
+          requests.sendRequest(tx, "asset")
+        }
 
-    Future{requests.sendRequest(tx, "asset")}*/
+      case false =>
+        (requestsManager ? AssetRequest(params)).mapTo[String].map(_.asJson)
+    }
   }
 
   /**
@@ -79,10 +82,10 @@ case class GjallarhornApiRoute(settings: AppSettings,
     * @return
     */
   private def broadcastTx(params: Json, id: String): Future[Json] = {
-    (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
-
-    //API:
-    //Future{requests.broadcastTx(params)}
+    settings.useApiRoute match {
+      case true => Future{requests.broadcastTx(params)}
+      case false => (requestsManager ? WalletRequest(params)).mapTo[String].map(_.asJson)
+    }
   }
 
 

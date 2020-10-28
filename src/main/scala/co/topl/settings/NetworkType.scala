@@ -2,7 +2,7 @@ package co.topl.settings
 
 sealed abstract class NetworkType(val verboseName    : String,
                                   val startWithForging: Boolean = false
-                                 )
+                                  )
 
 object NetworkType {
 
@@ -11,12 +11,12 @@ object NetworkType {
   def fromString(name: String): Option[NetworkType] = all.find(_.verboseName == name)
 
   /**
-    * Creates a usable instance of the network type during application initialization
-    *
-    * @param net the specified network type from the command line
-    * @param opts runtime parameters used to control the behavior of the chosen entwork type
-    * @return
-    */
+   * Creates a usable instance of the network type during application initialization
+   *
+   * @param net the specified network type from the command line
+   * @param opts runtime parameters used to control the behavior of the chosen entwork type
+   * @return
+   */
   def fillNetworkType(net: NetworkType, opts: RuntimeOpts): NetworkType = net match {
     case MainNet(_) => MainNet(opts)
     case TestNet(_) => TestNet(opts)

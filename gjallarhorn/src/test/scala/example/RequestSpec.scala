@@ -49,6 +49,7 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val password = "pass"
+  val genesisPubKey = "3mBVXE3fuVfu1MBmMsBiRd6y9XokiVV591N65tBfA3FEvmqWB8"
 
   val keyFile = KeyFile(password, KeyFile.generateKeyPair(seed1)._1)
   val keyManager = Keys(keyFileDir)
@@ -58,7 +59,7 @@ class RequestSpec extends AsyncFlatSpec
     case Failure (ex) => throw new Error (s"An error occured: $ex")
   }
 
-  val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString)
+  val publicKeys: Set[String] = Set(pk1.toString, pk2.toString, pk3.toString, genesisPubKey)
 
   val walletManagerRef: ActorRef = actorSystem.actorOf(Props(new WalletManager(publicKeys)), name = "WalletManager")
 
@@ -67,7 +68,14 @@ class RequestSpec extends AsyncFlatSpec
   var transaction: Json = Json.Null
   var signedTransaction: Json = Json.Null
 
-  val api: Boolean = true
+  var newBoxId: String = ""
+
+  def parseForBoxId(json: Json): String = {
+    val result = (json \\ "result").head
+    val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
+    newBoxes
+  }
+
 
  it should "receive a successful response from Bifrost upon creating asset" in {
    val createAssetRequest: ByteString = ByteString(
@@ -78,7 +86,7 @@ class RequestSpec extends AsyncFlatSpec
          |   "method": "createAssetsPrototype",
          |   "params": [{
          |     "issuer": "${pk1.toString}",
-         |     "recipient": "${pk2.toString}",
+         |     "recipient": "${pk1.toString}",
          |     "amount": $amount,
          |     "assetCode": "etherAssets",
          |     "fee": 0,
@@ -86,8 +94,10 @@ class RequestSpec extends AsyncFlatSpec
          |   }]
          |}
          """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "asset", api)
+    transaction = requests.sendRequest(createAssetRequest, "asset")
     assert(transaction.isInstanceOf[Json])
+    newBoxId = parseForBoxId(transaction)
+   println(transaction)
     (transaction \\ "error").isEmpty shouldBe true
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
@@ -103,72 +113,25 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive successful JSON response from broadcast transaction" in {
-    val response = requests.broadcastTx(signedTransaction, api)
+    val response = requests.broadcastTx(signedTransaction)
     assert(response.isInstanceOf[Json])
     (response \\ "error").isEmpty shouldBe true
     (response \\ "result").head.asObject.isDefined shouldBe true
   }
 
-  //TODO: get generic keys that are in bifrost
-/*  it should "receive a successful response from Bifrost upon transfering a poly" in {
-    val transferPolysRequest: ByteString = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "1",
-         |   "method": "transferPolysPrototype",
-         |   "params": [{
-         |     "recipient": "${pk3.toString}",
-         |     "sender": ["${pk1.toString}"],
-         |     "amount": $amount,
-         |     "fee": 0,
-         |     "data": ""
-         |   }]
-         |}
-         """.stripMargin)
-    val tx = requests.sendRequest(transferPolysRequest, "wallet", api)
-    assert(tx.isInstanceOf[Json])
-    (transaction \\ "error").isEmpty shouldBe true
-    (transaction \\ "result").head.asObject.isDefined shouldBe true
-  }*/
-
   var balanceResponse: Json = Json.Null
-  var newBoxId: String = ""
 
-  def parseForBoxId(json: Json): String = {
-    val result = (json \\ "result").head
-    val newBoxes = (result \\ "newBoxes").head.toString().trim.stripPrefix("[").stripSuffix("]").trim
-    newBoxes
-  }
-
- /*it should "receive a successful and correct response from Bifrost upon requesting balances" in {
-    val createAssetRequest: ByteString = ByteString(
-      s"""
-         |{
-         |   "jsonrpc": "2.0",
-         |   "id": "1",
-         |   "method": "createAssetsPrototype",
-         |   "params": [{
-         |     "issuer": "${pk1.toString}",
-         |     "recipient": "${pk1.toString}",
-         |     "amount": $amount,
-         |     "assetCode": "test",
-         |     "fee": 0,
-         |     "data": ""
-         |   }]
-         |}
-         """.stripMargin)
-    transaction = requests.sendRequest(createAssetRequest, "asset", api)
-    println(transaction)
-    newBoxId = parseForBoxId(transaction)
+  it should "receive a successful and correct response from Bifrost upon requesting balances" in {
     Thread.sleep(10000)
-    balanceResponse = requests.getBalances(publicKeys, api)
+    println("pk1: " + pk1.toString)
+    println("pk2: " + pk2.toString)
+    balanceResponse = requests.getBalances(publicKeys)
     assert(balanceResponse.isInstanceOf[Json])
     (balanceResponse \\ "error").isEmpty shouldBe true
     val result: Json = (balanceResponse \\ "result").head
     result.asObject.isDefined shouldBe true
     println (result)
-    (((result \\ "6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ").head \\ "Boxes").head \\ "Asset").
+    (((result \\ pk1.toString).head \\ "Boxes").head \\ "Asset").
       head.toString().contains(newBoxId) shouldBe true
   }
 
@@ -176,13 +139,13 @@ class RequestSpec extends AsyncFlatSpec
     val walletBoxes: MMap[String, MMap[String, Json]] = Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
       .mapTo[MMap[String, MMap[String, Json]]], 10.seconds)
 
-    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(publicKeys.head)
+    val pubKeyEmptyBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk2.toString)
     pubKeyEmptyBoxes match {
       case Some(map) => assert(map.keySet.isEmpty)
-      case None => sys.error(s"no mapping for given public key: ${publicKeys.head}")
+      case None => sys.error(s"no mapping for given public key: ${pk1.toString}}")
     }
 
-   val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get("6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+    val pubKeyWithBoxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
     pubKeyWithBoxes match {
       case Some(map) => {
         val firstBox: Option[Json] = map.get(newBoxId)
@@ -191,9 +154,32 @@ class RequestSpec extends AsyncFlatSpec
           case None => sys.error("no keys in mapping")
         }
       }
-      case None => sys.error("no mapping for given public key: 6sYyiTguyQ455w2dGEaNbrwkAWAEYV1Zk6FtZMknWDKQ")
+      case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
-  }*/
+  }
+
+  it should "receive a successful response from Bifrost upon transfering a poly" in {
+    val transferPolysRequest: ByteString = ByteString(
+      s"""
+         |{
+         |   "jsonrpc": "2.0",
+         |   "id": "1",
+         |   "method": "transferPolysPrototype",
+         |   "params": [{
+         |     "recipient": "${pk3.toString}",
+         |     "sender": ["$genesisPubKey"],
+         |     "amount": $amount,
+         |     "fee": 0,
+         |     "data": ""
+         |   }]
+         |}
+         """.stripMargin)
+    val tx = requests.sendRequest(transferPolysRequest, "wallet")
+    assert(tx.isInstanceOf[Json])
+    (transaction \\ "error").isEmpty shouldBe true
+    (transaction \\ "result").head.asObject.isDefined shouldBe true
+  }
+
 
   it should "connect to bifrost actor when the gjallarhorn app starts" in {
     val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
@@ -322,7 +308,7 @@ class RequestSpec extends AsyncFlatSpec
         val pk1Boxes: Option[MMap[String, Json]] = walletBoxes.get(pk1.toString)
         pk1Boxes match {
           case Some(map) =>
-            assert(map.size == 2)
+            assert(map.size == 3)
             assert(map.contains("GGDsEQdd5cnbgjKkac9HLpp2joGo6bWgmS2KvhJgd8b8"))
             map.get("GgNqzkSywewv10vCrb99UakEw1Myn5mqYXo3N4a6PWVW") match {
               case Some(json) => assert((json \\ "type").head.toString() == "\"Poly\"")
