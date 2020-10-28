@@ -84,7 +84,7 @@ class NodeViewRPCSpec extends AnyWordSpec
   var txHash: String = ""
   var assetTxHash: String = ""
   var assetTxInstance: Transaction = _
-  var blockId: Block.BlockId = ModifierId(Array[Byte]())
+  var blockId: Block.BlockId = _
 
   val requestBody: ByteString = ByteString(
     s"""
