@@ -77,7 +77,7 @@ val miscDependencies = Seq(
   "com.google.guava" % "guava" % "30.0-jre",
   "com.iheart" %% "ficus" % "1.5.0",
   "org.rudogma" %% "supertagged" % "1.5",
-  "com.joefkelley" %% "argyle" % "1.0.0",
+  "com.joefkelley" %% "argyle" % "1.0.0"
 ) ++ akkaDependencies ++ networkDependencies ++ apiDependencies ++ loggingDependencies ++ testingDependencies
 
 
